@@ -1,0 +1,579 @@
+// Copyright 2025 The ML Drift Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include "ml_drift/common/kernels/mean_stddev_normalization_parser.h"
+
+#include <any>
+#include <memory>
+#include <set>
+#include <utility>
+#include <variant>
+#include <vector>
+
+#include "ml_drift/common/data_type.h"
+#include "ml_drift/common/gpu_info.h"
+#include "ml_drift/common/gpu_model_builder.h"
+#include "ml_drift/common/kernels/mean_stddev_normalization.h"
+#include "ml_drift/common/model.h"
+#include "ml_drift/common/operations.h"
+#include "ml_drift/common/shape.h"
+#include "ml_drift/common/status.h"
+#include "ml_drift/common/task/gpu_operation.h"
+#include "ml_drift/common/tensor.h"
+
+namespace ml_drift {
+namespace {
+absl::Status CheckIfValidNodeOfType(const Node* node,
+                                    OperationType required_type) {
+  if (node == nullptr) {
+    return absl::NotFoundError("Invalid node.");
+  }
+  if (OperationTypeFromString(node->operation.type) != required_type) {
+    return absl::NotFoundError("Type mismatch.");
+  }
+  return absl::OkStatus();
+}
+
+absl::Status GetElementwiseScalarValue(const Node* node, float* result) {
+  auto attr = std::any_cast<ElementwiseAttributes>(node->operation.attributes);
+  const float* value = GetIfFloatScalar(&attr.param);
+  if (!value) {
+    return absl::NotFoundError("Not a scalar value inside attributes.");
+  }
+  *result = *value;
+  return absl::OkStatus();
+}
+
+absl::Status GetElementwiseLinearValue(
+    const Node* node, Tensor<Linear, DataType::FLOAT32>* result) {
+  auto attr = std::any_cast<ElementwiseAttributes>(node->operation.attributes);
+  const auto* linear_tensor =
+      std::get_if<Tensor<Linear, DataType::FLOAT32>>(&attr.param);
+  if (!linear_tensor) {
+    return absl::NotFoundError("Not a linear value inside attributes.");
+  }
+  *result = *linear_tensor;
+  return absl::OkStatus();
+}
+
+absl::Status GetNextSingleNode(const GraphFloat32& graph, const Node& node,
+                               OperationType next_type, Node** next_node) {
+  auto consumers = graph.FindConsumers(graph.FindOutputs(node.id)[0]->id);
+  if (consumers.size() != 1) {
+    return absl::NotFoundError("Not a single consumer.");
+  }
+  RETURN_IF_ERROR(CheckIfValidNodeOfType(consumers[0], next_type));
+  *next_node = consumers[0];
+  return absl::OkStatus();
+}
+
+//       input
+//       /    \
+//      |    mean
+//       \    /
+//     subtraction
+//       /    \
+//      |      |
+//      |    square
+//      |      |
+//      |     mean
+//      |      |
+//      |     add
+//      |      |
+//      |    rsqrt
+//      |      |
+//       \    /
+//    multiplication
+//          |
+//        output
+absl::Status TryMeanStdDevNormalizationV0(
+    const GpuInfo& gpu_info, const GraphFloat32& graph, NodeId first_node_id,
+    const std::set<NodeId>& consumed_nodes,
+    std::set<NodeId>* new_consumed_nodes, GpuModelBuilder* model_builder) {
+  Node* first_mean_node = graph.GetNode(first_node_id);
+  RETURN_IF_ERROR(CheckIfValidNodeOfType(first_mean_node, OperationType::MEAN));
+  auto first_mean_attr =
+      std::any_cast<ReduceAttributes>(first_mean_node->operation.attributes);
+  if (first_mean_attr.dims != std::set<Axis>{Axis::CHANNELS}) {
+    return absl::NotFoundError("MeanStdDevNormalization not suitable.");
+  }
+  Node* sub_node;
+  RETURN_IF_ERROR(GetNextSingleNode(graph, *first_mean_node, OperationType::SUB,
+                                    &sub_node));
+  auto sub_inputs = graph.FindInputs(sub_node->id);
+  if (sub_inputs.size() != 2) {
+    return absl::NotFoundError("MeanStdDevNormalization not suitable.");
+  } else {
+    // checking structure
+    //       input
+    //       /    \
+    //      |    mean
+    //       \    /
+    //     subtraction
+    Node* sub_first_parent = graph.FindProducer(sub_inputs[0]->id);
+    Node* sub_second_parent = graph.FindProducer(sub_inputs[1]->id);
+    if (sub_second_parent != first_mean_node) {
+      return absl::NotFoundError("MeanStdDevNormalization not suitable.");
+    }
+    auto mean_inputs = graph.FindInputs(first_mean_node->id);
+    Node* mean_parent = graph.FindProducer(mean_inputs[0]->id);
+    if (mean_parent != sub_first_parent) {
+      return absl::NotFoundError("MeanStdDevNormalization not suitable.");
+    }
+  }
+  auto sub_output = graph.FindOutputs(sub_node->id)[0]->id;
+  auto consumers = graph.FindConsumers(sub_output);
+  if (consumers.size() != 2) {
+    return absl::NotFoundError("MeanStdDevNormalization not suitable.");
+  }
+  Node* square_node = consumers[0];
+  Node* sub_child_mul_node = consumers[1];
+  if (!CheckIfValidNodeOfType(square_node, OperationType::SQUARE).ok()) {
+    square_node = consumers[1];
+    sub_child_mul_node = consumers[0];
+  }
+  RETURN_IF_ERROR(CheckIfValidNodeOfType(square_node, OperationType::SQUARE));
+  RETURN_IF_ERROR(
+      CheckIfValidNodeOfType(sub_child_mul_node, OperationType::MUL));
+  Node* second_mean_node;
+  RETURN_IF_ERROR(GetNextSingleNode(graph, *square_node, OperationType::MEAN,
+                                    &second_mean_node));
+  auto second_mean_attr =
+      std::any_cast<ReduceAttributes>(second_mean_node->operation.attributes);
+  if (second_mean_attr.dims != std::set<Axis>{Axis::CHANNELS}) {
+    return absl::NotFoundError("MeanStdDevNormalization not suitable.");
+  }
+  Node* add_node;
+  RETURN_IF_ERROR(GetNextSingleNode(graph, *second_mean_node,
+                                    OperationType::ADD, &add_node));
+  float add_value;
+  RETURN_IF_ERROR(GetElementwiseScalarValue(add_node, &add_value));
+  Node* rsqrt_node;
+  RETURN_IF_ERROR(
+      GetNextSingleNode(graph, *add_node, OperationType::RSQRT, &rsqrt_node));
+  Node* mul_node;
+  RETURN_IF_ERROR(
+      GetNextSingleNode(graph, *rsqrt_node, OperationType::MUL, &mul_node));
+  if (sub_child_mul_node != mul_node) {
+    return absl::NotFoundError("MeanStdDevNormalization not suitable.");
+  }
+
+  auto input = graph.FindInputs(first_mean_node->id)[0];
+  auto output_id = graph.FindOutputs(mul_node->id)[0]->id;
+  ASSIGN_OR_RETURN(auto src_handle, model_builder->GetTensor(input->id));
+  ASSIGN_OR_RETURN(auto dst_handle, model_builder->GetTensor(output_id));
+
+  OperationDef op_def;
+  op_def.src_tensors.push_back(src_handle.tensor_desc);
+  op_def.dst_tensors.push_back(dst_handle.tensor_desc);
+
+  auto gpu_op =
+      std::make_unique<MeanStdDevNormalization>(CreateMeanStdDevNormalization(
+          op_def, gpu_info, input->tensor.shape, add_value,
+          /*two_step=*/false));
+  model_builder->AddGpuOperation(
+      std::vector<ValueId>({input->id}), std::vector<ValueId>({output_id}),
+      std::move(gpu_op), "mean_stddev_normalization");
+
+  new_consumed_nodes->insert(first_mean_node->id);
+  new_consumed_nodes->insert(sub_node->id);
+  new_consumed_nodes->insert(square_node->id);
+  new_consumed_nodes->insert(second_mean_node->id);
+  new_consumed_nodes->insert(add_node->id);
+  new_consumed_nodes->insert(rsqrt_node->id);
+  new_consumed_nodes->insert(mul_node->id);
+
+  return absl::OkStatus();
+}
+
+//        input_tensor
+//       /     |      \
+//   square0  mean0    |
+//     |      /   \   /
+//   mean1 square1 sub0
+//      \   /       |
+//       sub1       |
+//        |         |
+//       add        |
+//        |         |
+//      rsqrt       |
+//        |         |
+//     mul_ones     |
+//        \        /
+//      multiplication
+//            |
+//          output
+absl::Status TryMeanStdDevNormalizationV1(
+    const GpuInfo& gpu_info, const GraphFloat32& graph, NodeId first_node_id,
+    const std::set<NodeId>& consumed_nodes,
+    std::set<NodeId>* new_consumed_nodes, GpuModelBuilder* model_builder) {
+  Node* first_node = graph.GetNode(first_node_id);
+  auto first_op_type = OperationTypeFromString(first_node->operation.type);
+  if (first_op_type != OperationType::MEAN &&
+      first_op_type != OperationType::SQUARE) {
+    return absl::NotFoundError("MeanStdDevNormalization not suitable.");
+  }
+
+  Node* mean0_node = nullptr;
+  Node* sub0_node = nullptr;
+  Node* square0_node = nullptr;
+  {
+    // checking this structure
+    //        input_tensor
+    //       /     |      \
+    //   square0  mean0    |
+    //                     |
+    //                    sub0
+    auto first_node_inputs = graph.FindInputs(first_node->id);
+    if (first_node_inputs.size() != 1) {
+      return absl::NotFoundError("MeanStdDevNormalization not suitable.");
+    }
+    auto consumers = graph.FindConsumers(first_node_inputs[0]->id);
+    for (auto node : consumers) {
+      auto op_type = OperationTypeFromString(node->operation.type);
+      if (op_type == OperationType::MEAN) {
+        mean0_node = node;
+      } else if (op_type == OperationType::SQUARE) {
+        square0_node = node;
+      } else if (op_type == OperationType::SUB) {
+        sub0_node = node;
+      }
+    }
+    if (!square0_node || !sub0_node || !mean0_node) {
+      return absl::NotFoundError("MeanStdDevNormalization not suitable.");
+    }
+  }
+
+  if (consumed_nodes.find(square0_node->id) != consumed_nodes.end()) {
+    return absl::NotFoundError("MeanStdDevNormalization not suitable.");
+  }
+  if (consumed_nodes.find(mean0_node->id) != consumed_nodes.end()) {
+    return absl::NotFoundError("MeanStdDevNormalization not suitable.");
+  }
+
+  auto mean0_attr =
+      std::any_cast<ReduceAttributes>(mean0_node->operation.attributes);
+  if (mean0_attr.dims != std::set<Axis>{Axis::CHANNELS}) {
+    return absl::NotFoundError("MeanStdDevNormalization not suitable.");
+  }
+
+  Node* square1_node = nullptr;
+  {
+    // checking this structure
+    //            mean0
+    //            /   \
+    //         square1 sub0
+    auto mean0_output = graph.FindOutputs(mean0_node->id)[0]->id;
+    auto consumers = graph.FindConsumers(mean0_output);
+    if (consumers.size() != 2) {
+      return absl::NotFoundError("MeanStdDevNormalization not suitable.");
+    }
+
+    Node* sub0_copy_node = nullptr;
+    auto op0_type = OperationTypeFromString(consumers[0]->operation.type);
+    auto op1_type = OperationTypeFromString(consumers[1]->operation.type);
+    if (op0_type == OperationType::SQUARE) {
+      square1_node = consumers[0];
+    } else if (op0_type == OperationType::SUB) {
+      sub0_copy_node = consumers[0];
+    }
+
+    if (op1_type == OperationType::SQUARE) {
+      square1_node = consumers[1];
+    } else if (op1_type == OperationType::SUB) {
+      sub0_copy_node = consumers[1];
+    }
+
+    if (!square1_node || !sub0_copy_node || sub0_copy_node != sub0_node) {
+      return absl::NotFoundError("MeanStdDevNormalization not suitable.");
+    }
+  }
+
+  Node* mean1_node;
+  RETURN_IF_ERROR(GetNextSingleNode(graph, *square0_node, OperationType::MEAN,
+                                    &mean1_node));
+
+  Node* sub1_node;
+  RETURN_IF_ERROR(
+      GetNextSingleNode(graph, *mean1_node, OperationType::SUB, &sub1_node));
+
+  {
+    // checking this structure
+    //   mean1 square1
+    //      \   /
+    //       sub1
+    Node* sub1_copy_node;
+    RETURN_IF_ERROR(GetNextSingleNode(graph, *square1_node, OperationType::SUB,
+                                      &sub1_copy_node));
+    if (sub1_copy_node != sub1_node) {
+      return absl::NotFoundError("MeanStdDevNormalization not suitable.");
+    }
+  }
+
+  Node* multiplication_node;
+  RETURN_IF_ERROR(GetNextSingleNode(graph, *sub0_node, OperationType::MUL,
+                                    &multiplication_node));
+
+  Node* add_node;
+  RETURN_IF_ERROR(
+      GetNextSingleNode(graph, *sub1_node, OperationType::ADD, &add_node));
+  float add_value;
+  RETURN_IF_ERROR(GetElementwiseScalarValue(add_node, &add_value));
+
+  Node* rsqrt_node;
+  RETURN_IF_ERROR(
+      GetNextSingleNode(graph, *add_node, OperationType::RSQRT, &rsqrt_node));
+
+  Node* mul_ones_node;
+  RETURN_IF_ERROR(GetNextSingleNode(graph, *rsqrt_node, OperationType::MUL,
+                                    &mul_ones_node));
+  Tensor<Linear, DataType::FLOAT32> mul_linear_value;
+  RETURN_IF_ERROR(GetElementwiseLinearValue(mul_ones_node, &mul_linear_value));
+  for (int i = 0; i < mul_linear_value.data.size(); ++i) {
+    if (mul_linear_value.data[i] != 1.0f) {
+      return absl::NotFoundError("MeanStdDevNormalization not suitable.");
+    }
+  }
+
+  {
+    // checking this structure
+    //   mul_ones sub0
+    //      \      /
+    //    multiplication
+    Node* multiplication_copy_node;
+    RETURN_IF_ERROR(GetNextSingleNode(graph, *mul_ones_node, OperationType::MUL,
+                                      &multiplication_copy_node));
+    if (multiplication_copy_node != multiplication_node) {
+      return absl::NotFoundError("MeanStdDevNormalization not suitable.");
+    }
+  }
+
+  auto input = graph.FindInputs(mean0_node->id)[0];
+  auto output_id = graph.FindOutputs(multiplication_node->id)[0]->id;
+  ASSIGN_OR_RETURN(auto src_handle, model_builder->GetTensor(input->id));
+  ASSIGN_OR_RETURN(auto dst_handle, model_builder->GetTensor(output_id));
+
+  OperationDef op_def;
+  op_def.src_tensors.push_back(src_handle.tensor_desc);
+  op_def.dst_tensors.push_back(dst_handle.tensor_desc);
+
+  auto gpu_op =
+      std::make_unique<MeanStdDevNormalization>(CreateMeanStdDevNormalization(
+          op_def, gpu_info, input->tensor.shape, add_value,
+          /*two_step=*/false));
+  model_builder->AddGpuOperation(
+      std::vector<ValueId>({input->id}), std::vector<ValueId>({output_id}),
+      std::move(gpu_op), "mean_stddev_normalization");
+
+  new_consumed_nodes->insert(mean0_node->id);
+  new_consumed_nodes->insert(mean1_node->id);
+  new_consumed_nodes->insert(square0_node->id);
+  new_consumed_nodes->insert(square1_node->id);
+  new_consumed_nodes->insert(sub0_node->id);
+  new_consumed_nodes->insert(sub1_node->id);
+  new_consumed_nodes->insert(add_node->id);
+  new_consumed_nodes->insert(rsqrt_node->id);
+  new_consumed_nodes->insert(mul_ones_node->id);
+  new_consumed_nodes->insert(multiplication_node->id);
+
+  return absl::OkStatus();
+}
+}  // namespace
+
+absl::Status TryMeanStdDevNormalization(const GpuInfo& gpu_info,
+                                        const GraphFloat32& graph,
+                                        NodeId first_node_id,
+                                        const std::set<NodeId>& consumed_nodes,
+                                        std::set<NodeId>* new_consumed_nodes,
+                                        GpuModelBuilder* model_builder) {
+  auto status = TryMeanStdDevNormalizationV0(gpu_info, graph, first_node_id,
+                                             consumed_nodes, new_consumed_nodes,
+                                             model_builder);
+  if (status.ok()) {
+    return status;
+  }
+  return TryMeanStdDevNormalizationV1(gpu_info, graph, first_node_id,
+                                      consumed_nodes, new_consumed_nodes,
+                                      model_builder);
+}
+
+// LayerNormalization fusion works with this subgraph
+//    input_tensor
+//      /  /   \
+//     /  |    mean0
+//    /    \   /   \
+//   |    sq_diff   |
+//   |       |      |
+//   |     mean1    |
+//   |       |      |
+//   |     add0     |
+//   |       |      |
+//   |     rsqrt    |
+//   |       |      |
+//    \    mul0    /
+//     \   /   \  /
+//      mul1    mul2
+//       |       |
+//        \     sub
+//         \   /
+//          add1
+//           |
+//     output_tensor
+absl::Status TryLayerNormalization(const GpuInfo& gpu_info,
+                                   const GraphFloat32& graph,
+                                   NodeId first_node_id,
+                                   const std::set<NodeId>& consumed_nodes,
+                                   std::set<NodeId>* new_consumed_nodes,
+                                   GpuModelBuilder* model_builder) {
+  Node* mean0_node = graph.GetNode(first_node_id);
+  RETURN_IF_ERROR(CheckIfValidNodeOfType(mean0_node, OperationType::MEAN));
+  auto mean0_attr =
+      std::any_cast<ReduceAttributes>(mean0_node->operation.attributes);
+  if (mean0_attr.dims != std::set<Axis>{Axis::CHANNELS}) {
+    return absl::NotFoundError("LayerNormalization not suitable.");
+  }
+  auto mean0_output = graph.FindOutputs(mean0_node->id)[0]->id;
+  auto consumers = graph.FindConsumers(mean0_output);
+  if (consumers.size() != 2) {
+    return absl::NotFoundError("LayerNormalization not suitable.");
+  }
+  Node* sq_diff_node = consumers[0];
+  Node* mul2_node = consumers[1];
+  if (!CheckIfValidNodeOfType(sq_diff_node, OperationType::SQUARED_DIFF).ok()) {
+    std::swap(sq_diff_node, mul2_node);
+  }
+  RETURN_IF_ERROR(
+      CheckIfValidNodeOfType(sq_diff_node, OperationType::SQUARED_DIFF));
+  RETURN_IF_ERROR(CheckIfValidNodeOfType(mul2_node, OperationType::MUL));
+
+  auto sq_diff_inputs = graph.FindInputs(sq_diff_node->id);
+  if (sq_diff_inputs.size() != 2) {
+    return absl::NotFoundError("LayerNormalization not suitable.");
+  } else {
+    // checking structure
+    //       input
+    //       /    \
+    //      |    mean0
+    //       \    /
+    //       sq_diff
+    Node* sq_diff_first_parent = graph.FindProducer(sq_diff_inputs[0]->id);
+    Node* sq_diff_second_parent = graph.FindProducer(sq_diff_inputs[1]->id);
+    if (sq_diff_second_parent != mean0_node) {
+      return absl::NotFoundError("LayerNormalization not suitable.");
+    }
+    auto mean0_inputs = graph.FindInputs(mean0_node->id);
+    Node* mean0_parent = graph.FindProducer(mean0_inputs[0]->id);
+    if (mean0_parent != sq_diff_first_parent) {
+      return absl::NotFoundError("LayerNormalization not suitable.");
+    }
+  }
+  Node* mean1_node;
+  RETURN_IF_ERROR(GetNextSingleNode(graph, *sq_diff_node, OperationType::MEAN,
+                                    &mean1_node));
+  auto mean1_attr =
+      std::any_cast<ReduceAttributes>(mean1_node->operation.attributes);
+  if (mean1_attr.dims != std::set<Axis>{Axis::CHANNELS}) {
+    return absl::NotFoundError("LayerNormalization not suitable.");
+  }
+  Node* add0_node;
+  RETURN_IF_ERROR(
+      GetNextSingleNode(graph, *mean1_node, OperationType::ADD, &add0_node));
+  float add_value;
+  RETURN_IF_ERROR(GetElementwiseScalarValue(add0_node, &add_value));
+  Node* rsqrt_node;
+  RETURN_IF_ERROR(
+      GetNextSingleNode(graph, *add0_node, OperationType::RSQRT, &rsqrt_node));
+  Node* mul0_node;
+  RETURN_IF_ERROR(
+      GetNextSingleNode(graph, *rsqrt_node, OperationType::MUL, &mul0_node));
+  Tensor<Linear, DataType::FLOAT32> mul_linear_value;
+  RETURN_IF_ERROR(GetElementwiseLinearValue(mul0_node, &mul_linear_value));
+  auto mul0_output = graph.FindOutputs(mul0_node->id)[0]->id;
+  consumers = graph.FindConsumers(mul0_output);
+  if (consumers.size() != 2) {
+    return absl::NotFoundError("LayerNormalization not suitable.");
+  }
+  if (!(consumers[0] == mul2_node || consumers[1] == mul2_node)) {
+    return absl::NotFoundError("LayerNormalization not suitable.");
+  }
+  Node* mul1_node = consumers[0] == mul2_node ? consumers[1] : consumers[0];
+  if (!CheckIfValidNodeOfType(sq_diff_node, OperationType::SQUARED_DIFF).ok()) {
+    std::swap(sq_diff_node, mul2_node);
+  }
+  auto mul1_inputs = graph.FindInputs(mul1_node->id);
+  if (mul1_inputs.size() != 2) {
+    return absl::NotFoundError("LayerNormalization not suitable.");
+  } else {
+    Node* mul1_first_parent = graph.FindProducer(mul1_inputs[0]->id);
+    Node* mul1_second_parent = graph.FindProducer(mul1_inputs[1]->id);
+    auto mean0_inputs = graph.FindInputs(mean0_node->id);
+    Node* mean0_parent = graph.FindProducer(mean0_inputs[0]->id);
+    if (!(mul1_first_parent == mean0_parent ||
+          mul1_second_parent == mean0_parent)) {
+      return absl::NotFoundError("LayerNormalization not suitable.");
+    }
+    if (!(mul1_first_parent == mul0_node || mul1_second_parent == mul0_node)) {
+      return absl::NotFoundError("LayerNormalization not suitable.");
+    }
+  }
+  Node* sub_node;
+  RETURN_IF_ERROR(
+      GetNextSingleNode(graph, *mul2_node, OperationType::SUB, &sub_node));
+  Tensor<Linear, DataType::FLOAT32> sub_linear_value;
+  RETURN_IF_ERROR(GetElementwiseLinearValue(sub_node, &sub_linear_value));
+
+  Node* add1_node;
+  RETURN_IF_ERROR(
+      GetNextSingleNode(graph, *sub_node, OperationType::ADD, &add1_node));
+  {
+    Node* add1_copy_node;
+    RETURN_IF_ERROR(GetNextSingleNode(graph, *mul1_node, OperationType::ADD,
+                                      &add1_copy_node));
+    if (add1_copy_node != add1_node) {
+      return absl::NotFoundError("LayerNormalization not suitable.");
+    }
+  }
+
+  auto input = graph.FindInputs(mean0_node->id)[0];
+  auto output_id = graph.FindOutputs(add1_node->id)[0]->id;
+  ASSIGN_OR_RETURN(auto src_handle, model_builder->GetTensor(input->id));
+  ASSIGN_OR_RETURN(auto dst_handle, model_builder->GetTensor(output_id));
+
+  OperationDef op_def;
+  op_def.src_tensors.push_back(src_handle.tensor_desc);
+  op_def.dst_tensors.push_back(dst_handle.tensor_desc);
+
+  auto gpu_op =
+      std::make_unique<MeanStdDevNormalization>(CreateMeanStdDevNormalization(
+          op_def, gpu_info, input->tensor.shape, add_value, mul_linear_value,
+          sub_linear_value,
+          /*two_step=*/false));
+  model_builder->AddGpuOperation(std::vector<ValueId>({input->id}),
+                                 std::vector<ValueId>({output_id}),
+                                 std::move(gpu_op), "layer_normalization");
+
+  new_consumed_nodes->insert(mean0_node->id);
+  new_consumed_nodes->insert(sq_diff_node->id);
+  new_consumed_nodes->insert(mean1_node->id);
+  new_consumed_nodes->insert(add0_node->id);
+  new_consumed_nodes->insert(rsqrt_node->id);
+  new_consumed_nodes->insert(mul0_node->id);
+  new_consumed_nodes->insert(mul1_node->id);
+  new_consumed_nodes->insert(mul2_node->id);
+  new_consumed_nodes->insert(sub_node->id);
+  new_consumed_nodes->insert(add1_node->id);
+
+  return absl::OkStatus();
+}
+}  // namespace ml_drift

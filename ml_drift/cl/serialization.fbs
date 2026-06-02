@@ -1,0 +1,21 @@
+include "common/gpu_model.fbs";
+include "common/task/serialization_base.fbs";
+
+namespace ml_drift.cl.data;
+
+table BinaryProgram {
+  fingerprint:uint64;
+  binary:[ubyte];
+}
+
+table InferenceContext {
+  gpu_model:ml_drift.data.GpuModel;
+  driver_version:string;
+  binary_programs:[BinaryProgram];
+  // Must be serialized after actual OpenCL objects created
+  // Separated from nodes in GpuModel
+  tuned_work_group_sizes_per_node:[ml_drift.data.Int3];
+  fingerprints_per_node:[uint64];
+}
+
+root_type InferenceContext;

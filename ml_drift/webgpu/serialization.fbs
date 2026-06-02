@@ -1,0 +1,19 @@
+include "common/gpu_model.fbs";
+include "common/task/serialization_base.fbs";
+
+namespace ml_drift.webgpu.data;
+
+table WebGpuProgram {
+  code:string;
+  fingerprint:uint64;
+}
+
+table InferenceContext {
+  gpu_model:ml_drift.data.GpuModel;
+  tuned_work_group_sizes_per_node:[ml_drift.data.Int3];
+  webgpu_programs:[WebGpuProgram];
+  fingerprints_per_node:[uint64];
+  platform_description:string;
+}
+
+root_type InferenceContext;

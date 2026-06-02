@@ -1,0 +1,32 @@
+# Basic build settings
+build --jobs 128
+build --define='absl=1'  # for gtest
+build --enable_platform_specific_config
+build --cxxopt=-std=c++17
+
+# Avoid XNNPACK using `-mavxvnniint8` (needs clang-16+/gcc-13+)
+build --define=xnn_enable_avxvnniint8=false
+# Avoid XNNPACK using `-mavx512fp16` (needs clang-14+/gcc-12+).
+build --define=xnn_enable_avx512fp16=false
+
+# Enable stack traces
+test --test_env="GTEST_INSTALL_FAILURE_SIGNAL_HANDLER=1"
+
+# Android configs.
+build:android --crosstool_top=@androidndk//:toolchain
+build:android --host_crosstool_top=@bazel_tools//tools/cpp:toolchain
+build:android --linkopt=-ldl
+build:android --linkopt=-lm
+build:android --linkopt=-Wl,--gc-sections
+
+build:android_arm64 --config=android
+build:android_arm64 --cpu=arm64-v8a
+
+# This bazelrc file is meant to be written by a setup script.
+try-import %workspace%/.configure.bazelrc
+
+# This bazelrc file can be used for user-specific custom build settings.
+try-import %workspace%/.user.bazelrc
+
+# Enable Bzlmod for every Bazel command
+common --enable_bzlmod

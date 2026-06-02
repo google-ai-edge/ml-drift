@@ -1,0 +1,192 @@
+module(
+    name = "ml_drift",
+    bazel_compatibility = [">=8.4.0"],
+)
+
+bazel_dep(name = "rules_python", version = "0.40.0")
+
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(
+    ignore_root_user_error = True,
+    is_default = True,
+    python_version = "3.11",
+)
+use_repo(python, python = "python_3_11")
+
+bazel_dep(name = "abseil-cpp", version = "20250814.1", repo_name = "com_google_absl")
+
+# To calculate integrity:
+# wget -O temp_module_archive.tar.gz <archive URL>
+# HASH=$(openssl dgst -sha256 -binary temp_module_archive.tar.gz | openssl base64 -A)
+# echo "sha256-${HASH}"
+archive_override(
+    module_name = "abseil-cpp",
+    integrity = "sha256-FpL3fRc5us8/lDNxiLeFg88JurfkINLcbFYFpPhnhaE=",
+    patch_strip = 1,
+    patches = [
+        "//third_party:absl_cctz_patch.diff",
+    ],
+    strip_prefix = "abseil-cpp-20250814.1",
+    urls = ["https://github.com/abseil/abseil-cpp/archive/refs/tags/20250814.1.tar.gz"],
+)
+
+bazel_dep(name = "googletest", version = "1.17.0", repo_name = "com_google_googletest")
+bazel_dep(name = "rules_android_ndk", version = "0.1.2")
+
+if_android_ndk_home_extension = use_extension(
+    "//third_party:android_ndk.bzl",
+    "if_android_ndk_home_extension",
+)
+if_android_ndk_home_extension.configure(api_level = 21)
+use_repo(if_android_ndk_home_extension, "androidndk")
+
+bazel_dep(
+    name = "rules_android",
+    version = "0.6.0",
+)
+
+android_sdk_repository_extension = use_extension(
+    "@rules_android//rules/android_sdk_repository:rule.bzl",
+    "android_sdk_repository_extension",
+)
+use_repo(android_sdk_repository_extension, "androidsdk")
+
+bazel_dep(
+    name = "rules_cc",
+    version = "0.2.0",
+)
+bazel_dep(
+    name = "rules_java",
+    version = "8.14.0",
+)
+bazel_dep(
+    name = "fp16",
+    version = "0.0.0-20210320-0a92994",
+)
+bazel_dep(
+    name = "bazel_skylib",
+    version = "1.8.1",
+)
+bazel_dep(
+    name = "platforms",
+    version = "1.0.0",
+)
+bazel_dep(
+    name = "cpuinfo",
+    version = "0.0.0-20250925-877328f",
+)
+bazel_dep(
+    name = "fxdiv",
+    version = "0.0.0-20201209-63058ef",
+    repo_name = "FXdiv",
+)
+bazel_dep(
+    name = "re2",
+    version = "2024-07-02.bcr.1",
+    repo_name = "com_github_google_re2",
+)
+
+http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+http_archive(
+    name = "com_github_google_benchmark",
+    sha256 = "6bc180a57d23d4d9515519f92b0c83d61b05b5bab188961f36ac7b06b0d9e9ce",
+    strip_prefix = "benchmark-1.8.3",
+    urls = ["https://github.com/google/benchmark/archive/refs/tags/v1.8.3.tar.gz"],
+)
+
+http_archive(
+    name = "pthreadpool",
+    sha256 = "f602ab141bdc5d5872a79d6551e9063b5bfa7ad6ad60cceaa641de5c45c86d70",
+    strip_prefix = "pthreadpool-0e6ca13779b57d397a5ba6bfdcaa8a275bc8ea2e",
+    urls = ["https://github.com/google/pthreadpool/archive/0e6ca13779b57d397a5ba6bfdcaa8a275bc8ea2e.zip"],
+)
+
+# ruy 2025-11-24
+http_archive(
+    name = "ruy",
+    build_file = "//third_party/ruy:ruy.BUILD",
+    patch_cmds = ["find . -name BUILD -delete"],
+    sha256 = "4a2b7845483526f75e9362267b5a8434f4d8d5083ebbef70c250dc093495e2e2",
+    strip_prefix = "ruy-1e6e50872655a73b5250f954d7b9da9a87292fd3",
+    urls = ["https://github.com/google/ruy/archive/1e6e50872655a73b5250f954d7b9da9a87292fd3.tar.gz"],
+)
+
+# KleidiAI from 2025-10-20
+http_archive(
+    name = "KleidiAI",
+    sha256 = "6d18658bbbeeac2003a68186d94d5309fab911d659e9fbacdf94a866c5136292",
+    strip_prefix = "kleidiai-c01f0846e13517c93f2adb95e52aad38126b42d1",
+    url = "https://github.com/ARM-software/kleidiai/archive/c01f0846e13517c93f2adb95e52aad38126b42d1.zip",
+)
+
+# XNNPACK 2025-12-03
+http_archive(
+    name = "XNNPACK",
+    sha256 = "ecef9210de067ed5ca0fa420d482110faefae7365450e87175cb0097431429d7",
+    strip_prefix = "XNNPACK-7884caf6c38333ce058527499a68c8e71f044bc9",
+    url = "https://github.com/google/XNNPACK/archive/7884caf6c38333ce058527499a68c8e71f044bc9.zip",
+)
+
+http_archive(
+    name = "opencl_headers",
+    build_file = "//third_party/opencl_headers:opencl_headers.BUILD",
+    sha256 = "ca8090359654e94f2c41e946b7e9d826253d795ae809ce7c83a7d3c859624693",
+    strip_prefix = "OpenCL-Headers-dcd5bede6859d26833cd85f0d6bbcee7382dc9b3",
+    urls = ["https://github.com/KhronosGroup/OpenCL-Headers/archive/dcd5bede6859d26833cd85f0d6bbcee7382dc9b3.tar.gz"],
+)
+
+FARMHASH_COMMIT = "0d859a811870d10f53a594927d0d0b97573ad06d"
+
+FARMHASH_SHA256 = "18392cf0736e1d62ecbb8d695c31496b6507859e8c75541d7ad0ba092dc52115"
+
+http_archive(
+    name = "farmhash_archive",
+    build_file = "//third_party/farmhash:farmhash.BUILD",
+    sha256 = FARMHASH_SHA256,
+    strip_prefix = "farmhash-{commit}".format(commit = FARMHASH_COMMIT),
+    urls = ["https://github.com/google/farmhash/archive/{commit}.tar.gz".format(commit = FARMHASH_COMMIT)],
+)
+
+http_archive(
+    name = "build_bazel_rules_android",
+    sha256 = "cd06d15dd8bb59926e4d65f9003bfc20f9da4b2519985c27e190cddc8b7a7806",
+    strip_prefix = "rules_android-0.1.1",
+    urls = ["https://github.com/bazelbuild/rules_android/archive/v0.1.1.zip"],
+)
+
+http_archive(
+    name = "gemmlowp",
+    sha256 = "7dc418717c8456473fac4ff2288b71057e3dcb72894524c734a4362cdb51fa8b",
+    strip_prefix = "gemmlowp-16e8662c34917be0065110bfcd9cc27d30f52fdf",
+    url = "https://github.com/google/gemmlowp/archive/16e8662c34917be0065110bfcd9cc27d30f52fdf.zip",
+)
+
+bazel_dep(name = "eigen", version = "5.0.0")
+
+flatbuffers = use_extension("//third_party/flatbuffers:workspace.bzl", "flatbuffers")
+flatbuffers.build(
+    build_file = "//third_party/flatbuffers:BUILD.bazel",
+    delete = [
+        "BUILD.bazel",
+        "build_defs.bzl",
+    ],
+    link_files = {"//third_party/flatbuffers:build_defs.bzl": "build_defs.bzl"},
+    sha256 = "9102253214dea6ae10c2ac966ea1ed2155d22202390b532d1dea64935c518ada",
+    strip_prefix = "flatbuffers-25.9.23",
+    urls = [
+        "https://github.com/google/flatbuffers/archive/v25.9.23.tar.gz",
+    ],
+)
+use_repo(flatbuffers, "flatbuffers")
+
+# tflite = use_extension("//third_party:tflite.bzl", "tflite")
+
+# # tflite 2026-01-14
+# tflite.build(
+#     sha256 = "2ced70d30f373105aeaaae9d1f10540069cc133889a51885457df81d8bee83ec",
+#     strip_prefix = "tensorflow-f0567a92e3447e02da22919734161e3eacc1e7f2",
+#     url = "https://github.com/tensorflow/tensorflow/archive/f0567a92e3447e02da22919734161e3eacc1e7f2.tar.gz",
+# )
+# use_repo(tflite, "tflite")
+# use_repo(tflite, "tflite-android")
