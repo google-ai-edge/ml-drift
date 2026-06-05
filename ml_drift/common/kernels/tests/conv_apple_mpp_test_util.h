@@ -1,4 +1,4 @@
-// Copyright 2025 The ML Drift Authors.
+// Copyright 2026 The ML Drift Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,9 +32,10 @@ absl::Status ConvAppleMPPExternalWeightsTest(TestExecutionEnvironment& env,
                                              const BHWC& src_shape,
                                              int dst_channels);
 
-absl::Status ConvAppleMPPExternalWi4BatchedWeightsTest(
-    TestExecutionEnvironment& env, TensorStorageType storage,
-    const BHWC& src_shape, int dst_channels);
+absl::Status ConvAppleMPPExternalBatchedWi4Test(TestExecutionEnvironment& env,
+                                                TensorStorageType storage,
+                                                const BHWC& src_shape,
+                                                int dst_channels);
 
 absl::Status ConvAppleMPPBatchedMatMulTest(TestExecutionEnvironment& env,
                                            TensorStorageType dst_storage,
@@ -51,6 +52,10 @@ absl::Status ConvAppleMPPInt8BigTest(TestExecutionEnvironment& env,
                                      const BHWC& src_shape, int dst_channels);
 
 absl::Status ConvAppleMPPInt8ExternalWeightsBigTest(
+    TestExecutionEnvironment& env, TensorStorageType dst_storage,
+    const BHWC& src_shape, int dst_channels);
+
+absl::Status ConvAppleMPPInt8ExternalBatchedWi4Test(
     TestExecutionEnvironment& env, TensorStorageType dst_storage,
     const BHWC& src_shape, int dst_channels);
 

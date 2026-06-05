@@ -1,4 +1,4 @@
-// Copyright 2024 The ML Drift Authors.
+// Copyright 2026 The ML Drift Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -183,6 +183,36 @@ void UpdateOffsetAndStrideForInt8(const GpuInfo& gpu_info, std::string& offset,
       stride = "(" + stride + ") / 4";
     }
   }
+}
+
+void AddLinearizeWGReplacements(
+    absl::flat_hash_map<std::string, std::string>& replacements,
+    const int3& work_group_size) {
+  replacements["ucl::GetLocalId<0>()"] = "local_wg_x";
+  replacements["ucl::GetLocalId<1>()"] = "local_wg_y";
+  replacements["ucl::GetLocalId<2>()"] = "local_wg_z";
+  replacements["ucl::GetGroupSize<0>()"] = std::to_string(work_group_size.x);
+  replacements["ucl::GetGroupSize<1>()"] = std::to_string(work_group_size.y);
+  replacements["ucl::GetGroupSize<2>()"] = std::to_string(work_group_size.z);
+  replacements["ucl::GetGlobalId<0>()"] = "ucl::GetGroupId<0>() * " +
+                                          std::to_string(work_group_size.x) +
+                                          " + local_wg_x";
+  replacements["ucl::GetGlobalId<1>()"] = "ucl::GetGroupId<1>() * " +
+                                          std::to_string(work_group_size.y) +
+                                          " + local_wg_y";
+  replacements["ucl::GetGlobalId<2>()"] = "ucl::GetGroupId<2>() * " +
+                                          std::to_string(work_group_size.z) +
+                                          " + local_wg_z";
+  std::string patch = "  int linear_wg_id = ucl::GetLocalId<0>();\n";
+  patch += "  int local_wg_x = linear_wg_id % " +
+           std::to_string(work_group_size.x) + ";\n";
+  patch += "  linear_wg_id = linear_wg_id / " +
+           std::to_string(work_group_size.x) + ";\n";
+  patch += "  int local_wg_y = linear_wg_id % " +
+           std::to_string(work_group_size.y) + ";\n";
+  patch += "  int local_wg_z = linear_wg_id / " +
+           std::to_string(work_group_size.y) + ";\n";
+  replacements["LINEAR_WG_ID"] = patch;
 }
 
 std::string GenerateConvolution(
@@ -430,6 +460,10 @@ std::string GenerateConvolution(
     c += "  int w_sg_offset, stride;\n";
     c += "  int o1, o2, i1, i2;\n";
     c += "  Type weights_scale, weights_bias;\n";
+    if (conv_params.scale_zp_shape.i != 1) {
+      // grouped quantization
+      c += "  int last_src_group_id = -1;\n";
+    }
     if (i4o4_blocks < kernel_params.wave_size) {
       c += "  if (spatial_id < " + std::to_string(i4o4_blocks) + ") {\n";
     }
@@ -441,11 +475,19 @@ std::string GenerateConvolution(
          "args.dst_tensor.Slices() + w_o_slice;\n";
     c += "  stride = args.dst_tensor.Slices() * " +
          std::to_string(src_x4_slices) + ";\n";
-    c += R"(
-  weights_scale = args.weights_scale.Read(w_o_slice, DST_Y, 0);
-  Type weights_zero_point = args.weights_zero_point.Read(w_o_slice, DST_Y, 0);
-  weights_bias = -weights_scale * 8.0h + weights_zero_point;
-)";
+    if (conv_params.scale_zp_shape.i == 1) {
+      // linear quantization
+      const std::string coords = conv_params.scale_zp_shape.h != 1
+                                     ? "w_o_slice, DST_Y, 0"
+                                     : "w_o_slice";
+      c += "  weights_scale = args.weights_scale.Read(" + coords + ");\n";
+      if (conv_params.has_zero_point) {
+        c += "  Type wzp = args.weights_zero_point.Read(" + coords + ");\n";
+      } else {
+        c += "  Type wzp = ucl::Init<Type>(0.0f);\n";
+      }
+      c += "  weights_bias = -weights_scale * 8.0h + wzp;\n";
+    }
     c += "  o1 = sub_o % " + std::to_string(wm_n_slices) + ";\n";
     c += "  o2 = sub_o / " + std::to_string(wm_n_slices) + ";\n";
     c += "  i1 = sub_i % " + std::to_string(wm_k_slices) + ";\n";
@@ -474,6 +516,27 @@ std::string GenerateConvolution(
     const int i4o4_blocks = src_x4_slices * dst_x4_slices;
     if (i4o4_blocks < kernel_params.wave_size) {
       c += "  if (spatial_id < " + std::to_string(i4o4_blocks) + ") {\n";
+    }
+    if (conv_params.scale_zp_shape.i != 1) {
+      // grouped quantization
+      std::string src_id = "s";
+      if (conv_params.src_group_slices % src_x4_slices != 0) {
+        src_id = "(s + sub_i)";
+      }
+      c += "    int src_group_id = " + src_id + " / " +
+           std::to_string(conv_params.src_group_slices) + +";\n";
+      c += "    if (last_src_group_id != src_group_id) {\n";
+      c += "      last_src_group_id = src_group_id;\n";
+      std::string w_batch = conv_params.scale_zp_shape.h != 1 ? "DST_Y" : "0";
+      std::string coords = "w_o_slice, " + w_batch + ", src_group_id";
+      c += "      weights_scale = args.weights_scale.Read(" + coords + ");\n";
+      if (conv_params.has_zero_point) {
+        c += "      Type wzp = args.weights_zero_point.Read(" + coords + ");\n";
+      } else {
+        c += "      Type wzp = ucl::Init<Type>(0.0f);\n";
+      }
+      c += "      weights_bias = -weights_scale * 8.0h + wzp;\n";
+      c += "    }\n";
     }
     c += R"(
     uint2 u4_i4o4 = args.weights.Read(w_sg_offset);
@@ -685,34 +748,7 @@ std::string GenerateConvolution(
       {"Type", ToUclDataType(type, 4)},
       {"SType", ToUclDataType(type, 1)}};
   if (kernel_params.linearized_wg) {
-    replacements["ucl::GetLocalId<0>()"] = "local_wg_x";
-    replacements["ucl::GetLocalId<1>()"] = "local_wg_y";
-    replacements["ucl::GetLocalId<2>()"] = "local_wg_z";
-    replacements["ucl::GetGroupSize<0>()"] =
-        std::to_string(kernel_params.work_group_size.x);
-    replacements["ucl::GetGroupSize<1>()"] =
-        std::to_string(kernel_params.work_group_size.y);
-    replacements["ucl::GetGroupSize<2>()"] =
-        std::to_string(kernel_params.work_group_size.z);
-    replacements["ucl::GetGlobalId<0>()"] =
-        "ucl::GetGroupId<0>() * " +
-        std::to_string(kernel_params.work_group_size.x) + " + local_wg_x";
-    replacements["ucl::GetGlobalId<1>()"] =
-        "ucl::GetGroupId<1>() * " +
-        std::to_string(kernel_params.work_group_size.y) + " + local_wg_y";
-    replacements["ucl::GetGlobalId<2>()"] =
-        "ucl::GetGroupId<2>() * " +
-        std::to_string(kernel_params.work_group_size.z) + " + local_wg_z";
-    std::string patch = "  int linear_wg_id = ucl::GetLocalId<0>();\n";
-    patch += "  int local_wg_x = linear_wg_id % " +
-             std::to_string(kernel_params.work_group_size.x) + ";\n";
-    patch += "  linear_wg_id = linear_wg_id / " +
-             std::to_string(kernel_params.work_group_size.x) + ";\n";
-    patch += "  int local_wg_y = linear_wg_id % " +
-             std::to_string(kernel_params.work_group_size.y) + ";\n";
-    patch += "  int local_wg_z = linear_wg_id / " +
-             std::to_string(kernel_params.work_group_size.y) + ";\n";
-    replacements["LINEAR_WG_ID"] = patch;
+    AddLinearizeWGReplacements(replacements, kernel_params.work_group_size);
   }
   return absl::StrReplaceAll(c, replacements);
 }
@@ -1189,6 +1225,10 @@ ConvWaveMatrix CreateConvWaveMatrixExternalWeights(
     const ConvRuntimeCheckDesc& runtime_check) {
   ConvWaveMatrix::ConvParams params;
   params.weights_desc = weights.desc;
+  params.scale_zp_shape = weights.scale_zp_shape;
+  params.has_zero_point = weights.zero_point != nullptr;
+  params.src_group_slices =
+      DivideRoundUp(weights.shape.i, 4) / weights.scale_zp_shape.i;
   params.different_weights_for_height = different_weights_for_height;
   params.precision = precision;
   params.weights_data_type = DeduceDataTypeFromPrecision(precision);

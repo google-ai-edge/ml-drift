@@ -1,4 +1,4 @@
-// Copyright 2024 The ML Drift Authors.
+// Copyright 2026 The ML Drift Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -330,6 +330,7 @@ struct ExternalWeights {
   WeightsDescription desc;
   OHWI shape;
   // scale and zero_point(optional) are for quantized weights
+  OHWI scale_zp_shape = OHWI(1, 1, 1, 1);
   const TensorDescriptor* scale = nullptr;
   const TensorDescriptor* zero_point = nullptr;
 };

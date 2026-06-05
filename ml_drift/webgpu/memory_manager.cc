@@ -1,4 +1,4 @@
-// Copyright 2024 The ML Drift Authors.
+// Copyright 2026 The ML Drift Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@
 #include "absl/algorithm/container.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/node_hash_map.h"
+#include "absl/hash/hash.h"
 #include "ml_drift/common/gpu_model.h"
 #include "ml_drift/common/memory_management.h"
 #include "ml_drift/common/memory_management/types.h"
@@ -40,6 +41,7 @@
 namespace ml_drift {
 namespace webgpu {
 namespace {
+
 void AddUsage(ValueId id, int task_index,
               std::map<ValueId, int2>* usage_records) {
   auto it = usage_records->find(id);
@@ -110,6 +112,11 @@ const Buffer* TakeAvailableBuffer(std::vector<const Buffer*>& available_buffers,
   available_buffers.erase(it);
   return buffer;
 }
+
+uint64_t GetUniqueKey(const TensorDescriptor& tensor_desc) {
+  return absl::HashOf(ToStringWithShape(tensor_desc));
+}
+
 }  // namespace
 
 MemoryManager::TensorMemoryType MemoryManager::GetTensorMemoryType(Key key) {
@@ -140,12 +147,19 @@ absl::StatusOr<MemoryManager::ModelId> MemoryManager::AllocateMemory(
     external_immutable_tensors_[Key(next_model_id_, external.first)] =
         spatial_tensor;
   }
+  absl::flat_hash_map<uint64_t, SpatialTensor*> mutable_tensors;
   for (const auto& external : external_tensors.mutable_tensors) {
     Key key = Key(next_model_id_, external.first);
     auto tensor_desc = GetTensorDescriptor(key);
+    uint64_t tensor_desc_unique_key = GetUniqueKey(tensor_desc);
+    if (mutable_tensors.contains(tensor_desc_unique_key)) {
+      external_mutable_tensors_[key] = mutable_tensors[tensor_desc_unique_key];
+      continue;
+    }
     external_mutable_tensors.push_back(std::make_unique<SpatialTensor>());
     auto* tensor = external_mutable_tensors.back().get();
     RETURN_IF_ERROR(CreateTensor(environment.device(), tensor_desc, tensor));
+    mutable_tensors[tensor_desc_unique_key] = tensor;
     // It will be reset to nullptr by the caller later.
     external_mutable_tensors_[key] = tensor;
   }

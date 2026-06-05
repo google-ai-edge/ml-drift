@@ -1,4 +1,4 @@
-// Copyright 2024 The ML Drift Authors.
+// Copyright 2026 The ML Drift Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -722,6 +722,41 @@ absl::Status PerformU32x2ToU4x16AsVec4x4(
   $4 = ucl::Convert<$04>(ucl::Init<ushort4>($1.y, $1.y >> 4u, $1.y >> 8u, $1.y >> 12u) & ucl::Init<ushort4>(15u));
   $5 = ucl::Convert<$04>(ucl::Init<ushort4>($1.y >> 16u, $1.y >> 20u, $1.y >> 24u, $1.y >> 28u) & ucl::Init<ushort4>(15u));
 )";
+  } else if (/* DISABLES CODE */ (false) && type == DataType::FLOAT16) {
+    // experimental
+    *result = R"(
+  {
+    //w13w12w11w10w03w02w01w00
+    //w13w03w11w01w12w02w10w00
+
+    uint t = ($1.x ^ ($1.x >> 12u)) & 0x0000F0F0u;
+    $1.x ^= t ^ (t << 12u);
+
+    uint base = 0x64006400u;
+    uint mask = 0x000F000Fu;
+
+    uint w01w00 = base | ($1.x & mask);
+    uint w11w10 = base | (($1.x >> 4u)  & mask);
+    uint w03w02 = base | (($1.x >> 8u)  & mask);
+    uint w13w12 = base | (($1.x >> 12u) & mask);
+    $2.xy = ucl::Reinterpret<uint, half2>(w01w00) - ucl::Init<half2>(1024.0h);
+    $2.zw = ucl::Reinterpret<uint, half2>(w03w02) - ucl::Init<half2>(1024.0h);
+    $3.xy = ucl::Reinterpret<uint, half2>(w11w10) - ucl::Init<half2>(1024.0h);
+    $3.zw = ucl::Reinterpret<uint, half2>(w13w12) - ucl::Init<half2>(1024.0h);
+
+    t = ($1.y ^ ($1.y >> 12u)) & 0x0000F0F0u;
+    $1.y ^= t ^ (t << 12u);
+
+    w01w00 = base | ($1.y & mask);
+    w11w10 = base | (($1.y >> 4u)  & mask);
+    w03w02 = base | (($1.y >> 8u)  & mask);
+    w13w12 = base | (($1.y >> 12u) & mask);
+    $4.xy = ucl::Reinterpret<uint, half2>(w01w00) - ucl::Init<half2>(1024.0h);
+    $4.zw = ucl::Reinterpret<uint, half2>(w03w02) - ucl::Init<half2>(1024.0h);
+    $5.xy = ucl::Reinterpret<uint, half2>(w11w10) - ucl::Init<half2>(1024.0h);
+    $5.zw = ucl::Reinterpret<uint, half2>(w13w12) - ucl::Init<half2>(1024.0h);
+  }
+)";
   } else {
     *result = R"(
   $2.x = ucl::Convert<$0>(($1.x) & 15u);
@@ -801,6 +836,37 @@ absl::Status PerformU32x1ToU2x16AsVec4x4(
   $3.w = wt1.y;
   $4.w = wt1.z;
   $5.w = wt1.w;
+  }
+)";
+  } else if (/* DISABLES CODE */ (false) && type == DataType::FLOAT16) {
+    // experimental
+    *result = R"(
+  {
+    // 15  14  13  12  11  10   9   8   7   6   5   4   3   2   1   0
+    //w33 w32 w31 w30 w23 w22 w21 w20 w13 w12 w11 w10 w03 w02 w01 w00
+    //w33 w13 w31 w11 w23 w03 w21 w01 w32 w12 w30 w10 w22 w02 w20 w00
+    uint t = ($1 ^ ($1 >> 14u)) & 0x0000CCCCu;
+    $1 ^= t ^ (t << 14u);
+
+    uint base = 0x64006400u;
+    uint mask = 0x00030003u;
+
+    uint w01w00 = base | ($1 & mask);
+    uint w21w20 = base | (($1 >> 2u) & mask);
+    uint w03w02 = base | (($1 >> 4u) & mask);
+    uint w23w22 = base | (($1 >> 6u) & mask);
+    uint w11w10 = base | (($1 >> 8u) & mask);
+    uint w31w30 = base | (($1 >> 10u) & mask);
+    uint w13w12 = base | (($1 >> 12u) & mask);
+    uint w33w32 = base | (($1 >> 14u) & mask);
+    $2.xy = ucl::Reinterpret<uint, half2>(w01w00) - ucl::Init<half2>(1024.0h);
+    $2.zw = ucl::Reinterpret<uint, half2>(w03w02) - ucl::Init<half2>(1024.0h);
+    $3.xy = ucl::Reinterpret<uint, half2>(w11w10) - ucl::Init<half2>(1024.0h);
+    $3.zw = ucl::Reinterpret<uint, half2>(w13w12) - ucl::Init<half2>(1024.0h);
+    $4.xy = ucl::Reinterpret<uint, half2>(w21w20) - ucl::Init<half2>(1024.0h);
+    $4.zw = ucl::Reinterpret<uint, half2>(w23w22) - ucl::Init<half2>(1024.0h);
+    $5.xy = ucl::Reinterpret<uint, half2>(w31w30) - ucl::Init<half2>(1024.0h);
+    $5.zw = ucl::Reinterpret<uint, half2>(w33w32) - ucl::Init<half2>(1024.0h);
   }
 )";
   } else if (use_reinterpret_unpacking) {
@@ -903,6 +969,43 @@ absl::Status PerformU16x4ToU4x16AsVec4x4(
   $3 = ucl::Convert<$04>(ucl::Init<ushort4>($1.y, $1.y >> 4u, $1.y >> 8u, $1.y >> 12u) & ucl::Init<ushort4>(15u));
   $4 = ucl::Convert<$04>(ucl::Init<ushort4>($1.z, $1.z >> 4u, $1.z >> 8u, $1.z >> 12u) & ucl::Init<ushort4>(15u));
   $5 = ucl::Convert<$04>(ucl::Init<ushort4>($1.w, $1.w >> 4u, $1.w >> 8u, $1.w >> 12u) & ucl::Init<ushort4>(15u));
+)";
+  } else if (/* DISABLES CODE */ (false) && type == DataType::FLOAT16) {
+    // experimental
+    *result = R"(
+  {
+    //w13w12w11w10w03w02w01w00
+    //w13w03w11w01w12w02w10w00
+
+    uint2 WT = ucl::Reinterpret<ushort4, uint2>($1);
+
+    uint t = (WT.x ^ (WT.x >> 12u)) & 0x0000F0F0u;
+    WT.x ^= t ^ (t << 12u);
+
+    uint base = 0x64006400u;
+    uint mask = 0x000F000Fu;
+
+    uint w01w00 = base | (WT.x & mask);
+    uint w11w10 = base | ((WT.x >> 4u)  & mask);
+    uint w03w02 = base | ((WT.x >> 8u)  & mask);
+    uint w13w12 = base | ((WT.x >> 12u) & mask);
+    $2.xy = ucl::Reinterpret<uint, half2>(w01w00) - ucl::Init<half2>(1024.0h);
+    $2.zw = ucl::Reinterpret<uint, half2>(w03w02) - ucl::Init<half2>(1024.0h);
+    $3.xy = ucl::Reinterpret<uint, half2>(w11w10) - ucl::Init<half2>(1024.0h);
+    $3.zw = ucl::Reinterpret<uint, half2>(w13w12) - ucl::Init<half2>(1024.0h);
+
+    t = (WT.y ^ (WT.y >> 12u)) & 0x0000F0F0u;
+    WT.y ^= t ^ (t << 12u);
+
+    w01w00 = base | (WT.y & mask);
+    w11w10 = base | ((WT.y >> 4u)  & mask);
+    w03w02 = base | ((WT.y >> 8u)  & mask);
+    w13w12 = base | ((WT.y >> 12u) & mask);
+    $4.xy = ucl::Reinterpret<uint, half2>(w01w00) - ucl::Init<half2>(1024.0h);
+    $4.zw = ucl::Reinterpret<uint, half2>(w03w02) - ucl::Init<half2>(1024.0h);
+    $5.xy = ucl::Reinterpret<uint, half2>(w11w10) - ucl::Init<half2>(1024.0h);
+    $5.zw = ucl::Reinterpret<uint, half2>(w13w12) - ucl::Init<half2>(1024.0h);
+  }
 )";
   } else {
     *result = R"(

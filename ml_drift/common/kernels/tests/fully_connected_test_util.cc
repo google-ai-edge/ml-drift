@@ -1,4 +1,4 @@
-// Copyright 2024 The ML Drift Authors.
+// Copyright 2026 The ML Drift Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -773,6 +773,7 @@ absl::Status FullyConnectedInt8ExternalTest(
   ExternalWeights external_weights;
   external_weights.desc = weights_desc;
   external_weights.shape = weights_i8.shape;
+  external_weights.scale_zp_shape = weights_scale.shape;
   external_weights.scale = &scale_desc;
   external_weights.zero_point = &zp_desc;
   ASSIGN_OR_RETURN(auto operation,
@@ -832,6 +833,7 @@ absl::Status FullyConnectedInt8BatchedWeightsIdsTest(
   ExternalWeights external_weights;
   external_weights.desc = weights_desc;
   external_weights.shape = weights_i8.shape;
+  external_weights.scale_zp_shape = weights_scale.shape;
   external_weights.scale = &scale_desc;
   external_weights.zero_point = &zp_desc;
   ASSIGN_OR_RETURN(
@@ -905,6 +907,7 @@ absl::Status FullyConnectedInt8ExternalTest(
   ExternalWeights external_weights;
   external_weights.desc = weights_desc;
   external_weights.shape = weights_i8.shape;
+  external_weights.scale_zp_shape = weights_scale.shape;
   external_weights.scale = &scale_desc;
   external_weights.zero_point = &zp_desc;
   ASSIGN_OR_RETURN(auto operation,
@@ -1455,6 +1458,7 @@ absl::Status FullyConnectedInt4ExternalTest(
   ExternalWeights external_weights;
   external_weights.desc = weights_desc;
   external_weights.shape = weights_i4.shape;
+  external_weights.scale_zp_shape = weights_scale.shape;
   external_weights.scale = &scale_desc;
   external_weights.zero_point = &zp_desc;
   ASSIGN_OR_RETURN(auto operation,
@@ -1782,6 +1786,7 @@ absl::Status FullyConnectedInt2ExternalTest(
   ExternalWeights external_weights;
   external_weights.desc = weights_desc;
   external_weights.shape = weights_i2.shape;
+  external_weights.scale_zp_shape = weights_scale.shape;
   external_weights.scale = &scale_desc;
   external_weights.zero_point = &zp_desc;
   ASSIGN_OR_RETURN(auto operation,

@@ -1,4 +1,4 @@
-// Copyright 2024 The ML Drift Authors.
+// Copyright 2026 The ML Drift Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -40,9 +40,13 @@ absl::Status ConvWaveMatrixExternalWeightsTest(TestExecutionEnvironment& env,
 absl::Status ConvWaveMatrixExternalBatchedWeightsTest(
     TestExecutionEnvironment& env, CalculationsPrecision precision,
     TensorStorageType storage);
-absl::Status ConvWaveMatrixExternalWi4BatchedWeightsTest(
+absl::Status ConvWaveMatrixExternalBatchedWi4Test(
     TestExecutionEnvironment& env, CalculationsPrecision precision,
     TensorStorageType storage);
+absl::Status ConvWaveMatrixExternalBatchedGroupedWi4Test(
+    TestExecutionEnvironment& env, CalculationsPrecision precision,
+    TensorStorageType storage);
+
 absl::Status ConvWaveMatrixWinograd4x4To6x6Test(TestExecutionEnvironment& env,
                                                 CalculationsPrecision precision,
                                                 TensorStorageType storage);

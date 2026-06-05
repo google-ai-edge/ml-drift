@@ -1,4 +1,4 @@
-// Copyright 2025 The ML Drift Authors.
+// Copyright 2026 The ML Drift Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -160,6 +160,11 @@ ConvAppleMPP CreateConvAppleMPPInt8(
 ConvAppleMPP CreateConvAppleMPPInt8(const TensorDescriptor& src,
                                     const TensorDescriptor& dst,
                                     const OHWI& weights_shape);
+
+// Creates an Apple MPP convolution operation with INT8 external weights.
+ConvAppleMPP CreateConvAppleMPPInt8(const TensorDescriptor& src,
+                                    const TensorDescriptor& dst,
+                                    const ExternalWeights& weights);
 
 }  // namespace ml_drift
 

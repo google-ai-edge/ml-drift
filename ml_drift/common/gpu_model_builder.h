@@ -1,4 +1,4 @@
-// Copyright 2024 The ML Drift Authors.
+// Copyright 2026 The ML Drift Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -178,13 +178,8 @@ class GpuModelBuilder {
   TensorHandle ConvolutionTransposed(
       const TensorHandle& src, const TensorHandle& weights,
       const ConvolutionTransposedAttributes& attr);
-  // weights scale/zero_point are optional(for quantized weights only).
-  TensorHandle EmbeddingLookup(const TensorHandle& src,
-                               const TensorHandle& weights, DataType dst_type,
-                               const OHWI& weights_shape,
-                               const WeightsDescription& weights_desc,
-                               const TensorHandle* weights_scale = nullptr,
-                               const TensorHandle* weights_zero_point = nullptr,
+  TensorHandle EmbeddingLookup(const TensorHandle& src, const Weights& weights,
+                               DataType dst_type,
                                Axis lookup_axis = Axis::CHANNELS);
   WeightsDescription GetFullyConnectedWeightsDesc(
       DataType data_type, const OHWI& weights_shape) const;
@@ -192,19 +187,6 @@ class GpuModelBuilder {
       const TensorHandle& src, const Weights& weights,
       const TensorHandle* biases = nullptr,
       const TensorHandle* src_exp = nullptr,
-      const ConvRuntimeCheckDesc& runtime_check = {},
-      const TensorHandle* runtime_check_tensor = nullptr);
-
-  // src_exp - the reduced softmax tensor from src to optimize attention
-  // calculations.
-  // runtime_check - is a structure that contains information about runtime
-  // checks, for example local and global boundary checks.
-  // runtime_check_tensor - is a tensor that contains runtime check values.
-  TensorHandle FullyConnectedIntQuantizedExternalWeightsWithConversion(
-      const TensorHandle& src, const OHWI& weights_shape,
-      const WeightsDescription& weights_desc, const TensorHandle& weights,
-      const TensorHandle& weights_scale, const TensorHandle* weights_zero_point,
-      const TensorHandle* biases, const TensorHandle* src_exp = nullptr,
       const ConvRuntimeCheckDesc& runtime_check = {},
       const TensorHandle* runtime_check_tensor = nullptr);
 
@@ -598,6 +580,19 @@ class GpuModelBuilder {
       const WeightsDescription& weights_desc, const TensorHandle& weights,
       const TensorHandle& weights_scale, const TensorHandle* weights_zero_point,
       const TensorHandle& weights_sum_i, const TensorHandle* biases);
+
+  // src_exp - the reduced softmax tensor from src to optimize attention
+  // calculations.
+  // runtime_check - is a structure that contains information about runtime
+  // checks, for example local and global boundary checks.
+  // runtime_check_tensor - is a tensor that contains runtime check values.
+  TensorHandle FullyConnectedIntQuantizedExternalWeightsWithConversion(
+      const TensorHandle& src, const OHWI& weights_shape,
+      const WeightsDescription& weights_desc, const TensorHandle& weights,
+      const TensorHandle& weights_scale, const TensorHandle* weights_zero_point,
+      const TensorHandle* biases, const TensorHandle* src_exp = nullptr,
+      const ConvRuntimeCheckDesc& runtime_check = {},
+      const TensorHandle* runtime_check_tensor = nullptr);
 
   // returns 2 tensors: quantized and params(min/max/sum)
   std::vector<TensorHandle> Quantize(const TensorHandle& src,

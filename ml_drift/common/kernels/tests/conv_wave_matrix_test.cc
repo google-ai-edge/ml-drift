@@ -1,4 +1,4 @@
-// Copyright 2025 The ML Drift Authors.
+// Copyright 2026 The ML Drift Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -122,13 +122,28 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalBatchedWeightsTest) {
   MLD_ASSERT_OK(status);
 }
 
-TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalWi4BatchedWeightsTest) {
+TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalBatchedWi4Test) {
   const DataType data_type = DeduceDataTypeFromPrecision(precision());
   if (!exec_env->IsStorageSupported(storage(), data_type)) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  auto status = ConvWaveMatrixExternalWi4BatchedWeightsTest(
+  auto status =
+      ConvWaveMatrixExternalBatchedWi4Test(*exec_env, precision(), storage());
+  if (!status.ok() &&
+      absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
+    GTEST_SKIP() << status.message();
+  }
+  MLD_ASSERT_OK(status);
+}
+
+TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalBatchedGroupedWi4Test) {
+  const DataType data_type = DeduceDataTypeFromPrecision(precision());
+  if (!exec_env->IsStorageSupported(storage(), data_type)) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
+                 << " storage type: " << ToString(storage());
+  }
+  auto status = ConvWaveMatrixExternalBatchedGroupedWi4Test(
       *exec_env, precision(), storage());
   if (!status.ok() &&
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {

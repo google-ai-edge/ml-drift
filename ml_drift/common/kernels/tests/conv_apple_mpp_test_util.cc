@@ -1,4 +1,4 @@
-// Copyright 2025 The ML Drift Authors.
+// Copyright 2026 The ML Drift Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -127,9 +127,10 @@ absl::Status ConvAppleMPPExternalWeightsTest(TestExecutionEnvironment& env,
   return absl::OkStatus();
 }
 
-absl::Status ConvAppleMPPExternalWi4BatchedWeightsTest(
-    TestExecutionEnvironment& env, TensorStorageType storage,
-    const BHWC& src_shape, int dst_channels) {
+absl::Status ConvAppleMPPExternalBatchedWi4Test(TestExecutionEnvironment& env,
+                                                TensorStorageType storage,
+                                                const BHWC& src_shape,
+                                                int dst_channels) {
   TensorFloat32 src_tensor;
   const int src_channels = src_shape.c;
   src_tensor.shape = src_shape;
@@ -181,6 +182,7 @@ absl::Status ConvAppleMPPExternalWi4BatchedWeightsTest(
   ExternalWeights external_weights;
   external_weights.desc = weights_desc;
   external_weights.shape = weights_i4.shape;
+  external_weights.scale_zp_shape = weights_scales.shape;
   external_weights.scale = &scale_desc;
   external_weights.zero_point = &zp_desc;
   auto operation = CreateConvAppleMPPExternalWeights(
@@ -501,6 +503,63 @@ absl::Status ConvAppleMPPInt8ExternalWeightsBigTest(
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
   RETURN_IF_ERROR(
       env.ExecuteGPUOperation({&src_td, &weights_i8_td}, {&dst_td},
+                              std::make_unique<ConvAppleMPP>(std::move(conv))));
+  TensorInt32 dst_tensor;
+  dst_td.DownloadData(&dst_tensor);
+  EXPECT_EQ(dst_tensor.data, dst_ref_tensor.data);
+  return absl::OkStatus();
+}
+
+absl::Status ConvAppleMPPInt8ExternalBatchedWi4Test(
+    TestExecutionEnvironment& env, TensorStorageType dst_storage,
+    const BHWC& src_shape, int dst_channels) {
+  const int src_channels = src_shape.c;
+
+  ml_drift::Tensor<OHWI, DataType::INT8> weights_i4;
+  weights_i4.shape = OHWI(dst_channels, src_shape.h, 1, src_channels);
+  weights_i4.data.resize(weights_i4.shape.DimensionsProduct());
+  auto weights_f32 =
+      MakeSyntheticTensor(OHWI(dst_channels, src_shape.h, 1, src_channels));
+  for (int i = 0; i < weights_i4.data.size(); ++i) {
+    const int val = (weights_f32.data[i] + 1.0f) * 16.0f;
+    weights_i4.data[i] = std::max(std::min(val, 15), 0) - 8;
+  }
+
+  TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
+  ml_drift::Tensor<BHWC, DataType::INT8> src_i8_tensor;
+  src_i8_tensor.shape = src_shape;
+  src_i8_tensor.data.resize(src_shape.DimensionsProduct());
+  for (int i = 0; i < src_shape.DimensionsProduct(); ++i) {
+    src_i8_tensor.data[i] = src_tensor.data[i] * 127.0f;
+  }
+
+  Layout layout = src_shape.b == 1 ? Layout::HWC : Layout::BHWC;
+  TensorDescriptor src_tensor_desc{
+      DataType::INT8, TensorStorageType::BUFFER, layout,
+      TensorDescriptor::PhysicalLayout1D::kDHWBCC4};
+  TensorDescriptor dst_tensor_desc{DataType::INT32, dst_storage, layout};
+
+  const TensorInt32 dst_ref_tensor =
+      FullyConnectedReference(src_i8_tensor, weights_i4);
+
+  WeightsDescription weights_desc =
+      GetFullyConnectedInt4WeightsDesc(env.GetGpuInfo(), weights_i4.shape);
+  TensorDescriptor weights_i4_td =
+      GetTensorDescriptorForWeightsLayout(weights_i4, weights_desc);
+
+  ExternalWeights external_weights;
+  external_weights.desc = weights_desc;
+  external_weights.shape = weights_i4.shape;
+  auto conv = CreateConvAppleMPPInt8(src_tensor_desc, dst_tensor_desc,
+                                     external_weights);
+
+  TensorDescriptor src_td = src_tensor_desc;
+  src_td.UploadData(src_i8_tensor);
+
+  TensorDescriptor dst_td = dst_tensor_desc;
+  dst_td.SetBHWCShape(dst_ref_tensor.shape);
+  RETURN_IF_ERROR(
+      env.ExecuteGPUOperation({&src_td, &weights_i4_td}, {&dst_td},
                               std::make_unique<ConvAppleMPP>(std::move(conv))));
   TensorInt32 dst_tensor;
   dst_td.DownloadData(&dst_tensor);

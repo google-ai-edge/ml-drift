@@ -1,4 +1,4 @@
-// Copyright 2024 The ML Drift Authors.
+// Copyright 2026 The ML Drift Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -1424,30 +1424,30 @@ WeightsDescription GpuModelBuilder::GetFullyConnectedInt8WeightsDesc(
 }
 
 GpuModelBuilder::TensorHandle GpuModelBuilder::EmbeddingLookup(
-    const TensorHandle& src, const TensorHandle& weights, DataType dst_type,
-    const OHWI& weights_shape, const WeightsDescription& weights_desc,
-    const TensorHandle* weights_scale, const TensorHandle* weights_zero_point,
+    const TensorHandle& src, const Weights& weights, DataType dst_type,
     Axis lookup_axis) {
   BHWC new_shape = src.tensor_desc.GetBHWCShape();
-  new_shape.c = weights_shape.i;
+  new_shape.c = weights.shape.i;
   auto dst = AddTensor(new_shape, dst_type);
 
   const TensorDescriptor* weights_scale_desc =
-      weights_scale ? &weights_scale->tensor_desc : nullptr;
+      weights.scale ? &weights.scale->tensor_desc : nullptr;
   const TensorDescriptor* weights_zero_point_desc =
-      weights_zero_point ? &weights_zero_point->tensor_desc : nullptr;
+      weights.zero_point ? &weights.zero_point->tensor_desc : nullptr;
   auto gpu_op = CreateEmbeddingLookupExternalWeights(
-      src.tensor_desc, dst.tensor_desc, weights.tensor_desc, weights_desc,
-      weights_shape, weights_scale_desc, weights_zero_point_desc, lookup_axis);
-  std::vector<ValueId> src_ids = {src.id, weights.id};
+      src.tensor_desc, dst.tensor_desc, weights.weights.tensor_desc,
+      weights.desc, weights.shape, weights_scale_desc, weights_zero_point_desc,
+      lookup_axis);
+  std::vector<ValueId> src_ids = {src.id, weights.weights.id};
   gpu_op.read_size_ = src.tensor_desc.GetMemorySizeInBytes();
+  // EmbeddingLookup not reading entire weights tensor.
   gpu_op.read_size_ += dst.tensor_desc.GetMemorySizeInBytes() /
-                       SizeInBitsOf(dst_type) * SizeInBitsOf(weights_desc.type);
-  if (weights_scale) {
-    src_ids.push_back(weights_scale->id);
+                       SizeInBitsOf(dst_type) * SizeInBitsOf(weights.desc.type);
+  if (weights.scale) {
+    src_ids.push_back(weights.scale->id);
   }
-  if (weights_zero_point) {
-    src_ids.push_back(weights_zero_point->id);
+  if (weights.zero_point) {
+    src_ids.push_back(weights.zero_point->id);
   }
   AddGpuOperation({src_ids}, {dst.id},
                   std::make_unique<GPUOperation>(std::move(gpu_op)),
@@ -1509,6 +1509,7 @@ GpuModelBuilder::FullyConnectedInt8ExternalWeights(
     ExternalWeights external_weights;
     external_weights.desc = weights.desc;
     external_weights.shape = weights.shape;
+    external_weights.scale_zp_shape = weights.scale_zp_shape;
     external_weights.scale = &(weights.scale->tensor_desc);
     external_weights.zero_point = zero_point_desc;
     auto fc_op = CreateFullyConnectedExternalWeights(
@@ -1599,6 +1600,7 @@ GpuModelBuilder::FullyConnectedInt4ExternalWeights(const TensorHandle& src,
     ExternalWeights external_weights;
     external_weights.desc = weights.desc;
     external_weights.shape = weights.shape;
+    external_weights.scale_zp_shape = weights.scale_zp_shape;
     external_weights.scale = &weights.scale->tensor_desc;
     external_weights.zero_point = zero_point_desc;
     auto fc_op = CreateFullyConnectedExternalWeights(
@@ -1685,6 +1687,7 @@ GpuModelBuilder::FullyConnectedInt2ExternalWeights(const TensorHandle& src,
     ExternalWeights external_weights;
     external_weights.desc = weights.desc;
     external_weights.shape = weights.shape;
+    external_weights.scale_zp_shape = weights.scale_zp_shape;
     external_weights.scale = &weights.scale->tensor_desc;
     external_weights.zero_point = zero_point_desc;
     auto fc_op = CreateFullyConnectedExternalWeights(
@@ -4206,20 +4209,25 @@ GpuModelBuilder::Weights CreateExternalWeights(
 }
 
 bool WeightsManager::IsGpuWeightsPreparationSupported(const GpuInfo& gpu_info) {
-  // TODO(linchan): Enable weights preparation on Gpu for PowerVR and Broadcom
-  // GPUs.
+  // TODO(linchan): Enable weights preparation on Gpu for PowerVR, Broadcom,
+  // and Mali GPUs.
   // Weights preparation on Gpu for PowerVR Gpu is currently disabled
   // because it's slow on Pixel 10 (Pixel 10: b/435509090) and doesn't
   // compatible with Broadcom GPUs.
-  bool is_gpu_chip_supported = !gpu_info.IsPowerVR() && !gpu_info.IsBroadcom();
+  // Weights preparation on Gpu for Mali Gpu is currently disabled
+  // because Mali GPUs crash during weight conversion due to memory
+  // exhaustion and known driver issues (b/514701303).
+  bool is_gpu_chip_supported =
+      !gpu_info.IsPowerVR() && !gpu_info.IsBroadcom() && !gpu_info.IsMali();
   bool is_api_supported = gpu_info.gpu_api == GpuApi::kOpenCl ||
                           gpu_info.gpu_api == GpuApi::kWebGpu ||
                           gpu_info.gpu_api == GpuApi::kMetal;
 
   bool is_supported = is_gpu_chip_supported && is_api_supported;
   if (!is_supported) {
-    ABSL_LOG(WARNING) << "Weights preparation on Gpu is disabled for PowerVR "
-                         "GPU and non-OpenCL/WebGPU/Metal backends.";
+    ABSL_LOG(WARNING) << "Weights preparation on Gpu is disabled for PowerVR, "
+                         "Broadcom, Mali GPUs and non-OpenCL/WebGPU/Metal "
+                         "backends.";
   }
   return is_supported;
 }
