@@ -853,8 +853,6 @@ GpuModelBuilder::FullyConnectedExternalWeights(
     const TensorHandle* runtime_check_tensor) {
   BHWC dst_shape = src.tensor_desc.GetBHWCShape();
   dst_shape.c = weights.shape.o;
-  GpuModelBuilder::TensorHandle dst =
-      AddTensor(dst_shape, src.tensor_desc.GetDataType());
   const bool different_weights_for_height = weights.shape.h != 1;
 
   if (biases && biases->tensor_desc.GetBHWCShape().c != dst_shape.c) {
@@ -873,6 +871,8 @@ GpuModelBuilder::FullyConnectedExternalWeights(
   if (total_spatial_size <=
       GetRecommendedMaxTotalSpatialSize(
           gpu_info_, GetConvPrecision(src.tensor_desc.GetDataType()))) {
+    GpuModelBuilder::TensorHandle dst =
+        AddTensor(dst_shape, src.tensor_desc.GetDataType());
     gpu_model_.nodes.push_back({});
     auto& gpu_node = gpu_model_.nodes.back();
     gpu_node.name = "fully_connected";
@@ -907,75 +907,9 @@ GpuModelBuilder::FullyConnectedExternalWeights(
         GetConvolutionFlops(dst_shape, weights.shape) / weights.shape.h;
     return dst;
   } else {
-    const bool use_apple_mpp =
-        SupportsConvAppleMPP(gpu_info_) &&
-        src.tensor_desc.GetDataType() == DataType::FLOAT16 &&
-        src.tensor_desc.GetBHWCShape().c % 32 == 0;
-    auto src_handle = use_apple_mpp && !src_exp ? ToDHWBCC4(src) : src;
-    std::unique_ptr<GPUOperation> conv_op;
-    WeightsDescription conv_weights_desc;
-    {
-      OperationDef op_def;
-      op_def.src_tensors.push_back(src_handle.tensor_desc);
-      op_def.dst_tensors.push_back(dst.tensor_desc);
-
-      Convolution2DAttributes attr;
-      attr.padding.prepended = HW(0, 0);
-      attr.padding.appended = HW(0, 0);
-      attr.strides = HW(1, 1);
-      attr.dilations = HW(1, 1);
-      auto& attr_weights =
-          attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
-      attr_weights.shape = weights.shape;
-
-      if (use_apple_mpp) {
-        ConvAppleMPP conv_mpp = CreateConvAppleMPPExternalWeights(
-            op_def.src_tensors[0], op_def.dst_tensors[0], weights.shape,
-            bias_desc, src_exp_td, different_weights_for_height, runtime_check);
-        conv_weights_desc = conv_mpp.GetWeightsDescription();
-        conv_op = std::make_unique<ConvAppleMPP>(std::move(conv_mpp));
-      } else {
-        conv_op = SelectConvolutionWithExternalWeights(
-            attr, bias_desc, dst_shape, gpu_info_, op_def,
-            GetConvPrecision(src.tensor_desc.GetDataType()), hints_,
-            &conv_weights_desc, src_exp_td, different_weights_for_height,
-            runtime_check);
-      }
-    }
-
-    std::vector<TensorHandle> conv_weights = {weights.weights};
-    if (!(conv_weights_desc == weights.desc)) {
-      conv_weights = WeightsConversion(
-          weights.weights, nullptr, nullptr, weights.desc, conv_weights_desc,
-          weights.shape, runtime_check, runtime_check_tensor);
-    }
-
-    gpu_model_.nodes.push_back({});
-    auto& gpu_node = gpu_model_.nodes.back();
-    gpu_node.name = absl::StrCat("convolution", GetConvOpNameSuffix(*conv_op));
-    if (src_exp) {
-      gpu_node.name += " + src softmax";
-    }
-    gpu_node.inputs.push_back(src_handle.id);
-    for (const auto& conv_weight : conv_weights) {
-      gpu_node.inputs.push_back(conv_weight.id);
-    }
-    if (biases) {
-      gpu_node.inputs.push_back(biases->id);
-    }
-    if (src_exp) {
-      gpu_node.inputs.push_back(src_exp->id);
-    }
-    if (runtime_check_tensor && (runtime_check.src_end_ch_index.has_value() ||
-                                 runtime_check.dst_end_ch_index.has_value())) {
-      gpu_node.inputs.push_back(runtime_check_tensor->id);
-    }
-    gpu_node.outputs = {dst.id};
-    gpu_node.gpu_operation = std::move(conv_op);
-    gpu_node.gpu_operation->flops_ =
-        GetConvolutionFlops(dst_shape, weights.shape) / weights.shape.h;
+    return FullyConnectedSrcFloatExternalWeightsWithConversion(
+        src, weights, biases, src_exp, runtime_check, runtime_check_tensor);
   }
-  return dst;
 }
 
 absl::StatusOr<GpuModelBuilder::TensorHandle>
@@ -1124,29 +1058,27 @@ std::vector<GpuModelBuilder::TensorHandle> GpuModelBuilder::WeightsConversion(
 }
 
 GpuModelBuilder::TensorHandle
-GpuModelBuilder::FullyConnectedIntQuantizedExternalWeightsWithConversion(
-    const TensorHandle& src, const OHWI& weights_shape,
-    const WeightsDescription& weights_desc, const TensorHandle& weights,
-    const TensorHandle& weights_scale, const TensorHandle* weights_zero_point,
-    const TensorHandle* biases, const TensorHandle* src_exp,
-    const ConvRuntimeCheckDesc& runtime_check,
+GpuModelBuilder::FullyConnectedSrcFloatExternalWeightsWithConversion(
+    const TensorHandle& src, const Weights& weights, const TensorHandle* biases,
+    const TensorHandle* src_exp, const ConvRuntimeCheckDesc& runtime_check,
     const TensorHandle* runtime_check_tensor) {
   BHWC dst_shape = src.tensor_desc.GetBHWCShape();
-  dst_shape.c = weights_shape.o;
+  dst_shape.c = weights.shape.o;
   GpuModelBuilder::TensorHandle dst =
       AddTensor(dst_shape, src.tensor_desc.GetDataType());
-  const bool different_weights_for_height = weights_shape.h != 1;
+  const bool different_weights_for_height = weights.shape.h != 1;
 
-  if (biases && biases->tensor_desc.GetBHWCShape().c != dst_shape.c) {
-    ABSL_LOG(ERROR) << "Bias tensor has different number of channels than "
-                       "the output tensor.";
-  }
+  const bool use_apple_mpp =
+      SupportsConvAppleMPP(gpu_info_) &&
+      src.tensor_desc.GetDataType() == DataType::FLOAT16 &&
+      src.tensor_desc.GetBHWCShape().c % 32 == 0;
+  auto src_handle = use_apple_mpp && !src_exp ? ToDHWBCC4(src) : src;
 
   std::unique_ptr<GPUOperation> conv_op;
   WeightsDescription conv_weights_desc;
   {
     OperationDef op_def;
-    op_def.src_tensors.push_back(src.tensor_desc);
+    op_def.src_tensors.push_back(src_handle.tensor_desc);
     op_def.dst_tensors.push_back(dst.tensor_desc);
 
     Convolution2DAttributes attr;
@@ -1154,30 +1086,44 @@ GpuModelBuilder::FullyConnectedIntQuantizedExternalWeightsWithConversion(
     attr.padding.appended = HW(0, 0);
     attr.strides = HW(1, 1);
     attr.dilations = HW(1, 1);
-    auto& weights = attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
-    weights.shape = weights_shape;
+    auto& attr_weights =
+        attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
+    attr_weights.shape = weights.shape;
+
+    const TensorDescriptor* src_exp_td =
+        src_exp ? &src_exp->tensor_desc : nullptr;
 
     const TensorDescriptor* bias_desc = biases ? &biases->tensor_desc : nullptr;
-    conv_op = SelectConvolutionWithExternalWeights(
-        attr, bias_desc, dst_shape, gpu_info_, op_def,
-        GetConvPrecision(src.tensor_desc.GetDataType()), hints_,
-        &conv_weights_desc,
-        /*src_exp=*/src_exp ? &src_exp->tensor_desc : nullptr,
-        /*different_weights_for_height=*/different_weights_for_height,
-        /*runtime_check*/ runtime_check);
+    if (use_apple_mpp) {
+      ConvAppleMPP conv_mpp = CreateConvAppleMPPExternalWeights(
+          op_def.src_tensors[0], op_def.dst_tensors[0], weights.shape,
+          bias_desc, src_exp_td, different_weights_for_height, runtime_check);
+      conv_weights_desc = conv_mpp.GetWeightsDescription();
+      conv_op = std::make_unique<ConvAppleMPP>(std::move(conv_mpp));
+    } else {
+      conv_op = SelectConvolutionWithExternalWeights(
+          attr, bias_desc, dst_shape, gpu_info_, op_def,
+          GetConvPrecision(src.tensor_desc.GetDataType()), hints_,
+          &conv_weights_desc, src_exp_td,
+          different_weights_for_height,
+          runtime_check);
+    }
   }
 
-  std::vector<TensorHandle> conv_weights = {weights};
-  if (!(conv_weights_desc == weights_desc)) {
+  std::vector<TensorHandle> conv_weights = {weights.weights};
+  if (!(conv_weights_desc == weights.desc)) {
     conv_weights = WeightsConversion(
-        weights, &weights_scale, weights_zero_point, weights_desc,
-        conv_weights_desc, weights_shape, runtime_check, runtime_check_tensor);
+        weights.weights, weights.scale, weights.zero_point, weights.desc,
+        conv_weights_desc, weights.shape, runtime_check, runtime_check_tensor);
   }
 
   gpu_model_.nodes.push_back({});
   auto& gpu_node = gpu_model_.nodes.back();
   gpu_node.name = absl::StrCat("convolution", GetConvOpNameSuffix(*conv_op));
-  gpu_node.inputs.push_back(src.id);
+  if (src_exp) {
+    gpu_node.name += " + src softmax";
+  }
+  gpu_node.inputs.push_back(src_handle.id);
   for (const auto& conv_weight : conv_weights) {
     gpu_node.inputs.push_back(conv_weight.id);
   }
@@ -1195,7 +1141,7 @@ GpuModelBuilder::FullyConnectedIntQuantizedExternalWeightsWithConversion(
   gpu_node.outputs = {dst.id};
   gpu_node.gpu_operation = std::move(conv_op);
   gpu_node.gpu_operation->flops_ =
-      GetConvolutionFlops(dst_shape, weights_shape);
+      GetConvolutionFlops(dst_shape, weights.shape) / weights.shape.h;
 
   return dst;
 }
@@ -1551,10 +1497,8 @@ GpuModelBuilder::FullyConnectedInt8ExternalWeights(
         src, weights.shape, fc_weights, *weights.scale, weights.zero_point,
         *weights.sum_i, biases);
   } else {
-    return FullyConnectedIntQuantizedExternalWeightsWithConversion(
-        src, weights.shape, weights.desc, weights.weights, *weights.scale,
-        weights.zero_point, biases, src_exp, runtime_check,
-        runtime_check_tensor);
+    return FullyConnectedSrcFloatExternalWeightsWithConversion(
+        src, weights, biases, src_exp, runtime_check, runtime_check_tensor);
   }
 }
 
@@ -1638,9 +1582,8 @@ GpuModelBuilder::FullyConnectedInt4ExternalWeights(const TensorHandle& src,
         src, weights.shape, fc_weights, *weights.scale, weights.zero_point,
         *weights.sum_i, biases);
   } else {
-    return FullyConnectedIntQuantizedExternalWeightsWithConversion(
-        src, weights.shape, weights.desc, weights.weights, *weights.scale,
-        weights.zero_point, biases);
+    return FullyConnectedSrcFloatExternalWeightsWithConversion(src, weights,
+                                                               biases);
   }
   return dst;
 }
@@ -1726,9 +1669,8 @@ GpuModelBuilder::FullyConnectedInt2ExternalWeights(const TensorHandle& src,
         src, weights.shape, fc_weights, *weights.scale, weights.zero_point,
         *weights.sum_i, biases);
   } else {
-    return FullyConnectedIntQuantizedExternalWeightsWithConversion(
-        src, weights.shape, weights.desc, weights.weights, *weights.scale,
-        weights.zero_point, biases);
+    return FullyConnectedSrcFloatExternalWeightsWithConversion(src, weights,
+                                                               biases);
   }
   return dst;
 }

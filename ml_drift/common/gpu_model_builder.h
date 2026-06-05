@@ -586,10 +586,8 @@ class GpuModelBuilder {
   // runtime_check - is a structure that contains information about runtime
   // checks, for example local and global boundary checks.
   // runtime_check_tensor - is a tensor that contains runtime check values.
-  TensorHandle FullyConnectedIntQuantizedExternalWeightsWithConversion(
-      const TensorHandle& src, const OHWI& weights_shape,
-      const WeightsDescription& weights_desc, const TensorHandle& weights,
-      const TensorHandle& weights_scale, const TensorHandle* weights_zero_point,
+  TensorHandle FullyConnectedSrcFloatExternalWeightsWithConversion(
+      const TensorHandle& src, const Weights& weights,
       const TensorHandle* biases, const TensorHandle* src_exp = nullptr,
       const ConvRuntimeCheckDesc& runtime_check = {},
       const TensorHandle* runtime_check_tensor = nullptr);
