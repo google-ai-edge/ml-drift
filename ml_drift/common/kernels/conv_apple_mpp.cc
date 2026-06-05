@@ -59,7 +59,8 @@ void AddRuntimeParams(GPUOperation& op,
 
 std::string ConvAppleMPP::GetKernelCode(bool has_batch, bool has_bias) const {
   const bool weights_conversion =
-      weights_desc_.layout == WeightsLayout::kOSpatialIOGroupI4O4;
+      external_weights_params_.weights_desc.layout ==
+      WeightsLayout::kOSpatialIOGroupI4O4;
   const bool manual_k_tiling = runtime_check_.src_end_ch_index.has_value() ||
                                softmax_input_activation_ || weights_conversion;
   const int k_tile = manual_k_tiling ? 32 : AlignByN(weights_shape_.i, 4);
@@ -171,11 +172,24 @@ MAIN_FUNCTION($0) {
   int w_stride = args.dst.Slices() * 8;
 )";
     if (weights_data_type_ == DataType::FLOAT16) {
-      c += R"(
-  half4 w_scale = args.weights_scale.Read(w_o_slice, dst_h, 0);
-  half4 w_zero_point = args.weights_zero_point.Read(w_o_slice, dst_h, 0);
-  half4 w_bias = -w_scale * 8.0h + w_zero_point;
-)";
+      c += "  half4 w_scale, w_bias;\n";
+      if (external_weights_params_.scale_zp_shape.i != 1) {
+        // grouped quantization
+        c += "  int last_src_group_id = -1;\n";
+      } else {
+        // linear quantization
+        const std::string coords =
+            external_weights_params_.scale_zp_shape.h != 1
+                ? "w_o_slice, dst_h, 0"
+                : "w_o_slice";
+        c += "  w_scale = args.weights_scale.Read(" + coords + ");\n";
+        if (external_weights_params_.has_zero_point) {
+          c += "  half4 w_zp = args.weights_zero_point.Read(" + coords + ");\n";
+        } else {
+          c += "  half4 w_zp = ucl::Init<half4>(0.0h);\n";
+        }
+        c += "  w_bias = -w_scale * 8.0h + w_zp;\n";
+      }
     }
   }
   if (softmax_input_activation_) {
@@ -195,6 +209,26 @@ MAIN_FUNCTION($0) {
       c += "    uint2 u4_i4o4 = args.weights.Read(w_wg_offset);\n";
       c += "    w_wg_offset += w_stride;\n";
       if (weights_data_type_ == DataType::FLOAT16) {
+        if (external_weights_params_.scale_zp_shape.i != 1) {
+          // grouped quantization
+          c += "    int src_group_id = (k / 4 + sub_i) / " +
+               std::to_string(external_weights_params_.src_group_slices) +
+               +";\n";
+          c += "    if (last_src_group_id != src_group_id) {\n";
+          c += "      last_src_group_id = src_group_id;\n";
+          std::string w_batch =
+              external_weights_params_.scale_zp_shape.h != 1 ? "dst_h" : "0";
+          std::string coords = "w_o_slice, " + w_batch + ", src_group_id";
+          c += "      w_scale = args.weights_scale.Read(" + coords + ");\n";
+          if (external_weights_params_.has_zero_point) {
+            c += "      half4 w_zp = args.weights_zero_point.Read(" + coords +
+                 ");\n";
+          } else {
+            c += "      half4 w_zp = ucl::Init<half4>(0.0f);\n";
+          }
+          c += "      w_bias = -w_scale * 8.0h + w_zp;\n";
+          c += "    }\n";
+        }
         c += R"(
     half4 w0, w1, w2, w3;
     ucl::U32x2ToU4x16AsVec4x4<half>(u4_i4o4, w0, w1, w2, w3);
@@ -334,7 +368,7 @@ ConvAppleMPP::ConvAppleMPP(const OHWI& weights_shape,
   if (weights_shape.o % 128 != 0) {
     n_tile_ = 64;
   }
-  weights_desc_.layout = WeightsLayout::kUnknown;
+  external_weights_params_.weights_desc.layout = WeightsLayout::kUnknown;
 }
 
 int3 ConvAppleMPP::GetGridSize() const {
@@ -424,8 +458,14 @@ ConvAppleMPP CreateConvAppleMPPExternalWeights(
   ConvAppleMPP conv(weights.shape, DataType::FLOAT16,
                     different_weights_for_height, src_exp != nullptr,
                     runtime_check);
+  ConvAppleMPP::ExternalWeightsParams params;
+  params.weights_desc = weights.desc;
+  params.scale_zp_shape = weights.scale_zp_shape;
+  params.has_zero_point = weights.zero_point != nullptr;
+  params.src_group_slices =
+      DivideRoundUp(weights.shape.i, 4) / weights.scale_zp_shape.i;
+  conv.SetExternalWeightsParams(params);
   conv.SetNTile(64);
-  conv.SetWeightsDescription(weights.desc);
   conv.code_ = conv.GetKernelCode(dst.HasAxis(Axis::BATCH), bias != nullptr);
   conv.AddSrcTensor("src", src);
   conv.AddDstTensor("dst", dst);
@@ -486,8 +526,10 @@ ConvAppleMPP CreateConvAppleMPPInt8(const TensorDescriptor& src,
                                     const TensorDescriptor& dst,
                                     const ExternalWeights& weights) {
   ConvAppleMPP conv(weights.shape, DataType::INT8, weights.shape.h != 1);
+  ConvAppleMPP::ExternalWeightsParams params;
+  params.weights_desc = weights.desc;
+  conv.SetExternalWeightsParams(params);
   conv.SetNTile(64);
-  conv.SetWeightsDescription(weights.desc);
   conv.code_ = conv.GetKernelCode(dst.HasAxis(Axis::BATCH));
   conv.AddSrcTensor("src", src);
   conv.AddDstTensor("dst", dst);

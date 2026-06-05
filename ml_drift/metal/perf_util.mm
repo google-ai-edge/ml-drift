@@ -592,7 +592,6 @@ absl::Status ConvolutionSf16Wi4BatchedPerfTest(const BHWC& src_shape, int dst_ch
   conv->SetDst(&dst);
 
   RETURN_IF_ERROR(conv->AssembleCode(env.GetInfo()));
-  std::cout << conv->code_ << std::endl;
 
   const int64_t flops_per_element = weights_i4.shape.i * 2;
   const int64_t dst_elements = dst.Width() * dst.Height() * dst.Channels();

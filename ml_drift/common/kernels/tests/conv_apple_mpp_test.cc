@@ -66,6 +66,14 @@ TEST_P(ConvAppleMPPFloat16Test, ConvAppleMPPExternalBatchedWi4Test) {
                                                dst_channels));
 }
 
+TEST_P(ConvAppleMPPFloat16Test, ConvAppleMPPExternalBatchedGroupedWi4Test) {
+  const BHWC src_shape(1, 6, 12, 32 * 3);
+  const int dst_channels = 68;
+  MLD_ASSERT_OK(ConvAppleMPPExternalBatchedGroupedWi4Test(*exec_env, GetParam(),
+                                                      src_shape, dst_channels,
+                                                      /*group_size=*/12));
+}
+
 TEST_P(ConvAppleMPPFloat16Test, BatchedMatMulTest) {
   const BHWC left_shape(1, 12, 128, 32);
   const BHWC right_shape(1, 12, 32, 64);
