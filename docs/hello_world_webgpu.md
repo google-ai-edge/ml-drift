@@ -26,7 +26,6 @@ A successful build will display a message similar to this:
 Target //ml_drift/common/kernels/tests:add_test_webgpu up-to-date:
   bazel-bin/ml_drift/common/kernels/tests/add_test_webgpu
 INFO: Elapsed time: 29.057s, Critical Path: 28.33s
-INFO: 62 processes: 20 internal, 42 linux-sandbox.
 INFO: Build completed successfully, 62 total actions
 ```
 
@@ -70,7 +69,6 @@ A successful build will display a message similar to this:
 Target //ml_drift/webgpu/testing:performance_profiling up-to-date:
   bazel-bin/ml_drift/webgpu/testing/performance_profiling
 INFO: Elapsed time: 273.071s, Critical Path: 226.35s
-INFO: 1552 processes: 792 internal, 760 linux-sandbox.
 INFO: Build completed successfully, 1552 total actions
 ```
 

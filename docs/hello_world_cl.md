@@ -32,7 +32,6 @@ A successful build will display a message similar to this:
 Target //ml_drift/common/kernels/tests:add_test_opencl up-to-date:
   bazel-bin/ml_drift/common/kernels/tests/add_test_opencl
 INFO: Elapsed time: 81.789s, Critical Path: 63.56s
-INFO: 916 processes: 237 internal, 679 linux-sandbox.
 INFO: Build completed successfully, 916 total actions
 ```
 
