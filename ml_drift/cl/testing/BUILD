@@ -35,12 +35,13 @@ cc_library(
         "//ml_drift/common:shape",
         "//ml_drift/common:status",
         "//ml_drift/common:tensor",
+        "//ml_drift/common/default:status_matchers",
         "//ml_drift/common/task:gpu_operation",
         "//ml_drift/common/task:profiling_info",
         "//ml_drift/common/task:tensor_desc",
         "//ml_drift/common/task:testing_util",
         "//ml_drift/common/task:tuning_type",
-        "@com_google_googletest//:gtest", "//ml_drift/common/default:status_matchers",
+        "@com_google_googletest//:gtest",
     ],
 )
 
@@ -53,7 +54,8 @@ cc_test(
         "//ml_drift/common:gpu_model_external_weights_test_util",
         "//ml_drift/common:shape",
         "//ml_drift/common:status",
-        "@com_google_googletest//:gtest_main", "//ml_drift/common/default:status_matchers",
+        "//ml_drift/common/default:status_matchers",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -65,7 +67,8 @@ cc_test(
         ":cl_test",
         "//ml_drift/common:gpu_model_linking_test_util",
         "//ml_drift/common:status",
-        "@com_google_googletest//:gtest_main", "//ml_drift/common/default:status_matchers",
+        "//ml_drift/common/default:status_matchers",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -89,14 +92,15 @@ cc_test(
         "//ml_drift/common:status",
         "//ml_drift/common:tensor",
         "//ml_drift/common:util",
+        "//ml_drift/common/default:status_matchers",
         "//ml_drift/common/task:tensor_desc",
         "//ml_drift/common/task:testing_util",
         "//ml_drift/common/task:weights_conversion",
         "//ml_drift/common/task:weights_layout",
-        "@com_google_googletest//:gtest_main", "//ml_drift/common/default:status_matchers",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/log:absl_check",
         "@com_google_absl//absl/strings",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -112,7 +116,8 @@ cc_test(
         "//ml_drift/cl:opencl_wrapper",
         "//ml_drift/common:precision",
         "//ml_drift/common:shape",
-        "@com_google_googletest//:gtest_main", "//ml_drift/common/default:status_matchers",
+        "//ml_drift/common/default:status_matchers",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 

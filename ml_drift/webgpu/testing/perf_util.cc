@@ -1,4 +1,4 @@
-// Copyright 2024 The ML Drift Authors.
+// Copyright 2026 The ML Drift Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -527,6 +527,7 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision,
   external_weights.desc = weights_desc;
   external_weights.shape = weights.shape;
   if (is_qunatized) {
+    external_weights.scale_zp_shape = scale_zp_shape;
     external_weights.scale = &scale_desc;
     external_weights.zero_point = &zp_desc;
   }

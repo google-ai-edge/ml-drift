@@ -1,4 +1,4 @@
-// Copyright 2024 The ML Drift Authors.
+// Copyright 2026 The ML Drift Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -413,10 +413,11 @@ absl::Status MakeQuantizedEmbeddingLookup(const GpuInfo& gpu_info,
   }
 
   const DataType dst_type = DeduceDataTypeFromPrecision(create_info.precision);
+  const GpuModelBuilder::Weights external_weights =
+      CreateExternalWeights(weights, weights_desc, attr.original_weights_shape,
+                            attr.scale_zp_shape, &scale, &zero_point);
   return model_builder->UpdateOutputTensor(
-      model_builder->EmbeddingLookup(src, weights, dst_type,
-                                     attr.original_weights_shape, weights_desc,
-                                     &scale, &zero_point),
+      model_builder->EmbeddingLookup(src, external_weights, dst_type),
       outputs[0]->id);
 }
 
@@ -1371,10 +1372,11 @@ absl::Status GPUOperationFromNode(
 
         const DataType dst_type =
             DeduceDataTypeFromPrecision(create_info.precision);
+        const GpuModelBuilder::Weights external_weights = CreateExternalWeights(
+            weights, weights_desc, attr.original_weights_shape,
+            attr.scale_zp_shape, &scale, &zero_point);
         return model_builder->UpdateOutputTensor(
-            model_builder->EmbeddingLookup(src, weights, dst_type,
-                                           attr.original_weights_shape,
-                                           weights_desc, &scale, &zero_point),
+            model_builder->EmbeddingLookup(src, external_weights, dst_type),
             outputs[0]->id);
       } else {
         std::unique_ptr<GPUOperation> gpu_op;

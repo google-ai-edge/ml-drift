@@ -232,7 +232,8 @@ cc_test(
     srcs = ["util_test.cc"],
     deps = [
         ":util",
-        "@com_google_googletest//:gtest_main", "//ml_drift/common/default:status_matchers",
+        "//ml_drift/common/default:status_matchers",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 

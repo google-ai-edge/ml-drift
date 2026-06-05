@@ -1,4 +1,4 @@
-// Copyright 2025 The ML Drift Authors.
+// Copyright 2026 The ML Drift Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -58,8 +58,9 @@ class ConvAppleMPP : public GPUOperation {
   int3 GetGridSize() const override;
 
   WeightsDescription GetWeightsDescription() const {
-    if (weights_desc_.layout != WeightsLayout::kUnknown) {
-      return weights_desc_;
+    if (external_weights_params_.weights_desc.layout !=
+        WeightsLayout::kUnknown) {
+      return external_weights_params_.weights_desc;
     }
     WeightsDescription weights_desc;
     weights_desc.type = weights_data_type_;
@@ -80,8 +81,14 @@ class ConvAppleMPP : public GPUOperation {
   template <DataType T>
   void UploadBias(const Tensor<Linear, T>& bias);
 
-  void SetWeightsDescription(const WeightsDescription& weights_desc) {
-    weights_desc_ = weights_desc;
+  struct ExternalWeightsParams {
+    WeightsDescription weights_desc;
+    OHWI scale_zp_shape = OHWI(1, 1, 1, 1);
+    bool has_zero_point = false;
+    int src_group_slices = 0;
+  };
+  void SetExternalWeightsParams(const ExternalWeightsParams& weights_params) {
+    external_weights_params_ = weights_params;
   }
   void SetNTile(int n_tile) { n_tile_ = n_tile; }
   std::string GetKernelCode(bool has_batch, bool has_bias = false) const;
@@ -95,7 +102,7 @@ class ConvAppleMPP : public GPUOperation {
   bool batched_weights_ = false;
   bool softmax_input_activation_ = false;
   ConvRuntimeCheckDesc runtime_check_;
-  WeightsDescription weights_desc_;
+  ExternalWeightsParams external_weights_params_;
 };
 
 template <DataType T>
@@ -160,6 +167,11 @@ ConvAppleMPP CreateConvAppleMPPInt8(
 ConvAppleMPP CreateConvAppleMPPInt8(const TensorDescriptor& src,
                                     const TensorDescriptor& dst,
                                     const OHWI& weights_shape);
+
+// Creates an Apple MPP convolution operation with INT8 external weights.
+ConvAppleMPP CreateConvAppleMPPInt8(const TensorDescriptor& src,
+                                    const TensorDescriptor& dst,
+                                    const ExternalWeights& weights);
 
 }  // namespace ml_drift
 

@@ -1,4 +1,4 @@
-// Copyright 2024 The ML Drift Authors.
+// Copyright 2026 The ML Drift Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -1065,9 +1065,9 @@ TensorInt32 FullyConnectedReference(
             int src_i32 =
                 src_tensor_i8
                     .data[src_tensor_i8.shape.LinearIndex({b, y, x, src_ch})];
-            int weights_i32 =
-                weights_i8
-                    .data[weights_i8.shape.LinearIndex({dst_ch, 0, 0, src_ch})];
+            const int weights_h = weights_i8.shape.h == 1 ? 0 : y;
+            int weights_i32 = weights_i8.data[weights_i8.shape.LinearIndex(
+                {dst_ch, weights_h, 0, src_ch})];
             dst_val += src_i32 * weights_i32;
           }
           dst_ref_tensor

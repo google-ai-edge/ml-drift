@@ -1,4 +1,4 @@
-// Copyright 2024 The ML Drift Authors.
+// Copyright 2026 The ML Drift Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -57,7 +57,10 @@ class ConvWaveMatrix : public GPUOperation {
     }
   };
   struct ConvParams {
-    WeightsDescription weights_desc;
+    WeightsDescription weights_desc;         // only used for ExternalWeights
+    OHWI scale_zp_shape = OHWI(1, 1, 1, 1);  // only used for ExternalWeights
+    bool has_zero_point = false;             // only used for ExternalWeights
+    int src_group_slices = 0;                // only used for ExternalWeights
     CalculationsPrecision precision = CalculationsPrecision::F32;
     DataType weights_data_type;
     bool x_kernel_is_1 = true;

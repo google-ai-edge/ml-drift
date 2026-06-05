@@ -1,4 +1,4 @@
-// Copyright 2025 The ML Drift Authors.
+// Copyright 2026 The ML Drift Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -59,13 +59,26 @@ void AddRuntimeParams(GPUOperation& op,
 
 std::string ConvAppleMPP::GetKernelCode(bool has_batch, bool has_bias) const {
   const bool weights_conversion =
-      weights_desc_.layout == WeightsLayout::kOSpatialIOGroupI4O4;
+      external_weights_params_.weights_desc.layout ==
+      WeightsLayout::kOSpatialIOGroupI4O4;
   const bool manual_k_tiling = runtime_check_.src_end_ch_index.has_value() ||
                                softmax_input_activation_ || weights_conversion;
   const int k_tile = manual_k_tiling ? 32 : AlignByN(weights_shape_.i, 4);
-  std::string c = R"(
-#include <MetalPerformancePrimitives/MetalPerformancePrimitives.h>
-
+  std::string c;
+  c += "#include <MetalPerformancePrimitives/MetalPerformancePrimitives.h>\n";
+  if (weights_conversion && weights_data_type_ != DataType::FLOAT16) {
+    c += R"(
+uint32_t expand_int4_to_int8(uint32_t val) {
+  uint32_t x = val & 0xFFFF;
+  x = (x | (x << 8)) & 0x00FF00FF;
+  x = (x | (x << 4)) & 0x0F0F0F0F;
+  uint32_t signs = x & 0x08080808;
+  uint32_t sign_extensions = signs * 0x1E;
+  return x | sign_extensions;
+}
+)";
+  }
+  c += R"(
 MAIN_FUNCTION($0) {
   int slice_tile_id = ucl::GetGroupId<0>();
   int spatial_tile_id = ucl::GetGroupId<1>();
@@ -140,9 +153,14 @@ MAIN_FUNCTION($0) {
     ABSL_CHECK(n_tile_ == 64);
     ABSL_CHECK(k_tile == 32);
     ABSL_CHECK(simdgroups_ == 4);
+    const std::string w_loc_type =
+        weights_data_type_ == DataType::FLOAT16 ? "half" : "int8_t";
+    const std::string w_loc_x4_type =
+        weights_data_type_ == DataType::FLOAT16 ? "half4" : "uint";
+    c += "  threadgroup " + w_loc_type + " w_loc[K_TILE * N_TILE];\n";
+    c += "  threadgroup " + w_loc_x4_type + "* w_loc_x4 = (threadgroup " +
+         w_loc_x4_type + "*)(w_loc);\n";
     c += R"(
-  threadgroup half w_loc[K_TILE * N_TILE];
-  threadgroup half4* w_loc_x4 = (threadgroup half4*)(w_loc);
   auto w_loc_t = tensor(w_loc, dextents<int, 2>(N_TILE, K_TILE));
 
   int loc_id = ucl::GetLocalId<0>();
@@ -152,29 +170,29 @@ MAIN_FUNCTION($0) {
   int w_o_slice = min(slice_tile_id * N_TILE_SLICES + sub_o, args.dst.Slices() - 1);
   int w_wg_offset = (dst_h * args.src.Slices() + sub_i) * args.dst.Slices() + w_o_slice;
   int w_stride = args.dst.Slices() * 8;
-
-  half4 w_scale = args.weights_scale.Read(w_o_slice, dst_h, 0);
-  half4 w_zero_point = args.weights_zero_point.Read(w_o_slice, dst_h, 0);
-  half4 w_bias = -w_scale * 8.0h + w_zero_point;
-
-  for (int k = 0; k < args.src.Slices(); k += 8) {
-    uint2 u4_i4o4 = args.weights.Read(w_wg_offset);
-    w_wg_offset += w_stride;
-    half4 w0, w1, w2, w3;
-    ucl::U32x2ToU4x16AsVec4x4<half>(u4_i4o4, w0, w1, w2, w3);
-    threadgroup_barrier(mem_flags::mem_threadgroup);
-    // store it in i32o64 or half4 in i32o16
-    w_loc_x4[(sub_i * 4 + 0) * 16 + sub_o] = w0 * w_scale + w_bias;
-    w_loc_x4[(sub_i * 4 + 1) * 16 + sub_o] = w1 * w_scale + w_bias;
-    w_loc_x4[(sub_i * 4 + 2) * 16 + sub_o] = w2 * w_scale + w_bias;
-    w_loc_x4[(sub_i * 4 + 3) * 16 + sub_o] = w3 * w_scale + w_bias;
-    threadgroup_barrier(mem_flags::mem_threadgroup);
-
-    auto tA = a.slice(k, spatial_tile_id * M_TILE);
-    matmul_op.run(tA, w_loc_t, c_sub_tensor);
-  }
 )";
-  } else if (softmax_input_activation_) {
+    if (weights_data_type_ == DataType::FLOAT16) {
+      c += "  half4 w_scale, w_bias;\n";
+      if (external_weights_params_.scale_zp_shape.i != 1) {
+        // grouped quantization
+        c += "  int last_src_group_id = -1;\n";
+      } else {
+        // linear quantization
+        const std::string coords =
+            external_weights_params_.scale_zp_shape.h != 1
+                ? "w_o_slice, dst_h, 0"
+                : "w_o_slice";
+        c += "  w_scale = args.weights_scale.Read(" + coords + ");\n";
+        if (external_weights_params_.has_zero_point) {
+          c += "  half4 w_zp = args.weights_zero_point.Read(" + coords + ");\n";
+        } else {
+          c += "  half4 w_zp = ucl::Init<half4>(0.0h);\n";
+        }
+        c += "  w_bias = -w_scale * 8.0h + w_zp;\n";
+      }
+    }
+  }
+  if (softmax_input_activation_) {
     c += R"(
   threadgroup half a_loc[K_TILE * M_TILE];
   threadgroup half4* a_loc_x4 = (threadgroup half4*)(a_loc);
@@ -183,8 +201,68 @@ MAIN_FUNCTION($0) {
   int src_h = min(dst_h, args.src.Height() - 1);
   half2 exp_val = args.src_exp.Read(src_w, src_h, 0).xy;
 )";
-    c += "  for (int k = 0; k < " + src_end_slice + "; k += K_TILE_SLICES) {\n";
-    c += R"(
+  }
+  if (manual_k_tiling) {
+    c += "  for (int k = 0; k < " + src_end_slice + " * 4; k += K_TILE) {\n";
+    std::string s_tile, w_tile;
+    if (weights_conversion) {
+      c += "    uint2 u4_i4o4 = args.weights.Read(w_wg_offset);\n";
+      c += "    w_wg_offset += w_stride;\n";
+      if (weights_data_type_ == DataType::FLOAT16) {
+        if (external_weights_params_.scale_zp_shape.i != 1) {
+          // grouped quantization
+          c += "    int src_group_id = (k / 4 + sub_i) / " +
+               std::to_string(external_weights_params_.src_group_slices) +
+               +";\n";
+          c += "    if (last_src_group_id != src_group_id) {\n";
+          c += "      last_src_group_id = src_group_id;\n";
+          std::string w_batch =
+              external_weights_params_.scale_zp_shape.h != 1 ? "dst_h" : "0";
+          std::string coords = "w_o_slice, " + w_batch + ", src_group_id";
+          c += "      w_scale = args.weights_scale.Read(" + coords + ");\n";
+          if (external_weights_params_.has_zero_point) {
+            c += "      half4 w_zp = args.weights_zero_point.Read(" + coords +
+                 ");\n";
+          } else {
+            c += "      half4 w_zp = ucl::Init<half4>(0.0f);\n";
+          }
+          c += "      w_bias = -w_scale * 8.0h + w_zp;\n";
+          c += "    }\n";
+        }
+        c += R"(
+    half4 w0, w1, w2, w3;
+    ucl::U32x2ToU4x16AsVec4x4<half>(u4_i4o4, w0, w1, w2, w3);
+    w0 = w0 * w_scale + w_bias;
+    w1 = w1 * w_scale + w_bias;
+    w2 = w2 * w_scale + w_bias;
+    w3 = w3 * w_scale + w_bias;
+)";
+      } else {
+        c += R"(
+    u4_i4o4.x ^= 0x88888888u;
+    u4_i4o4.y ^= 0x88888888u;
+    uint w0 = expand_int4_to_int8(u4_i4o4.x);
+    uint w1 = expand_int4_to_int8(u4_i4o4.x >> 16);
+    uint w2 = expand_int4_to_int8(u4_i4o4.y);
+    uint w3 = expand_int4_to_int8(u4_i4o4.y >> 16);
+)";
+      }
+      c += R"(
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    // store it in i32o64 or half4 in i32o16
+    w_loc_x4[(sub_i * 4 + 0) * 16 + sub_o] = w0;
+    w_loc_x4[(sub_i * 4 + 1) * 16 + sub_o] = w1;
+    w_loc_x4[(sub_i * 4 + 2) * 16 + sub_o] = w2;
+    w_loc_x4[(sub_i * 4 + 3) * 16 + sub_o] = w3;
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+)";
+      w_tile = "w_loc_t";
+    } else {
+      c += "    auto tB = b.slice(slice_tile_id * N_TILE, k);\n";
+      w_tile = "tB";
+    }
+    if (softmax_input_activation_) {
+      c += R"(
     threadgroup_barrier(mem_flags::mem_threadgroup);
     #pragma unroll_full
     for (uint16_t i = 0; i < K_TILE_SLICES / slices_per_wg; ++i) {
@@ -194,18 +272,15 @@ MAIN_FUNCTION($0) {
       src = exp(src - exp_val.y) * exp_val.x;
       a_loc_x4[sub_spatial_id * K_TILE_SLICES + tile_k_id] = src;
     }
-    auto tB = b.slice(slice_tile_id * N_TILE, k * 4);
     threadgroup_barrier(mem_flags::mem_threadgroup);
-    matmul_op.run(a_loc_t, tB, c_sub_tensor);
-  }
 )";
-  } else if (runtime_check_.src_end_ch_index.has_value()) {
-    c += "  for (int k = 0; k < " + src_end_slice + " * 4; k += K_TILE) {\n";
-    c += R"(    auto tA = a.slice(k, spatial_tile_id * M_TILE);
-    auto tB = b.slice(slice_tile_id * N_TILE, k);
-    matmul_op.run(tA, tB, c_sub_tensor);
-  }
-)";
+      s_tile = "a_loc_t";
+    } else {
+      c += "    auto tA = a.slice(k, spatial_tile_id * M_TILE);\n";
+      s_tile = "tA";
+    }
+    c += "    matmul_op.run(" + s_tile + ", " + w_tile + ", c_sub_tensor);\n";
+    c += "  }\n";
   } else {
     c += "  matmul_op.run(a_sub_tensor, b_sub_tensor, c_sub_tensor);\n";
   }
@@ -293,7 +368,7 @@ ConvAppleMPP::ConvAppleMPP(const OHWI& weights_shape,
   if (weights_shape.o % 128 != 0) {
     n_tile_ = 64;
   }
-  weights_desc_.layout = WeightsLayout::kUnknown;
+  external_weights_params_.weights_desc.layout = WeightsLayout::kUnknown;
 }
 
 int3 ConvAppleMPP::GetGridSize() const {
@@ -383,8 +458,14 @@ ConvAppleMPP CreateConvAppleMPPExternalWeights(
   ConvAppleMPP conv(weights.shape, DataType::FLOAT16,
                     different_weights_for_height, src_exp != nullptr,
                     runtime_check);
+  ConvAppleMPP::ExternalWeightsParams params;
+  params.weights_desc = weights.desc;
+  params.scale_zp_shape = weights.scale_zp_shape;
+  params.has_zero_point = weights.zero_point != nullptr;
+  params.src_group_slices =
+      DivideRoundUp(weights.shape.i, 4) / weights.scale_zp_shape.i;
+  conv.SetExternalWeightsParams(params);
   conv.SetNTile(64);
-  conv.SetWeightsDescription(weights.desc);
   conv.code_ = conv.GetKernelCode(dst.HasAxis(Axis::BATCH), bias != nullptr);
   conv.AddSrcTensor("src", src);
   conv.AddDstTensor("dst", dst);
@@ -428,7 +509,7 @@ ConvAppleMPP CreateConvAppleMPPInt8(
 ConvAppleMPP CreateConvAppleMPPInt8(const TensorDescriptor& src,
                                     const TensorDescriptor& dst,
                                     const OHWI& weights_shape) {
-  ConvAppleMPP conv(weights_shape, DataType::INT8);
+  ConvAppleMPP conv(weights_shape, DataType::INT8, weights_shape.h != 1);
   conv.code_ = conv.GetKernelCode(dst.HasAxis(Axis::BATCH));
   conv.AddSrcTensor("src", src);
   conv.AddDstTensor("dst", dst);
@@ -436,6 +517,27 @@ ConvAppleMPP CreateConvAppleMPPInt8(const TensorDescriptor& src,
   BufferDescriptor weights_desc;
   weights_desc.element_type = DataType::INT8;
   weights_desc.element_size = 1;
+  conv.AddSrcBuffer("weights", weights_desc);
+  return conv;
+}
+
+// Creates an Apple MPP convolution operation with INT8 external weights.
+ConvAppleMPP CreateConvAppleMPPInt8(const TensorDescriptor& src,
+                                    const TensorDescriptor& dst,
+                                    const ExternalWeights& weights) {
+  ConvAppleMPP conv(weights.shape, DataType::INT8, weights.shape.h != 1);
+  ConvAppleMPP::ExternalWeightsParams params;
+  params.weights_desc = weights.desc;
+  conv.SetExternalWeightsParams(params);
+  conv.SetNTile(64);
+  conv.code_ = conv.GetKernelCode(dst.HasAxis(Axis::BATCH));
+  conv.AddSrcTensor("src", src);
+  conv.AddDstTensor("dst", dst);
+
+  BufferDescriptor weights_desc;
+  weights_desc.element_type = DataType::UINT32;
+  weights_desc.element_size = 2;
+  weights_desc.memory_type = MemoryType::GLOBAL;
   conv.AddSrcBuffer("weights", weights_desc);
   return conv;
 }

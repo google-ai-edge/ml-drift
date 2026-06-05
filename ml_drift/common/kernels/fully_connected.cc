@@ -1,4 +1,4 @@
-// Copyright 2024 The ML Drift Authors.
+// Copyright 2026 The ML Drift Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -505,16 +505,6 @@ DataType GetDataTypeForWeights(DataType weights_type) {
   return weights_type;
 }
 
-OHWI GetScaleShape(const TensorDescriptor& scale) {
-  auto scale_shape = scale.GetBHWCShape();
-  if (scale.GetLayout() == Layout::LINEAR) {
-    return OHWI(scale_shape.c, 1, 1, 1);
-  } else {
-    return OHWI(scale_shape.w * 4, scale_shape.h, 1,
-                DivideRoundUp(scale_shape.c, 4));
-  }
-}
-
 }  // namespace
 
 FullyConnected::FullyConnected(const OperationDef& definition,
@@ -560,7 +550,6 @@ FullyConnected::FullyConnected(const OperationDef& definition,
       DivideRoundUp(weights_shape.i / conv_params.scale_zp_shape.i, 4);
   code_ = GetFullyConnectedKernelCode(definition, precision, gpu_info,
                                       weights_desc, scale_zp_group_size);
-  // std::cout << code_ << std::endl;
 
   const int wg_total_size = work_group_size_.x * work_group_size_.y;
   const std::string scope = gpu_info.IsApiMetal() && wg_total_size == 32 &&
@@ -593,6 +582,248 @@ FullyConnected::FullyConnected(const OperationDef& definition,
       compiler_options_.push_back(CompilerOptions::kCl30);
     }
   }
+}
+
+bool UseFMA(const GpuInfo& gpu_info) {
+  return gpu_info.IsApiWebGpu() ||
+         (gpu_info.IsAMD() && gpu_info.IsApiOpenCl()) ||
+         (gpu_info.IsMaleoon() && gpu_info.IsApiOpenCl());
+}
+
+std::string ReadWeightsAsFloat(const FullyConnected::ConvParams& conv_params,
+                               const WeightsDescription& weights_desc,
+                               bool split_dst_slices) {
+  std::string c;
+  if (weights_desc.layout == WeightsLayout::kUnknown) {
+    const std::string h_coord =
+        conv_params.batched_weights ? "weights_batch_id" : "0";
+    c += "    w0 = args.weights.Read<SType>(0, " + h_coord +
+         ", src_s, dst_s * 4 + 0);\n";
+    c += "    w1 = args.weights.Read<SType>(0, " + h_coord +
+         ", src_s, dst_s * 4 + 1);\n";
+    c += "    w2 = args.weights.Read<SType>(0, " + h_coord +
+         ", src_s, dst_s * 4 + 2);\n";
+    c += "    w3 = args.weights.Read<SType>(0, " + h_coord +
+         ", src_s, dst_s * 4 + 3);\n";
+  } else if (weights_desc.IsLinearLayout()) {
+    c += "    int linear_i4o4 = src_s * args.dst_tensor.Slices() + dst_s;\n";
+    if (conv_params.batched_weights) {
+      c += "    linear_i4o4 += weights_batch_id * args.src_tensor.Slices() * "
+           "args.dst_tensor.Slices();\n";
+    }
+    if (conv_params.sparse_2x4) {
+      c += "    uint weights = args.weights.Read(linear_i4o4);\n";
+      c += "    uint indexes = args.weights_indices.ReadAsU16(linear_i4o4);\n";
+      c += "    ucl::U32Sparse2x4ToU4x16AsVec4x4<SType>(weights, indexes, "
+           "w0, w1, w2, w3);\n";
+    } else if (IsQuantized(conv_params)) {
+      if (conv_params.weights_type == DataType::INT2) {
+        c += "    uint w = args.weights.Read(linear_i4o4);\n";
+        c += "    ucl::U32x1ToU2x16AsVec4x4<SType>(w, w0, w1, w2, w3);\n";
+      } else if (conv_params.weights_type == DataType::INT4) {
+        c += "    uint2 w = args.weights.Read(linear_i4o4);\n";
+        c += "    ucl::U32x2ToU4x16AsVec4x4<SType>(w, w0, w1, w2, w3);\n";
+      } else {
+        c += "    uint4 w = args.weights.Read(linear_i4o4);\n";
+        c += "    ucl::U32x4ToU8x16AsVec4x4<SType>(w, w0, w1, w2, w3);\n";
+      }
+    } else {
+      c += "    args.weights.ReadVec16AsVec4x4(w0, w1, w2, w3, "
+           "linear_i4o4);\n";
+    }
+  } else {
+    std::string x_c = "dst_s";
+    std::string y_c = "src_s";
+    if (conv_params.batched_weights) {
+      y_c = "weights_batch_id * args.src_tensor.Slices() + src_s";
+    }
+    if (split_dst_slices) {
+      x_c = "o_local_id";
+      y_c = "(" + y_c + ") * args.o_groups + o_group_id";
+    }
+    if (weights_desc.layout ==
+        WeightsLayout::k2DX4I4YIsSpatialIAndXIsOOGroupO4) {
+      c += "    w0 = args.weights0.Read<SType>(" + x_c + ", " + y_c + ");\n";
+      c += "    w1 = args.weights1.Read<SType>(" + x_c + ", " + y_c + ");\n";
+      c += "    w2 = args.weights2.Read<SType>(" + x_c + ", " + y_c + ");\n";
+      c += "    w3 = args.weights3.Read<SType>(" + x_c + ", " + y_c + ");\n";
+    } else if (conv_params.weights_type == DataType::INT8) {
+      c += "    uint4 w = args.weights.Read(" + x_c + ", " + y_c + ");\n";
+      c += "    ucl::U32x4ToU8x16AsVec4x4<SType>(w, w0, w1, w2, w3);\n";
+    } else if (conv_params.weights_type == DataType::INT4) {
+      c += "    ushort4 w = args.weights.Read(" + x_c + ", " + y_c + ");\n";
+      c += "    ucl::U16x4ToU4x16AsVec4x4<SType>(w, w0, w1, w2, w3);\n";
+    } else if (conv_params.weights_type == DataType::INT2) {
+      c += "    uchar4 w = args.weights.Read(" + x_c + ", " + y_c + ");\n";
+      c += "    ucl::U8x4ToU2x16AsVec4x4<SType>(w, w0, w1, w2, w3);\n";
+    }
+  }
+  return c;
+}
+
+std::string ReadWeightsAs4Uint8x4(const FullyConnected::ConvParams& conv_params,
+                                  const WeightsDescription& weights_desc,
+                                  bool split_dst_slices) {
+  std::string c;
+  std::string coords_2d;
+  if (weights_desc.IsLinearLayout()) {
+    c += "    int linear_i4o4 = src_s * args.dst_tensor.Slices() + dst_s;\n";
+    if (conv_params.batched_weights) {
+      c += "    linear_i4o4 += weights_batch_id * args.src_tensor.Slices() * "
+           "args.dst_tensor.Slices();\n";
+    }
+  } else {
+    std::string x_c = "dst_s";
+    std::string y_c = "src_s";
+    if (conv_params.batched_weights) {
+      y_c = "weights_batch_id * args.src_tensor.Slices() + src_s";
+    }
+    if (split_dst_slices) {
+      x_c = "o_local_id";
+      y_c = "(" + y_c + ") * args.o_groups + o_group_id";
+    }
+    coords_2d = x_c + ", " + y_c;
+  }
+  if (IsQuantized(conv_params)) {
+    if (conv_params.weights_type == DataType::INT2) {
+      if (weights_desc.IsLinearLayout()) {
+        c += "    uint w = args.weights.Read(linear_i4o4);\n";
+      } else {
+        c += "    uchar4 wt = args.weights.Read(" + coords_2d + ");\n";
+        c += "    uint w = ucl::Reinterpret<uchar4, uint>(wt);\n";
+      }
+      c += "    w0 = w & 50529027u;\n";
+      c += "    w1 = (w >> 2u) & 50529027u;\n";
+      c += "    w2 = (w >> 4u) & 50529027u;\n";
+      c += "    w3 = (w >> 6u) & 50529027u;\n";
+    } else if (conv_params.weights_type == DataType::INT4) {
+      if (weights_desc.IsLinearLayout()) {
+        c += "    uint2 w = args.weights.Read(linear_i4o4);\n";
+      } else {
+        c += "    ushort4 wt = args.weights.Read(" + coords_2d + ");\n";
+        c += "    uint2 w = ucl::Reinterpret<ushort4, uint2>(wt);\n";
+      }
+      c += R"(
+  uint t = (w.y ^ (w.x >> 16u)) & 0x0000FFFFu;
+
+  uint t0 = w.x ^ (t << 16u);
+  uint t1 = w.y ^ t;
+
+  t = (t1 ^ (t0 >> 8u)) & 0x00FF00FFu;
+  t1 ^= t;
+  t0 ^= (t << 8u);
+
+  w0 = t0 & 0x0F0F0F0Fu;
+  w1 = (t0 >> 4u) & 0x0F0F0F0Fu;
+  w2 = t1 & 0x0F0F0F0Fu;
+  w3 = (t1 >> 4u) & 0x0F0F0F0Fu;
+)";
+    } else if (conv_params.weights_type == DataType::INT8) {
+      if (weights_desc.IsLinearLayout()) {
+        c += "    uint4 w = args.weights.Read(linear_i4o4);\n";
+      } else {
+        c += "    uint4 w = args.weights.Read(" + coords_2d + ");\n";
+      }
+      c += R"(
+  uint t = (w.z ^ (w.x >> 16u)) & 0x0000FFFFu;
+  w2 = w.z ^ t;
+  w0 = w.x ^ (t << 16u);
+
+  t = (w.w ^ (w.y >> 16u)) & 0x0000FFFFu;
+  w3 = w.w ^ t;
+  w1 = w.y ^ (t << 16u);
+
+  t = (w1 ^ (w0 >> 8u)) & 0x00FF00FFu;
+  w1 ^= t;
+  w0 ^= (t << 8u);
+
+  t = (w3 ^ (w2 >> 8u)) & 0x00FF00FFu;
+  w3 ^= t;
+  w2 ^= (t << 8u);
+)";
+    }
+  }
+  return c;
+}
+
+std::string WeightsScaleAddBias(bool isI4O4, bool use_fma) {
+  std::string c;
+  if (isI4O4) {
+    if (use_fma) {
+      c += "    w0 = fma(w0, weight_scale, weight_bias);\n";
+      c += "    w1 = fma(w1, weight_scale, weight_bias);\n";
+      c += "    w2 = fma(w2, weight_scale, weight_bias);\n";
+      c += "    w3 = fma(w3, weight_scale, weight_bias);\n";
+    } else {
+      c += "    w0 = w0 * weight_scale + weight_bias;\n";
+      c += "    w1 = w1 * weight_scale + weight_bias;\n";
+      c += "    w2 = w2 * weight_scale + weight_bias;\n";
+      c += "    w3 = w3 * weight_scale + weight_bias;\n";
+    }
+  } else {
+    c += "    w0 = w0 * weight_scale.x + weight_bias.x;\n";
+    c += "    w1 = w1 * weight_scale.y + weight_bias.y;\n";
+    c += "    w2 = w2 * weight_scale.z + weight_bias.z;\n";
+    c += "    w3 = w3 * weight_scale.w + weight_bias.w;\n";
+  }
+  return c;
+}
+
+std::string AccumulateFloat(const std::string r_name,
+                            const std::string src_name,
+                            CalculationsPrecision precision, bool isI4O4,
+                            bool use_fma) {
+  std::string c;
+  if (precision != CalculationsPrecision::F32_F16) {
+    if (isI4O4) {
+      if (use_fma) {
+        c += "    $0 = fma(ucl::Init<Type>($1.x), w0, $0);\n";
+        c += "    $0 = fma(ucl::Init<Type>($1.y), w1, $0);\n";
+        c += "    $0 = fma(ucl::Init<Type>($1.z), w2, $0);\n";
+        c += "    $0 = fma(ucl::Init<Type>($1.w), w3, $0);\n";
+      } else {
+        c += "    $0 += $1.x * w0;\n";
+        c += "    $0 += $1.y * w1;\n";
+        c += "    $0 += $1.z * w2;\n";
+        c += "    $0 += $1.w * w3;\n";
+      }
+    } else {
+      c += "    $0.x += dot($1, w0);\n";
+      c += "    $0.y += dot($1, w1);\n";
+      c += "    $0.z += dot($1, w2);\n";
+      c += "    $0.w += dot($1, w3);\n";
+    }
+  } else {
+    if (isI4O4) {
+      c += "    $0 += ucl::Convert<AccType>($1.x * w0 + $1.y * w1 + $1.z * w2 "
+           "+ $1.w * w3);\n";
+    } else {
+      c += "    $0.x += ucl::Convert<AccSType>(dot($1, w0));\n";
+      c += "    $0.y += ucl::Convert<AccSType>(dot($1, w1));\n";
+      c += "    $0.z += ucl::Convert<AccSType>(dot($1, w2));\n";
+      c += "    $0.w += ucl::Convert<AccSType>(dot($1, w3));\n";
+    }
+  }
+  return absl::Substitute(c, r_name, src_name);
+}
+
+std::string AccumulateUint(const std::string r_name, const std::string src_name,
+                           const GpuInfo& gpu_info) {
+  std::string c = R"(
+  $0.x = $2($1, w0, $0.x);
+  $0.y = $2($1, w1, $0.y);
+  $0.z = $2($1, w2, $0.z);
+  $0.w = $2($1, w3, $0.w);
+  $3 = $2($1, 16843009u, $3);
+  )";
+  std::string acc_func;
+  if (gpu_info.SupportsExtension("cl_qcom_dot_product8")) {
+    acc_func = "qcom_dot8_acc";
+  } else if (gpu_info.SupportsExtension("cl_khr_integer_dot_product")) {
+    acc_func = "dot_acc_sat_4x8packed_su_int";
+  }
+  const std::string sum_name = r_name + "_sum";
+  return absl::Substitute(c, r_name, src_name, acc_func, sum_name);
 }
 
 std::string FullyConnected::GetFullyConnectedKernelCode(
@@ -795,234 +1026,24 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
 
   if (!int8_math) {
     c += "    Type w0, w1, w2, w3;\n";
-    if (weights_desc.layout == WeightsLayout::kUnknown) {
-      const std::string h_coord =
-          conv_params_.batched_weights ? "weights_batch_id" : "0";
-      c += "    w0 = args.weights.Read<SType>(0, " + h_coord +
-           ", src_s, dst_s * 4 + 0);\n";
-      c += "    w1 = args.weights.Read<SType>(0, " + h_coord +
-           ", src_s, dst_s * 4 + 1);\n";
-      c += "    w2 = args.weights.Read<SType>(0, " + h_coord +
-           ", src_s, dst_s * 4 + 2);\n";
-      c += "    w3 = args.weights.Read<SType>(0, " + h_coord +
-           ", src_s, dst_s * 4 + 3);\n";
-    } else if (weights_desc.IsLinearLayout()) {
-      c += "    int linear_i4o4 = src_s * args.dst_tensor.Slices() + dst_s;\n";
-      if (conv_params_.batched_weights) {
-        c += "    linear_i4o4 += weights_batch_id * args.src_tensor.Slices() * "
-             "args.dst_tensor.Slices();\n";
-      }
-      if (conv_params_.sparse_2x4) {
-        c += "    uint weights = args.weights.Read(linear_i4o4);\n";
-        c +=
-            "    uint indexes = args.weights_indices.ReadAsU16(linear_i4o4);\n";
-        c += "    ucl::U32Sparse2x4ToU4x16AsVec4x4<SType>(weights, indexes, "
-             "w0, w1, w2, w3);\n";
-      } else if (IsQuantized(conv_params_)) {
-        if (conv_params_.weights_type == DataType::INT2) {
-          c += "    uint w = args.weights.Read(linear_i4o4);\n";
-          c += "    ucl::U32x1ToU2x16AsVec4x4<SType>(w, w0, w1, w2, w3);\n";
-        } else if (conv_params_.weights_type == DataType::INT4) {
-          c += "    uint2 w = args.weights.Read(linear_i4o4);\n";
-          c += "    ucl::U32x2ToU4x16AsVec4x4<SType>(w, w0, w1, w2, w3);\n";
-        } else {
-          c += "    uint4 w = args.weights.Read(linear_i4o4);\n";
-          c += "    ucl::U32x4ToU8x16AsVec4x4<SType>(w, w0, w1, w2, w3);\n";
-        }
-      } else {
-        c += "    args.weights.ReadVec16AsVec4x4(w0, w1, w2, w3, "
-             "linear_i4o4);\n";
-      }
-    } else {
-      std::string x_c = "dst_s";
-      std::string y_c = "src_s";
-      if (conv_params_.batched_weights) {
-        y_c = "weights_batch_id * args.src_tensor.Slices() + src_s";
-      }
-      if (split_dst_slices_) {
-        x_c = "o_local_id";
-        y_c = "(" + y_c + ") * args.o_groups + o_group_id";
-      }
-      if (weights_desc.layout ==
-          WeightsLayout::k2DX4I4YIsSpatialIAndXIsOOGroupO4) {
-        c += "    w0 = args.weights0.Read<SType>(" + x_c + ", " + y_c + ");\n";
-        c += "    w1 = args.weights1.Read<SType>(" + x_c + ", " + y_c + ");\n";
-        c += "    w2 = args.weights2.Read<SType>(" + x_c + ", " + y_c + ");\n";
-        c += "    w3 = args.weights3.Read<SType>(" + x_c + ", " + y_c + ");\n";
-      } else if (conv_params_.weights_type == DataType::INT8) {
-        c += "    uint4 w = args.weights.Read(" + x_c + ", " + y_c + ");\n";
-        c += "    ucl::U32x4ToU8x16AsVec4x4<SType>(w, w0, w1, w2, w3);\n";
-      } else if (conv_params_.weights_type == DataType::INT4) {
-        c += "    ushort4 w = args.weights.Read(" + x_c + ", " + y_c + ");\n";
-        c += "    ucl::U16x4ToU4x16AsVec4x4<SType>(w, w0, w1, w2, w3);\n";
-      } else if (conv_params_.weights_type == DataType::INT2) {
-        c += "    uchar4 w = args.weights.Read(" + x_c + ", " + y_c + ");\n";
-        c += "    ucl::U8x4ToU2x16AsVec4x4<SType>(w, w0, w1, w2, w3);\n";
-      }
-    }
-    const bool use_fma = gpu_info.IsApiWebGpu() ||
-                         (gpu_info.IsAMD() && gpu_info.IsApiOpenCl()) ||
-                         (gpu_info.IsMaleoon() && gpu_info.IsApiOpenCl());
+    c += ReadWeightsAsFloat(conv_params_, weights_desc, split_dst_slices_);
     const bool isI4O4 = weights_desc.IsI4O4() || conv_params_.sparse_2x4;
+    const bool use_fma = UseFMA(gpu_info);
     if (IsQuantized(conv_params_)) {
-      if (isI4O4) {
-        if (use_fma) {
-          c += "    w0 = fma(w0, weight_scale, weight_bias);\n";
-          c += "    w1 = fma(w1, weight_scale, weight_bias);\n";
-          c += "    w2 = fma(w2, weight_scale, weight_bias);\n";
-          c += "    w3 = fma(w3, weight_scale, weight_bias);\n";
-        } else {
-          c += "    w0 = w0 * weight_scale + weight_bias;\n";
-          c += "    w1 = w1 * weight_scale + weight_bias;\n";
-          c += "    w2 = w2 * weight_scale + weight_bias;\n";
-          c += "    w3 = w3 * weight_scale + weight_bias;\n";
-        }
-      } else {
-        c += "    w0 = w0 * weight_scale.x + weight_bias.x;\n";
-        c += "    w1 = w1 * weight_scale.y + weight_bias.y;\n";
-        c += "    w2 = w2 * weight_scale.z + weight_bias.z;\n";
-        c += "    w3 = w3 * weight_scale.w + weight_bias.w;\n";
-      }
-    }
-    if (precision == CalculationsPrecision::F32_F16 && isI4O4) {
-      c += "    Type partial;\n";
+      c += WeightsScaleAddBias(isI4O4, use_fma);
     }
     for (int i = 0; i < block_spatial; ++i) {
-      std::string code;
-      if (precision != CalculationsPrecision::F32_F16) {
-        if (isI4O4) {
-          if (use_fma) {
-            code += "    s$0 = fma(ucl::Init<Type>(v$0.x), w0, s$0);\n";
-            code += "    s$0 = fma(ucl::Init<Type>(v$0.y), w1, s$0);\n";
-            code += "    s$0 = fma(ucl::Init<Type>(v$0.z), w2, s$0);\n";
-            code += "    s$0 = fma(ucl::Init<Type>(v$0.w), w3, s$0);\n";
-          } else {
-            code += "    s$0 += v$0.x * w0;\n";
-            code += "    s$0 += v$0.y * w1;\n";
-            code += "    s$0 += v$0.z * w2;\n";
-            code += "    s$0 += v$0.w * w3;\n";
-          }
-        } else {
-          code += "    s$0.x += dot(v$0, w0);\n";
-          code += "    s$0.y += dot(v$0, w1);\n";
-          code += "    s$0.z += dot(v$0, w2);\n";
-          code += "    s$0.w += dot(v$0, w3);\n";
-        }
-      } else {
-        if (isI4O4) {
-          code += "    partial = v$0.x * w0;\n";
-          code += "    partial += v$0.y * w1;\n";
-          code += "    partial += v$0.z * w2;\n";
-          code += "    partial += v$0.w * w3;\n";
-          code += "    s$0 += ucl::Convert<AccType>(partial);\n";
-        } else {
-          code += "    s$0.x += ucl::Convert<AccSType>(dot(v$0, w0));\n";
-          code += "    s$0.y += ucl::Convert<AccSType>(dot(v$0, w1));\n";
-          code += "    s$0.z += ucl::Convert<AccSType>(dot(v$0, w2));\n";
-          code += "    s$0.w += ucl::Convert<AccSType>(dot(v$0, w3));\n";
-        }
-      }
-      c += absl::Substitute(code, std::to_string(i));
+      const std::string r_name = "s" + std::to_string(i);
+      const std::string src_name = "v" + std::to_string(i);
+      c += AccumulateFloat(r_name, src_name, precision, isI4O4, use_fma);
     }
   } else {
     c += "    uint w0, w1, w2, w3;\n";
-    std::string coords_2d;
-    if (weights_desc.IsLinearLayout()) {
-      c += "    int linear_i4o4 = src_s * args.dst_tensor.Slices() + dst_s;\n";
-      if (conv_params_.batched_weights) {
-        c += "    linear_i4o4 += weights_batch_id * args.src_tensor.Slices() * "
-             "args.dst_tensor.Slices();\n";
-      }
-    } else {
-      std::string x_c = "dst_s";
-      std::string y_c = "src_s";
-      if (conv_params_.batched_weights) {
-        y_c = "weights_batch_id * args.src_tensor.Slices() + src_s";
-      }
-      if (split_dst_slices_) {
-        x_c = "o_local_id";
-        y_c = "(" + y_c + ") * args.o_groups + o_group_id";
-      }
-      coords_2d = x_c + ", " + y_c;
-    }
-    if (IsQuantized(conv_params_)) {
-      if (conv_params_.weights_type == DataType::INT2) {
-        if (weights_desc.IsLinearLayout()) {
-          c += "    uint w = args.weights.Read(linear_i4o4);\n";
-        } else {
-          c += "    uchar4 wt = args.weights.Read(" + coords_2d + ");\n";
-          c += "    uint w = ucl::Reinterpret<uchar4, uint>(wt);\n";
-        }
-        c += "    w0 = w & 50529027u;\n";
-        c += "    w1 = (w >> 2u) & 50529027u;\n";
-        c += "    w2 = (w >> 4u) & 50529027u;\n";
-        c += "    w3 = (w >> 6u) & 50529027u;\n";
-      } else if (conv_params_.weights_type == DataType::INT4) {
-        if (weights_desc.IsLinearLayout()) {
-          c += "    uint2 w = args.weights.Read(linear_i4o4);\n";
-        } else {
-          c += "    ushort4 wt = args.weights.Read(" + coords_2d + ");\n";
-          c += "    uint2 w = ucl::Reinterpret<ushort4, uint2>(wt);\n";
-        }
-        c += R"(
-  uint t = (w.y ^ (w.x >> 16u)) & 0x0000FFFFu;
-
-  uint t0 = w.x ^ (t << 16u);
-  uint t1 = w.y ^ t;
-
-  t = (t1 ^ (t0 >> 8u)) & 0x00FF00FFu;
-  t1 ^= t;
-  t0 ^= (t << 8u);
-
-  w0 = t0 & 0x0F0F0F0Fu;
-  w1 = (t0 >> 4u) & 0x0F0F0F0Fu;
-  w2 = t1 & 0x0F0F0F0Fu;
-  w3 = (t1 >> 4u) & 0x0F0F0F0Fu;
-)";
-      } else if (conv_params_.weights_type == DataType::INT8) {
-        if (weights_desc.IsLinearLayout()) {
-          c += "    uint4 w = args.weights.Read(linear_i4o4);\n";
-        } else {
-          c += "    uint4 w = args.weights.Read(" + coords_2d + ");\n";
-        }
-        c += R"(
-  uint t = (w.z ^ (w.x >> 16u)) & 0x0000FFFFu;
-  w2 = w.z ^ t;
-  w0 = w.x ^ (t << 16u);
-
-  t = (w.w ^ (w.y >> 16u)) & 0x0000FFFFu;
-  w3 = w.w ^ t;
-  w1 = w.y ^ (t << 16u);
-
-  t = (w1 ^ (w0 >> 8u)) & 0x00FF00FFu;
-  w1 ^= t;
-  w0 ^= (t << 8u);
-
-  t = (w3 ^ (w2 >> 8u)) & 0x00FF00FFu;
-  w3 ^= t;
-  w2 ^= (t << 8u);
-)";
-      }
-    }
-    // acc_func(uint p0, uint p1, int acc) reinterprets p0 & p1 as 4x8 packed
-    // uchars, performs a dot product, adds the result to acc, returning an int
-    std::string acc_func;
-    if (gpu_info.SupportsExtension("cl_qcom_dot_product8")) {
-      acc_func = "qcom_dot8_acc";
-    } else if (gpu_info.SupportsExtension("cl_khr_integer_dot_product")) {
-      acc_func = "dot_acc_sat_4x8packed_su_int";
-    }
+    c += ReadWeightsAs4Uint8x4(conv_params_, weights_desc, split_dst_slices_);
     for (int i = 0; i < block_spatial; ++i) {
-      std::string code;
-      code += "    $0.x = $2($1, w0, $0.x);\n";
-      code += "    $0.y = $2($1, w1, $0.y);\n";
-      code += "    $0.z = $2($1, w2, $0.z);\n";
-      code += "    $0.w = $2($1, w3, $0.w);\n";
-      code += "    $3 = $2($1, 16843009u, $3);\n";
       const std::string acc_name = "s" + std::to_string(i);
-      const std::string sum_name = "s" + std::to_string(i) + "_sum";
       const std::string src_name = "v" + std::to_string(i);
-      c += absl::Substitute(code, acc_name, src_name, acc_func, sum_name);
+      c += AccumulateUint(acc_name, src_name, gpu_info);
     }
   }
   if (IsQuantized(conv_params_) && conv_params_.scale_zp_shape.i != 1) {
@@ -1334,7 +1355,7 @@ absl::StatusOr<FullyConnected> CreateFullyConnectedExternalWeights(
   FullyConnected::ConvParams conv_params;
   conv_params.weights_type = GetDataTypeForWeights(weights_desc.type);
   if (weights.scale) {
-    conv_params.scale_zp_shape = GetScaleShape(*weights.scale);
+    conv_params.scale_zp_shape = weights.scale_zp_shape;
   }
   conv_params.batched_weights = weights_shape.h != 1;
   conv_params.softmax_input_activation = src_exp != nullptr;
@@ -1374,7 +1395,7 @@ absl::StatusOr<FullyConnected> CreateFullyConnectedWeightsBatchIds(
   FullyConnected::ConvParams conv_params;
   conv_params.weights_type = GetDataTypeForWeights(weights_desc.type);
   if (weights.scale) {
-    conv_params.scale_zp_shape = GetScaleShape(*weights.scale);
+    conv_params.scale_zp_shape = weights.scale_zp_shape;
   }
   conv_params.batched_weights = weights_shape.h != 1;
   conv_params.has_bias = bias != nullptr;

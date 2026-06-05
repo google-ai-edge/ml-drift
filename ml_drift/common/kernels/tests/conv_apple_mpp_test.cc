@@ -1,4 +1,4 @@
-// Copyright 2025 The ML Drift Authors.
+// Copyright 2026 The ML Drift Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -59,11 +59,19 @@ TEST_P(ConvAppleMPPFloat16Test, ExternalWeightsBigTest) {
                                             dst_channels));
 }
 
-TEST_P(ConvAppleMPPFloat16Test, ConvAppleMPPExternalWi4BatchedWeightsTest) {
+TEST_P(ConvAppleMPPFloat16Test, ConvAppleMPPExternalBatchedWi4Test) {
   const BHWC src_shape(1, 6, 12, 32 * 3);
   const int dst_channels = 68;
-  MLD_ASSERT_OK(ConvAppleMPPExternalWi4BatchedWeightsTest(*exec_env, GetParam(),
-                                                      src_shape, dst_channels));
+  MLD_ASSERT_OK(ConvAppleMPPExternalBatchedWi4Test(*exec_env, GetParam(), src_shape,
+                                               dst_channels));
+}
+
+TEST_P(ConvAppleMPPFloat16Test, ConvAppleMPPExternalBatchedGroupedWi4Test) {
+  const BHWC src_shape(1, 6, 12, 32 * 3);
+  const int dst_channels = 68;
+  MLD_ASSERT_OK(ConvAppleMPPExternalBatchedGroupedWi4Test(*exec_env, GetParam(),
+                                                      src_shape, dst_channels,
+                                                      /*group_size=*/12));
 }
 
 TEST_P(ConvAppleMPPFloat16Test, BatchedMatMulTest) {
@@ -108,6 +116,13 @@ TEST_P(BaseTest, ConvAppleMPPInt8ExternalWeightsBigTest) {
   const BHWC src_shape(1, 1, 128, 128);
   const int dst_channels = 128;
   MLD_ASSERT_OK(ConvAppleMPPInt8ExternalWeightsBigTest(*exec_env, GetParam(),
+                                                   src_shape, dst_channels));
+}
+
+TEST_P(BaseTest, ConvAppleMPPInt8ExternalBatchedWi4Test) {
+  const BHWC src_shape(1, 6, 128, 128);
+  const int dst_channels = 128;
+  MLD_ASSERT_OK(ConvAppleMPPInt8ExternalBatchedWi4Test(*exec_env, GetParam(),
                                                    src_shape, dst_channels));
 }
 
