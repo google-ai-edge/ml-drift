@@ -35,10 +35,6 @@
 #include <emscripten/em_asm.h>
 #include <emscripten/em_js.h>
 #include <webgpu/webgpu.h>
-#else
-#ifdef ML_DRIFT_DAWN_NATIVE
-#include "dawn/native/DawnNative.h"
-#endif  // ML_DRIFT_DAWN_NATIVE
 #endif  // __EMSCRIPTEN__
 
 namespace ml_drift {
@@ -353,13 +349,8 @@ absl::Status Environment::Initialize(const wgpu::Device& device,
 
 #ifndef __EMSCRIPTEN__
 absl::Status Environment::Initialize(const InitParams& params) {
-#ifdef ML_DRIFT_DAWN_NATIVE
-  const DawnProcTable& backend_procs = dawn::native::GetProcs();
-#endif
-
   wgpu::Adapter adapter;
-  RETURN_IF_ERROR(InitializeInstanceAndAdapter(
-      &adapter, params.use_low_power, params.preferred_device_substr));
+  RETURN_IF_ERROR(InitializeInstanceAndAdapter(&adapter, params.use_low_power));
 
   std::vector<wgpu::FeatureName> features;
   for (const auto& extension : requested_extensions_) {
@@ -484,9 +475,8 @@ absl::Status Environment::Initialize(const InitParams& params) {
   return absl::OkStatus();
 }
 
-absl::Status Environment::InitializeInstanceAndAdapter(
-    wgpu::Adapter* adapter, bool use_low_power,
-    std::string_view preferred_device_substr) {
+absl::Status Environment::InitializeInstanceAndAdapter(wgpu::Adapter* adapter,
+                                                       bool use_low_power) {
   // When there are multiple GPUs, e.g. in a laptop, prefer the discrete GPU
   // over integrated.
   wgpu::RequestAdapterOptions options;
@@ -514,35 +504,6 @@ absl::Status Environment::InitializeInstanceAndAdapter(
   if (!instance) {
     return absl::InternalError("Error creating instance");
   }
-
-  // In case of dawn native, list all adapters matched with options and pick a
-  // device based on preferred_device_substr if provided.
-#ifdef ML_DRIFT_DAWN_NATIVE
-  // It's a workaround as dawn::native::FromAPI() is not public.
-  dawn::native::Instance native_instance(
-      reinterpret_cast<dawn::native::InstanceBase*>(instance.Get()));
-  auto native_adapters = native_instance.EnumerateAdapters(&options);
-  ABSL_LOG(INFO) << "Found " << native_adapters.size() << " adapters";
-  for (const auto& native_adapter : native_adapters) {
-    wgpu::Adapter wgpu_adapter = native_adapter.Get();
-    wgpu::AdapterInfo adapter_info;
-    if (!wgpu_adapter.GetInfo(&adapter_info)) {
-      continue;
-    }
-    if (!preferred_device_substr.empty() && !*adapter &&
-        absl::StrContainsIgnoreCase(std::string_view(adapter_info.device),
-                                    preferred_device_substr)) {
-      *adapter = std::move(wgpu_adapter);
-      ABSL_LOG(INFO) << "adapter (preferred): " << ToString(adapter_info);
-    } else {
-      ABSL_LOG(INFO) << "adapter: " << ToString(adapter_info);
-    }
-  }
-  if (*adapter) {
-    ABSL_LOG(INFO) << "Selected adapter: " << ToString(*adapter);
-    return absl::OkStatus();
-  }
-#endif  // ML_DRIFT_DAWN_NATIVE
 
   instance.RequestAdapter(
       &options, wgpu::CallbackMode::AllowSpontaneous,

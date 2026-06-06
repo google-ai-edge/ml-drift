@@ -54,7 +54,6 @@ class Environment {
     const wgpu::Limits* limits;
     bool use_low_power;
     bool enable_host_mapped_pointer;
-    std::string preferred_device_substr;
     const wgpu::DawnCacheDeviceDescriptor* cache_descriptor;
   };
   absl::Status Initialize(const InitParams& params = {});
@@ -93,9 +92,8 @@ class Environment {
 
  private:
 #ifndef __EMSCRIPTEN__
-  absl::Status InitializeInstanceAndAdapter(
-      wgpu::Adapter* adapter, bool use_low_power,
-      std::string_view preferred_device_substr);
+  absl::Status InitializeInstanceAndAdapter(wgpu::Adapter* adapter,
+                                            bool use_low_power);
 #endif  // __EMSCRIPTEN__
   void SetPlatformDescription(const std::string& platform_description) {
     platform_description_ = platform_description;

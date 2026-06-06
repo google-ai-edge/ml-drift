@@ -18,8 +18,6 @@
 #ifdef __EMSCRIPTEN__
 #include <webgpu/webgpu_cpp.h>  // IWYU pragma: export
 #else
-#include "dawn/dawn_proc.h"  // IWYU pragma: export
-#include "dawn/dawn_proc_table.h"  // IWYU pragma: export
 #include "webgpu/webgpu_cpp.h"  // IWYU pragma: export
 #endif  // __EMSCRIPTEN__
 
