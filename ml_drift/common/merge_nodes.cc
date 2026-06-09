@@ -15,13 +15,22 @@
 #include "ml_drift/common/merge_nodes.h"
 
 #include <algorithm>
+#include <map>
+#include <memory>
 #include <utility>
 #include <vector>
 
 #include "absl/container/flat_hash_map.h"
+#include "absl/container/flat_hash_set.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/gpu_model.h"
+#include "ml_drift/common/model.h"
+#include "ml_drift/common/shape.h"
 #include "ml_drift/common/status.h"
+#include "ml_drift/common/task/gpu_operation.h"
+#include "ml_drift/common/task/gpu_tensor.h"
+#include "ml_drift/common/task/tensor_desc.h"
+#include "ml_drift/common/util.h"
 
 namespace ml_drift {
 

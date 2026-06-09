@@ -17,28 +17,90 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "ml_drift/common/default/status_matchers.h"
+#include "xnnpack.h"  // from @XNNPACK
 #include "absl/container/flat_hash_set.h"
+#include "absl/strings/match.h"
+#include "absl/strings/str_split.h"
 #include "ml_drift/cl/tensor.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/gpu_model.h"
+#include "ml_drift/common/gpu_model_builder.h"
 #include "ml_drift/common/kernels/elementwise.h"
 #include "ml_drift/common/kernels/reduce.h"
-#include "ml_drift/common/kernels/transpose.h"
 #include "ml_drift/common/model.h"
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/shape.h"
+#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/gpu_operation.h"
 #include "ml_drift/common/task/tensor_desc.h"
+#include "ml_drift/common/tensor.h"
 
 namespace ml_drift {
 
-void CreateGpuModelContainingLinkableNode(const GpuInfo& gpu_info,
-                                          GpuModel& gpu_model) {
+absl::Status CreateConvReluGpuModel(const GpuInfo& gpu_info,
+                                    GpuModel& gpu_model,
+                                    int optional_conv_tag = -1,
+                                    int optional_relu_tag = -1,
+                                    bool conv_subgraph = false) {
+  GpuModelBuilder model_builder(gpu_info, {});
+
+  Convolution2DAttributes conv_attr;
+  conv_attr.padding.prepended = HW(0, 0);
+  conv_attr.padding.appended = HW(0, 0);
+  conv_attr.strides = HW(1, 1);
+  conv_attr.dilations = HW(1, 1);
+  auto& attr_weights =
+      conv_attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
+  attr_weights.shape = OHWI(16, 1, 1, 16);
+  attr_weights.data.resize(attr_weights.shape.DimensionsProduct() +
+                           XNN_EXTRA_BYTES / sizeof(float));
+  conv_attr.bias.shape = Linear(16);
+  conv_attr.bias.data.resize(conv_attr.bias.shape.DimensionsProduct());
+
+  auto src_th = model_builder.AddTensor(BHWC(1, 32, 32, 16), DataType::FLOAT32);
+  GpuModelBuilder::OptionalNodeContext optional_context;
+  if (optional_conv_tag >= 0) {
+    optional_context =
+        model_builder.BeginOptionalNodes(optional_conv_tag, src_th);
+  }
+  GpuModelBuilder::TensorHandle conv_out;
+  if (conv_subgraph) {
+    GpuModelBuilder sub_builder = model_builder.CreateBuilder();
+    auto in = sub_builder.AddTensor(BHWC(1, 32, 32, 16), DataType::FLOAT32);
+    auto out = sub_builder.Convolution(in, conv_attr);
+    RETURN_IF_ERROR(model_builder.RegisterSubgraph(
+        std::move(sub_builder), "conv_subgraph", {in}, {out}));
+
+    ASSIGN_OR_RETURN(auto dsts,
+                     model_builder.Subgraph("conv_subgraph", {src_th}));
+    conv_out = dsts[0];
+  } else {
+    conv_out = model_builder.Convolution(src_th, conv_attr);
+  }
+  if (optional_conv_tag >= 0) {
+    RETURN_IF_ERROR(model_builder.EndOptionalNodes(optional_context, conv_out,
+                                                   /*add_copy_to_src=*/false));
+  }
+  ReLUAttributes relu_attr;
+  relu_attr.activation_max = 0.0f;
+  relu_attr.activation_min = 0.0f;
+  relu_attr.alpha = 0.0f;
+  if (optional_relu_tag >= 0) {
+    optional_context =
+        model_builder.BeginOptionalNodes(optional_relu_tag, conv_out);
+  }
+  auto out = model_builder.ReLU(conv_out, relu_attr);
+  if (optional_relu_tag >= 0) {
+    RETURN_IF_ERROR(model_builder.EndOptionalNodes(optional_context, out,
+                                                   /*add_copy_to_src=*/false));
+  }
+
   //    input         input
   //      |             |
   //    conv            |
@@ -46,70 +108,33 @@ void CreateGpuModelContainingLinkableNode(const GpuInfo& gpu_info,
   //    relu            |
   //      |             |
   //    output        output
-  // The created GpuModel's nodes can be merged by LinkNodes().
-  gpu_model.nodes.resize(2);
-
-  TensorDescriptor in_tensor_desc;
-  TensorDescriptor tmp_tensor_desc;
-  TensorDescriptor out_tensor_desc;
-
-  OperationDef conv_definition;
-  conv_definition.src_tensors.push_back(in_tensor_desc);
-  conv_definition.dst_tensors.push_back(tmp_tensor_desc);
-  ElementwiseDescriptor conv_descriptor;
-  GPUOperation conv =
-      CreateGpuOperation(conv_definition, std::move(conv_descriptor));
-
-  OperationDef relu_definition;
-  relu_definition.src_tensors.push_back(tmp_tensor_desc);
-  relu_definition.dst_tensors.push_back(out_tensor_desc);
-  ElementwiseDescriptor relu_descriptor;
-  GPUOperation relu =
-      CreateGpuOperation(relu_definition, std::move(relu_descriptor));
-
-  cl::Tensor in_tensor;
-  cl::Tensor tmp_tensor;
-  cl::Tensor out_tensor;
-  conv.SetSrc(&in_tensor, /*index=*/0);
-  conv.SetDst(&tmp_tensor, /*index=*/0);
-  relu.SetSrc(&tmp_tensor, /*index=*/0);
-  relu.SetDst(&out_tensor, /*index=*/0);
-  gpu_model.nodes[0].gpu_operation =
-      std::make_unique<GPUOperation>(std::move(conv));
-  gpu_model.nodes[0].inputs.resize(1);
-  gpu_model.nodes[0].outputs.resize(1);
-  gpu_model.nodes[0].name = "conv";
-  gpu_model.nodes[1].gpu_operation =
-      std::make_unique<GPUOperation>(std::move(relu));
-  gpu_model.nodes[1].inputs.resize(1);
-  gpu_model.nodes[1].outputs.resize(1);
-  gpu_model.nodes[1].name = "relu";
+  // The created nodes can be merged by LinkNodes().
+  RETURN_IF_ERROR(
+      model_builder.GetGpuModel(std::vector<unsigned int>{src_th.id},
+                                std::vector<unsigned int>{out.id}, &gpu_model));
+  return absl::OkStatus();
 }
 
 TEST(MergeNodesTest, MergeSingleLinkable) {
   GpuModel gpu_model;
   GpuInfo gpu_info;
   gpu_info.gpu_api = GpuApi::kOpenCl;
-  CreateGpuModelContainingLinkableNode(gpu_info, gpu_model);
-  EXPECT_EQ(gpu_model.nodes.size(), 2);
-
-  MLD_ASSERT_OK(MergeNodes(gpu_info, &gpu_model));
+  MLD_ASSERT_OK(CreateConvReluGpuModel(gpu_info, gpu_model));
   EXPECT_EQ(gpu_model.nodes.size(), 1);
-  EXPECT_EQ(gpu_model.nodes[0].name, "conv -> relu");
+  EXPECT_TRUE(absl::StrContains(gpu_model.nodes[0].name, "conv"));
+  EXPECT_TRUE(absl::StrContains(gpu_model.nodes[0].name, "relu"));
 }
 
 TEST(MergeNodesTest, MergeSingleLinkableWithOptional) {
   GpuModel gpu_model;
   GpuInfo gpu_info;
   gpu_info.gpu_api = GpuApi::kOpenCl;
-  CreateGpuModelContainingLinkableNode(gpu_info, gpu_model);
-  EXPECT_EQ(gpu_model.nodes.size(), 2);
-  gpu_model.nodes[0].optional_tag.insert(1);
-  gpu_model.nodes[1].optional_tag.insert(1);
+  MLD_ASSERT_OK(CreateConvReluGpuModel(gpu_info, gpu_model, /*optional_conv_tag=*/1,
+                                   /*optional_relu_tag=*/1));
 
-  MLD_ASSERT_OK(MergeNodes(gpu_info, &gpu_model));
   EXPECT_EQ(gpu_model.nodes.size(), 1);
-  EXPECT_EQ(gpu_model.nodes[0].name, "conv -> relu");
+  EXPECT_TRUE(absl::StrContains(gpu_model.nodes[0].name, "conv"));
+  EXPECT_TRUE(absl::StrContains(gpu_model.nodes[0].name, "relu"));
   EXPECT_EQ(gpu_model.nodes[0].optional_tag, absl::flat_hash_set<int>{1});
 }
 
@@ -117,21 +142,53 @@ TEST(MergeNodesTest, NotMergeSingleLinkableWithDiffTag) {
   GpuModel gpu_model;
   GpuInfo gpu_info;
   gpu_info.gpu_api = GpuApi::kOpenCl;
-  CreateGpuModelContainingLinkableNode(gpu_info, gpu_model);
-  EXPECT_EQ(gpu_model.nodes.size(), 2);
+  MLD_ASSERT_OK(
+      CreateConvReluGpuModel(gpu_info, gpu_model, /*optional_conv_tag=*/1));
 
-  // The two nodes could not be merged because they have different optional tag.
-  gpu_model.nodes[0].optional_tag.insert(1);
-  gpu_model.nodes[1].optional_tag = {};
-
-  MLD_ASSERT_OK(MergeNodes(gpu_info, &gpu_model));
   EXPECT_EQ(gpu_model.nodes.size(), 2);
-  EXPECT_EQ(gpu_model.nodes[0].name, "conv");
-  EXPECT_EQ(gpu_model.nodes[1].name, "relu");
+  EXPECT_TRUE(absl::StrContains(gpu_model.nodes[0].name, "conv"));
+  EXPECT_TRUE(absl::StrContains(gpu_model.nodes[1].name, "relu"));
 }
 
-void CreateMergeableGpuModelWithTwoReorderNodes(const GpuInfo& gpu_info,
-                                                GpuModel& gpu_model) {
+TEST(MergeNodesTest, NotMergeSubgraphNode) {
+  GpuModel gpu_model;
+  GpuInfo gpu_info;
+  gpu_info.gpu_api = GpuApi::kWebGpu;
+  MLD_ASSERT_OK(CreateConvReluGpuModel(gpu_info, gpu_model, /*opional_conv_tag*/ -1,
+                                   /*optional_relu_tag*/ -1,
+                                   /*conv_subgraph=*/true));
+
+  ASSERT_EQ(gpu_model.nodes.size(), 2);
+  EXPECT_TRUE(absl::StrContains(gpu_model.nodes[0].name, "conv"));
+  EXPECT_TRUE(absl::StrContains(gpu_model.nodes[1].name, "relu"));
+}
+
+absl::Status CreateTransposeTransposeGpuModel(
+    const GpuInfo& gpu_info, GpuModel& gpu_model,
+    int optional_transpose0_tag = -1, int optional_transpose1_tag = -1) {
+  GpuModelBuilder model_builder(gpu_info, {});
+
+  auto src_th = model_builder.AddTensor(BHWC(4, 32, 32, 16), DataType::FLOAT32);
+  GpuModelBuilder::OptionalNodeContext optional_context;
+  if (optional_transpose0_tag >= 0) {
+    optional_context =
+        model_builder.BeginOptionalNodes(optional_transpose0_tag, src_th);
+  }
+  auto interm = model_builder.Transpose(src_th, BHWC(0, 2, 1, 3));
+  if (optional_transpose0_tag >= 0) {
+    RETURN_IF_ERROR(model_builder.EndOptionalNodes(optional_context, interm,
+                                                   /*add_copy_to_src=*/false));
+  }
+  if (optional_transpose1_tag >= 0) {
+    optional_context =
+        model_builder.BeginOptionalNodes(optional_transpose1_tag, interm);
+  }
+  auto out = model_builder.Transpose(interm, BHWC(1, 0, 2, 3));
+  if (optional_transpose1_tag >= 0) {
+    RETURN_IF_ERROR(model_builder.EndOptionalNodes(optional_context, out,
+                                                   /*add_copy_to_src=*/false));
+  }
+
   //    input                   input
   //      |                       |
   //   transpose0                 |
@@ -139,71 +196,37 @@ void CreateMergeableGpuModelWithTwoReorderNodes(const GpuInfo& gpu_info,
   //   transpose1                 |
   //      |                       |
   //    output                  output
-  // The created GpuModel's nodes can be merged by MergeReorderNodes().
-  gpu_model.nodes.resize(2);
-
-  TensorDescriptor in_tensor_desc;
-  TensorDescriptor tmp_tensor_desc;
-  TensorDescriptor out_tensor_desc;
-
-  TransposeAttributes attr;
-  attr.perm = BHWC(0, 2, 1, 3);
-  OperationDef transpose_def0;
-  transpose_def0.src_tensors.push_back(in_tensor_desc);
-  transpose_def0.dst_tensors.push_back(tmp_tensor_desc);
-  OperationDef transpose_def1;
-  transpose_def1.src_tensors.push_back(tmp_tensor_desc);
-  transpose_def1.dst_tensors.push_back(out_tensor_desc);
-  GPUOperation transpose0 = CreateTranspose(transpose_def0, attr);
-  GPUOperation transpose1 = CreateTranspose(transpose_def1, attr);
-  EXPECT_TRUE(transpose0.IsReorderOp());
-
-  cl::Tensor in_tensor;
-  cl::Tensor tmp_tensor;
-  cl::Tensor out_tensor;
-  transpose0.SetSrc(&in_tensor, /*index=*/0);
-  transpose0.SetDst(&tmp_tensor, /*index=*/0);
-  transpose1.SetSrc(&tmp_tensor, /*index=*/0);
-  transpose1.SetDst(&out_tensor, /*index=*/0);
-  gpu_model.nodes[0].gpu_operation =
-      std::make_unique<GPUOperation>(std::move(transpose0));
-  gpu_model.nodes[0].inputs.resize(1);
-  gpu_model.nodes[0].outputs.resize(1);
-  gpu_model.nodes[0].name = "transpose0";
-  gpu_model.nodes[1].gpu_operation =
-      std::make_unique<GPUOperation>(std::move(transpose1));
-  gpu_model.nodes[1].inputs.resize(1);
-  gpu_model.nodes[1].outputs.resize(1);
-  gpu_model.nodes[1].name = "transpose1";
+  // The created nodes can be merged by MergeReorderNodes().
+  RETURN_IF_ERROR(
+      model_builder.GetGpuModel(std::vector<unsigned int>{src_th.id},
+                                std::vector<unsigned int>{out.id}, &gpu_model));
+  return absl::OkStatus();
 }
 
 TEST(MergeNodesTest, MergeTwoReorder) {
   GpuModel gpu_model;
   GpuInfo gpu_info;
   gpu_info.gpu_api = GpuApi::kOpenCl;
-  CreateMergeableGpuModelWithTwoReorderNodes(gpu_info, gpu_model);
-  EXPECT_EQ(gpu_model.nodes.size(), 2);
+  MLD_ASSERT_OK(CreateTransposeTransposeGpuModel(gpu_info, gpu_model));
 
-  MLD_ASSERT_OK(MergeNodes(gpu_info, &gpu_model));
   EXPECT_EQ(gpu_model.nodes.size(), 1);
-  EXPECT_EQ(gpu_model.nodes[0].name, "transpose0 -> transpose1");
+  EXPECT_TRUE(absl::StrContains(gpu_model.nodes[0].name, "transpose"));
+  // If the word appears N times, the split vector will have size N + 1.
+  std::vector<std::string> parts =
+      absl::StrSplit(gpu_model.nodes[0].name, "transpose");
+  EXPECT_GE(parts.size(), 3);
 }
 
 TEST(MergeNodesTest, NotMergeTwoReorderWithDiffTag) {
   GpuModel gpu_model;
   GpuInfo gpu_info;
   gpu_info.gpu_api = GpuApi::kOpenCl;
-  CreateMergeableGpuModelWithTwoReorderNodes(gpu_info, gpu_model);
-  EXPECT_EQ(gpu_model.nodes.size(), 2);
+  MLD_ASSERT_OK(CreateTransposeTransposeGpuModel(gpu_info, gpu_model,
+                                             /*optional_transpose0_tag=*/1));
 
-  // The two nodes could not be merged because they have different optional tag.
-  gpu_model.nodes[0].optional_tag.insert(1);
-  gpu_model.nodes[1].optional_tag = {};
-
-  MLD_ASSERT_OK(MergeNodes(gpu_info, &gpu_model));
   EXPECT_EQ(gpu_model.nodes.size(), 2);
-  EXPECT_EQ(gpu_model.nodes[0].name, "transpose0");
-  EXPECT_EQ(gpu_model.nodes[1].name, "transpose1");
+  EXPECT_TRUE(absl::StrContains(gpu_model.nodes[0].name, "transpose"));
+  EXPECT_TRUE(absl::StrContains(gpu_model.nodes[1].name, "transpose"));
 }
 
 void CreateTwoElementwiseGpuModel(const GpuInfo& gpu_info,
@@ -215,7 +238,7 @@ void CreateTwoElementwiseGpuModel(const GpuInfo& gpu_info,
   //     relu         |
   //      |           |
   //    output      output
-  // The created GpuModel's nodes can be merged by MergeElementwiseNodes().
+  // The created nodes can be merged by MergeElementwiseNodes().
   gpu_model.nodes.resize(2);
 
   TensorDescriptor in_tensor_desc;
@@ -409,7 +432,7 @@ void CreateMergeableSumReluMulAddGpuModel(const GpuInfo& gpu_info,
   //       |                |
   //     output           output
   //
-  // The created GpuModel's nodes can be merged by MergeElementwiseNodes().
+  // The created nodes can be merged by MergeElementwiseNodes().
   gpu_model.nodes.resize(4);
 
   TensorDescriptor in_tensor_desc = {
@@ -535,22 +558,6 @@ TEST(MergeNodesTest, NotMergeElementwiseTwoInputRootAndParentsWithDiffTag) {
   EXPECT_EQ(gpu_model.nodes[3].name, "add");
 }
 
-TEST(MergeNodesTest, NotMergeSubgraphNode) {
-  GpuModel gpu_model;
-  GpuInfo gpu_info;
-  gpu_info.gpu_api = GpuApi::kOpenCl;
-  CreateGpuModelContainingLinkableNode(gpu_info, gpu_model);
-  ASSERT_EQ(gpu_model.nodes.size(), 2);
-  // The first node is a subgraph node so should not be merged with the second
-  // node, even though it is linkable.
-  gpu_model.nodes[0].subgraph_id = "a";
-
-  ASSERT_TRUE(MergeNodes(gpu_info, &gpu_model).ok());
-  ASSERT_EQ(gpu_model.nodes.size(), 2);
-  EXPECT_EQ(gpu_model.nodes[0].name, "conv");
-  EXPECT_EQ(gpu_model.nodes[1].name, "relu");
-}
-
 void AddSubgraphNode(GpuModel& model, const std::string& subgraph_id) {
   const GpuModel& subgraph = model.subgraphs[subgraph_id];
   GpuNode node;
@@ -576,9 +583,7 @@ TEST(MergeNodesTest, ExpandSubgraphNodes) {
   GpuInfo gpu_info;
   gpu_info.gpu_api = GpuApi::kOpenCl;
 
-  CreateGpuModelContainingLinkableNode(gpu_info, gpu_model.subgraphs["a"]);
-  AddSubgraphInputsAndOutputs(gpu_model.subgraphs["a"]);
-  MLD_ASSERT_OK(MergeNodes(gpu_info, &gpu_model.subgraphs["a"]));
+  MLD_ASSERT_OK(CreateConvReluGpuModel(gpu_info, gpu_model.subgraphs["a"]));
   CreateMergeableSumReluMulAddGpuModel(gpu_info, gpu_model.subgraphs["b"]);
   AddSubgraphInputsAndOutputs(gpu_model.subgraphs["b"]);
   gpu_model.subgraphs["b"].nodes[0].optional_tag.insert(1);
@@ -593,14 +598,16 @@ TEST(MergeNodesTest, ExpandSubgraphNodes) {
   ASSERT_TRUE(ResolveArgs(&gpu_model).ok());
   ExpandSubgraphs(&gpu_model);
   ASSERT_EQ(gpu_model.nodes.size(), 4);
-  EXPECT_EQ(gpu_model.nodes[0].name, "conv -> relu");
+  EXPECT_TRUE(absl::StrContains(gpu_model.nodes[0].name, "conv"));
+  EXPECT_TRUE(absl::StrContains(gpu_model.nodes[0].name, "relu"));
   EXPECT_EQ(gpu_model.nodes[0].subgraph_id, "a");
   EXPECT_EQ(gpu_model.nodes[1].name, "sum");
   EXPECT_EQ(gpu_model.nodes[1].optional_tag, absl::flat_hash_set<int>{1});
   EXPECT_EQ(gpu_model.nodes[1].subgraph_id, "b");
   EXPECT_EQ(gpu_model.nodes[2].name, "relu -> mul -> add");
   EXPECT_EQ(gpu_model.nodes[2].subgraph_id, "b");
-  EXPECT_EQ(gpu_model.nodes[3].name, "conv -> relu");
+  EXPECT_TRUE(absl::StrContains(gpu_model.nodes[3].name, "conv"));
+  EXPECT_TRUE(absl::StrContains(gpu_model.nodes[3].name, "relu"));
   EXPECT_EQ(gpu_model.nodes[3].subgraph_id, "a");
 
   // Make sure intermediate tensors were created.

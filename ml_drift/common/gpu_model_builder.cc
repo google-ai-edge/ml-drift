@@ -4046,8 +4046,15 @@ GpuModelBuilder::OptionalNodeContext GpuModelBuilder::BeginOptionalNodes(
   };
 }
 
-absl::Status GpuModelBuilder::EndOptionalNodes(
-    OptionalNodeContext context, const TensorHandle& final_tensor) {
+absl::Status GpuModelBuilder::EndOptionalNodes(OptionalNodeContext context,
+                                               const TensorHandle& final_tensor,
+                                               bool add_copy_to_src) {
+  if (!add_copy_to_src) {
+    for (size_t i = context.start_node; i < gpu_model_.nodes.size(); i++) {
+      gpu_model_.nodes[i].optional_tag.insert(context.tag);
+    }
+    return absl::OkStatus();
+  }
   if (final_tensor.tensor_desc != context.src.tensor_desc ||
       final_tensor.tensor_desc.GetBHWDCShape() !=
           context.src.tensor_desc.GetBHWDCShape()) {

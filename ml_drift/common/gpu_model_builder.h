@@ -487,7 +487,8 @@ class GpuModelBuilder {
   };
   OptionalNodeContext BeginOptionalNodes(int tag, const TensorHandle& src);
   absl::Status EndOptionalNodes(OptionalNodeContext context,
-                                const TensorHandle& final_tensor);
+                                const TensorHandle& final_tensor,
+                                bool add_copy_to_src = true);
 
   // The below methods are for dealing with subgraphs. Subgraphs allow sharing
   // nodes from external GpuModels. Example usage:
