@@ -41,6 +41,7 @@
 #include "ml_drift/common/kernels/bitcast.h"
 #include "ml_drift/common/kernels/cast.h"
 #include "ml_drift/common/kernels/conv_apple_mpp.h"
+#include "ml_drift/common/kernels/conv_wave_matrix.h"
 #include "ml_drift/common/kernels/conv_weights_converter.h"
 #include "ml_drift/common/kernels/cumsum.h"
 #include "ml_drift/common/kernels/elementwise.h"
@@ -1074,8 +1075,44 @@ GpuModelBuilder::FullyConnectedSrcFloatExternalWeightsWithConversion(
       src.tensor_desc.GetBHWCShape().c % 32 == 0;
   auto src_handle = use_apple_mpp && !src_exp ? ToDHWBCC4(src) : src;
 
+  const uint64_t flops =
+      GetConvolutionFlops(dst_shape, weights.shape) / weights.shape.h;
+  const uint64_t src_weights_size =
+      weights.shape.DimensionsProduct() * SizeInBitsOf(weights.desc.type) / 8;
+  const uint64_t dst_weights_size =
+      weights.shape.DimensionsProduct() *
+      SizeInBitsOf(src.tensor_desc.GetDataType()) / 8;
+  // const double device_bandwidth_gbs = 120;  // in MLDrift conversion
+  // const double device_compute_gflops = 13000;  // in MLDrift convolution
+  // const double flops_per_byte = device_compute_gflops / device_bandwidth_gbs;
+  // // ~110 for M5/A19, GPUs with NA
+  // const double device_bandwidth_gbs = 75;  // in MLDrift conversion
+  // const double device_compute_gflops = 2500;  // in MLDrift convolution
+  // const double flops_per_byte =
+  //     device_compute_gflops /
+  //     device_bandwidth_gbs;  // ~32 for M4/A18 and below, GPUs without NA
+  // const double conv_gflops = flops * 1e-9;
+  // const double conv_time_s = conv_gflops / device_compute_gflops;
+  // const double weights_bytes = src_weights_size + dst_weights_size;
+  // const double convert_weights_time_s = weights_gbytes /
+  //                                       device_bandwidth_gbs;
+  //  double conversion_cost = convert_weights_time_s * 100 / conv_time_s;
+  //  (weights_gbytes / device_bandwidth_gbs) * 100 /
+  //    (conv_gflops / device_compute_gflops);
+  //  weights_gbytes * 100 / conv_gflops *
+  //  (device_compute_gflops / device_bandwidth_gbs);
+  const double flops_per_byte = use_apple_mpp ? 110 : 32;
+  const double conversion_cost =
+      100.0 * (src_weights_size + dst_weights_size) / flops * flops_per_byte;
+  // if conversion cost is more than 20% of the convolution cost, it is
+  // recommended to use a single convolution. Convolution with weights
+  // conversion is usually ~20% slower than convolution without weights
+  // conversion(on Apple GPUs in MLDrift implementation).
+  const bool recommended_single_conv = conversion_cost > 20;
+
   std::unique_ptr<GPUOperation> conv_op;
   WeightsDescription conv_weights_desc;
+  bool conv_need_scale_zp = false;
   {
     OperationDef op_def;
     op_def.src_tensors.push_back(src_handle.tensor_desc);
@@ -1092,20 +1129,48 @@ GpuModelBuilder::FullyConnectedSrcFloatExternalWeightsWithConversion(
 
     const TensorDescriptor* src_exp_td =
         src_exp ? &src_exp->tensor_desc : nullptr;
+    const TensorDescriptor* bias_td = biases ? &biases->tensor_desc : nullptr;
 
-    const TensorDescriptor* bias_desc = biases ? &biases->tensor_desc : nullptr;
-    if (use_apple_mpp) {
+    ExternalWeights external_weights;
+    external_weights.desc = weights.desc;
+    external_weights.shape = weights.shape;
+    if (weights.scale) {
+      external_weights.scale_zp_shape = weights.scale_zp_shape;
+      external_weights.scale = &(weights.scale->tensor_desc);
+    }
+    if (weights.zero_point) {
+      external_weights.zero_point = &(weights.zero_point->tensor_desc);
+    }
+    const auto conv_precision =
+        GetConvPrecision(src_handle.tensor_desc.GetDataType());
+
+    if (recommended_single_conv && use_apple_mpp &&
+        SupportsConvAppleMPP(gpu_info_, external_weights)) {
+      auto conv_apple_mpp = CreateConvAppleMPPExternalWeights(
+          op_def.src_tensors[0], op_def.dst_tensors[0], external_weights,
+          bias_td, src_exp_td, different_weights_for_height, runtime_check);
+      conv_weights_desc = weights.desc;
+      conv_op = std::make_unique<ConvAppleMPP>(std::move(conv_apple_mpp));
+      conv_need_scale_zp = true;
+    } else if (recommended_single_conv &&
+               SupportsConvWaveMatrix(gpu_info_, conv_precision,
+                                      external_weights)) {
+      auto conv_wave_matrix = CreateConvWaveMatrixExternalWeights(
+          op_def, conv_precision, dst_shape, external_weights, gpu_info_,
+          bias_td, src_exp_td, different_weights_for_height, runtime_check);
+      conv_weights_desc = weights.desc;
+      conv_op = std::make_unique<ConvWaveMatrix>(std::move(conv_wave_matrix));
+      conv_need_scale_zp = true;
+    } else if (use_apple_mpp) {
       ConvAppleMPP conv_mpp = CreateConvAppleMPPExternalWeights(
-          op_def.src_tensors[0], op_def.dst_tensors[0], weights.shape,
-          bias_desc, src_exp_td, different_weights_for_height, runtime_check);
+          op_def.src_tensors[0], op_def.dst_tensors[0], weights.shape, bias_td,
+          src_exp_td, different_weights_for_height, runtime_check);
       conv_weights_desc = conv_mpp.GetWeightsDescription();
       conv_op = std::make_unique<ConvAppleMPP>(std::move(conv_mpp));
     } else {
       conv_op = SelectConvolutionWithExternalWeights(
-          attr, bias_desc, dst_shape, gpu_info_, op_def,
-          GetConvPrecision(src.tensor_desc.GetDataType()), hints_,
-          &conv_weights_desc, src_exp_td,
-          different_weights_for_height,
+          attr, bias_td, dst_shape, gpu_info_, op_def, conv_precision, hints_,
+          &conv_weights_desc, src_exp_td, different_weights_for_height,
           runtime_check);
     }
   }
@@ -1127,6 +1192,12 @@ GpuModelBuilder::FullyConnectedSrcFloatExternalWeightsWithConversion(
   for (const auto& conv_weight : conv_weights) {
     gpu_node.inputs.push_back(conv_weight.id);
   }
+  if (conv_need_scale_zp && weights.scale) {
+    gpu_node.inputs.push_back(weights.scale->id);
+  }
+  if (conv_need_scale_zp && weights.zero_point) {
+    gpu_node.inputs.push_back(weights.zero_point->id);
+  }
   if (biases) {
     gpu_node.inputs.push_back(biases->id);
   }
@@ -1140,8 +1211,7 @@ GpuModelBuilder::FullyConnectedSrcFloatExternalWeightsWithConversion(
 
   gpu_node.outputs = {dst.id};
   gpu_node.gpu_operation = std::move(conv_op);
-  gpu_node.gpu_operation->flops_ =
-      GetConvolutionFlops(dst_shape, weights.shape) / weights.shape.h;
+  gpu_node.gpu_operation->flops_ = flops;
 
   return dst;
 }
