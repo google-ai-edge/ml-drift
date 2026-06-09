@@ -133,8 +133,7 @@ void ConvAppleMPP::UploadBias(const Tensor<Linear, T>& bias) {
 // Checks if the Apple MPP convolution is supported on the given GPU.
 bool SupportsConvAppleMPP(const GpuInfo& gpu_info);
 bool SupportsConvAppleMPP(const GpuInfo& gpu_info,
-                          const WeightsDescription& weights_desc,
-                          const OHWI& weights_shape);
+                          const ExternalWeights& weights);
 
 // Creates an Apple MPP convolution operation with the given attributes.
 ConvAppleMPP CreateConvAppleMPP(

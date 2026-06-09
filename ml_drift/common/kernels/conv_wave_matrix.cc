@@ -1343,18 +1343,17 @@ ConvWaveMatrix CreateConvWaveMatrixInt8ExternalWeights(
 
 bool SupportsConvWaveMatrix(const GpuInfo& gpu_info,
                             CalculationsPrecision precision,
-                            const WeightsDescription& weights_desc,
-                            const OHWI& weights_shape) {
+                            const ExternalWeights& weights) {
   if (!gpu_info.IsApiMetal() || !gpu_info.IsApple()) {
     return false;
   }
-  const int dst_slices = DivideRoundUp(weights_shape.o, 4);
-  if (weights_desc.layout != WeightsLayout::kOSpatialIOGroupI4O4 ||
-      weights_desc.output_group_size != dst_slices ||
-      weights_desc.type != DataType::UINT4) {
+  const int dst_slices = DivideRoundUp(weights.shape.o, 4);
+  if (weights.desc.layout != WeightsLayout::kOSpatialIOGroupI4O4 ||
+      weights.desc.output_group_size != dst_slices ||
+      weights.desc.type != DataType::UINT4) {
     return false;
   }
-  return SupportsConvWaveMatrix(gpu_info, precision, weights_shape);
+  return SupportsConvWaveMatrix(gpu_info, precision, weights.shape);
 }
 
 bool SupportsConvWaveMatrix(const GpuInfo& gpu_info,

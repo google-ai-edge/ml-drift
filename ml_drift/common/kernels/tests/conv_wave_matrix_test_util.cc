@@ -466,11 +466,6 @@ absl::Status ConvWaveMatrixExternalBatchedWi4Test(
   WeightsDescription weights_desc =
       GetFullyConnectedInt4WeightsDesc(env.GetGpuInfo(), weights_i4.shape);
 
-  if (!SupportsConvWaveMatrix(env.GetGpuInfo(), precision, weights_desc,
-                              weights_i4.shape)) {
-    return absl::UnimplementedError(env.SkipTestMessage());
-  }
-
   DataType type = conv_def.src_tensors[0].GetDataType();
   auto scale_desc =
       ScaleOrZeroPointToFCTensorDesc(env.GetGpuInfo(), weights_scales, type);
@@ -483,6 +478,11 @@ absl::Status ConvWaveMatrixExternalBatchedWi4Test(
   external_weights.scale_zp_shape = weights_scales.shape;
   external_weights.scale = &scale_desc;
   external_weights.zero_point = &zp_desc;
+
+  if (!SupportsConvWaveMatrix(env.GetGpuInfo(), precision, external_weights)) {
+    return absl::UnimplementedError(env.SkipTestMessage());
+  }
+
   auto operation = CreateConvWaveMatrixExternalWeights(
       conv_def, precision, dst_shape, external_weights, env.GetGpuInfo(),
       /*bias=*/nullptr,
@@ -556,11 +556,6 @@ absl::Status ConvWaveMatrixExternalBatchedGroupedWi4Test(
   WeightsDescription weights_desc =
       GetFullyConnectedInt4WeightsDesc(env.GetGpuInfo(), weights_i4.shape);
 
-  if (!SupportsConvWaveMatrix(env.GetGpuInfo(), precision, weights_desc,
-                              weights_i4.shape)) {
-    return absl::UnimplementedError(env.SkipTestMessage());
-  }
-
   DataType type = conv_def.src_tensors[0].GetDataType();
   auto scale_desc =
       ScaleOrZeroPointToFCTensorDesc(env.GetGpuInfo(), weights_scales, type);
@@ -573,6 +568,11 @@ absl::Status ConvWaveMatrixExternalBatchedGroupedWi4Test(
   external_weights.scale_zp_shape = weights_scales.shape;
   external_weights.scale = &scale_desc;
   external_weights.zero_point = &zp_desc;
+
+  if (!SupportsConvWaveMatrix(env.GetGpuInfo(), precision, external_weights)) {
+    return absl::UnimplementedError(env.SkipTestMessage());
+  }
+
   auto operation = CreateConvWaveMatrixExternalWeights(
       conv_def, precision, dst_shape, external_weights, env.GetGpuInfo(),
       /*bias=*/nullptr,

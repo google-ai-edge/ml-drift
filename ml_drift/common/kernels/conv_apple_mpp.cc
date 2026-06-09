@@ -391,15 +391,14 @@ bool SupportsConvAppleMPP(const GpuInfo& gpu_info) {
 }
 
 bool SupportsConvAppleMPP(const GpuInfo& gpu_info,
-                          const WeightsDescription& weights_desc,
-                          const OHWI& weights_shape) {
+                          const ExternalWeights& weights) {
   if (!SupportsConvAppleMPP(gpu_info)) {
     return false;
   }
-  const int dst_slices = DivideRoundUp(weights_shape.o, 4);
-  if (weights_desc.layout != WeightsLayout::kOSpatialIOGroupI4O4 ||
-      weights_desc.output_group_size != dst_slices ||
-      weights_desc.type != DataType::UINT4) {
+  const int dst_slices = DivideRoundUp(weights.shape.o, 4);
+  if (weights.desc.layout != WeightsLayout::kOSpatialIOGroupI4O4 ||
+      weights.desc.output_group_size != dst_slices ||
+      weights.desc.type != DataType::UINT4) {
     return false;
   }
   return true;

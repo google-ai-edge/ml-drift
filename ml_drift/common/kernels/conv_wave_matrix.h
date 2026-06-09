@@ -172,8 +172,7 @@ bool SupportsConvWaveMatrix(const GpuInfo& gpu_info,
 
 bool SupportsConvWaveMatrix(const GpuInfo& gpu_info,
                             CalculationsPrecision precision,
-                            const WeightsDescription& weights_desc,
-                            const OHWI& weights_shape);
+                            const ExternalWeights& weights);
 
 // Checks if the INT8 convolution with wave matrix is supported on the given
 // GPU.

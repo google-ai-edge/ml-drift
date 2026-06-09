@@ -542,15 +542,14 @@ absl::Status ConvolutionSf16Wi4BatchedPerfTest(const BHWC& src_shape, int dst_ch
 
   std::unique_ptr<GPUOperation> conv;
   const auto& gpu_info = env.GetInfo();
-  if (SupportsConvAppleMPP(gpu_info, weights_desc, weights_i4.shape)) {
+  if (SupportsConvAppleMPP(gpu_info, external_weights)) {
     auto conv_apple_mpp =
         CreateConvAppleMPPExternalWeights(src_tensor_desc, dst_tensor_desc, external_weights,
                                           /*bias=*/nullptr,
                                           /*src_exp=*/nullptr,
                                           /*different_weights_for_height=*/true);
     conv = std::make_unique<ConvAppleMPP>(std::move(conv_apple_mpp));
-  } else if (SupportsConvWaveMatrix(gpu_info, CalculationsPrecision::F16, weights_desc,
-                                    weights_i4.shape)) {
+  } else if (SupportsConvWaveMatrix(gpu_info, CalculationsPrecision::F16, external_weights)) {
     OperationDef conv_def;
     conv_def.src_tensors.push_back(src_tensor_desc);
     conv_def.dst_tensors.push_back(dst_tensor_desc);
@@ -678,7 +677,7 @@ absl::Status ConvolutionSi8Wi4PerfTest(const BHWC& src_shape, int dst_channels) 
   external_weights.scale = nullptr;
   external_weights.zero_point = nullptr;
 
-  if (!SupportsConvAppleMPP(env.GetInfo(), weights_desc, weights_i4.shape)) {
+  if (!SupportsConvAppleMPP(env.GetInfo(), external_weights)) {
     return absl::UnimplementedError("no supported conv");
   }
 
