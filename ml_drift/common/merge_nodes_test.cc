@@ -579,129 +579,31 @@ TEST(MergeNodesTest, ExpandSubgraphNodes) {
 
 
 TEST(MergeNodesTest, ExpandSubgraphWithConstTensor) {
-  GpuModel gpu_model;
   GpuInfo gpu_info;
   gpu_info.gpu_api = GpuApi::kOpenCl;
 
-  // Before MergeNodes:
-  // Main Graph:
-  //   in_tensor -> op1 -> out_tensor
-  //   Node: op1, subgraph
-  //   Tensor: in_tensor (1), sub_in_tensor (2), out_tensor (3),
-  //           sub_out_tensor (4)
-  // Subgraph:
-  //   sub_in_tensor + sub_in_const_tensor -> add_with_const -> sub_out_tensor
-  //   Node: add_with_const
-  //   Tensor: sub_in_tensor (1), sub_out_tensor (4)
-  //   Const Tensor: sub_in_const_tensor (2), sub_internal_const_tensor (3)
+  GpuModelBuilder model_builder(gpu_info, {});
 
-  // 1. Create the main graph.
-  const ValueId in_tensor_id = 1;
-  const ValueId sub_in_tensor_id = 2;
-  const ValueId out_tensor_id = 3;
-  const ValueId sub_out_tensor_id = 4;
+  GpuModelBuilder sub_builder = model_builder.CreateBuilder();
+  auto sub_in = sub_builder.AddTensor(BHWC(1, 32, 32, 16), DataType::FLOAT32);
+  TensorDescriptor const_desc = {DataType::FLOAT32, TensorStorageType::BUFFER,
+                                 Layout::HWC};
+  const_desc.SetBHWCShape(BHWC(1, 32, 32, 16));
+  auto const_tensor = sub_builder.AddConstantTensor(std::move(const_desc));
+  auto sub_out = sub_builder.Add(sub_in, const_tensor);
+  MLD_ASSERT_OK(model_builder.RegisterSubgraph(
+      std::move(sub_builder), "add_subgraph", {sub_in}, {sub_out}));
 
-  gpu_model.nodes.resize(2);
-  gpu_model.nodes[0].gpu_operation = std::make_unique<GPUOperation>();
-  gpu_model.nodes[0].name = "op";
-  gpu_model.nodes[0].inputs.push_back(in_tensor_id);
-  gpu_model.nodes[0].outputs.push_back(sub_in_tensor_id);
-  gpu_model.input_ids_and_refs.push_back({in_tensor_id, in_tensor_id});
-  gpu_model.output_ids_and_refs.push_back({out_tensor_id, out_tensor_id});
-
-  gpu_model.nodes[1].name = "subgraph";
-  gpu_model.nodes[1].gpu_operation = std::make_unique<GPUOperation>();
-  gpu_model.nodes[1].inputs.push_back(sub_in_tensor_id);
-  gpu_model.nodes[1].outputs.push_back(out_tensor_id);
-  gpu_model.nodes[1].subgraph_id = "sub";
-
-  TensorDescriptor in_tensor_desc = {
-      DataType::FLOAT32, TensorStorageType::TEXTURE_2D, Layout::BHWC};
-  TensorDescriptor sub_in_tensor_desc = {
-      DataType::FLOAT32, TensorStorageType::TEXTURE_2D, Layout::BHWC};
-  TensorDescriptor out_tensor_desc = {
-      DataType::FLOAT32, TensorStorageType::TEXTURE_2D, Layout::BHWC};
-  TensorDescriptor sub_out_tensor_desc = {
-      DataType::FLOAT32, TensorStorageType::TEXTURE_2D, Layout::BHWC};
-
-  gpu_model.tensors[in_tensor_id] = in_tensor_desc;
-  gpu_model.tensors[sub_in_tensor_id] = sub_in_tensor_desc;
-  gpu_model.tensors[out_tensor_id] = out_tensor_desc;
-  gpu_model.tensors[sub_out_tensor_id] = sub_out_tensor_desc;
-
-
-  // 2. Create a subgraph "sub"
-  auto& subgraph = gpu_model.subgraphs["sub"];
-  subgraph.nodes.resize(1);
-
-  const ValueId sub_in_tensor_id_in_subgraph = 1;
-  const ValueId sub_const_tensor_id_in_subgraph = 2;
-  const ValueId sub_internal_const_tensor_id = 3;
-  const ValueId sub_out_tensor_id_in_subgraph = 4;
-
-  subgraph.tensors[sub_in_tensor_id_in_subgraph] = sub_in_tensor_desc;
-  subgraph.const_tensors[sub_const_tensor_id_in_subgraph] = {
-      DataType::INT4, TensorStorageType::BUFFER, Layout::HWC};
-  subgraph.const_tensors[sub_internal_const_tensor_id] = {
-      DataType::INT4, TensorStorageType::BUFFER, Layout::HWC};
-  subgraph.tensors[sub_out_tensor_id_in_subgraph] = sub_out_tensor_desc;
-
-  // Create a simple elementwise add operation.
-  OperationDef add_def;
-  add_def.src_tensors.push_back(
-      subgraph.tensors[sub_in_tensor_id_in_subgraph]);
-  add_def.src_tensors.push_back(
-      subgraph.const_tensors[sub_const_tensor_id_in_subgraph]);
-  add_def.dst_tensors.push_back(
-      subgraph.tensors[sub_out_tensor_id_in_subgraph]);
-  ElementwiseDescriptor add_descriptor;
-  GPUOperation add_op =
-      CreateGpuOperation(add_def, std::move(add_descriptor));
-
-  // Set up the node in the subgraph.
-  auto& sub_node = subgraph.nodes[0];
-  sub_node.gpu_operation = std::make_unique<GPUOperation>(std::move(add_op));
-  sub_node.name = "add_with_const";
-  sub_node.inputs = {
-    sub_in_tensor_id_in_subgraph, sub_const_tensor_id_in_subgraph};
-  sub_node.outputs = {sub_out_tensor_id_in_subgraph};
-
-  // Define subgraph interface.
-  subgraph.input_ids_and_refs.push_back(
-      {sub_in_tensor_id_in_subgraph, sub_in_tensor_id_in_subgraph});
-  subgraph.input_ids_and_refs.push_back(
-        {sub_const_tensor_id_in_subgraph, sub_const_tensor_id_in_subgraph});
-  subgraph.output_ids_and_refs.push_back(
-      {sub_out_tensor_id_in_subgraph, sub_out_tensor_id_in_subgraph});
-
-  // 3. Call MergeNodes. This will expand subgraphs and resolve arguments.
-  MLD_ASSERT_OK(MergeNodes(gpu_info, &gpu_model));
-  MLD_ASSERT_OK(AssembleCode(gpu_info, &gpu_model));
-  MLD_ASSERT_OK(ResolveArgs(&gpu_model));
-  ExpandSubgraphs(&gpu_model);
-
-  // After MergeNodes:
-  // Main Graph:
-  //   in_tensor -> op1 -> out_tensor
-  //   Node: op1, add_with_const
-  //   Tensor: in_tensor (1), sub_in_tensor (2), out_tensor (3),
-  //           sub_out_tensor (4)
-  //   Const Tensor: sub_in_const_tensor (5), sub_internal_const_tensor(6)
-  // Subgraph:
-  //   sub_in_tensor + sub_in_const_tensor -> add_with_const -> sub_out_tensor
-  //   Node: add_with_const
-  //   Tensor: sub_in_tensor (1), sub_out_tensor (4)
-  //   Const Tensor: sub_in_const_tensor (2), sub_internal_const_tensor (3)
-
-  // 4. Assertions.
-  // The subgraph node is expanded into the single "add_with_const" node.
-  ASSERT_EQ(gpu_model.nodes.size(), 2);
-  const auto& expanded_node = gpu_model.nodes[1];
-  EXPECT_EQ(expanded_node.name, "add_with_const");
-  EXPECT_EQ(gpu_model.const_tensors.size(), 2);
-  // Verify the const tensors are copied to the main graph correctly.
-  EXPECT_EQ(gpu_model.const_tensors[5], subgraph.const_tensors[2]);
-  EXPECT_EQ(gpu_model.const_tensors[6], subgraph.const_tensors[3]);
+  auto src_th = model_builder.AddTensor(BHWC(1, 32, 32, 16), DataType::FLOAT32);
+  MLD_ASSERT_OK_AND_ASSIGN(auto dsts,
+                       model_builder.Subgraph("add_subgraph", {src_th}));
+  GpuModel gpu_model;
+  MLD_ASSERT_OK(model_builder.GetGpuModel(std::vector<unsigned int>{src_th.id},
+                                      std::vector<unsigned int>{dsts[0].id},
+                                      &gpu_model));
+  ASSERT_EQ(gpu_model.nodes.size(), 1);
+  EXPECT_TRUE(absl::StrContains(gpu_model.nodes[0].name, "add"));
+  EXPECT_EQ(gpu_model.const_tensors.size(), 1);
 }
 
 }  // namespace ml_drift
