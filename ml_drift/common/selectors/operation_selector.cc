@@ -1527,6 +1527,13 @@ absl::Status GPUOperationFromNode(
       return model_builder->UpdateOutputTensor(
           model_builder->PositionalEmbedding(src, position), outputs[0]->id);
     }
+    case OperationType::QUANTIZE_AND_DEQUANTIZE: {
+      const auto& attr =
+          std::any_cast<const QuantizeAndDequantizeAttributes&>(node.attr);
+      ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
+      auto output = model_builder->QuantizeAndDequantize(src, attr);
+      return model_builder->UpdateOutputTensor(output, outputs[0]->id);
+    }
     case OperationType::RELU: {
       const auto& attr = std::any_cast<const ReLUAttributes&>(node.attr);
       auto gpu_op = SelectReLU(attr, op_def);
