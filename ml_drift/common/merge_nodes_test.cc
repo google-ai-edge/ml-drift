@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "ml_drift/common/merge_nodes.h"
-
-#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -35,7 +32,6 @@
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/shape.h"
 #include "ml_drift/common/status.h"
-#include "ml_drift/common/task/gpu_operation.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/tensor.h"
 
@@ -133,7 +129,7 @@ absl::Status CreateConvReluGpuModel(const GpuInfo& gpu_info,
 TEST(MergeNodesTest, MergeSingleLinkable) {
   GpuModel gpu_model;
   GpuInfo gpu_info;
-  gpu_info.gpu_api = GpuApi::kOpenCl;
+  gpu_info.gpu_api = GpuApi::kWebGpu;
   MLD_ASSERT_OK(CreateConvReluGpuModel(gpu_info, gpu_model));
   EXPECT_EQ(gpu_model.nodes.size(), 1);
   EXPECT_TRUE(absl::StrContains(gpu_model.nodes[0].name, "conv"));
@@ -143,7 +139,7 @@ TEST(MergeNodesTest, MergeSingleLinkable) {
 TEST(MergeNodesTest, MergeSingleLinkableWithOptional) {
   GpuModel gpu_model;
   GpuInfo gpu_info;
-  gpu_info.gpu_api = GpuApi::kOpenCl;
+  gpu_info.gpu_api = GpuApi::kWebGpu;
   MLD_ASSERT_OK(CreateConvReluGpuModel(gpu_info, gpu_model, /*optional_conv_tag=*/1,
                                    /*optional_relu_tag=*/1));
 
@@ -156,7 +152,7 @@ TEST(MergeNodesTest, MergeSingleLinkableWithOptional) {
 TEST(MergeNodesTest, NotMergeSingleLinkableWithDiffTag) {
   GpuModel gpu_model;
   GpuInfo gpu_info;
-  gpu_info.gpu_api = GpuApi::kOpenCl;
+  gpu_info.gpu_api = GpuApi::kWebGpu;
   MLD_ASSERT_OK(
       CreateConvReluGpuModel(gpu_info, gpu_model, /*optional_conv_tag=*/1));
 
@@ -221,7 +217,7 @@ absl::Status CreateTransposeTransposeGpuModel(
 TEST(MergeNodesTest, MergeTwoReorder) {
   GpuModel gpu_model;
   GpuInfo gpu_info;
-  gpu_info.gpu_api = GpuApi::kOpenCl;
+  gpu_info.gpu_api = GpuApi::kWebGpu;
   MLD_ASSERT_OK(CreateTransposeTransposeGpuModel(gpu_info, gpu_model));
 
   EXPECT_EQ(gpu_model.nodes.size(), 1);
@@ -235,7 +231,7 @@ TEST(MergeNodesTest, MergeTwoReorder) {
 TEST(MergeNodesTest, NotMergeTwoReorderWithDiffTag) {
   GpuModel gpu_model;
   GpuInfo gpu_info;
-  gpu_info.gpu_api = GpuApi::kOpenCl;
+  gpu_info.gpu_api = GpuApi::kWebGpu;
   MLD_ASSERT_OK(CreateTransposeTransposeGpuModel(gpu_info, gpu_model,
                                              /*optional_transpose0_tag=*/1));
 
@@ -293,7 +289,7 @@ absl::Status CreateAddReluGpuModel(const GpuInfo& gpu_info, GpuModel& gpu_model,
 TEST(MergeNodesTest, MergeTwoElementwise) {
   GpuModel gpu_model;
   GpuInfo gpu_info;
-  gpu_info.gpu_api = GpuApi::kOpenCl;
+  gpu_info.gpu_api = GpuApi::kWebGpu;
   MLD_ASSERT_OK(CreateAddReluGpuModel(gpu_info, gpu_model));
   EXPECT_EQ(gpu_model.nodes.size(), 1);
   EXPECT_TRUE(absl::StrContains(gpu_model.nodes[0].name, "add"));
@@ -303,7 +299,7 @@ TEST(MergeNodesTest, MergeTwoElementwise) {
 TEST(MergeNodesTest, NotMergeTwoElementwiseWithDiffTag) {
   GpuModel gpu_model;
   GpuInfo gpu_info;
-  gpu_info.gpu_api = GpuApi::kOpenCl;
+  gpu_info.gpu_api = GpuApi::kWebGpu;
   MLD_ASSERT_OK(
       CreateAddReluGpuModel(gpu_info, gpu_model, /*optional_tags=*/{1, -1}));
   EXPECT_EQ(gpu_model.nodes.size(), 2);
@@ -370,7 +366,7 @@ absl::Status CreateSumReluAddGpuModel(const GpuInfo& gpu_info,
 
 TEST(MergeNodesTest, MergeElementwiseTwoInputRootAndLeftElementwise) {
   GpuInfo gpu_info;
-  gpu_info.gpu_api = GpuApi::kOpenCl;
+  gpu_info.gpu_api = GpuApi::kWebGpu;
   GpuModel gpu_model;
   MLD_ASSERT_OK(CreateSumReluAddGpuModel(gpu_info, gpu_model));
 
@@ -383,7 +379,7 @@ TEST(MergeNodesTest, MergeElementwiseTwoInputRootAndLeftElementwise) {
 TEST(MergeNodesTest,
      NotMergeElementwiseTwoInputRootAndLeftElementwiseWithDiffTag) {
   GpuInfo gpu_info;
-  gpu_info.gpu_api = GpuApi::kOpenCl;
+  gpu_info.gpu_api = GpuApi::kWebGpu;
   GpuModel gpu_model;
   MLD_ASSERT_OK(CreateSumReluAddGpuModel(gpu_info, gpu_model,
                                      /*optional_tags=*/{-1, 1, 2}));
@@ -491,7 +487,7 @@ absl::Status CreateTransposeReluMulAddGpuModel(
 
 TEST(MergeNodesTest, MergeElementwiseTwoInputRootAndParents) {
   GpuInfo gpu_info;
-  gpu_info.gpu_api = GpuApi::kOpenCl;
+  gpu_info.gpu_api = GpuApi::kWebGpu;
   GpuModel gpu_model;
   MLD_ASSERT_OK(CreateTransposeReluMulAddGpuModel(gpu_info, gpu_model));
 
@@ -515,7 +511,7 @@ TEST(MergeNodesTest, MergeElementwiseTwoInputRootAndParents) {
 //     out1
 TEST(MergeNodesTest, MergeNoMergeRightIntermediateOutput) {
   GpuInfo gpu_info;
-  gpu_info.gpu_api = GpuApi::kOpenCl;
+  gpu_info.gpu_api = GpuApi::kWebGpu;
   GpuModel gpu_model;
   MLD_ASSERT_OK(CreateTransposeReluMulAddGpuModel(
       gpu_info, gpu_model, /*optional_tags=*/{-1, -1, -1, -1},
@@ -536,7 +532,7 @@ TEST(MergeNodesTest, MergeNoMergeRightIntermediateOutput) {
 //     out1
 TEST(MergeNodesTest, MergeNoMergeLeftIntermediateOutput) {
   GpuInfo gpu_info;
-  gpu_info.gpu_api = GpuApi::kOpenCl;
+  gpu_info.gpu_api = GpuApi::kWebGpu;
   GpuModel gpu_model;
   MLD_ASSERT_OK(CreateTransposeReluMulAddGpuModel(
       gpu_info, gpu_model, /*optional_tags=*/{-1, -1, -1, -1},
@@ -546,7 +542,7 @@ TEST(MergeNodesTest, MergeNoMergeLeftIntermediateOutput) {
 
 TEST(MergeNodesTest, NotMergeElementwiseTwoInputRootAndParentsWithDiffTag) {
   GpuInfo gpu_info;
-  gpu_info.gpu_api = GpuApi::kOpenCl;
+  gpu_info.gpu_api = GpuApi::kWebGpu;
   GpuModel gpu_model;
   MLD_ASSERT_OK(CreateTransposeReluMulAddGpuModel(gpu_info, gpu_model,
                                               /*optional_tags=*/{-1, 1, 2, 3}));
@@ -614,7 +610,7 @@ TEST(MergeNodesTest, ExpandSubgraphNodes) {
 
 TEST(MergeNodesTest, ExpandSubgraphWithConstTensor) {
   GpuInfo gpu_info;
-  gpu_info.gpu_api = GpuApi::kOpenCl;
+  gpu_info.gpu_api = GpuApi::kWebGpu;
 
   GpuModelBuilder model_builder(gpu_info, {});
 
