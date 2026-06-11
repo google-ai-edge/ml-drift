@@ -248,6 +248,13 @@ class ConvGeneric : public GPUOperation {
   void InitArgs(const OperationDef& definition);
   void AddRuntimeWeightsDef();
 
+  MemoryType GetBufferWeightsMemoryType() const {
+    return kernel_params_.weights_upload_type ==
+                   ConvGeneric::WeightsUploadType::kConstantMemory
+               ? MemoryType::CONSTANT
+               : MemoryType::GLOBAL;
+  }
+
   friend ConvGeneric CreateConvGeneric(const GpuInfo& gpu_info,
                                        const OperationDef& definition,
                                        CalculationsPrecision precision,
@@ -322,10 +329,7 @@ void ConvGeneric::UploadWeights(const Tensor<OHWI, T>& weights) {
     BufferDescriptor desc;
     desc.element_type = kernel_params_.weights_type;
     desc.element_size = kernel_params_.weights_element_size;
-    desc.memory_type = kernel_params_.weights_upload_type ==
-                               ConvGeneric::WeightsUploadType::kConstantMemory
-                           ? MemoryType::CONSTANT
-                           : MemoryType::GLOBAL;
+    desc.memory_type = GetBufferWeightsMemoryType();
     desc.size = weights_data.size();
     desc.data = std::move(weights_data);
     args_.AddObject("weights",
@@ -356,10 +360,7 @@ void ConvGeneric::UploadWeights(const Tensor<OHWDI, T>& weights) {
     BufferDescriptor desc;
     desc.element_type = weights_desc.type;
     desc.element_size = 4;
-    desc.memory_type = kernel_params_.weights_upload_type ==
-                               ConvGeneric::WeightsUploadType::kConstantMemory
-                           ? MemoryType::CONSTANT
-                           : MemoryType::GLOBAL;
+    desc.memory_type = GetBufferWeightsMemoryType();
     desc.size = weights_data.size();
     desc.data = std::move(weights_data);
     args_.AddObject("weights",

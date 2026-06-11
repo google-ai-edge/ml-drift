@@ -3462,10 +3462,7 @@ void ConvGeneric::AddRuntimeWeightsDef() {
     BufferDescriptor desc;
     desc.element_type = conv_params_.weights_data_type;
     desc.element_size = 4;
-    desc.memory_type = kernel_params_.weights_upload_type ==
-                               ConvGeneric::WeightsUploadType::kConstantMemory
-                           ? MemoryType::CONSTANT
-                           : MemoryType::GLOBAL;
+    desc.memory_type = GetBufferWeightsMemoryType();
 
     AddSrcBuffer("weights", desc);
   } else {
@@ -3686,10 +3683,7 @@ void ConvGeneric::UploadWeightsI8AsU8(
     BufferDescriptor desc;
     desc.element_type = kernel_params_.weights_type;
     desc.element_size = kernel_params_.weights_element_size;
-    desc.memory_type = kernel_params_.weights_upload_type ==
-                               ConvGeneric::WeightsUploadType::kConstantMemory
-                           ? MemoryType::CONSTANT
-                           : MemoryType::GLOBAL;
+    desc.memory_type = GetBufferWeightsMemoryType();
     desc.size = weights_data.size();
     desc.data = std::move(weights_data);
     args_.AddObject("weights",
@@ -3778,6 +3772,7 @@ ConvGeneric CreateConvGenericInt8ExternalWeights(const GpuInfo& gpu_info,
   BufferDescriptor weights_desc;
   weights_desc.element_type = result.kernel_params_.weights_type;
   weights_desc.element_size = result.kernel_params_.weights_element_size;
+  weights_desc.memory_type = result.GetBufferWeightsMemoryType();
   result.AddSrcBuffer("weights", weights_desc);
 
   return result;
