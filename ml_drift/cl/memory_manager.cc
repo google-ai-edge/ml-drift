@@ -23,6 +23,7 @@
 #include <vector>
 
 #include "absl/container/flat_hash_map.h"
+#include "absl/hash/hash.h"
 #include "ml_drift/cl/buffer.h"
 #include "ml_drift/cl/cl_context.h"
 #include "ml_drift/cl/environment.h"
@@ -33,6 +34,7 @@
 #include "ml_drift/common/memory_management.h"
 #include "ml_drift/common/memory_management/types.h"
 #include "ml_drift/common/model.h"
+#include "ml_drift/common/shape.h"
 #include "ml_drift/common/status.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/types.h"
@@ -219,63 +221,131 @@ absl::Status GetBufferAssignment(
   }
   return absl::OkStatus();
 }
+
+// Returns a vector of T* sorted in increasing memory size.
+template <typename T>
+std::vector<const T*> GetSortedVector(
+    const std::vector<std::unique_ptr<T>>& items) {
+  std::vector<const T*> sorted_items;
+  sorted_items.reserve(items.size());
+  for (const auto& item : items) {
+    sorted_items.push_back(item.get());
+  }
+  std::sort(sorted_items.begin(), sorted_items.end(),
+            [](const T* i1, const T* i2) {
+              return i1->GetMemorySizeInBytes() < i2->GetMemorySizeInBytes();
+            });
+  return sorted_items;
+}
+
+const Buffer* TakeAvailableBuffer(std::vector<const Buffer*>& available_buffers,
+                                  size_t size) {
+  auto it = std::find_if(
+      available_buffers.begin(), available_buffers.end(),
+      [size](const Buffer* b) { return b->GetMemorySizeInBytes() >= size; });
+  if (it == available_buffers.end()) {
+    return nullptr;
+  }
+  const Buffer* buffer = *it;
+  available_buffers.erase(it);
+  return buffer;
+}
+
+const Tensor* TakeAvailableTexture(
+    std::vector<const Tensor*>& available_tensors, const TensorDescriptor& td) {
+  auto it = std::find_if(available_tensors.begin(), available_tensors.end(),
+                         [td](const Tensor* t) {
+                           if (td != t->GetDescriptor()) {
+                             return false;
+                           }
+                           BHWDC s1 = td.GetBHWDCShape();
+                           BHWDC s2 = t->GetDescriptor().GetBHWDCShape();
+                           return s1.b == s2.b && s1.h == s2.h &&
+                                  s1.w == s2.w && s1.d == s2.d && s1.c == s2.c;
+                         });
+  if (it == available_tensors.end()) {
+    return nullptr;
+  }
+  const Tensor* tensor = *it;
+  available_tensors.erase(it);
+  return tensor;
+}
+
 }  // namespace
 
-absl::StatusOr<std::vector<std::unique_ptr<Tensor>>>
-MemoryManager::AllocateMemory(const GpuModel& gpu_model,
-                              const GpuInfo& gpu_info,
-                              const ExternalTensorsInfo& external_tensors,
-                              CLContext* context) {
+absl::StatusOr<MemoryManager::ModelId> MemoryManager::AllocateMemory(
+    const GpuModel& gpu_model, const GpuInfo& gpu_info,
+    const ExternalTensorsInfo& external_tensors,
+    std::vector<std::unique_ptr<Tensor>>& external_mutable_tensors,
+    CLContext* context) {
+  const ModelId model_id = next_model_id_++;
+  for (const auto& [id, tensor_desc] : gpu_model.tensors) {
+    tensors_descs_[Key(model_id, id)] = tensor_desc;
+  }
   ASSIGN_OR_RETURN(
-      auto temp_external_mutable_tensors,
-      AllocateExternalTensors(*context, gpu_model, external_tensors));
-  RETURN_IF_ERROR(AllocateConstTensors(gpu_model, context));
+      external_mutable_tensors,
+      AllocateExternalTensors(model_id, *context, gpu_model, external_tensors));
+  RETURN_IF_ERROR(AllocateConstTensors(model_id, gpu_model, context));
   std::map<ValueId, int2> buffer_usages;
   std::map<ValueId, int2> texture_usages;
   CollectUsageInformation(gpu_model, gpu_info, external_tensors, &buffer_usages,
                           &texture_usages);
-  RETURN_IF_ERROR(
-      AllocateBufferBasedTensors(buffer_usages, gpu_model, gpu_info, context));
-  RETURN_IF_ERROR(AllocateTextureBasedTensors(texture_usages, gpu_model,
-                                              gpu_info, context));
-  return std::move(temp_external_mutable_tensors);
+  RETURN_IF_ERROR(AllocateBufferBasedTensors(model_id, buffer_usages, gpu_model,
+                                             gpu_info, context));
+  RETURN_IF_ERROR(AllocateTextureBasedTensors(model_id, texture_usages,
+                                              gpu_model, gpu_info, context));
+  return model_id;
+}
+
+uint64_t GetUniqueKey(const TensorDescriptor& tensor_desc) {
+  return absl::HashOf(ToStringWithShape(tensor_desc));
 }
 
 absl::StatusOr<std::vector<std::unique_ptr<Tensor>>>
 MemoryManager::AllocateExternalTensors(
-    const CLContext& context, const GpuModel& gpu_model,
+    ModelId model_id, const CLContext& context, const GpuModel& gpu_model,
     const ExternalTensorsInfo& external_tensors) {
   for (const auto& [id, tensor] : external_tensors.immutable_tensors) {
     auto* cl_spatial_tensor = dynamic_cast<Tensor*>(tensor);
     if (!cl_spatial_tensor) {
       return absl::InvalidArgumentError("Expected CLSpatialTensor.");
     }
-    external_immutable_tensors_[id] = cl_spatial_tensor;
+    external_immutable_tensors_[Key(model_id, id)] = cl_spatial_tensor;
   }
 
   std::vector<std::unique_ptr<Tensor>> temp_tensors;
+  absl::flat_hash_map<uint64_t, Tensor*> mutable_tensors;
   for (const auto& [id, _] : external_tensors.mutable_tensors) {
+    const auto& tensor_desc = gpu_model.tensors.at(id);
+    uint64_t tensor_desc_unique_key = GetUniqueKey(tensor_desc);
+    if (mutable_tensors.contains(tensor_desc_unique_key)) {
+      external_mutable_tensors_[Key(model_id, id)] =
+          mutable_tensors[tensor_desc_unique_key];
+      continue;
+    }
     temp_tensors.push_back(std::make_unique<Tensor>());
     auto* cl_spatial_tensor = temp_tensors.back().get();
-    RETURN_IF_ERROR(CreateTensor(context, gpu_model.tensors.at(id),
-                                 cl_spatial_tensor));
-    external_mutable_tensors_[id] = cl_spatial_tensor;
+    RETURN_IF_ERROR(CreateTensor(context, tensor_desc, cl_spatial_tensor));
+    mutable_tensors[tensor_desc_unique_key] = cl_spatial_tensor;
+    external_mutable_tensors_[Key(model_id, id)] = cl_spatial_tensor;
   }
   return std::move(temp_tensors);
 }
 
-absl::Status MemoryManager::AllocateConstTensors(const GpuModel& gpu_model,
+absl::Status MemoryManager::AllocateConstTensors(ModelId model_id,
+                                                 const GpuModel& gpu_model,
                                                  CLContext* context) {
   for (auto& description : gpu_model.const_tensors) {
-    RETURN_IF_ERROR(const_tensors_[description.first].CreateFromDescriptor(
-        description.second, *context));
+    RETURN_IF_ERROR(
+        const_tensors_[Key(model_id, description.first)].CreateFromDescriptor(
+            description.second, *context));
   }
   return absl::OkStatus();
 }
 
 absl::Status MemoryManager::AllocateBufferBasedTensors(
-    const std::map<ValueId, int2>& buffer_usages, const GpuModel& gpu_model,
-    const GpuInfo& gpu_info, CLContext* context) {
+    ModelId model_id, const std::map<ValueId, int2>& buffer_usages,
+    const GpuModel& gpu_model, const GpuInfo& gpu_info, CLContext* context) {
   std::vector<TensorUsageRecord<size_t>> buffer_usage_records;
   ObjectsAssignment<size_t> buffer_assignment;
   OffsetsAssignment offset_assignment;
@@ -293,68 +363,98 @@ absl::Status MemoryManager::AllocateBufferBasedTensors(
     return absl::OkStatus();
   }
 
+  std::vector<const Buffer*> cl_buffers;
+  std::vector<std::unique_ptr<Buffer>> new_buffers;
+  std::vector<const Buffer*> allocated_buffers;
+
   if (use_offset_assignment) {
-    if (!shared_buffers_parent_ptr_) {
+    size_t required_size = offset_assignment.total_size;
+    std::vector<const Buffer*> available_buffers =
+        GetSortedVector(shared_buffers_);
+    const Buffer* selected_buffer =
+        TakeAvailableBuffer(available_buffers, required_size);
+    if (!selected_buffer) {
+      auto parent_buf = std::make_unique<Buffer>();
       Buffer shared_buffer;
-      RETURN_IF_ERROR(CreateReadWriteBuffer(offset_assignment.total_size,
-                                            context, &shared_buffer));
-      shared_buffers_parent_ =
-          std::make_unique<Buffer>(std::move(shared_buffer));
-      shared_buffers_parent_ptr_ = shared_buffers_parent_.get();
-    } else if (shared_buffers_parent_ptr_->GetMemorySizeInBytes() <
-               offset_assignment.total_size) {
-      return absl::FailedPreconditionError(
-          "Externally provided buffer not big enough.");
+      RETURN_IF_ERROR(
+          CreateReadWriteBuffer(required_size, context, &shared_buffer));
+      *parent_buf = std::move(shared_buffer);
+      selected_buffer = parent_buf.get();
+      new_buffers.push_back(std::move(parent_buf));
     }
-    shared_buffers_.resize(offset_assignment.offsets.size());
+    cl_buffers.push_back(selected_buffer);
+
+    allocated_buffers.resize(offset_assignment.offsets.size());
     for (int i = 0; i < offset_assignment.offsets.size(); ++i) {
+      auto sub_buf = std::make_unique<Buffer>();
       RETURN_IF_ERROR(CreateReadWriteSubBuffer(
-          *shared_buffers_parent_ptr_, offset_assignment.offsets[i],
-          buffer_usage_records[i].tensor_size, context, &shared_buffers_[i]));
+          *selected_buffer, offset_assignment.offsets[i],
+          buffer_usage_records[i].tensor_size, context, sub_buf.get()));
+      allocated_buffers[i] = sub_buf.get();
+      sub_buffers_.push_back(std::move(sub_buf));
     }
   } else {
     const size_t total_size = TotalSize(buffer_assignment, base_align_bytes);
     if (is_sub_buffers_supported && total_size <= gpu_info.GetMaxBufferSize()) {
-      // use single parent buffer:
-      if (!shared_buffers_parent_ptr_) {
+      std::vector<const Buffer*> available_buffers =
+          GetSortedVector(shared_buffers_);
+      const Buffer* selected_buffer =
+          TakeAvailableBuffer(available_buffers, total_size);
+      if (!selected_buffer) {
+        auto parent_buf = std::make_unique<Buffer>();
         Buffer shared_buffer;
         RETURN_IF_ERROR(
             CreateReadWriteBuffer(total_size, context, &shared_buffer));
-        shared_buffers_parent_ =
-            std::make_unique<Buffer>(std::move(shared_buffer));
-        shared_buffers_parent_ptr_ = shared_buffers_parent_.get();
-      } else if (shared_buffers_parent_ptr_->GetMemorySizeInBytes() <
-                 total_size) {
-        return absl::FailedPreconditionError(
-            "Externally provided buffer not big enough.");
+        *parent_buf = std::move(shared_buffer);
+        selected_buffer = parent_buf.get();
+        new_buffers.push_back(std::move(parent_buf));
       }
+      cl_buffers.push_back(selected_buffer);
 
-      shared_buffers_.resize(buffer_assignment.object_sizes.size());
+      allocated_buffers.resize(buffer_assignment.object_sizes.size());
       size_t offset = 0;
       for (int i = 0; i < buffer_assignment.object_sizes.size(); ++i) {
         const size_t aligned_size =
             AlignByN(buffer_assignment.object_sizes[i], base_align_bytes);
-        RETURN_IF_ERROR(CreateReadWriteSubBuffer(*shared_buffers_parent_ptr_,
-                                                 offset, aligned_size, context,
-                                                 &shared_buffers_[i]));
+        auto sub_buf = std::make_unique<Buffer>();
+        RETURN_IF_ERROR(CreateReadWriteSubBuffer(
+            *selected_buffer, offset, aligned_size, context, sub_buf.get()));
+        allocated_buffers[i] = sub_buf.get();
+        sub_buffers_.push_back(std::move(sub_buf));
         offset += aligned_size;
       }
     } else {
-      shared_buffers_.resize(buffer_assignment.object_sizes.size());
+      std::vector<const Buffer*> available_buffers =
+          GetSortedVector(shared_buffers_);
+      allocated_buffers.resize(buffer_assignment.object_sizes.size());
       for (int i = 0; i < buffer_assignment.object_sizes.size(); ++i) {
-        RETURN_IF_ERROR(CreateReadWriteBuffer(buffer_assignment.object_sizes[i],
-                                              context, &shared_buffers_[i]));
+        size_t size = buffer_assignment.object_sizes[i];
+        const Buffer* selected_buffer =
+            TakeAvailableBuffer(available_buffers, size);
+        if (!selected_buffer) {
+          auto buf = std::make_unique<Buffer>();
+          Buffer shared_buffer;
+          RETURN_IF_ERROR(CreateReadWriteBuffer(size, context, &shared_buffer));
+          *buf = std::move(shared_buffer);
+          selected_buffer = buf.get();
+          new_buffers.push_back(std::move(buf));
+        }
+        allocated_buffers[i] = selected_buffer;
       }
     }
   }
 
+  for (auto& buf : new_buffers) {
+    shared_buffers_.push_back(std::move(buf));
+  }
+
   for (auto& usage : buffer_usages) {
-    const auto& td = gpu_model.tensors.at(usage.first);
+    const auto& td = tensors_descs_[Key(model_id, usage.first)];
     const int tensor_index = value_id_to_shared_buffer_tensors[usage.first];
     const int buffer_index = use_offset_assignment
                                  ? tensor_index
                                  : buffer_assignment.object_ids[tensor_index];
-    auto& tensor = value_id_to_buffer_[usage.first];
+    auto& tensor = value_id_to_buffer_[Key(model_id, usage.first)];
     if (td.GetStorageType() == TensorStorageType::TEXTURE_2D ||
         td.GetStorageType() == TensorStorageType::SINGLE_TEXTURE_2D) {
       const size_t bytes_per_pixel =
@@ -362,19 +462,20 @@ absl::Status MemoryManager::AllocateBufferBasedTensors(
       const size_t width_pixel_alignment =
           GetWidthAlignment(gpu_info, bytes_per_pixel);
       RETURN_IF_ERROR(CreateTensorSharedImage2DBuffer(
-          *context, shared_buffers_[buffer_index].GetMemoryPtr(), td,
+          *context, allocated_buffers[buffer_index]->GetMemoryPtr(), td,
           width_pixel_alignment, &tensor));
     } else {
       RETURN_IF_ERROR(CreateTensorShared(
-          *context, shared_buffers_[buffer_index].GetMemoryPtr(), td, &tensor));
+          *context, allocated_buffers[buffer_index]->GetMemoryPtr(), td,
+          &tensor));
     }
   }
   return absl::OkStatus();
 }
 
 absl::Status MemoryManager::AllocateTextureBasedTensors(
-    const std::map<ValueId, int2>& texture_usages, const GpuModel& gpu_model,
-    const GpuInfo& gpu_info, CLContext* context) {
+    ModelId model_id, const std::map<ValueId, int2>& texture_usages,
+    const GpuModel& gpu_model, const GpuInfo& gpu_info, CLContext* context) {
   struct TensorDescComparator {
     TensorDescriptor tensor_desc;
 
@@ -396,45 +497,64 @@ absl::Status MemoryManager::AllocateTextureBasedTensors(
   ObjectsAssignment<TensorDescComparator> assignment;
   RETURN_IF_ERROR(AssignObjectsToTensors(
       usage_records, MemoryStrategy::EQUALITY, &assignment));
-  shared_texture_tensors_.resize(assignment.object_sizes.size());
+
+  std::vector<const Tensor*> cl_textures(assignment.object_sizes.size(),
+                                         nullptr);
+  std::vector<std::unique_ptr<Tensor>> new_textures;
+
+  std::vector<const Tensor*> available_textures =
+      GetSortedVector(shared_texture_tensors_);
+
   for (int i = 0; i < assignment.object_sizes.size(); ++i) {
-    RETURN_IF_ERROR(CreateTensor(*context,
-                                 assignment.object_sizes[i].tensor_desc,
-                                 &shared_texture_tensors_[i]));
+    const auto& td = assignment.object_sizes[i].tensor_desc;
+    const Tensor* selected_tensor =
+        TakeAvailableTexture(available_textures, td);
+    if (selected_tensor) {
+      cl_textures[i] = selected_tensor;
+    } else {
+      new_textures.push_back(std::make_unique<Tensor>());
+      RETURN_IF_ERROR(CreateTensor(*context, td, new_textures.back().get()));
+      cl_textures[i] = new_textures.back().get();
+    }
   }
+
+  for (auto& tex : new_textures) {
+    shared_texture_tensors_.push_back(std::move(tex));
+  }
+
   for (auto& usage : texture_usages) {
-    const auto& td = gpu_model.tensors.at(usage.first);
+    const auto& td = tensors_descs_[Key(model_id, usage.first)];
     const auto id = assignment.object_ids[remap_from_value_ids[usage.first]];
     RETURN_IF_ERROR(
-        CreateTensorShared(*context, shared_texture_tensors_[id].GetMemoryPtr(),
-                           td, &value_id_to_texture_[usage.first]));
+        CreateTensorShared(*context, cl_textures[id]->GetMemoryPtr(), td,
+                           &value_id_to_texture_[Key(model_id, usage.first)]));
   }
   return absl::OkStatus();
 }
 
-absl::Status MemoryManager::SetTensor(const ValueId& tensor_id,
-                                      Tensor* tensor_ptr) {
-  auto it = external_mutable_tensors_.find(tensor_id);
+absl::Status MemoryManager::SetExternalTensor(const Key& key,
+                                              Tensor* tensor_ptr) {
+  auto it = external_mutable_tensors_.find(key);
   if (it == external_mutable_tensors_.end()) {
     return absl::InvalidArgumentError("No external tensor with this id.");
   }
-  external_mutable_tensors_[tensor_id] = tensor_ptr;
+  external_mutable_tensors_[key] = tensor_ptr;
   return absl::OkStatus();
 }
 
-Tensor* MemoryManager::GetTensor(ValueId id) {
-  if (external_immutable_tensors_.find(id) !=
+Tensor* MemoryManager::GetTensor(Key key) {
+  if (external_immutable_tensors_.find(key) !=
       external_immutable_tensors_.end()) {
-    return external_immutable_tensors_[id];
-  } else if (external_mutable_tensors_.find(id) !=
+    return external_immutable_tensors_[key];
+  } else if (external_mutable_tensors_.find(key) !=
              external_mutable_tensors_.end()) {
-    return external_mutable_tensors_[id];
-  } else if (const_tensors_.find(id) != const_tensors_.end()) {
-    return &const_tensors_[id];
-  } else if (value_id_to_buffer_.find(id) != value_id_to_buffer_.end()) {
-    return &value_id_to_buffer_[id];
-  } else if (value_id_to_texture_.find(id) != value_id_to_texture_.end()) {
-    return &value_id_to_texture_[id];
+    return external_mutable_tensors_[key];
+  } else if (const_tensors_.find(key) != const_tensors_.end()) {
+    return &const_tensors_[key];
+  } else if (value_id_to_buffer_.find(key) != value_id_to_buffer_.end()) {
+    return &value_id_to_buffer_[key];
+  } else if (value_id_to_texture_.find(key) != value_id_to_texture_.end()) {
+    return &value_id_to_texture_[key];
   }
   return nullptr;
 }
@@ -442,19 +562,15 @@ Tensor* MemoryManager::GetTensor(ValueId id) {
 uint64_t MemoryManager::GetSizeOfMemoryAllocatedForIntermediateTensors() const {
   uint64_t total_memory = 0;
   for (const auto& t : shared_texture_tensors_) {
-    total_memory += t.GetMemorySizeInBytes();
+    total_memory += t->GetMemorySizeInBytes();
   }
   for (const auto& b : shared_buffers_) {
     // Sub-buffers do not allocate memory. Count the size of the parent buffer
     // object instead.
-    if (!b.IsSubBuffer()) {
-      total_memory += b.GetMemorySizeInBytes();
+    if (!b->IsSubBuffer()) {
+      total_memory += b->GetMemorySizeInBytes();
     }
   }
-  if (shared_buffers_parent_) {
-    total_memory += shared_buffers_parent_->GetMemorySizeInBytes();
-  }
-
   return total_memory;
 }
 
@@ -469,10 +585,14 @@ uint64_t MemoryManager::GetConstantTensorsSize() const {
 uint64_t MemoryManager::GetExternalTensorsSize() const {
   uint64_t total_size = 0;
   for (const auto& t : external_immutable_tensors_) {
-    total_size += t.second->GetMemorySizeInBytes();
+    if (t.second) {
+      total_size += t.second->GetMemorySizeInBytes();
+    }
   }
   for (const auto& t : external_mutable_tensors_) {
-    total_size += t.second->GetMemorySizeInBytes();
+    if (t.second) {
+      total_size += t.second->GetMemorySizeInBytes();
+    }
   }
   return total_size;
 }

@@ -91,6 +91,7 @@ CreateInferenceInfo::Options CreateFromModelHints(const ModelHints& hints);
 
 class InferenceContext {
  public:
+  explicit InferenceContext(MemoryManager* memory_manager = nullptr);
   absl::Status InitFromGpuModel(
       const CreateGpuModelInfo& create_info, GpuModel* gpu_model,
       Environment* env, std::vector<uint8_t>* serialized_model = nullptr,
@@ -227,7 +228,13 @@ class InferenceContext {
 
   absl::flat_hash_set<int> enabled_tags_;
 
-  MemoryManager memory_manager_;
+  std::unique_ptr<MemoryManager> owned_memory_manager_;
+  MemoryManager& memory_manager_;
+  MemoryManager::ModelId model_id_ = 0;
+
+  MemoryManager::Key GetKey(ValueId id) const {
+    return MemoryManager::Key(model_id_, id);
+  }
 
   std::vector<std::unique_ptr<CommandBuffer>> command_buffers_;
 

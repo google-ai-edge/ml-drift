@@ -432,11 +432,13 @@ cc_library(
         "//ml_drift/common:gpu_model",
         "//ml_drift/common:memory_management",
         "//ml_drift/common:model",
+        "//ml_drift/common:shape",
         "//ml_drift/common:status",
         "//ml_drift/common:types",
         "//ml_drift/common:util",
         "//ml_drift/common/task:tensor_desc",
         "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/hash",
     ],
 )
 
@@ -608,4 +610,27 @@ cc_test(
 cc_library(
     name = "util_types",
     hdrs = ["util_types.h"],
+)
+
+cc_test(
+    name = "memory_manager_test",
+    srcs = ["memory_manager_test.cc"],
+    tags = [
+        "noasan",
+        "nomsan",
+        "notsan",
+        "requires-gpu-nvidia",
+    ],
+    deps = [
+        ":cl_test",
+        ":memory_manager",
+        ":tensor",
+        "//ml_drift/common:data_type",
+        "//ml_drift/common:gpu_model",
+        "//ml_drift/common:shape",
+        "//ml_drift/common/default:status_matchers",
+        "//ml_drift/common/task:tensor_desc",
+        "@com_google_absl//absl/status:status_matchers",
+        "@com_google_googletest//:gtest_main",
+    ],
 )

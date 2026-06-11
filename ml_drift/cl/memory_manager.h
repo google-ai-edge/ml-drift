@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "absl/container/flat_hash_map.h"
+#include "absl/hash/hash.h"
 #include "ml_drift/cl/buffer.h"
 #include "ml_drift/cl/cl_context.h"
 #include "ml_drift/cl/tensor.h"
@@ -35,46 +36,60 @@ namespace cl {
 
 class MemoryManager {
  public:
-  absl::StatusOr<std::vector<std::unique_ptr<Tensor>>> AllocateMemory(
-      const GpuModel& gpu_model, const GpuInfo& gpu_info,
-      const ExternalTensorsInfo& external_tensors, CLContext* context);
+  using ModelId = uint32_t;
+  using Key = std::pair<ModelId, ValueId>;
 
-  Tensor* GetTensor(ValueId id);
-  absl::Status SetTensor(const ValueId& tensor_id, Tensor* tensor_ptr);
+  absl::StatusOr<ModelId> AllocateMemory(
+      const GpuModel& gpu_model, const GpuInfo& gpu_info,
+      const ExternalTensorsInfo& external_tensors,
+      std::vector<std::unique_ptr<Tensor>>& external_mutable_tensors,
+      CLContext* context);
+
+  Tensor* GetTensor(Key key);
+  absl::Status SetExternalTensor(const Key& key, Tensor* tensor_ptr);
 
   uint64_t GetSizeOfMemoryAllocatedForIntermediateTensors() const;
   uint64_t GetConstantTensorsSize() const;
   uint64_t GetExternalTensorsSize() const;
 
-  std::unique_ptr<Buffer> shared_buffers_parent_;
-  Buffer* shared_buffers_parent_ptr_ = nullptr;
-
  private:
+  enum class TensorMemoryType { kStrongShape, kBuffer, kConst, kExternal };
+
   absl::StatusOr<std::vector<std::unique_ptr<Tensor>>> AllocateExternalTensors(
-      const CLContext& context, const GpuModel& gpu_model,
+      ModelId model_id, const CLContext& context, const GpuModel& gpu_model,
       const ExternalTensorsInfo& external_tensors);
 
-  absl::Status AllocateConstTensors(const GpuModel& gpu_model,
+  absl::Status AllocateConstTensors(ModelId model_id, const GpuModel& gpu_model,
                                     CLContext* context);
 
   absl::Status AllocateBufferBasedTensors(
-      const std::map<ValueId, int2>& buffer_usages, const GpuModel& gpu_model,
-      const GpuInfo& gpu_info, CLContext* context);
+      ModelId model_id, const std::map<ValueId, int2>& buffer_usages,
+      const GpuModel& gpu_model, const GpuInfo& gpu_info, CLContext* context);
 
   absl::Status AllocateTextureBasedTensors(
-      const std::map<ValueId, int2>& texture_usages, const GpuModel& gpu_model,
-      const GpuInfo& gpu_info, CLContext* context);
+      ModelId model_id, const std::map<ValueId, int2>& texture_usages,
+      const GpuModel& gpu_model, const GpuInfo& gpu_info, CLContext* context);
 
-  absl::flat_hash_map<ValueId, Tensor*> external_immutable_tensors_;
-  absl::flat_hash_map<ValueId, Tensor*> external_mutable_tensors_;
+  absl::flat_hash_map<Key, Tensor*, absl::Hash<Key>, std::equal_to<Key>>
+      external_immutable_tensors_;
+  absl::flat_hash_map<Key, Tensor*, absl::Hash<Key>, std::equal_to<Key>>
+      external_mutable_tensors_;
 
-  std::map<ValueId, Tensor> const_tensors_;
+  absl::flat_hash_map<Key, TensorDescriptor, absl::Hash<Key>,
+                      std::equal_to<Key>>
+      tensors_descs_;
+  std::map<Key, Tensor> const_tensors_;
 
-  std::vector<Buffer> shared_buffers_;
-  absl::flat_hash_map<ValueId, Tensor> value_id_to_buffer_;
+  std::vector<std::unique_ptr<Buffer>> shared_buffers_;
+  std::vector<std::unique_ptr<Buffer>> sub_buffers_;
+  absl::flat_hash_map<Key, Tensor, absl::Hash<Key>, std::equal_to<Key>>
+      value_id_to_buffer_;
 
-  std::vector<Tensor> shared_texture_tensors_;
-  absl::flat_hash_map<ValueId, Tensor> value_id_to_texture_;
+  std::vector<std::unique_ptr<Tensor>> shared_texture_tensors_;
+  absl::flat_hash_map<Key, Tensor, absl::Hash<Key>, std::equal_to<Key>>
+      value_id_to_texture_;
+
+  ModelId next_model_id_ = 0;
 };
 
 absl::Status GetTotalBufferSizeForTensors(
