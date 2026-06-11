@@ -229,7 +229,7 @@ class InferenceContext {
   absl::flat_hash_set<int> enabled_tags_;
 
   std::unique_ptr<MemoryManager> owned_memory_manager_;
-  MemoryManager& memory_manager_;
+  MemoryManager* memory_manager_;
   MemoryManager::ModelId model_id_ = 0;
 
   MemoryManager::Key GetKey(ValueId id) const {

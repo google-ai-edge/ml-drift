@@ -209,8 +209,8 @@ InferenceContext::InferenceContext(MemoryManager* memory_manager)
     : owned_memory_manager_(memory_manager == nullptr
                                 ? std::make_unique<MemoryManager>()
                                 : nullptr),
-      memory_manager_(memory_manager == nullptr ? *owned_memory_manager_
-                                                : *memory_manager) {}
+      memory_manager_(memory_manager == nullptr ? owned_memory_manager_.get()
+                                                : memory_manager) {}
 
 absl::Status InferenceContext::InitFromGpuModel(
     const CreateInferenceInfo& create_info, GpuModel* gpu_model,
@@ -226,7 +226,7 @@ absl::Status InferenceContext::InitFromGpuModel(
       external_mutable_tensors_allocated_temporarily;
   ASSIGN_OR_RETURN(
       model_id_,
-      memory_manager_.AllocateMemory(
+      memory_manager_->AllocateMemory(
           *gpu_model, gpu_info_, create_info.external_tensors,
           external_mutable_tensors_allocated_temporarily, &env->context()));
   InitFromGpuModelInternal(gpu_model);
@@ -264,7 +264,7 @@ absl::Status InferenceContext::InitFromGpuModel(
 
   // Reset external tensors to nullptr as they are allocated temporarily.
   for (auto& external_tensor : create_info.external_tensors.mutable_tensors) {
-    RETURN_IF_ERROR(memory_manager_.SetExternalTensor(
+    RETURN_IF_ERROR(memory_manager_->SetExternalTensor(
         GetKey(external_tensor.first), nullptr));
   }
 
@@ -314,7 +314,7 @@ absl::Status InferenceContext::RestoreDeserialized(
       external_mutable_tensors_allocated_temporarily;
   ASSIGN_OR_RETURN(
       model_id_,
-      memory_manager_.AllocateMemory(
+      memory_manager_->AllocateMemory(
           gpu_model, env->GetDevicePtr()->GetInfo(), external_tensors,
           external_mutable_tensors_allocated_temporarily, &env->context()));
   InitFromGpuModelInternal(&gpu_model);
@@ -345,7 +345,7 @@ absl::Status InferenceContext::RestoreDeserialized(
   RETURN_IF_ERROR(BuildExecutionPlan(
       env, create_info_copy.hints.allow_cl_khr_command_buffer));
   for (auto& external_tensor : create_info_copy.external_mutable_tensors) {
-    RETURN_IF_ERROR(memory_manager_.SetExternalTensor(
+    RETURN_IF_ERROR(memory_manager_->SetExternalTensor(
         GetKey(external_tensor.first), nullptr));
   }
   return absl::OkStatus();
@@ -530,7 +530,7 @@ absl::Status InferenceContext::UpdateParams() {
 absl::Status InferenceContext::SetTensor(const ValueId& tensor_id,
                                          Tensor* tensor_ptr) {
   RETURN_IF_ERROR(
-      memory_manager_.SetExternalTensor(GetKey(tensor_id), tensor_ptr));
+      memory_manager_->SetExternalTensor(GetKey(tensor_id), tensor_ptr));
   for (int node_index : external_tensor_to_nodes_[tensor_id]) {
     auto& node = nodes_[node_index];
     for (int i = 0; i < node.inputs.size(); ++i) {
@@ -777,7 +777,7 @@ bool InferenceContext::HasOptionalNode() const {
 
 uint64_t InferenceContext::GetSizeOfMemoryAllocatedForIntermediateTensors()
     const {
-  return memory_manager_.GetSizeOfMemoryAllocatedForIntermediateTensors();
+  return memory_manager_->GetSizeOfMemoryAllocatedForIntermediateTensors();
 }
 
 uint64_t InferenceContext::GetConstantTensorsSize() const {
@@ -785,15 +785,15 @@ uint64_t InferenceContext::GetConstantTensorsSize() const {
   for (const auto& node : nodes_) {
     total_size += node.cl_operation.GetConstArgsSize();
   }
-  return total_size + memory_manager_.GetConstantTensorsSize();
+  return total_size + memory_manager_->GetConstantTensorsSize();
 }
 
 uint64_t InferenceContext::GetExternalTensorsSize() const {
-  return memory_manager_.GetExternalTensorsSize();
+  return memory_manager_->GetExternalTensorsSize();
 }
 
 Tensor* InferenceContext::GetTensor(ValueId id) {
-  return memory_manager_.GetTensor(GetKey(id));
+  return memory_manager_->GetTensor(GetKey(id));
 }
 
 absl::Status InferenceContext::SetInputTensor(ValueId id,
