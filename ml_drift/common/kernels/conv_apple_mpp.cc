@@ -55,12 +55,68 @@ void AddRuntimeParams(GPUOperation& op,
     op.AddSrcBuffer("params", buffer_desc);
   }
 }
+
+inline int GetRangeShift(DataType type) {
+  return 1u << (SizeInBitsOf(type) - 1);
+}
+
+std::string ReadFloatWeights(
+    const ConvAppleMPP::ExternalWeightsParams& params) {
+  const bool weights_conversion =
+      params.weights_desc.layout == WeightsLayout::kOSpatialIOGroupI4O4;
+  const bool quantized_weights =
+      weights_conversion && SizeInBitsOf(params.weights_desc.type) <= 8;
+  std::string c;
+  if (quantized_weights && params.scale_zp_shape.i != 1) {
+    // grouped quantization
+    c += "    int src_group_id = (k / 4 + sub_i) / " +
+         std::to_string(params.src_group_slices) + +";\n";
+    c += "    if (last_src_group_id != src_group_id) {\n";
+    c += "      last_src_group_id = src_group_id;\n";
+    std::string w_batch = params.scale_zp_shape.h != 1 ? "dst_h" : "0";
+    std::string coords = "w_o_slice, " + w_batch + ", src_group_id";
+    c += "      w_scale = args.weights_scale.Read(" + coords + ");\n";
+    if (params.has_zero_point) {
+      c += "      half4 w_zp = args.weights_zero_point.Read(" + coords + ");\n";
+    } else {
+      c += "      half4 w_zp = ucl::Init<half4>(0.0f);\n";
+    }
+    c += "      w_bias = -w_scale * ucl::Init<half4>(" +
+         std::to_string(GetRangeShift(params.weights_desc.type)) +
+         ") + w_zp;\n";
+    c += "    }\n";
+  }
+  if (params.weights_desc.type == DataType::UINT8) {
+    c += "    uint4 u8_i4o4 = args.weights.Read(w_wg_offset);\n";
+    c += "    ucl::U32x4ToU8x16AsVec4x4<half>(u8_i4o4, w0, w1, w2, w3);\n";
+  } else if (params.weights_desc.type == DataType::UINT4) {
+    c += "    uint2 u4_i4o4 = args.weights.Read(w_wg_offset);\n";
+    c += "    ucl::U32x2ToU4x16AsVec4x4<half>(u4_i4o4, w0, w1, w2, w3);\n";
+  } else if (params.weights_desc.type == DataType::UINT2) {
+    c += "    uint u2_i4o4 = args.weights.Read(w_wg_offset);\n";
+    c += "    ucl::U32x1ToU2x16AsVec4x4<half>(u2_i4o4, w0, w1, w2, w3);\n";
+  } else {
+    c += "    args.weights.ReadVec16AsVec4x4(w0, w1, w2, w3, w_wg_offset);\n";
+  }
+  if (quantized_weights) {
+    c += R"(
+    w0 = w0 * w_scale + w_bias;
+    w1 = w1 * w_scale + w_bias;
+    w2 = w2 * w_scale + w_bias;
+    w3 = w3 * w_scale + w_bias;
+)";
+  }
+  return c;
+}
 }  // namespace
 
 std::string ConvAppleMPP::GetKernelCode(bool has_batch, bool has_bias) const {
   const bool weights_conversion =
       external_weights_params_.weights_desc.layout ==
       WeightsLayout::kOSpatialIOGroupI4O4;
+  const bool quantized_weights =
+      weights_conversion &&
+      SizeInBitsOf(external_weights_params_.weights_desc.type) <= 8;
   const bool manual_k_tiling = runtime_check_.src_end_ch_index.has_value() ||
                                softmax_input_activation_ || weights_conversion;
   const int k_tile = manual_k_tiling ? 32 : AlignByN(weights_shape_.i, 4);
@@ -171,7 +227,7 @@ MAIN_FUNCTION($0) {
   int w_wg_offset = (dst_h * args.src.Slices() + sub_i) * args.dst.Slices() + w_o_slice;
   int w_stride = args.dst.Slices() * 8;
 )";
-    if (weights_data_type_ == DataType::FLOAT16) {
+    if (quantized_weights && weights_data_type_ == DataType::FLOAT16) {
       c += "  half4 w_scale, w_bias;\n";
       if (external_weights_params_.scale_zp_shape.i != 1) {
         // grouped quantization
@@ -188,7 +244,10 @@ MAIN_FUNCTION($0) {
         } else {
           c += "  half4 w_zp = ucl::Init<half4>(0.0h);\n";
         }
-        c += "  w_bias = -w_scale * 8.0h + w_zp;\n";
+        c += "  w_bias = -w_scale * ucl::Init<half4>(" +
+             std::to_string(
+                 GetRangeShift(external_weights_params_.weights_desc.type)) +
+             ") + w_zp;\n";
       }
     }
   }
@@ -206,39 +265,12 @@ MAIN_FUNCTION($0) {
     c += "  for (int k = 0; k < " + src_end_slice + " * 4; k += K_TILE) {\n";
     std::string s_tile, w_tile;
     if (weights_conversion) {
-      c += "    uint2 u4_i4o4 = args.weights.Read(w_wg_offset);\n";
-      c += "    w_wg_offset += w_stride;\n";
       if (weights_data_type_ == DataType::FLOAT16) {
-        if (external_weights_params_.scale_zp_shape.i != 1) {
-          // grouped quantization
-          c += "    int src_group_id = (k / 4 + sub_i) / " +
-               std::to_string(external_weights_params_.src_group_slices) +
-               +";\n";
-          c += "    if (last_src_group_id != src_group_id) {\n";
-          c += "      last_src_group_id = src_group_id;\n";
-          std::string w_batch =
-              external_weights_params_.scale_zp_shape.h != 1 ? "dst_h" : "0";
-          std::string coords = "w_o_slice, " + w_batch + ", src_group_id";
-          c += "      w_scale = args.weights_scale.Read(" + coords + ");\n";
-          if (external_weights_params_.has_zero_point) {
-            c += "      half4 w_zp = args.weights_zero_point.Read(" + coords +
-                 ");\n";
-          } else {
-            c += "      half4 w_zp = ucl::Init<half4>(0.0f);\n";
-          }
-          c += "      w_bias = -w_scale * 8.0h + w_zp;\n";
-          c += "    }\n";
-        }
-        c += R"(
-    half4 w0, w1, w2, w3;
-    ucl::U32x2ToU4x16AsVec4x4<half>(u4_i4o4, w0, w1, w2, w3);
-    w0 = w0 * w_scale + w_bias;
-    w1 = w1 * w_scale + w_bias;
-    w2 = w2 * w_scale + w_bias;
-    w3 = w3 * w_scale + w_bias;
-)";
+        c += "    half4 w0, w1, w2, w3;\n";
+        c += ReadFloatWeights(external_weights_params_);
       } else {
         c += R"(
+    uint2 u4_i4o4 = args.weights.Read(w_wg_offset);
     u4_i4o4.x ^= 0x88888888u;
     u4_i4o4.y ^= 0x88888888u;
     uint w0 = expand_int4_to_int8(u4_i4o4.x);
@@ -247,6 +279,7 @@ MAIN_FUNCTION($0) {
     uint w3 = expand_int4_to_int8(u4_i4o4.y >> 16);
 )";
       }
+      c += "    w_wg_offset += w_stride;\n";
       c += R"(
     threadgroup_barrier(mem_flags::mem_threadgroup);
     // store it in i32o64 or half4 in i32o16
@@ -395,10 +428,14 @@ bool SupportsConvAppleMPP(const GpuInfo& gpu_info,
   if (!SupportsConvAppleMPP(gpu_info)) {
     return false;
   }
+  const bool supported_type = weights.desc.type == DataType::FLOAT32 ||
+                              weights.desc.type == DataType::FLOAT16 ||
+                              weights.desc.type == DataType::UINT8 ||
+                              weights.desc.type == DataType::UINT4 ||
+                              weights.desc.type == DataType::UINT2;
   const int dst_slices = DivideRoundUp(weights.shape.o, 4);
   if (weights.desc.layout != WeightsLayout::kOSpatialIOGroupI4O4 ||
-      weights.desc.output_group_size != dst_slices ||
-      weights.desc.type != DataType::UINT4) {
+      weights.desc.output_group_size != dst_slices || !supported_type) {
     return false;
   }
   return true;
@@ -469,11 +506,18 @@ ConvAppleMPP CreateConvAppleMPPExternalWeights(
   conv.AddSrcTensor("src", src);
   conv.AddDstTensor("dst", dst);
 
-  BufferDescriptor weights_desc;
-  weights_desc.element_type = DataType::UINT32;
-  weights_desc.element_size = 2;
-  weights_desc.memory_type = MemoryType::GLOBAL;
-  conv.AddSrcBuffer("weights", weights_desc);
+  BufferDescriptor buffer_desc;
+  if (SizeInBitsOf(weights.desc.type) >= 16) {
+    // float weights
+    buffer_desc.element_type = weights.desc.type;
+    buffer_desc.element_size = 16;
+  } else {
+    // quantized weights
+    buffer_desc.element_type = DataType::UINT32;
+    buffer_desc.element_size = SizeInBitsOf(weights.desc.type) / 2;
+  }
+  buffer_desc.memory_type = MemoryType::GLOBAL;
+  conv.AddSrcBuffer("weights", buffer_desc);
 
   if (weights.scale) {
     conv.AddSrcTensor("weights_scale", *weights.scale);

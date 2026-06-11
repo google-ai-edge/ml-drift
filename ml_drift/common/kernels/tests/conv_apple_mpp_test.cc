@@ -59,10 +59,31 @@ TEST_P(ConvAppleMPPFloat16Test, ExternalWeightsBigTest) {
                                             dst_channels));
 }
 
+TEST_P(ConvAppleMPPFloat16Test, ConvAppleMPPExternalBatchedWfloatTest) {
+  const BHWC src_shape(1, 6, 12, 32 * 3);
+  const int dst_channels = 68;
+  MLD_ASSERT_OK(ConvAppleMPPExternalBatchedWfloatTest(*exec_env, GetParam(),
+                                                  src_shape, dst_channels));
+}
+
+TEST_P(ConvAppleMPPFloat16Test, ConvAppleMPPExternalBatchedWi8Test) {
+  const BHWC src_shape(1, 6, 12, 32 * 3);
+  const int dst_channels = 68;
+  MLD_ASSERT_OK(ConvAppleMPPExternalBatchedWi8Test(*exec_env, GetParam(), src_shape,
+                                               dst_channels));
+}
+
 TEST_P(ConvAppleMPPFloat16Test, ConvAppleMPPExternalBatchedWi4Test) {
   const BHWC src_shape(1, 6, 12, 32 * 3);
   const int dst_channels = 68;
   MLD_ASSERT_OK(ConvAppleMPPExternalBatchedWi4Test(*exec_env, GetParam(), src_shape,
+                                               dst_channels));
+}
+
+TEST_P(ConvAppleMPPFloat16Test, ConvAppleMPPExternalBatchedWi2Test) {
+  const BHWC src_shape(1, 6, 12, 32 * 3);
+  const int dst_channels = 68;
+  MLD_ASSERT_OK(ConvAppleMPPExternalBatchedWi2Test(*exec_env, GetParam(), src_shape,
                                                dst_channels));
 }
 
