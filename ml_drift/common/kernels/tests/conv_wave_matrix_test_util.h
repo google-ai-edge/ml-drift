@@ -40,7 +40,16 @@ absl::Status ConvWaveMatrixExternalWeightsTest(TestExecutionEnvironment& env,
 absl::Status ConvWaveMatrixExternalBatchedWeightsTest(
     TestExecutionEnvironment& env, CalculationsPrecision precision,
     TensorStorageType storage);
+absl::Status ConvWaveMatrixExternalBatchedWfloatTest(
+    TestExecutionEnvironment& env, CalculationsPrecision precision,
+    TensorStorageType storage);
+absl::Status ConvWaveMatrixExternalBatchedWi8Test(
+    TestExecutionEnvironment& env, CalculationsPrecision precision,
+    TensorStorageType storage);
 absl::Status ConvWaveMatrixExternalBatchedWi4Test(
+    TestExecutionEnvironment& env, CalculationsPrecision precision,
+    TensorStorageType storage);
+absl::Status ConvWaveMatrixExternalBatchedWi2Test(
     TestExecutionEnvironment& env, CalculationsPrecision precision,
     TensorStorageType storage);
 absl::Status ConvWaveMatrixExternalBatchedGroupedWi4Test(
