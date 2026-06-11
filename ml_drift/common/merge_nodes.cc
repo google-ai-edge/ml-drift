@@ -56,6 +56,16 @@ absl::Status MergeGpuNodes(const GpuInfo& gpu_info, GpuNode* src,
   return dst->gpu_operation->AddOperation(gpu_info, src->gpu_operation.get());
 }
 
+bool HasId(const std::vector<std::pair<ValueId, ValueId>>& output_ids_and_refs,
+           ValueId id) {
+  for (const auto& [out_id, ref] : output_ids_and_refs) {
+    if (out_id == id) {
+      return true;
+    }
+  }
+  return false;
+}
+
 absl::Status MergeElementwiseNodes(const GpuInfo& gpu_info,
                                    GpuModel* gpu_model) {
   auto& nodes = gpu_model->nodes;
@@ -93,7 +103,8 @@ absl::Status MergeElementwiseNodes(const GpuInfo& gpu_info,
       auto& prev_node = nodes[prev_first_node_index];
       if (prev_node.inputs.size() != 1 || prev_node.outputs.size() != 1 ||
           !prev_node.gpu_operation->IsLinkable() ||
-          prev_node.optional_tag != elem_root.optional_tag) {
+          prev_node.optional_tag != elem_root.optional_tag ||
+          HasId(gpu_model->output_ids_and_refs, prev_node.outputs[0])) {
         continue;
       }
       int consumers_count = 0;
@@ -151,7 +162,8 @@ absl::Status MergeElementwiseNodes(const GpuInfo& gpu_info,
           prev_second_node.outputs.size() == 1 &&
           prev_first_node.inputs.size() == 1 &&
           prev_first_node.outputs.size() == 1 &&
-          prev_first_node.optional_tag == elem_root.optional_tag) {
+          prev_first_node.optional_tag == elem_root.optional_tag &&
+          !HasId(gpu_model->output_ids_and_refs, prev_first_node.outputs[0])) {
         int first_node_parent_index = -1;
         for (int j = prev_first_node_index - 1; j >= 0; --j) {
           if (nodes[j].outputs[0] == prev_first_node.inputs[0]) {
@@ -208,7 +220,8 @@ absl::Status MergeElementwiseNodes(const GpuInfo& gpu_info,
           prev_first_node.outputs.size() == 1 &&
           prev_second_node.inputs.size() == 1 &&
           prev_second_node.outputs.size() == 1 &&
-          prev_second_node.optional_tag == elem_root.optional_tag) {
+          prev_second_node.optional_tag == elem_root.optional_tag &&
+          !HasId(gpu_model->output_ids_and_refs, prev_second_node.outputs[0])) {
         int second_node_parent_index = -1;
         for (int j = prev_second_node_index - 1; j >= 0; --j) {
           if (nodes[j].outputs[0] == prev_second_node.inputs[0]) {
@@ -267,7 +280,9 @@ absl::Status MergeElementwiseNodes(const GpuInfo& gpu_info,
           prev_first_node.optional_tag == elem_root.optional_tag &&
           prev_second_node.inputs.size() == 1 &&
           prev_second_node.outputs.size() == 1 &&
-          prev_second_node.optional_tag == elem_root.optional_tag) {
+          prev_second_node.optional_tag == elem_root.optional_tag &&
+          !HasId(gpu_model->output_ids_and_refs, prev_first_node.outputs[0]) &&
+          !HasId(gpu_model->output_ids_and_refs, prev_second_node.outputs[0])) {
         int first_node_parent_index = -1;
         for (int j = prev_first_node_index - 1; j >= 0; --j) {
           if (nodes[j].outputs[0] == prev_first_node.inputs[0]) {
@@ -380,7 +395,8 @@ absl::Status LinkNodes(const GpuInfo& gpu_info, GpuModel* gpu_model) {
         link_index = link.first;
       }
     }
-    if (next_nodes.size() != 1 || link_index != 0) {
+    if (next_nodes.size() != 1 || link_index != 0 ||
+        HasId(gpu_model->output_ids_and_refs, node.outputs[out_index])) {
       new_nodes.push_back(std::move(node));
       continue;
     }
@@ -408,7 +424,8 @@ absl::Status MergeReorderNodes(GpuModel* gpu_model) {
   for (int i = 0; i < nodes.size(); ++i) {
     auto& first_node = nodes[i];
     if (first_node.inputs.size() != 1 || first_node.outputs.size() != 1 ||
-        !first_node.gpu_operation->IsReorderOp()) {
+        !first_node.gpu_operation->IsReorderOp() ||
+        HasId(gpu_model->output_ids_and_refs, first_node.outputs[0])) {
       continue;
     }
     std::vector<int> next_nodes;

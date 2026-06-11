@@ -398,7 +398,8 @@ absl::Status CreateTransposeReluMulAddGpuModel(
     const GpuInfo& gpu_info, GpuModelBuilder& model_builder,
     std::vector<GpuModelBuilder::TensorHandle>& inputs,
     std::vector<GpuModelBuilder::TensorHandle>& outputs,
-    const std::vector<int>& optional_tags = {-1, -1, -1, -1}) {
+    const std::vector<int>& optional_tags = {-1, -1, -1, -1},
+    bool relu_output = false, bool mul_output = false) {
   auto src_th = model_builder.AddTensor(BHWC(1, 32, 32, 16), DataType::FLOAT32);
   GpuModelBuilder::OptionalNodeContext optional_context;
   if (optional_tags[0] >= 0) {
@@ -458,22 +459,33 @@ absl::Status CreateTransposeReluMulAddGpuModel(
   // The created nodes can be merged by MergeElementwiseNodes().
   inputs.push_back(src_th);
   outputs.push_back(out);
+  if (relu_output) {
+    outputs.push_back(interm1);
+  }
+  if (mul_output) {
+    outputs.push_back(interm2);
+  }
   return absl::OkStatus();
 }
 
-absl::Status CreatetransposeReluMulAddGpuModel(
+absl::Status CreateTransposeReluMulAddGpuModel(
     const GpuInfo& gpu_info, GpuModel& gpu_model,
-    const std::vector<int>& optional_tags = {-1, -1, -1, -1}) {
+    const std::vector<int>& optional_tags = {-1, -1, -1, -1},
+    bool relu_output = false, bool mul_output = false) {
   GpuModelBuilder model_builder(gpu_info, {});
   std::vector<GpuModelBuilder::TensorHandle> inputs;
   std::vector<GpuModelBuilder::TensorHandle> outputs;
 
   RETURN_IF_ERROR(CreateTransposeReluMulAddGpuModel(
-      gpu_info, model_builder, inputs, outputs, optional_tags));
+      gpu_info, model_builder, inputs, outputs, optional_tags, relu_output,
+      mul_output));
 
+  std::vector<ValueId> output_ids(outputs.size());
+  for (int i = 0; i < outputs.size(); ++i) {
+    output_ids[i] = outputs[i].id;
+  }
   RETURN_IF_ERROR(model_builder.GetGpuModel(
-      std::vector<unsigned int>{inputs[0].id},
-      std::vector<unsigned int>{outputs[0].id}, &gpu_model));
+      std::vector<unsigned int>{inputs[0].id}, output_ids, &gpu_model));
   return absl::OkStatus();
 }
 
@@ -481,7 +493,7 @@ TEST(MergeNodesTest, MergeElementwiseTwoInputRootAndParents) {
   GpuInfo gpu_info;
   gpu_info.gpu_api = GpuApi::kOpenCl;
   GpuModel gpu_model;
-  MLD_ASSERT_OK(CreatetransposeReluMulAddGpuModel(gpu_info, gpu_model));
+  MLD_ASSERT_OK(CreateTransposeReluMulAddGpuModel(gpu_info, gpu_model));
 
   EXPECT_EQ(gpu_model.nodes.size(), 1);
   EXPECT_TRUE(absl::StrContains(gpu_model.nodes[0].name, "transpose"));
@@ -490,11 +502,53 @@ TEST(MergeNodesTest, MergeElementwiseTwoInputRootAndParents) {
   EXPECT_TRUE(absl::StrContains(gpu_model.nodes[0].name, "add"));
 }
 
+//    transpose
+//       |
+//      t0
+//     /   \
+//   relu  mul
+//    |     |
+//    t1    t2(output)
+//     \   /
+//      add
+//       |
+//     out1
+TEST(MergeNodesTest, MergeNoMergeRightIntermediateOutput) {
+  GpuInfo gpu_info;
+  gpu_info.gpu_api = GpuApi::kOpenCl;
+  GpuModel gpu_model;
+  MLD_ASSERT_OK(CreateTransposeReluMulAddGpuModel(
+      gpu_info, gpu_model, /*optional_tags=*/{-1, -1, -1, -1},
+      /*relu_output=*/false, /*mul_output=*/true));
+  EXPECT_EQ(gpu_model.nodes.size(), 4);
+}
+
+//    transpose
+//       |
+//      t0
+//     /   \
+//   relu  mul
+//    |     |
+// t1(out) t2
+//     \   /
+//      add
+//       |
+//     out1
+TEST(MergeNodesTest, MergeNoMergeLeftIntermediateOutput) {
+  GpuInfo gpu_info;
+  gpu_info.gpu_api = GpuApi::kOpenCl;
+  GpuModel gpu_model;
+  MLD_ASSERT_OK(CreateTransposeReluMulAddGpuModel(
+      gpu_info, gpu_model, /*optional_tags=*/{-1, -1, -1, -1},
+      /*relu_output=*/true, /*mul_output=*/false));
+  EXPECT_EQ(gpu_model.nodes.size(), 4);
+}
+
 TEST(MergeNodesTest, NotMergeElementwiseTwoInputRootAndParentsWithDiffTag) {
   GpuInfo gpu_info;
   gpu_info.gpu_api = GpuApi::kOpenCl;
   GpuModel gpu_model;
-  MLD_ASSERT_OK(CreatetransposeReluMulAddGpuModel(gpu_info, gpu_model,
+  MLD_ASSERT_OK(CreateTransposeReluMulAddGpuModel(gpu_info, gpu_model,
                                               /*optional_tags=*/{-1, 1, 2, 3}));
 
   EXPECT_EQ(gpu_model.nodes.size(), 4);
@@ -502,26 +556,6 @@ TEST(MergeNodesTest, NotMergeElementwiseTwoInputRootAndParentsWithDiffTag) {
   EXPECT_TRUE(absl::StrContains(gpu_model.nodes[1].name, "relu"));
   EXPECT_TRUE(absl::StrContains(gpu_model.nodes[2].name, "mul"));
   EXPECT_TRUE(absl::StrContains(gpu_model.nodes[3].name, "add"));
-}
-
-void AddSubgraphNode(GpuModel& model, const std::string& subgraph_id) {
-  const GpuModel& subgraph = model.subgraphs[subgraph_id];
-  GpuNode node;
-  node.subgraph_id = subgraph_id;
-  node.gpu_operation = std::make_unique<GPUOperation>();
-  node.name = "subgraph";
-  node.inputs.resize(subgraph.input_ids_and_refs.size());
-  node.outputs.resize(subgraph.output_ids_and_refs.size());
-  model.nodes.push_back(std::move(node));
-}
-
-void AddSubgraphInputsAndOutputs(GpuModel& model) {
-  for (ValueId in : model.nodes.front().inputs) {
-    model.input_ids_and_refs.push_back({in, in});
-  }
-  for (ValueId out : model.nodes.back().outputs) {
-    model.output_ids_and_refs.push_back({out, out});
-  }
 }
 
 TEST(MergeNodesTest, ExpandSubgraphNodes) {
