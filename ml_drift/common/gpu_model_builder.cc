@@ -1178,7 +1178,8 @@ GpuModelBuilder::FullyConnectedSrcFloatExternalWeightsWithConversion(
   std::vector<TensorHandle> conv_weights = {weights.weights};
   if (!(conv_weights_desc == weights.desc)) {
     conv_weights = WeightsConversion(
-        weights.weights, weights.scale, weights.zero_point, weights.desc,
+        weights.weights, weights.scale ? &*weights.scale : nullptr,
+        weights.zero_point ? &*weights.zero_point : nullptr, weights.desc,
         conv_weights_desc, weights.shape, runtime_check, runtime_check_tensor);
   }
 
@@ -1494,7 +1495,7 @@ GpuModelBuilder::FullyConnectedInt8ExternalWeights(
                        "the output tensor.";
   }
 
-  ABSL_QCHECK(weights.scale != nullptr)
+  ABSL_QCHECK(weights.scale.has_value())
       << "FullyConnectedInt8ExternalWeights requires weights.scale";
   ABSL_QCHECK(weights.scale_zp_shape.i > 0)
       << "FullyConnectedInt8ExternalWeights requires weights.scale_zp_shape";
@@ -1555,7 +1556,7 @@ GpuModelBuilder::FullyConnectedInt8ExternalWeights(
     gpu_node.gpu_operation->flops_ =
         GetConvolutionFlops(dst_shape, weights.shape);
     return dst;
-  } else if (!grouped_quantization && weights.sum_i &&
+  } else if (!grouped_quantization && weights.sum_i.has_value() &&
              SupportsConvolutionInt8(gpu_info_,
                                      src.tensor_desc.GetBHWCShape()) &&
              !hints_.Check(ModelHints::kDisallow8bitConvs)) {
@@ -1564,8 +1565,9 @@ GpuModelBuilder::FullyConnectedInt8ExternalWeights(
     const FcInt8Weights fc_weights =
         std::make_pair(&weights.desc, &weights.weights);
     return FullyConnectedInt8QuantizedWithSrcQuantization(
-        src, weights.shape, fc_weights, *weights.scale, weights.zero_point,
-        *weights.sum_i, biases);
+        src, weights.shape, fc_weights, *weights.scale,
+        weights.zero_point ? &*weights.zero_point : nullptr, *weights.sum_i,
+        biases);
   } else {
     return FullyConnectedSrcFloatExternalWeightsWithConversion(
         src, weights, biases, src_exp, runtime_check, runtime_check_tensor);
@@ -1593,7 +1595,7 @@ GpuModelBuilder::FullyConnectedInt4ExternalWeights(const TensorHandle& src,
                        "the output tensor.";
   }
 
-  ABSL_QCHECK(weights.scale != nullptr)
+  ABSL_QCHECK(weights.scale.has_value())
       << "FullyConnectedInt4ExternalWeights requires weights.scale";
   ABSL_QCHECK(weights.scale_zp_shape.i > 0)
       << "FullyConnectedInt4ExternalWeights requires weights.scale_zp_shape";
@@ -1635,22 +1637,24 @@ GpuModelBuilder::FullyConnectedInt4ExternalWeights(const TensorHandle& src,
     gpu_node.outputs = {dst.id};
     gpu_node.gpu_operation->flops_ =
         GetConvolutionFlops(dst_shape, weights.shape);
-  } else if (weights.sum_i &&
+  } else if (weights.sum_i.has_value() &&
              SupportsConvolutionInt4(gpu_info_,
                                      src.tensor_desc.GetBHWCShape()) &&
              hints_.Check(ModelHints::kAllow4bitConvs)) {
     return FullyConnectedInt4QuantizedWithSrcQuantization(
         src, weights.shape, weights.desc, weights.weights, *weights.scale,
-        weights.zero_point, *weights.sum_i, biases);
-  } else if (!grouped_quantization && weights.sum_i &&
+        weights.zero_point ? &*weights.zero_point : nullptr, *weights.sum_i,
+        biases);
+  } else if (!grouped_quantization && weights.sum_i.has_value() &&
              SupportsConvolutionInt8(gpu_info_,
                                      src.tensor_desc.GetBHWCShape()) &&
              !hints_.Check(ModelHints::kDisallow8bitConvs)) {
     const FcInt8Weights fc_weights =
         std::make_pair(&weights.desc, &weights.weights);
     return FullyConnectedInt8QuantizedWithSrcQuantization(
-        src, weights.shape, fc_weights, *weights.scale, weights.zero_point,
-        *weights.sum_i, biases);
+        src, weights.shape, fc_weights, *weights.scale,
+        weights.zero_point ? &*weights.zero_point : nullptr, *weights.sum_i,
+        biases);
   } else {
     return FullyConnectedSrcFloatExternalWeightsWithConversion(src, weights,
                                                                biases);
@@ -1679,7 +1683,7 @@ GpuModelBuilder::FullyConnectedInt2ExternalWeights(const TensorHandle& src,
                        "the output tensor.";
   }
 
-  ABSL_QCHECK(weights.scale != nullptr)
+  ABSL_QCHECK(weights.scale.has_value())
       << "FullyConnectedInt2ExternalWeights requires weights.scale";
   ABSL_QCHECK(weights.scale_zp_shape.i > 0)
       << "FullyConnectedInt2ExternalWeights requires weights.scale_zp_shape";
@@ -1722,22 +1726,24 @@ GpuModelBuilder::FullyConnectedInt2ExternalWeights(const TensorHandle& src,
     gpu_node.gpu_operation->flops_ =
         GetConvolutionFlops(dst_shape, weights.shape);
     return dst;
-  } else if (weights.sum_i &&
+  } else if (weights.sum_i.has_value() &&
              SupportsConvolutionInt4(gpu_info_,
                                      src.tensor_desc.GetBHWCShape()) &&
              hints_.Check(ModelHints::kAllow4bitConvs)) {
     return FullyConnectedInt4QuantizedWithSrcQuantization(
         src, weights.shape, weights.desc, weights.weights, *weights.scale,
-        weights.zero_point, *weights.sum_i, biases);
-  } else if (!grouped_quantization && weights.sum_i &&
+        weights.zero_point ? &*weights.zero_point : nullptr, *weights.sum_i,
+        biases);
+  } else if (!grouped_quantization && weights.sum_i.has_value() &&
              SupportsConvolutionInt8(gpu_info_,
                                      src.tensor_desc.GetBHWCShape()) &&
              !hints_.Check(ModelHints::kDisallow8bitConvs)) {
     const FcInt8Weights fc_weights =
         std::make_pair(&weights.desc, &weights.weights);
     return FullyConnectedInt8QuantizedWithSrcQuantization(
-        src, weights.shape, fc_weights, *weights.scale, weights.zero_point,
-        *weights.sum_i, biases);
+        src, weights.shape, fc_weights, *weights.scale,
+        weights.zero_point ? &*weights.zero_point : nullptr, *weights.sum_i,
+        biases);
   } else {
     return FullyConnectedSrcFloatExternalWeightsWithConversion(src, weights,
                                                                biases);
@@ -4221,9 +4227,10 @@ GpuModelBuilder::Weights CreateExternalWeights(
   external_weights.desc = weights_desc;
   external_weights.shape = weights_shape;
   external_weights.scale_zp_shape = scale_zp_shape;
-  external_weights.scale = scale;
-  external_weights.zero_point = zero_point;
-  external_weights.sum_i = sum_i;
+  external_weights.scale = scale ? std::make_optional(*scale) : std::nullopt;
+  external_weights.zero_point =
+      zero_point ? std::make_optional(*zero_point) : std::nullopt;
+  external_weights.sum_i = sum_i ? std::make_optional(*sum_i) : std::nullopt;
   return external_weights;
 }
 

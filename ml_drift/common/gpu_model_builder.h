@@ -19,6 +19,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <utility>
@@ -73,9 +74,9 @@ class GpuModelBuilder {
     OHWI shape;
     // scale and zero_point(optional) are for quantized weights
     OHWI scale_zp_shape;
-    const TensorHandle* scale = nullptr;
-    const TensorHandle* zero_point = nullptr;
-    const TensorHandle* sum_i = nullptr;  // optional
+    std::optional<TensorHandle> scale = std::nullopt;
+    std::optional<TensorHandle> zero_point = std::nullopt;
+    std::optional<TensorHandle> sum_i = std::nullopt;  // optional for scale/zp
   };
 
   GpuModelBuilder() = default;
