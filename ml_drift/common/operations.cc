@@ -1004,8 +1004,15 @@ Tensor<OHWI, DataType::FLOAT32> DequantizeImpl(
   auto runtime_shape =
       GetTensorShape({weights_ohwi_shape.o, weights_ohwi_shape.h,
                       weights_ohwi_shape.w, weights_ohwi_shape.i});
-  if (scale.size() > 1) {
-    // Tensor is per-channel quantized.
+  if (scale.size() == 1) {  // Tensor-wise quantization.
+    DequantizationParams op_params;
+    ABSL_QCHECK_EQ(zero_point.data.size(), 1);
+    ABSL_QCHECK_EQ(scale.data.size(), 1);
+    op_params.zero_point = zero_point.data[0];
+    op_params.scale = scale.data[0];
+    Dequantize(op_params, runtime_shape, input_data, runtime_shape,
+               flt_tensor.data.data());
+  } else if (scale.shape.i == 1) {  // Channel-wise quantized.
     PerChannelDequantizationParams op_params;
     std::vector<int> zero_points;
     if (zero_point.size() == scale.size()) {
@@ -1022,14 +1029,25 @@ Tensor<OHWI, DataType::FLOAT32> DequantizeImpl(
     op_params.quantized_dimension = 0;
     PerChannelDequantize(op_params, runtime_shape, input_data, runtime_shape,
                          flt_tensor.data.data());
-  } else {
-    DequantizationParams op_params;
-    ABSL_QCHECK_EQ(zero_point.data.size(), 1);
-    ABSL_QCHECK_EQ(scale.data.size(), 1);
-    op_params.zero_point = zero_point.data[0];
-    op_params.scale = scale.data[0];
-    Dequantize(op_params, runtime_shape, input_data, runtime_shape,
-               flt_tensor.data.data());
+  } else {  // Block-wise quantization.
+    BlockwiseDequantizationParams op_params;
+    std::vector<int> zero_points;
+    if (zero_point.size() == scale.size()) {
+      op_params.zero_point = zero_point.Data();
+    } else if (zero_point.empty()) {
+      zero_points.resize(scale.size(), 0);
+      op_params.zero_point = zero_points.data();
+    } else {
+      zero_points.assign(zero_point.Data(),
+                         zero_point.Data() + zero_point.size());
+      zero_points.resize(scale.size(), zero_point.Data()[0]);
+      op_params.zero_point = zero_points.data();
+    }
+    op_params.scale = scale.Data();
+    op_params.quantized_dimension = 0;
+    op_params.group_size = weights_ohwi_shape.i / scale.shape.i;
+    BlockwiseDequantize(op_params, runtime_shape, input_data, runtime_shape,
+                        flt_tensor.data.data());
   }
   return flt_tensor;
 }

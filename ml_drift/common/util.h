@@ -63,6 +63,13 @@ struct PerChannelDequantizationParams {
   int32_t quantized_dimension;
 };
 
+struct BlockwiseDequantizationParams {
+  const float* scale;
+  const int32_t* zero_point;
+  int32_t quantized_dimension;
+  int32_t group_size;
+};
+
 RuntimeShape GetTensorShape(const std::vector<int32_t>& data);
 
 int MatchingFlatSize(const RuntimeShape& shape,
@@ -127,6 +134,42 @@ void PerChannelDequantize(const PerChannelDequantizationParams& op_params,
     const int32_t val = input_data[offset];
     const float result =
         static_cast<float>(scale[channel] * (val - zero_point[channel]));
+    output_data[offset] = result;
+  } while (NextIndex(dims_data, current_dim.data()));
+}
+
+template <typename T>
+void BlockwiseDequantize(const BlockwiseDequantizationParams& op_params,
+                         const RuntimeShape& input_shape, const T* input_data,
+                         const RuntimeShape& output_shape, float* output_data) {
+  MatchingFlatSize(input_shape, output_shape);
+
+  const int32_t* zero_point = op_params.zero_point;
+  const float* scale = op_params.scale;
+  const int32_t quantized_dimension = op_params.quantized_dimension;
+  const int32_t num_dims = input_shape.DimensionsCount();
+  absl::Span<const int32_t> dims_data = input_shape.DimsData();
+  std::vector<int> current_dim(num_dims, 0);
+
+  const int group_size = op_params.group_size;
+  const int group_dimension = num_dims - 1;
+  const int group_index = dims_data[group_dimension] / group_size;
+
+  std::vector<int32_t> scale_dims_data(num_dims, 1);
+  scale_dims_data[quantized_dimension] = dims_data[quantized_dimension];
+  scale_dims_data[group_dimension] = group_index;
+
+  std::vector<int> scale_dim(num_dims, 0);
+
+  do {
+    size_t offset = ReducedOutputOffset(dims_data, current_dim, {});
+    // Construct scale_dim: (o, 0, 0, g)
+    scale_dim[quantized_dimension] = current_dim[quantized_dimension];
+    scale_dim[group_dimension] = current_dim[group_dimension] / group_size;
+    size_t scale_offset = ReducedOutputOffset(scale_dims_data, scale_dim, {});
+    const int32_t val = input_data[offset];
+    const float result = static_cast<float>(scale[scale_offset] *
+                                            (val - zero_point[scale_offset]));
     output_data[offset] = result;
   } while (NextIndex(dims_data, current_dim.data()));
 }

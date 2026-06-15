@@ -660,7 +660,8 @@ struct FullyConnectedInt8Attributes {
   Tensor<OHWI, DataType::INT8> weights;
   // Tensor-wise  quant: scale & zero_point have the shape OHWI(1, 1, 1, 1),
   // Channel-wise quant: scale & zero_point have the shape OHWI(M, 1, 1, 1),
-  // Block-wise   quant: scale has the shape OHWI(M, 1, 1, N) and zp is ignored.
+  // Block-wise   quant: scale & zero_point have the shape OHWI(M, 1, 1, N)
+  //                     though zero_point can be empty.
   Tensor<OHWI, DataType::FLOAT32> scale;
   Tensor<OHWI, DataType::INT32> zero_point;
   Tensor<Linear, DataType::FLOAT32> bias;
@@ -677,6 +678,8 @@ struct FullyConnectedInt4Attributes {
       weights;
   // Tensor-wise  quant: scale & zero_point have the shape OHWI(1, 1, 1, 1),
   // Channel-wise quant: scale & zero_point have the shape OHWI(M, 1, 1, 1),
+  // Block-wise   quant: scale & zero_point have the shape OHWI(M, 1, 1, N)
+  //                     though zero_point can be empty.
   Tensor<OHWI, DataType::FLOAT32> scale;
   Tensor<OHWI, DataType::INT32> zero_point;
   Tensor<Linear, DataType::FLOAT32> bias;
