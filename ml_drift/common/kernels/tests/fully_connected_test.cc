@@ -84,6 +84,17 @@ TEST_P(FullyConnectedFloatTest, FullyConnectedInt8BlockwiseAttributesTest) {
                                                       storage()));
 }
 
+TEST_P(FullyConnectedFloatTest,
+       FullyConnectedInt8BlockwiseAttributesWithZeroPointsTest) {
+  const DataType data_type = DeduceDataTypeFromPrecision(precision());
+  if (!exec_env->IsStorageSupported(storage(), data_type)) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
+                 << " storage type: " << ToString(storage());
+  }
+  MLD_ASSERT_OK(FullyConnectedInt8BlockwiseAttributesWithZeroPointsTest(
+      *exec_env, precision(), storage()));
+}
+
 TEST_P(FullyConnectedFloatTest, FullyConnectedWeightsAsSpatialTensorTest) {
   const DataType data_type = DeduceDataTypeFromPrecision(precision());
   if (!exec_env->IsStorageSupported(storage(), data_type)) {

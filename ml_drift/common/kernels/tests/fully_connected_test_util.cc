@@ -250,6 +250,50 @@ absl::Status FullyConnectedInt8BlockwiseAttributesTest(
   return absl::OkStatus();
 }
 
+absl::Status FullyConnectedInt8BlockwiseAttributesWithZeroPointsTest(
+    TestExecutionEnvironment& env, CalculationsPrecision precision,
+    TensorStorageType storage) {
+  TensorFloat32 src_tensor;
+  src_tensor.shape = BHWC(1, 1, 1, 8);
+  src_tensor.data = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
+
+  FullyConnectedInt8Attributes attr;
+  attr.weights.shape = OHWI(2, 1, 1, 8);
+  attr.weights.data = {1,  2,  3,  4,  5,  6,  7,  8,    // output 0
+                       -8, -7, -6, -5, -4, -3, -2, -1};  // output 1
+  attr.bias.shape = Linear(2);
+  attr.bias.data = {0.0f, 0.0f};
+
+  // 2 blocks per output channel, scale shape is (2, 1, 1, 2)
+  attr.scale.shape = OHWI(2, 1, 1, 2);
+  attr.scale.data = {
+      0.5f, 2.0f,   // output 0: block 0 scale=0.5, block 1 scale=2.0
+      1.5f, 0.1f};  // output 1: block 0 scale=1.5, block 1 scale=0.1
+
+  // 2 blocks per output channel, zero_point shape is (2, 1, 1, 2)
+  attr.zero_point.shape = OHWI(2, 1, 1, 2);
+  attr.zero_point.data = {2, -3,  // output 0: block 0 zp=2, block 1 zp=-3
+                          1, 4};  // output 1: block 0 zp=1, block 1 zp=4
+
+  const float eps = precision == CalculationsPrecision::F32 ? 1e-5f : 0.1f;
+
+  OperationDef op_def;
+  const DataType data_type = DeduceDataTypeFromPrecision(precision);
+  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+
+  FullyConnected operation =
+      CreateFullyConnected(env.GetGpuInfo(), op_def, precision, attr);
+
+  TensorFloat32 dst_tensor;
+  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+      src_tensor, std::make_unique<FullyConnected>(std::move(operation)),
+      BHWC(1, 1, 1, 2), &dst_tensor));
+
+  EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), {509.0f, -121.4f}));
+  return absl::OkStatus();
+}
+
 absl::Status FullyConnectedWeightsAsSpatialTensorTest(
     TestExecutionEnvironment& env, CalculationsPrecision precision,
     TensorStorageType storage, const OHWI& weights_shape,

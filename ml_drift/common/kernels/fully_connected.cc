@@ -1441,9 +1441,7 @@ FullyConnected CreateFullyConnected(const GpuInfo& gpu_info,
   if (wg_size) conv_params.wg_size = *wg_size;
   conv_params.scale_zp_shape = attr.scale.shape;
   conv_params.has_bias = !attr.bias.data.empty();
-  if (attr.scale.shape.i != 1) {
-    conv_params.has_zero_point = false;
-  }
+  conv_params.has_zero_point = !attr.zero_point.empty();
   FullyConnected result(definition, precision, gpu_info, attr.weights.shape,
                         weights_desc, conv_params);
   ConvertQuantizedInt8Weights(weights_desc, attr.weights, &result.args_);
@@ -1468,10 +1466,15 @@ FullyConnected CreateFullyConnected(const GpuInfo& gpu_info,
     }
     AddWeightsParams(gpu_info, scale, zp, src_type, &result.args_);
   } else {  // block-wise
-    auto weights_scale_td =
-        ScaleOrZeroPointToFCTensorDesc(gpu_info, attr.scale, src_type);
-    result.args_.AddObject("weights_scale", std::make_unique<TensorDescriptor>(
-                                                std::move(weights_scale_td)));
+    Tensor<OHWI, DataType::FLOAT32> zp;
+    if (!attr.zero_point.empty()) {
+      zp.shape = OHWI(attr.zero_point.shape.o, 1, 1, attr.scale.shape.i);
+      zp.data.resize(zp.shape.o * zp.shape.i);
+      for (int i = 0; i < zp.data.size(); ++i) {
+        zp.data[i] = attr.zero_point.Data()[i];
+      }
+    }
+    AddWeightsParams(gpu_info, attr.scale, zp, src_type, &result.args_);
   }
   if (conv_params.has_bias) {
     TensorDescriptor bias_tensor_desc =

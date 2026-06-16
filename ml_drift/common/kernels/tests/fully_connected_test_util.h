@@ -38,6 +38,9 @@ absl::Status FullyConnectedInt8Test(TestExecutionEnvironment& env,
 absl::Status FullyConnectedInt8BlockwiseAttributesTest(
     TestExecutionEnvironment& env, CalculationsPrecision precision,
     TensorStorageType storage);
+absl::Status FullyConnectedInt8BlockwiseAttributesWithZeroPointsTest(
+    TestExecutionEnvironment& env, CalculationsPrecision precision,
+    TensorStorageType storage);
 absl::Status FullyConnectedWeightsAsSpatialTensorTest(
     TestExecutionEnvironment& env, CalculationsPrecision precision,
     TensorStorageType storage, const OHWI& weights_shape,
