@@ -4506,7 +4506,8 @@ WeightsManager::BatchGpuOperations(
       break;
     }
     case ScheduleStrategy::kBatchByMaxWeightSize: {
-      size_t max_size = 0;
+      const size_t kMinSumOfWeightSizesPerBatch = 256 * 1024 * 1024;
+      size_t max_size = kMinSumOfWeightSizesPerBatch;
       for (const auto& op : operations) {
         max_size = std::max(max_size, op.size);
       }

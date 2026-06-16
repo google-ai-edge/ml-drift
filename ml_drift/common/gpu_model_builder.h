@@ -747,7 +747,9 @@ class WeightsManager {
     kDefaultBatch,
 
     // The total weight size in each batch is capped at the size of the largest
-    // individual weight.
+    // individual weight, though we have a minimum batch size to avoid too many
+    // small batches.
+    //
     // This strategy is LLM friendly, because LLM's un-embedding matrix is
     // larger than other weights.
     kBatchByMaxWeightSize,
