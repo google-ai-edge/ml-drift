@@ -21,9 +21,11 @@
 #include <variant>
 #include <vector>
 
+#include "absl/container/flat_hash_set.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/gpu_model_builder.h"
+#include "ml_drift/common/ir_model.h"
 #include "ml_drift/common/kernels/mean_stddev_normalization.h"
 #include "ml_drift/common/model.h"
 #include "ml_drift/common/operations.h"
@@ -576,4 +578,563 @@ absl::Status TryLayerNormalization(const GpuInfo& gpu_info,
 
   return absl::OkStatus();
 }
+
+namespace {
+absl::Status CheckIfValidOpOfType(const ir::IrOp* op,
+                                  OperationType required_type) {
+  if (op == nullptr) {
+    return absl::NotFoundError("Invalid node.");
+  }
+  if (OperationTypeFromString(op->name) != required_type) {
+    return absl::NotFoundError("Type mismatch.");
+  }
+  return absl::OkStatus();
+}
+
+absl::Status GetElementwiseScalarValue(const ir::IrOp* op, float* result) {
+  auto attr = std::any_cast<ElementwiseAttributes>(op->attr);
+  const float* value = GetIfFloatScalar(&attr.param);
+  if (!value) {
+    return absl::NotFoundError("Not a scalar value inside attributes.");
+  }
+  *result = *value;
+  return absl::OkStatus();
+}
+
+absl::Status GetElementwiseLinearValue(
+    const ir::IrOp* op, Tensor<Linear, DataType::FLOAT32>* result) {
+  auto attr = std::any_cast<ElementwiseAttributes>(op->attr);
+  const auto* linear_tensor =
+      std::get_if<Tensor<Linear, DataType::FLOAT32>>(&attr.param);
+  if (!linear_tensor) {
+    return absl::NotFoundError("Not a linear value inside attributes.");
+  }
+  *result = *linear_tensor;
+  return absl::OkStatus();
+}
+
+absl::Status GetNextSingleOp(const ir::IrModel& ir_model, const ir::IrOp& op,
+                             OperationType next_type,
+                             const ir::IrOp** next_op) {
+  if (op.outputs.empty()) return absl::NotFoundError("No outputs.");
+  auto consumers = ir_model.FindConsumers(op.outputs[0]);
+  if (consumers.size() != 1) {
+    return absl::NotFoundError("Not a single consumer.");
+  }
+  const ir::IrOp* consumer = consumers[0];
+  RETURN_IF_ERROR(CheckIfValidOpOfType(consumer, next_type));
+  *next_op = consumer;
+  return absl::OkStatus();
+}
+
+//       input
+//       /    \
+//      |    mean
+//       \    /
+//     subtraction
+//       /    \
+//      |      |
+//      |    square
+//      |      |
+//      |     mean
+//      |      |
+//      |     add
+//      |      |
+//      |    rsqrt
+//      |      |
+//       \    /
+//    multiplication
+//          |
+//        output
+absl::Status TryMeanStdDevNormalizationV0(
+    const GpuInfo& gpu_info, const ir::IrModel& ir_model,
+    ir::IrOpId first_op_id, const absl::flat_hash_set<ir::IrOpId>& consumed_ops,
+    absl::flat_hash_set<ir::IrOpId>* new_consumed_ops,
+    GpuModelBuilder* model_builder) {
+  const ir::IrOp* first_mean_op = ir_model.op(first_op_id);
+  RETURN_IF_ERROR(CheckIfValidOpOfType(first_mean_op, OperationType::MEAN));
+  auto first_mean_attr = std::any_cast<ReduceAttributes>(first_mean_op->attr);
+  if (first_mean_attr.dims != std::set<Axis>{Axis::CHANNELS}) {
+    return absl::NotFoundError("MeanStdDevNormalization not suitable.");
+  }
+  const ir::IrOp* sub_op;
+  RETURN_IF_ERROR(
+      GetNextSingleOp(ir_model, *first_mean_op, OperationType::SUB, &sub_op));
+  auto sub_inputs = sub_op->inputs;
+  if (sub_inputs.size() != 2) {
+    return absl::NotFoundError("MeanStdDevNormalization not suitable.");
+  } else {
+    // checking structure
+    //       input
+    //       /    \
+    //      |    mean
+    //       \    /
+    //     subtraction
+    const ir::IrOp* sub_first_parent = ir_model.FindProducer(sub_inputs[0]);
+    const ir::IrOp* sub_second_parent = ir_model.FindProducer(sub_inputs[1]);
+    if (sub_second_parent != first_mean_op) {
+      return absl::NotFoundError("MeanStdDevNormalization not suitable.");
+    }
+    auto mean_inputs = first_mean_op->inputs;
+    if (mean_inputs.empty())
+      return absl::NotFoundError("MeanStdDevNormalization not suitable.");
+    const ir::IrOp* mean_parent = ir_model.FindProducer(mean_inputs[0]);
+    if (mean_parent != sub_first_parent) {
+      return absl::NotFoundError("MeanStdDevNormalization not suitable.");
+    }
+  }
+  auto sub_output = sub_op->outputs[0];
+  auto consumers = ir_model.FindConsumers(sub_output);
+  if (consumers.size() != 2) {
+    return absl::NotFoundError("MeanStdDevNormalization not suitable.");
+  }
+  const ir::IrOp* square_op = consumers[0];
+  const ir::IrOp* sub_child_mul_op = consumers[1];
+  if (!CheckIfValidOpOfType(square_op, OperationType::SQUARE).ok()) {
+    std::swap(square_op, sub_child_mul_op);
+  }
+  RETURN_IF_ERROR(CheckIfValidOpOfType(square_op, OperationType::SQUARE));
+  RETURN_IF_ERROR(CheckIfValidOpOfType(sub_child_mul_op, OperationType::MUL));
+  const ir::IrOp* second_mean_op;
+  RETURN_IF_ERROR(GetNextSingleOp(ir_model, *square_op, OperationType::MEAN,
+                                  &second_mean_op));
+  auto second_mean_attr = std::any_cast<ReduceAttributes>(second_mean_op->attr);
+  if (second_mean_attr.dims != std::set<Axis>{Axis::CHANNELS}) {
+    return absl::NotFoundError("MeanStdDevNormalization not suitable.");
+  }
+  const ir::IrOp* add_op;
+  RETURN_IF_ERROR(
+      GetNextSingleOp(ir_model, *second_mean_op, OperationType::ADD, &add_op));
+  float add_value;
+  RETURN_IF_ERROR(GetElementwiseScalarValue(add_op, &add_value));
+  const ir::IrOp* rsqrt_op;
+  RETURN_IF_ERROR(
+      GetNextSingleOp(ir_model, *add_op, OperationType::RSQRT, &rsqrt_op));
+  const ir::IrOp* mul_op;
+  RETURN_IF_ERROR(
+      GetNextSingleOp(ir_model, *rsqrt_op, OperationType::MUL, &mul_op));
+  if (sub_child_mul_op != mul_op) {
+    return absl::NotFoundError("MeanStdDevNormalization not suitable.");
+  }
+
+  auto input = first_mean_op->inputs[0];
+  auto output_id = mul_op->outputs[0];
+  ASSIGN_OR_RETURN(auto src_handle, model_builder->GetTensor(input));
+  ASSIGN_OR_RETURN(auto dst_handle, model_builder->GetTensor(output_id));
+
+  OperationDef op_def;
+  op_def.src_tensors.push_back(src_handle.tensor_desc);
+  op_def.dst_tensors.push_back(dst_handle.tensor_desc);
+
+  auto gpu_op =
+      std::make_unique<MeanStdDevNormalization>(CreateMeanStdDevNormalization(
+          op_def, gpu_info, ir_model.tensor(input)->desc.GetBHWCShape(),
+          add_value,
+          /*two_step=*/false));
+  model_builder->AddGpuOperation(
+      std::vector<GpuModelBuilder::ValueId>(
+          {static_cast<GpuModelBuilder::ValueId>(input)}),
+      std::vector<GpuModelBuilder::ValueId>(
+          {static_cast<GpuModelBuilder::ValueId>(output_id)}),
+      std::move(gpu_op), "mean_stddev_normalization");
+
+  new_consumed_ops->insert(first_mean_op->id);
+  new_consumed_ops->insert(sub_op->id);
+  new_consumed_ops->insert(square_op->id);
+  new_consumed_ops->insert(second_mean_op->id);
+  new_consumed_ops->insert(add_op->id);
+  new_consumed_ops->insert(rsqrt_op->id);
+  new_consumed_ops->insert(mul_op->id);
+
+  return absl::OkStatus();
+}
+
+//        input_tensor
+//       /     |      \
+//   square0  mean0    |
+//     |      /   \   /
+//   mean1 square1 sub0
+//      \   /       |
+//       sub1       |
+//        |         |
+//       add        |
+//        |         |
+//      rsqrt       |
+//        |         |
+//     mul_ones     |
+//        \        /
+//      multiplication
+//            |
+//          output
+absl::Status TryMeanStdDevNormalizationV1(
+    const GpuInfo& gpu_info, const ir::IrModel& ir_model,
+    ir::IrOpId first_op_id, const absl::flat_hash_set<ir::IrOpId>& consumed_ops,
+    absl::flat_hash_set<ir::IrOpId>* new_consumed_ops,
+    GpuModelBuilder* model_builder) {
+  const ir::IrOp* first_op = ir_model.op(first_op_id);
+  auto first_op_type = OperationTypeFromString(first_op->name);
+  if (first_op_type != OperationType::MEAN &&
+      first_op_type != OperationType::SQUARE) {
+    return absl::NotFoundError("MeanStdDevNormalization not suitable.");
+  }
+
+  const ir::IrOp* mean0_op = nullptr;
+  const ir::IrOp* sub0_op = nullptr;
+  const ir::IrOp* square0_op = nullptr;
+  {
+    // checking this structure
+    //        input_tensor
+    //       /     |      \
+    //   square0  mean0    |
+    //                     |
+    //                    sub0
+    auto first_op_inputs = first_op->inputs;
+    if (first_op_inputs.size() != 1) {
+      return absl::NotFoundError("MeanStdDevNormalization not suitable.");
+    }
+    auto consumers = ir_model.FindConsumers(first_op_inputs[0]);
+    for (auto* op : consumers) {
+      auto op_type = OperationTypeFromString(op->name);
+      if (op_type == OperationType::MEAN) {
+        mean0_op = op;
+      } else if (op_type == OperationType::SQUARE) {
+        square0_op = op;
+      } else if (op_type == OperationType::SUB) {
+        sub0_op = op;
+      }
+    }
+    if (!square0_op || !sub0_op || !mean0_op) {
+      return absl::NotFoundError("MeanStdDevNormalization not suitable.");
+    }
+  }
+
+  if (consumed_ops.find(square0_op->id) != consumed_ops.end()) {
+    return absl::NotFoundError("MeanStdDevNormalization not suitable.");
+  }
+  if (consumed_ops.find(mean0_op->id) != consumed_ops.end()) {
+    return absl::NotFoundError("MeanStdDevNormalization not suitable.");
+  }
+
+  auto mean0_attr = std::any_cast<ReduceAttributes>(mean0_op->attr);
+  if (mean0_attr.dims != std::set<Axis>{Axis::CHANNELS}) {
+    return absl::NotFoundError("MeanStdDevNormalization not suitable.");
+  }
+
+  const ir::IrOp* square1_op = nullptr;
+  {
+    // checking this structure
+    //            mean0
+    //            /   \
+    //         square1 sub0
+    auto mean0_output = mean0_op->outputs.empty() ? 0 : mean0_op->outputs[0];
+    auto consumers = ir_model.FindConsumers(mean0_output);
+    if (consumers.size() != 2) {
+      return absl::NotFoundError("MeanStdDevNormalization not suitable.");
+    }
+
+    const ir::IrOp* sub0_copy_op = nullptr;
+    auto op0_type = OperationTypeFromString(consumers[0]->name);
+    auto op1_type = OperationTypeFromString(consumers[1]->name);
+    if (op0_type == OperationType::SQUARE) {
+      square1_op = consumers[0];
+    } else if (op0_type == OperationType::SUB) {
+      sub0_copy_op = consumers[0];
+    }
+
+    if (op1_type == OperationType::SQUARE) {
+      square1_op = consumers[1];
+    } else if (op1_type == OperationType::SUB) {
+      sub0_copy_op = consumers[1];
+    }
+
+    if (!square1_op || !sub0_copy_op || sub0_copy_op != sub0_op) {
+      return absl::NotFoundError("MeanStdDevNormalization not suitable.");
+    }
+  }
+
+  const ir::IrOp* mean1_op;
+  RETURN_IF_ERROR(
+      GetNextSingleOp(ir_model, *square0_op, OperationType::MEAN, &mean1_op));
+
+  const ir::IrOp* sub1_op;
+  RETURN_IF_ERROR(
+      GetNextSingleOp(ir_model, *mean1_op, OperationType::SUB, &sub1_op));
+
+  {
+    // checking this structure
+    //   mean1 square1
+    //      \   /
+    //       sub1
+    const ir::IrOp* sub1_copy_op;
+    RETURN_IF_ERROR(GetNextSingleOp(ir_model, *square1_op, OperationType::SUB,
+                                    &sub1_copy_op));
+    if (sub1_copy_op != sub1_op) {
+      return absl::NotFoundError("MeanStdDevNormalization not suitable.");
+    }
+  }
+
+  const ir::IrOp* multiplication_op;
+  RETURN_IF_ERROR(GetNextSingleOp(ir_model, *sub0_op, OperationType::MUL,
+                                  &multiplication_op));
+
+  const ir::IrOp* add_op;
+  RETURN_IF_ERROR(
+      GetNextSingleOp(ir_model, *sub1_op, OperationType::ADD, &add_op));
+  float add_value;
+  RETURN_IF_ERROR(GetElementwiseScalarValue(add_op, &add_value));
+
+  const ir::IrOp* rsqrt_op;
+  RETURN_IF_ERROR(
+      GetNextSingleOp(ir_model, *add_op, OperationType::RSQRT, &rsqrt_op));
+
+  const ir::IrOp* mul_ones_op;
+  RETURN_IF_ERROR(
+      GetNextSingleOp(ir_model, *rsqrt_op, OperationType::MUL, &mul_ones_op));
+  Tensor<Linear, DataType::FLOAT32> mul_linear_value;
+  RETURN_IF_ERROR(GetElementwiseLinearValue(mul_ones_op, &mul_linear_value));
+  for (int i = 0; i < mul_linear_value.data.size(); ++i) {
+    if (mul_linear_value.data[i] != 1.0f) {
+      return absl::NotFoundError("MeanStdDevNormalization not suitable.");
+    }
+  }
+
+  {
+    // checking this structure
+    //   mul_ones sub0
+    //      \      /
+    //    multiplication
+    const ir::IrOp* multiplication_copy_op;
+    RETURN_IF_ERROR(GetNextSingleOp(ir_model, *mul_ones_op, OperationType::MUL,
+                                    &multiplication_copy_op));
+    if (multiplication_copy_op != multiplication_op) {
+      return absl::NotFoundError("MeanStdDevNormalization not suitable.");
+    }
+  }
+
+  auto input = mean0_op->inputs[0];
+  auto output_id = multiplication_op->outputs[0];
+  ASSIGN_OR_RETURN(auto src_handle, model_builder->GetTensor(input));
+  ASSIGN_OR_RETURN(auto dst_handle, model_builder->GetTensor(output_id));
+
+  OperationDef op_def;
+  op_def.src_tensors.push_back(src_handle.tensor_desc);
+  op_def.dst_tensors.push_back(dst_handle.tensor_desc);
+
+  auto gpu_op =
+      std::make_unique<MeanStdDevNormalization>(CreateMeanStdDevNormalization(
+          op_def, gpu_info, ir_model.tensor(input)->desc.GetBHWCShape(),
+          add_value,
+          /*two_step=*/false));
+  model_builder->AddGpuOperation(
+      std::vector<GpuModelBuilder::ValueId>(
+          {static_cast<GpuModelBuilder::ValueId>(input)}),
+      std::vector<GpuModelBuilder::ValueId>(
+          {static_cast<GpuModelBuilder::ValueId>(output_id)}),
+      std::move(gpu_op), "mean_stddev_normalization");
+
+  new_consumed_ops->insert(mean0_op->id);
+  new_consumed_ops->insert(mean1_op->id);
+  new_consumed_ops->insert(square0_op->id);
+  new_consumed_ops->insert(square1_op->id);
+  new_consumed_ops->insert(sub0_op->id);
+  new_consumed_ops->insert(sub1_op->id);
+  new_consumed_ops->insert(add_op->id);
+  new_consumed_ops->insert(rsqrt_op->id);
+  new_consumed_ops->insert(mul_ones_op->id);
+  new_consumed_ops->insert(multiplication_op->id);
+
+  return absl::OkStatus();
+}
+}  // namespace
+
+absl::Status TryMeanStdDevNormalization(
+    const GpuInfo& gpu_info, const ir::IrModel& ir_model,
+    ir::IrOpId first_op_id, const absl::flat_hash_set<ir::IrOpId>& consumed_ops,
+    absl::flat_hash_set<ir::IrOpId>* new_consumed_ops,
+    GpuModelBuilder* model_builder) {
+  auto status = TryMeanStdDevNormalizationV0(gpu_info, ir_model, first_op_id,
+                                             consumed_ops, new_consumed_ops,
+                                             model_builder);
+  if (status.ok()) {
+    return status;
+  }
+  return TryMeanStdDevNormalizationV1(gpu_info, ir_model, first_op_id,
+                                      consumed_ops, new_consumed_ops,
+                                      model_builder);
+}
+
+// LayerNormalization fusion works with this subgraph
+//    input_tensor
+//      /  /   \
+//     /  |    mean0
+//    /    \   /   \
+//   |    sq_diff   |
+//   |       |      |
+//   |     mean1    |
+//   |       |      |
+//   |     add0     |
+//   |       |      |
+//   |     rsqrt    |
+//   |       |      |
+//    \    mul0    /
+//     \   /   \  /
+//      mul1    mul2
+//       |       |
+//        \     sub
+//         \   /
+//          add1
+//           |
+//     output_tensor
+absl::Status TryLayerNormalization(
+    const GpuInfo& gpu_info, const ir::IrModel& ir_model,
+    ir::IrOpId first_op_id, const absl::flat_hash_set<ir::IrOpId>& consumed_ops,
+    absl::flat_hash_set<ir::IrOpId>* new_consumed_ops,
+    GpuModelBuilder* model_builder) {
+  const ir::IrOp* mean0_op = ir_model.op(first_op_id);
+  RETURN_IF_ERROR(CheckIfValidOpOfType(mean0_op, OperationType::MEAN));
+  auto mean0_attr = std::any_cast<ReduceAttributes>(mean0_op->attr);
+  if (mean0_attr.dims != std::set<Axis>{Axis::CHANNELS}) {
+    return absl::NotFoundError("LayerNormalization not suitable.");
+  }
+  auto mean0_output = mean0_op->outputs[0];
+  auto consumers = ir_model.FindConsumers(mean0_output);
+  if (consumers.size() != 2) {
+    return absl::NotFoundError("LayerNormalization not suitable.");
+  }
+  const ir::IrOp* sq_diff_op = consumers[0];
+  const ir::IrOp* mul2_op = consumers[1];
+  if (!CheckIfValidOpOfType(sq_diff_op, OperationType::SQUARED_DIFF).ok()) {
+    std::swap(sq_diff_op, mul2_op);
+  }
+  RETURN_IF_ERROR(
+      CheckIfValidOpOfType(sq_diff_op, OperationType::SQUARED_DIFF));
+  RETURN_IF_ERROR(CheckIfValidOpOfType(mul2_op, OperationType::MUL));
+
+  auto sq_diff_inputs = sq_diff_op->inputs;
+  if (sq_diff_inputs.size() != 2) {
+    return absl::NotFoundError("LayerNormalization not suitable.");
+  } else {
+    // checking structure
+    //       input
+    //       /    \
+    //      |    mean0
+    //       \    /
+    //       sq_diff
+    const ir::IrOp* sq_diff_first_parent =
+        ir_model.FindProducer(sq_diff_inputs[0]);
+    const ir::IrOp* sq_diff_second_parent =
+        ir_model.FindProducer(sq_diff_inputs[1]);
+    if (sq_diff_second_parent != mean0_op) {
+      return absl::NotFoundError("LayerNormalization not suitable.");
+    }
+    auto mean0_inputs = mean0_op->inputs;
+    if (mean0_inputs.empty())
+      return absl::NotFoundError("LayerNormalization not suitable.");
+    const ir::IrOp* mean0_parent = ir_model.FindProducer(mean0_inputs[0]);
+    if (mean0_parent != sq_diff_first_parent) {
+      return absl::NotFoundError("LayerNormalization not suitable.");
+    }
+  }
+  const ir::IrOp* mean1_op;
+  RETURN_IF_ERROR(
+      GetNextSingleOp(ir_model, *sq_diff_op, OperationType::MEAN, &mean1_op));
+  auto mean1_attr = std::any_cast<ReduceAttributes>(mean1_op->attr);
+  if (mean1_attr.dims != std::set<Axis>{Axis::CHANNELS}) {
+    return absl::NotFoundError("LayerNormalization not suitable.");
+  }
+  const ir::IrOp* add0_op;
+  RETURN_IF_ERROR(
+      GetNextSingleOp(ir_model, *mean1_op, OperationType::ADD, &add0_op));
+  float add_value;
+  RETURN_IF_ERROR(GetElementwiseScalarValue(add0_op, &add_value));
+  const ir::IrOp* rsqrt_op;
+  RETURN_IF_ERROR(
+      GetNextSingleOp(ir_model, *add0_op, OperationType::RSQRT, &rsqrt_op));
+  const ir::IrOp* mul0_op;
+  RETURN_IF_ERROR(
+      GetNextSingleOp(ir_model, *rsqrt_op, OperationType::MUL, &mul0_op));
+  Tensor<Linear, DataType::FLOAT32> mul_linear_value;
+  RETURN_IF_ERROR(GetElementwiseLinearValue(mul0_op, &mul_linear_value));
+  auto mul0_output = mul0_op->outputs[0];
+  auto mul0_consumers = ir_model.FindConsumers(mul0_output);
+  if (mul0_consumers.size() != 2) {
+    return absl::NotFoundError("LayerNormalization not suitable.");
+  }
+  if (!(mul0_consumers[0] == mul2_op || mul0_consumers[1] == mul2_op)) {
+    return absl::NotFoundError("LayerNormalization not suitable.");
+  }
+  const ir::IrOp* mul1_op =
+      mul0_consumers[0] == mul2_op ? mul0_consumers[1] : mul0_consumers[0];
+  if (!CheckIfValidOpOfType(sq_diff_op, OperationType::SQUARED_DIFF).ok()) {
+    std::swap(sq_diff_op, mul2_op);
+  }
+  auto mul1_inputs = mul1_op->inputs;
+  if (mul1_inputs.size() != 2) {
+    return absl::NotFoundError("LayerNormalization not suitable.");
+  } else {
+    const ir::IrOp* mul1_first_parent = ir_model.FindProducer(mul1_inputs[0]);
+    const ir::IrOp* mul1_second_parent = ir_model.FindProducer(mul1_inputs[1]);
+    auto mean0_inputs = mean0_op->inputs;
+    const ir::IrOp* mean0_parent = ir_model.FindProducer(mean0_inputs[0]);
+    if (!(mul1_first_parent == mean0_parent ||
+          mul1_second_parent == mean0_parent)) {
+      return absl::NotFoundError("LayerNormalization not suitable.");
+    }
+    if (!(mul1_first_parent == mul0_op || mul1_second_parent == mul0_op)) {
+      return absl::NotFoundError("LayerNormalization not suitable.");
+    }
+  }
+  const ir::IrOp* sub_op;
+  RETURN_IF_ERROR(
+      GetNextSingleOp(ir_model, *mul2_op, OperationType::SUB, &sub_op));
+  Tensor<Linear, DataType::FLOAT32> sub_linear_value;
+  RETURN_IF_ERROR(GetElementwiseLinearValue(sub_op, &sub_linear_value));
+
+  const ir::IrOp* add1_op;
+  RETURN_IF_ERROR(
+      GetNextSingleOp(ir_model, *sub_op, OperationType::ADD, &add1_op));
+  {
+    const ir::IrOp* add1_copy_op;
+    RETURN_IF_ERROR(
+        GetNextSingleOp(ir_model, *mul1_op, OperationType::ADD, &add1_copy_op));
+    if (add1_copy_op != add1_op) {
+      return absl::NotFoundError("LayerNormalization not suitable.");
+    }
+  }
+
+  auto input = mean0_op->inputs[0];
+  auto output_id = add1_op->outputs[0];
+  ASSIGN_OR_RETURN(auto src_handle, model_builder->GetTensor(input));
+  ASSIGN_OR_RETURN(auto dst_handle, model_builder->GetTensor(output_id));
+
+  OperationDef op_def;
+  op_def.src_tensors.push_back(src_handle.tensor_desc);
+  op_def.dst_tensors.push_back(dst_handle.tensor_desc);
+
+  auto gpu_op =
+      std::make_unique<MeanStdDevNormalization>(CreateMeanStdDevNormalization(
+          op_def, gpu_info, ir_model.tensor(input)->desc.GetBHWCShape(),
+          add_value, mul_linear_value, sub_linear_value,
+          /*two_step=*/false));
+  model_builder->AddGpuOperation(
+      std::vector<GpuModelBuilder::ValueId>(
+          {static_cast<GpuModelBuilder::ValueId>(input)}),
+      std::vector<GpuModelBuilder::ValueId>(
+          {static_cast<GpuModelBuilder::ValueId>(output_id)}),
+      std::move(gpu_op), "layer_normalization");
+
+  new_consumed_ops->insert(mean0_op->id);
+  new_consumed_ops->insert(sq_diff_op->id);
+  new_consumed_ops->insert(mean1_op->id);
+  new_consumed_ops->insert(add0_op->id);
+  new_consumed_ops->insert(rsqrt_op->id);
+  new_consumed_ops->insert(mul0_op->id);
+  new_consumed_ops->insert(mul1_op->id);
+  new_consumed_ops->insert(mul2_op->id);
+  new_consumed_ops->insert(sub_op->id);
+  new_consumed_ops->insert(add1_op->id);
+
+  return absl::OkStatus();
+}
+
 }  // namespace ml_drift

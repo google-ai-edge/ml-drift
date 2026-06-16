@@ -329,6 +329,27 @@ cc_test(
     ],
 )
 
+cc_test(
+    name = "ir_model_util_test",
+    srcs = ["ir_model_util_test.cc"],
+    deps = [
+        ":data_type",
+        ":gpu_info",
+        ":gpu_model",
+        ":ir_model",
+        ":ir_model_util",
+        ":model",
+        ":model_hints",
+        ":operations",
+        ":precision",
+        ":shape",
+        ":tensor",
+        "//ml_drift/common/default:status_matchers",
+        "//ml_drift/common/task:tensor_desc",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
 cc_library(
     name = "ir_model_util",
     srcs = ["ir_model_util.cc"],
@@ -346,6 +367,7 @@ cc_library(
         ":status",
         ":tensor",
         "//ml_drift/common/selectors:operation_selector",
+        "//ml_drift/common/selectors:special_selector",
         "//ml_drift/common/task:gpu_operation",
         "//ml_drift/common/task:tensor_desc",
         "@com_google_absl//absl/container:flat_hash_map",

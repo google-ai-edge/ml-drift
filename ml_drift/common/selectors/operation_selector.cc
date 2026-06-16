@@ -1494,6 +1494,15 @@ absl::Status GPUOperationFromNode(
                                      node.name);
       return absl::OkStatus();
     }
+    case OperationType::MEAN_STDDEV_NORMALIZATION: {
+      MeanStdDevNormalization operation = CreateMeanStdDevNormalization(
+          op_def, gpu_info, inputs[0]->desc.GetBHWCShape());
+      auto gpu_op =
+          std::make_unique<MeanStdDevNormalization>(std::move(operation));
+      model_builder->AddGpuOperation(src_ids, dst_ids, std::move(gpu_op),
+                                     node.name);
+      return absl::OkStatus();
+    }
     case OperationType::ONE_HOT: {
       const auto& attr = std::any_cast<const OneHotAttributes&>(node.attr);
       std::unique_ptr<GPUOperation> gpu_op;
@@ -1526,6 +1535,13 @@ absl::Status GPUOperationFromNode(
       ASSIGN_OR_RETURN(auto position, model_builder->GetTensor(inputs[1]->id));
       return model_builder->UpdateOutputTensor(
           model_builder->PositionalEmbedding(src, position), outputs[0]->id);
+    }
+    case OperationType::PRELU: {
+      const auto& attr = std::any_cast<const PReLUAttributes&>(node.attr);
+      auto gpu_op = SelectPReLU(attr, gpu_info, op_def);
+      model_builder->AddGpuOperation(src_ids, dst_ids, std::move(gpu_op),
+                                     node.name);
+      return absl::OkStatus();
     }
     case OperationType::QUANTIZE_AND_DEQUANTIZE: {
       const auto& attr =

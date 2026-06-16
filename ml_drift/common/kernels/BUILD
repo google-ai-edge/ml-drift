@@ -740,10 +740,12 @@ cc_library(
         ":elementwise",
         "//ml_drift/common:gpu_info",
         "//ml_drift/common:gpu_model_builder",
+        "//ml_drift/common:ir_model",
         "//ml_drift/common:model",
         "//ml_drift/common:operations",
         "//ml_drift/common:status",
         "//ml_drift/common/task:gpu_operation",
+        "@com_google_absl//absl/container:flat_hash_set",
     ],
 )
 
@@ -876,11 +878,14 @@ cc_library(
         ":reduce",
         "//ml_drift/common:gpu_info",
         "//ml_drift/common:gpu_model_builder",
+        "//ml_drift/common:ir_model",
         "//ml_drift/common:model",
         "//ml_drift/common:operations",
         "//ml_drift/common:shape",
         "//ml_drift/common:status",
         "//ml_drift/common/task:gpu_operation",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/strings",
     ],
 )
 
@@ -1188,11 +1193,13 @@ cc_library(
         "//ml_drift/common:data_type",
         "//ml_drift/common:gpu_info",
         "//ml_drift/common:gpu_model_builder",
+        "//ml_drift/common:ir_model",
         "//ml_drift/common:model",
         "//ml_drift/common:operations",
         "//ml_drift/common:shape",
         "//ml_drift/common:status",
         "//ml_drift/common:tensor",
         "//ml_drift/common/task:gpu_operation",
+        "@com_google_absl//absl/container:flat_hash_set",
     ],
 )

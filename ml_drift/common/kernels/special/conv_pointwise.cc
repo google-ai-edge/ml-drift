@@ -21,10 +21,12 @@
 #include <string>
 #include <vector>
 
+#include "absl/container/flat_hash_set.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_replace.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_model_builder.h"
+#include "ml_drift/common/ir_model.h"
 #include "ml_drift/common/model.h"
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/precision.h"
@@ -321,6 +323,195 @@ absl::Status TryFusedPointwiseConv(const GraphFloat32& graph,
   new_consumed_nodes->insert(temp_consumed_nodes.begin(),
                              temp_consumed_nodes.end());
   new_consumed_nodes->insert(concat_node.node->id);
+  return absl::OkStatus();
+}
+
+namespace {
+struct IrOpContext {
+  const ir::IrOp* op;
+  std::vector<ir::IrTensorId> inputs;
+  std::vector<ir::IrTensorId> outputs;
+};
+
+absl::Status IsOp(const ir::IrModel& ir_model, OperationType op_type,
+                  int inputs_count, int outputs_count, const ir::IrOp* op,
+                  IrOpContext* op_context) {
+  const std::string op_desc = ToString(op_type);
+  op_context->op = op;
+  if (op_context->op == nullptr) {
+    return absl::NotFoundError(absl::StrCat("Invalid ", op_desc, " op."));
+  }
+  if (OperationTypeFromString(op_context->op->name) != op_type) {
+    return absl::InternalError(absl::StrCat("Not correct op type. Expected ",
+                                            op_desc, ", received ",
+                                            op_context->op->name));
+  }
+  op_context->inputs = op_context->op->inputs;
+  op_context->outputs = op_context->op->outputs;
+  if (inputs_count != -1) {
+    if (op_context->inputs.size() != inputs_count) {
+      return absl::InternalError(
+          absl::StrCat("Expected ", inputs_count, " input in a ", op_desc,
+                       " op. Node has ", op_context->inputs.size()));
+    }
+  }
+  if (op_context->outputs.size() != outputs_count) {
+    return absl::InternalError(
+        absl::StrCat("Expected ", outputs_count, " output in a ", op_desc,
+                     " op. Node has ", op_context->outputs.size()));
+  }
+  return absl::OkStatus();
+}
+
+absl::Status IsMeanOp(const ir::IrModel& ir_model, const ir::IrOp* op,
+                      IrOpContext* op_context) {
+  RETURN_IF_ERROR(IsOp(ir_model, OperationType::MEAN, 1, 1, op, op_context));
+  auto mean_attr = std::any_cast<ReduceAttributes>(op_context->op->attr);
+  if (mean_attr.dims != std::set<Axis>{Axis::CHANNELS}) {
+    return absl::InternalError("Expected mean node with channels reduction.");
+  }
+  return absl::OkStatus();
+}
+
+absl::Status IsReduceSumOp(const ir::IrModel& ir_model, const ir::IrOp* op,
+                           IrOpContext* op_context) {
+  RETURN_IF_ERROR(
+      IsOp(ir_model, OperationType::REDUCE_SUM, 1, 1, op, op_context));
+  auto reduce_attr = std::any_cast<ReduceAttributes>(op_context->op->attr);
+  if (reduce_attr.dims != std::set<Axis>{Axis::CHANNELS}) {
+    return absl::InternalError(
+        "Expected reduce_sum node with channels reduction.");
+  }
+  return absl::OkStatus();
+}
+
+absl::Status IsMulOp(const ir::IrModel& ir_model, const ir::IrOp* op,
+                     IrOpContext* op_context) {
+  RETURN_IF_ERROR(IsOp(ir_model, OperationType::MUL, 2, 1, op, op_context));
+  if (ir_model.tensor(op_context->inputs[0])->desc.GetBHWCShape() !=
+      ir_model.tensor(op_context->inputs[1])->desc.GetBHWCShape()) {
+    return absl::InternalError("Expected mul node with 2 equal tensors.");
+  }
+  return absl::OkStatus();
+}
+
+absl::Status IsSliceOp(const ir::IrModel& ir_model, const ir::IrOp* op,
+                       IrOpContext* op_context) {
+  RETURN_IF_ERROR(IsOp(ir_model, OperationType::SLICE, 1, 1, op, op_context));
+  auto slice_attr = std::any_cast<SliceAttributes>(op_context->op->attr);
+  if (slice_attr.strides != BHWC(1, 1, 1, 1)) {
+    return absl::InternalError("Not valid attributes in slice node.");
+  }
+  return absl::OkStatus();
+}
+
+absl::Status IsConcatOp(const ir::IrModel& ir_model, const ir::IrOp* op,
+                        IrOpContext* op_context) {
+  RETURN_IF_ERROR(IsOp(ir_model, OperationType::CONCAT, -1, 1, op, op_context));
+  auto concat_attr = std::any_cast<ConcatAttributes>(op_context->op->attr);
+  if (concat_attr.axis != Axis::CHANNELS) {
+    return absl::InternalError("Not valid attributes in concat node.");
+  }
+  return absl::OkStatus();
+}
+
+absl::Status GetOffset(const ir::IrModel& ir_model,
+                       ir::IrTensorId concat_input_tensor,
+                       ir::IrTensorId second_commom_input_id, int* offset_x,
+                       int* offset_y,
+                       absl::flat_hash_set<ir::IrOpId>* consumed_ops) {
+  IrOpContext reduce_op, mul_op, slice_op;
+  absl::Status status = IsMeanOp(
+      ir_model, ir_model.FindProducer(concat_input_tensor), &reduce_op);
+  if (!status.ok()) {
+    RETURN_IF_ERROR(IsReduceSumOp(
+        ir_model, ir_model.FindProducer(concat_input_tensor), &reduce_op));
+  }
+  RETURN_IF_ERROR(
+      IsMulOp(ir_model, ir_model.FindProducer(reduce_op.inputs[0]), &mul_op));
+  const ir::IrTensorId slice_output_id =
+      mul_op.inputs[0] == second_commom_input_id ? mul_op.inputs[1]
+                                                 : mul_op.inputs[0];
+  RETURN_IF_ERROR(
+      IsSliceOp(ir_model, ir_model.FindProducer(slice_output_id), &slice_op));
+  auto slice_attr = std::any_cast<SliceAttributes>(slice_op.op->attr);
+  *offset_x = slice_attr.starts.w;
+  *offset_y = slice_attr.starts.h;
+  consumed_ops->insert(reduce_op.op->id);
+  consumed_ops->insert(mul_op.op->id);
+  consumed_ops->insert(slice_op.op->id);
+  return absl::OkStatus();
+}
+}  // namespace
+
+absl::Status TryFusedPointwiseConv(
+    const ir::IrModel& ir_model, ir::IrOpId first_op_id,
+    const absl::flat_hash_set<ir::IrOpId>& consumed_ops,
+    absl::flat_hash_set<ir::IrOpId>* new_consumed_ops,
+    GpuModelBuilder* model_builder) {
+  IrOpContext slice_op;
+  RETURN_IF_ERROR(IsSliceOp(ir_model, ir_model.op(first_op_id), &slice_op));
+  const auto& first_commom_input = slice_op.inputs[0];
+  auto slice_consumers = ir_model.FindConsumers(slice_op.outputs[0]);
+  if (slice_consumers.size() != 1) {
+    return absl::NotFoundError("FusedPointwiseConv not suitable.");
+  }
+  IrOpContext mul_op;
+  RETURN_IF_ERROR(IsMulOp(ir_model, slice_consumers[0], &mul_op));
+  const auto& second_commom_input = mul_op.inputs[0] == slice_op.outputs[0]
+                                        ? mul_op.inputs[1]
+                                        : mul_op.inputs[0];
+  auto mul_consumers = ir_model.FindConsumers(mul_op.outputs[0]);
+  if (mul_consumers.size() != 1) {
+    return absl::NotFoundError("FusedPointwiseConv not suitable.");
+  }
+  IrOpContext reduce_op;
+  bool mean = true;
+  absl::Status status = IsMeanOp(ir_model, mul_consumers[0], &reduce_op);
+  if (!status.ok()) {
+    RETURN_IF_ERROR(IsReduceSumOp(ir_model, mul_consumers[0], &reduce_op));
+    mean = false;
+  }
+  const auto& reduce_consumers = ir_model.FindConsumers(reduce_op.outputs[0]);
+  if (reduce_consumers.size() != 1) {
+    return absl::NotFoundError("FusedPointwiseConv not suitable.");
+  }
+  IrOpContext concat_op;
+  RETURN_IF_ERROR(IsConcatOp(ir_model, reduce_consumers[0], &concat_op));
+  ConvPointwiseAttributes op_attr;
+  op_attr.mean = mean;
+  absl::flat_hash_set<ir::IrOpId> temp_consumed_ops;
+  for (const auto& concat_input : concat_op.inputs) {
+    int offset_x, offset_y;
+    RETURN_IF_ERROR(GetOffset(ir_model, concat_input, second_commom_input,
+                              &offset_x, &offset_y, &temp_consumed_ops));
+    op_attr.offsets.push_back(int2(offset_x, offset_y));
+  }
+
+  ASSIGN_OR_RETURN(auto src0_handle,
+                   model_builder->GetTensor(second_commom_input));
+  ASSIGN_OR_RETURN(auto src1_handle,
+                   model_builder->GetTensor(first_commom_input));
+  ASSIGN_OR_RETURN(auto dst_handle,
+                   model_builder->GetTensor(concat_op.outputs[0]));
+  OperationDef op_def;
+  op_def.src_tensors.push_back(src0_handle.tensor_desc);
+  op_def.src_tensors.push_back(src1_handle.tensor_desc);
+  op_def.dst_tensors.push_back(dst_handle.tensor_desc);
+  model_builder->AddGpuOperation(
+      std::vector<GpuModelBuilder::ValueId>(
+          {static_cast<GpuModelBuilder::ValueId>(second_commom_input),
+           static_cast<GpuModelBuilder::ValueId>(first_commom_input)}),
+      std::vector<GpuModelBuilder::ValueId>(
+          {static_cast<GpuModelBuilder::ValueId>(concat_op.outputs[0])}),
+      std::make_unique<GPUOperation>(
+          CreateConvPointwise(op_def,
+                              model_builder->GetConvPrecision(
+                                  src0_handle.tensor_desc.GetDataType()),
+                              op_attr)),
+      "slice_mul_reduce_concat");
+  new_consumed_ops->insert(temp_consumed_ops.begin(), temp_consumed_ops.end());
+  new_consumed_ops->insert(concat_op.op->id);
   return absl::OkStatus();
 }
 

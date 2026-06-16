@@ -175,6 +175,7 @@ cc_library(
     deps = [
         "//ml_drift/common:gpu_info",
         "//ml_drift/common:gpu_model_builder",
+        "//ml_drift/common:ir_model",
         "//ml_drift/common:model",
         "//ml_drift/common:model_hints",
         "//ml_drift/common:status",
@@ -186,5 +187,6 @@ cc_library(
         "//ml_drift/common/kernels/special:dw7x7_conv2to6_concat_conv8to8",
         "//ml_drift/common/kernels/special:thin_local_memory_fuser",
         "//ml_drift/common/kernels/special:thin_pointwise_fuser",
+        "@com_google_absl//absl/container:flat_hash_set",
     ],
 )

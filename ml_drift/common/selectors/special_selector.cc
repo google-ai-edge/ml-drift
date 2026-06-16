@@ -16,8 +16,10 @@
 
 #include <set>
 
+#include "absl/container/flat_hash_set.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/gpu_model_builder.h"
+#include "ml_drift/common/ir_model.h"
 #include "ml_drift/common/kernels/mean_stddev_normalization_parser.h"
 #include "ml_drift/common/kernels/mish.h"
 #include "ml_drift/common/kernels/reduce_parser.h"
@@ -77,6 +79,60 @@ absl::Status GPUSubgraphFromGraph(
   if (hints.Check(ModelHints::kAllowSpecialKernels) &&
       TryConcatConv(gpu_info, graph, first_node_id, consumed_nodes,
                     new_consumed_nodes, model_builder)
+          .ok()) {
+    return absl::OkStatus();
+  }
+  return absl::NotFoundError("No special combination.");
+}
+
+absl::Status GPUSubgraphFromIrModel(
+    const ModelHints& hints, const GpuInfo& gpu_info,
+    const ir::IrModel& ir_model, ir::IrOpId first_op_id,
+    const absl::flat_hash_set<ir::IrOpId>& consumed_ops,
+    absl::flat_hash_set<ir::IrOpId>* new_consumed_ops,
+    GpuModelBuilder* model_builder) {
+  if (hints.Check(ModelHints::kAllowSpecialKernels) &&
+      TryDW7x7Conv2To6ConcatConv8to8(gpu_info, ir_model, first_op_id,
+                                     consumed_ops, new_consumed_ops,
+                                     model_builder)
+          .ok()) {
+    return absl::OkStatus();
+  }
+  if (hints.Check(ModelHints::kAllowSpecialKernels) &&
+      TryThinPointwiseFuser(gpu_info, ir_model, first_op_id, consumed_ops,
+                            new_consumed_ops, model_builder)
+          .ok()) {
+    return absl::OkStatus();
+  }
+  if (hints.Check(ModelHints::kAllowSpecialKernels) &&
+      TryThinLocalMemoryFuser(gpu_info, ir_model, first_op_id, consumed_ops,
+                              new_consumed_ops, model_builder)
+          .ok()) {
+    return absl::OkStatus();
+  }
+  if (TryFusedPointwiseConv(ir_model, first_op_id, consumed_ops,
+                            new_consumed_ops, model_builder)
+          .ok()) {
+    return absl::OkStatus();
+  }
+  if (TryMeanStdDevNormalization(gpu_info, ir_model, first_op_id, consumed_ops,
+                                 new_consumed_ops, model_builder)
+          .ok()) {
+    return absl::OkStatus();
+  }
+  if (TryMish(gpu_info, ir_model, first_op_id, consumed_ops, new_consumed_ops,
+              model_builder)
+          .ok()) {
+    return absl::OkStatus();
+  }
+  if (TryAddThenReduce(gpu_info, ir_model, first_op_id, consumed_ops,
+                       new_consumed_ops, model_builder)
+          .ok()) {
+    return absl::OkStatus();
+  }
+  if (hints.Check(ModelHints::kAllowSpecialKernels) &&
+      TryConcatConv(gpu_info, ir_model, first_op_id, consumed_ops,
+                    new_consumed_ops, model_builder)
           .ok()) {
     return absl::OkStatus();
   }

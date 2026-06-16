@@ -154,6 +154,9 @@ class IrModel {
   // Finds the producer for a given tensor.
   IrOp* FindProducer(IrTensorId tensor_id) const;
 
+  // Finds all consumers for a given tensor.
+  std::vector<IrOp*> FindConsumers(IrTensorId tensor_id) const;
+
   bool IsGraphInput(IrTensorId tensor_id) const;
   bool IsGraphOutput(IrTensorId tensor_id) const;
 

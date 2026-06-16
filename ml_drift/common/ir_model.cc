@@ -73,6 +73,19 @@ IrOp* IrModel::FindProducer(IrTensorId tensor_id) const {
   return ops_[op_id].get();
 }
 
+std::vector<IrOp*> IrModel::FindConsumers(IrTensorId tensor_id) const {
+  std::vector<IrOp*> consumers;
+  consumers.reserve(tensors_[tensor_id]->consumers.size());
+  if (tensor_id < tensors_.size() && tensors_[tensor_id] != nullptr) {
+    for (IrOpId op_id : tensors_[tensor_id]->consumers) {
+      if (op_id < ops_.size() && ops_[op_id] != nullptr) {
+        consumers.push_back(ops_[op_id].get());
+      }
+    }
+  }
+  return consumers;
+}
+
 bool IrModel::IsGraphInput(IrTensorId tensor_id) const {
   return absl::c_linear_search(inputs_, tensor_id);
 }

@@ -17,8 +17,10 @@
 
 #include <set>
 
+#include "absl/container/flat_hash_set.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/gpu_model_builder.h"
+#include "ml_drift/common/ir_model.h"
 #include "ml_drift/common/model.h"
 #include "ml_drift/common/status.h"
 
@@ -32,6 +34,12 @@ absl::Status TryThinLocalMemoryFuser(const GpuInfo& gpu_info,
                                      const std::set<NodeId>& consumed_nodes,
                                      std::set<NodeId>* new_consumed_nodes,
                                      GpuModelBuilder* model_builder);
+
+absl::Status TryThinLocalMemoryFuser(
+    const GpuInfo& gpu_info, const ir::IrModel& ir_model,
+    ir::IrOpId first_op_id, const absl::flat_hash_set<ir::IrOpId>& consumed_ops,
+    absl::flat_hash_set<ir::IrOpId>* new_consumed_ops,
+    GpuModelBuilder* model_builder);
 
 }  // namespace ml_drift
 

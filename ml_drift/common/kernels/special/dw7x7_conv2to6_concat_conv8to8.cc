@@ -24,11 +24,13 @@
 #include <variant>
 #include <vector>
 
+#include "absl/container/flat_hash_set.h"
 #include "absl/strings/str_replace.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/flops_util.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/gpu_model_builder.h"
+#include "ml_drift/common/ir_model.h"
 #include "ml_drift/common/model.h"
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/precision.h"
@@ -487,6 +489,222 @@ absl::Status TryDW7x7Conv2To6ConcatConv8to8(
   new_consumed_nodes->insert(pooling_node->id);
   new_consumed_nodes->insert(conv2_node->id);
   new_consumed_nodes->insert(prelu2_node->id);
+  return absl::OkStatus();
+}
+
+absl::Status TryDW7x7Conv2To6ConcatConv8to8(
+    const GpuInfo& gpu_info, const ir::IrModel& ir_model,
+    ir::IrOpId first_op_id, const absl::flat_hash_set<ir::IrOpId>& consumed_ops,
+    absl::flat_hash_set<ir::IrOpId>* new_consumed_ops,
+    GpuModelBuilder* model_builder) {
+  if (!gpu_info.SupportsExtension("cl_qcom_accelerated_image_ops")) {
+    return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
+  }
+  auto* dw_op = ir_model.op(first_op_id);
+  if (dw_op == nullptr) {
+    return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
+  }
+  if (OperationTypeFromString(dw_op->name) !=
+      OperationType::DEPTHWISE_CONVOLUTION) {
+    return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
+  }
+
+  auto dw_inputs = dw_op->inputs;
+  if (dw_inputs.empty()) {
+    return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
+  }
+
+  ASSIGN_OR_RETURN(auto dw_handle, model_builder->GetTensor(dw_inputs[0]));
+
+  if (model_builder->GetConvPrecision(dw_handle.tensor_desc.GetDataType()) !=
+      CalculationsPrecision::F16) {
+    return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
+  }
+
+  auto dw_attr = std::any_cast<DepthwiseConvolution2DAttributes>(dw_op->attr);
+  const auto& dw_weights_shape =
+      std::visit([](const auto& w) { return w.shape; }, dw_attr.weights);
+  const bool kGoodDwWeights =
+      dw_weights_shape.w == 7 && dw_weights_shape.h == 7 &&
+      dw_weights_shape.i == 2 && dw_weights_shape.o == 1;
+  const bool kGoodDwDilation =
+      dw_attr.dilations.w == 1 && dw_attr.dilations.h == 1;
+  const bool kGoodDwPadding =
+      dw_attr.padding.prepended.w == 2 && dw_attr.padding.prepended.h == 2;
+  if (!kGoodDwWeights || !kGoodDwDilation || !kGoodDwPadding) {
+    return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
+  }
+
+  auto dw_handle_or_err = model_builder->GetTensor(dw_inputs[0]);
+  if (!dw_handle_or_err.ok() ||
+      dw_handle_or_err.value().tensor_desc.GetStorageType() !=
+          TensorStorageType::SINGLE_TEXTURE_2D) {
+    return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
+  }
+  auto dw_outputs = dw_op->outputs;
+  auto consumers = ir_model.FindConsumers(dw_outputs[0]);
+  if (consumers.size() != 1) {
+    return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
+  }
+
+  auto* conv1_op = consumers[0];
+  if (conv1_op == nullptr) {
+    return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
+  }
+  if (consumed_ops.find(conv1_op->id) != consumed_ops.end()) {
+    return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
+  }
+  if (OperationTypeFromString(conv1_op->name) !=
+      OperationType::CONVOLUTION_2D) {
+    return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
+  }
+  auto conv1_attr = std::any_cast<Convolution2DAttributes>(conv1_op->attr);
+  const auto& conv1_weights_shape =
+      std::visit([](const auto& w) { return w.shape; }, conv1_attr.weights);
+  if (!IsConv1x1(conv1_attr) || conv1_weights_shape.i != 2 ||
+      conv1_weights_shape.o != 6) {
+    return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
+  }
+  auto conv1_outputs = conv1_op->outputs;
+  consumers = ir_model.FindConsumers(conv1_outputs[0]);
+  if (consumers.size() != 1) {
+    return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
+  }
+
+  auto* prelu1_op = consumers[0];
+  if (prelu1_op == nullptr) {
+    return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
+  }
+  if (consumed_ops.find(prelu1_op->id) != consumed_ops.end()) {
+    return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
+  }
+  if (OperationTypeFromString(prelu1_op->name) != OperationType::PRELU) {
+    return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
+  }
+  auto prelu1_outputs = prelu1_op->outputs;
+  consumers = ir_model.FindConsumers(prelu1_outputs[0]);
+  if (consumers.size() != 1) {
+    return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
+  }
+
+  auto* concat_op = consumers[0];
+  if (concat_op == nullptr) {
+    return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
+  }
+  if (consumed_ops.find(concat_op->id) != consumed_ops.end()) {
+    return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
+  }
+  if (OperationTypeFromString(concat_op->name) != OperationType::CONCAT) {
+    return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
+  }
+  auto concat_outputs = concat_op->outputs;
+  consumers = ir_model.FindConsumers(concat_outputs[0]);
+  if (consumers.size() != 2) {
+    return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
+  }
+
+  auto concat_inputs = concat_op->inputs;
+  if (concat_inputs.size() != 2) {
+    return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
+  }
+  auto* pooling_op = ir_model.FindProducer(concat_inputs[1]);
+  if (pooling_op == nullptr) {
+    return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
+  }
+  if (consumed_ops.find(pooling_op->id) != consumed_ops.end()) {
+    return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
+  }
+  if (OperationTypeFromString(pooling_op->name) != OperationType::POOLING_2D) {
+    return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
+  }
+  auto pooling_attr = std::any_cast<Pooling2DAttributes>(pooling_op->attr);
+  if (pooling_attr.type != PoolingType::MAX || pooling_attr.output_indices ||
+      pooling_attr.kernel.w != 2 || pooling_attr.kernel.h != 2 ||
+      pooling_attr.strides.w != 2 || pooling_attr.strides.h != 2 ||
+      pooling_attr.padding.prepended.w != 0 ||
+      pooling_attr.padding.prepended.h != 0) {
+    return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
+  }
+  auto pooling_inputs = pooling_op->inputs;
+  if (pooling_inputs[0] != dw_inputs[0]) {
+    return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
+  }
+
+  auto* conv2_op = consumers[0];
+  if (conv2_op == nullptr) {
+    return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
+  }
+  if (consumed_ops.find(conv2_op->id) != consumed_ops.end()) {
+    return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
+  }
+  if (OperationTypeFromString(conv2_op->name) !=
+      OperationType::CONVOLUTION_2D) {
+    return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
+  }
+  auto conv2_attr = std::any_cast<Convolution2DAttributes>(conv2_op->attr);
+  const auto& conv2_weights_shape =
+      std::visit([](const auto& w) { return w.shape; }, conv2_attr.weights);
+  if (!IsConv1x1(conv2_attr) || conv2_weights_shape.i != 8 ||
+      conv2_weights_shape.o != 8) {
+    return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
+  }
+  auto conv2_outputs = conv2_op->outputs;
+  auto conv2_consumers = ir_model.FindConsumers(conv2_outputs[0]);
+  if (conv2_consumers.size() != 1) {
+    return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
+  }
+
+  auto* prelu2_op = conv2_consumers[0];
+  if (prelu2_op == nullptr) {
+    return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
+  }
+  if (consumed_ops.find(prelu2_op->id) != consumed_ops.end()) {
+    return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
+  }
+  if (OperationTypeFromString(prelu2_op->name) != OperationType::PRELU) {
+    return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
+  }
+  auto prelu2_outputs = prelu2_op->outputs;
+
+  ASSIGN_OR_RETURN(auto out0_handle,
+                   model_builder->GetTensor(concat_outputs[0]));
+  ASSIGN_OR_RETURN(auto out1_handle,
+                   model_builder->GetTensor(prelu2_outputs[0]));
+  OperationDef op_def;
+  op_def.src_tensors.push_back(dw_handle.tensor_desc);
+  op_def.dst_tensors.push_back(out0_handle.tensor_desc);
+  op_def.dst_tensors.push_back(out1_handle.tensor_desc);
+
+  auto prelu1_attr = std::any_cast<PReLUAttributes>(prelu1_op->attr);
+  auto prelu2_attr = std::any_cast<PReLUAttributes>(prelu2_op->attr);
+
+  GPUOperation op = CreateDW7x7Conv2To6ConcatConv8to8(
+      op_def, dw_attr, conv1_attr, prelu1_attr, conv2_attr, prelu2_attr);
+  op.flops_ = GetDepthwiseConvolutionFlops(
+      ir_model.tensor(dw_outputs[0])->desc.GetBHWCShape(), dw_weights_shape);
+  op.flops_ += GetConvolutionFlops(
+      ir_model.tensor(conv1_outputs[0])->desc.GetBHWCShape(),
+      conv1_weights_shape);
+  op.flops_ += GetConvolutionFlops(
+      ir_model.tensor(conv2_outputs[0])->desc.GetBHWCShape(),
+      conv2_weights_shape);
+
+  model_builder->AddGpuOperation(
+      std::vector<GpuModelBuilder::ValueId>(
+          {static_cast<GpuModelBuilder::ValueId>(dw_inputs[0])}),
+      std::vector<GpuModelBuilder::ValueId>(
+          {static_cast<GpuModelBuilder::ValueId>(concat_outputs[0]),
+           static_cast<GpuModelBuilder::ValueId>(prelu2_outputs[0])}),
+      std::make_unique<GPUOperation>(std::move(op)),
+      "dw7x7->conv1x1->pooling->conv1x1");
+
+  new_consumed_ops->insert(dw_op->id);
+  new_consumed_ops->insert(conv1_op->id);
+  new_consumed_ops->insert(prelu1_op->id);
+  new_consumed_ops->insert(concat_op->id);
+  new_consumed_ops->insert(pooling_op->id);
+  new_consumed_ops->insert(conv2_op->id);
+  new_consumed_ops->insert(prelu2_op->id);
   return absl::OkStatus();
 }
 

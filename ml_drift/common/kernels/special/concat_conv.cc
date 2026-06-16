@@ -22,12 +22,14 @@
 #include <utility>
 #include <vector>
 
+#include "absl/container/flat_hash_set.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_replace.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/flops_util.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/gpu_model_builder.h"
+#include "ml_drift/common/ir_model.h"
 #include "ml_drift/common/kernel_info.h"
 #include "ml_drift/common/model.h"
 #include "ml_drift/common/operations.h"
@@ -308,6 +310,130 @@ absl::Status TryConcatConv(const GpuInfo& gpu_info, const GraphFloat32& graph,
 
   new_consumed_nodes->insert(concat_node->id);
   new_consumed_nodes->insert(conv_node->id);
+  return absl::OkStatus();
+}
+
+absl::Status TryConcatConv(const GpuInfo& gpu_info, const ir::IrModel& ir_model,
+                           ir::IrOpId first_op_id,
+                           const absl::flat_hash_set<ir::IrOpId>& consumed_ops,
+                           absl::flat_hash_set<ir::IrOpId>* new_consumed_ops,
+                           GpuModelBuilder* model_builder) {
+  if (!IsConcatConvRecommended(gpu_info)) {
+    return absl::NotFoundError("ConcatConv not suitable.");
+  }
+  auto* concat_op = ir_model.op(first_op_id);
+  if (concat_op == nullptr) {
+    return absl::NotFoundError("ConcatConv not suitable.");
+  }
+  if (OperationTypeFromString(concat_op->name) != OperationType::CONCAT) {
+    return absl::NotFoundError("ConcatConv not suitable.");
+  }
+  const auto& concat_inputs = concat_op->inputs;
+  if (concat_inputs.size() != 3 ||
+      ir_model.tensor(concat_inputs[0])->desc.GetBHWCShape().c != 1 ||
+      ir_model.tensor(concat_inputs[1])->desc.GetBHWCShape().c != 1 ||
+      ir_model.tensor(concat_inputs[2])->desc.GetBHWCShape().c != 1) {
+    return absl::NotFoundError("ConcatConv not suitable.");
+  }
+  ASSIGN_OR_RETURN(auto src0_handle,
+                   model_builder->GetTensor(concat_inputs[0]));
+  ASSIGN_OR_RETURN(auto src1_handle,
+                   model_builder->GetTensor(concat_inputs[1]));
+  ASSIGN_OR_RETURN(auto src2_handle,
+                   model_builder->GetTensor(concat_inputs[2]));
+  const auto& src0_td = src0_handle.tensor_desc;
+  const auto& src1_td = src1_handle.tensor_desc;
+  const auto& src2_td = src2_handle.tensor_desc;
+  if (!src0_td.SupportsZeroClamp(Axis::WIDTH, gpu_info) ||
+      !src0_td.SupportsZeroClamp(Axis::HEIGHT, gpu_info) ||
+      !src1_td.SupportsZeroClamp(Axis::WIDTH, gpu_info) ||
+      !src1_td.SupportsZeroClamp(Axis::HEIGHT, gpu_info) ||
+      !src2_td.SupportsZeroClamp(Axis::WIDTH, gpu_info) ||
+      !src2_td.SupportsZeroClamp(Axis::HEIGHT, gpu_info)) {
+    return absl::NotFoundError("ConcatConv not suitable.");
+  }
+  auto concat_output = concat_op->outputs[0];
+  auto concat_consumers = ir_model.FindConsumers(concat_output);
+  if (concat_consumers.size() != 1) {
+    return absl::NotFoundError("ConcatConv not suitable.");
+  }
+  auto* conv_op = concat_consumers[0];
+  if (conv_op == nullptr) {
+    return absl::NotFoundError("ConcatConv not suitable.");
+  }
+  if (OperationTypeFromString(conv_op->name) != OperationType::CONVOLUTION_2D) {
+    return absl::NotFoundError("ConcatConv not suitable.");
+  }
+  auto conv_output = conv_op->outputs[0];
+
+  OperationDef op_def;
+  op_def.src_tensors.push_back(src0_td);
+  op_def.src_tensors.push_back(src1_td);
+  op_def.src_tensors.push_back(src2_td);
+  ASSIGN_OR_RETURN(auto dst_handle, model_builder->GetTensor(conv_output));
+  op_def.dst_tensors.push_back(dst_handle.tensor_desc);
+
+  auto concat_attr = std::any_cast<ConcatAttributes>(concat_op->attr);
+  if (concat_attr.axis != Axis::CHANNELS) {
+    return absl::NotFoundError("ConcatConv not suitable.");
+  }
+
+  const auto conv_attr = std::any_cast<Convolution2DAttributes>(conv_op->attr);
+  const auto& conv_weights = GetFloatWeights(conv_attr);
+
+  if (conv_weights.shape != OHWI(4, 3, 3, 3) || conv_attr.strides != HW(1, 1) ||
+      conv_attr.dilations != HW(1, 1) ||
+      conv_attr.padding.prepended != HW(1, 1) ||
+      conv_attr.padding.appended != HW(1, 1)) {
+    return absl::NotFoundError("ConcatConv not suitable.");
+  }
+
+  const DataType data_type = op_def.src_tensors[0].GetDataType();
+  const int2 block_size = int2(2, 2);
+  ConcatConv operation(block_size);
+  std::vector<float> weights_reordered(4 * 3 * 3 * 3);
+  for (int i = 0; i < 3; ++i) {
+    for (int ky = 0; ky < 3; ++ky) {
+      for (int kx = 0; kx < 3; ++kx) {
+        for (int o = 0; o < 4; ++o) {
+          int w_index = conv_weights.shape.LinearIndex({o, ky, kx, i});
+          float w_val = conv_weights.data[w_index];
+          weights_reordered[((ky * 3 + kx) * 3 + i) * 4 + o] = w_val;
+        }
+      }
+    }
+  }
+  AddConstantsGpuBuffer(gpu_info, data_type, weights_reordered,
+                        &operation.args_);
+  TensorDescriptor bias_tensor_desc =
+      CreateConstantLinearTensorDescriptor(gpu_info, data_type, conv_attr.bias);
+  operation.args_.AddObject(
+      "bias", std::make_unique<TensorDescriptor>(std::move(bias_tensor_desc)));
+  operation.AddSrcTensor("src_tensor0", op_def.src_tensors[0]);
+  operation.AddSrcTensor("src_tensor1", op_def.src_tensors[1]);
+  operation.AddSrcTensor("src_tensor2", op_def.src_tensors[2]);
+  operation.AddDstTensor("dst_tensor", op_def.dst_tensors[0]);
+  // on some devices we need to add dummy checks for better performance.
+  const bool dummy_checks = gpu_info.IsMali();
+  operation.code_ = GetCode(block_size, data_type, dummy_checks);
+  operation.flops_ = GetConvolutionFlops(
+      ir_model.tensor(conv_output)->desc.GetBHWCShape(), conv_weights.shape);
+  if (gpu_info.IsMali() || gpu_info.IsPowerVR()) {
+    operation.compiler_options_.push_back(CompilerOptions::kClFastRelaxedMath);
+  }
+  const std::string op_name = absl::StrCat("convolution_2d (+ concat input) ",
+                                           concat_op->id, " ", conv_op->id);
+  model_builder->AddGpuOperation(
+      std::vector<GpuModelBuilder::ValueId>(
+          {static_cast<GpuModelBuilder::ValueId>(concat_inputs[0]),
+           static_cast<GpuModelBuilder::ValueId>(concat_inputs[1]),
+           static_cast<GpuModelBuilder::ValueId>(concat_inputs[2])}),
+      std::vector<GpuModelBuilder::ValueId>(
+          {static_cast<GpuModelBuilder::ValueId>(conv_output)}),
+      std::make_unique<ConcatConv>(std::move(operation)), op_name);
+
+  new_consumed_ops->insert(concat_op->id);
+  new_consumed_ops->insert(conv_op->id);
   return absl::OkStatus();
 }
 

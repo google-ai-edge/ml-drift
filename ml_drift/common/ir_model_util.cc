@@ -18,7 +18,6 @@
 #include <any>
 #include <map>
 #include <memory>
-#include <set>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -36,6 +35,7 @@
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/precision.h"
 #include "ml_drift/common/selectors/operation_selector.h"
+#include "ml_drift/common/selectors/special_selector.h"
 #include "ml_drift/common/shape.h"
 #include "ml_drift/common/status.h"
 #include "ml_drift/common/task/gpu_operation.h"
@@ -339,6 +339,16 @@ class IrModelOpSelector {
                                           inputs, outputs, node, model_builder);
   }
 
+  absl::Status GPUSubgraphFromIrModel(
+      const ir::IrModel& ir_model, IrOpId first_op_id,
+      const absl::flat_hash_set<IrOpId>& consumed_ops,
+      absl::flat_hash_set<IrOpId>* new_consumed_ops,
+      GpuModelBuilder* model_builder) {
+    return ml_drift::GPUSubgraphFromIrModel(create_info_.hints, gpu_info_,
+                                            ir_model, first_op_id, consumed_ops,
+                                            new_consumed_ops, model_builder);
+  }
+
  private:
   const CreateGpuModelInfo& create_info_;
   const GpuInfo& gpu_info_;
@@ -347,7 +357,7 @@ class IrModelOpSelector {
 absl::Status ConvertOperations(const IrModel& ir_model,
                                IrModelOpSelector& op_selector,
                                GpuModelBuilder* model_builder) {
-  std::set<IrOpId> consumed_nodes;
+  absl::flat_hash_set<IrOpId> consumed_nodes;
   auto& model_ops = ir_model.ops();
   std::map<IrTensorId, int>
       tensor_usages;  // keeps last index of operation that updated tensor
@@ -367,40 +377,44 @@ absl::Status ConvertOperations(const IrModel& ir_model,
     }
     // Mapping of subgraph (set of nodes) to GPU operations. Should happen
     // before straightforward mapping.
-    std::set<IrOpId> new_consumed_nodes;
-    // TODO(b/443752881): Implement subgraph transformations
-    // Straightforward mapping of one graph node to GPU operations.
-    auto input_ids = node->inputs;
-    auto output_ids = node->outputs;
-    std::vector<const IrTensor*> inputs;
-    std::vector<const IrTensor*> outputs;
-    inputs.reserve(input_ids.size());
-    for (const auto& input_id : input_ids) {
-      inputs.push_back(ir_model.tensor(input_id));
-    }
-    outputs.reserve(output_ids.size());
-    for (const auto& output_id : output_ids) {
-      outputs.push_back(ir_model.tensor(output_id));
-    }
-    // Reordering of input ids and updating of temporary tensors_usage
-    // struct. To have better linking we need linking tensor(latest written
-    // during linear execution) on first position.
-    if (IsAssociativeLinkableOp(*node, inputs, outputs)) {
-      int latest_written_tensor_index = 0;
-      int last_usage = tensor_usages[inputs[0]->id];
-      for (int j = 1; j < inputs.size(); ++j) {
-        if (tensor_usages[inputs[j]->id] > last_usage) {
-          last_usage = tensor_usages[inputs[j]->id];
-          latest_written_tensor_index = j;
-        }
+    absl::flat_hash_set<IrOpId> new_consumed_nodes;
+    if (!op_selector
+             .GPUSubgraphFromIrModel(ir_model, node->id, consumed_nodes,
+                                     &new_consumed_nodes, model_builder)
+             .ok()) {
+      // Straightforward mapping of one graph node to GPU operations.
+      auto input_ids = node->inputs;
+      auto output_ids = node->outputs;
+      std::vector<const IrTensor*> inputs;
+      std::vector<const IrTensor*> outputs;
+      inputs.reserve(input_ids.size());
+      for (const auto& input_id : input_ids) {
+        inputs.push_back(ir_model.tensor(input_id));
       }
-      std::swap(inputs[0], inputs[latest_written_tensor_index]);
+      outputs.reserve(output_ids.size());
+      for (const auto& output_id : output_ids) {
+        outputs.push_back(ir_model.tensor(output_id));
+      }
+      // Reordering of input ids and updating of temporary tensors_usage
+      // struct. To have better linking we need linking tensor(latest written
+      // during linear execution) on first position.
+      if (IsAssociativeLinkableOp(*node, inputs, outputs)) {
+        int latest_written_tensor_index = 0;
+        int last_usage = tensor_usages[inputs[0]->id];
+        for (int j = 1; j < inputs.size(); ++j) {
+          if (tensor_usages[inputs[j]->id] > last_usage) {
+            last_usage = tensor_usages[inputs[j]->id];
+            latest_written_tensor_index = j;
+          }
+        }
+        std::swap(inputs[0], inputs[latest_written_tensor_index]);
+      }
+      new_consumed_nodes = {node->id};
+      ASSIGN_OR_RETURN(const auto& op_def,
+                       GetOperationDef(input_ids, output_ids, model_builder));
+      RETURN_IF_ERROR(op_selector.GPUOperationFromNode(op_def, inputs, outputs,
+                                                       *node, model_builder));
     }
-    new_consumed_nodes = {node->id};
-    ASSIGN_OR_RETURN(const auto& op_def,
-                     GetOperationDef(input_ids, output_ids, model_builder));
-    RETURN_IF_ERROR(op_selector.GPUOperationFromNode(op_def, inputs, outputs,
-                                                     *node, model_builder));
     for (const auto& consumed_node_id : new_consumed_nodes) {
       auto outputs = ir_model.op(consumed_node_id)->outputs;
       for (const auto& output : outputs) {
