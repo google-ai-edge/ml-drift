@@ -7,7 +7,7 @@ package(
     licenses = ["notice"],
 )
 
-MIN_IOS_VERSION = "13.0"
+MIN_IOS_VERSION = "15.0"
 
 objc_library(
     name = "buffer",
