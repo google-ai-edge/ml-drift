@@ -155,12 +155,6 @@ using namespace metal;
     AppendArgument("uint reserved_simd_size[[threads_per_simdgroup]]",
                    &arguments);
   }
-  if (!code_info.uses_global_id && !code_info.uses_local_id &&
-      !code_info.uses_group_id && !code_info.uses_group_size &&
-      !code_info.uses_sub_group_local_id && !code_info.uses_sub_group_id &&
-      !arguments.empty()) {
-    arguments += ",\n";
-  }
   *code = absl::Substitute(*code, arguments);
   return absl::OkStatus();
 }
