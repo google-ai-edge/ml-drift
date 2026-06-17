@@ -321,6 +321,8 @@ struct Convolution2DAttributes {
   std::string op_name;  // optional field for debugging
 };
 
+bool IsConvEquivalentToFullyConnected(const Convolution2DAttributes& attr);
+
 struct Convolution3DAttributes {
   HWD strides = HWD(0, 0, 0);    // Along each axis.
   HWD dilations = HWD(0, 0, 0);  // Along each axis.

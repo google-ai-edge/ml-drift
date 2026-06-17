@@ -16,7 +16,6 @@
 
 #include <memory>
 #include <string>
-#include <variant>
 #include <vector>
 
 #include "ml_drift/common/model.h"
@@ -27,17 +26,6 @@
 
 namespace ml_drift {
 namespace {
-
-bool IsConvEquivalentToFullyConnected(const Convolution2DAttributes& attr) {
-  const auto& weights_shape =
-      std::visit([](const auto& w) { return w.shape; }, attr.weights);
-  return weights_shape.w == 1 &&                //
-         weights_shape.h == 1 &&                //
-         attr.strides == HW(1, 1) &&            //
-         attr.dilations == HW(1, 1) &&          //
-         attr.padding.prepended == HW(0, 0) &&  //
-         attr.padding.appended == HW(0, 0);
-}
 
 class MakeFullyConnectedFromConvolution : public NodeTransformation {
  public:

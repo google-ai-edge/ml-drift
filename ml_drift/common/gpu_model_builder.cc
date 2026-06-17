@@ -86,17 +86,6 @@ namespace {
 
 const size_t kDefaultBatchSize = 32;
 
-bool IsConvEquivalentToFullyConnected(const Convolution2DAttributes& attr) {
-  const auto& weights_shape =
-      std::visit([](const auto& w) { return w.shape; }, attr.weights);
-  return weights_shape.w == 1 &&                //
-         weights_shape.h == 1 &&                //
-         attr.strides == HW(1, 1) &&            //
-         attr.dilations == HW(1, 1) &&          //
-         attr.padding.prepended == HW(0, 0) &&  //
-         attr.padding.appended == HW(0, 0);
-}
-
 TensorDescriptor ZeroPoint2DToFCTensorDesc(
     const GpuInfo& gpu_info, const Tensor<OHWI, DataType::INT32>& src,
     DataType dst_data_type) {

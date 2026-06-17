@@ -1172,4 +1172,16 @@ template Tensor<OHWI, DataType::FLOAT32> DequantizeTensor<DataType::INT2>(
     const Tensor<OHWI, DataType::FLOAT32>& scale,
     const Tensor<OHWI, DataType::INT32>& zero_point, bool add_extra_bytes);
 
+bool IsConvEquivalentToFullyConnected(const Convolution2DAttributes& attr) {
+  const auto& weights_shape =
+      std::visit([](const auto& w) { return w.shape; }, attr.weights);
+  return weights_shape.w == 1 &&                //
+         weights_shape.h == 1 &&                //
+         attr.strides == HW(1, 1) &&            //
+         attr.dilations == HW(1, 1) &&          //
+         attr.padding.prepended == HW(0, 0) &&  //
+         attr.padding.appended == HW(0, 0) &&   //
+         attr.groups == 1;
+}
+
 }  // namespace ml_drift
