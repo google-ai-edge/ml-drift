@@ -53,6 +53,7 @@ GpuInfo GetTestGpuInfo() {
   gpu_info.opencl_info.supported_images_2d.rgb_layout.insert(DataType::FLOAT16);
   gpu_info.opencl_info.supported_images_2d.rgba_layout.insert(
       DataType::FLOAT16);
+  gpu_info.opencl_info.supports_images = true;
   gpu_info.vendor = GpuVendor::kQualcomm;
   gpu_info.adreno_info.generation = AdrenoInfo::Generation::kGen7;
   return gpu_info;
