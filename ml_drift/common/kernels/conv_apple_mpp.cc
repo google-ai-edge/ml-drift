@@ -69,7 +69,7 @@ std::string ReadFloatWeights(
   std::string c;
   if (quantized_weights && params.scale_zp_shape.i != 1) {
     // grouped quantization
-    c += "    int src_group_id = (k / 4 + sub_i) / " +
+    c += "    int src_group_id = (k + sub_i) / " +
          std::to_string(params.src_group_slices) + +";\n";
     c += "    if (last_src_group_id != src_group_id) {\n";
     c += "      last_src_group_id = src_group_id;\n";
@@ -262,7 +262,7 @@ MAIN_FUNCTION($0) {
 )";
   }
   if (manual_k_tiling) {
-    c += "  for (int k = 0; k < " + src_end_slice + " * 4; k += K_TILE) {\n";
+    c += "  for (int k = 0; k < " + src_end_slice + "; k += K_TILE_SLICES) {\n";
     std::string s_tile, w_tile;
     if (weights_conversion) {
       if (weights_data_type_ == DataType::FLOAT16) {
@@ -291,7 +291,7 @@ MAIN_FUNCTION($0) {
 )";
       w_tile = "w_loc_t";
     } else {
-      c += "    auto tB = b.slice(slice_tile_id * N_TILE, k);\n";
+      c += "    auto tB = b.slice(slice_tile_id * N_TILE, k * 4);\n";
       w_tile = "tB";
     }
     if (softmax_input_activation_) {
@@ -309,7 +309,7 @@ MAIN_FUNCTION($0) {
 )";
       s_tile = "a_loc_t";
     } else {
-      c += "    auto tA = a.slice(k, spatial_tile_id * M_TILE);\n";
+      c += "    auto tA = a.slice(k * 4, spatial_tile_id * M_TILE);\n";
       s_tile = "tA";
     }
     c += "    matmul_op.run(" + s_tile + ", " + w_tile + ", c_sub_tensor);\n";
