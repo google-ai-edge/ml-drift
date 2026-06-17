@@ -1543,6 +1543,40 @@ mld_kernel_test(
 )
 
 cc_library(
+    name = "reverse_test_util",
+    testonly = 1,
+    srcs = ["reverse_test_util.cc"],
+    hdrs = ["reverse_test_util.h"],
+    deps = [
+        "//ml_drift/common:data_type",
+        "//ml_drift/common:operations",
+        "//ml_drift/common:shape",
+        "//ml_drift/common:status",
+        "//ml_drift/common:tensor",
+        "//ml_drift/common/default:status_matchers",
+        "//ml_drift/common/kernels:reverse",
+        "//ml_drift/common/task:gpu_operation",
+        "//ml_drift/common/task:tensor_desc",
+        "//ml_drift/common/task:testing_util",
+        "@com_google_googletest//:gtest",
+    ],
+)
+
+mld_kernel_test(
+    name = "reverse_test",
+    srcs = [
+        "reverse_test.cc",
+    ],
+    deps = [
+        ":reverse_test_util",
+        "//ml_drift/common:data_type",
+        "//ml_drift/common/task:tensor_desc",
+        "//ml_drift/common/task:testing_util",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_library(
     name = "rope_test_util",
     testonly = 1,
     srcs = ["rope_test_util.cc"],

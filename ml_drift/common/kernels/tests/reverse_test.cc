@@ -30,7 +30,7 @@ using ::testing::ValuesIn;
 class ReverseFloatTest : public DataTypeTest {};
 
 TEST_P(ReverseFloatTest, ReverseHWCTest) {
-  if (!exec_env->IsSupported(storage(), data_type())) {
+  if (!exec_env->IsStorageSupported(storage(), data_type())) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
@@ -38,7 +38,7 @@ TEST_P(ReverseFloatTest, ReverseHWCTest) {
 }
 
 TEST_P(ReverseFloatTest, ReverseBHWCTest) {
-  if (!exec_env->IsSupported(storage(), data_type())) {
+  if (!exec_env->IsStorageSupported(storage(), data_type())) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
