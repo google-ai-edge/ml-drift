@@ -129,5 +129,309 @@ TEST(IrModelTest, SingleNode1Input2Outputs) {
   }
 }
 
+TEST(IrModelTest, RemoveSimpleOp_KeepInput) {
+  // input -> op1 -> intermediate -> op2 -> output
+  IrModel model;
+  IrOp* op1 = model.add_op();
+  IrOp* op2 = model.add_op();
+
+  IrTensor* input =
+      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  IrTensor* intermediate =
+      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  IrTensor* output =
+      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+
+  model.add_input(input->id);
+  model.add_output(output->id);
+
+  model.AddConsumer(input->id, op1->id);
+  model.SetProducer(intermediate->id, op1->id);
+
+  model.AddConsumer(intermediate->id, op2->id);
+  model.SetProducer(output->id, op2->id);
+
+  // We remove op1, which is not producing a graph output.
+  // We expect intermediate tensor to be removed, and op2 should consume input
+  // instead.
+  EXPECT_TRUE(model.RemoveSimpleOp(op1->id).ok());
+
+  EXPECT_EQ(model.op(op1->id), nullptr);
+  EXPECT_EQ(model.tensor(intermediate->id), nullptr);
+
+  const IrOp* remaining_op = model.op(op2->id);
+  ASSERT_NE(remaining_op, nullptr);
+  EXPECT_THAT(remaining_op->inputs, ElementsAre(input->id));
+
+  const IrTensor* remaining_input = model.tensor(input->id);
+  ASSERT_NE(remaining_input, nullptr);
+  EXPECT_THAT(remaining_input->consumers, UnorderedElementsAre(op2->id));
+}
+
+TEST(IrModelTest, RemoveSimpleOp_KeepOutput) {
+  // input -> op1 -> intermediate -> op2 -> output
+  IrModel model;
+  IrOp* op1 = model.add_op();
+  IrOp* op2 = model.add_op();
+
+  IrTensor* input =
+      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  IrTensor* intermediate =
+      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  IrTensor* output =
+      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+
+  model.add_input(input->id);
+  model.add_output(output->id);
+
+  model.AddConsumer(input->id, op1->id);
+  model.SetProducer(intermediate->id, op1->id);
+
+  model.AddConsumer(intermediate->id, op2->id);
+  model.SetProducer(output->id, op2->id);
+
+  // We remove op2, which produces a graph output.
+  // We expect intermediate tensor to be removed, and op1 should produce output
+  // instead.
+  EXPECT_TRUE(model.RemoveSimpleOp(op2->id).ok());
+
+  EXPECT_EQ(model.op(op2->id), nullptr);
+  EXPECT_EQ(model.tensor(intermediate->id), nullptr);
+
+  const IrOp* remaining_op = model.op(op1->id);
+  ASSERT_NE(remaining_op, nullptr);
+  EXPECT_THAT(remaining_op->outputs, ElementsAre(output->id));
+
+  const IrTensor* remaining_output = model.tensor(output->id);
+  ASSERT_NE(remaining_output, nullptr);
+  EXPECT_EQ(remaining_output->producer, op1->id);
+}
+
+TEST(IrModelTest, RemoveSimpleOp_FailsWhenBothAreGraphBoundaries) {
+  // input -> op -> output
+  IrModel model;
+  IrOp* op = model.add_op();
+
+  IrTensor* input =
+      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  IrTensor* output =
+      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+
+  model.add_input(input->id);
+  model.add_output(output->id);
+
+  model.AddConsumer(input->id, op->id);
+  model.SetProducer(output->id, op->id);
+
+  // We try to remove op, which consumes a graph input and produces a graph
+  // output.
+  EXPECT_FALSE(model.RemoveSimpleOp(op->id).ok());
+}
+
+TEST(IrModelTest,
+     RemoveSimpleOp_KeepOutput_MultipleConsumers_RewiresConsumers) {
+  // input -> op1 -> intermediate -> op2 -> output
+  //                      |
+  //                      -> op3 -> output2
+  // When we remove op2, this turns into:
+  // input -> op1 -> output -> op3 -> output2
+  IrModel model;
+  IrOp* op1 = model.add_op();
+  IrOp* op2 = model.add_op();
+  IrOp* op3 = model.add_op();
+
+  IrTensor* input =
+      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  IrTensor* intermediate =
+      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  IrTensor* output =
+      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  IrTensor* output2 =
+      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+
+  model.add_input(input->id);
+  model.add_output(output->id);
+  model.add_output(output2->id);
+
+  model.AddConsumer(input->id, op1->id);
+  model.SetProducer(intermediate->id, op1->id);
+
+  model.AddConsumer(intermediate->id, op2->id);
+  model.SetProducer(output->id, op2->id);
+
+  model.AddConsumer(intermediate->id, op3->id);
+  model.SetProducer(output2->id, op3->id);
+
+  // We remove op2, which produces a graph output.
+  // This deletes 'intermediate', rewires op1 to produce 'output', and rewires
+  // op3 to consume 'output' instead of 'intermediate'.
+  EXPECT_TRUE(model.RemoveSimpleOp(op2->id).ok());
+
+  EXPECT_EQ(model.op(op2->id), nullptr);
+  EXPECT_EQ(model.tensor(intermediate->id), nullptr);
+
+  const IrOp* remaining_op1 = model.op(op1->id);
+  ASSERT_NE(remaining_op1, nullptr);
+  EXPECT_THAT(remaining_op1->outputs, ElementsAre(output->id));
+
+  const IrTensor* remaining_output = model.tensor(output->id);
+  ASSERT_NE(remaining_output, nullptr);
+  EXPECT_EQ(remaining_output->producer, op1->id);
+  EXPECT_THAT(remaining_output->consumers, UnorderedElementsAre(op3->id));
+
+  const IrOp* remaining_op3 = model.op(op3->id);
+  ASSERT_NE(remaining_op3, nullptr);
+  EXPECT_THAT(remaining_op3->inputs, ElementsAre(output->id));
+}
+
+TEST(IrModelTest, RemoveSimpleOp_FailsInvalidOpId) {
+  IrModel model;
+  EXPECT_FALSE(model.RemoveSimpleOp(0).ok());
+  EXPECT_FALSE(model.RemoveSimpleOp(999).ok());
+}
+
+TEST(IrModelTest, RemoveSimpleOp_FailsInvalidNumInputsOutputs) {
+  IrModel model;
+  IrOp* op_no_io = model.add_op();
+
+  IrOp* op_2_in = model.add_op();
+  IrTensor* in1 =
+      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  IrTensor* in2 =
+      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  IrTensor* out1 =
+      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  model.AddConsumer(in1->id, op_2_in->id);
+  model.AddConsumer(in2->id, op_2_in->id);
+  model.SetProducer(out1->id, op_2_in->id);
+
+  EXPECT_FALSE(model.RemoveSimpleOp(op_no_io->id).ok());
+  EXPECT_FALSE(model.RemoveSimpleOp(op_2_in->id).ok());
+}
+
+TEST(IrModelTest, RemoveSimpleOp_FailsInputHasNoProducerWhenKeepingOutput) {
+  // dangling_input -> op -> output
+  IrModel model;
+  IrOp* op = model.add_op();
+
+  IrTensor* input =
+      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  IrTensor* output =
+      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+
+  model.add_output(output->id);
+
+  model.AddConsumer(input->id, op->id);
+  model.SetProducer(output->id, op->id);
+
+  // We try to remove op, which produces a graph output, but its input has no
+  // producer. keep_input is false, keep_output is true.
+  EXPECT_FALSE(model.RemoveSimpleOp(op->id).ok());
+}
+
+TEST(IrModelTest, RemoveSimpleOp_IntermediateNode) {
+  // input -> op1 -> intermediate1 -> op2 -> intermediate2 -> op3 -> output
+  IrModel model;
+  IrOp* op1 = model.add_op();
+  IrOp* op2 = model.add_op();
+  IrOp* op3 = model.add_op();
+
+  IrTensor* input =
+      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  IrTensor* intermediate1 =
+      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  IrTensor* intermediate2 =
+      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  IrTensor* output =
+      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+
+  model.add_input(input->id);
+  model.add_output(output->id);
+
+  model.AddConsumer(input->id, op1->id);
+  model.SetProducer(intermediate1->id, op1->id);
+
+  model.AddConsumer(intermediate1->id, op2->id);
+  model.SetProducer(intermediate2->id, op2->id);
+
+  model.AddConsumer(intermediate2->id, op3->id);
+  model.SetProducer(output->id, op3->id);
+
+  // We remove op2, which is an intermediate node (keep_input=false,
+  // keep_output=false). We expect intermediate2 to be removed, and op3 should
+  // consume intermediate1.
+  EXPECT_TRUE(model.RemoveSimpleOp(op2->id).ok());
+
+  EXPECT_EQ(model.op(op2->id), nullptr);
+  EXPECT_EQ(model.tensor(intermediate2->id), nullptr);
+
+  const IrOp* remaining_op3 = model.op(op3->id);
+  ASSERT_NE(remaining_op3, nullptr);
+  EXPECT_THAT(remaining_op3->inputs, ElementsAre(intermediate1->id));
+
+  const IrTensor* remaining_intermediate1 = model.tensor(intermediate1->id);
+  ASSERT_NE(remaining_intermediate1, nullptr);
+  EXPECT_THAT(remaining_intermediate1->consumers,
+              UnorderedElementsAre(op3->id));
+}
+
+TEST(IrModelTest, RemoveSimpleOp_IntermediateNode_MultipleConsumers) {
+  // input -> op1 -> intermediate1 -> op2 -> intermediate2 -> op3 -> output1
+  //                                                      \-> op4 -> output2
+  IrModel model;
+  IrOp* op1 = model.add_op();
+  IrOp* op2 = model.add_op();
+  IrOp* op3 = model.add_op();
+  IrOp* op4 = model.add_op();
+
+  IrTensor* input =
+      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  IrTensor* intermediate1 =
+      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  IrTensor* intermediate2 =
+      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  IrTensor* output1 =
+      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  IrTensor* output2 =
+      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+
+  model.add_input(input->id);
+  model.add_output(output1->id);
+  model.add_output(output2->id);
+
+  model.AddConsumer(input->id, op1->id);
+  model.SetProducer(intermediate1->id, op1->id);
+
+  model.AddConsumer(intermediate1->id, op2->id);
+  model.SetProducer(intermediate2->id, op2->id);
+
+  model.AddConsumer(intermediate2->id, op3->id);
+  model.SetProducer(output1->id, op3->id);
+
+  model.AddConsumer(intermediate2->id, op4->id);
+  model.SetProducer(output2->id, op4->id);
+
+  // We remove op2, which is an intermediate node (keep_input=false,
+  // keep_output=false). We expect intermediate2 to be removed, and both op3 and
+  // op4 should consume intermediate1.
+  EXPECT_TRUE(model.RemoveSimpleOp(op2->id).ok());
+
+  EXPECT_EQ(model.op(op2->id), nullptr);
+  EXPECT_EQ(model.tensor(intermediate2->id), nullptr);
+
+  const IrOp* remaining_op3 = model.op(op3->id);
+  ASSERT_NE(remaining_op3, nullptr);
+  EXPECT_THAT(remaining_op3->inputs, ElementsAre(intermediate1->id));
+
+  const IrOp* remaining_op4 = model.op(op4->id);
+  ASSERT_NE(remaining_op4, nullptr);
+  EXPECT_THAT(remaining_op4->inputs, ElementsAre(intermediate1->id));
+
+  const IrTensor* remaining_intermediate1 = model.tensor(intermediate1->id);
+  ASSERT_NE(remaining_intermediate1, nullptr);
+  EXPECT_THAT(remaining_intermediate1->consumers,
+              UnorderedElementsAre(op3->id, op4->id));
+}
+
 }  // namespace
 }  // namespace ml_drift::ir

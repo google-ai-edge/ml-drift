@@ -25,6 +25,7 @@
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
+#include "absl/status/status.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/shape.h"
 #include "ml_drift/common/task/tensor_desc.h"
@@ -159,6 +160,15 @@ class IrModel {
 
   bool IsGraphInput(IrTensorId tensor_id) const;
   bool IsGraphOutput(IrTensorId tensor_id) const;
+
+  // Graph manipulation helpers
+
+  // Removes an op that has exactly one input and one output.
+  // It automatically routes consumers/producers to bypass the operation.
+  // By default, the output tensor is deleted. However, if the output tensor
+  // is a graph output, the input tensor is deleted instead.
+  // Returns OkStatus if the operation was successfully removed.
+  absl::Status RemoveSimpleOp(IrOpId op_id);
 
  private:
   // A nullptr entry acts as a tombstone: the object was deleted, but the entry

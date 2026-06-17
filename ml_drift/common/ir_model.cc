@@ -21,6 +21,7 @@
 
 #include "absl/algorithm/container.h"
 #include "absl/log/absl_check.h"
+#include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "ml_drift/common/shape.h"
 #include "ml_drift/common/task/tensor_desc.h"
@@ -92,6 +93,74 @@ bool IrModel::IsGraphInput(IrTensorId tensor_id) const {
 
 bool IrModel::IsGraphOutput(IrTensorId tensor_id) const {
   return absl::c_linear_search(outputs_, tensor_id);
+}
+
+absl::Status IrModel::RemoveSimpleOp(IrOpId op_id) {
+  if (op_id >= ops_.size() || ops_[op_id] == nullptr) {
+    return absl::InvalidArgumentError("Invalid op ID");
+  }
+  IrOp* op = ops_[op_id].get();
+  if (op->inputs.size() != 1 || op->outputs.size() != 1) {
+    return absl::InvalidArgumentError(
+        "Op must have exactly 1 input and 1 output");
+  }
+
+  IrTensor* input_tensor = tensors_[op->inputs[0]].get();
+  IrTensor* output_tensor = tensors_[op->outputs[0]].get();
+
+  const bool keep_output = IsGraphOutput(output_tensor->id);
+  const bool keep_input = IsGraphInput(input_tensor->id);
+
+  if (keep_input && keep_output) {
+    return absl::InvalidArgumentError(
+        "Cannot remove op when both input and output are graph boundaries");
+  }
+
+  if (keep_output) {
+    IrOp* producer_op = FindProducer(input_tensor->id);
+    if (!producer_op) {
+      return absl::InvalidArgumentError("Input tensor has no producer");
+    }
+
+    for (auto& output_id : producer_op->outputs) {
+      if (output_id == input_tensor->id) {
+        output_id = output_tensor->id;
+      }
+    }
+    output_tensor->producer = producer_op->id;
+
+    for (IrOpId consumer_id : input_tensor->consumers) {
+      if (consumer_id == op->id) continue;
+      if (consumer_id >= ops_.size() || ops_[consumer_id] == nullptr) continue;
+      IrOp* consumer_op = ops_[consumer_id].get();
+      for (auto& consumer_input_id : consumer_op->inputs) {
+        if (consumer_input_id == input_tensor->id) {
+          consumer_input_id = output_tensor->id;
+        }
+      }
+      output_tensor->consumers.insert(consumer_id);
+    }
+
+    input_tensor->consumers.erase(op->id);
+    tensors_[input_tensor->id].reset();
+  } else {
+    for (IrOpId consumer_id : output_tensor->consumers) {
+      if (consumer_id >= ops_.size() || ops_[consumer_id] == nullptr) continue;
+      IrOp* consumer_op = ops_[consumer_id].get();
+      for (auto& consumer_input_id : consumer_op->inputs) {
+        if (consumer_input_id == output_tensor->id) {
+          consumer_input_id = input_tensor->id;
+        }
+      }
+      input_tensor->consumers.insert(consumer_id);
+    }
+
+    input_tensor->consumers.erase(op->id);
+    tensors_[output_tensor->id].reset();
+  }
+
+  ops_[op->id].reset();
+  return absl::OkStatus();
 }
 
 }  // namespace ml_drift::ir
