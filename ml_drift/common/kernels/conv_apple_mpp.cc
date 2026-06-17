@@ -172,43 +172,6 @@ MAIN_FUNCTION($0) {
     c += "  int wg_first_w = spatial_tile_id * M_TILE;\n";
     c += "  if (wg_first_w >= w_group_size) return;\n";
   }
-  c += R"(
-  device A_PTR_TYPE* src_ptr = reinterpret_cast<device A_PTR_TYPE*>(args.src.GetHandle());
-  device B_PTR_TYPE* w_ptr = reinterpret_cast<device B_PTR_TYPE*>(args.weights.GetPtr());
-  int a_rows = SPATIAL_SIZE;
-  int a_cols = args.src.Slices() * 4;
-  int b_rows = args.src.Slices() * 4;
-  int b_cols = args.dst.Slices() * 4;
-)";
-  if (batched_weights_) {
-    c += R"(
-  src_ptr += dst_h * a_rows * a_cols;
-  w_ptr += dst_h * b_rows * b_cols;
-)";
-  }
-  c += R"(
-  auto a = tensor(src_ptr, dextents<int, 2>(a_cols, a_rows));
-  auto b = tensor(w_ptr, dextents<int, 2>(b_cols, b_rows));
-  constexpr auto matmul_desc = mpp::tensor_ops::matmul2d_descriptor(M_TILE, N_TILE, K_TILE, false, false, false, MAT_MUL_MODE);
-  mpp::tensor_ops::matmul2d<matmul_desc, execution_simdgroups<SIMDGROUPS>> matmul_op;
-
-  auto a_sub_tensor = a.slice(0, spatial_tile_id * M_TILE);
-  auto b_sub_tensor = b.slice(slice_tile_id * N_TILE, 0);
-
-  auto c_sub_tensor = matmul_op.get_destination_cooperative_tensor<decltype(a_sub_tensor), decltype(b_sub_tensor), args.dst::scalar_type>();
-  #pragma unroll_full
-  for (uint16_t i = 0; i < c_sub_tensor.get_capacity(); ++i) {
-    if(c_sub_tensor.is_valid_element(i)) c_sub_tensor[i] = 0;
-  }
-)";
-  std::string src_end_slice = "args.src.Slices()";
-  if (runtime_check_.src_end_ch_index.has_value()) {
-    c += "  int src_slices_dynamic = " +
-         runtime_check_.GetRuntimeEndSlice(
-             "args.params.Read(args.src_end_ch_index)", "args.src.Slices()") +
-         ";\n";
-    src_end_slice = "src_slices_dynamic";
-  }
   if (weights_conversion) {
     ABSL_CHECK(n_tile_ == 64);
     ABSL_CHECK(k_tile == 32);
@@ -221,7 +184,7 @@ MAIN_FUNCTION($0) {
     c += "  threadgroup " + w_loc_x4_type + "* w_loc_x4 = (threadgroup " +
          w_loc_x4_type + "*)(w_loc);\n";
     c += R"(
-  auto w_loc_t = tensor(w_loc, dextents<int, 2>(N_TILE, K_TILE));
+  auto b_tile = tensor(w_loc, dextents<int, 2>(N_TILE, K_TILE));
 
   int loc_id = ucl::GetLocalId<0>();
   int sub_i = loc_id / 16;
@@ -254,6 +217,48 @@ MAIN_FUNCTION($0) {
              ") + w_zp;\n";
       }
     }
+  } else {
+    c += R"(
+  device TYPE* w_ptr = reinterpret_cast<device TYPE*>(args.weights.GetPtr());
+  int b_rows = args.src.Slices() * 4;
+  int b_cols = args.dst.Slices() * 4;
+)";
+    if (batched_weights_) {
+      c += "  w_ptr += dst_h * b_rows * b_cols;\n";
+    }
+    c += "  auto b_tensor = tensor(w_ptr, dextents<int, 2>(b_cols, b_rows));\n";
+    c += "  auto b_tile = b_tensor.slice(slice_tile_id * N_TILE, 0);\n";
+  }
+  c += R"(
+  device TYPE* src_ptr = reinterpret_cast<device TYPE*>(args.src.GetHandle());
+  int a_rows = SPATIAL_SIZE;
+  int a_cols = args.src.Slices() * 4;
+)";
+  if (batched_weights_) {
+    c += R"(
+  src_ptr += dst_h * a_rows * a_cols;
+)";
+  }
+  c += R"(
+  auto a = tensor(src_ptr, dextents<int, 2>(a_cols, a_rows));
+  constexpr auto matmul_desc = mpp::tensor_ops::matmul2d_descriptor(M_TILE, N_TILE, K_TILE, false, false, false, MAT_MUL_MODE);
+  mpp::tensor_ops::matmul2d<matmul_desc, execution_simdgroups<SIMDGROUPS>> matmul_op;
+
+  auto a_sub_tensor = a.slice(0, spatial_tile_id * M_TILE);
+
+  auto c_tile = matmul_op.get_destination_cooperative_tensor<decltype(a_sub_tensor), decltype(b_tile), args.dst::scalar_type>();
+  #pragma unroll_full
+  for (uint16_t i = 0; i < c_tile.get_capacity(); ++i) {
+    if(c_tile.is_valid_element(i)) c_tile[i] = 0;
+  }
+)";
+  std::string src_end_slice = "args.src.Slices()";
+  if (runtime_check_.src_end_ch_index.has_value()) {
+    c += "  int src_slices_dynamic = " +
+         runtime_check_.GetRuntimeEndSlice(
+             "args.params.Read(args.src_end_ch_index)", "args.src.Slices()") +
+         ";\n";
+    src_end_slice = "src_slices_dynamic";
   }
   if (manual_src_reading) {
     c += R"(
@@ -269,7 +274,7 @@ MAIN_FUNCTION($0) {
   }
   if (manual_k_tiling) {
     c += "  for (int k = 0; k < " + src_end_slice + "; k += K_TILE_SLICES) {\n";
-    std::string s_tile, w_tile;
+    std::string s_tile;
     if (weights_conversion) {
       if (weights_data_type_ == DataType::FLOAT16) {
         c += "    half4 w0, w1, w2, w3;\n";
@@ -295,10 +300,8 @@ MAIN_FUNCTION($0) {
     w_loc_x4[(sub_i * 4 + 3) * 16 + sub_o] = w3;
     threadgroup_barrier(mem_flags::mem_threadgroup);
 )";
-      w_tile = "w_loc_t";
     } else {
-      c += "    auto tB = b.slice(slice_tile_id * N_TILE, k * 4);\n";
-      w_tile = "tB";
+      c += "    b_tile = b_tensor.slice(slice_tile_id * N_TILE, k * 4);\n";
     }
     if (manual_src_reading) {
       c += R"(
@@ -322,15 +325,15 @@ MAIN_FUNCTION($0) {
       c += "    auto tA = a.slice(k * 4, spatial_tile_id * M_TILE);\n";
       s_tile = "tA";
     }
-    c += "    matmul_op.run(" + s_tile + ", " + w_tile + ", c_sub_tensor);\n";
+    c += "    matmul_op.run(" + s_tile + ", b_tile, c_tile);\n";
     c += "  }\n";
   } else {
-    c += "  matmul_op.run(a_sub_tensor, b_sub_tensor, c_sub_tensor);\n";
+    c += "  matmul_op.run(a_sub_tensor, b_tile, c_tile);\n";
   }
   c += R"(
   threadgroup args.dst::scalar_type tmp[N_TILE * M_TILE];
   auto c_local = tensor(tmp, dextents<int, 2>(N_TILE, M_TILE));
-  c_sub_tensor.store(c_local);
+  c_tile.store(c_local);
   threadgroup_barrier(mem_flags::mem_threadgroup);
 
   threadgroup args.dst::type* tmp_x4 = (threadgroup args.dst::type*)(tmp);
@@ -358,7 +361,7 @@ MAIN_FUNCTION($0) {
   c += "    }\n";
   c += "  }\n";
   c += "}\n";
-  const std::string ptr_type =
+  const std::string type =
       weights_data_type_ == DataType::FLOAT16 ? "half" : "int8_t";
   std::string spatial_size = "args.dst.Width()";
   if (!batched_weights_) {
@@ -380,8 +383,7 @@ MAIN_FUNCTION($0) {
           {"K_TILE_SLICES", std::to_string(k_tile / 4)},
           {"SIMDGROUPS", std::to_string(simdgroups_)},
           {"WG_SIZE", std::to_string(32 * simdgroups_)},
-          {"A_PTR_TYPE", ptr_type},
-          {"B_PTR_TYPE", ptr_type},
+          {"TYPE", type},
           {"SPATIAL_SIZE", spatial_size},
           {"MAT_MUL_MODE", mat_mul_mode},
       },
