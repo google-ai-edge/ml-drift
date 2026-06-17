@@ -67,6 +67,22 @@ cc_test(
 )
 
 cc_test(
+    name = "merge_padding_with_test",
+    srcs = ["merge_padding_with_test.cc"],
+    deps = [
+        ":transform",
+        "//ml_drift/common:data_type",
+        "//ml_drift/common:ir_model",
+        "//ml_drift/common:operations",
+        "//ml_drift/common:shape",
+        "//ml_drift/common:status",
+        "//ml_drift/common:tensor",
+        "//ml_drift/common/default:status_matchers",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
     name = "remove_noop_test",
     srcs = ["remove_noop_test.cc"],
     deps = [

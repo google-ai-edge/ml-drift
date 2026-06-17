@@ -79,6 +79,90 @@ bool TryRemoveNoop(IrModel* ir_model, const IrOp* op) {
   return false;
 }
 
+bool TryFusePad(IrModel* ir_model, const IrOp* op) {
+  if (op->name != ToString(OperationType::PAD) ||
+      op->attr.type() != typeid(PadAttributes)) {
+    return false;
+  }
+  // Copy PadAttributes because removing the op will invalidate references to it
+  PadAttributes pad_attr = std::any_cast<PadAttributes>(op->attr);
+
+  if (pad_attr.type != PaddingContentType::ZEROS) {
+    return false;
+  }
+
+  if (op->outputs.size() != 1) return false;
+  const IrTensor* output_tensor = ir_model->tensor(op->outputs[0]);
+  if (!output_tensor || output_tensor->consumers.size() != 1) return false;
+
+  const IrOp* consumer_op = ir_model->op(*output_tensor->consumers.begin());
+  if (!consumer_op) return false;
+
+  // Pad -> Add
+  if (consumer_op->name == ToString(OperationType::ADD) &&
+      consumer_op->attr.type() == typeid(ElementwiseAttributes)) {
+    if (pad_attr.prepended != BHWC(0, 0, 0, 0) || pad_attr.appended.h != 0 ||
+        pad_attr.appended.w != 0 || pad_attr.appended.b != 0) {
+      return false;
+    }
+    const IrTensor* input_tensor = ir_model->tensor(op->inputs[0]);
+    if (!input_tensor || input_tensor->desc.GetBHWCShape().c % 4 != 0) {
+      return false;
+    }
+    const auto& add_attr =
+        std::any_cast<const ElementwiseAttributes&>(consumer_op->attr);
+    if (!std::holds_alternative<std::monostate>(add_attr.param)) {
+      return false;
+    }
+    return ir_model->RemoveSimpleOp(op->id).ok();
+  }
+
+  if (consumer_op->inputs.size() != 1) return false;
+
+  if (pad_attr.appended.c != 0 || pad_attr.prepended.c != 0 ||
+      pad_attr.appended.b != 0 || pad_attr.prepended.b != 0) {
+    return false;  // For other fusions, only HW padding is supported.
+  }
+
+  if (consumer_op->name == ToString(OperationType::CONVOLUTION_2D)) {
+    if (auto* attr = ir_model->GetMutableAttr<Convolution2DAttributes>(
+            consumer_op->id)) {
+      if (ir_model->RemoveSimpleOp(op->id).ok()) {
+        attr->padding.appended.h += pad_attr.appended.h;
+        attr->padding.appended.w += pad_attr.appended.w;
+        attr->padding.prepended.h += pad_attr.prepended.h;
+        attr->padding.prepended.w += pad_attr.prepended.w;
+        return true;
+      }
+    }
+  } else if (consumer_op->name ==
+             ToString(OperationType::DEPTHWISE_CONVOLUTION)) {
+    if (auto* attr = ir_model->GetMutableAttr<DepthwiseConvolution2DAttributes>(
+            consumer_op->id)) {
+      if (ir_model->RemoveSimpleOp(op->id).ok()) {
+        attr->padding.appended.h += pad_attr.appended.h;
+        attr->padding.appended.w += pad_attr.appended.w;
+        attr->padding.prepended.h += pad_attr.prepended.h;
+        attr->padding.prepended.w += pad_attr.prepended.w;
+        return true;
+      }
+    }
+  } else if (consumer_op->name == ToString(OperationType::POOLING_2D)) {
+    if (auto* attr =
+            ir_model->GetMutableAttr<Pooling2DAttributes>(consumer_op->id)) {
+      if (ir_model->RemoveSimpleOp(op->id).ok()) {
+        attr->padding.appended.h += pad_attr.appended.h;
+        attr->padding.appended.w += pad_attr.appended.w;
+        attr->padding.prepended.h += pad_attr.prepended.h;
+        attr->padding.prepended.w += pad_attr.prepended.w;
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 template <typename AttrType>
 bool TryAbsorbProducer(IrModel* ir_model, const IrOp* gemm_op, AttrType* attr) {
   if (gemm_op->inputs.size() != 1) return false;
@@ -239,7 +323,8 @@ absl::Status TransformIrModel(::ml_drift::ir::IrModel* ir_model) {
       const IrOp* op = ir_model->op(i);
       if (!op) continue;
 
-      if (TryRemoveNoop(ir_model, op) || TryFuseIntoGemm(ir_model, op)) {
+      if (TryRemoveNoop(ir_model, op) || TryFuseIntoGemm(ir_model, op) ||
+          TryFusePad(ir_model, op)) {
         changed = true;
       }
     }
