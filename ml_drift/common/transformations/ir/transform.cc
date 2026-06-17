@@ -19,9 +19,13 @@
 #include <variant>
 
 #include "absl/status/status.h"
+#include "ml_drift/common/data_type.h"
 #include "ml_drift/common/ir_model.h"
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/shape.h"
+#include "ml_drift/common/tensor.h"
+#include "ml_drift/common/transformations/fuse_add_to_conv.h"
+#include "ml_drift/common/transformations/fuse_mul_to_conv.h"
 
 namespace ml_drift::ir {
 
@@ -75,6 +79,156 @@ bool TryRemoveNoop(IrModel* ir_model, const IrOp* op) {
   return false;
 }
 
+template <typename AttrType>
+bool TryAbsorbProducer(IrModel* ir_model, const IrOp* gemm_op, AttrType* attr) {
+  if (gemm_op->inputs.size() != 1) return false;
+  const IrTensor* input_tensor = ir_model->tensor(gemm_op->inputs[0]);
+  if (!input_tensor || !input_tensor->producer.has_value() ||
+      input_tensor->consumers.size() != 1) {
+    return false;
+  }
+  const IrOp* producer = ir_model->op(input_tensor->producer.value());
+  if (!producer || producer->inputs.size() != 1) return false;
+
+  // Try to merge with ADD
+  if (producer->name == ToString(OperationType::ADD) &&
+      producer->attr.type() == typeid(ElementwiseAttributes)) {
+    auto add_attr = std::any_cast<ElementwiseAttributes>(producer->attr);
+    if (!std::holds_alternative<Tensor<Linear, DataType::FLOAT32>>(
+            add_attr.param) &&
+        !HoldsFloatScalar(add_attr.param)) {
+      return false;
+    }
+    if constexpr (std::is_same_v<AttrType, Convolution2DAttributes>) {
+      if (attr->groups == 1 && attr->padding.appended.w == 0 &&
+          attr->padding.appended.h == 0 && attr->padding.prepended.w == 0 &&
+          attr->padding.prepended.h == 0) {
+        if (ir_model->RemoveSimpleOp(producer->id).ok()) {
+          ::ml_drift::FuseAddWithConvolution2D(add_attr, attr);
+          return true;
+        }
+      }
+    }
+    // Try to merge with MUL
+  } else if (producer->name == ToString(OperationType::MUL) &&
+             producer->attr.type() == typeid(ElementwiseAttributes)) {
+    auto mul_attr = std::any_cast<ElementwiseAttributes>(producer->attr);
+    if (!std::holds_alternative<Tensor<Linear, DataType::FLOAT32>>(
+            mul_attr.param) &&
+        !HoldsFloatScalar(mul_attr.param)) {
+      return false;
+    }
+    if (ir_model->RemoveSimpleOp(producer->id).ok()) {
+      if constexpr (std::is_same_v<AttrType, Convolution2DAttributes>) {
+        ::ml_drift::FuseMultiplyWithConvolution2D(mul_attr, attr);
+      } else if constexpr (std::is_same_v<AttrType,
+                                          ConvolutionTransposedAttributes>) {
+        ::ml_drift::FuseMultiplyWithConvolutionTransposed(mul_attr, attr);
+      } else if constexpr (std::is_same_v<AttrType,
+                                          DepthwiseConvolution2DAttributes>) {
+        ::ml_drift::FuseMultiplyWithDepthwiseConvolution2D(mul_attr, attr);
+      } else if constexpr (std::is_same_v<AttrType, FullyConnectedAttributes>) {
+        ::ml_drift::FuseMultiplyWithFullyConnected(mul_attr, attr);
+      }
+      return true;
+    }
+  }
+
+  return false;
+}
+
+template <typename AttrType>
+bool TryAbsorbConsumer(IrModel* ir_model, const IrOp* gemm_op, AttrType* attr) {
+  if (gemm_op->outputs.size() != 1) return false;
+
+  const IrTensor* output_tensor = ir_model->tensor(gemm_op->outputs[0]);
+  if (!output_tensor || output_tensor->consumers.size() != 1) return false;
+
+  const IrOp* consumer = ir_model->op(*output_tensor->consumers.begin());
+  if (!consumer || consumer->inputs.size() != 1) return false;
+
+  // Try to merge with ADD
+  if (consumer->name == ToString(OperationType::ADD) &&
+      consumer->attr.type() == typeid(ElementwiseAttributes)) {
+    auto add_attr = std::any_cast<ElementwiseAttributes>(consumer->attr);
+    if (!std::holds_alternative<Tensor<Linear, DataType::FLOAT32>>(
+            add_attr.param) &&
+        !HoldsFloatScalar(add_attr.param)) {
+      return false;
+    }
+    if (ir_model->RemoveSimpleOp(consumer->id).ok()) {
+      if constexpr (std::is_same_v<AttrType, Convolution2DAttributes>) {
+        ::ml_drift::FuseConvolution2DWithAdd(add_attr, attr);
+      } else if constexpr (std::is_same_v<AttrType,
+                                          ConvolutionTransposedAttributes>) {
+        ::ml_drift::FuseConvolutionTransposedWithAdd(add_attr, attr);
+      } else if constexpr (std::is_same_v<AttrType,
+                                          DepthwiseConvolution2DAttributes>) {
+        ::ml_drift::FuseDepthwiseConvolution2DWithAdd(add_attr, attr);
+      } else if constexpr (std::is_same_v<AttrType, FullyConnectedAttributes>) {
+        ::ml_drift::FuseFullyConnectedWithAdd(add_attr, attr);
+      }
+      return true;
+    }
+    // Try to merge with MUL
+  } else if (consumer->name == ToString(OperationType::MUL) &&
+             consumer->attr.type() == typeid(ElementwiseAttributes)) {
+    auto mul_attr = std::any_cast<ElementwiseAttributes>(consumer->attr);
+    if (!std::holds_alternative<Tensor<Linear, DataType::FLOAT32>>(
+            mul_attr.param) &&
+        !HoldsFloatScalar(mul_attr.param)) {
+      return false;
+    }
+    if (ir_model->RemoveSimpleOp(consumer->id).ok()) {
+      if constexpr (std::is_same_v<AttrType, Convolution2DAttributes>) {
+        ::ml_drift::FuseConvolution2DWithMultiply(mul_attr, attr);
+      } else if constexpr (std::is_same_v<AttrType,
+                                          ConvolutionTransposedAttributes>) {
+        ::ml_drift::FuseConvolutionTransposedWithMultiply(mul_attr, attr);
+      } else if constexpr (std::is_same_v<AttrType,
+                                          DepthwiseConvolution2DAttributes>) {
+        ::ml_drift::FuseDepthwiseConvolution2DWithMultiply(mul_attr, attr);
+      } else if constexpr (std::is_same_v<AttrType, FullyConnectedAttributes>) {
+        ::ml_drift::FuseFullyConnectedWithMultiply(mul_attr, attr);
+      }
+      return true;
+    }
+  }
+
+  return false;
+}
+
+template <typename AttrType>
+bool TryAbsorbElementwise(IrModel* ir_model, const IrOp* gemm_op,
+                          AttrType* attr) {
+  return TryAbsorbProducer(ir_model, gemm_op, attr) ||
+         TryAbsorbConsumer(ir_model, gemm_op, attr);
+}
+bool TryFuseIntoGemm(IrModel* ir_model, const IrOp* op) {
+  if (op->name == ToString(OperationType::CONVOLUTION_2D)) {
+    if (auto* attr =
+            ir_model->GetMutableAttr<Convolution2DAttributes>(op->id)) {
+      return TryAbsorbElementwise(ir_model, op, attr);
+    }
+  } else if (op->name == ToString(OperationType::DEPTHWISE_CONVOLUTION)) {
+    if (auto* attr = ir_model->GetMutableAttr<DepthwiseConvolution2DAttributes>(
+            op->id)) {
+      return TryAbsorbElementwise(ir_model, op, attr);
+    }
+  } else if (op->name == ToString(OperationType::CONVOLUTION_TRANSPOSED)) {
+    if (auto* attr =
+            ir_model->GetMutableAttr<ConvolutionTransposedAttributes>(op->id)) {
+      return TryAbsorbElementwise(ir_model, op, attr);
+    }
+  } else if (op->name == ToString(OperationType::FULLY_CONNECTED)) {
+    if (auto* attr =
+            ir_model->GetMutableAttr<FullyConnectedAttributes>(op->id)) {
+      return TryAbsorbElementwise(ir_model, op, attr);
+    }
+  }
+  return false;
+}
+
 }  // namespace
 
 absl::Status TransformIrModel(::ml_drift::ir::IrModel* ir_model) {
@@ -85,7 +239,7 @@ absl::Status TransformIrModel(::ml_drift::ir::IrModel* ir_model) {
       const IrOp* op = ir_model->op(i);
       if (!op) continue;
 
-      if (TryRemoveNoop(ir_model, op)) {
+      if (TryRemoveNoop(ir_model, op) || TryFuseIntoGemm(ir_model, op)) {
         changed = true;
       }
     }

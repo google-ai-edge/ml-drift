@@ -55,6 +55,9 @@ void FuseConvolutionTransposedWithAdd(const ElementwiseAttributes& add_attr,
 void FuseFullyConnectedWithAdd(const ElementwiseAttributes& add_attr,
                                FullyConnectedAttributes* attr);
 
+void FuseAddWithConvolution2D(const ElementwiseAttributes& add_attr,
+                              Convolution2DAttributes* attr);
+
 }  // namespace ml_drift
 
 #endif  // ML_DRIFT_COMMON_TRANSFORMATIONS_FUSE_ADD_TO_CONV_H_

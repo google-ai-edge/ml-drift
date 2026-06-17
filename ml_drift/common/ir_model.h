@@ -170,6 +170,17 @@ class IrModel {
   // Returns OkStatus if the operation was successfully removed.
   absl::Status RemoveSimpleOp(IrOpId op_id);
 
+  // Returns a mutable pointer to the attribute of the specified op, if it
+  // exists and the type matches. Otherwise returns nullptr. This should be used
+  // safely, ensuring topology conditions are verified before mutation.
+  template <typename T>
+  T* GetMutableAttr(IrOpId op_id) {
+    if (op_id < ops_.size() && ops_[op_id] != nullptr) {
+      return std::any_cast<T>(&ops_[op_id]->attr);
+    }
+    return nullptr;
+  }
+
  private:
   // A nullptr entry acts as a tombstone: the object was deleted, but the entry
   // is kept to reserve the ID and prevent its immediate reuse.

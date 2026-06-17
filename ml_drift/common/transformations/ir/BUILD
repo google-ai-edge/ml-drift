@@ -21,10 +21,48 @@ cc_library(
     srcs = ["transform.cc"],
     hdrs = ["transform.h"],
     deps = [
+        "//ml_drift/common:data_type",
         "//ml_drift/common:ir_model",
         "//ml_drift/common:operations",
         "//ml_drift/common:shape",
+        "//ml_drift/common:tensor",
+        "//ml_drift/common/transformations:fuse_add_to_conv",
+        "//ml_drift/common/transformations:fuse_mul_to_conv",
         "@com_google_absl//absl/status",
+    ],
+)
+
+cc_test(
+    name = "fuse_add_to_gemm_test",
+    srcs = ["fuse_add_to_gemm_test.cc"],
+    deps = [
+        ":transform",
+        "//ml_drift/common:data_type",
+        "//ml_drift/common:ir_model",
+        "//ml_drift/common:operations",
+        "//ml_drift/common:shape",
+        "//ml_drift/common:status",
+        "//ml_drift/common:tensor",
+        "//ml_drift/common/default:status_matchers",
+        "//ml_drift/common/transformations:fuse_add_to_conv",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "fuse_mul_to_gemm_test",
+    srcs = ["fuse_mul_to_gemm_test.cc"],
+    deps = [
+        ":transform",
+        "//ml_drift/common:data_type",
+        "//ml_drift/common:ir_model",
+        "//ml_drift/common:operations",
+        "//ml_drift/common:shape",
+        "//ml_drift/common:status",
+        "//ml_drift/common:tensor",
+        "//ml_drift/common/default:status_matchers",
+        "//ml_drift/common/transformations:fuse_mul_to_conv",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 

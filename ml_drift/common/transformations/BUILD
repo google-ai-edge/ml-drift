@@ -65,7 +65,6 @@ cc_library(
         "//ml_drift/common:shape",
         "//ml_drift/common:status",
         "//ml_drift/common:tensor",
-        "@com_google_absl//absl/strings",
     ],
 )
 

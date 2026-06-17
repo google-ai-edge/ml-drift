@@ -20,7 +20,6 @@
 #include <variant>
 #include <vector>
 
-#include "absl/strings/string_view.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/model.h"
 #include "ml_drift/common/model_transformer.h"
@@ -106,6 +105,8 @@ class MergeConvolutionWithAdd : public SequenceTransformation {
   }
 };
 
+}  // namespace
+
 void FuseAddWithConvolution2D(const ElementwiseAttributes& add_attr,
                               Convolution2DAttributes* attr) {
   auto add = std::get_if<Tensor<Linear, DataType::FLOAT32>>(&add_attr.param);
@@ -129,6 +130,8 @@ void FuseAddWithConvolution2D(const ElementwiseAttributes& add_attr,
     attr->bias.data[d] += sum;
   }
 }
+
+namespace {
 
 class MergeAddWithConvolution : public SequenceTransformation {
  public:
