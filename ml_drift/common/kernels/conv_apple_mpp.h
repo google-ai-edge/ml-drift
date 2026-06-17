@@ -41,7 +41,8 @@ namespace ml_drift {
 // Convolution implementation for Apple GPUs with MetalPerformancePrimitives.
 class ConvAppleMPP : public GPUOperation {
  public:
-  ConvAppleMPP(const OHWI& weights_shape, DataType weights_data_type,
+  ConvAppleMPP(const TensorDescriptor& src, const OHWI& weights_shape,
+               DataType weights_data_type,
                bool different_weights_for_height = false,
                bool softmax_input_activation = false,
                const ConvRuntimeCheckDesc& runtime_check = {});
@@ -94,6 +95,7 @@ class ConvAppleMPP : public GPUOperation {
   std::string GetKernelCode(bool has_batch, bool has_bias = false) const;
 
  private:
+  TensorDescriptor src_desc_;
   int m_tile_ = 64;
   int n_tile_ = 64;
   int simdgroups_ = 4;

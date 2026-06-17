@@ -224,6 +224,10 @@ class TensorDescriptor : public GPUObjectDescriptor {
   bool CanReadOutOfBorder(const Axis& axis, const GpuInfo& gpu_info) const;
   bool IsLinear() const;
   bool Is2DStorage() const;
+  bool IsCC4Layout() const {
+    return (IsLinear() && physical_layout_1d_ == PhysicalLayout1D::kDHWBCC4) ||
+           physical_layout_2d_ == PhysicalLayout2D::kXisCC4YisDHWB;
+  }
 
   inline void SetDataType(DataType data_type) { data_type_ = data_type; }
   inline DataType GetDataType() const { return data_type_; }

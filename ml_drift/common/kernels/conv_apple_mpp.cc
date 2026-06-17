@@ -117,8 +117,12 @@ std::string ConvAppleMPP::GetKernelCode(bool has_batch, bool has_bias) const {
   const bool quantized_weights =
       weights_conversion &&
       SizeInBitsOf(external_weights_params_.weights_desc.type) <= 8;
+  const bool manual_src_reading =
+      softmax_input_activation_ ||
+      src_desc_.GetStorageType() != TensorStorageType::BUFFER ||
+      !src_desc_.IsCC4Layout();
   const bool manual_k_tiling = runtime_check_.src_end_ch_index.has_value() ||
-                               softmax_input_activation_ || weights_conversion;
+                               manual_src_reading || weights_conversion;
   const int k_tile = manual_k_tiling ? 32 : AlignByN(weights_shape_.i, 4);
   std::string c;
   c += "#include <MetalPerformancePrimitives/MetalPerformancePrimitives.h>\n";
@@ -251,15 +255,17 @@ MAIN_FUNCTION($0) {
       }
     }
   }
-  if (softmax_input_activation_) {
+  if (manual_src_reading) {
     c += R"(
   threadgroup half a_loc[K_TILE * M_TILE];
   threadgroup half4* a_loc_x4 = (threadgroup half4*)(a_loc);
   auto a_loc_t = tensor(a_loc, dextents<int, 2>(K_TILE, M_TILE));
   int src_w = min(dst_w, args.src.Width() - 1);
   int src_h = min(dst_h, args.src.Height() - 1);
-  half2 exp_val = args.src_exp.Read(src_w, src_h, 0).xy;
 )";
+    if (softmax_input_activation_) {
+      c += "  half2 exp_val = args.src_exp.Read(src_w, src_h, 0).xy;\n";
+    }
   }
   if (manual_k_tiling) {
     c += "  for (int k = 0; k < " + src_end_slice + "; k += K_TILE_SLICES) {\n";
@@ -294,7 +300,7 @@ MAIN_FUNCTION($0) {
       c += "    auto tB = b.slice(slice_tile_id * N_TILE, k * 4);\n";
       w_tile = "tB";
     }
-    if (softmax_input_activation_) {
+    if (manual_src_reading) {
       c += R"(
     threadgroup_barrier(mem_flags::mem_threadgroup);
     #pragma unroll_full
@@ -302,7 +308,11 @@ MAIN_FUNCTION($0) {
       int tile_k_id = i * slices_per_wg + sub_slice_id;
       int slice_id = min(k + tile_k_id, args.src.Slices() - 1);
       half4 src = args.src.Read(src_w, src_h, slice_id);
-      src = exp(src - exp_val.y) * exp_val.x;
+)";
+      if (softmax_input_activation_) {
+        c += "      src = exp(src - exp_val.y) * exp_val.x;\n";
+      }
+      c += R"(
       a_loc_x4[sub_spatial_id * K_TILE_SLICES + tile_k_id] = src;
     }
     threadgroup_barrier(mem_flags::mem_threadgroup);
@@ -384,12 +394,14 @@ MAIN_FUNCTION($0) {
 //   square size (src_ch == dst_ch = spatial) (2048x2048 -> 2048x2048)
 //   longer src_ch (src_ch > dst_ch) (1024x(1536 * 8) -> 1024x1536)
 //   longer dst_ch (dst_ch > src_ch) (1024x1536 -> 1024x(1536 * 8))
-ConvAppleMPP::ConvAppleMPP(const OHWI& weights_shape,
+ConvAppleMPP::ConvAppleMPP(const TensorDescriptor& src,
+                           const OHWI& weights_shape,
                            DataType weights_data_type,
                            bool different_weights_for_height,
                            bool softmax_input_activation,
                            const ConvRuntimeCheckDesc& runtime_check)
-    : m_tile_(64),
+    : src_desc_(src),
+      m_tile_(64),
       n_tile_(128),
       simdgroups_(4),
       weights_shape_(weights_shape),
@@ -445,7 +457,7 @@ ConvAppleMPP CreateConvAppleMPP(const TensorDescriptor& src,
                                 const TensorDescriptor& dst,
                                 const Tensor<OHWI, DataType::FLOAT32>& weights,
                                 const Tensor<Linear, DataType::FLOAT32>& bias) {
-  ConvAppleMPP conv(weights.shape, DataType::FLOAT16);
+  ConvAppleMPP conv(src, weights.shape, DataType::FLOAT16);
   conv.code_ = conv.GetKernelCode(dst.HasAxis(Axis::BATCH), !bias.data.empty());
   conv.AddSrcTensor("src", src);
   conv.AddDstTensor("dst", dst);
@@ -462,7 +474,7 @@ ConvAppleMPP CreateConvAppleMPPExternalWeights(
     const OHWI& weights_shape, const TensorDescriptor* bias,
     const TensorDescriptor* src_exp, bool different_weights_for_height,
     const ConvRuntimeCheckDesc& runtime_check) {
-  ConvAppleMPP conv(weights_shape, DataType::FLOAT16,
+  ConvAppleMPP conv(src, weights_shape, DataType::FLOAT16,
                     different_weights_for_height, src_exp != nullptr,
                     runtime_check);
   conv.code_ = conv.GetKernelCode(dst.HasAxis(Axis::BATCH), bias != nullptr);
@@ -491,7 +503,7 @@ ConvAppleMPP CreateConvAppleMPPExternalWeights(
     const ExternalWeights& weights, const TensorDescriptor* bias,
     const TensorDescriptor* src_exp, bool different_weights_for_height,
     const ConvRuntimeCheckDesc& runtime_check) {
-  ConvAppleMPP conv(weights.shape, DataType::FLOAT16,
+  ConvAppleMPP conv(src, weights.shape, DataType::FLOAT16,
                     different_weights_for_height, src_exp != nullptr,
                     runtime_check);
   ConvAppleMPP::ExternalWeightsParams params;
@@ -541,7 +553,7 @@ ConvAppleMPP CreateConvAppleMPPExternalWeights(
 ConvAppleMPP CreateConvAppleMPPInt8(
     const TensorDescriptor& src, const TensorDescriptor& dst,
     const Tensor<OHWI, DataType::INT8>& weights) {
-  ConvAppleMPP conv(weights.shape, DataType::INT8);
+  ConvAppleMPP conv(src, weights.shape, DataType::INT8);
   conv.code_ = conv.GetKernelCode(dst.HasAxis(Axis::BATCH));
   conv.AddSrcTensor("src", src);
   conv.AddDstTensor("dst", dst);
@@ -552,7 +564,7 @@ ConvAppleMPP CreateConvAppleMPPInt8(
 ConvAppleMPP CreateConvAppleMPPInt8(const TensorDescriptor& src,
                                     const TensorDescriptor& dst,
                                     const OHWI& weights_shape) {
-  ConvAppleMPP conv(weights_shape, DataType::INT8, weights_shape.h != 1);
+  ConvAppleMPP conv(src, weights_shape, DataType::INT8, weights_shape.h != 1);
   conv.code_ = conv.GetKernelCode(dst.HasAxis(Axis::BATCH));
   conv.AddSrcTensor("src", src);
   conv.AddDstTensor("dst", dst);
@@ -568,7 +580,7 @@ ConvAppleMPP CreateConvAppleMPPInt8(const TensorDescriptor& src,
 ConvAppleMPP CreateConvAppleMPPInt8(const TensorDescriptor& src,
                                     const TensorDescriptor& dst,
                                     const ExternalWeights& weights) {
-  ConvAppleMPP conv(weights.shape, DataType::INT8, weights.shape.h != 1);
+  ConvAppleMPP conv(src, weights.shape, DataType::INT8, weights.shape.h != 1);
   ConvAppleMPP::ExternalWeightsParams params;
   params.weights_desc = weights.desc;
   conv.SetExternalWeightsParams(params);
