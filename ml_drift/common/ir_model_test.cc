@@ -154,10 +154,12 @@ TEST(IrModelTest, RemoveSimpleOp_KeepInput) {
   // We remove op1, which is not producing a graph output.
   // We expect intermediate tensor to be removed, and op2 should consume input
   // instead.
-  EXPECT_TRUE(model.RemoveSimpleOp(op1->id).ok());
+  IrOpId op1_id = op1->id;
+  IrTensorId intermediate_id = intermediate->id;
+  EXPECT_TRUE(model.RemoveSimpleOp(op1_id).ok());
 
-  EXPECT_EQ(model.op(op1->id), nullptr);
-  EXPECT_EQ(model.tensor(intermediate->id), nullptr);
+  EXPECT_EQ(model.op(op1_id), nullptr);
+  EXPECT_EQ(model.tensor(intermediate_id), nullptr);
 
   const IrOp* remaining_op = model.op(op2->id);
   ASSERT_NE(remaining_op, nullptr);
@@ -193,10 +195,12 @@ TEST(IrModelTest, RemoveSimpleOp_KeepOutput) {
   // We remove op2, which produces a graph output.
   // We expect intermediate tensor to be removed, and op1 should produce output
   // instead.
-  EXPECT_TRUE(model.RemoveSimpleOp(op2->id).ok());
+  IrOpId op2_id = op2->id;
+  IrTensorId intermediate_id = intermediate->id;
+  EXPECT_TRUE(model.RemoveSimpleOp(op2_id).ok());
 
-  EXPECT_EQ(model.op(op2->id), nullptr);
-  EXPECT_EQ(model.tensor(intermediate->id), nullptr);
+  EXPECT_EQ(model.op(op2_id), nullptr);
+  EXPECT_EQ(model.tensor(intermediate_id), nullptr);
 
   const IrOp* remaining_op = model.op(op1->id);
   ASSERT_NE(remaining_op, nullptr);
@@ -265,10 +269,12 @@ TEST(IrModelTest,
   // We remove op2, which produces a graph output.
   // This deletes 'intermediate', rewires op1 to produce 'output', and rewires
   // op3 to consume 'output' instead of 'intermediate'.
-  EXPECT_TRUE(model.RemoveSimpleOp(op2->id).ok());
+  IrOpId op2_id = op2->id;
+  IrTensorId intermediate_id = intermediate->id;
+  EXPECT_TRUE(model.RemoveSimpleOp(op2_id).ok());
 
-  EXPECT_EQ(model.op(op2->id), nullptr);
-  EXPECT_EQ(model.tensor(intermediate->id), nullptr);
+  EXPECT_EQ(model.op(op2_id), nullptr);
+  EXPECT_EQ(model.tensor(intermediate_id), nullptr);
 
   const IrOp* remaining_op1 = model.op(op1->id);
   ASSERT_NE(remaining_op1, nullptr);
@@ -360,10 +366,12 @@ TEST(IrModelTest, RemoveSimpleOp_IntermediateNode) {
   // We remove op2, which is an intermediate node (keep_input=false,
   // keep_output=false). We expect intermediate2 to be removed, and op3 should
   // consume intermediate1.
-  EXPECT_TRUE(model.RemoveSimpleOp(op2->id).ok());
+  IrOpId op2_id = op2->id;
+  IrTensorId intermediate2_id = intermediate2->id;
+  EXPECT_TRUE(model.RemoveSimpleOp(op2_id).ok());
 
-  EXPECT_EQ(model.op(op2->id), nullptr);
-  EXPECT_EQ(model.tensor(intermediate2->id), nullptr);
+  EXPECT_EQ(model.op(op2_id), nullptr);
+  EXPECT_EQ(model.tensor(intermediate2_id), nullptr);
 
   const IrOp* remaining_op3 = model.op(op3->id);
   ASSERT_NE(remaining_op3, nullptr);
@@ -414,10 +422,12 @@ TEST(IrModelTest, RemoveSimpleOp_IntermediateNode_MultipleConsumers) {
   // We remove op2, which is an intermediate node (keep_input=false,
   // keep_output=false). We expect intermediate2 to be removed, and both op3 and
   // op4 should consume intermediate1.
-  EXPECT_TRUE(model.RemoveSimpleOp(op2->id).ok());
+  IrOpId op2_id = op2->id;
+  IrTensorId intermediate2_id = intermediate2->id;
+  EXPECT_TRUE(model.RemoveSimpleOp(op2_id).ok());
 
-  EXPECT_EQ(model.op(op2->id), nullptr);
-  EXPECT_EQ(model.tensor(intermediate2->id), nullptr);
+  EXPECT_EQ(model.op(op2_id), nullptr);
+  EXPECT_EQ(model.tensor(intermediate2_id), nullptr);
 
   const IrOp* remaining_op3 = model.op(op3->id);
   ASSERT_NE(remaining_op3, nullptr);

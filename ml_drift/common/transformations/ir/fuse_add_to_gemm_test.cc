@@ -113,11 +113,13 @@ TEST_P(FuseAddTopologyParamTest, GemmThenAdd) {
   model.AddConsumer(intermediate->id, add_op->id);
   model.SetProducer(output->id, add_op->id);
 
+  IrOpId add_op_id = add_op->id;
+  IrTensorId intermediate_id = intermediate->id;
   EXPECT_TRUE(TransformIrModel(&model).ok());
 
   // Add should be removed
-  EXPECT_EQ(model.op(add_op->id), nullptr);
-  EXPECT_EQ(model.tensor(intermediate->id), nullptr);
+  EXPECT_EQ(model.op(add_op_id), nullptr);
+  EXPECT_EQ(model.tensor(intermediate_id), nullptr);
 
   // Main op should remain and point to output
   const IrOp* remaining_op = model.op(main_op->id);
@@ -153,16 +155,18 @@ TEST_P(FuseAddTopologyParamTest, AbsorbProducer) {
   model.AddConsumer(intermediate->id, main_op->id);
   model.SetProducer(output->id, main_op->id);
 
+  IrOpId add_op_id = add_op->id;
+  IrTensorId intermediate_id = intermediate->id;
   EXPECT_TRUE(TransformIrModel(&model).ok());
 
   if (GetParam() == OperationType::CONVOLUTION_2D) {
     // Add should be removed
-    EXPECT_EQ(model.op(add_op->id), nullptr);
-    EXPECT_EQ(model.tensor(intermediate->id), nullptr);
+    EXPECT_EQ(model.op(add_op_id), nullptr);
+    EXPECT_EQ(model.tensor(intermediate_id), nullptr);
   } else {
     // Not supported for other operations, should remain
-    EXPECT_NE(model.op(add_op->id), nullptr);
-    EXPECT_NE(model.tensor(intermediate->id), nullptr);
+    EXPECT_NE(model.op(add_op_id), nullptr);
+    EXPECT_NE(model.tensor(intermediate_id), nullptr);
   }
 
   // Main op should remain
@@ -207,13 +211,17 @@ TEST(IrFuseAddToGemmTest, ComplexChainedTopology) {
   model.AddConsumer(inter2->id, add2->id);
   model.SetProducer(output->id, add2->id);
 
+  IrOpId add1_id = add1->id;
+  IrOpId add2_id = add2->id;
+  IrTensorId inter1_id = inter1->id;
+  IrTensorId inter2_id = inter2->id;
   EXPECT_TRUE(TransformIrModel(&model).ok());
 
   // Both Adds should be fused away
-  EXPECT_EQ(model.op(add1->id), nullptr);
-  EXPECT_EQ(model.op(add2->id), nullptr);
-  EXPECT_EQ(model.tensor(inter1->id), nullptr);
-  EXPECT_EQ(model.tensor(inter2->id), nullptr);
+  EXPECT_EQ(model.op(add1_id), nullptr);
+  EXPECT_EQ(model.op(add2_id), nullptr);
+  EXPECT_EQ(model.tensor(inter1_id), nullptr);
+  EXPECT_EQ(model.tensor(inter2_id), nullptr);
 
   const IrOp* remaining_op = model.op(conv->id);
   ASSERT_NE(remaining_op, nullptr);

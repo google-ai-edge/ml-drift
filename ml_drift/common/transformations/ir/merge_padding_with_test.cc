@@ -87,10 +87,12 @@ TEST_P(MergePaddingSpatialParamTest, Smoke) {
   model.AddConsumer(temp->id, spatial_node->id);
   model.SetProducer(output->id, spatial_node->id);
 
+  IrOpId pad_node_id = pad_node->id;
+  IrTensorId temp_id = temp->id;
   EXPECT_TRUE(TransformIrModel(&model).ok());
 
-  EXPECT_EQ(model.op(pad_node->id), nullptr);
-  EXPECT_EQ(model.tensor(temp->id), nullptr);
+  EXPECT_EQ(model.op(pad_node_id), nullptr);
+  EXPECT_EQ(model.tensor(temp_id), nullptr);
 
   const IrOp* remaining_op = model.op(spatial_node->id);
   ASSERT_NE(remaining_op, nullptr);
@@ -135,12 +137,16 @@ TEST_P(MergePaddingSpatialParamTest, MergeTwo) {
   model.AddConsumer(temp2->id, spatial_node->id);
   model.SetProducer(output->id, spatial_node->id);
 
+  IrOpId pad_node1_id = pad_node1->id;
+  IrOpId pad_node2_id = pad_node2->id;
+  IrTensorId temp1_id = temp1->id;
+  IrTensorId temp2_id = temp2->id;
   EXPECT_TRUE(TransformIrModel(&model).ok());
 
-  EXPECT_EQ(model.op(pad_node1->id), nullptr);
-  EXPECT_EQ(model.op(pad_node2->id), nullptr);
-  EXPECT_EQ(model.tensor(temp1->id), nullptr);
-  EXPECT_EQ(model.tensor(temp2->id), nullptr);
+  EXPECT_EQ(model.op(pad_node1_id), nullptr);
+  EXPECT_EQ(model.op(pad_node2_id), nullptr);
+  EXPECT_EQ(model.tensor(temp1_id), nullptr);
+  EXPECT_EQ(model.tensor(temp2_id), nullptr);
 
   const IrOp* remaining_op = model.op(spatial_node->id);
   ASSERT_NE(remaining_op, nullptr);
@@ -219,10 +225,12 @@ TEST(MergePaddingWithAdd, MergeAlignedPadding) {
   model.AddConsumer(input1->id, add_node->id);
   model.SetProducer(output->id, add_node->id);
 
+  IrOpId pad_node_id = pad_node->id;
+  IrTensorId padded_id = padded->id;
   EXPECT_TRUE(TransformIrModel(&model).ok());
 
-  EXPECT_EQ(model.op(pad_node->id), nullptr);
-  EXPECT_EQ(model.tensor(padded->id), nullptr);
+  EXPECT_EQ(model.op(pad_node_id), nullptr);
+  EXPECT_EQ(model.tensor(padded_id), nullptr);
 
   const IrOp* remaining_op = model.op(add_node->id);
   ASSERT_NE(remaining_op, nullptr);

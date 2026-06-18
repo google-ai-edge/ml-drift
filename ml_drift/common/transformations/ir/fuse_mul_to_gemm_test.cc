@@ -113,11 +113,13 @@ TEST_P(FuseMulTopologyParamTest, GemmThenMul) {
   model.AddConsumer(intermediate->id, mul_op->id);
   model.SetProducer(output->id, mul_op->id);
 
+  IrOpId mul_op_id = mul_op->id;
+  IrTensorId intermediate_id = intermediate->id;
   EXPECT_TRUE(TransformIrModel(&model).ok());
 
   // Mul should be removed
-  EXPECT_EQ(model.op(mul_op->id), nullptr);
-  EXPECT_EQ(model.tensor(intermediate->id), nullptr);
+  EXPECT_EQ(model.op(mul_op_id), nullptr);
+  EXPECT_EQ(model.tensor(intermediate_id), nullptr);
 
   // Main op should remain and point to output
   const IrOp* remaining_op = model.op(main_op->id);
@@ -153,11 +155,13 @@ TEST_P(FuseMulTopologyParamTest, AbsorbProducer) {
   model.AddConsumer(intermediate->id, main_op->id);
   model.SetProducer(output->id, main_op->id);
 
+  IrOpId mul_op_id = mul_op->id;
+  IrTensorId intermediate_id = intermediate->id;
   EXPECT_TRUE(TransformIrModel(&model).ok());
 
   // Mul should be removed
-  EXPECT_EQ(model.op(mul_op->id), nullptr);
-  EXPECT_EQ(model.tensor(intermediate->id), nullptr);
+  EXPECT_EQ(model.op(mul_op_id), nullptr);
+  EXPECT_EQ(model.tensor(intermediate_id), nullptr);
 
   // Main op should remain
   const IrOp* remaining_op = model.op(main_op->id);
@@ -201,13 +205,17 @@ TEST(IrFuseMulToGemmTest, ComplexChainedTopology) {
   model.AddConsumer(inter2->id, mul2->id);
   model.SetProducer(output->id, mul2->id);
 
+  IrOpId mul1_id = mul1->id;
+  IrOpId mul2_id = mul2->id;
+  IrTensorId inter1_id = inter1->id;
+  IrTensorId inter2_id = inter2->id;
   EXPECT_TRUE(TransformIrModel(&model).ok());
 
   // Both Muls should be fused away
-  EXPECT_EQ(model.op(mul1->id), nullptr);
-  EXPECT_EQ(model.op(mul2->id), nullptr);
-  EXPECT_EQ(model.tensor(inter1->id), nullptr);
-  EXPECT_EQ(model.tensor(inter2->id), nullptr);
+  EXPECT_EQ(model.op(mul1_id), nullptr);
+  EXPECT_EQ(model.op(mul2_id), nullptr);
+  EXPECT_EQ(model.tensor(inter1_id), nullptr);
+  EXPECT_EQ(model.tensor(inter2_id), nullptr);
 
   const IrOp* remaining_op = model.op(conv->id);
   ASSERT_NE(remaining_op, nullptr);

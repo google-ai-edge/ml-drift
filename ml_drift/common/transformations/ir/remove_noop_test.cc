@@ -55,10 +55,12 @@ TEST(IrRemoveNoopTest, RemoveSingleInputAdd_Smoke) {
   model.AddConsumer(intermediate->id, add_op->id);
   model.SetProducer(output->id, add_op->id);
 
+  IrOpId add_op_id = add_op->id;
+  IrTensorId intermediate_id = intermediate->id;
   EXPECT_TRUE(TransformIrModel(&model).ok());
 
-  EXPECT_EQ(model.op(add_op->id), nullptr);
-  EXPECT_EQ(model.tensor(intermediate->id), nullptr);
+  EXPECT_EQ(model.op(add_op_id), nullptr);
+  EXPECT_EQ(model.tensor(intermediate_id), nullptr);
 
   const IrOp* remaining_op = model.op(op1->id);
   ASSERT_NE(remaining_op, nullptr);
@@ -187,10 +189,12 @@ TEST(IrRemoveNoopTest, RemoveDegenerateUpsampling_Smoke) {
   model.AddConsumer(intermediate->id, resize_op->id);
   model.SetProducer(output->id, resize_op->id);
 
+  IrOpId resize_op_id = resize_op->id;
+  IrTensorId intermediate_id = intermediate->id;
   EXPECT_TRUE(TransformIrModel(&model).ok());
 
-  EXPECT_EQ(model.op(resize_op->id), nullptr);
-  EXPECT_EQ(model.tensor(intermediate->id), nullptr);
+  EXPECT_EQ(model.op(resize_op_id), nullptr);
+  EXPECT_EQ(model.tensor(intermediate_id), nullptr);
 
   const IrOp* remaining_op = model.op(op1->id);
   ASSERT_NE(remaining_op, nullptr);
@@ -228,10 +232,12 @@ TEST(IrRemoveNoopTest, RemoveIdentityReshape_Smoke) {
   model.AddConsumer(intermediate2->id, op2->id);
   model.SetProducer(output->id, op2->id);
 
+  IrOpId reshape_op_id = reshape_op->id;
+  IrTensorId intermediate2_id = intermediate2->id;
   EXPECT_TRUE(TransformIrModel(&model).ok());
 
-  EXPECT_EQ(model.op(reshape_op->id), nullptr);
-  EXPECT_EQ(model.tensor(intermediate2->id), nullptr);
+  EXPECT_EQ(model.op(reshape_op_id), nullptr);
+  EXPECT_EQ(model.tensor(intermediate2_id), nullptr);
 
   const IrOp* remaining_op = model.op(op1->id);
   ASSERT_NE(remaining_op, nullptr);
@@ -277,6 +283,8 @@ TEST(IrRemoveNoopTest,
   model.AddConsumer(value1->id, consumer_op->id);
   model.SetProducer(graph_output->id, consumer_op->id);
 
+  IrOpId reshape_op_id = reshape_op->id;
+  IrTensorId value1_id = value1->id;
   EXPECT_TRUE(TransformIrModel(&model).ok());
 
   // This test verifies the behavior when an identity Reshape op is removed.
@@ -285,8 +293,8 @@ TEST(IrRemoveNoopTest,
   // usages of value1 to value0. Consequently, consumer_op's inputs will both
   // become value0. This behavior, while resulting in duplicate inputs, is
   // safely handled by IrModel.
-  EXPECT_EQ(model.op(reshape_op->id), nullptr);
-  EXPECT_EQ(model.tensor(value1->id), nullptr);
+  EXPECT_EQ(model.op(reshape_op_id), nullptr);
+  EXPECT_EQ(model.tensor(value1_id), nullptr);
 
   const IrOp* remaining_consumer = model.op(consumer_op->id);
   ASSERT_NE(remaining_consumer, nullptr);
@@ -327,10 +335,12 @@ TEST(IrRemoveNoopTest, RemoveIdentityStridedSlice_Smoke) {
   model.AddConsumer(intermediate2->id, op2->id);
   model.SetProducer(output->id, op2->id);
 
+  IrOpId slice_op_id = slice_op->id;
+  IrTensorId intermediate2_id = intermediate2->id;
   EXPECT_TRUE(TransformIrModel(&model).ok());
 
-  EXPECT_EQ(model.op(slice_op->id), nullptr);
-  EXPECT_EQ(model.tensor(intermediate2->id), nullptr);
+  EXPECT_EQ(model.op(slice_op_id), nullptr);
+  EXPECT_EQ(model.tensor(intermediate2_id), nullptr);
 
   const IrOp* remaining_op = model.op(op1->id);
   ASSERT_NE(remaining_op, nullptr);
@@ -377,10 +387,12 @@ TEST(IrRemoveNoopTest,
   model.SetProducer(value2->id, slice_node->id);
   model.SetProducer(value3->id, second_node->id);
 
+  IrOpId slice_node_id = slice_node->id;
+  IrTensorId value1_id = value1->id;
   EXPECT_TRUE(TransformIrModel(&model).ok());
 
-  EXPECT_EQ(model.op(slice_node->id), nullptr);
-  EXPECT_EQ(model.tensor(value1->id), nullptr);  // Because value2 is kept
+  EXPECT_EQ(model.op(slice_node_id), nullptr);
+  EXPECT_EQ(model.tensor(value1_id), nullptr);  // Because value2 is kept
 
   const IrOp* remaining_first = model.op(first_node->id);
   ASSERT_NE(remaining_first, nullptr);
