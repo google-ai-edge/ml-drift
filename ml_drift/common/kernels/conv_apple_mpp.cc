@@ -439,20 +439,8 @@ bool SupportsConvAppleMPP(const GpuInfo& gpu_info) {
 
 bool SupportsConvAppleMPP(const GpuInfo& gpu_info,
                           const ExternalWeights& weights) {
-  if (!SupportsConvAppleMPP(gpu_info)) {
-    return false;
-  }
-  const bool supported_type = weights.desc.type == DataType::FLOAT32 ||
-                              weights.desc.type == DataType::FLOAT16 ||
-                              weights.desc.type == DataType::UINT8 ||
-                              weights.desc.type == DataType::UINT4 ||
-                              weights.desc.type == DataType::UINT2;
-  const int dst_slices = DivideRoundUp(weights.shape.o, 4);
-  if (weights.desc.layout != WeightsLayout::kOSpatialIOGroupI4O4 ||
-      weights.desc.output_group_size != dst_slices || !supported_type) {
-    return false;
-  }
-  return true;
+  // TODO - b/524735614: Re-enable once the issue is resolved.
+  return false;
 }
 
 ConvAppleMPP CreateConvAppleMPP(const TensorDescriptor& src,
