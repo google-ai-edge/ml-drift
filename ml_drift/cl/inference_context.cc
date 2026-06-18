@@ -997,11 +997,43 @@ absl::Status IrModelToInferenceContext(const GpuInfo& gpu_info,
                                        const ir::IrModel& ir_model,
                                        Environment* env,
                                        CreateGpuModelInfo& create_info,
-                                       InferenceContext* context) {
-  GpuModel gpu_model;
-  RETURN_IF_ERROR(
-      IrModelToGpuModel(ir_model, create_info, gpu_info, &gpu_model));
-  RETURN_IF_ERROR(context->InitFromGpuModel(create_info, &gpu_model, env));
+                                       InferenceContext* context,
+                                       InferenceContext* weights_prep_context) {
+  if (weights_prep_context != nullptr &&
+      WeightsManager::IsGpuWeightsPreparationSupported(gpu_info)) {
+    GpuModel main_gpu_model, gpu_weights_preparation_model;
+    absl::flat_hash_map<ValueId, ValueId> weights_mapping;
+    std::vector<WeightsManager::UploadWeightsInfo> upload_weights_info;
+
+    RETURN_IF_ERROR(IrModelToGpuModelWithWeightsConversion(
+        ir_model, create_info, gpu_info, &main_gpu_model,
+        &gpu_weights_preparation_model, &weights_mapping,
+        &upload_weights_info));
+    if (!gpu_weights_preparation_model.nodes.empty()) {
+      RETURN_IF_ERROR(weights_prep_context->InitFromGpuModel(
+          create_info, &gpu_weights_preparation_model, env));
+      for (const auto& upload_info : upload_weights_info) {
+        auto tensor = weights_prep_context->GetTensor(upload_info.input_id);
+        RETURN_IF_ERROR(
+            tensor->WriteData(static_cast<const uint8_t*>(upload_info.data),
+                              env->queue(), /*async=*/true));
+      }
+      RETURN_IF_ERROR(weights_prep_context->AddToQueue(env->queue()));
+      for (const auto& [converted_weight_id, main_model_weight_id] :
+           weights_mapping) {
+        auto tensor = weights_prep_context->GetTensor(converted_weight_id);
+        create_info.external_immutable_tensors.insert(
+            {main_model_weight_id, tensor});
+      }
+    }
+    RETURN_IF_ERROR(
+        context->InitFromGpuModel(create_info, &main_gpu_model, env));
+  } else {
+    GpuModel gpu_model;
+    RETURN_IF_ERROR(
+        IrModelToGpuModel(ir_model, create_info, gpu_info, &gpu_model));
+    RETURN_IF_ERROR(context->InitFromGpuModel(create_info, &gpu_model, env));
+  }
   return absl::OkStatus();
 }
 

@@ -270,7 +270,8 @@ absl::Status IrModelToInferenceContext(const GpuInfo& gpu_info,
                                        const ir::IrModel& ir_model,
                                        Environment* env,
                                        CreateGpuModelInfo& create_info,
-                                       InferenceContext* context);
+                                       InferenceContext* context,
+                                       InferenceContext* weights_prep_context);
 
 }  // namespace cl
 }  // namespace ml_drift

@@ -1,3 +1,8 @@
+#include <vector>
+
+#include "absl/container/flat_hash_map.h"
+#include "ml_drift/common/gpu_model_builder.h"
+#include "ml_drift/common/model.h"
 // Copyright 2026 The ML Drift Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,6 +30,13 @@ namespace ml_drift::ir {
 absl::Status IrModelToGpuModel(const ir::IrModel& ir_model,
                                const CreateGpuModelInfo& create_info,
                                const GpuInfo& gpu_info, GpuModel* gpu_model);
+
+absl::Status IrModelToGpuModelWithWeightsConversion(
+    const ir::IrModel& ir_model, const CreateGpuModelInfo& create_info,
+    const GpuInfo& gpu_info, GpuModel* gpu_model,
+    GpuModel* gpu_weights_conversion_model,
+    absl::flat_hash_map<ValueId, ValueId>* weights_mapping,
+    std::vector<WeightsManager::UploadWeightsInfo>* upload_weights_info);
 
 }  // namespace ml_drift::ir
 
