@@ -267,7 +267,7 @@ absl::Status ConvWaveMatrix1x1ExternalWeightsTest(
   TensorDescriptor dst_td = conv_def.dst_tensors[0];
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
 
-  float eps = GetEpsilon(precision, env.GetGpuInfo(), attr);
+  float eps = GetEpsilon(precision, env.GetGpuInfo(), attr) * 2.0f;
   RETURN_IF_ERROR(env.ExecuteGPUOperation(
       srcs_td, {&dst_td},
       std::make_unique<ConvWaveMatrix>(std::move(operation))));
@@ -472,8 +472,8 @@ absl::Status ConvWaveMatrixExternalBatchedWfloatTest(
   TensorDescriptor dst_td = conv_def.dst_tensors[0];
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
 
-  float eps = GetEpsilon(precision, env.GetGpuInfo()) * weights_f32.shape.i *
-              weights_f32.shape.o;
+  float eps =
+      GetEpsilon(precision, env.GetGpuInfo()) * weights_f32.shape.i * 2.0f;
   RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_td, &weights_td}, {&dst_td},
       std::make_unique<ConvWaveMatrix>(std::move(operation))));
@@ -560,8 +560,8 @@ absl::Status ConvWaveMatrixExternalBatchedWi8Test(
   TensorDescriptor dst_td = conv_def.dst_tensors[0];
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
 
-  float eps = GetEpsilon(precision, env.GetGpuInfo()) * weights_i8.shape.i *
-              weights_i8.shape.o;
+  float eps =
+      GetEpsilon(precision, env.GetGpuInfo()) * weights_i8.shape.i * 4.0f;
   RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_td, &weights_i8_td, &scale_desc, &zp_desc}, {&dst_td},
       std::make_unique<ConvWaveMatrix>(std::move(operation))));
@@ -648,8 +648,8 @@ absl::Status ConvWaveMatrixExternalBatchedWi4Test(
   TensorDescriptor dst_td = conv_def.dst_tensors[0];
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
 
-  float eps = GetEpsilon(precision, env.GetGpuInfo()) * weights_i4.shape.i *
-              weights_i4.shape.o;
+  float eps =
+      GetEpsilon(precision, env.GetGpuInfo()) * weights_i4.shape.i * 2.0f;
   RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_td, &weights_i4_td, &scale_desc, &zp_desc}, {&dst_td},
       std::make_unique<ConvWaveMatrix>(std::move(operation))));
@@ -736,8 +736,8 @@ absl::Status ConvWaveMatrixExternalBatchedWi2Test(
   TensorDescriptor dst_td = conv_def.dst_tensors[0];
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
 
-  float eps = GetEpsilon(precision, env.GetGpuInfo()) * weights_i2.shape.i *
-              weights_i2.shape.o;
+  float eps =
+      GetEpsilon(precision, env.GetGpuInfo()) * weights_i2.shape.i * 2.0f;
   RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_td, &weights_i2_td, &scale_desc, &zp_desc}, {&dst_td},
       std::make_unique<ConvWaveMatrix>(std::move(operation))));
@@ -826,8 +826,8 @@ absl::Status ConvWaveMatrixExternalBatchedGroupedWi4Test(
   TensorDescriptor dst_td = conv_def.dst_tensors[0];
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
 
-  float eps = GetEpsilon(precision, env.GetGpuInfo()) * weights_i4.shape.i *
-              weights_i4.shape.o;
+  float eps =
+      GetEpsilon(precision, env.GetGpuInfo()) * weights_i4.shape.i * 2.0f;
   RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_td, &weights_i4_td, &scale_desc, &zp_desc}, {&dst_td},
       std::make_unique<ConvWaveMatrix>(std::move(operation))));

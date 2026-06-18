@@ -175,7 +175,7 @@ absl::Status ConvAppleMPPExternalBatchedWfloatTest(
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
 
   float eps = GetEpsilon(CalculationsPrecision::F16, env.GetGpuInfo()) *
-              weights_f32.shape.i * weights_f32.shape.o;
+              weights_f32.shape.i * 2.0f;
   RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_td, &weights_td}, {&dst_td},
       std::make_unique<ConvAppleMPP>(std::move(operation))));
@@ -260,7 +260,7 @@ absl::Status ConvAppleMPPExternalBatchedWi8Test(TestExecutionEnvironment& env,
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
 
   float eps = GetEpsilon(CalculationsPrecision::F16, env.GetGpuInfo()) *
-              weights_i8.shape.i * weights_i8.shape.o;
+              weights_i8.shape.i * 4.0f;
   RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_td, &weights_i8_td, &scale_desc, &zp_desc}, {&dst_td},
       std::make_unique<ConvAppleMPP>(std::move(operation))));
@@ -345,7 +345,7 @@ absl::Status ConvAppleMPPExternalBatchedWi4Test(TestExecutionEnvironment& env,
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
 
   float eps = GetEpsilon(CalculationsPrecision::F16, env.GetGpuInfo()) *
-              weights_i4.shape.i * weights_i4.shape.o;
+              weights_i4.shape.i * 2.0f;
   RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_td, &weights_i4_td, &scale_desc, &zp_desc}, {&dst_td},
       std::make_unique<ConvAppleMPP>(std::move(operation))));
@@ -430,7 +430,7 @@ absl::Status ConvAppleMPPExternalBatchedWi2Test(TestExecutionEnvironment& env,
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
 
   float eps = GetEpsilon(CalculationsPrecision::F16, env.GetGpuInfo()) *
-              weights_i2.shape.i * weights_i2.shape.o;
+              weights_i2.shape.i * 2.0f;
   RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_td, &weights_i2_td, &scale_desc, &zp_desc}, {&dst_td},
       std::make_unique<ConvAppleMPP>(std::move(operation))));
@@ -514,7 +514,7 @@ absl::Status ConvAppleMPPExternalBatchedGroupedWi4Test(
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
 
   float eps = GetEpsilon(CalculationsPrecision::F16, env.GetGpuInfo()) *
-              weights_i4.shape.i * weights_i4.shape.o;
+              weights_i4.shape.i * 2.0f;
   RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_td, &weights_i4_td, &scale_desc, &zp_desc}, {&dst_td},
       std::make_unique<ConvAppleMPP>(std::move(operation))));
