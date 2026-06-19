@@ -938,10 +938,12 @@ absl::Status ConvolutionInt8GroupedPerfTest(const BHWC& src_shape,
 }
 
 absl::Status ConvolutionSf16Wi4BatchedPerfTest(const BHWC& src_shape,
-                                               int dst_channels) {
+                                               int dst_channels,
+                                               OHWI scale_zp_shape) {
   Environment env;
   RETURN_IF_ERROR(CreateEnvironment(&env));
   const GpuInfo& gpu_info = env.device().GetInfo();
+  const bool use_zero_point = true;
 
   const DataType float_type = DataType::FLOAT16;
 
@@ -951,14 +953,14 @@ absl::Status ConvolutionSf16Wi4BatchedPerfTest(const BHWC& src_shape,
   const int src_channels = src_shape.c;
 
   ml_drift::Tensor<OHWI, DataType::INT8> weights_i4;
-  weights_i4.shape = OHWI(dst_channels, src_shape.h, 1, src_channels);
+  weights_i4.shape = OHWI(dst_channels, scale_zp_shape.h, 1, src_channels);
   weights_i4.data.resize(weights_i4.shape.DimensionsProduct());
   for (int i = 0; i < weights_i4.data.size(); ++i) {
     weights_i4.data[i] = (i % 15) - 7;
   }
 
   ml_drift::Tensor<OHWI, DataType::FLOAT32> weights_scales;
-  weights_scales.shape = OHWI(dst_channels, src_shape.h, 1, 1);
+  weights_scales.shape = scale_zp_shape;
   weights_scales.data.resize(weights_scales.shape.DimensionsProduct());
   for (int i = 0; i < weights_scales.data.size(); ++i) {
     weights_scales.data[i] = 1.0f / 8.0f;
@@ -989,7 +991,9 @@ absl::Status ConvolutionSf16Wi4BatchedPerfTest(const BHWC& src_shape,
   external_weights.shape = weights_i4.shape;
   external_weights.scale_zp_shape = weights_scales.shape;
   external_weights.scale = &scale_desc;
-  external_weights.zero_point = &zp_desc;
+  if (use_zero_point) {
+    external_weights.zero_point = &zp_desc;
+  }
 
   std::unique_ptr<GPUOperation> conv;
   if (SupportsConvGeneric(gpu_info, CalculationsPrecision::F16, weights_desc,
@@ -1034,7 +1038,9 @@ absl::Status ConvolutionSf16Wi4BatchedPerfTest(const BHWC& src_shape,
   conv->SetSrc(&src);
   conv->SetSrc(&weights_i4_tensor);
   conv->SetSrc(&weights_scale_tensor);
-  conv->SetSrc(&weights_zero_point_tensor);
+  if (use_zero_point) {
+    conv->SetSrc(&weights_zero_point_tensor);
+  }
   conv->SetDst(&dst);
 
   RETURN_IF_ERROR(conv->AssembleCode(gpu_info));
@@ -1062,7 +1068,9 @@ absl::Status ConvolutionSf16Wi4BatchedPerfTest(const BHWC& src_shape,
   RETURN_IF_ERROR(cl_op.SetSrcTensor(0, &src));
   RETURN_IF_ERROR(cl_op.SetSrcTensor(1, &weights_i4_tensor));
   RETURN_IF_ERROR(cl_op.SetSrcTensor(2, &weights_scale_tensor));
-  RETURN_IF_ERROR(cl_op.SetSrcTensor(3, &weights_zero_point_tensor));
+  if (use_zero_point) {
+    RETURN_IF_ERROR(cl_op.SetSrcTensor(3, &weights_zero_point_tensor));
+  }
   RETURN_IF_ERROR(cl_op.SetDstTensor(0, &dst));
   RETURN_IF_ERROR(cl_op.UpdateParams());
   RETURN_IF_ERROR(cl_op.Tune(TuningType::kExhaustive, env.device().GetInfo(),

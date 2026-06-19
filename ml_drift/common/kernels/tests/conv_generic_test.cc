@@ -131,14 +131,29 @@ TEST_P(ConvGenericFloatTest, ConvGenericGroupedBigTest) {
   MLD_ASSERT_OK(ConvGenericGroupedBigTest(*exec_env, precision(), storage()));
 }
 
-TEST_P(ConvGenericFloatTest, ConvGenericSrcFloatWi4BatchedWeightsTest) {
+TEST_P(ConvGenericFloatTest, ConvGenericExternalBatchedWi4TestTest) {
   const DataType data_type = DeduceDataTypeFromPrecision(precision());
   if (!exec_env->IsStorageSupported(storage(), data_type)) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  auto status = ConvGenericSrcFloatWi4BatchedWeightsTest(*exec_env, precision(),
-                                                         storage());
+  auto status =
+      ConvGenericExternalBatchedWi4TestTest(*exec_env, precision(), storage());
+  if (!status.ok() &&
+      absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
+    GTEST_SKIP() << status.message();
+  }
+  MLD_ASSERT_OK(status);
+}
+
+TEST_P(ConvGenericFloatTest, ConvGenericExternalBatchedGroupedWi4TestTest) {
+  const DataType data_type = DeduceDataTypeFromPrecision(precision());
+  if (!exec_env->IsStorageSupported(storage(), data_type)) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
+                 << " storage type: " << ToString(storage());
+  }
+  auto status = ConvGenericExternalBatchedGroupedWi4TestTest(
+      *exec_env, precision(), storage());
   if (!status.ok() &&
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();

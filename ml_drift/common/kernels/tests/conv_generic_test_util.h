@@ -68,7 +68,11 @@ absl::Status ConvGenericGroupedBigTest(TestExecutionEnvironment& env,
                                        CalculationsPrecision precision,
                                        TensorStorageType storage);
 
-absl::Status ConvGenericSrcFloatWi4BatchedWeightsTest(
+absl::Status ConvGenericExternalBatchedWi4TestTest(
+    TestExecutionEnvironment& env, CalculationsPrecision precision,
+    TensorStorageType storage);
+
+absl::Status ConvGenericExternalBatchedGroupedWi4TestTest(
     TestExecutionEnvironment& env, CalculationsPrecision precision,
     TensorStorageType storage);
 

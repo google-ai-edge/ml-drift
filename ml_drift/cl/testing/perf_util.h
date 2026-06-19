@@ -44,7 +44,8 @@ absl::Status ConvolutionInt8GroupedPerfTest(
     int group_size = 64);
 
 absl::Status ConvolutionSf16Wi4BatchedPerfTest(const BHWC& src_shape,
-                                               int dst_channels);
+                                               int dst_channels,
+                                               OHWI scale_zp_shape);
 
 absl::Status ConvolutionInt4PerfTest(const BHWC& src_shape = BHWC(1, 32, 32,
                                                                   1024),

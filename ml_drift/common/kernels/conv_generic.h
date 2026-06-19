@@ -97,7 +97,10 @@ class ConvGeneric : public GPUOperation {
     }
   };
   struct ConvParams {
-    WeightsDescription weights_desc;
+    WeightsDescription weights_desc;         // only used for ExternalWeights
+    OHWI scale_zp_shape = OHWI(1, 1, 1, 1);  // only used for ExternalWeights
+    bool has_zero_point = false;             // only used for ExternalWeights
+    int src_group_slices = 0;                // only used for ExternalWeights
     TensorDescriptor src_desc;
     PackedType src_packed_type;  // applicable for 8/4 bit convolutions
     CalculationsPrecision precision = CalculationsPrecision::F32;

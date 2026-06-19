@@ -425,10 +425,24 @@ class ConvCodeGenerator {
   int w_o_slice = min(DST_S + sub_o, args.dst_tensor.Slices() - 1);
   int w_sg_offset = (DST_Y * args.src_tensor.Slices() + sub_i) * args.dst_tensor.Slices() + w_o_slice;
   int stride = args.dst_tensor.Slices() * 4;
-  half4 w_scale = args.weights_scale.Read(w_o_slice, DST_Y, 0);
-  half4 w_zero_point = args.weights_zero_point.Read(w_o_slice, DST_Y, 0);
-  half4 w_bias = -w_scale * 8.0h + w_zero_point;
+  Type w_scale, w_bias;
 )";
+        if (conv_params_.scale_zp_shape.i != 1) {
+          // grouped quantization
+          c += "  int last_src_group_id = -1;\n";
+        } else {
+          // linear quantization
+          const std::string coords = conv_params_.scale_zp_shape.h != 1
+                                         ? "w_o_slice, DST_Y, 0"
+                                         : "w_o_slice";
+          c += "  w_scale = args.weights_scale.Read(" + coords + ");\n";
+          if (conv_params_.has_zero_point) {
+            c += "  Type wzp = args.weights_zero_point.Read(" + coords + ");\n";
+          } else {
+            c += "  Type wzp = ucl::Init<Type>(0.0f);\n";
+          }
+          c += "  w_bias = -w_scale * 8.0h + wzp;\n";
+        }
       }
     }
     const bool use_vec8 = UseVec8Accumulator();
@@ -1321,6 +1335,12 @@ class ConvCodeGenerator {
       as_type = "as_int4";
       src_prefix = "src_packed";
     }
+    bool weights_conversion =
+        conv_params_.weights_desc.layout == WeightsLayout::kOSpatialIOGroupI4O4;
+    if (weights_conversion && conv_params_.scale_zp_shape.i != 1) {
+      c += "    int src_group_id = (s + sub_i) / " +
+           std::to_string(conv_params_.src_group_slices) + +";\n";
+    }
     for (const auto& postfix : postfixes) {
       c += GenerateSrcReading();
       ForSpatial([&](int x, int y, int z) {
@@ -1330,9 +1350,24 @@ class ConvCodeGenerator {
       });
       c += "    s += 1;\n";
     }
-    bool weights_conversion =
-        conv_params_.weights_desc.layout == WeightsLayout::kOSpatialIOGroupI4O4;
     if (weights_conversion) {
+      if (conv_params_.scale_zp_shape.i != 1) {
+        // grouped quantization
+        c += "    if (last_src_group_id != src_group_id) {\n";
+        c += "      last_src_group_id = src_group_id;\n";
+        std::string w_batch =
+            conv_params_.scale_zp_shape.h != 1 ? "DST_Y" : "0";
+        std::string coords = "w_o_slice, " + w_batch + ", src_group_id";
+        c += "      w_scale = args.weights_scale.Read(" + coords + ");\n";
+        if (conv_params_.has_zero_point) {
+          c += "      Type wzp = args.weights_zero_point.Read(" + coords +
+               ");\n";
+        } else {
+          c += "      Type wzp = ucl::Init<Type>(0.0f);\n";
+        }
+        c += "      w_bias = -w_scale * 8.0h + wzp;\n";
+        c += "    }\n";
+      }
       c += R"(
     uint2 u4_i4o4 = args.weights.Read(w_sg_offset);
     w_sg_offset += stride;
@@ -2109,6 +2144,7 @@ ConvGeneric::KernelParams GetKernelParamsIntel(
         WeightsLayout::kOSpatialIOGroupI4O4) {
       kernel_params.work_group_size = int3(64, 1, 1);
       kernel_params.block_size = int4(1, 1, 1, 16);
+      kernel_params.fixed_work_group_size = true;
     }
     kernel_params.src_depth_loop_size = 4;
     if (conv_params.Is8Bit()) {
@@ -3433,8 +3469,7 @@ int3 ConvGeneric::GetGridSize() const {
 std::vector<int3> ConvGeneric::GetPossibleKernelWorkGroups(
     TuningType tuning_type, const GpuInfo& gpu_info,
     const KernelInfo& kernel_info) const {
-  if (conv_params_.runtime_check.HasValues() ||
-      conv_params_.weights_desc.layout == WeightsLayout::kOSpatialIOGroupI4O4) {
+  if (conv_params_.runtime_check.HasValues()) {
     tuning_type = TuningType::kFast;
   }
   if (kernel_params_.weights_upload_type ==
@@ -3560,6 +3595,10 @@ ConvGeneric CreateConvGenericExternalWeights(
     const ConvRuntimeCheckDesc& runtime_check) {
   ConvGeneric::ConvParams conv_params;
   conv_params.weights_desc = weights.desc;
+  conv_params.scale_zp_shape = weights.scale_zp_shape;
+  conv_params.has_zero_point = weights.zero_point != nullptr;
+  conv_params.src_group_slices =
+      DivideRoundUp(weights.shape.i, 4) / weights.scale_zp_shape.i;
   conv_params.weights_data_type = DeduceDataTypeFromPrecision(precision);
   conv_params.src_desc = definition.src_tensors[0];
   conv_params.precision = precision;
