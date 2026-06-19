@@ -362,7 +362,13 @@ struct ConvRuntimeCheckDesc {
   // Experimental feature.
   // for using with batched weights. if offset is set, then runtime sizes for
   // every group can be read from the tensor with the given offset.
-  std::optional<int> group_sizes_offset;
+  struct PackedGroups {
+    int params_offset;  // runtime sizes/offset for every group in param buffer.
+                        // [num_groups] sizes + [num_groups] offsets
+    int num_groups;     // equal to batch size of the weights
+    int max_group_size;
+  };
+  std::optional<PackedGroups> packed_groups;
 };
 
 // A struct to allow runtime-configurable channel bounds with softmax ops.

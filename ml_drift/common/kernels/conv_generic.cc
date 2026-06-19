@@ -368,10 +368,17 @@ class ConvCodeGenerator {
            ";\n";
       c += "  if (DST_S >= dst_end_slice) return;\n";
     }
-    if (conv_params_.runtime_check.group_sizes_offset.has_value()) {
-      c += "  int w_group_size = args.params.Read(args.group_sizes_offset + "
-           "DST_Y);\n";
+    if (conv_params_.runtime_check.packed_groups.has_value()) {
       // currently only supports Intel Wave MatMul
+      c += "  int w_batch_id = DST_Y;\n";
+      c += "  DST_Y = 0;\n";
+      c += "  int w_group_size = args.params.Read(args.packed_params_offset + "
+           "w_batch_id);\n";
+      c +=
+          "  int w_group_offset = args.params.Read(args.packed_params_offset + "
+          "w_batch_id + " +
+          std::to_string(conv_params_.runtime_check.packed_groups->num_groups) +
+          ");\n";
       const int tile_size = weights_conversion
                                 ? kernel_params_.work_group_size.x
                                 : kernel_params_.simd_sizes[0];
@@ -379,6 +386,9 @@ class ConvCodeGenerator {
       c += "  int tile_first_w = (DST_X / " + tile_size_str + ") * " +
            tile_size_str + ";\n";
       c += "  if (tile_first_w >= w_group_size) return;\n";
+      c += "  DST_X = w_group_offset + DST_X;\n";
+    } else {
+      c += "  int w_batch_id = DST_Y;\n";
     }
     if (!late_oob_check) {
       c += "  if (" + dst_oob_check + ") {\n";
@@ -423,7 +433,7 @@ class ConvCodeGenerator {
   int sub_i = ucl::GetLocalId<0>() / 16;
   int sub_o = ucl::GetLocalId<0>() % 16;
   int w_o_slice = min(DST_S + sub_o, args.dst_tensor.Slices() - 1);
-  int w_sg_offset = (DST_Y * args.src_tensor.Slices() + sub_i) * args.dst_tensor.Slices() + w_o_slice;
+  int w_sg_offset = (w_batch_id * args.src_tensor.Slices() + sub_i) * args.dst_tensor.Slices() + w_o_slice;
   int stride = args.dst_tensor.Slices() * 4;
   Type w_scale, w_bias;
 )";
@@ -433,7 +443,7 @@ class ConvCodeGenerator {
         } else {
           // linear quantization
           const std::string coords = conv_params_.scale_zp_shape.h != 1
-                                         ? "w_o_slice, DST_Y, 0"
+                                         ? "w_o_slice, w_batch_id, 0"
                                          : "w_o_slice";
           c += "  w_scale = args.weights_scale.Read(" + coords + ");\n";
           if (conv_params_.has_zero_point) {
@@ -846,6 +856,10 @@ class ConvCodeGenerator {
             } else {
               c += "  {\n";
             }
+            if (conv_params_.runtime_check.packed_groups.has_value()) {
+              c += "  if (DST_X + " + xind +
+                   " < w_group_offset + w_group_size) {\n";
+            }
             if (UseVec8Accumulator()) {
               const std::string id =
                   GenerateIdFull(xind, yind, zind, std::to_string(s / 2));
@@ -864,6 +878,9 @@ class ConvCodeGenerator {
               c += "    res += bias_val;\n";
             }
             c += "    args.dst_tensor.Write(res, " + coords + ");\n";
+            if (conv_params_.runtime_check.packed_groups.has_value()) {
+              c += "  }\n";
+            }
             c += "  }\n";
           }
         }
@@ -1720,8 +1737,9 @@ void AddRuntimeParams(GPUOperation& op,
     op.args_.AddInt("dst_end_ch_index", *runtime_check.dst_end_ch_index);
     has_runtime_check = true;
   }
-  if (runtime_check.group_sizes_offset.has_value()) {
-    op.args_.AddInt("group_sizes_offset", *runtime_check.group_sizes_offset);
+  if (runtime_check.packed_groups.has_value()) {
+    op.args_.AddInt("packed_params_offset",
+                    runtime_check.packed_groups->params_offset);
     has_runtime_check = true;
   }
   if (has_runtime_check) {
@@ -3443,10 +3461,14 @@ absl::Status ConvGeneric::BindArguments(ArgumentsBinder* args) {
 
 int3 ConvGeneric::GetGridSize() const {
   const int task_size_b = dst_[0]->Batch();
-  const int task_size_x =
+  int task_size_x =
       DivideRoundUp(dst_[0]->Width(), kernel_params_.block_size.x);
-  const int task_size_y =
+  int task_size_y =
       DivideRoundUp(dst_[0]->Height(), kernel_params_.block_size.y);
+  if (conv_params_.runtime_check.packed_groups.has_value()) {
+    task_size_x = conv_params_.runtime_check.packed_groups->max_group_size;
+    task_size_y = conv_params_.runtime_check.packed_groups->num_groups;
+  }
   const int task_size_z =
       DivideRoundUp(dst_[0]->Depth(), kernel_params_.block_size.z);
   const int task_size_s =

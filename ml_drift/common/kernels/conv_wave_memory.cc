@@ -177,13 +177,25 @@ std::string GenerateConvolutionGeneric(
     c += "  args.src_tensor.SetBatchRef(B);\n";
     c += "  args.dst_tensor.SetBatchRef(B);\n";
   }
+  if (conv_params.runtime_check.packed_groups.has_value()) {
+    c += "  int w_batch_id = Y;\n";
+    c += "  Y = 0;\n";
+    c += "  int w_group_size = args.params.Read(args.packed_params_offset + "
+         "w_batch_id);\n";
+    c += "  int w_group_offset = args.params.Read(args.packed_params_offset + "
+         "w_batch_id + " +
+         std::to_string(conv_params.runtime_check.packed_groups->num_groups) +
+         ");\n";
+    c += "  int wave_first_w = (X / WAVE_SIZE) * WAVE_SIZE;\n";
+    c += "  if (wave_first_w >= w_group_size) return;\n";
+    c += "  X = w_group_offset + X;\n";
+  }
   if (!late_xy_check) {
     c += "  if (X >= args.dst_tensor.Width() || Y >= args.dst_tensor.Height()) "
          "return;\n";
   }
   c += "  if (S * " + std::to_string(kernel_params.slices_out) +
-       " >= args.dst_tensor.Slices()) return;\n";
-  c += "\n";
+       " >= args.dst_tensor.Slices()) return;\n\n";
   if (conv_params.runtime_check.dst_end_ch_index.has_value()) {
     c += "  int dst_end_slice_runtime = " +
          conv_params.runtime_check.GetRuntimeEndSlice(
@@ -192,11 +204,6 @@ std::string GenerateConvolutionGeneric(
          ";\n";
     c += "  if (S * " + std::to_string(kernel_params.slices_out) +
          " >= dst_end_slice_runtime) return;\n";
-  }
-  if (conv_params.runtime_check.group_sizes_offset.has_value()) {
-    c += "  int w_group_size = args.params.Read(args.group_sizes_offset+Y);\n";
-    c += "  int wave_first_w = (X / WAVE_SIZE) * WAVE_SIZE;\n";
-    c += "  if (wave_first_w >= w_group_size) return;\n";
   }
   const DataType acc_type = GetAccumulatorType(conv_params);
   const std::string acc_type_ucl = ToUclDataType(acc_type, 4);
@@ -232,7 +239,14 @@ std::string GenerateConvolutionGeneric(
   c += "  int coord_x, coord_y, coord_s;\n";
   std::string f_offset = "S";
   if (conv_params.different_weights_for_height) {
-    f_offset = "(S * args.src_tensor.Height() + Y)";
+    if (conv_params.runtime_check.packed_groups.has_value()) {
+      f_offset =
+          "(S * " +
+          std::to_string(conv_params.runtime_check.packed_groups->num_groups) +
+          " + w_batch_id)";
+    } else {
+      f_offset = "(S * args.src_tensor.Height() + Y)";
+    }
   }
   f_offset += " * args.i_slices";
   int wave_cache_size = kernel_params.slices_out * kernel_params.slices_in * 4;
@@ -254,8 +268,7 @@ std::string GenerateConvolutionGeneric(
   if (!conv_params.y_kernel_is_1) {
     f_offset += " * args.kernel_size_y";
   }
-  c += "  int f_offset = " + f_offset + ";\n";
-  c += "\n";
+  c += "  int f_offset = " + f_offset + ";\n\n";
   if (!kernel_params.slices_loop_first) {
     c += "  coord_s = " + src_start_slice + ";\n";
     c += "  do {\n";
@@ -420,7 +433,9 @@ std::string GenerateConvolutionGeneric(
     c += "  if (X >= args.dst_tensor.Width() || Y >= args.dst_tensor.Height()) "
          "return;\n";
   }
-  c += "\n";
+  if (conv_params.runtime_check.packed_groups.has_value()) {
+    c += "  if (X >= w_group_offset + w_group_size) return;\n\n";
+  }
   c += "  coord_s = mul24(S, " + std::to_string(kernel_params.slices_out) +
        ");\n";
   c += "  coord_x = X;\n";
@@ -679,8 +694,12 @@ int3 ConvWaveMemory::GetGridSize() const {
         DivideRoundUp(dst_[0]->Slices(), kernel_params_.slices_out);
     return int3(grid_x, 1, grid_z);
   } else {
-    const int grid_x = dst_[0]->Width() * dst_[0]->Batch();
-    const int grid_y = dst_[0]->Height();
+    int grid_x = dst_[0]->Width() * dst_[0]->Batch();
+    int grid_y = dst_[0]->Height();
+    if (conv_params_.runtime_check.packed_groups.has_value()) {
+      grid_x = conv_params_.runtime_check.packed_groups->max_group_size;
+      grid_y = conv_params_.runtime_check.packed_groups->num_groups;
+    }
     const int grid_z =
         DivideRoundUp(dst_[0]->Slices(), kernel_params_.slices_out);
     return int3(grid_x, grid_y, grid_z);
@@ -861,9 +880,9 @@ ConvWaveMemory CreateConvWaveMemoryExternalWeights(
     result.args_.AddInt("dst_end_ch_index", *runtime_check.dst_end_ch_index);
     has_runtime_check = true;
   }
-  if (runtime_check.group_sizes_offset.has_value()) {
-    result.args_.AddInt("group_sizes_offset",
-                        *runtime_check.group_sizes_offset);
+  if (runtime_check.packed_groups.has_value()) {
+    result.args_.AddInt("packed_params_offset",
+                        runtime_check.packed_groups->params_offset);
     has_runtime_check = true;
   }
   if (has_runtime_check) {

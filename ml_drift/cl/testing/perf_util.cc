@@ -1268,7 +1268,8 @@ absl::Status ConvMoEPerfTest(int seq_size, int src_channels, int dst_channels,
   RETURN_IF_ERROR(CreateEnvironment(&env));
   const auto& gpu_info = env.device().GetInfo();
 
-  const BHWC src_shape = BHWC(1, num_experts, seq_size, src_channels);
+  const BHWC src_shape =
+      BHWC(1, 1, seq_size * num_active_experts, src_channels);
   OperationDef op_def;
   auto data_type = DataType::FLOAT16;
   Layout layout = Layout::HWC;
@@ -1301,8 +1302,12 @@ absl::Status ConvMoEPerfTest(int seq_size, int src_channels, int dst_channels,
 
   std::unique_ptr<GPUOperation> conv;
   WeightsDescription weights_desc;
+  ConvRuntimeCheckDesc::PackedGroups packed_groups;
+  packed_groups.params_offset = 0;
+  packed_groups.num_groups = num_experts;
+  packed_groups.max_group_size = seq_size;
   ConvRuntimeCheckDesc runtime_check;
-  runtime_check.group_sizes_offset = 0;
+  runtime_check.packed_groups = packed_groups;
   if (IsConvWaveMemorySupported(gpu_info) && gpu_info.IsAdreno()) {
     auto conv_wave_memory = CreateConvWaveMemoryExternalWeights(
         gpu_info, op_def, CalculationsPrecision::F16, conv_attr,
@@ -1337,10 +1342,6 @@ absl::Status ConvMoEPerfTest(int seq_size, int src_channels, int dst_channels,
         CreateTensor(env.context(), weights_gpu_descs[i], &weights[i]));
   }
 
-  Tensor runtime_sizes;
-  TensorDescriptor runtime_sizes_td(DataType::INT32, TensorStorageType::BUFFER,
-                                    Layout::LINEAR);
-
   TensorInt32 active_expert_ids;
   active_expert_ids.shape = BHWC(1, 1, seq_size, num_active_experts);
   active_expert_ids.data.resize(active_expert_ids.shape.DimensionsProduct());
@@ -1357,21 +1358,29 @@ absl::Status ConvMoEPerfTest(int seq_size, int src_channels, int dst_channels,
     }
   }
 
-  std::vector<int32_t> runtime_sizes_cpu(num_experts, 0);
+  std::vector<int32_t> runtime_sizes(num_experts, 0);
   for (int w = 0; w < seq_size; ++w) {
     for (int c = 0; c < num_active_experts; ++c) {
       int expert_id = active_expert_ids.data[w * num_active_experts + c];
-      runtime_sizes_cpu[expert_id]++;
+      runtime_sizes[expert_id]++;
     }
   }
-  // for (int i = 0; i < num_experts; ++i) {
-  //   std::cout << "runtime_sizes_cpu[" << i << "] = " << runtime_sizes_cpu[i]
-  //             << std::endl;
-  // }
-  runtime_sizes_td.SetBHWCShape(BHWC(1, 1, 1, num_experts));
-  runtime_sizes_td.UploadData(runtime_sizes_cpu.data());
+  std::vector<int32_t> runtime_offsets(num_experts, 0);
+  for (int i = 1; i < num_experts; ++i) {
+    runtime_offsets[i] = runtime_offsets[i - 1] + runtime_sizes[i - 1];
+  }
+  std::vector<int32_t> runtime_params_cpu(num_experts * 2, 0);
+  for (int i = 0; i < num_experts; ++i) {
+    runtime_params_cpu[i] = runtime_sizes[i];
+    runtime_params_cpu[num_experts + i] = runtime_offsets[i];
+  }
+  Tensor runtime_params;
+  TensorDescriptor runtime_params_td(DataType::INT32, TensorStorageType::BUFFER,
+                                     Layout::LINEAR);
+  runtime_params_td.SetBHWCShape(BHWC(1, 1, 1, num_experts * 2));
+  runtime_params_td.UploadData(runtime_params_cpu.data());
   RETURN_IF_ERROR(
-      CreateTensor(env.context(), runtime_sizes_td, &runtime_sizes));
+      CreateTensor(env.context(), runtime_params_td, &runtime_params));
 
   std::cout << "Src size(BHWC) - " << src_shape.b << "x" << src_shape.h << "x"
             << src_shape.w << "x" << src_shape.c << std::endl;
@@ -1381,16 +1390,13 @@ absl::Status ConvMoEPerfTest(int seq_size, int src_channels, int dst_channels,
   RETURN_IF_ERROR(conv->AssembleCode(gpu_info));
 
   const int float_size = SizeOf(data_type);
-  const int64_t flops_count = 2.0 * dst_shape.DimensionsProduct() *
-                              weights_cpu.shape.i / num_experts *
-                              num_active_experts;
+  const int64_t flops_count =
+      2.0 * dst_shape.DimensionsProduct() * weights_cpu.shape.i;
   const double gflops_count = flops_count * 1e-9;
 
   const double kGByte = 1024.0 * 1024.0 * 1024.0;
-  const double src_gbytes =
-      src.GetMemorySizeInBytes() / num_experts * num_active_experts / kGByte;
-  const double dst_gbytes =
-      dst.GetMemorySizeInBytes() / num_experts * num_active_experts / kGByte;
+  const double src_gbytes = src.GetMemorySizeInBytes() / kGByte;
+  const double dst_gbytes = dst.GetMemorySizeInBytes() / kGByte;
   const double weight_gbytes =
       weights_cpu.shape.DimensionsProduct() * float_size / kGByte;
 
@@ -1407,7 +1413,7 @@ absl::Status ConvMoEPerfTest(int seq_size, int src_channels, int dst_channels,
   for (int i = 0; i < weights.size(); ++i) {
     RETURN_IF_ERROR(cl_op.SetSrcTensor(i + 1, &weights[i]));
   }
-  RETURN_IF_ERROR(cl_op.SetSrcTensor(weights.size() + 1, &runtime_sizes));
+  RETURN_IF_ERROR(cl_op.SetSrcTensor(weights.size() + 1, &runtime_params));
   RETURN_IF_ERROR(cl_op.SetDstTensor(0, &dst));
   RETURN_IF_ERROR(cl_op.UpdateParams());
   RETURN_IF_ERROR(cl_op.Tune(TuningType::kExhaustive, env.device().GetInfo(),

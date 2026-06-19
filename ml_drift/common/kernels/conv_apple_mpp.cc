@@ -43,8 +43,9 @@ void AddRuntimeParams(GPUOperation& op,
     op.args_.AddInt("dst_end_ch_index", *runtime_check.dst_end_ch_index);
     has_runtime_check = true;
   }
-  if (runtime_check.group_sizes_offset.has_value()) {
-    op.args_.AddInt("group_sizes_offset", *runtime_check.group_sizes_offset);
+  if (runtime_check.packed_groups.has_value()) {
+    op.args_.AddInt("packed_params_offset",
+                    runtime_check.packed_groups->params_offset);
     has_runtime_check = true;
   }
   if (has_runtime_check) {
@@ -60,8 +61,8 @@ inline int GetRangeShift(DataType type) {
   return 1u << (SizeInBitsOf(type) - 1);
 }
 
-std::string ReadFloatWeights(
-    const ConvAppleMPP::ExternalWeightsParams& params) {
+std::string ReadFloatWeights(const ConvAppleMPP::ExternalWeightsParams& params,
+                             bool batched_weights) {
   const bool weights_conversion =
       params.weights_desc.layout == WeightsLayout::kOSpatialIOGroupI4O4;
   const bool quantized_weights =
@@ -73,8 +74,8 @@ std::string ReadFloatWeights(
          std::to_string(params.src_group_slices) + +";\n";
     c += "    if (last_src_group_id != src_group_id) {\n";
     c += "      last_src_group_id = src_group_id;\n";
-    std::string w_batch = params.scale_zp_shape.h != 1 ? "dst_h" : "0";
-    std::string coords = "w_o_slice, " + w_batch + ", src_group_id";
+    std::string w_batch_id = batched_weights ? "w_batch_id" : "0";
+    std::string coords = "w_o_slice, " + w_batch_id + ", src_group_id";
     c += "      w_scale = args.weights_scale.Read(" + coords + ");\n";
     if (params.has_zero_point) {
       c += "      half4 w_zp = args.weights_zero_point.Read(" + coords + ");\n";
@@ -158,6 +159,20 @@ MAIN_FUNCTION($0) {
     c += "  int dst_w = spatial_id % args.dst.Width();\n";
     c += "  int dst_h = spatial_id / args.dst.Width();\n";
   }
+  if (runtime_check_.packed_groups.has_value()) {
+    c += "  int w_batch_id = dst_h;\n";
+    c += "  dst_h = 0;\n";
+    c += "  int w_group_size = args.params.Read(args.packed_params_offset + "
+         "w_batch_id);\n";
+    c += "  int w_group_offset = args.params.Read(args.packed_params_offset + "
+         "w_batch_id + " +
+         std::to_string(runtime_check_.packed_groups->num_groups) + ");\n";
+    c += "  int wg_first_w = spatial_tile_id * M_TILE;\n";
+    c += "  if (wg_first_w >= w_group_size) return;\n";
+    c += "  dst_w = w_group_offset + dst_w;\n";
+  } else {
+    c += "  int w_batch_id = dst_h;\n";
+  }
   if (runtime_check_.dst_end_ch_index.has_value()) {
     c += "  int dst_end_slice_runtime = " +
          runtime_check_.GetRuntimeEndSlice(
@@ -165,12 +180,6 @@ MAIN_FUNCTION($0) {
          ";\n";
     c += "  if (slice_tile_id * N_TILE_SLICES >= dst_end_slice_runtime) "
          "return;\n";
-  }
-  if (runtime_check_.group_sizes_offset.has_value()) {
-    c += "  int w_group_size = args.params.Read(args.group_sizes_offset + "
-         "dst_h);\n";
-    c += "  int wg_first_w = spatial_tile_id * M_TILE;\n";
-    c += "  if (wg_first_w >= w_group_size) return;\n";
   }
   if (weights_conversion) {
     ABSL_CHECK(n_tile_ == 64);
@@ -191,7 +200,7 @@ MAIN_FUNCTION($0) {
   int sub_o = loc_id % 16;
 
   int w_o_slice = min(slice_tile_id * N_TILE_SLICES + sub_o, args.dst.Slices() - 1);
-  int w_wg_offset = (dst_h * args.src.Slices() + sub_i) * args.dst.Slices() + w_o_slice;
+  int w_wg_offset = (w_batch_id * args.src.Slices() + sub_i) * args.dst.Slices() + w_o_slice;
   int w_stride = args.dst.Slices() * 8;
 )";
     if (quantized_weights && weights_data_type_ == DataType::FLOAT16) {
@@ -202,9 +211,7 @@ MAIN_FUNCTION($0) {
       } else {
         // linear quantization
         const std::string coords =
-            external_weights_params_.scale_zp_shape.h != 1
-                ? "w_o_slice, dst_h, 0"
-                : "w_o_slice";
+            batched_weights_ ? "w_o_slice, w_batch_id, 0" : "w_o_slice";
         c += "  w_scale = args.weights_scale.Read(" + coords + ");\n";
         if (external_weights_params_.has_zero_point) {
           c += "  half4 w_zp = args.weights_zero_point.Read(" + coords + ");\n";
@@ -224,7 +231,7 @@ MAIN_FUNCTION($0) {
   int b_cols = args.dst.Slices() * 4;
 )";
     if (batched_weights_) {
-      c += "  w_ptr += dst_h * b_rows * b_cols;\n";
+      c += "  w_ptr += w_batch_id * b_rows * b_cols;\n";
     }
     c += "  auto b_tensor = tensor(w_ptr, dextents<int, 2>(b_cols, b_rows));\n";
     c += "  auto b_tile = b_tensor.slice(slice_tile_id * N_TILE, 0);\n";
@@ -246,8 +253,12 @@ MAIN_FUNCTION($0) {
   int a_rows = SPATIAL_SIZE;
   int a_cols = args.src.Slices() * 4;
 )";
-    if (batched_weights_) {
-      c += "  s_ptr += dst_h * a_rows * a_cols;\n";
+    if (runtime_check_.packed_groups.has_value()) {
+      c += "  s_ptr += w_group_offset * a_cols;\n";
+    } else {
+      if (batched_weights_) {
+        c += "  s_ptr += w_batch_id * a_rows * a_cols;\n";
+      }
     }
     c += "  auto a_tensor = tensor(s_ptr, dextents<int, 2>(a_cols, a_rows));\n";
     c += "  auto a_tile = a_tensor.slice(0, spatial_tile_id * M_TILE);\n";
@@ -275,7 +286,7 @@ MAIN_FUNCTION($0) {
     if (weights_conversion) {
       if (weights_data_type_ == DataType::FLOAT16) {
         c += "    half4 w0, w1, w2, w3;\n";
-        c += ReadFloatWeights(external_weights_params_);
+        c += ReadFloatWeights(external_weights_params_, batched_weights_);
       } else {
         c += R"(
     uint2 u4_i4o4 = args.weights.Read(w_wg_offset);
@@ -336,6 +347,9 @@ MAIN_FUNCTION($0) {
   const std::string oob_check = batched_weights_ ? "dst_w >= args.dst.Width()"
                                                  : "dst_h >= args.dst.Height()";
   c += "  if (" + oob_check + ") return;\n";
+  if (runtime_check_.packed_groups.has_value()) {
+    c += "  if (dst_w >= w_group_offset + w_group_size) return;\n";
+  }
   c += R"(
   for (int i = 0; i < N_TILE_SLICES / slices_per_wg; ++i) {
     int tile_n_id = i * slices_per_wg + sub_slice_id;
@@ -364,6 +378,9 @@ MAIN_FUNCTION($0) {
   }
   if (has_batch) {
     spatial_size += " * args.dst.Batch()";
+  }
+  if (runtime_check_.packed_groups.has_value()) {
+    spatial_size = "w_group_size";
   }
   const std::string mat_mul_mode =
       manual_k_tiling
@@ -421,6 +438,10 @@ int3 ConvAppleMPP::GetGridSize() const {
     groups_z = dst_[0]->Height();
   } else {
     spatial_size *= dst_[0]->Height();
+  }
+  if (runtime_check_.packed_groups.has_value()) {
+    spatial_size = runtime_check_.packed_groups->max_group_size;
+    groups_z = runtime_check_.packed_groups->num_groups;
   }
   const int groups_y = DivideRoundUp(spatial_size, m_tile_);
   return int3(groups_x * work_group_size_.x, groups_y, groups_z);

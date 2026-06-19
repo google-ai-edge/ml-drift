@@ -236,8 +236,9 @@ std::string ReadWeights(const ConvWaveMatrix::ConvParams& conv_params,
          std::to_string(conv_params.src_group_slices) + +";\n";
     c += "    if (last_src_group_id != src_group_id) {\n";
     c += "      last_src_group_id = src_group_id;\n";
-    std::string w_batch = conv_params.scale_zp_shape.h != 1 ? "DST_Y" : "0";
-    std::string coords = "w_o_slice, " + w_batch + ", src_group_id";
+    std::string w_batch_id =
+        conv_params.different_weights_for_height ? "w_batch_id" : "0";
+    std::string coords = "w_o_slice, " + w_batch_id + ", src_group_id";
     c += "      weights_scale = args.weights_scale.Read(" + coords + ");\n";
     if (conv_params.has_zero_point) {
       c += "      Type wzp = args.weights_zero_point.Read(" + coords + ");\n";
@@ -299,6 +300,24 @@ std::string GenerateConvolution(
     c += "  args.src_tensor.SetBatchRef(B);\n";
     c += "  args.dst_tensor.SetBatchRef(B);\n";
   }
+  if (conv_params.runtime_check.packed_groups.has_value()) {
+    c += "  int w_batch_id = DST_Y;\n";
+    c += "  DST_Y = 0;\n";
+    c += "  int w_group_size = args.params.Read(args.packed_params_offset + "
+         "w_batch_id);\n";
+    c += "  int w_group_offset = args.params.Read(args.packed_params_offset + "
+         "w_batch_id + " +
+         std::to_string(conv_params.runtime_check.packed_groups->num_groups) +
+         ");\n";
+    c += "  int wg_first_w = " +
+         GetWorkGroupBaseDstX(kernel_params.work_group_launch_order,
+                              kernel_params.linear_spatial) +
+         ";\n";
+    c += "  if (wg_first_w >= w_group_size) return;\n";
+    c += "  DST_X = w_group_offset + DST_X;\n";
+  } else {
+    c += "  int w_batch_id = DST_Y;\n";
+  }
   const bool weights_conversion =
       conv_params.weights_desc.layout == WeightsLayout::kOSpatialIOGroupI4O4;
   const bool quantized_weights =
@@ -313,7 +332,8 @@ std::string GenerateConvolution(
     std::string weights_offset;
     if (conv_params.different_weights_for_height) {
       std::string spatial_size = "args.src_tensor.Height()";
-      weights_offset = "(" + weights_dst_s + " * " + spatial_size + " + DST_Y)";
+      weights_offset =
+          "(" + weights_dst_s + " * " + spatial_size + " + w_batch_id)";
     } else {
       std::string spatial_size = "";
       if (!conv_params.x_kernel_is_1) {
@@ -344,15 +364,6 @@ std::string GenerateConvolution(
            ";\n";
       c += "  if (dst_s_wg_first_slice >= dst_end_slice) return;\n";
     }
-  }
-  if (conv_params.runtime_check.group_sizes_offset.has_value()) {
-    c += "  int w_group_size = args.params.Read(args.group_sizes_offset + "
-         "DST_Y);\n";
-    c += "  int wg_first_w = " +
-         GetWorkGroupBaseDstX(kernel_params.work_group_launch_order,
-                              kernel_params.linear_spatial) +
-         ";\n";
-    c += "  if (wg_first_w >= w_group_size) return;\n";
   }
   const int src_x4_slices = kernel_params.GetX4SlicesCount();
   // in 8 bit conv used packed src kInt8C16. src_x4_slices actually is
@@ -532,14 +543,17 @@ std::string GenerateConvolution(
     c += "  int sub_i = spatial_id / " + std::to_string(o_groups) + ";\n";
     c += "  int sub_o = spatial_id % " + std::to_string(o_groups) + ";\n";
     c += "  int w_o_slice = min(DST_S + sub_o, args.dst_tensor.Slices()-1);\n";
-    c += "  w_sg_offset = (DST_Y * args.src_tensor.Slices() + sub_i) * "
-         "args.dst_tensor.Slices() + w_o_slice;\n";
+    const std::string batch_part = conv_params.different_weights_for_height
+                                       ? "w_batch_id * args.src_tensor.Slices()"
+                                       : "0";
+    c += "  w_sg_offset = (" + batch_part +
+         " + sub_i) * args.dst_tensor.Slices() + w_o_slice;\n";
     c += "  stride = args.dst_tensor.Slices() * " +
          std::to_string(src_x4_slices) + ";\n";
     if (quantized_weights && conv_params.scale_zp_shape.i == 1) {
       // linear quantization
-      const std::string coords = conv_params.scale_zp_shape.h != 1
-                                     ? "w_o_slice, DST_Y, 0"
+      const std::string coords = conv_params.different_weights_for_height
+                                     ? "w_o_slice, w_batch_id, 0"
                                      : "w_o_slice";
       c += "  weights_scale = args.weights_scale.Read(" + coords + ");\n";
       if (conv_params.has_zero_point) {
@@ -758,6 +772,9 @@ std::string GenerateConvolution(
        "args.dst_tensor.Height()) {\n";
   c += "    return;\n";
   c += "  }\n";
+  if (conv_params.runtime_check.packed_groups.has_value()) {
+    c += "  if (DST_X >= w_group_offset + w_group_size) return;\n";
+  }
   for (int slice = 0; slice < dst_x4_slices; slice += 2) {
     const std::string dst_s0 = "DST_S + " + std::to_string(slice);
     const std::string dst_s1 = "DST_S + " + std::to_string(slice + 1);
@@ -1042,6 +1059,30 @@ bool SupportsConvWaveMatrix(const GpuInfo& gpu_info,
   return false;
 }
 
+void AddRuntimeParams(GPUOperation& op,
+                      const ConvRuntimeCheckDesc& runtime_check) {
+  bool has_runtime_check = false;
+  if (runtime_check.src_end_ch_index.has_value()) {
+    op.args_.AddInt("src_end_ch_index", *runtime_check.src_end_ch_index);
+    has_runtime_check = true;
+  }
+  if (runtime_check.dst_end_ch_index.has_value()) {
+    op.args_.AddInt("dst_end_ch_index", *runtime_check.dst_end_ch_index);
+    has_runtime_check = true;
+  }
+  if (runtime_check.packed_groups.has_value()) {
+    op.args_.AddInt("packed_params_offset",
+                    runtime_check.packed_groups->params_offset);
+    has_runtime_check = true;
+  }
+  if (has_runtime_check) {
+    BufferDescriptor buffer_desc;
+    buffer_desc.element_type = DataType::INT32;
+    buffer_desc.element_size = 1;
+    op.AddSrcBuffer("params", buffer_desc);
+  }
+}
+
 }  // namespace
 
 ConvWaveMatrix::ConvWaveMatrix(const OperationDef& definition,
@@ -1109,8 +1150,12 @@ void ConvWaveMatrix::UploadWeights(
 }
 
 int3 ConvWaveMatrix::GetGridSize() const {
-  const int task_size_x = dst_[0]->Width() * dst_[0]->Batch();
-  const int task_size_y = dst_[0]->Height();
+  int task_size_x = dst_[0]->Width() * dst_[0]->Batch();
+  int task_size_y = dst_[0]->Height();
+  if (params_.runtime_check.packed_groups.has_value()) {
+    task_size_x = params_.runtime_check.packed_groups->max_group_size;
+    task_size_y = params_.runtime_check.packed_groups->num_groups;
+  }
   const int task_size_z = dst_[0]->Depth();
   const int task_size_s =
       DivideRoundUp(dst_[0]->Slices(), kernel_params_.dst_slices_per_thread);
@@ -1230,25 +1275,7 @@ ConvWaveMatrix CreateConvWaveMatrixExternalWeights(
     desc.AddSrcTensor("src_exp", *src_exp);
   }
 
-  bool has_runtime_check = false;
-  if (runtime_check.src_end_ch_index.has_value()) {
-    desc.args_.AddInt("src_end_ch_index", *runtime_check.src_end_ch_index);
-    has_runtime_check = true;
-  }
-  if (runtime_check.dst_end_ch_index.has_value()) {
-    desc.args_.AddInt("dst_end_ch_index", *runtime_check.dst_end_ch_index);
-    has_runtime_check = true;
-  }
-  if (runtime_check.group_sizes_offset.has_value()) {
-    desc.args_.AddInt("group_sizes_offset", *runtime_check.group_sizes_offset);
-    has_runtime_check = true;
-  }
-  if (has_runtime_check) {
-    BufferDescriptor buffer_desc;
-    buffer_desc.element_type = DataType::INT32;
-    buffer_desc.element_size = 1;
-    desc.AddSrcBuffer("params", buffer_desc);
-  }
+  AddRuntimeParams(desc, runtime_check);
 
   return desc;
 }
@@ -1309,25 +1336,7 @@ ConvWaveMatrix CreateConvWaveMatrixExternalWeights(
     desc.AddSrcTensor("src_exp", *src_exp);
   }
 
-  bool has_runtime_check = false;
-  if (runtime_check.src_end_ch_index.has_value()) {
-    desc.args_.AddInt("src_end_ch_index", *runtime_check.src_end_ch_index);
-    has_runtime_check = true;
-  }
-  if (runtime_check.dst_end_ch_index.has_value()) {
-    desc.args_.AddInt("dst_end_ch_index", *runtime_check.dst_end_ch_index);
-    has_runtime_check = true;
-  }
-  if (runtime_check.group_sizes_offset.has_value()) {
-    desc.args_.AddInt("group_sizes_offset", *runtime_check.group_sizes_offset);
-    has_runtime_check = true;
-  }
-  if (has_runtime_check) {
-    BufferDescriptor buffer_desc;
-    buffer_desc.element_type = DataType::INT32;
-    buffer_desc.element_size = 1;
-    desc.AddSrcBuffer("params", buffer_desc);
-  }
+  AddRuntimeParams(desc, runtime_check);
 
   return desc;
 }
