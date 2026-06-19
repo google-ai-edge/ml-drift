@@ -229,24 +229,34 @@ MAIN_FUNCTION($0) {
     c += "  auto b_tensor = tensor(w_ptr, dextents<int, 2>(b_cols, b_rows));\n";
     c += "  auto b_tile = b_tensor.slice(slice_tile_id * N_TILE, 0);\n";
   }
-  c += R"(
-  device TYPE* src_ptr = reinterpret_cast<device TYPE*>(args.src.GetHandle());
+  if (manual_src_reading) {
+    c += R"(
+  threadgroup half a_loc[K_TILE * M_TILE];
+  threadgroup half4* a_loc_x4 = (threadgroup half4*)(a_loc);
+  auto a_tile = tensor(a_loc, dextents<int, 2>(K_TILE, M_TILE));
+  int src_w = min(dst_w, args.src.Width() - 1);
+  int src_h = min(dst_h, args.src.Height() - 1);
+)";
+    if (softmax_input_activation_) {
+      c += "  half2 exp_val = args.src_exp.Read(src_w, src_h, 0).xy;\n";
+    }
+  } else {
+    c += R"(
+  device TYPE* s_ptr = reinterpret_cast<device TYPE*>(args.src.GetHandle());
   int a_rows = SPATIAL_SIZE;
   int a_cols = args.src.Slices() * 4;
 )";
-  if (batched_weights_) {
-    c += R"(
-  src_ptr += dst_h * a_rows * a_cols;
-)";
+    if (batched_weights_) {
+      c += "  s_ptr += dst_h * a_rows * a_cols;\n";
+    }
+    c += "  auto a_tensor = tensor(s_ptr, dextents<int, 2>(a_cols, a_rows));\n";
+    c += "  auto a_tile = a_tensor.slice(0, spatial_tile_id * M_TILE);\n";
   }
   c += R"(
-  auto a = tensor(src_ptr, dextents<int, 2>(a_cols, a_rows));
   constexpr auto matmul_desc = mpp::tensor_ops::matmul2d_descriptor(M_TILE, N_TILE, K_TILE, false, false, false, MAT_MUL_MODE);
   mpp::tensor_ops::matmul2d<matmul_desc, execution_simdgroups<SIMDGROUPS>> matmul_op;
 
-  auto a_sub_tensor = a.slice(0, spatial_tile_id * M_TILE);
-
-  auto c_tile = matmul_op.get_destination_cooperative_tensor<decltype(a_sub_tensor), decltype(b_tile), args.dst::scalar_type>();
+  auto c_tile = matmul_op.get_destination_cooperative_tensor<decltype(a_tile), decltype(b_tile), args.dst::scalar_type>();
   #pragma unroll_full
   for (uint16_t i = 0; i < c_tile.get_capacity(); ++i) {
     if(c_tile.is_valid_element(i)) c_tile[i] = 0;
@@ -260,21 +270,8 @@ MAIN_FUNCTION($0) {
          ";\n";
     src_end_slice = "src_slices_dynamic";
   }
-  if (manual_src_reading) {
-    c += R"(
-  threadgroup half a_loc[K_TILE * M_TILE];
-  threadgroup half4* a_loc_x4 = (threadgroup half4*)(a_loc);
-  auto a_loc_t = tensor(a_loc, dextents<int, 2>(K_TILE, M_TILE));
-  int src_w = min(dst_w, args.src.Width() - 1);
-  int src_h = min(dst_h, args.src.Height() - 1);
-)";
-    if (softmax_input_activation_) {
-      c += "  half2 exp_val = args.src_exp.Read(src_w, src_h, 0).xy;\n";
-    }
-  }
   if (manual_k_tiling) {
     c += "  for (int k = 0; k < " + src_end_slice + "; k += K_TILE_SLICES) {\n";
-    std::string s_tile;
     if (weights_conversion) {
       if (weights_data_type_ == DataType::FLOAT16) {
         c += "    half4 w0, w1, w2, w3;\n";
@@ -320,15 +317,13 @@ MAIN_FUNCTION($0) {
     }
     threadgroup_barrier(mem_flags::mem_threadgroup);
 )";
-      s_tile = "a_loc_t";
     } else {
-      c += "    auto tA = a.slice(k * 4, spatial_tile_id * M_TILE);\n";
-      s_tile = "tA";
+      c += "    a_tile = a_tensor.slice(k * 4, spatial_tile_id * M_TILE);\n";
     }
-    c += "    matmul_op.run(" + s_tile + ", b_tile, c_tile);\n";
+    c += "    matmul_op.run(a_tile, b_tile, c_tile);\n";
     c += "  }\n";
   } else {
-    c += "  matmul_op.run(a_sub_tensor, b_tile, c_tile);\n";
+    c += "  matmul_op.run(a_tile, b_tile, c_tile);\n";
   }
   c += R"(
   threadgroup args.dst::scalar_type tmp[N_TILE * M_TILE];
