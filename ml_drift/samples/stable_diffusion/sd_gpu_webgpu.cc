@@ -571,7 +571,14 @@ absl::Status TestStableDiffusion(std::string weights_path) {
 }  // namespace ml_drift
 
 int main(int argc, char** argv) {
-  auto status = ml_drift::webgpu::TestStableDiffusion("sd_1_5/");
+  std::string weights_folder = "sd_1_5/";
+  if (argc >= 2) {
+    weights_folder = argv[1];
+    if (!weights_folder.empty() && weights_folder.back() != '/') {
+      weights_folder += '/';
+    }
+  }
+  auto status = ml_drift::webgpu::TestStableDiffusion(weights_folder);
   if (!status.ok()) {
     std::cout << "Failed test." << status.message() << std::endl;
     return -1;
