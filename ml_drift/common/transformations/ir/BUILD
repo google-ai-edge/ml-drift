@@ -25,10 +25,12 @@ cc_library(
         "//ml_drift/common:ir_model",
         "//ml_drift/common:operations",
         "//ml_drift/common:shape",
+        "//ml_drift/common:status",
         "//ml_drift/common:tensor",
         "//ml_drift/common/transformations:fuse_add_to_conv",
         "//ml_drift/common/transformations:fuse_mul_to_conv",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
     ],
 )
 
@@ -92,6 +94,21 @@ cc_test(
         "//ml_drift/common:operations",
         "//ml_drift/common:shape",
         "//ml_drift/common:status",
+        "//ml_drift/common:tensor",
+        "//ml_drift/common/default:status_matchers",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "add_quant_adjustments_test",
+    srcs = ["add_quant_adjustments_test.cc"],
+    deps = [
+        ":transform",
+        "//ml_drift/common:data_type",
+        "//ml_drift/common:ir_model",
+        "//ml_drift/common:operations",
+        "//ml_drift/common:shape",
         "//ml_drift/common:tensor",
         "//ml_drift/common/default:status_matchers",
         "@com_google_googletest//:gtest_main",

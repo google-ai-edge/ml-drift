@@ -163,6 +163,13 @@ class IrModel {
 
   // Graph manipulation helpers
 
+  // Replaces an input tensor for a given op with a new tensor.
+  absl::Status ReplaceInput(IrOpId op_id, IrTensorId old_tensor_id,
+                            IrTensorId new_tensor_id);
+
+  // Clears quantization parameters for a given tensor.
+  void ResetQuantParams(IrTensorId tensor_id);
+
   // Removes an op that has exactly one input and one output.
   // It automatically routes consumers/producers to bypass the operation.
   // By default, the output tensor is deleted. However, if the output tensor

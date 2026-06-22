@@ -95,6 +95,42 @@ bool IrModel::IsGraphOutput(IrTensorId tensor_id) const {
   return absl::c_linear_search(outputs_, tensor_id);
 }
 
+absl::Status IrModel::ReplaceInput(IrOpId op_id, IrTensorId old_tensor_id,
+                                   IrTensorId new_tensor_id) {
+  if (op_id >= ops_.size() || ops_[op_id] == nullptr) {
+    return absl::InvalidArgumentError("Invalid op ID");
+  }
+  if (old_tensor_id >= tensors_.size() || tensors_[old_tensor_id] == nullptr) {
+    return absl::InvalidArgumentError("Invalid old tensor ID");
+  }
+  if (new_tensor_id >= tensors_.size() || tensors_[new_tensor_id] == nullptr) {
+    return absl::InvalidArgumentError("Invalid new tensor ID");
+  }
+
+  IrOp* op = ops_[op_id].get();
+  bool replaced = false;
+  for (auto& input_id : op->inputs) {
+    if (input_id == old_tensor_id) {
+      input_id = new_tensor_id;
+      replaced = true;
+    }
+  }
+
+  if (replaced) {
+    tensors_[old_tensor_id]->consumers.erase(op_id);
+    tensors_[new_tensor_id]->consumers.insert(op_id);
+    return absl::OkStatus();
+  }
+
+  return absl::NotFoundError("Old tensor not found in op's inputs");
+}
+
+void IrModel::ResetQuantParams(IrTensorId tensor_id) {
+  if (tensor_id < tensors_.size() && tensors_[tensor_id] != nullptr) {
+    tensors_[tensor_id]->quant_params.reset();
+  }
+}
+
 absl::Status IrModel::RemoveSimpleOp(IrOpId op_id) {
   if (op_id >= ops_.size() || ops_[op_id] == nullptr) {
     return absl::InvalidArgumentError("Invalid op ID");

@@ -443,5 +443,49 @@ TEST(IrModelTest, RemoveSimpleOp_IntermediateNode_MultipleConsumers) {
               UnorderedElementsAre(op3->id, op4->id));
 }
 
+TEST(IrModelTest, ReplaceInput_Success) {
+  IrModel model;
+  IrOp* op = model.add_op();
+  IrTensor* old_tensor =
+      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  IrTensor* new_tensor =
+      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+
+  model.AddConsumer(old_tensor->id, op->id);
+
+  EXPECT_THAT(op->inputs, ElementsAre(old_tensor->id));
+  EXPECT_THAT(old_tensor->consumers, UnorderedElementsAre(op->id));
+  EXPECT_THAT(new_tensor->consumers, IsEmpty());
+
+  EXPECT_TRUE(model.ReplaceInput(op->id, old_tensor->id, new_tensor->id).ok());
+
+  EXPECT_THAT(op->inputs, ElementsAre(new_tensor->id));
+  EXPECT_THAT(old_tensor->consumers, IsEmpty());
+  EXPECT_THAT(new_tensor->consumers, UnorderedElementsAre(op->id));
+}
+
+TEST(IrModelTest, ReplaceInput_Errors) {
+  IrModel model;
+  IrOp* op = model.add_op();
+  IrTensor* t1 =
+      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  IrTensor* t2 =
+      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+
+  model.AddConsumer(t1->id, op->id);
+
+  // Invalid op ID
+  EXPECT_FALSE(model.ReplaceInput(999, t1->id, t2->id).ok());
+
+  // Invalid old tensor ID
+  EXPECT_FALSE(model.ReplaceInput(op->id, 999, t2->id).ok());
+
+  // Invalid new tensor ID
+  EXPECT_FALSE(model.ReplaceInput(op->id, t1->id, 999).ok());
+
+  // Old tensor not in op's inputs
+  EXPECT_FALSE(model.ReplaceInput(op->id, t2->id, t1->id).ok());
+}
+
 }  // namespace
 }  // namespace ml_drift::ir
