@@ -1058,9 +1058,12 @@ GpuModelBuilder::FullyConnectedSrcFloatExternalWeightsWithConversion(
       AddTensor(dst_shape, src.tensor_desc.GetDataType());
   const bool different_weights_for_height = weights.shape.h != 1;
 
+  const auto conv_precision =
+        GetConvPrecision(src.tensor_desc.GetDataType());
+
   const bool use_apple_mpp =
       SupportsConvAppleMPP(gpu_info_) &&
-      src.tensor_desc.GetDataType() == DataType::FLOAT16 &&
+      conv_precision == CalculationsPrecision::F16 &&
       src.tensor_desc.GetBHWCShape().c % 32 == 0;
   auto src_handle = use_apple_mpp && !src_exp ? ToDHWBCC4(src) : src;
 
@@ -1130,8 +1133,6 @@ GpuModelBuilder::FullyConnectedSrcFloatExternalWeightsWithConversion(
     if (weights.zero_point) {
       external_weights.zero_point = &(weights.zero_point->tensor_desc);
     }
-    const auto conv_precision =
-        GetConvPrecision(src_handle.tensor_desc.GetDataType());
 
     if (recommended_single_conv && use_apple_mpp &&
         SupportsConvAppleMPP(gpu_info_, external_weights)) {
