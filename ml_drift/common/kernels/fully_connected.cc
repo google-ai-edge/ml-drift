@@ -132,12 +132,10 @@ inline int GetRangeShift(DataType type) {
 }
 
 int3 GetWorkGroupSize(const FullyConnected::ConvParams& params,
-                      const GpuInfo& gpu_info, DataType acc_type) {
+                      const GpuInfo& gpu_info, DataType acc_type,
+                      int dst_slices) {
   const int block_spatial =
-      params.batched_weights
-          ? params.dst_shape.b * params.dst_shape.w
-          : params.dst_shape.b * params.dst_shape.w * params.dst_shape.h;
-  const int dst_slices = DivideRoundUp(params.dst_shape.c, 4);
+      params.block_size.b * params.block_size.w * params.block_size.h;
   int wg_total_size = 32;
   float y_size_multiplier = 1;
   if (gpu_info.IsMali()) {
@@ -419,7 +417,7 @@ void ConvertQuantizedInt2Weights(
   }
 }
 
-int3 GetBHWCoords(int linear_spatial, const BHWC& shape) {
+int3 GetBlockSpatialCoords(int linear_spatial, const BHWC& shape) {
   int b_coord = linear_spatial % shape.b;
   linear_spatial /= shape.b;
   int x_coord = linear_spatial % shape.w;
@@ -541,9 +539,11 @@ FullyConnected::FullyConnected(const OperationDef& definition,
     work_group_size_.y = dst_slices / weights_desc.GetOutputGroupSize();
     work_group_size_.x = wg_total_size / work_group_size_.y;
   } else {
-    work_group_size_ = conv_params_.wg_size.x != 0
-                           ? conv_params_.wg_size
-                           : GetWorkGroupSize(conv_params_, gpu_info, acc_type);
+    work_group_size_ =
+        conv_params_.wg_size.x != 0
+            ? conv_params_.wg_size
+            : GetWorkGroupSize(conv_params_, gpu_info, acc_type,
+                               DivideRoundUp(weights_shape.o, 4));
   }
   wg_reduction_ = work_group_size_.y != 1 && !split_dst_slices_;
   const int scale_zp_group_size =
@@ -830,11 +830,9 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
     const OperationDef& definition, CalculationsPrecision precision,
     const GpuInfo& gpu_info, const WeightsDescription& weights_desc,
     int scale_zp_group_size) {
-  BHWC dst_shape = conv_params_.dst_shape;
-  if (conv_params_.batched_weights) {
-    dst_shape.h = 1;  // H is used as batch dimension in this case.
-  }
-  const int block_spatial = dst_shape.b * dst_shape.w * dst_shape.h;
+  const int block_spatial = conv_params_.block_size.b *
+                            conv_params_.block_size.w *
+                            conv_params_.block_size.h;
   const bool int8_math =
       definition.src_tensors[0].GetDataType() == DataType::INT8;
 
@@ -894,7 +892,7 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
   }
   if (conv_params_.softmax_input_activation) {
     for (int i = 0; i < block_spatial; ++i) {
-      const int3 bhw = GetBHWCoords(i, dst_shape);
+      const int3 bhw = GetBlockSpatialCoords(i, conv_params_.block_size);
       std::string y_coord = std::to_string(bhw.y);
       if (conv_params_.batched_weights) {
         y_coord = "weights_batch_id";
@@ -998,7 +996,7 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
          "; src_s += " + slice_stride + ") {\n";
   }
   for (int i = 0; i < block_spatial; ++i) {
-    const int3 bhw = GetBHWCoords(i, dst_shape);
+    const int3 bhw = GetBlockSpatialCoords(i, conv_params_.block_size);
     const std::string val_name = "v" + std::to_string(i);
     std::string y_coord = std::to_string(bhw.y);
     if (conv_params_.batched_weights) {
@@ -1098,7 +1096,7 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
     c += "  Type bias_value = args.biases.Read(dst_s);\n";
   }
   for (int i = 0; i < block_spatial; ++i) {
-    const int3 bhw = GetBHWCoords(i, dst_shape);
+    const int3 bhw = GetBlockSpatialCoords(i, conv_params_.block_size);
     std::string y_coord = std::to_string(bhw.y);
     if (conv_params_.batched_weights) {
       y_coord = "weights_batch_id";
@@ -1243,6 +1241,18 @@ void AddRuntimeParam(const ConvRuntimeCheckDesc& runtime_check,
   }
 }
 
+BHWC GetBlockSize(const BHWC* dst_shape_ptr, bool batched_weights) {
+  if (!dst_shape_ptr) {
+    return BHWC(1, 1, 1, 1);
+  }
+  BHWC block_size = *dst_shape_ptr;
+  block_size.c = 1;
+  if (batched_weights) {
+    block_size.h = 1;
+  }
+  return block_size;
+}
+
 FullyConnected CreateFullyConnected(const GpuInfo& gpu_info,
                                     const OperationDef& definition,
                                     CalculationsPrecision precision,
@@ -1260,12 +1270,12 @@ FullyConnected CreateFullyConnected(const GpuInfo& gpu_info,
   }
   FullyConnected::ConvParams conv_params;
   conv_params.weights_type = weights_desc.type;
-  conv_params.dst_shape =
-      dst_shape_ptr ? *dst_shape_ptr : BHWC(1, 1, 1, attr.weights.shape.o);
   if (wg_size) {
     conv_params.wg_size = *wg_size;
   }
   conv_params.has_bias = !attr.bias.data.empty();
+  conv_params.block_size =
+      GetBlockSize(dst_shape_ptr, conv_params.batched_weights);
   FullyConnected result(definition, precision, gpu_info, attr.weights.shape,
                         weights_desc, conv_params);
 
@@ -1290,15 +1300,14 @@ absl::StatusOr<FullyConnected> CreateFullyConnectedWeightsAreSpatialTensor(
   }
   FullyConnected::ConvParams conv_params;
   conv_params.weights_type = definition.src_tensors[1].GetDataType();
-  conv_params.dst_shape = dst_shape_ptr
-                              ? *dst_shape_ptr
-                              : BHWC(1, weights_shape.h, 1, weights_shape.o);
   if (wg_size) {
     conv_params.wg_size = *wg_size;
   }
   conv_params.batched_weights = weights_shape.h != 1;
   conv_params.has_bias = bias != nullptr;
   conv_params.runtime_check = runtime_check;
+  conv_params.block_size =
+      GetBlockSize(dst_shape_ptr, conv_params.batched_weights);
   WeightsDescription weights_desc;
   weights_desc.type = definition.src_tensors[1].GetDataType();
   weights_desc.layout = WeightsLayout::kUnknown;  // Using Spatial tensor as
@@ -1362,8 +1371,8 @@ absl::StatusOr<FullyConnected> CreateFullyConnectedExternalWeights(
   conv_params.has_bias = bias != nullptr;
   conv_params.has_zero_point = weights.zero_point != nullptr;
   conv_params.runtime_check = runtime_check;
-  conv_params.dst_shape =
-      dst_shape_ptr ? *dst_shape_ptr : BHWC(1, 1, 1, weights_shape.o);
+  conv_params.block_size =
+      GetBlockSize(dst_shape_ptr, conv_params.batched_weights);
   OperationDef op_def;
   op_def.src_tensors.push_back(src);
   op_def.dst_tensors.push_back(dst);
@@ -1401,8 +1410,8 @@ absl::StatusOr<FullyConnected> CreateFullyConnectedWeightsBatchIds(
   conv_params.has_bias = bias != nullptr;
   conv_params.has_zero_point = weights.zero_point != nullptr;
   conv_params.runtime_batch_ids = true;
-  conv_params.dst_shape =
-      dst_shape_ptr ? *dst_shape_ptr : BHWC(1, 1, 1, weights_shape.o);
+  conv_params.block_size =
+      GetBlockSize(dst_shape_ptr, conv_params.batched_weights);
   OperationDef op_def;
   op_def.src_tensors.push_back(src);
   op_def.dst_tensors.push_back(dst);
@@ -1436,12 +1445,12 @@ FullyConnected CreateFullyConnected(const GpuInfo& gpu_info,
   }
   FullyConnected::ConvParams conv_params;
   conv_params.weights_type = DataType::INT8;
-  conv_params.dst_shape =
-      dst_shape_ptr ? *dst_shape_ptr : BHWC(1, 1, 1, attr.weights.shape.o);
   if (wg_size) conv_params.wg_size = *wg_size;
   conv_params.scale_zp_shape = attr.scale.shape;
   conv_params.has_bias = !attr.bias.data.empty();
   conv_params.has_zero_point = !attr.zero_point.empty();
+  conv_params.block_size =
+      GetBlockSize(dst_shape_ptr, conv_params.batched_weights);
   FullyConnected result(definition, precision, gpu_info, attr.weights.shape,
                         weights_desc, conv_params);
   ConvertQuantizedInt8Weights(weights_desc, attr.weights, &result.args_);
@@ -1595,12 +1604,12 @@ FullyConnected CreateFullyConnectedInt8(
   if (weights_scale.shape.i != 1) {
     conv_params.has_zero_point = false;
   }
-  conv_params.dst_shape =
-      dst_shape_ptr ? *dst_shape_ptr : BHWC(1, 1, 1, weights.shape.o);
   if (wg_size) {
     conv_params.wg_size = *wg_size;
   }
   conv_params.has_bias = !biases.data.empty();
+  conv_params.block_size =
+      GetBlockSize(dst_shape_ptr, conv_params.batched_weights);
   FullyConnected result(definition, precision, gpu_info, weights.shape,
                         weights_desc, conv_params);
   ConvertQuantizedInt8Weights(weights_desc, weights, &result.args_);
@@ -1637,12 +1646,12 @@ FullyConnected CreateFullyConnectedInt4(
   if (weights_scale.shape.i != 1) {
     conv_params.has_zero_point = false;
   }
-  conv_params.dst_shape =
-      dst_shape_ptr ? *dst_shape_ptr : BHWC(1, 1, 1, weights_shape.o);
   if (wg_size) {
     conv_params.wg_size = *wg_size;
   }
   conv_params.has_bias = !biases.data.empty();
+  conv_params.block_size =
+      GetBlockSize(dst_shape_ptr, conv_params.batched_weights);
   FullyConnected result(definition, precision, gpu_info, weights_shape,
                         weights_desc, conv_params);
   ConvertQuantizedInt4Weights(weights_desc, weights, &result.args_);
@@ -1687,13 +1696,13 @@ FullyConnected CreateFullyConnectedInt4Sparse2x4(
   if (weights_scale.shape.i != 1) {
     conv_params.has_zero_point = false;
   }
-  conv_params.dst_shape =
-      dst_shape_ptr ? *dst_shape_ptr : BHWC(1, 1, 1, weights_shape_dense.o);
   if (wg_size) {
     conv_params.wg_size = *wg_size;
   }
   conv_params.has_bias = !biases.data.empty();
   conv_params.sparse_2x4 = true;
+  conv_params.block_size =
+      GetBlockSize(dst_shape_ptr, conv_params.batched_weights);
   FullyConnected result(definition, precision, gpu_info, weights_shape_dense,
                         weights_desc, conv_params);
   {
@@ -1764,12 +1773,12 @@ FullyConnected CreateFullyConnectedInt2(
   if (weights_scale.shape.i != 1) {
     conv_params.has_zero_point = false;
   }
-  conv_params.dst_shape =
-      dst_shape_ptr ? *dst_shape_ptr : BHWC(1, 1, 1, weights_shape.o);
   if (wg_size) {
     conv_params.wg_size = *wg_size;
   }
   conv_params.has_bias = !biases.data.empty();
+  conv_params.block_size =
+      GetBlockSize(dst_shape_ptr, conv_params.batched_weights);
   FullyConnected result(definition, precision, gpu_info, weights_shape,
                         weights_desc, conv_params);
   ConvertQuantizedInt2Weights(weights_desc, weights, &result.args_);

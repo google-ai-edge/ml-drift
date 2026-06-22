@@ -61,7 +61,7 @@ class FullyConnected : public GPUOperation {
     bool sparse_2x4 = false;
     bool runtime_batch_ids = false;
     ConvRuntimeCheckDesc runtime_check;
-    BHWC dst_shape;
+    BHWC block_size = BHWC(1, 1, 1, 1);
     int3 wg_size = int3(0, 0, 0);
   };
 
