@@ -1544,14 +1544,14 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision,
                                          int dst_channels,
                                          OHWI scale_zp_shape) {
   FullyConnectedAttributes attr;
-  attr.weights.shape = OHWI(dst_channels, 1, 1, src_shape.c);
+  attr.weights.shape = OHWI(dst_channels, scale_zp_shape.h, 1, src_shape.c);
   attr.weights.data.resize(attr.weights.shape.DimensionsProduct() +
                            XNN_EXTRA_BYTES / sizeof(float));
   attr.bias.shape = Linear(dst_channels);
   attr.bias.data.resize(attr.bias.shape.DimensionsProduct());
 
   FullyConnectedInt8Attributes attr_i8;
-  attr_i8.weights.shape = OHWI(dst_channels, 1, 1, src_shape.c);
+  attr_i8.weights.shape = OHWI(dst_channels, scale_zp_shape.h, 1, src_shape.c);
   attr_i8.weights.data.resize(attr_i8.weights.shape.DimensionsProduct() +
                               XNN_EXTRA_BYTES / sizeof(uint8_t));
   attr_i8.bias = attr.bias;
@@ -1580,9 +1580,12 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision,
   Layout layout = src_shape.b == 1 ? Layout::HWC : Layout::BHWC;
   auto storage_type = GetFastestStorageType(env.device().GetInfo());
   op_def.src_tensors.push_back({data_type, storage_type, layout});
+  RETURN_IF_ERROR(op_def.src_tensors[0].UpdateToSupportedStorageType(
+      env.device().GetInfo(), src_shape));
   op_def.dst_tensors.push_back({data_type, storage_type, layout});
-
   const auto dst_shape = CalculateOutputShape(src_shape, attr);
+  RETURN_IF_ERROR(op_def.dst_tensors[0].UpdateToSupportedStorageType(
+      env.device().GetInfo(), dst_shape));
 
   Tensor src, dst;
   TensorDescriptor descriptor_with_shape = op_def.src_tensors[0];
@@ -1594,10 +1597,12 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision,
 
   const auto w_shape = attr.weights.shape;
 
-  std::cout << "Src size(HWC) - " << src_shape.h << "x" << src_shape.w << "x"
-            << src_shape.c << std::endl;
-  std::cout << "Dst size(HWC) - " << dst_shape.h << "x" << dst_shape.w << "x"
-            << dst_shape.c << std::endl;
+  std::cout << "Src - " << src_shape.h << "x" << src_shape.w << "x"
+            << src_shape.c << ", "
+            << ToString(op_def.src_tensors[0].GetStorageType()) << std::endl;
+  std::cout << "Dst - " << dst_shape.h << "x" << dst_shape.w << "x"
+            << dst_shape.c << ", "
+            << ToString(op_def.dst_tensors[0].GetStorageType()) << std::endl;
 
   double element_size = precision == CalculationsPrecision::F32 ? 4.0 : 2.0;
   double weight_element_size = element_size;
@@ -1608,7 +1613,10 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision,
   } else if (weights_type == DataType::INT2) {
     weight_element_size = 0.25;
   }
-  const int64_t flops_per_element = w_shape.i * w_shape.h * w_shape.w * 2;
+  int64_t flops_per_element = w_shape.i * w_shape.h * w_shape.w * 2;
+  if (scale_zp_shape.h > 1) {
+    flops_per_element /= scale_zp_shape.h;
+  }
   const int64_t dst_elements = dst.Width() * dst.Height() * dst.Channels();
   const int64_t flops_count = dst_elements * flops_per_element;
   const double gflops_count = flops_count * 1e-9;
@@ -1728,12 +1736,12 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision,
                                     const BHWC& src_shape, int dst_channels,
                                     OHWI scale_zp_shape) {
   ml_drift::Tensor<OHWI, DataType::FLOAT32> weights;
-  weights.shape = OHWI(dst_channels, 1, 1, src_shape.c);
+  weights.shape = OHWI(dst_channels, scale_zp_shape.h, 1, src_shape.c);
   weights.data.resize(weights.shape.DimensionsProduct() +
                       XNN_EXTRA_BYTES / sizeof(float));
 
   ml_drift::Tensor<OHWI, DataType::INT8> weights_i8;
-  weights_i8.shape = OHWI(dst_channels, 1, 1, src_shape.c);
+  weights_i8.shape = OHWI(dst_channels, scale_zp_shape.h, 1, src_shape.c);
   weights_i8.data.resize(weights_i8.shape.DimensionsProduct() +
                          XNN_EXTRA_BYTES / sizeof(uint8_t));
 
@@ -1753,10 +1761,13 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision,
   Layout layout = src_shape.b == 1 ? Layout::HWC : Layout::BHWC;
   auto storage_type = GetFastestStorageType(env.device().GetInfo());
   op_def.src_tensors.push_back({data_type, storage_type, layout});
+  RETURN_IF_ERROR(op_def.src_tensors[0].UpdateToSupportedStorageType(
+      env.device().GetInfo(), src_shape));
   op_def.dst_tensors.push_back({data_type, storage_type, layout});
-
   auto dst_shape = src_shape;
   dst_shape.c = dst_channels;
+  RETURN_IF_ERROR(op_def.dst_tensors[0].UpdateToSupportedStorageType(
+      env.device().GetInfo(), dst_shape));
 
   Tensor src, dst;
   TensorDescriptor descriptor_with_shape = op_def.src_tensors[0];
@@ -1768,10 +1779,12 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision,
 
   const auto w_shape = weights.shape;
 
-  std::cout << "Src size(HWC) - " << src_shape.h << "x" << src_shape.w << "x"
-            << src_shape.c << std::endl;
-  std::cout << "Dst size(HWC) - " << dst_shape.h << "x" << dst_shape.w << "x"
-            << dst_shape.c << std::endl;
+  std::cout << "Src - " << src_shape.h << "x" << src_shape.w << "x"
+            << src_shape.c << ", "
+            << ToString(op_def.src_tensors[0].GetStorageType()) << std::endl;
+  std::cout << "Dst - " << dst_shape.h << "x" << dst_shape.w << "x"
+            << dst_shape.c << ", "
+            << ToString(op_def.dst_tensors[0].GetStorageType()) << std::endl;
 
   double element_size = precision == CalculationsPrecision::F32 ? 4.0 : 2.0;
   double weight_element_size = element_size;
@@ -1782,7 +1795,10 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision,
   } else if (weights_type == DataType::INT2) {
     weight_element_size = 0.25;
   }
-  const int64_t flops_per_element = w_shape.i * w_shape.h * w_shape.w * 2;
+  int64_t flops_per_element = w_shape.i * w_shape.h * w_shape.w * 2;
+  if (scale_zp_shape.h > 1) {
+    flops_per_element /= scale_zp_shape.h;
+  }
   const int64_t dst_elements = dst.Width() * dst.Height() * dst.Channels();
   const int64_t flops_count = dst_elements * flops_per_element;
   const double gflops_count = flops_count * 1e-9;
