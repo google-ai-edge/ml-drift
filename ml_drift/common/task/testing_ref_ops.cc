@@ -1010,7 +1010,8 @@ TensorFloat32 FullyConnectedRefDifferentWeightsForHeight(
           float sum = 0.0f;
           for (int s = 0; s < src_end_ch; s++) {
             const int src_index = src.shape.LinearIndex({b, y, x, s});
-            const int f_index = weights.shape.LinearIndex({d, y, 0, s});
+            const int w_h = weights.shape.h == 1 ? 0 : y;
+            const int f_index = weights.shape.LinearIndex({d, w_h, 0, s});
             sum += src.data[src_index] * weights.data[f_index];
           }
           const int dst_index = dst.shape.LinearIndex({b, y, x, d});

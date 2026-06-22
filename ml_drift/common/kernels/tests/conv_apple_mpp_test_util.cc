@@ -127,9 +127,11 @@ absl::Status ConvAppleMPPExternalWeightsTest(TestExecutionEnvironment& env,
   return absl::OkStatus();
 }
 
-absl::Status ConvAppleMPPExternalBatchedWfloatTest(
-    TestExecutionEnvironment& env, TensorStorageType storage,
-    const BHWC& src_shape, int dst_channels) {
+absl::Status ConvAppleMPPExternalWfloatTest(TestExecutionEnvironment& env,
+                                            TensorStorageType storage,
+                                            const BHWC& src_shape,
+                                            int dst_channels,
+                                            bool batched_weights) {
   TensorFloat32 src_tensor;
   const int src_channels = src_shape.c;
   src_tensor.shape = src_shape;
@@ -139,8 +141,9 @@ absl::Status ConvAppleMPPExternalBatchedWfloatTest(
     src_tensor.data[i] = sin(0.01f * i);
   }
 
+  const int weights_batch_size = batched_weights ? src_shape.h : 1;
   auto weights_f32 = MakeSyntheticTensor(
-      OHWI(dst_channels, src_tensor.shape.h, 1, src_channels));
+      OHWI(dst_channels, weights_batch_size, 1, src_channels));
   weights_f32.data.resize(weights_f32.shape.DimensionsProduct() +
                           XNN_EXTRA_BYTES / sizeof(float));
   TensorFloat32 dst_ref_tensor =
@@ -163,7 +166,7 @@ absl::Status ConvAppleMPPExternalBatchedWfloatTest(
       src_tensor_desc, dst_tensor_desc, external_weights,
       /*bias=*/nullptr,
       /*src_exp=*/nullptr,
-      /*different_weights_for_height=*/true);
+      batched_weights);
 
   TensorDescriptor weights_td =
       GetTensorDescriptorsForWeightsLayout(weights_f32, weights_desc)[0];
@@ -175,7 +178,7 @@ absl::Status ConvAppleMPPExternalBatchedWfloatTest(
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
 
   float eps = GetEpsilon(CalculationsPrecision::F16, env.GetGpuInfo()) *
-              weights_f32.shape.i * 2.0f;
+              weights_f32.shape.i * 4.0f;
   RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_td, &weights_td}, {&dst_td},
       std::make_unique<ConvAppleMPP>(std::move(operation))));
@@ -186,12 +189,15 @@ absl::Status ConvAppleMPPExternalBatchedWfloatTest(
   return absl::OkStatus();
 }
 
-absl::Status ConvAppleMPPExternalBatchedWi8Test(TestExecutionEnvironment& env,
-                                                TensorStorageType storage,
-                                                const BHWC& src_shape,
-                                                int dst_channels) {
+absl::Status ConvAppleMPPExternalWi8Test(TestExecutionEnvironment& env,
+                                         TensorStorageType storage,
+                                         const BHWC& src_shape,
+                                         int dst_channels, bool batched_weights,
+                                         int group_size) {
   TensorFloat32 src_tensor;
   const int src_channels = src_shape.c;
+  group_size = group_size != -1 ? group_size : src_channels;
+  const int num_groups = src_channels / group_size;
   src_tensor.shape = src_shape;
   const BHWC dst_shape(1, src_shape.h, src_shape.w, dst_channels);
   src_tensor.data.resize(src_tensor.shape.DimensionsProduct());
@@ -199,17 +205,18 @@ absl::Status ConvAppleMPPExternalBatchedWi8Test(TestExecutionEnvironment& env,
     src_tensor.data[i] = sin(0.01f * i);
   }
 
+  const int weights_batch_size = batched_weights ? src_shape.h : 1;
   ml_drift::Tensor<OHWI, DataType::INT8> weights_i8;
-  weights_i8.shape = OHWI(dst_channels, src_tensor.shape.h, 1, src_channels);
+  weights_i8.shape = OHWI(dst_channels, weights_batch_size, 1, src_channels);
   weights_i8.data.resize(weights_i8.shape.DimensionsProduct());
   auto weights_f32 = MakeSyntheticTensor(
-      OHWI(dst_channels, src_tensor.shape.h, 1, src_channels));
+      OHWI(dst_channels, weights_batch_size, 1, src_channels));
   for (int i = 0; i < weights_i8.data.size(); ++i) {
     const int val = (weights_f32.data[i] + 1.0f) * 256.0f;
     weights_i8.data[i] = std::max(std::min(val, 255), 0) - 128;
   }
-  auto weights_scales =
-      MakeSyntheticTensor(OHWI(dst_channels, src_tensor.shape.h, 1, 1));
+  auto weights_scales = MakeSyntheticTensor(
+      OHWI(dst_channels, weights_batch_size, 1, num_groups));
   for (int i = 0; i < weights_scales.data.size(); ++i) {
     weights_scales.data[i] /= 128.0f;
   }
@@ -247,8 +254,7 @@ absl::Status ConvAppleMPPExternalBatchedWi8Test(TestExecutionEnvironment& env,
   auto operation = CreateConvAppleMPPExternalWeights(
       src_tensor_desc, dst_tensor_desc, external_weights,
       /*bias=*/nullptr,
-      /*src_exp=*/nullptr,
-      /*different_weights_for_height=*/true);
+      /*src_exp=*/nullptr, batched_weights);
 
   TensorDescriptor weights_i8_td =
       GetTensorDescriptorForWeightsLayout(weights_i8, weights_desc);
@@ -260,7 +266,7 @@ absl::Status ConvAppleMPPExternalBatchedWi8Test(TestExecutionEnvironment& env,
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
 
   float eps = GetEpsilon(CalculationsPrecision::F16, env.GetGpuInfo()) *
-              weights_i8.shape.i * 4.0f;
+              group_size * 8.0f;
   RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_td, &weights_i8_td, &scale_desc, &zp_desc}, {&dst_td},
       std::make_unique<ConvAppleMPP>(std::move(operation))));
@@ -271,12 +277,15 @@ absl::Status ConvAppleMPPExternalBatchedWi8Test(TestExecutionEnvironment& env,
   return absl::OkStatus();
 }
 
-absl::Status ConvAppleMPPExternalBatchedWi4Test(TestExecutionEnvironment& env,
-                                                TensorStorageType storage,
-                                                const BHWC& src_shape,
-                                                int dst_channels) {
+absl::Status ConvAppleMPPExternalWi4Test(TestExecutionEnvironment& env,
+                                         TensorStorageType storage,
+                                         const BHWC& src_shape,
+                                         int dst_channels, bool batched_weights,
+                                         int group_size) {
   TensorFloat32 src_tensor;
   const int src_channels = src_shape.c;
+  group_size = group_size != -1 ? group_size : src_channels;
+  const int num_groups = src_channels / group_size;
   src_tensor.shape = src_shape;
   const BHWC dst_shape(1, src_shape.h, src_shape.w, dst_channels);
   src_tensor.data.resize(src_tensor.shape.DimensionsProduct());
@@ -284,17 +293,18 @@ absl::Status ConvAppleMPPExternalBatchedWi4Test(TestExecutionEnvironment& env,
     src_tensor.data[i] = sin(0.01f * i);
   }
 
+  const int weights_batch_size = batched_weights ? src_shape.h : 1;
   ml_drift::Tensor<OHWI, DataType::INT8> weights_i4;
-  weights_i4.shape = OHWI(dst_channels, src_tensor.shape.h, 1, src_channels);
+  weights_i4.shape = OHWI(dst_channels, weights_batch_size, 1, src_channels);
   weights_i4.data.resize(weights_i4.shape.DimensionsProduct());
   auto weights_f32 = MakeSyntheticTensor(
-      OHWI(dst_channels, src_tensor.shape.h, 1, src_channels));
+      OHWI(dst_channels, weights_batch_size, 1, src_channels));
   for (int i = 0; i < weights_i4.data.size(); ++i) {
     const int val = (weights_f32.data[i] + 1.0f) * 16.0f;
     weights_i4.data[i] = std::max(std::min(val, 15), 0) - 8;
   }
-  auto weights_scales =
-      MakeSyntheticTensor(OHWI(dst_channels, src_tensor.shape.h, 1, 1));
+  auto weights_scales = MakeSyntheticTensor(
+      OHWI(dst_channels, weights_batch_size, 1, num_groups));
   for (int i = 0; i < weights_scales.data.size(); ++i) {
     weights_scales.data[i] /= 8.0f;
   }
@@ -332,8 +342,7 @@ absl::Status ConvAppleMPPExternalBatchedWi4Test(TestExecutionEnvironment& env,
   auto operation = CreateConvAppleMPPExternalWeights(
       src_tensor_desc, dst_tensor_desc, external_weights,
       /*bias=*/nullptr,
-      /*src_exp=*/nullptr,
-      /*different_weights_for_height=*/true);
+      /*src_exp=*/nullptr, batched_weights);
 
   TensorDescriptor weights_i4_td =
       GetTensorDescriptorForWeightsLayout(weights_i4, weights_desc);
@@ -345,7 +354,7 @@ absl::Status ConvAppleMPPExternalBatchedWi4Test(TestExecutionEnvironment& env,
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
 
   float eps = GetEpsilon(CalculationsPrecision::F16, env.GetGpuInfo()) *
-              weights_i4.shape.i * 2.0f;
+              group_size * 4.0f;
   RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_td, &weights_i4_td, &scale_desc, &zp_desc}, {&dst_td},
       std::make_unique<ConvAppleMPP>(std::move(operation))));
@@ -356,12 +365,15 @@ absl::Status ConvAppleMPPExternalBatchedWi4Test(TestExecutionEnvironment& env,
   return absl::OkStatus();
 }
 
-absl::Status ConvAppleMPPExternalBatchedWi2Test(TestExecutionEnvironment& env,
-                                                TensorStorageType storage,
-                                                const BHWC& src_shape,
-                                                int dst_channels) {
+absl::Status ConvAppleMPPExternalWi2Test(TestExecutionEnvironment& env,
+                                         TensorStorageType storage,
+                                         const BHWC& src_shape,
+                                         int dst_channels, bool batched_weights,
+                                         int group_size) {
   TensorFloat32 src_tensor;
   const int src_channels = src_shape.c;
+  group_size = group_size != -1 ? group_size : src_channels;
+  const int num_groups = src_channels / group_size;
   src_tensor.shape = src_shape;
   const BHWC dst_shape(1, src_shape.h, src_shape.w, dst_channels);
   src_tensor.data.resize(src_tensor.shape.DimensionsProduct());
@@ -369,17 +381,18 @@ absl::Status ConvAppleMPPExternalBatchedWi2Test(TestExecutionEnvironment& env,
     src_tensor.data[i] = sin(0.01f * i);
   }
 
+  const int weights_batch_size = batched_weights ? src_shape.h : 1;
   ml_drift::Tensor<OHWI, DataType::INT8> weights_i2;
-  weights_i2.shape = OHWI(dst_channels, src_tensor.shape.h, 1, src_channels);
+  weights_i2.shape = OHWI(dst_channels, weights_batch_size, 1, src_channels);
   weights_i2.data.resize(weights_i2.shape.DimensionsProduct());
   auto weights_f32 = MakeSyntheticTensor(
-      OHWI(dst_channels, src_tensor.shape.h, 1, src_channels));
+      OHWI(dst_channels, weights_batch_size, 1, src_channels));
   for (int i = 0; i < weights_i2.data.size(); ++i) {
     const int val = (weights_f32.data[i] + 1.0f) * 4.0f;
     weights_i2.data[i] = std::max(std::min(val, 3), 0) - 2;
   }
-  auto weights_scales =
-      MakeSyntheticTensor(OHWI(dst_channels, src_tensor.shape.h, 1, 1));
+  auto weights_scales = MakeSyntheticTensor(
+      OHWI(dst_channels, weights_batch_size, 1, num_groups));
   for (int i = 0; i < weights_scales.data.size(); ++i) {
     weights_scales.data[i] /= 2.0f;
   }
@@ -417,8 +430,7 @@ absl::Status ConvAppleMPPExternalBatchedWi2Test(TestExecutionEnvironment& env,
   auto operation = CreateConvAppleMPPExternalWeights(
       src_tensor_desc, dst_tensor_desc, external_weights,
       /*bias=*/nullptr,
-      /*src_exp=*/nullptr,
-      /*different_weights_for_height=*/true);
+      /*src_exp=*/nullptr, batched_weights);
 
   TensorDescriptor weights_i2_td =
       GetTensorDescriptorForWeightsLayout(weights_i2, weights_desc);
@@ -430,93 +442,9 @@ absl::Status ConvAppleMPPExternalBatchedWi2Test(TestExecutionEnvironment& env,
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
 
   float eps = GetEpsilon(CalculationsPrecision::F16, env.GetGpuInfo()) *
-              weights_i2.shape.i * 2.0f;
+              group_size * 2.0f;
   RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_td, &weights_i2_td, &scale_desc, &zp_desc}, {&dst_td},
-      std::make_unique<ConvAppleMPP>(std::move(operation))));
-  TensorFloat32 dst_tensor;
-  dst_td.DownloadData(&dst_tensor);
-  EXPECT_THAT(dst_tensor.data,
-              testing::Pointwise(testing::FloatNear(eps), dst_ref_tensor.data));
-  return absl::OkStatus();
-}
-
-absl::Status ConvAppleMPPExternalBatchedGroupedWi4Test(
-    TestExecutionEnvironment& env, TensorStorageType dst_storage,
-    const BHWC& src_shape, int dst_channels, int group_size) {
-  TensorFloat32 src_tensor;
-  const int src_channels = src_shape.c;
-  const int num_groups = src_channels / group_size;
-  src_tensor.shape = src_shape;
-  const BHWC dst_shape(src_shape.b, src_shape.h, src_shape.w, dst_channels);
-  src_tensor.data.resize(src_tensor.shape.DimensionsProduct());
-  for (int i = 0; i < src_tensor.data.size(); ++i) {
-    src_tensor.data[i] = sin(0.01f * i);
-  }
-
-  ml_drift::Tensor<OHWI, DataType::INT8> weights_i4;
-  weights_i4.shape = OHWI(dst_channels, src_tensor.shape.h, 1, src_channels);
-  weights_i4.data.resize(weights_i4.shape.DimensionsProduct());
-  auto weights_f32 = MakeSyntheticTensor(weights_i4.shape);
-  for (int i = 0; i < weights_i4.data.size(); ++i) {
-    const int val = (weights_f32.data[i] + 1.0f) * 16.0f;
-    weights_i4.data[i] = std::max(std::min(val, 15), 0) - 8;
-  }
-  auto weights_scales = MakeSyntheticTensor(
-      OHWI(dst_channels, src_tensor.shape.h, 1, num_groups));
-  for (int i = 0; i < weights_scales.data.size(); ++i) {
-    weights_scales.data[i] /= 8.0f;
-  }
-  ml_drift::Tensor<OHWI, DataType::FLOAT32> weights_zero_point;
-  weights_zero_point.shape = weights_scales.shape;
-  weights_zero_point.data.resize(weights_scales.shape.DimensionsProduct(),
-                                 0.0f);
-
-  auto weights =
-      MakeWeightsFromInt8(weights_i4, weights_scales, weights_zero_point);
-  TensorFloat32 dst_ref_tensor =
-      FullyConnectedRefDifferentWeightsForHeight(weights, src_tensor);
-
-  Layout layout = src_tensor.shape.b == 1 ? Layout::HWC : Layout::BHWC;
-  DataType float_type = DataType::FLOAT16;
-  TensorDescriptor src_tensor_desc{
-      float_type, TensorStorageType::BUFFER, layout,
-      TensorDescriptor::PhysicalLayout1D::kDHWBCC4};
-  TensorDescriptor dst_tensor_desc{float_type, dst_storage, layout};
-
-  WeightsDescription weights_desc =
-      GetFullyConnectedInt4WeightsDesc(env.GetGpuInfo(), weights_i4.shape);
-
-  auto scale_desc = ScaleOrZeroPointToFCTensorDesc(env.GetGpuInfo(),
-                                                   weights_scales, float_type);
-  auto zp_desc = ScaleOrZeroPointToFCTensorDesc(env.GetGpuInfo(),
-                                                weights_zero_point, float_type);
-
-  ExternalWeights external_weights;
-  external_weights.desc = weights_desc;
-  external_weights.shape = weights_i4.shape;
-  external_weights.scale_zp_shape = weights_scales.shape;
-  external_weights.scale = &scale_desc;
-  external_weights.zero_point = &zp_desc;
-  auto operation = CreateConvAppleMPPExternalWeights(
-      src_tensor_desc, dst_tensor_desc, external_weights,
-      /*bias=*/nullptr,
-      /*src_exp=*/nullptr,
-      /*different_weights_for_height=*/true);
-
-  TensorDescriptor weights_i4_td =
-      GetTensorDescriptorForWeightsLayout(weights_i4, weights_desc);
-
-  TensorDescriptor src_td = src_tensor_desc;
-  src_td.UploadData(src_tensor);
-
-  TensorDescriptor dst_td = dst_tensor_desc;
-  dst_td.SetBHWCShape(dst_ref_tensor.shape);
-
-  float eps = GetEpsilon(CalculationsPrecision::F16, env.GetGpuInfo()) *
-              weights_i4.shape.i * 2.0f;
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
-      {&src_td, &weights_i4_td, &scale_desc, &zp_desc}, {&dst_td},
       std::make_unique<ConvAppleMPP>(std::move(operation))));
   TensorFloat32 dst_tensor;
   dst_td.DownloadData(&dst_tensor);

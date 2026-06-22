@@ -170,7 +170,7 @@ MAIN_FUNCTION($0) {
     c += "  int wg_first_w = spatial_tile_id * M_TILE;\n";
     c += "  if (wg_first_w >= w_group_size) return;\n";
     c += "  dst_w = w_group_offset + dst_w;\n";
-  } else {
+  } else if (batched_weights_) {
     c += "  int w_batch_id = dst_h;\n";
   }
   if (runtime_check_.dst_end_ch_index.has_value()) {
@@ -200,9 +200,12 @@ MAIN_FUNCTION($0) {
   int sub_o = loc_id % 16;
 
   int w_o_slice = min(slice_tile_id * N_TILE_SLICES + sub_o, args.dst.Slices() - 1);
-  int w_wg_offset = (w_batch_id * args.src.Slices() + sub_i) * args.dst.Slices() + w_o_slice;
   int w_stride = args.dst.Slices() * 8;
 )";
+    const std::string batch_part =
+        batched_weights_ ? "w_batch_id * args.src.Slices()" : "0";
+    c += "  int w_wg_offset = (" + batch_part +
+         " + sub_i) * args.dst.Slices() + w_o_slice;\n";
     if (quantized_weights && weights_data_type_ == DataType::FLOAT16) {
       c += "  half4 w_scale, w_bias;\n";
       if (external_weights_params_.scale_zp_shape.i != 1) {
@@ -455,8 +458,20 @@ bool SupportsConvAppleMPP(const GpuInfo& gpu_info) {
 
 bool SupportsConvAppleMPP(const GpuInfo& gpu_info,
                           const ExternalWeights& weights) {
-  // TODO - b/524735614: Re-enable once the issue is resolved.
-  return false;
+  if (!SupportsConvAppleMPP(gpu_info)) {
+    return false;
+  }
+  const bool supported_type = weights.desc.type == DataType::FLOAT32 ||
+                              weights.desc.type == DataType::FLOAT16 ||
+                              weights.desc.type == DataType::UINT8 ||
+                              weights.desc.type == DataType::UINT4 ||
+                              weights.desc.type == DataType::UINT2;
+  const int dst_slices = DivideRoundUp(weights.shape.o, 4);
+  if (weights.desc.layout != WeightsLayout::kOSpatialIOGroupI4O4 ||
+      weights.desc.output_group_size != dst_slices || !supported_type) {
+    return false;
+  }
+  return true;
 }
 
 ConvAppleMPP CreateConvAppleMPP(const TensorDescriptor& src,

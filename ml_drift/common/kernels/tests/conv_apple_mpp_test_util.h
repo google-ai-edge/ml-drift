@@ -32,25 +32,29 @@ absl::Status ConvAppleMPPExternalWeightsTest(TestExecutionEnvironment& env,
                                              const BHWC& src_shape,
                                              int dst_channels);
 
-absl::Status ConvAppleMPPExternalBatchedWfloatTest(
-    TestExecutionEnvironment& env, TensorStorageType storage,
-    const BHWC& src_shape, int dst_channels);
-absl::Status ConvAppleMPPExternalBatchedWi8Test(TestExecutionEnvironment& env,
-                                                TensorStorageType storage,
-                                                const BHWC& src_shape,
-                                                int dst_channels);
-absl::Status ConvAppleMPPExternalBatchedWi4Test(TestExecutionEnvironment& env,
-                                                TensorStorageType storage,
-                                                const BHWC& src_shape,
-                                                int dst_channels);
-absl::Status ConvAppleMPPExternalBatchedWi2Test(TestExecutionEnvironment& env,
-                                                TensorStorageType storage,
-                                                const BHWC& src_shape,
-                                                int dst_channels);
-
-absl::Status ConvAppleMPPExternalBatchedGroupedWi4Test(
-    TestExecutionEnvironment& env, TensorStorageType dst_storage,
-    const BHWC& src_shape, int dst_channels, int group_size);
+absl::Status ConvAppleMPPExternalWfloatTest(TestExecutionEnvironment& env,
+                                            TensorStorageType storage,
+                                            const BHWC& src_shape,
+                                            int dst_channels,
+                                            bool batched_weights = false);
+absl::Status ConvAppleMPPExternalWi8Test(TestExecutionEnvironment& env,
+                                         TensorStorageType storage,
+                                         const BHWC& src_shape,
+                                         int dst_channels,
+                                         bool batched_weights = false,
+                                         int group_size = -1);
+absl::Status ConvAppleMPPExternalWi4Test(TestExecutionEnvironment& env,
+                                         TensorStorageType storage,
+                                         const BHWC& src_shape,
+                                         int dst_channels,
+                                         bool batched_weights = false,
+                                         int group_size = -1);
+absl::Status ConvAppleMPPExternalWi2Test(TestExecutionEnvironment& env,
+                                         TensorStorageType storage,
+                                         const BHWC& src_shape,
+                                         int dst_channels,
+                                         bool batched_weights = false,
+                                         int group_size = -1);
 
 absl::Status ConvAppleMPPBatchedMatMulTest(TestExecutionEnvironment& env,
                                            TensorStorageType dst_storage,
