@@ -267,7 +267,8 @@ std::string ToString(const wgpu::Adapter& adapter) {
 }  // namespace
 
 TensorStorageType GetFastestStorageType(const GpuInfo& gpu_info) {
-  return gpu_info.IsApple() || gpu_info.IsNvidia() || gpu_info.IsAMD()
+  return !gpu_info.SupportsImages() || gpu_info.IsApple() ||
+                 gpu_info.IsNvidia() || gpu_info.IsAMD()
              ? TensorStorageType::BUFFER
              : TensorStorageType::TEXTURE_2D;
 }

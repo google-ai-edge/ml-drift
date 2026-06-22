@@ -34,6 +34,7 @@ enum class GpuVendor {
   kBroadcom,
   kHuawei,
   kIntel,
+  kLlvmPipe,
   kMali,
   kNvidia,
   kPowerVR,
@@ -810,6 +811,7 @@ struct GpuInfo {
   bool IsAMD() const;
   bool IsIntel() const;
   bool IsMaleoon() const;
+  bool IsLlvmPipe() const;
 
   bool IsGlsl() const;
   bool IsGlslSupportsExplicitFp16() const;

@@ -543,10 +543,10 @@ void AddConstantsGpuBuffer(const GpuInfo& gpu_info, DataType data_type,
   BufferDescriptor desc;
   desc.element_type = data_type;
   desc.element_size = 4;
-  desc.memory_type =
-      gpu_info.IsMali() || gpu_info.IsBroadcom() || gpu_info.IsAMD()
-          ? MemoryType::GLOBAL
-          : MemoryType::CONSTANT;
+  desc.memory_type = gpu_info.IsMali() || gpu_info.IsBroadcom() ||
+                             gpu_info.IsLlvmPipe() || gpu_info.IsAMD()
+                         ? MemoryType::GLOBAL
+                         : MemoryType::CONSTANT;
   desc.size = SizeOf(data_type) * weights.size();
   desc.data.resize(desc.size);
 

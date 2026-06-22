@@ -48,6 +48,8 @@ GpuVendor GetGpuVendor(const std::string& gpu_description) {
       {"power", GpuVendor::kPowerVR},
       {"maleoon", GpuVendor::kHuawei},
       {"broadcom", GpuVendor::kBroadcom},
+      {"lavapipe", GpuVendor::kLlvmPipe},
+      {"llvmpipe", GpuVendor::kLlvmPipe},
   };
   for (const auto& v : kMapping) {
     if (gpu_description.find(v.first) != std::string::npos) {
@@ -1097,6 +1099,8 @@ bool GpuInfo::IsAdreno() const { return vendor == GpuVendor::kQualcomm; }
 bool GpuInfo::IsApple() const { return vendor == GpuVendor::kApple; }
 
 bool GpuInfo::IsBroadcom() const { return vendor == GpuVendor::kBroadcom; }
+
+bool GpuInfo::IsLlvmPipe() const { return vendor == GpuVendor::kLlvmPipe; }
 
 bool GpuInfo::IsMali() const { return vendor == GpuVendor::kMali; }
 

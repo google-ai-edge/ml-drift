@@ -43,8 +43,8 @@
 namespace ml_drift {
 namespace {
 bool UseBufferForWeights(const GpuInfo& gpu_info) {
-  return gpu_info.IsMali() || gpu_info.IsBroadcom() || gpu_info.IsApple() ||
-         gpu_info.IsAMD();
+  return !gpu_info.SupportsImages() || gpu_info.IsMali() ||
+         gpu_info.IsBroadcom() || gpu_info.IsApple() || gpu_info.IsAMD();
 }
 
 WeightsLayout GetLayout(const GpuInfo& gpu_info) {

@@ -299,10 +299,10 @@ void ThinPointwiseFuser::CreateConstantsGpuBuffer(const GpuInfo& gpu_info) {
   BufferDescriptor desc;
   desc.element_type = data_type_;
   desc.element_size = 4;
-  desc.memory_type =
-      gpu_info.IsMali() || gpu_info.IsBroadcom() || gpu_info.IsAMD()
-          ? MemoryType::GLOBAL
-          : MemoryType::CONSTANT;
+  desc.memory_type = gpu_info.IsMali() || gpu_info.IsBroadcom() ||
+                             gpu_info.IsLlvmPipe() || gpu_info.IsAMD()
+                         ? MemoryType::GLOBAL
+                         : MemoryType::CONSTANT;
   if (gpu_info.IsApiVulkan()) {
     desc.memory_type = MemoryType::GLOBAL;
   }
@@ -1206,10 +1206,10 @@ void ThinPointwiseFuserIr::CreateConstantsGpuBuffer(const GpuInfo& gpu_info) {
   BufferDescriptor desc;
   desc.element_type = data_type_;
   desc.element_size = 4;
-  desc.memory_type =
-      gpu_info.IsMali() || gpu_info.IsBroadcom() || gpu_info.IsAMD()
-          ? MemoryType::GLOBAL
-          : MemoryType::CONSTANT;
+  desc.memory_type = gpu_info.IsMali() || gpu_info.IsBroadcom() ||
+                             gpu_info.IsLlvmPipe() || gpu_info.IsAMD()
+                         ? MemoryType::GLOBAL
+                         : MemoryType::CONSTANT;
   if (gpu_info.IsApiVulkan()) {
     desc.memory_type = MemoryType::GLOBAL;
   }
