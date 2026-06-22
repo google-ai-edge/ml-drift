@@ -131,14 +131,16 @@ TEST_P(ConvGenericFloatTest, ConvGenericGroupedBigTest) {
   MLD_ASSERT_OK(ConvGenericGroupedBigTest(*exec_env, precision(), storage()));
 }
 
-TEST_P(ConvGenericFloatTest, ConvGenericExternalBatchedWi4TestTest) {
+TEST_P(ConvGenericFloatTest, ConvGenericExternalWfloatTest) {
   const DataType data_type = DeduceDataTypeFromPrecision(precision());
   if (!exec_env->IsStorageSupported(storage(), data_type)) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  auto status =
-      ConvGenericExternalBatchedWi4TestTest(*exec_env, precision(), storage());
+  const BHWC src_shape(1, 1, 24, 128);
+  const int dst_channels = 64;
+  auto status = ConvGenericExternalWfloatTest(*exec_env, precision(), storage(),
+                                              src_shape, dst_channels);
   if (!status.ok() &&
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
@@ -146,14 +148,236 @@ TEST_P(ConvGenericFloatTest, ConvGenericExternalBatchedWi4TestTest) {
   MLD_ASSERT_OK(status);
 }
 
-TEST_P(ConvGenericFloatTest, ConvGenericExternalBatchedGroupedWi4TestTest) {
+TEST_P(ConvGenericFloatTest, ConvGenericExternalBatchedWfloatTest) {
   const DataType data_type = DeduceDataTypeFromPrecision(precision());
   if (!exec_env->IsStorageSupported(storage(), data_type)) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  auto status = ConvGenericExternalBatchedGroupedWi4TestTest(
-      *exec_env, precision(), storage());
+  const BHWC src_shape(1, 6, 12, 64);
+  const int dst_channels = 128;
+  auto status = ConvGenericExternalWfloatTest(*exec_env, precision(), storage(),
+                                              src_shape, dst_channels,
+                                              /*batched_weights=*/true);
+  if (!status.ok() &&
+      absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
+    GTEST_SKIP() << status.message();
+  }
+  MLD_ASSERT_OK(status);
+}
+
+TEST_P(ConvGenericFloatTest, ConvGenericExternalWi8Test) {
+  const DataType data_type = DeduceDataTypeFromPrecision(precision());
+  if (!exec_env->IsStorageSupported(storage(), data_type)) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
+                 << " storage type: " << ToString(storage());
+  }
+  const BHWC src_shape(1, 1, 24, 128);
+  const int dst_channels = 64;
+  auto status = ConvGenericExternalWi8Test(*exec_env, precision(), storage(),
+                                           src_shape, dst_channels);
+  if (!status.ok() &&
+      absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
+    GTEST_SKIP() << status.message();
+  }
+  MLD_ASSERT_OK(status);
+}
+
+TEST_P(ConvGenericFloatTest, ConvGenericExternalBatchedWi8Test) {
+  const DataType data_type = DeduceDataTypeFromPrecision(precision());
+  if (!exec_env->IsStorageSupported(storage(), data_type)) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
+                 << " storage type: " << ToString(storage());
+  }
+  const BHWC src_shape(1, 6, 12, 64);
+  const int dst_channels = 128;
+  auto status = ConvGenericExternalWi8Test(*exec_env, precision(), storage(),
+                                           src_shape, dst_channels,
+                                           /*batched_weights=*/true);
+  if (!status.ok() &&
+      absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
+    GTEST_SKIP() << status.message();
+  }
+  MLD_ASSERT_OK(status);
+}
+
+TEST_P(ConvGenericFloatTest, ConvGenericExternalGroupedWi8Test) {
+  const DataType data_type = DeduceDataTypeFromPrecision(precision());
+  if (!exec_env->IsStorageSupported(storage(), data_type)) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
+                 << " storage type: " << ToString(storage());
+  }
+  const BHWC src_shape(1, 6, 12, 16 * 12);
+  const int dst_channels = 64;
+  auto status = ConvGenericExternalWi8Test(*exec_env, precision(), storage(),
+                                           src_shape, dst_channels,
+                                           /*batched_weights=*/false,
+                                           /*group_size=*/12);
+  if (!status.ok() &&
+      absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
+    GTEST_SKIP() << status.message();
+  }
+  MLD_ASSERT_OK(status);
+}
+
+TEST_P(ConvGenericFloatTest, ConvGenericExternalGroupedBatchedWi8Test) {
+  const DataType data_type = DeduceDataTypeFromPrecision(precision());
+  if (!exec_env->IsStorageSupported(storage(), data_type)) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
+                 << " storage type: " << ToString(storage());
+  }
+  const BHWC src_shape(1, 6, 12, 16 * 12);
+  const int dst_channels = 64;
+  auto status = ConvGenericExternalWi8Test(*exec_env, precision(), storage(),
+                                           src_shape, dst_channels,
+                                           /*batched_weights=*/true,
+                                           /*group_size=*/12);
+  if (!status.ok() &&
+      absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
+    GTEST_SKIP() << status.message();
+  }
+  MLD_ASSERT_OK(status);
+}
+
+TEST_P(ConvGenericFloatTest, ConvGenericExternalWi4Test) {
+  const DataType data_type = DeduceDataTypeFromPrecision(precision());
+  if (!exec_env->IsStorageSupported(storage(), data_type)) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
+                 << " storage type: " << ToString(storage());
+  }
+  const BHWC src_shape(1, 1, 24, 128);
+  const int dst_channels = 64;
+  auto status = ConvGenericExternalWi4Test(*exec_env, precision(), storage(),
+                                           src_shape, dst_channels);
+  if (!status.ok() &&
+      absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
+    GTEST_SKIP() << status.message();
+  }
+  MLD_ASSERT_OK(status);
+}
+
+TEST_P(ConvGenericFloatTest, ConvGenericExternalBatchedWi4Test) {
+  const DataType data_type = DeduceDataTypeFromPrecision(precision());
+  if (!exec_env->IsStorageSupported(storage(), data_type)) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
+                 << " storage type: " << ToString(storage());
+  }
+  const BHWC src_shape(1, 6, 12, 64);
+  const int dst_channels = 128;
+  auto status = ConvGenericExternalWi4Test(*exec_env, precision(), storage(),
+                                           src_shape, dst_channels,
+                                           /*batched_weights=*/true);
+  if (!status.ok() &&
+      absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
+    GTEST_SKIP() << status.message();
+  }
+  MLD_ASSERT_OK(status);
+}
+
+TEST_P(ConvGenericFloatTest, ConvGenericExternalGroupedWi4Test) {
+  const DataType data_type = DeduceDataTypeFromPrecision(precision());
+  if (!exec_env->IsStorageSupported(storage(), data_type)) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
+                 << " storage type: " << ToString(storage());
+  }
+  const BHWC src_shape(1, 6, 12, 16 * 12);
+  const int dst_channels = 64;
+  auto status = ConvGenericExternalWi4Test(*exec_env, precision(), storage(),
+                                           src_shape, dst_channels,
+                                           /*batched_weights=*/false,
+                                           /*group_size=*/12);
+  if (!status.ok() &&
+      absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
+    GTEST_SKIP() << status.message();
+  }
+  MLD_ASSERT_OK(status);
+}
+
+TEST_P(ConvGenericFloatTest, ConvGenericExternalGroupedBatchedWi4Test) {
+  const DataType data_type = DeduceDataTypeFromPrecision(precision());
+  if (!exec_env->IsStorageSupported(storage(), data_type)) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
+                 << " storage type: " << ToString(storage());
+  }
+  const BHWC src_shape(1, 6, 12, 16 * 12);
+  const int dst_channels = 64;
+  auto status = ConvGenericExternalWi4Test(*exec_env, precision(), storage(),
+                                           src_shape, dst_channels,
+                                           /*batched_weights=*/true,
+                                           /*group_size=*/12);
+  if (!status.ok() &&
+      absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
+    GTEST_SKIP() << status.message();
+  }
+  MLD_ASSERT_OK(status);
+}
+
+TEST_P(ConvGenericFloatTest, ConvGenericExternalWi2Test) {
+  const DataType data_type = DeduceDataTypeFromPrecision(precision());
+  if (!exec_env->IsStorageSupported(storage(), data_type)) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
+                 << " storage type: " << ToString(storage());
+  }
+  const BHWC src_shape(1, 1, 24, 128);
+  const int dst_channels = 64;
+  auto status = ConvGenericExternalWi2Test(*exec_env, precision(), storage(),
+                                           src_shape, dst_channels);
+  if (!status.ok() &&
+      absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
+    GTEST_SKIP() << status.message();
+  }
+  MLD_ASSERT_OK(status);
+}
+
+TEST_P(ConvGenericFloatTest, ConvGenericExternalBatchedWi2Test) {
+  const DataType data_type = DeduceDataTypeFromPrecision(precision());
+  if (!exec_env->IsStorageSupported(storage(), data_type)) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
+                 << " storage type: " << ToString(storage());
+  }
+  const BHWC src_shape(1, 6, 12, 64);
+  const int dst_channels = 128;
+  auto status = ConvGenericExternalWi2Test(*exec_env, precision(), storage(),
+                                           src_shape, dst_channels,
+                                           /*batched_weights=*/true);
+  if (!status.ok() &&
+      absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
+    GTEST_SKIP() << status.message();
+  }
+  MLD_ASSERT_OK(status);
+}
+
+TEST_P(ConvGenericFloatTest, ConvGenericExternalGroupedWi2Test) {
+  const DataType data_type = DeduceDataTypeFromPrecision(precision());
+  if (!exec_env->IsStorageSupported(storage(), data_type)) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
+                 << " storage type: " << ToString(storage());
+  }
+  const BHWC src_shape(1, 6, 12, 16 * 12);
+  const int dst_channels = 64;
+  auto status = ConvGenericExternalWi2Test(*exec_env, precision(), storage(),
+                                           src_shape, dst_channels,
+                                           /*batched_weights=*/false,
+                                           /*group_size=*/12);
+  if (!status.ok() &&
+      absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
+    GTEST_SKIP() << status.message();
+  }
+  MLD_ASSERT_OK(status);
+}
+
+TEST_P(ConvGenericFloatTest, ConvGenericExternalGroupedBatchedWi2Test) {
+  const DataType data_type = DeduceDataTypeFromPrecision(precision());
+  if (!exec_env->IsStorageSupported(storage(), data_type)) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
+                 << " storage type: " << ToString(storage());
+  }
+  const BHWC src_shape(1, 6, 12, 16 * 12);
+  const int dst_channels = 64;
+  auto status = ConvGenericExternalWi2Test(*exec_env, precision(), storage(),
+                                           src_shape, dst_channels,
+                                           /*batched_weights=*/true,
+                                           /*group_size=*/12);
   if (!status.ok() &&
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();

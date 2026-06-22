@@ -996,8 +996,8 @@ absl::Status ConvolutionSf16Wi4BatchedPerfTest(const BHWC& src_shape,
   }
 
   std::unique_ptr<GPUOperation> conv;
-  if (SupportsConvGeneric(gpu_info, CalculationsPrecision::F16, weights_desc,
-                          weights_i4.shape)) {
+  if (SupportsConvGeneric(gpu_info, CalculationsPrecision::F16,
+                          external_weights)) {
     OperationDef conv_def;
     conv_def.src_tensors.push_back(src_tensor_desc);
     conv_def.dst_tensors.push_back(dst_tensor_desc);

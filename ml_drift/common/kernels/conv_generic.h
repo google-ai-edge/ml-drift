@@ -405,8 +405,7 @@ ConvGeneric CreateConvGenericExternalWeights(
 
 bool SupportsConvGeneric(const GpuInfo& gpu_info,
                          CalculationsPrecision precision,
-                         const WeightsDescription& weights_desc,
-                         const OHWI& weights_shape);
+                         const ExternalWeights& weights);
 
 ConvGeneric CreateConvGenericExternalWeights(
     const GpuInfo& gpu_info, const OperationDef& definition,

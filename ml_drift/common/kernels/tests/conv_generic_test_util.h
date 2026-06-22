@@ -68,13 +68,33 @@ absl::Status ConvGenericGroupedBigTest(TestExecutionEnvironment& env,
                                        CalculationsPrecision precision,
                                        TensorStorageType storage);
 
-absl::Status ConvGenericExternalBatchedWi4TestTest(
-    TestExecutionEnvironment& env, CalculationsPrecision precision,
-    TensorStorageType storage);
+absl::Status ConvGenericExternalWfloatTest(TestExecutionEnvironment& env,
+                                           CalculationsPrecision precision,
+                                           TensorStorageType storage,
+                                           const BHWC& src_shape,
+                                           int dst_channels,
+                                           bool batched_weights = false);
 
-absl::Status ConvGenericExternalBatchedGroupedWi4TestTest(
-    TestExecutionEnvironment& env, CalculationsPrecision precision,
-    TensorStorageType storage);
+absl::Status ConvGenericExternalWi8Test(TestExecutionEnvironment& env,
+                                        CalculationsPrecision precision,
+                                        TensorStorageType storage,
+                                        const BHWC& src_shape, int dst_channels,
+                                        bool batched_weights = false,
+                                        int group_size = -1);
+
+absl::Status ConvGenericExternalWi4Test(TestExecutionEnvironment& env,
+                                        CalculationsPrecision precision,
+                                        TensorStorageType storage,
+                                        const BHWC& src_shape, int dst_channels,
+                                        bool batched_weights = false,
+                                        int group_size = -1);
+
+absl::Status ConvGenericExternalWi2Test(TestExecutionEnvironment& env,
+                                        CalculationsPrecision precision,
+                                        TensorStorageType storage,
+                                        const BHWC& src_shape, int dst_channels,
+                                        bool batched_weights = false,
+                                        int group_size = -1);
 
 absl::Status ConvGeneric3d1x1x1BigTest(TestExecutionEnvironment& env,
                                        CalculationsPrecision precision,
