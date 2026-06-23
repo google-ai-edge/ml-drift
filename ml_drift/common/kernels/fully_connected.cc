@@ -1337,7 +1337,7 @@ absl::StatusOr<FullyConnected> CreateFullyConnectedExternalWeights(
     const TensorDescriptor& src, const TensorDescriptor& dst,
     const ExternalWeights& weights, const TensorDescriptor* bias,
     const BHWC* dst_shape_ptr, const TensorDescriptor* src_exp,
-    const ConvRuntimeCheckDesc& runtime_check) {
+    const ConvRuntimeCheckDesc& runtime_check, const int3* wg_size) {
   const auto& weights_desc = weights.desc;
   const auto& weights_shape = weights.shape;
 
@@ -1373,6 +1373,9 @@ absl::StatusOr<FullyConnected> CreateFullyConnectedExternalWeights(
   conv_params.runtime_check = runtime_check;
   conv_params.block_size =
       GetBlockSize(dst_shape_ptr, conv_params.batched_weights);
+  if (wg_size) {
+    conv_params.wg_size = *wg_size;
+  }
   OperationDef op_def;
   op_def.src_tensors.push_back(src);
   op_def.dst_tensors.push_back(dst);

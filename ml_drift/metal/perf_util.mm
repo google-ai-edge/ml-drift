@@ -43,48 +43,6 @@
 namespace ml_drift {
 namespace metal {
 namespace {
-absl::Duration GetTasksTime(id<MTLCommandQueue> command_queue,
-                            std::vector<ComputeTask>& gpu_kernels) {
-  const int kMaxRuns = 5000;
-  const int kMaxIterations = 5;
-  const double kConvergeTolerance = 10.0;  // in percents
-  const double kTestRunMs = 100.0;
-  absl::Duration duration = absl::ZeroDuration();
-  double prev_time_ms = 10000.0f;  // 10sec
-  for (int i = 0; i < kMaxIterations; ++i) {
-    int num_runs = static_cast<int>(kTestRunMs / prev_time_ms);
-    num_runs = std::min(std::max(num_runs, 4), kMaxRuns);
-    @autoreleasepool {
-      id<MTLCommandBuffer> command_buffer = [command_queue commandBuffer];
-      id<MTLComputeCommandEncoder> encoder = [command_buffer computeCommandEncoder];
-      for (int i = 0; i < num_runs; ++i) {
-        for (auto& gpu_task : gpu_kernels) {
-          gpu_task.Encode(encoder);
-        }
-      }
-      [encoder endEncoding];
-      auto start = absl::Now();
-      [command_buffer commit];
-      [command_buffer waitUntilCompleted];
-      auto end = absl::Now();
-
-      duration = (end - start) / static_cast<float>(num_runs);
-    }
-
-    if (num_runs == kMaxRuns) {
-      break;
-    }
-
-    const double current_time_ms = absl::ToDoubleMilliseconds(duration);
-    const double diff_percent = std::abs(1.0 - current_time_ms / prev_time_ms) * 100.0;
-    prev_time_ms = current_time_ms;
-    if (diff_percent <= kConvergeTolerance) {
-      break;
-    }
-  }
-  return duration;
-}
-
 absl::Status TestConvolutionPerformance(const Convolution2DAttributes& attr, const BHWC& src_shape,
                                         const OperationDef& op_def,
                                         CalculationsPrecision precision) {
@@ -136,8 +94,6 @@ absl::Status TestConvolutionPerformance(const Convolution2DAttributes& attr, con
             << attr.padding.prepended.h << ", (appended) - " << attr.padding.appended.w << "x"
             << attr.padding.appended.h << std::endl;
 
-  conv->SetSrc(&src);
-  conv->SetDst(&dst);
   RETURN_IF_ERROR(conv->AssembleCode(env.GetInfo()));
 
   const int float_size = precision == CalculationsPrecision::F32 ? 4 : 2;
@@ -290,8 +246,6 @@ absl::Status TestDepthwiseConvPerformance(const DepthwiseConvolution2DAttributes
             << attr.padding.prepended.h << ", (appended) - " << attr.padding.appended.w << "x"
             << attr.padding.appended.h << std::endl;
 
-  conv->SetSrc(&src);
-  conv->SetDst(&dst);
   RETURN_IF_ERROR(conv->AssembleCode(env.GetInfo()));
 
   const int64_t flops_count = GetDepthwiseConvolutionFlops(dst_shape, w_shape);
@@ -440,15 +394,6 @@ absl::Status ConvolutionInt8PerfTest(const BHWC& src_shape, int dst_channels) {
             << std::endl;
   std::cout << "Dst size(HWC) - " << dst_shape.h << "x" << dst_shape.w << "x" << dst_shape.c
             << std::endl;
-
-  conv->SetSrc(&src);
-  if (dequantize) {
-    conv->SetSrc(&src_params_tensor);
-    conv->SetSrc(&weights_sum_i_tensor);
-    conv->SetSrc(&weights_scale_tensor);
-    conv->SetSrc(&weights_zero_point_tensor);
-  }
-  conv->SetDst(&dst);
   RETURN_IF_ERROR(conv->AssembleCode(env.GetInfo()));
 
   const int64_t flops_per_element = w_shape.i * 2;
@@ -581,14 +526,6 @@ absl::Status ConvolutionSf16Wi4BatchedPerfTest(const BHWC& src_shape, int dst_ch
 
   MetalSpatialTensor weights_zero_point_tensor;
   RETURN_IF_ERROR(CreateTensor(env.device(), zp_desc, &weights_zero_point_tensor));
-
-  conv->SetSrc(&src);
-  conv->SetSrc(&weights_i4_tensor);
-  conv->SetSrc(&weights_scale_tensor);
-  if (use_zero_point) {
-    conv->SetSrc(&weights_zero_point_tensor);
-  }
-  conv->SetDst(&dst);
 
   RETURN_IF_ERROR(conv->AssembleCode(env.GetInfo()));
 
@@ -736,17 +673,6 @@ absl::Status ConvolutionSi8Wi4PerfTest(const BHWC& src_shape, int dst_channels) 
     RETURN_IF_ERROR(CreateTensor(env.device(), weights_zero_point_td, &weights_zero_point_tensor));
     RETURN_IF_ERROR(CreateTensor(env.device(), weights_sum_i_td, &weights_sum_i_tensor));
   }
-
-  conv->SetSrc(&src);
-  conv->SetSrc(&weights_i4_tensor);
-  if (dequantize) {
-    conv->SetSrc(&src_params_tensor);
-    conv->SetSrc(&weights_sum_i_tensor);
-    conv->SetSrc(&weights_scale_tensor);
-    conv->SetSrc(&weights_zero_point_tensor);
-  }
-  conv->SetDst(&dst);
-
   RETURN_IF_ERROR(conv->AssembleCode(env.GetInfo()));
 
   const int64_t flops_per_element = weights_i4.shape.i * 2;
@@ -959,22 +885,13 @@ absl::Status ConvSoftmaxConvPerfTest() {
 absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision, DataType weights_type,
                                          const BHWC& src_shape, int dst_channels,
                                          OHWI scale_zp_shape) {
-  FullyConnectedAttributes attr;
-  attr.weights.shape = OHWI(dst_channels, scale_zp_shape.h, 1, src_shape.c);
-  attr.weights.data.resize(attr.weights.shape.DimensionsProduct() +
-                           XNN_EXTRA_BYTES / sizeof(float));
-  attr.bias.shape = Linear(dst_channels);
-  attr.bias.data.resize(attr.bias.shape.DimensionsProduct(), 1.0f);
+  ml_drift::Tensor<OHWI, DataType::FLOAT32> weights;
+  weights.shape = OHWI(dst_channels, scale_zp_shape.h, 1, src_shape.c);
+  weights.data.resize(weights.shape.DimensionsProduct() + XNN_EXTRA_BYTES / sizeof(float));
 
-  FullyConnectedInt8Attributes attr_i8;
-  attr_i8.weights.shape = OHWI(dst_channels, scale_zp_shape.h, 1, src_shape.c);
-  attr_i8.weights.data.resize(attr_i8.weights.shape.DimensionsProduct() +
-                              XNN_EXTRA_BYTES / sizeof(uint8_t));
-  attr_i8.bias = attr.bias;
-  attr_i8.scale.shape = OHWI(1, 1, 1, 1);
-  attr_i8.scale.data.resize(1);
-  attr_i8.zero_point.shape = OHWI(1, 1, 1, 1);
-  attr_i8.zero_point.data.resize(1);
+  ml_drift::Tensor<OHWI, DataType::INT8> weights_i8;
+  weights_i8.shape = OHWI(dst_channels, scale_zp_shape.h, 1, src_shape.c);
+  weights_i8.data.resize(weights_i8.shape.DimensionsProduct() + XNN_EXTRA_BYTES / sizeof(uint8_t));
 
   ml_drift::Tensor<OHWI, DataType::FLOAT32> weights_scale;
   weights_scale.shape = scale_zp_shape;
@@ -983,15 +900,18 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision, DataTy
   weights_zp.shape = scale_zp_shape;
   weights_zp.data.resize(weights_zp.shape.DimensionsProduct(), 0.0f);
 
+  Environment env;
+  const GpuInfo& gpu_info = env.GetInfo();
+
   OperationDef op_def;
   auto data_type = DeduceDataTypeFromPrecision(precision);
   Layout layout = src_shape.b == 1 ? Layout::HWC : Layout::BHWC;
   op_def.src_tensors.push_back({data_type, TensorStorageType::BUFFER, layout});
   op_def.dst_tensors.push_back({data_type, TensorStorageType::BUFFER, layout});
 
-  const auto dst_shape = CalculateOutputShape(src_shape, attr);
+  auto dst_shape = src_shape;
+  dst_shape.c = dst_channels;
 
-  Environment env;
   id<MTLCommandQueue> command_queue = [env.device() newCommandQueue];
 
   MetalSpatialTensor src, dst;
@@ -1002,7 +922,7 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision, DataTy
   descriptor_with_shape.SetBHWCShape(dst_shape);
   RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &dst));
 
-  const auto w_shape = attr.weights.shape;
+  const auto w_shape = weights.shape;
 
   std::cout << "Src size(HWC) - " << src_shape.h << "x" << src_shape.w << "x" << src_shape.c
             << std::endl;
@@ -1031,10 +951,53 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision, DataTy
   const int64_t src_elements_alignedx4 = src.Width() * src.Height() * src.Slices() * 4;
   const double dst_gbytes = dst_elements_alignedx4 * element_size / kGByte;
   const double src_gbytes = src_elements_alignedx4 * element_size / kGByte;
-  const double weight_gbytes =
-      attr.weights.shape.DimensionsProduct() * weight_element_size / kGByte;
-  const double bias_gbytes = attr.weights.shape.o * element_size / kGByte;
+  const double weight_gbytes = weights.shape.DimensionsProduct() * weight_element_size / kGByte;
+  const double bias_gbytes = weights.shape.o * element_size / kGByte;
   const double scale_gbytes = scale_zp_shape.DimensionsProduct() * element_size / kGByte;
+
+  WeightsDescription weights_desc;
+  std::vector<TensorDescriptor> weights_gpu;
+  if (weights_type == DataType::FLOAT16 || weights_type == DataType::FLOAT32) {
+    weights_desc.type = DeduceDataTypeFromPrecision(precision);
+    weights_desc.layout = WeightsLayout::kOSpatialIOGroupI4O4;
+    weights_desc.output_group_size = DivideRoundUp(weights.shape.o, 4);
+    weights_gpu = GetTensorDescriptorsForWeightsLayout(weights, weights_desc);
+  } else if (weights_type == DataType::INT8) {
+    weights_desc = GetFullyConnectedInt8WeightsDesc(gpu_info, weights_i8.shape);
+    weights_gpu.push_back(GetTensorDescriptorForWeightsLayout(weights_i8, weights_desc));
+  } else if (weights_type == DataType::INT4) {
+    weights_desc = GetFullyConnectedInt4WeightsDesc(gpu_info, weights_i8.shape);
+    weights_gpu.push_back(GetTensorDescriptorForWeightsLayout(weights_i8, weights_desc));
+  } else if (weights_type == DataType::INT2) {
+    weights_desc = GetFullyConnectedInt2WeightsDesc(gpu_info, weights_i8.shape);
+    weights_gpu.push_back(GetTensorDescriptorForWeightsLayout(weights_i8, weights_desc));
+  }
+
+  std::vector<MetalSpatialTensor> weights_tensors(weights_gpu.size());
+  for (int i = 0; i < weights_gpu.size(); ++i) {
+    RETURN_IF_ERROR(CreateTensor(env.device(), weights_gpu[i], &weights_tensors[i]));
+  }
+
+  TensorDescriptor scale_desc = ScaleOrZeroPointToFCTensorDesc(gpu_info, weights_scale, data_type);
+  TensorDescriptor zp_desc = ScaleOrZeroPointToFCTensorDesc(gpu_info, weights_zp, data_type);
+
+  const bool is_qunatized = weights_type != DataType::FLOAT16 && weights_type != DataType::FLOAT32;
+
+  MetalSpatialTensor scale_tensor;
+  MetalSpatialTensor zp_tensor;
+  if (is_qunatized) {
+    RETURN_IF_ERROR(CreateTensor(env.device(), scale_desc, &scale_tensor));
+    RETURN_IF_ERROR(CreateTensor(env.device(), zp_desc, &zp_tensor));
+  }
+
+  ExternalWeights external_weights;
+  external_weights.desc = weights_desc;
+  external_weights.shape = weights.shape;
+  if (is_qunatized) {
+    external_weights.scale_zp_shape = scale_zp_shape;
+    external_weights.scale = &scale_desc;
+    external_weights.zero_point = &zp_desc;
+  }
 
   std::vector<int3> wg_sizes;
   for (int y = 1; y <= 256; y *= 2) {
@@ -1046,44 +1009,31 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision, DataTy
   }
   std::vector<double> time_ms(wg_sizes.size());
 
-  int ops_count = 1;
   for (int i = 0; i < wg_sizes.size(); ++i) {
-    std::vector<ComputeTask> gpu_kernels(ops_count);
-    for (int k = 0; k < ops_count; ++k) {
-      std::unique_ptr<GPUOperation> conv;
-      if (weights_type == DataType::FLOAT16 || weights_type == DataType::FLOAT32) {
-        conv = std::make_unique<FullyConnected>(
-            CreateFullyConnected(env.GetInfo(), op_def, precision, attr, &dst_shape, &wg_sizes[i]));
-      } else if (weights_type == DataType::INT8 && scale_zp_shape.DimensionsProduct() == 1) {
-        conv = std::make_unique<FullyConnected>(CreateFullyConnected(
-            env.GetInfo(), op_def, precision, attr_i8, &dst_shape, &wg_sizes[i]));
-      } else if (weights_type == DataType::INT8) {
-        conv = std::make_unique<FullyConnected>(CreateFullyConnectedInt8(
-            env.GetInfo(), op_def, precision, attr_i8.weights, weights_scale, weights_zp, attr.bias,
-            &dst_shape, &wg_sizes[i]));
-      } else if (weights_type == DataType::INT4) {
-        conv = std::make_unique<FullyConnected>(CreateFullyConnectedInt4(
-            env.GetInfo(), op_def, precision, attr_i8.weights, weights_scale, weights_zp, attr.bias,
-            &dst_shape, &wg_sizes[i]));
-      } else if (weights_type == DataType::INT2) {
-        conv = std::make_unique<FullyConnected>(CreateFullyConnectedInt2(
-            env.GetInfo(), op_def, precision, attr_i8.weights, weights_scale, weights_zp, attr.bias,
-            &dst_shape, &wg_sizes[i]));
-      }
+    ASSIGN_OR_RETURN(auto operation, CreateFullyConnectedExternalWeights(
+                                         gpu_info, precision, op_def.src_tensors[0],
+                                         op_def.dst_tensors[0], external_weights,
+                                         /*bias=*/nullptr, &dst_shape, /*src_exp=*/nullptr,
+                                         /*runtime_check=*/{}, &wg_sizes[i]));
+    std::unique_ptr<GPUOperation> conv = std::make_unique<FullyConnected>(std::move(operation));
+    RETURN_IF_ERROR(conv->AssembleCode(env.GetInfo()));
 
-      conv->SetSrc(&src);
-      conv->SetDst(&dst);
-      RETURN_IF_ERROR(conv->AssembleCode(env.GetInfo()));
-
-      gpu_kernels[k].Init(std::move(conv));
-      RETURN_IF_ERROR(gpu_kernels[k].Compile(&env));
-      gpu_kernels[k].SetSrcTensor(&src, 0);
-      gpu_kernels[k].SetDstTensor(&dst, 0);
-      RETURN_IF_ERROR(gpu_kernels[k].UpdateParams());
+    ComputeTask gpu_kernel;
+    gpu_kernel.Init(std::move(conv));
+    RETURN_IF_ERROR(gpu_kernel.Compile(&env));
+    int index = 0;
+    gpu_kernel.SetSrcTensor(&src, index++);
+    for (int i = 0; i < weights_tensors.size(); ++i) {
+      gpu_kernel.SetSrcTensor(&weights_tensors[i], index++);
     }
+    if (is_qunatized) {
+      gpu_kernel.SetSrcTensor(&scale_tensor, index++);
+      gpu_kernel.SetSrcTensor(&zp_tensor, index++);
+    }
+    gpu_kernel.SetDstTensor(&dst, 0);
+    RETURN_IF_ERROR(gpu_kernel.UpdateParams());
 
-    time_ms[i] = absl::ToDoubleMilliseconds(GetTasksTime(command_queue, gpu_kernels) /
-                                            static_cast<float>(gpu_kernels.size()));
+    time_ms[i] = absl::ToDoubleMilliseconds(gpu_kernel.GetTaskTime(command_queue));
     std::cout << "WG size: " << wg_sizes[i].x << "x" << wg_sizes[i].y << " - time: " << time_ms[i]
               << std::endl;
   }
@@ -1398,8 +1348,6 @@ absl::Status AddScalarTest(const BHWC& shape, const DataType& data_type) {
   descriptor_with_shape.SetBHWCShape(shape);
   RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &dst));
 
-  add->SetSrc(&src);
-  add->SetDst(&dst);
   RETURN_IF_ERROR(add->AssembleCode(env.GetInfo()));
 
   const double kGByte = 1024.0 * 1024.0 * 1024.0;
@@ -1465,8 +1413,6 @@ absl::Status WinogradForwardTest(const BHWC& src_shape, const DataType& data_typ
   descriptor_with_shape.SetBHWCShape(dst_shape);
   RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &dst));
 
-  operation->SetSrc(&src);
-  operation->SetDst(&dst);
   RETURN_IF_ERROR(operation->AssembleCode(env.GetInfo()));
 
   const double kGByte = 1024.0 * 1024.0 * 1024.0;
@@ -1537,8 +1483,6 @@ absl::Status WinogradBackwardTest(const BHWC& dst_shape, const DataType& data_ty
   descriptor_with_shape.SetBHWCShape(dst_shape);
   RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &dst));
 
-  operation->SetSrc(&src);
-  operation->SetDst(&dst);
   RETURN_IF_ERROR(operation->AssembleCode(env.GetInfo()));
 
   const double kGByte = 1024.0 * 1024.0 * 1024.0;
@@ -1636,9 +1580,6 @@ absl::Status QuantizationPerfTest(const BHWC& src_shape, DataType src_type, Pack
   std::cout << "Dst size(HWC) - " << dst_shape.h << "x" << dst_shape.w << "x" << dst_shape.c
             << std::endl;
 
-  quant_op->SetSrc(&src);
-  quant_op->SetDst(&dst);
-  quant_op->SetDst(&params);
   RETURN_IF_ERROR(quant_op->AssembleCode(env.GetInfo()));
 
   const double kGByte = 1024.0 * 1024.0 * 1024.0;

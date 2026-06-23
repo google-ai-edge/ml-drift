@@ -1543,22 +1543,15 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision,
                                          const BHWC& src_shape,
                                          int dst_channels,
                                          OHWI scale_zp_shape) {
-  FullyConnectedAttributes attr;
-  attr.weights.shape = OHWI(dst_channels, scale_zp_shape.h, 1, src_shape.c);
-  attr.weights.data.resize(attr.weights.shape.DimensionsProduct() +
-                           XNN_EXTRA_BYTES / sizeof(float));
-  attr.bias.shape = Linear(dst_channels);
-  attr.bias.data.resize(attr.bias.shape.DimensionsProduct());
+  ml_drift::Tensor<OHWI, DataType::FLOAT32> weights;
+  weights.shape = OHWI(dst_channels, scale_zp_shape.h, 1, src_shape.c);
+  weights.data.resize(weights.shape.DimensionsProduct() +
+                      XNN_EXTRA_BYTES / sizeof(float));
 
-  FullyConnectedInt8Attributes attr_i8;
-  attr_i8.weights.shape = OHWI(dst_channels, scale_zp_shape.h, 1, src_shape.c);
-  attr_i8.weights.data.resize(attr_i8.weights.shape.DimensionsProduct() +
-                              XNN_EXTRA_BYTES / sizeof(uint8_t));
-  attr_i8.bias = attr.bias;
-  attr_i8.scale.shape = OHWI(1, 1, 1, 1);
-  attr_i8.scale.data.resize(1);
-  attr_i8.zero_point.shape = OHWI(1, 1, 1, 1);
-  attr_i8.zero_point.data.resize(1);
+  ml_drift::Tensor<OHWI, DataType::INT8> weights_i8;
+  weights_i8.shape = OHWI(dst_channels, scale_zp_shape.h, 1, src_shape.c);
+  weights_i8.data.resize(weights_i8.shape.DimensionsProduct() +
+                         XNN_EXTRA_BYTES / sizeof(uint8_t));
 
   ml_drift::Tensor<OHWI, DataType::FLOAT32> weights_scale;
   weights_scale.shape = scale_zp_shape;
@@ -1569,11 +1562,7 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision,
 
   Environment env;
   RETURN_IF_ERROR(CreateEnvironment(&env));
-  CreationContext creation_context;
-  creation_context.device = env.GetDevicePtr();
-  creation_context.context = &env.context();
-  creation_context.queue = env.queue();
-  creation_context.cache = env.program_cache();
+  const GpuInfo& gpu_info = env.GetDevicePtr()->GetInfo();
 
   OperationDef op_def;
   auto data_type = DeduceDataTypeFromPrecision(precision);
@@ -1583,7 +1572,8 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision,
   RETURN_IF_ERROR(op_def.src_tensors[0].UpdateToSupportedStorageType(
       env.device().GetInfo(), src_shape));
   op_def.dst_tensors.push_back({data_type, storage_type, layout});
-  const auto dst_shape = CalculateOutputShape(src_shape, attr);
+  auto dst_shape = src_shape;
+  dst_shape.c = dst_channels;
   RETURN_IF_ERROR(op_def.dst_tensors[0].UpdateToSupportedStorageType(
       env.device().GetInfo(), dst_shape));
 
@@ -1595,7 +1585,7 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision,
   descriptor_with_shape.SetBHWCShape(dst_shape);
   RETURN_IF_ERROR(CreateTensor(env.context(), descriptor_with_shape, &dst));
 
-  const auto w_shape = attr.weights.shape;
+  const auto w_shape = weights.shape;
 
   std::cout << "Src - " << src_shape.h << "x" << src_shape.w << "x"
             << src_shape.c << ", "
@@ -1629,8 +1619,8 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision,
   const double dst_gbytes = dst_elements_alignedx4 * element_size / kGByte;
   const double src_gbytes = src_elements_alignedx4 * element_size / kGByte;
   const double weight_gbytes =
-      attr.weights.shape.DimensionsProduct() * weight_element_size / kGByte;
-  const double bias_gbytes = attr.weights.shape.o * element_size / kGByte;
+      weights.shape.DimensionsProduct() * weight_element_size / kGByte;
+  const double bias_gbytes = weights.shape.o * element_size / kGByte;
   const double scale_gbytes =
       scale_zp_shape.DimensionsProduct() * element_size / kGByte;
 
@@ -1644,37 +1634,85 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision,
   }
   std::vector<double> time_ms(wg_sizes.size());
 
+  WeightsDescription weights_desc;
+  std::vector<TensorDescriptor> weights_gpu;
+  if (weights_type == DataType::FLOAT16 || weights_type == DataType::FLOAT32) {
+    weights_desc.type = DeduceDataTypeFromPrecision(precision);
+    weights_desc.layout = WeightsLayout::kOSpatialIOGroupI4O4;
+    weights_desc.output_group_size = DivideRoundUp(weights.shape.o, 4);
+    weights_gpu = GetTensorDescriptorsForWeightsLayout(weights, weights_desc);
+  } else if (weights_type == DataType::INT8) {
+    weights_desc = GetFullyConnectedInt8WeightsDesc(gpu_info, weights_i8.shape);
+    weights_gpu.push_back(
+        GetTensorDescriptorForWeightsLayout(weights_i8, weights_desc));
+  } else if (weights_type == DataType::INT4) {
+    weights_desc = GetFullyConnectedInt4WeightsDesc(gpu_info, weights_i8.shape);
+    weights_gpu.push_back(
+        GetTensorDescriptorForWeightsLayout(weights_i8, weights_desc));
+  } else if (weights_type == DataType::INT2) {
+    weights_desc = GetFullyConnectedInt2WeightsDesc(gpu_info, weights_i8.shape);
+    weights_gpu.push_back(
+        GetTensorDescriptorForWeightsLayout(weights_i8, weights_desc));
+  }
+
+  std::vector<Tensor> weights_tensors(weights_gpu.size());
+  for (int i = 0; i < weights_gpu.size(); ++i) {
+    RETURN_IF_ERROR(
+        CreateTensor(env.context(), weights_gpu[i], &weights_tensors[i]));
+  }
+
+  TensorDescriptor scale_desc =
+      ScaleOrZeroPointToFCTensorDesc(gpu_info, weights_scale, data_type);
+  TensorDescriptor zp_desc =
+      ScaleOrZeroPointToFCTensorDesc(gpu_info, weights_zp, data_type);
+
+  const bool is_qunatized =
+      weights_type != DataType::FLOAT16 && weights_type != DataType::FLOAT32;
+
+  Tensor scale_tensor;
+  Tensor zp_tensor;
+  if (is_qunatized) {
+    RETURN_IF_ERROR(CreateTensor(env.context(), scale_desc, &scale_tensor));
+    RETURN_IF_ERROR(CreateTensor(env.context(), zp_desc, &zp_tensor));
+  }
+
+  ExternalWeights external_weights;
+  external_weights.desc = weights_desc;
+  external_weights.shape = weights.shape;
+  if (is_qunatized) {
+    external_weights.scale_zp_shape = scale_zp_shape;
+    external_weights.scale = &scale_desc;
+    external_weights.zero_point = &zp_desc;
+  }
+
   for (int i = 0; i < wg_sizes.size(); ++i) {
-    std::unique_ptr<GPUOperation> conv;
-    if (weights_type == DataType::FLOAT16 ||
-        weights_type == DataType::FLOAT32) {
-      conv = std::make_unique<FullyConnected>(
-          CreateFullyConnected(creation_context.GetGpuInfo(), op_def, precision,
-                               attr, &dst_shape, &wg_sizes[i]));
-    } else if (weights_type == DataType::INT8 &&
-               scale_zp_shape.DimensionsProduct() == 1) {
-      conv = std::make_unique<FullyConnected>(
-          CreateFullyConnected(creation_context.GetGpuInfo(), op_def, precision,
-                               attr_i8, &dst_shape, &wg_sizes[i]));
-    } else if (weights_type == DataType::INT8) {
-      conv = std::make_unique<FullyConnected>(CreateFullyConnectedInt8(
-          creation_context.GetGpuInfo(), op_def, precision, attr_i8.weights,
-          weights_scale, weights_zp, attr.bias, &dst_shape, &wg_sizes[i]));
-    } else if (weights_type == DataType::INT4) {
-      conv = std::make_unique<FullyConnected>(CreateFullyConnectedInt4(
-          creation_context.GetGpuInfo(), op_def, precision, attr_i8.weights,
-          weights_scale, weights_zp, attr.bias, &dst_shape, &wg_sizes[i]));
-    } else if (weights_type == DataType::INT2) {
-      conv = std::make_unique<FullyConnected>(CreateFullyConnectedInt2(
-          creation_context.GetGpuInfo(), op_def, precision, attr_i8.weights,
-          weights_scale, weights_zp, attr.bias, &dst_shape, &wg_sizes[i]));
-    }
-    RETURN_IF_ERROR(conv->AssembleCode(creation_context.device->GetInfo()));
+    ASSIGN_OR_RETURN(
+        auto operation,
+        CreateFullyConnectedExternalWeights(
+            gpu_info, precision, op_def.src_tensors[0], op_def.dst_tensors[0],
+            external_weights, /*bias=*/nullptr, &dst_shape, /*src_exp=*/nullptr,
+            /*runtime_check=*/{}, &wg_sizes[i]));
+    std::unique_ptr<GPUOperation> conv =
+        std::make_unique<FullyConnected>(std::move(operation));
+    RETURN_IF_ERROR(conv->AssembleCode(gpu_info));
 
     ClOperation cl_op;
     cl_op.Init(std::move(conv));
+    CreationContext creation_context;
+    creation_context.device = env.GetDevicePtr();
+    creation_context.context = &env.context();
+    creation_context.queue = env.queue();
+    creation_context.cache = env.program_cache();
     RETURN_IF_ERROR(cl_op.Compile(creation_context));
-    RETURN_IF_ERROR(cl_op.SetSrcTensor(0, &src));
+    int index = 0;
+    RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &src));
+    for (int i = 0; i < weights_tensors.size(); ++i) {
+      RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &weights_tensors[i]));
+    }
+    if (is_qunatized) {
+      RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &scale_tensor));
+      RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &zp_tensor));
+    }
     RETURN_IF_ERROR(cl_op.SetDstTensor(0, &dst));
     RETURN_IF_ERROR(cl_op.UpdateParams());
     RETURN_IF_ERROR(cl_op.Tune(TuningType::kExhaustive, env.device().GetInfo(),

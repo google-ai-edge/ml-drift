@@ -92,7 +92,7 @@ class FullyConnected : public GPUOperation {
       const TensorDescriptor& src, const TensorDescriptor& dst,
       const ExternalWeights& weights, const TensorDescriptor* bias,
       const BHWC* dst_shape_ptr, const TensorDescriptor* src_exp,
-      const ConvRuntimeCheckDesc& runtime_check);
+      const ConvRuntimeCheckDesc& runtime_check, const int3* wg_size);
   friend absl::StatusOr<FullyConnected> CreateFullyConnectedWeightsBatchIds(
       const GpuInfo& gpu_info, CalculationsPrecision precision,
       const TensorDescriptor& src, const TensorDescriptor& batch_ids,
@@ -247,7 +247,8 @@ absl::StatusOr<FullyConnected> CreateFullyConnectedExternalWeights(
     const TensorDescriptor& src, const TensorDescriptor& dst,
     const ExternalWeights& weights, const TensorDescriptor* bias,
     const BHWC* dst_shape_ptr, const TensorDescriptor* src_exp = nullptr,
-    const ConvRuntimeCheckDesc& runtime_check = {});
+    const ConvRuntimeCheckDesc& runtime_check = {},
+    const int3* wg_size = nullptr);
 
 // Creates a fully connected operation with batched weights accessed via
 // batch_ids. The batch dimension of src and dst is at the H dimension of their
