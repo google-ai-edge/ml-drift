@@ -236,9 +236,11 @@ std::string ReadWeights(const ConvWaveMatrix::ConvParams& conv_params,
          std::to_string(conv_params.src_group_slices) + +";\n";
     c += "    if (last_src_group_id != src_group_id) {\n";
     c += "      last_src_group_id = src_group_id;\n";
-    std::string w_batch_id =
-        conv_params.different_weights_for_height ? "w_batch_id" : "0";
-    std::string coords = "w_o_slice, " + w_batch_id + ", src_group_id";
+    // do not use different_weights_for_height here because with batched weights
+    // we can have non batched scale/zp.
+    const std::string scale_zp_batch_id =
+        conv_params.scale_zp_shape.h != 1 ? "w_batch_id" : "0";
+    std::string coords = "w_o_slice, " + scale_zp_batch_id + ", src_group_id";
     c += "      weights_scale = args.weights_scale.Read(" + coords + ");\n";
     if (conv_params.has_zero_point) {
       c += "      Type wzp = args.weights_zero_point.Read(" + coords + ");\n";
@@ -553,7 +555,9 @@ std::string GenerateConvolution(
          std::to_string(src_x4_slices) + ";\n";
     if (quantized_weights && conv_params.scale_zp_shape.i == 1) {
       // linear quantization
-      const std::string coords = conv_params.different_weights_for_height
+      // do not use different_weights_for_height here because with batched
+      // weights we can have non batched scale/zp.
+      const std::string coords = conv_params.scale_zp_shape.h != 1
                                      ? "w_o_slice, w_batch_id, 0"
                                      : "w_o_slice";
       c += "  weights_scale = args.weights_scale.Read(" + coords + ");\n";

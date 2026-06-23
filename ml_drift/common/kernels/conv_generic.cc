@@ -450,7 +450,9 @@ class ConvCodeGenerator {
             c += "  int last_src_group_id = -1;\n";
           } else {
             // linear quantization
-            const std::string coords = conv_params_.different_weights_for_height
+            // do not use different_weights_for_height here because with batched
+            // weights we can have non batched scale/zp.
+            const std::string coords = conv_params_.scale_zp_shape.h != 1
                                            ? "w_o_slice, w_batch_id, 0"
                                            : "w_o_slice";
             c += "  w_scale = args.weights_scale.Read(" + coords + ");\n";
@@ -1396,9 +1398,12 @@ class ConvCodeGenerator {
         // grouped quantization
         c += "    if (last_src_group_id != src_group_id) {\n";
         c += "      last_src_group_id = src_group_id;\n";
-        std::string w_batch =
-            conv_params_.different_weights_for_height ? "w_batch_id" : "0";
-        std::string coords = "w_o_slice, " + w_batch + ", src_group_id";
+        // do not use different_weights_for_height here because with batched
+        // weights we can have non batched scale/zp.
+        const std::string scale_zp_batch_id =
+            conv_params_.scale_zp_shape.h != 1 ? "w_batch_id" : "0";
+        std::string coords =
+            "w_o_slice, " + scale_zp_batch_id + ", src_group_id";
         c += "      w_scale = args.weights_scale.Read(" + coords + ");\n";
         if (conv_params_.has_zero_point) {
           c += "      Type wzp = args.weights_zero_point.Read(" + coords +

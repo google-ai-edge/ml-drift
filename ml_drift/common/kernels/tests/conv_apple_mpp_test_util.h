@@ -37,12 +37,10 @@ absl::Status ConvAppleMPPExternalWfloatTest(TestExecutionEnvironment& env,
                                             const BHWC& src_shape,
                                             int dst_channels,
                                             bool batched_weights = false);
-absl::Status ConvAppleMPPExternalWi8Test(TestExecutionEnvironment& env,
-                                         TensorStorageType storage,
-                                         const BHWC& src_shape,
-                                         int dst_channels,
-                                         bool batched_weights = false,
-                                         int group_size = -1);
+absl::Status ConvAppleMPPExternalWi8Test(
+    TestExecutionEnvironment& env, TensorStorageType storage,
+    const BHWC& src_shape, int dst_channels, bool batched_weights = false,
+    int group_size = -1, int scale_zp_batch = -1);
 absl::Status ConvAppleMPPExternalWi4Test(TestExecutionEnvironment& env,
                                          TensorStorageType storage,
                                          const BHWC& src_shape,

@@ -2684,6 +2684,8 @@ Tensor<OHWI, DataType::FLOAT32> MakeWeightsFromInt8(
   int i_scale_group_size = weights.shape.i / weights_scale.shape.i;
   int o_scale_group_size = weights.shape.o / weights_scale.shape.o;
   for (int h = 0; h < weights.shape.h; ++h) {
+    const int scale_h = weights_scale.shape.h == 1 ? 0 : h;
+    const int zp_h = weights_zero_point.shape.h == 1 ? 0 : h;
     for (int i = 0; i < weights.shape.i; ++i) {
       const int i_scale_group = i / i_scale_group_size;
       for (int o = 0; o < weights.shape.o; ++o) {
@@ -2691,9 +2693,9 @@ Tensor<OHWI, DataType::FLOAT32> MakeWeightsFromInt8(
         weights.data[weights.shape.LinearIndex({o, h, 0, i})] =
             (weights_i8.data[weights_i8.shape.LinearIndex({o, h, 0, i})] -
              weights_zero_point.data[weights_zero_point.shape.LinearIndex(
-                 {o_scale_group, h, 0, i_scale_group})]) *
+                 {o_scale_group, scale_h, 0, i_scale_group})]) *
             weights_scale.data[weights_scale.shape.LinearIndex(
-                {o_scale_group, h, 0, i_scale_group})];
+                {o_scale_group, zp_h, 0, i_scale_group})];
       }
     }
   }

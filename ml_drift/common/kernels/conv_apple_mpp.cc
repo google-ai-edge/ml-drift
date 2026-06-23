@@ -61,8 +61,8 @@ inline int GetRangeShift(DataType type) {
   return 1u << (SizeInBitsOf(type) - 1);
 }
 
-std::string ReadFloatWeights(const ConvAppleMPP::ExternalWeightsParams& params,
-                             bool batched_weights) {
+std::string ReadFloatWeights(
+    const ConvAppleMPP::ExternalWeightsParams& params) {
   const bool weights_conversion =
       params.weights_desc.layout == WeightsLayout::kOSpatialIOGroupI4O4;
   const bool quantized_weights =
@@ -74,8 +74,11 @@ std::string ReadFloatWeights(const ConvAppleMPP::ExternalWeightsParams& params,
          std::to_string(params.src_group_slices) + +";\n";
     c += "    if (last_src_group_id != src_group_id) {\n";
     c += "      last_src_group_id = src_group_id;\n";
-    std::string w_batch_id = batched_weights ? "w_batch_id" : "0";
-    std::string coords = "w_o_slice, " + w_batch_id + ", src_group_id";
+    // do not use different_weights_for_height here because with batched weights
+    // we can have non batched scale/zp.
+    const std::string scale_zp_batch_id =
+        params.scale_zp_shape.h != 1 ? "w_batch_id" : "0";
+    std::string coords = "w_o_slice, " + scale_zp_batch_id + ", src_group_id";
     c += "      w_scale = args.weights_scale.Read(" + coords + ");\n";
     if (params.has_zero_point) {
       c += "      half4 w_zp = args.weights_zero_point.Read(" + coords + ");\n";
@@ -213,8 +216,12 @@ MAIN_FUNCTION($0) {
         c += "  int last_src_group_id = -1;\n";
       } else {
         // linear quantization
+        // do not use different_weights_for_height here because with batched
+        // weights we can have non batched scale/zp.
         const std::string coords =
-            batched_weights_ ? "w_o_slice, w_batch_id, 0" : "w_o_slice";
+            external_weights_params_.scale_zp_shape.h != 1
+                ? "w_o_slice, w_batch_id, 0"
+                : "w_o_slice";
         c += "  w_scale = args.weights_scale.Read(" + coords + ");\n";
         if (external_weights_params_.has_zero_point) {
           c += "  half4 w_zp = args.weights_zero_point.Read(" + coords + ");\n";
@@ -289,7 +296,7 @@ MAIN_FUNCTION($0) {
     if (weights_conversion) {
       if (weights_data_type_ == DataType::FLOAT16) {
         c += "    half4 w0, w1, w2, w3;\n";
-        c += ReadFloatWeights(external_weights_params_, batched_weights_);
+        c += ReadFloatWeights(external_weights_params_);
       } else {
         c += R"(
     uint2 u4_i4o4 = args.weights.Read(w_wg_offset);

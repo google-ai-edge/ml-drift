@@ -662,7 +662,8 @@ absl::Status ConvGenericExternalWi8Test(TestExecutionEnvironment& env,
                                         CalculationsPrecision precision,
                                         TensorStorageType storage,
                                         const BHWC& src_shape, int dst_channels,
-                                        bool batched_weights, int group_size) {
+                                        bool batched_weights, int group_size,
+                                        int scale_zp_batch) {
   TensorFloat32 src_tensor;
   const int src_channels = src_shape.c;
   group_size = group_size != -1 ? group_size : src_channels;
@@ -675,6 +676,7 @@ absl::Status ConvGenericExternalWi8Test(TestExecutionEnvironment& env,
   }
 
   const int weights_batch_size = batched_weights ? src_shape.h : 1;
+  scale_zp_batch = scale_zp_batch != -1 ? scale_zp_batch : weights_batch_size;
   ml_drift::Tensor<OHWI, DataType::INT8> weights_i8;
   weights_i8.shape = OHWI(dst_channels, weights_batch_size, 1, src_channels);
   weights_i8.data.resize(weights_i8.shape.DimensionsProduct());
@@ -684,8 +686,8 @@ absl::Status ConvGenericExternalWi8Test(TestExecutionEnvironment& env,
     const int val = (weights_f32.data[i] + 1.0f) * 256.0f;
     weights_i8.data[i] = std::max(std::min(val, 255), 0) - 128;
   }
-  auto weights_scales = MakeSyntheticTensor(
-      OHWI(dst_channels, weights_batch_size, 1, num_groups));
+  auto weights_scales =
+      MakeSyntheticTensor(OHWI(dst_channels, scale_zp_batch, 1, num_groups));
   for (int i = 0; i < weights_scales.data.size(); ++i) {
     weights_scales.data[i] /= 128.0f;
   }

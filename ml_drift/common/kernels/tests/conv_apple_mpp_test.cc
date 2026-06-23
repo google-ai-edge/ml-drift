@@ -107,6 +107,17 @@ TEST_P(ConvAppleMPPFloat16Test, ConvAppleMPPExternalBatchedGroupedWi8Test) {
                                         /*group_size=*/12));
 }
 
+TEST_P(ConvAppleMPPFloat16Test,
+       ConvAppleMPPExternalBatchedWi8NonBatchedScalesTest) {
+  const BHWC src_shape(1, 6, 12, 32 * 3);
+  const int dst_channels = 68;
+  MLD_ASSERT_OK(ConvAppleMPPExternalWi8Test(*exec_env, GetParam(), src_shape,
+                                        dst_channels,
+                                        /*batched_weights=*/true,
+                                        /*group_size=*/-1,
+                                        /*scale_zp_batch=*/1));
+}
+
 TEST_P(ConvAppleMPPFloat16Test, ConvAppleMPPExternalWi4Test) {
   const BHWC src_shape(1, 1, 32, 128);
   const int dst_channels = 64;

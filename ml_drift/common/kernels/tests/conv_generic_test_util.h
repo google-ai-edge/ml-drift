@@ -75,12 +75,10 @@ absl::Status ConvGenericExternalWfloatTest(TestExecutionEnvironment& env,
                                            int dst_channels,
                                            bool batched_weights = false);
 
-absl::Status ConvGenericExternalWi8Test(TestExecutionEnvironment& env,
-                                        CalculationsPrecision precision,
-                                        TensorStorageType storage,
-                                        const BHWC& src_shape, int dst_channels,
-                                        bool batched_weights = false,
-                                        int group_size = -1);
+absl::Status ConvGenericExternalWi8Test(
+    TestExecutionEnvironment& env, CalculationsPrecision precision,
+    TensorStorageType storage, const BHWC& src_shape, int dst_channels,
+    bool batched_weights = false, int group_size = -1, int scale_zp_batch = -1);
 
 absl::Status ConvGenericExternalWi4Test(TestExecutionEnvironment& env,
                                         CalculationsPrecision precision,
