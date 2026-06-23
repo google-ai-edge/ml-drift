@@ -542,6 +542,9 @@ class GpuModelBuilder {
 
   const GpuInfo& gpu_info() const { return gpu_info_; }
   const TensorStorageType& default_storage() const { return default_storage_; }
+  void SetDefaultStorage(TensorStorageType default_storage) {
+    default_storage_ = default_storage;
+  }
 
  private:
   TensorHandle BatchedMatMulSoftmaxBatchedMatMulSingleKernel(
