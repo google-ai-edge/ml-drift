@@ -825,14 +825,8 @@ absl::Status Diffuser::OpHolder::Initialize(Environment* env,
   RETURN_IF_ERROR(gpu_op->AssembleCode(env->device().GetInfo()));
 
   op_.Init(std::move(gpu_op));
-  {
-    CreationContext creation_context;
-    creation_context.device = env->GetDevicePtr();
-    creation_context.context = &env->context();
-    creation_context.queue = env->queue();
-    creation_context.cache = env->program_cache();
-    RETURN_IF_ERROR(op_.Compile(creation_context));
-  }
+  RETURN_IF_ERROR(
+      op_.Compile(env->GetDevicePtr(), &env->context(), env->program_cache()));
   return absl::OkStatus();
 }
 

@@ -64,14 +64,8 @@ absl::Status ClExecutionEnvironment::ExecuteGpuOperationInternal(
     std::unique_ptr<GPUOperation>&& operation) {
   ClOperation cl_op;
   cl_op.Init(std::move(operation));
-  {
-    CreationContext creation_context;
-    creation_context.device = env_.GetDevicePtr();
-    creation_context.context = &env_.context();
-    creation_context.queue = env_.queue();
-    creation_context.cache = env_.program_cache();
-    RETURN_IF_ERROR(cl_op.Compile(creation_context));
-  }
+  RETURN_IF_ERROR(cl_op.Compile(env_.GetDevicePtr(), &env_.context(),
+                                env_.program_cache()));
   std::vector<Tensor> src(src_cpu.size());
   for (int i = 0; i < src_cpu.size(); ++i) {
     RETURN_IF_ERROR(src[i].CreateFromDescriptor(*src_cpu[i], env_.context()));
@@ -113,14 +107,8 @@ absl::StatusOr<ProfilingInfo> ClExecutionEnvironment::GetGpuOperationTimeMs(
   RETURN_IF_ERROR(operation->AssembleCode(GetGpuInfo()));
   ClOperation cl_op;
   cl_op.Init(std::move(operation));
-  {
-    CreationContext creation_context;
-    creation_context.device = env_.GetDevicePtr();
-    creation_context.context = &env_.context();
-    creation_context.queue = env_.queue();
-    creation_context.cache = env_.program_cache();
-    RETURN_IF_ERROR(cl_op.Compile(creation_context));
-  }
+  RETURN_IF_ERROR(cl_op.Compile(env_.GetDevicePtr(), &env_.context(),
+                                env_.program_cache()));
   std::vector<Tensor> src(src_cpu.size());
   for (int i = 0; i < src_cpu.size(); ++i) {
     RETURN_IF_ERROR(

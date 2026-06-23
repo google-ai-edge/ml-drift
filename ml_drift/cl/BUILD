@@ -378,7 +378,6 @@ cc_library(
         "//ml_drift/common:status",
         "//ml_drift/common:tensor",
         "//ml_drift/common:types",
-        "//ml_drift/common:util",
         "//ml_drift/common/task:profiling_info",
         "//ml_drift/common/task:serialization_base",
         "//ml_drift/common/task:serialization_base_cc_fbs",

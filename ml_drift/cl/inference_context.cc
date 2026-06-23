@@ -231,14 +231,12 @@ absl::Status InferenceContext::InitFromGpuModel(
           external_mutable_tensors_allocated_temporarily, &env->context()));
   InitFromGpuModelInternal(gpu_model);
 
-  CreationContext creation_context;
-  creation_context.device = env->GetDevicePtr();
-  creation_context.context = &env->context();
-  creation_context.queue = env->queue();
-  creation_context.cache = env->program_cache();
   GetMutableNodes(create_info.external_tensors.mutable_tensors);
   execution_hints_.Init(gpu_info_);
-  RETURN_IF_ERROR(Compile(creation_context));
+  for (auto& node : nodes_) {
+    RETURN_IF_ERROR(node.cl_operation.Compile(
+        env->GetDevicePtr(), &env->context(), env->program_cache()));
+  }
   RETURN_IF_ERROR(BindMemoryToOperations());
   RETURN_IF_ERROR(UpdateParams());
 
@@ -475,14 +473,6 @@ absl::Status InferenceContext::BindMemoryToOperations() {
       RETURN_IF_ERROR(
           node.cl_operation.SetDstTensor(i, GetTensor(node.outputs[i])));
     }
-  }
-  return absl::OkStatus();
-}
-
-absl::Status InferenceContext::Compile(
-    const CreationContext& creation_context) {
-  for (auto& node : nodes_) {
-    RETURN_IF_ERROR(node.cl_operation.Compile(creation_context));
   }
   return absl::OkStatus();
 }

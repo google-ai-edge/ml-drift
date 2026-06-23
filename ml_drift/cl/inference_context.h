@@ -174,7 +174,6 @@ class InferenceContext {
   void InitFromGpuModelInternal(GpuModel* gpu_model);
 
   absl::Status BindMemoryToOperations();
-  absl::Status Compile(const CreationContext& creation_context);
   absl::Status Tune(TuningType tuning_type, const GpuInfo& gpu_info,
                     ProfilingCommandQueue* profiling_queue);
   absl::Status UpdateParams();

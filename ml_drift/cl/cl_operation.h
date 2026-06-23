@@ -40,15 +40,6 @@
 namespace ml_drift {
 namespace cl {
 
-struct CreationContext {
-  const CLDevice* device;
-  CLContext* context;
-  CLCommandQueue* queue;
-  ProgramCache* cache;
-
-  const GpuInfo& GetGpuInfo() const { return device->info_; }
-};
-
 class ClOperation {
  public:
   ClOperation() = default;
@@ -98,7 +89,8 @@ class ClOperation {
   absl::Status Tune(TuningType tuning_type, const GpuInfo& gpu_info,
                     ProfilingCommandQueue* profiling_queue);
 
-  absl::Status Compile(const CreationContext& creation_context);
+  absl::Status Compile(const CLDevice* device, CLContext* context,
+                       ProgramCache* cache);
 
   absl::Status RestoreDeserialized(const ProgramCache& program_cache,
                                    uint64_t fingerprint,

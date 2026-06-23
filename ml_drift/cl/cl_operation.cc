@@ -28,6 +28,7 @@
 #include "ml_drift/cl/buffer.h"
 #include "ml_drift/cl/cl_command_queue.h"
 #include "ml_drift/cl/cl_context.h"
+#include "ml_drift/cl/cl_device.h"
 #include "ml_drift/cl/cl_event.h"
 #include "ml_drift/cl/opencl_wrapper.h"
 #include "ml_drift/cl/program_cache.h"
@@ -131,12 +132,13 @@ absl::Status ClOperation::InitArgsDeserialized(const GpuInfo& gpu_info,
   return absl::OkStatus();
 }
 
-absl::Status ClOperation::Compile(const CreationContext& creation_context) {
-  RETURN_IF_ERROR(
-      InitArgs(creation_context.GetGpuInfo(), creation_context.context));
+absl::Status ClOperation::Compile(const CLDevice* device, CLContext* context,
+                                  ProgramCache* cache) {
+  const GpuInfo& gpu_info = device->info_;
+  RETURN_IF_ERROR(InitArgs(gpu_info, context));
   const std::string defines = GetCommonOpenCLDefines();
   std::string extensions;
-  if (creation_context.GetGpuInfo().SupportsExtension("cl_khr_fp16")) {
+  if (gpu_info.SupportsExtension("cl_khr_fp16")) {
     // Make this optional when we have a proper way to detect half usage in
     // specific kernel.
     extensions += "#pragma OPENCL EXTENSION cl_khr_fp16 : enable\n";
@@ -144,18 +146,17 @@ absl::Status ClOperation::Compile(const CreationContext& creation_context) {
   if (cl_args_.HasWriteOnly3dImages()) {
     extensions += "#pragma OPENCL EXTENSION cl_khr_3d_image_writes : enable\n";
   }
-  if (creation_context.device->info_.opencl_info.IsCLVK()) {
+  if (gpu_info.opencl_info.IsCLVK()) {
     operation_->compiler_options_.push_back(CompilerOptions::kClVkNativeMath);
   }
-  if (creation_context.device->info_.IsPowerVR()) {
+  if (gpu_info.IsPowerVR()) {
     operation_->compiler_options_.push_back(
         CompilerOptions::kClUniformWorkGroupSize);
   }
   operation_->code_ = defines + extensions + operation_->code_;
-  return creation_context.cache->GetOrCreateCLKernel(
-      operation_->code_, "main_function", operation_->compiler_options_,
-      *creation_context.context, *creation_context.device, &kernel_,
-      &kernel_fingerprint_);
+  return cache->GetOrCreateCLKernel(operation_->code_, "main_function",
+                                    operation_->compiler_options_, *context,
+                                    *device, &kernel_, &kernel_fingerprint_);
 }
 
 absl::Status ClOperation::RestoreDeserialized(const ProgramCache& program_cache,
