@@ -37,7 +37,8 @@ absl::Status ConvolutionSf16Wi4BatchedPerfTest(const BHWC& src_shape,
 absl::Status ConvolutionSi8Wi4PerfTest(const BHWC& src_shape, int dst_channels);
 
 absl::Status ConvMoEPerfTest(int seq_size, int src_channels, int dst_channels,
-                             int num_experts, int num_active_experts);
+                             int num_experts, int num_active_experts,
+                             DataType weights_type);
 
 absl::Status ConvSoftmaxConvPerfTest();
 

@@ -717,7 +717,7 @@ absl::Status ConvolutionSi8Wi4PerfTest(const BHWC& src_shape, int dst_channels) 
 }
 
 absl::Status ConvMoEPerfTest(int seq_size, int src_channels, int dst_channels, int num_experts,
-                             int num_active_experts) {
+                             int num_active_experts, DataType weights_type) {
   Environment env;
   const auto& gpu_info = env.GetInfo();
 
@@ -735,45 +735,87 @@ absl::Status ConvMoEPerfTest(int seq_size, int src_channels, int dst_channels, i
   op_def.src_tensors.push_back(src_tensor_desc);
   op_def.dst_tensors.push_back(dst_tensor_desc);
 
-  ml_drift::Tensor<OHWI, DataType::FLOAT32> weights_cpu;
-  weights_cpu.shape = OHWI(dst_channels, num_experts, 1, src_channels);
-  weights_cpu.data.resize(weights_cpu.shape.DimensionsProduct() + XNN_EXTRA_BYTES / sizeof(float));
-  Convolution2DAttributes conv_attr;
-  conv_attr.padding.prepended = HW(0, 0);
-  conv_attr.padding.appended = HW(0, 0);
-  conv_attr.strides = HW(1, 1);
-  conv_attr.dilations = HW(1, 1);
-  auto& conv_attr_weights = conv_attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::FLOAT32>>();
-  conv_attr_weights.shape = weights_cpu.shape;
+  ml_drift::Tensor<OHWI, DataType::FLOAT32> weights_f32;
+  weights_f32.shape = OHWI(dst_channels, num_experts, 1, src_shape.c);
+  weights_f32.data.resize(weights_f32.shape.DimensionsProduct() + XNN_EXTRA_BYTES / sizeof(float));
+
+  ml_drift::Tensor<OHWI, DataType::INT8> weights_i8;
+  weights_i8.shape = OHWI(dst_channels, num_experts, 1, src_shape.c);
+  weights_i8.data.resize(weights_i8.shape.DimensionsProduct() + XNN_EXTRA_BYTES / sizeof(uint8_t));
+
+  ml_drift::Tensor<OHWI, DataType::FLOAT32> weights_scale;
+  weights_scale.shape = OHWI(dst_channels, num_experts, 1, 1);
+  weights_scale.data.resize(weights_scale.shape.DimensionsProduct(), 1.0f);
+  ml_drift::Tensor<OHWI, DataType::FLOAT32> weights_zp;
+  weights_zp.shape = OHWI(dst_channels, num_experts, 1, 1);
+  weights_zp.data.resize(weights_zp.shape.DimensionsProduct(), 0.0f);
+
+  WeightsDescription weights_desc;
+  std::vector<TensorDescriptor> weights_gpu;
+  if (weights_type == DataType::FLOAT16 || weights_type == DataType::FLOAT32) {
+    weights_desc.type = weights_type;
+    weights_desc.layout = WeightsLayout::kOSpatialIOGroupI4O4;
+    weights_desc.output_group_size = DivideRoundUp(weights_f32.shape.o, 4);
+    weights_gpu = GetTensorDescriptorsForWeightsLayout(weights_f32, weights_desc);
+  } else if (weights_type == DataType::INT8) {
+    weights_desc = GetFullyConnectedInt8WeightsDesc(gpu_info, weights_i8.shape);
+    weights_gpu.push_back(GetTensorDescriptorForWeightsLayout(weights_i8, weights_desc));
+  } else if (weights_type == DataType::INT4) {
+    weights_desc = GetFullyConnectedInt4WeightsDesc(gpu_info, weights_i8.shape);
+    weights_gpu.push_back(GetTensorDescriptorForWeightsLayout(weights_i8, weights_desc));
+  } else if (weights_type == DataType::INT2) {
+    weights_desc = GetFullyConnectedInt2WeightsDesc(gpu_info, weights_i8.shape);
+    weights_gpu.push_back(GetTensorDescriptorForWeightsLayout(weights_i8, weights_desc));
+  }
+
+  std::vector<MetalSpatialTensor> weights_tensors(weights_gpu.size());
+  for (int i = 0; i < weights_gpu.size(); ++i) {
+    RETURN_IF_ERROR(CreateTensor(env.device(), weights_gpu[i], &weights_tensors[i]));
+  }
+
+  TensorDescriptor scale_desc = ScaleOrZeroPointToFCTensorDesc(gpu_info, weights_scale, data_type);
+  TensorDescriptor zp_desc = ScaleOrZeroPointToFCTensorDesc(gpu_info, weights_zp, data_type);
+
+  const bool is_quantized = SizeInBitsOf(weights_type) < 16;
+
+  MetalSpatialTensor scale_tensor;
+  MetalSpatialTensor zp_tensor;
+  if (is_quantized) {
+    RETURN_IF_ERROR(CreateTensor(env.device(), scale_desc, &scale_tensor));
+    RETURN_IF_ERROR(CreateTensor(env.device(), zp_desc, &zp_tensor));
+  }
+
+  ExternalWeights external_weights;
+  external_weights.desc = weights_desc;
+  external_weights.shape = weights_f32.shape;
+  if (is_quantized) {
+    external_weights.scale_zp_shape = weights_scale.shape;
+    external_weights.scale = &scale_desc;
+    external_weights.zero_point = &zp_desc;
+  }
 
   std::unique_ptr<GPUOperation> conv;
-  WeightsDescription weights_desc;
   ConvRuntimeCheckDesc::PackedGroups packed_groups;
   packed_groups.params_offset = 0;
   packed_groups.num_groups = num_experts;
   packed_groups.max_group_size = seq_size;
   ConvRuntimeCheckDesc runtime_check;
   runtime_check.packed_groups = packed_groups;
-  if (SupportsConvAppleMPP(gpu_info)) {
+  if (SupportsConvAppleMPP(gpu_info, external_weights)) {
     auto conv_apple_mpp = CreateConvAppleMPPExternalWeights(
-        op_def.src_tensors[0], op_def.dst_tensors[0], weights_cpu.shape,
+        op_def.src_tensors[0], op_def.dst_tensors[0], external_weights,
         /*bias=*/nullptr,
         /*src_exp=*/nullptr, /*different_weights_for_height=*/true, runtime_check);
-    weights_desc = conv_apple_mpp.GetWeightsDescription();
     conv = std::make_unique<ConvAppleMPP>(std::move(conv_apple_mpp));
-  } else if (SupportsConvWaveMatrix(gpu_info, CalculationsPrecision::F16, conv_attr)) {
+  } else if (SupportsConvWaveMatrix(gpu_info, CalculationsPrecision::F16, external_weights)) {
     auto conv_wave_matrix = CreateConvWaveMatrixExternalWeights(
-        op_def, CalculationsPrecision::F16, dst_shape, conv_attr, gpu_info,
+        op_def, CalculationsPrecision::F16, dst_shape, external_weights, gpu_info,
         /*bias=*/nullptr,
         /*src_exp=*/nullptr, /*different_weights_for_height=*/true, runtime_check);
-    weights_desc = conv_wave_matrix.GetWeightsDescription();
     conv = std::make_unique<ConvWaveMatrix>(std::move(conv_wave_matrix));
   } else {
     return absl::InvalidArgumentError("no supported conv");
   }
-
-  std::vector<TensorDescriptor> weights_gpu_descs =
-      GetTensorDescriptorsForWeightsLayout(weights_cpu, weights_desc);
 
   MetalSpatialTensor src, dst;
   TensorDescriptor descriptor_with_shape = op_def.src_tensors[0];
@@ -782,10 +824,6 @@ absl::Status ConvMoEPerfTest(int seq_size, int src_channels, int dst_channels, i
   descriptor_with_shape = op_def.dst_tensors[0];
   descriptor_with_shape.SetBHWCShape(dst_shape);
   RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &dst));
-  std::vector<MetalSpatialTensor> weights(weights_gpu_descs.size());
-  for (int i = 0; i < weights_gpu_descs.size(); ++i) {
-    RETURN_IF_ERROR(CreateTensor(env.device(), weights_gpu_descs[i], &weights[i]));
-  }
 
   TensorInt32 active_expert_ids;
   active_expert_ids.shape = BHWC(1, 1, seq_size, num_active_experts);
@@ -832,23 +870,29 @@ absl::Status ConvMoEPerfTest(int seq_size, int src_channels, int dst_channels, i
 
   RETURN_IF_ERROR(conv->AssembleCode(gpu_info));
 
-  const int float_size = SizeOf(data_type);
-  const int64_t flops_count = 2.0 * dst_shape.DimensionsProduct() * weights_cpu.shape.i;
+  const int64_t flops_count = 2.0 * dst_shape.DimensionsProduct() * weights_f32.shape.i;
   const double gflops_count = flops_count * 1e-9;
 
   const double kGByte = 1024.0 * 1024.0 * 1024.0;
   const double src_gbytes = src.GetMemorySizeInBytes() / kGByte;
   const double dst_gbytes = dst.GetMemorySizeInBytes() / kGByte;
-  const double weight_gbytes = weights_cpu.shape.DimensionsProduct() * float_size / kGByte;
+  const double weight_element_size = SizeInBitsOf(weights_type) / 8.0;
+  const double weight_gbytes = weights_f32.shape.DimensionsProduct() * weight_element_size / kGByte;
+  const double scale_gbytes = scale_tensor.GetMemorySizeInBytes() / kGByte;
 
   ComputeTask gpu_task;
   gpu_task.Init(std::move(conv));
   RETURN_IF_ERROR(gpu_task.Compile(&env));
-  gpu_task.SetSrcTensor(&src, 0);
-  for (int i = 0; i < weights.size(); ++i) {
-    gpu_task.SetSrcTensor(&weights[i], i + 1);
+  int index = 0;
+  gpu_task.SetSrcTensor(&src, index++);
+  for (int i = 0; i < weights_tensors.size(); ++i) {
+    gpu_task.SetSrcTensor(&weights_tensors[i], index++);
   }
-  gpu_task.SetSrcTensor(&runtime_params, weights.size() + 1);
+  if (is_quantized) {
+    gpu_task.SetSrcTensor(&scale_tensor, index++);
+    gpu_task.SetSrcTensor(&zp_tensor, index++);
+  }
+  gpu_task.SetSrcTensor(&runtime_params, index++);
   gpu_task.SetDstTensor(&dst, 0);
   RETURN_IF_ERROR(gpu_task.UpdateParams());
 
@@ -858,7 +902,11 @@ absl::Status ConvMoEPerfTest(int seq_size, int src_channels, int dst_channels, i
     double time_ms = absl::ToDoubleMilliseconds(gpu_task_time);
     const double fps = 1000.0 / time_ms;
     const double gflops_real = fps * gflops_count;
-    const double gbyte_read = fps * (src_gbytes + weight_gbytes);
+    double gbytes_read = src_gbytes + weight_gbytes;
+    if (is_quantized) {
+      gbytes_read += scale_gbytes * 2.0;
+    }
+    const double gbyte_read = fps * gbytes_read;
     const double gbyte_write = fps * dst_gbytes;
     std::cout << std::fixed << std::setprecision(3) << "  Time - " << time_ms
               << std::setprecision(2) << "(ms), GFlops - " << gflops_real << ", Bandwidth - "
@@ -930,14 +978,6 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision, DataTy
             << std::endl;
 
   double element_size = precision == CalculationsPrecision::F32 ? 4.0 : 2.0;
-  double weight_element_size = element_size;
-  if (weights_type == DataType::INT8) {
-    weight_element_size = 1.0;
-  } else if (weights_type == DataType::INT4) {
-    weight_element_size = 0.5;
-  } else if (weights_type == DataType::INT2) {
-    weight_element_size = 0.25;
-  }
   int64_t flops_per_element = w_shape.i * w_shape.h * w_shape.w * 2;
   if (scale_zp_shape.h > 1) {
     flops_per_element /= scale_zp_shape.h;
@@ -951,6 +991,7 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision, DataTy
   const int64_t src_elements_alignedx4 = src.Width() * src.Height() * src.Slices() * 4;
   const double dst_gbytes = dst_elements_alignedx4 * element_size / kGByte;
   const double src_gbytes = src_elements_alignedx4 * element_size / kGByte;
+  const double weight_element_size = SizeInBitsOf(weights_type) / 8.0;
   const double weight_gbytes = weights.shape.DimensionsProduct() * weight_element_size / kGByte;
   const double bias_gbytes = weights.shape.o * element_size / kGByte;
   const double scale_gbytes = scale_zp_shape.DimensionsProduct() * element_size / kGByte;
@@ -981,11 +1022,11 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision, DataTy
   TensorDescriptor scale_desc = ScaleOrZeroPointToFCTensorDesc(gpu_info, weights_scale, data_type);
   TensorDescriptor zp_desc = ScaleOrZeroPointToFCTensorDesc(gpu_info, weights_zp, data_type);
 
-  const bool is_qunatized = weights_type != DataType::FLOAT16 && weights_type != DataType::FLOAT32;
+  const bool is_quantized = SizeInBitsOf(weights_type) < 16;
 
   MetalSpatialTensor scale_tensor;
   MetalSpatialTensor zp_tensor;
-  if (is_qunatized) {
+  if (is_quantized) {
     RETURN_IF_ERROR(CreateTensor(env.device(), scale_desc, &scale_tensor));
     RETURN_IF_ERROR(CreateTensor(env.device(), zp_desc, &zp_tensor));
   }
@@ -993,7 +1034,7 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision, DataTy
   ExternalWeights external_weights;
   external_weights.desc = weights_desc;
   external_weights.shape = weights.shape;
-  if (is_qunatized) {
+  if (is_quantized) {
     external_weights.scale_zp_shape = scale_zp_shape;
     external_weights.scale = &scale_desc;
     external_weights.zero_point = &zp_desc;
@@ -1026,7 +1067,7 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision, DataTy
     for (int i = 0; i < weights_tensors.size(); ++i) {
       gpu_kernel.SetSrcTensor(&weights_tensors[i], index++);
     }
-    if (is_qunatized) {
+    if (is_quantized) {
       gpu_kernel.SetSrcTensor(&scale_tensor, index++);
       gpu_kernel.SetSrcTensor(&zp_tensor, index++);
     }
@@ -1050,7 +1091,7 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision, DataTy
   const double fps = 1000.0 / min_time_ms;
   const double gflops_real = fps * gflops_count;
   double gbytes_read = src_gbytes + weight_gbytes + bias_gbytes;
-  if (weights_type != DataType::FLOAT16 && weights_type != DataType::FLOAT32) {
+  if (is_quantized) {
     gbytes_read += scale_gbytes * 2.0;
   }
   double gbs_read = fps * gbytes_read;
@@ -1123,14 +1164,6 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision, DataType we
             << std::endl;
 
   double element_size = precision == CalculationsPrecision::F32 ? 4.0 : 2.0;
-  double weight_element_size = element_size;
-  if (weights_type == DataType::INT8) {
-    weight_element_size = 1.0;
-  } else if (weights_type == DataType::INT4) {
-    weight_element_size = 0.5;
-  } else if (weights_type == DataType::INT2) {
-    weight_element_size = 0.25;
-  }
   int64_t flops_per_element = w_shape.i * w_shape.h * w_shape.w * 2;
   if (scale_zp_shape.h > 1) {
     flops_per_element /= scale_zp_shape.h;
@@ -1144,6 +1177,7 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision, DataType we
   const int64_t src_elements_alignedx4 = src.Width() * src.Height() * src.Slices() * 4;
   const double dst_gbytes = dst_elements_alignedx4 * element_size / kGByte;
   const double src_gbytes = src_elements_alignedx4 * element_size / kGByte;
+  const double weight_element_size = SizeInBitsOf(weights_type) / 8.0;
   const double weight_gbytes = weights.shape.DimensionsProduct() * weight_element_size / kGByte;
   const double scale_gbytes = scale_zp_shape.DimensionsProduct() * element_size / kGByte;
 
@@ -1175,11 +1209,11 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision, DataType we
   TensorDescriptor scale_desc = ScaleOrZeroPointToFCTensorDesc(gpu_info, weights_scale, data_type);
   TensorDescriptor zp_desc = ScaleOrZeroPointToFCTensorDesc(gpu_info, weights_zp, data_type);
 
-  const bool is_qunatized = weights_type != DataType::FLOAT16 && weights_type != DataType::FLOAT32;
+  const bool is_quantized = SizeInBitsOf(weights_type) < 16;
 
   MetalSpatialTensor scale_tensor;
   MetalSpatialTensor zp_tensor;
-  if (is_qunatized) {
+  if (is_quantized) {
     RETURN_IF_ERROR(CreateTensor(env.device(), scale_desc, &scale_tensor));
     RETURN_IF_ERROR(CreateTensor(env.device(), zp_desc, &zp_tensor));
   }
@@ -1187,7 +1221,7 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision, DataType we
   ExternalWeights external_weights;
   external_weights.desc = weights_desc;
   external_weights.shape = weights.shape;
-  if (is_qunatized) {
+  if (is_quantized) {
     external_weights.scale_zp_shape = scale_zp_shape;
     external_weights.scale = &scale_desc;
     external_weights.zero_point = &zp_desc;
@@ -1209,7 +1243,7 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision, DataType we
   for (int i = 0; i < weights_tensors.size(); ++i) {
     gpu_task.SetSrcTensor(&weights_tensors[i], index++);
   }
-  if (is_qunatized) {
+  if (is_quantized) {
     gpu_task.SetSrcTensor(&scale_tensor, index++);
     gpu_task.SetSrcTensor(&zp_tensor, index++);
   }
@@ -1223,7 +1257,7 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision, DataType we
     const double fps = 1000.0 / time_ms;
     const double gflops_real = fps * gflops_count;
     double gbytes_read = src_gbytes + weight_gbytes;
-    if (weights_type != DataType::FLOAT16 && weights_type != DataType::FLOAT32) {
+    if (is_quantized) {
       gbytes_read += scale_gbytes * 2.0;
     }
     double gbs_read = fps * gbytes_read;
