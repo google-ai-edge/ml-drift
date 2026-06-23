@@ -814,6 +814,11 @@ absl::Status ConvMoEPerfTest(int seq_size, int src_channels, int dst_channels, i
         /*src_exp=*/nullptr, /*different_weights_for_height=*/true, runtime_check);
     conv = std::make_unique<ConvWaveMatrix>(std::move(conv_wave_matrix));
   } else {
+    // ASSIGN_OR_RETURN(auto conv_fc, CreateFullyConnectedExternalWeights(
+    //                                  gpu_info, CalculationsPrecision::F16, op_def.src_tensors[0],
+    //                                  op_def.dst_tensors[0], external_weights, /*bias=*/nullptr,
+    //                                  &dst_shape, /*src_exp=*/nullptr, runtime_check));
+    // conv = std::make_unique<FullyConnected>(std::move(conv_fc));
     return absl::InvalidArgumentError("no supported conv");
   }
 
