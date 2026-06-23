@@ -620,10 +620,8 @@ absl::Status ConvGenericExternalWfloatTest(TestExecutionEnvironment& env,
   conv_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   conv_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
 
-  WeightsDescription weights_desc;
-  weights_desc.type = data_type;
-  weights_desc.layout = WeightsLayout::kOSpatialIOGroupI4O4;
-  weights_desc.output_group_size = DivideRoundUp(weights_f32.shape.o, 4);
+  WeightsDescription weights_desc =
+      GetFullyConnectedWeightsDesc(data_type, weights_f32.shape);
 
   ExternalWeights external_weights;
   external_weights.desc = weights_desc;
@@ -639,8 +637,8 @@ absl::Status ConvGenericExternalWfloatTest(TestExecutionEnvironment& env,
       /*src_exp=*/nullptr,
       batched_weights);
 
-  TensorDescriptor weights_td =
-      GetTensorDescriptorsForWeightsLayout(weights_f32, weights_desc)[0];
+  std::vector<TensorDescriptor> weights_td =
+      GetTensorDescriptorsForWeightsLayout(weights_f32, weights_desc);
 
   TensorDescriptor src_td = conv_def.src_tensors[0];
   src_td.UploadData(src_tensor);
@@ -649,9 +647,12 @@ absl::Status ConvGenericExternalWfloatTest(TestExecutionEnvironment& env,
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
 
   float eps = GetEpsilon(precision, env.GetGpuInfo()) * src_channels * 4.0f;
+  std::vector<TensorDescriptor*> src_cpu = {&src_td};
+  for (auto& td : weights_td) {
+    src_cpu.push_back(&td);
+  }
   RETURN_IF_ERROR(env.ExecuteGPUOperation(
-      {&src_td, &weights_td}, {&dst_td},
-      std::make_unique<ConvGeneric>(std::move(operation))));
+      src_cpu, {&dst_td}, std::make_unique<ConvGeneric>(std::move(operation))));
   TensorFloat32 dst_tensor;
   dst_td.DownloadData(&dst_tensor);
   EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), dst_ref_tensor.data));
@@ -706,10 +707,8 @@ absl::Status ConvGenericExternalWi8Test(TestExecutionEnvironment& env,
   conv_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   conv_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
 
-  WeightsDescription weights_desc;
-  weights_desc.type = DataType::UINT8;
-  weights_desc.layout = WeightsLayout::kOSpatialIOGroupI4O4;
-  weights_desc.output_group_size = DivideRoundUp(weights_i8.shape.o, 4);
+  WeightsDescription weights_desc =
+      GetFullyConnectedInt8WeightsDesc(env.GetGpuInfo(), weights_i8.shape);
 
   DataType type = conv_def.src_tensors[0].GetDataType();
   auto scale_desc =
@@ -799,10 +798,8 @@ absl::Status ConvGenericExternalWi4Test(TestExecutionEnvironment& env,
   conv_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   conv_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
 
-  WeightsDescription weights_desc;
-  weights_desc.type = DataType::UINT4;
-  weights_desc.layout = WeightsLayout::kOSpatialIOGroupI4O4;
-  weights_desc.output_group_size = DivideRoundUp(weights_i4.shape.o, 4);
+  WeightsDescription weights_desc =
+      GetFullyConnectedInt4WeightsDesc(env.GetGpuInfo(), weights_i4.shape);
 
   DataType type = conv_def.src_tensors[0].GetDataType();
   auto scale_desc =
@@ -892,10 +889,8 @@ absl::Status ConvGenericExternalWi2Test(TestExecutionEnvironment& env,
   conv_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   conv_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
 
-  WeightsDescription weights_desc;
-  weights_desc.type = DataType::UINT2;
-  weights_desc.layout = WeightsLayout::kOSpatialIOGroupI4O4;
-  weights_desc.output_group_size = DivideRoundUp(weights_i2.shape.o, 4);
+  WeightsDescription weights_desc =
+      GetFullyConnectedInt2WeightsDesc(env.GetGpuInfo(), weights_i2.shape);
 
   DataType type = conv_def.src_tensors[0].GetDataType();
   auto scale_desc =
