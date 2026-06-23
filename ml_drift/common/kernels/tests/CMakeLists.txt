@@ -537,6 +537,7 @@ target_link_libraries(conv_wave_matrix_test_opencl PUBLIC
   mld_common_task_util
   mld_common_kernels_tests_conv_wave_matrix_test_util
   mld_common_data_type
+  mld_common_shape
   mld_common_status_matchers
   mld_common_task_tensor_desc
   mld_common_task_testing_util

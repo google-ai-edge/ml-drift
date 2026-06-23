@@ -532,6 +532,7 @@ std::string GenerateConvolution(
     c += "  int w_sg_offset, stride;\n";
     c += "  int o1, o2, i1, i2;\n";
     c += "  Type weights_scale, weights_bias;\n";
+    c += "  int sub_i, sub_o, w_o_slice;\n";
     if (quantized_weights && conv_params.scale_zp_shape.i != 1) {
       // grouped quantization
       c += "  int last_src_group_id = -1;\n";
@@ -540,9 +541,9 @@ std::string GenerateConvolution(
       c += "  if (spatial_id < " + std::to_string(i4o4_blocks) + ") {\n";
     }
     // i4o4 blocks stored in layout BIO
-    c += "  int sub_i = spatial_id / " + std::to_string(o_groups) + ";\n";
-    c += "  int sub_o = spatial_id % " + std::to_string(o_groups) + ";\n";
-    c += "  int w_o_slice = min(DST_S + sub_o, args.dst_tensor.Slices()-1);\n";
+    c += "  sub_i = spatial_id / " + std::to_string(o_groups) + ";\n";
+    c += "  sub_o = spatial_id % " + std::to_string(o_groups) + ";\n";
+    c += "  w_o_slice = min(DST_S + sub_o, args.dst_tensor.Slices()-1);\n";
     const std::string batch_part = conv_params.different_weights_for_height
                                        ? "w_batch_id * args.src_tensor.Slices()"
                                        : "0";

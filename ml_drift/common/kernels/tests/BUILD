@@ -579,6 +579,7 @@ mld_kernel_test(
         ":conv_wave_matrix_test_util",
         "//ml_drift/common:data_type",
         "//ml_drift/common:precision",
+        "//ml_drift/common:shape",
         "//ml_drift/common/task:tensor_desc",
         "//ml_drift/common/task:testing_util",
         "@com_google_absl//absl/strings",

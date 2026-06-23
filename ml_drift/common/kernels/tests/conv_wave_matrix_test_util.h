@@ -16,6 +16,7 @@
 #define ML_DRIFT_COMMON_KERNELS_TESTS_CONV_WAVE_MATRIX_TEST_UTIL_H_
 
 #include "ml_drift/common/precision.h"
+#include "ml_drift/common/shape.h"
 #include "ml_drift/common/status.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/task/testing_util.h"
@@ -40,21 +41,24 @@ absl::Status ConvWaveMatrixExternalWeightsTest(TestExecutionEnvironment& env,
 absl::Status ConvWaveMatrixExternalBatchedWeightsTest(
     TestExecutionEnvironment& env, CalculationsPrecision precision,
     TensorStorageType storage);
-absl::Status ConvWaveMatrixExternalBatchedWfloatTest(
+absl::Status ConvWaveMatrixExternalWfloatTest(TestExecutionEnvironment& env,
+                                              CalculationsPrecision precision,
+                                              TensorStorageType storage,
+                                              const BHWC& src_shape,
+                                              int dst_channels,
+                                              bool batched_weights = false);
+absl::Status ConvWaveMatrixExternalWi8Test(
     TestExecutionEnvironment& env, CalculationsPrecision precision,
-    TensorStorageType storage);
-absl::Status ConvWaveMatrixExternalBatchedWi8Test(
+    TensorStorageType storage, const BHWC& src_shape, int dst_channels,
+    bool batched_weights = false, int group_size = -1);
+absl::Status ConvWaveMatrixExternalWi4Test(
     TestExecutionEnvironment& env, CalculationsPrecision precision,
-    TensorStorageType storage);
-absl::Status ConvWaveMatrixExternalBatchedWi4Test(
+    TensorStorageType storage, const BHWC& src_shape, int dst_channels,
+    bool batched_weights = false, int group_size = -1);
+absl::Status ConvWaveMatrixExternalWi2Test(
     TestExecutionEnvironment& env, CalculationsPrecision precision,
-    TensorStorageType storage);
-absl::Status ConvWaveMatrixExternalBatchedWi2Test(
-    TestExecutionEnvironment& env, CalculationsPrecision precision,
-    TensorStorageType storage);
-absl::Status ConvWaveMatrixExternalBatchedGroupedWi4Test(
-    TestExecutionEnvironment& env, CalculationsPrecision precision,
-    TensorStorageType storage);
+    TensorStorageType storage, const BHWC& src_shape, int dst_channels,
+    bool batched_weights = false, int group_size = -1);
 
 absl::Status ConvWaveMatrixWinograd4x4To6x6Test(TestExecutionEnvironment& env,
                                                 CalculationsPrecision precision,
