@@ -597,6 +597,9 @@ class GpuModelBuilder {
       const ConvRuntimeCheckDesc& runtime_check = {},
       const TensorHandle* runtime_check_tensor = nullptr);
 
+  Weights GetWeights(const FullyConnectedInt2Attributes& attr,
+                     DataType float_type);
+
   // returns 2 tensors: quantized and params(min/max/sum)
   std::vector<TensorHandle> Quantize(const TensorHandle& src,
                                      PackedType quantized_type,

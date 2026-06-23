@@ -364,59 +364,6 @@ void ConvertQuantizedInt4Weights(
   }
 }
 
-void ConvertQuantizedInt2Weights(
-    WeightsDescription weights_desc,
-    const std::variant<Tensor<OHWI, DataType::INT8>,
-                       Tensor<OHWI, DataType::INT2>>& weights,
-    Arguments* args) {
-  const OHWI weights_shape =
-      std::visit([](const auto& w) { return w.shape; }, weights);
-  const int elements_count =
-      GetTotalElementsCountForLayout(weights_desc, weights_shape) / 4;
-  std::vector<uint8_t> weights_data(elements_count);
-
-  if (std::holds_alternative<Tensor<OHWI, DataType::INT2>>(weights)) {
-    const auto& int2_weights = std::get<Tensor<OHWI, DataType::INT2>>(weights);
-    if (weights_desc.layout == WeightsLayout::kOSpatialIOGroupI4O4 ||
-        weights_desc.layout == WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
-      Tensor<OHWI, DataType::UINT8> uint8_weights;
-      uint8_weights.shape = int2_weights.shape;
-      uint8_weights.data.assign(int2_weights.data.begin(),
-                                int2_weights.data.end());
-      auto status = RearrangeWeightsUInt2Packed(uint8_weights, weights_desc,
-                                                absl::MakeSpan(weights_data),
-                                                {}, 2, false);
-      ABSL_CHECK(status.ok())
-          << "Failed to rearrange INT2 weights: " << status.message();
-    } else {
-      ABSL_CHECK(false) << "Unsupported layout for packed INT2 weights";
-    }
-  } else {
-    const auto& int8_weights = std::get<Tensor<OHWI, DataType::INT8>>(weights);
-    RearrangeWeightsInt8AsUint2(int8_weights, weights_desc,
-                                absl::MakeSpan(weights_data), 2, 2u);
-  }
-
-  if (weights_desc.IsLinearLayout()) {
-    BufferDescriptor buffer_desc;
-    buffer_desc.element_type = DataType::UINT32;
-    buffer_desc.element_size = 1;
-    buffer_desc.size = elements_count;
-    buffer_desc.data = std::move(weights_data);
-    args->AddObject("weights",
-                    std::make_unique<BufferDescriptor>(std::move(buffer_desc)));
-  } else {
-    uint2 tex_size = Get2dResourceSize(weights_desc, weights_shape);
-    tex_size.x /= 4;  // because we store 4 uint2 as one uint8
-    TensorDescriptor tensor_desc;
-    tensor_desc = CreateConstantHWVec4TensorDescriptor(
-        DataType::UINT8, TensorStorageType::TEXTURE_2D, tex_size.x, tex_size.y,
-        weights_data.data());
-    args->AddObject("weights",
-                    std::make_unique<TensorDescriptor>(std::move(tensor_desc)));
-  }
-}
-
 int3 GetBlockSpatialCoords(int linear_spatial, const BHWC& shape) {
   int b_coord = linear_spatial % shape.b;
   linear_spatial /= shape.b;
@@ -1568,24 +1515,6 @@ FullyConnected CreateFullyConnected(const GpuInfo& gpu_info,
                                   dst_shape_ptr, wg_size);
 }
 
-FullyConnected CreateFullyConnected(const GpuInfo& gpu_info,
-                                    const OperationDef& definition,
-                                    CalculationsPrecision precision,
-                                    const FullyConnectedInt2Attributes& attr,
-                                    const BHWC* dst_shape_ptr,
-                                    const int3* wg_size) {
-  Tensor<OHWI, DataType::FLOAT32> float_zp;
-  float_zp.shape = attr.zero_point.shape;
-  float_zp.data.resize(attr.zero_point.size());
-  for (size_t i = 0; i < attr.zero_point.size(); ++i) {
-    float_zp.data[i] = static_cast<float>(attr.zero_point.Data()[i]);
-  }
-  return CreateFullyConnectedInt2(gpu_info, definition, precision, attr.weights,
-                                  attr.scale, float_zp, attr.bias,
-                                  dst_shape_ptr, wg_size);
-}
-
-
 WeightsDescription GetFullyConnectedInt8WeightsDesc(const GpuInfo& gpu_info,
                                                     const OHWI& weights_shape,
                                                     bool prefer_textures) {
@@ -1806,48 +1735,6 @@ FullyConnected CreateFullyConnectedInt4Sparse2x4(
       result.args_.AddObject("biases", std::make_unique<TensorDescriptor>(
                                            std::move(bias_tensor_desc)));
     }
-  }
-
-  return result;
-}
-
-FullyConnected CreateFullyConnectedInt2(
-    const GpuInfo& gpu_info, const OperationDef& definition,
-    CalculationsPrecision precision,
-    const std::variant<Tensor<OHWI, DataType::INT8>,
-                       Tensor<OHWI, DataType::INT2>>& weights,
-    const Tensor<OHWI, DataType::FLOAT32>& weights_scale,
-    const Tensor<OHWI, DataType::FLOAT32>& weights_zero_point,
-    const Tensor<Linear, DataType::FLOAT32>& biases, const BHWC* dst_shape_ptr,
-    const int3* wg_size, bool prefer_textures) {
-  const OHWI weights_shape =
-      std::visit([](const auto& w) { return w.shape; }, weights);
-  WeightsDescription weights_desc = GetFullyConnectedInt2WeightsDesc(
-      gpu_info, weights_shape, prefer_textures);
-  FullyConnected::ConvParams conv_params;
-  conv_params.weights_type = DataType::INT2;
-  conv_params.scale_zp_shape = weights_scale.shape;
-  if (weights_scale.shape.i != 1) {
-    conv_params.has_zero_point = false;
-  }
-  if (wg_size) {
-    conv_params.wg_size = *wg_size;
-  }
-  conv_params.has_bias = !biases.data.empty();
-  conv_params.block_size =
-      GetBlockSize(dst_shape_ptr, conv_params.batched_weights);
-  FullyConnected result(definition, precision, gpu_info, weights_shape,
-                        weights_desc, conv_params);
-  ConvertQuantizedInt2Weights(weights_desc, weights, &result.args_);
-
-  const DataType type = definition.dst_tensors[0].GetDataType();
-  AddWeightsParams(gpu_info, weights_scale, weights_zero_point, type,
-                   &result.args_);
-  if (conv_params.has_bias) {
-    TensorDescriptor bias_tensor_desc =
-        CreateConstantLinearTensorDescriptor(gpu_info, type, biases);
-    result.args_.AddObject("biases", std::make_unique<TensorDescriptor>(
-                                         std::move(bias_tensor_desc)));
   }
 
   return result;

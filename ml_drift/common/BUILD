@@ -102,6 +102,7 @@ cc_library(
         ":shape",
         ":status",
         ":tensor",
+        ":types",
         ":util",
         ":winograd_util",
         "//ml_drift/common/kernels:accumulate_input_channels",
