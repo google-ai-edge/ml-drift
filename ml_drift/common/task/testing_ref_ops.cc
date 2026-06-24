@@ -20,6 +20,7 @@
 #include <cstddef>
 #include <limits>
 #include <set>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -2721,6 +2722,60 @@ Tensor<OHWI, DataType::FLOAT32> MakeWeightsFromInt8(
     }
   }
   return weights;
+}
+
+std::pair<TensorInt32, Tensor<Linear, DataType::INT32>> GroupsMapReference(
+    const TensorInt32& group_ids, int num_groups) {
+  TensorInt32 groups_map;
+  groups_map.shape = BHWC(1, num_groups, group_ids.shape.w, 2);
+  groups_map.data.resize(groups_map.shape.DimensionsProduct(), -1);
+  Tensor<Linear, DataType::INT32> groups_sizes;
+  groups_sizes.shape = Linear(num_groups);
+  groups_sizes.data.resize(groups_sizes.shape.DimensionsProduct(), 0);
+  for (int w = 0; w < group_ids.shape.w; ++w) {
+    for (int c = 0; c < group_ids.shape.c; ++c) {
+      int expert_id = group_ids.data[w * group_ids.shape.c + c];
+      int index = expert_id * group_ids.shape.w + groups_sizes.data[expert_id];
+      groups_map.data[index * 2 + 0] = c;
+      groups_map.data[index * 2 + 1] = w;
+      groups_sizes.data[expert_id]++;
+    }
+  }
+  return std::make_pair(groups_map, groups_sizes);
+}
+
+std::pair<TensorInt32, Tensor<Linear, DataType::INT32>>
+PackedGroupsMapReference(const TensorInt32& groups_map,
+                         const Tensor<Linear, DataType::INT32>& groups_sizes) {
+  int num_groups = groups_sizes.shape.v;
+  Tensor<Linear, DataType::INT32> groups_offsets;
+  groups_offsets.shape = Linear(num_groups);
+  groups_offsets.data.resize(groups_offsets.shape.DimensionsProduct(), 0);
+  for (int i = 1; i < num_groups; ++i) {
+    groups_offsets.data[i] =
+        groups_offsets.data[i - 1] + groups_sizes.data[i - 1];
+  }
+  int total_size =
+      groups_offsets.data[num_groups - 1] + groups_sizes.data[num_groups - 1];
+
+  TensorInt32 packed_groups_map;
+  packed_groups_map.shape = BHWC(1, 1, total_size, 2);
+  packed_groups_map.data.resize(packed_groups_map.shape.DimensionsProduct(),
+                                -1);
+
+  for (int g = 0; g < num_groups; ++g) {
+    int group_offset = groups_offsets.data[g];
+    int group_size = groups_sizes.data[g];
+    for (int w = 0; w < group_size; ++w) {
+      int src_index = g * groups_map.shape.w + w;
+      int dst_index = group_offset + w;
+      packed_groups_map.data[dst_index * 2 + 0] =
+          groups_map.data[src_index * 2 + 0];
+      packed_groups_map.data[dst_index * 2 + 1] =
+          groups_map.data[src_index * 2 + 1];
+    }
+  }
+  return std::make_pair(packed_groups_map, groups_offsets);
 }
 
 }  // namespace ml_drift

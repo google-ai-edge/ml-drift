@@ -369,6 +369,7 @@ objc_library(
         "//ml_drift/common/kernels:softmax",
         "//ml_drift/common/kernels:winograd",
         "//ml_drift/common/kernels/special:conv_softmax_conv",
+        "//ml_drift/common/task:testing_ref_ops",
         "//ml_drift/common/task:testing_util",
         "//third_party/apple_frameworks:Metal",
         "@XNNPACK",

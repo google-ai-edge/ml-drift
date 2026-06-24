@@ -53,6 +53,7 @@
 #include "ml_drift/common/status.h"
 #include "ml_drift/common/task/gpu_operation.h"
 #include "ml_drift/common/task/tensor_desc.h"
+#include "ml_drift/common/task/testing_ref_ops.h"
 #include "ml_drift/common/task/testing_util.h"
 #include "ml_drift/common/task/tuning_type.h"
 #include "ml_drift/common/task/weights_conversion.h"
@@ -1377,21 +1378,15 @@ absl::Status ConvMoEPerfTest(int seq_size, int src_channels, int dst_channels,
   TensorInt32 active_expert_ids =
       GenerateGroupIds(BHWC(1, 1, seq_size, num_active_experts), num_experts);
 
-  std::vector<int32_t> runtime_sizes(num_experts, 0);
-  for (int w = 0; w < seq_size; ++w) {
-    for (int c = 0; c < num_active_experts; ++c) {
-      int expert_id = active_expert_ids.data[w * num_active_experts + c];
-      runtime_sizes[expert_id]++;
-    }
-  }
-  std::vector<int32_t> runtime_offsets(num_experts, 0);
-  for (int i = 1; i < num_experts; ++i) {
-    runtime_offsets[i] = runtime_offsets[i - 1] + runtime_sizes[i - 1];
-  }
+  auto [groups_map, groups_sizes] =
+      GroupsMapReference(active_expert_ids, num_experts);
+  auto [packed_groups_map, groups_offsets] =
+      PackedGroupsMapReference(groups_map, groups_sizes);
+
   std::vector<int32_t> runtime_params_cpu(num_experts * 2, 0);
   for (int i = 0; i < num_experts; ++i) {
-    runtime_params_cpu[i] = runtime_sizes[i];
-    runtime_params_cpu[num_experts + i] = runtime_offsets[i];
+    runtime_params_cpu[i] = groups_sizes.data[i];
+    runtime_params_cpu[num_experts + i] = groups_offsets.data[i];
   }
   Tensor runtime_params;
   TensorDescriptor runtime_params_td(DataType::INT32, TensorStorageType::BUFFER,

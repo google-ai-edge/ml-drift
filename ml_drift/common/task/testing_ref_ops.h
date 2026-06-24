@@ -17,6 +17,7 @@
 
 #include <optional>
 #include <set>
+#include <utility>
 #include <vector>
 
 #include "ml_drift/common/data_type.h"
@@ -219,6 +220,14 @@ Tensor<OHWI, DataType::FLOAT32> MakeWeightsFromInt8(
     const Tensor<OHWI, DataType::INT8>& weights_i8,
     const Tensor<Linear, DataType::FLOAT32>& weights_scale,
     const Tensor<Linear, DataType::FLOAT32>* weights_zero_point = nullptr);
+
+// group_ids shape B/H must be 1.
+std::pair<TensorInt32, Tensor<Linear, DataType::INT32>> GroupsMapReference(
+    const TensorInt32& group_ids, int num_groups);
+
+std::pair<TensorInt32, Tensor<Linear, DataType::INT32>>
+PackedGroupsMapReference(const TensorInt32& groups_map,
+                         const Tensor<Linear, DataType::INT32>& groups_sizes);
 
 }  // namespace ml_drift
 

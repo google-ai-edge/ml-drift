@@ -156,6 +156,7 @@ cc_library(
         "//ml_drift/common/selectors:convolution_selector",
         "//ml_drift/common/task:gpu_operation",
         "//ml_drift/common/task:tensor_desc",
+        "//ml_drift/common/task:testing_ref_ops",
         "//ml_drift/common/task:testing_util",
         "//ml_drift/common/task:tuning_type",
         "//ml_drift/common/task:weights_conversion",
