@@ -314,8 +314,8 @@ class TensorDescriptor : public GPUObjectDescriptor {
  private:
   friend flatbuffers::Offset<data::TensorDescriptor> Encode(
       const TensorDescriptor& desc, flatbuffers::FlatBufferBuilder* builder);
-  friend void Decode(const data::TensorDescriptor* fb_desc,
-                     TensorDescriptor* desc);
+  friend absl::Status Decode(const data::TensorDescriptor* fb_desc,
+                             TensorDescriptor* desc);
 
   friend TensorDescriptor CreateConstantLinearTensorDescriptor(
       DataType data_type, TensorStorageType storage_type,

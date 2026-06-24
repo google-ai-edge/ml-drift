@@ -183,12 +183,12 @@ absl::Status Decode(const data::GpuModel* fb_gpu_model, GpuModel* gpu_model) {
 
   for (const auto tensor_fb : *fb_gpu_model->tensors()) {
     TensorDescriptor desc;
-    Decode(tensor_fb->desc(), &desc);
+    RETURN_IF_ERROR(Decode(tensor_fb->desc(), &desc));
     gpu_model->tensors[tensor_fb->id()] = std::move(desc);
   }
   for (const auto tensor_fb : *fb_gpu_model->const_tensors()) {
     TensorDescriptor desc;
-    Decode(tensor_fb->desc(), &desc);
+    RETURN_IF_ERROR(Decode(tensor_fb->desc(), &desc));
     gpu_model->const_tensors[tensor_fb->id()] = std::move(desc);
   }
   for (int i = 0; i < fb_gpu_model->input_ids()->size(); ++i) {

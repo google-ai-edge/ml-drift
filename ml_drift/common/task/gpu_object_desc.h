@@ -218,8 +218,8 @@ class GPUObjectDescriptor {
  protected:
   friend flatbuffers::Offset<data::GPUObjectDescriptor> Encode(
       const GPUObjectDescriptor& desc, flatbuffers::FlatBufferBuilder* builder);
-  friend void Decode(const data::GPUObjectDescriptor* fb_obj,
-                     GPUObjectDescriptor* obj);
+  friend absl::Status Decode(const data::GPUObjectDescriptor* fb_obj,
+                             GPUObjectDescriptor* obj);
   mutable std::map<std::string, std::string, std::less<>> state_vars_;
   AccessType access_type_;
 };

@@ -261,13 +261,27 @@ flatbuffers::Offset<data::GPUObjectDescriptor> Encode(
   return obj_builder.Finish();
 }
 
-void Decode(const data::GPUObjectDescriptor* fb_obj, GPUObjectDescriptor* obj) {
-  obj->access_type_ = ToEnum(fb_obj->access_type());
-  for (auto state_fb : *fb_obj->state_vars()) {
-    std::string key(state_fb->key()->c_str(), state_fb->key()->size());
-    std::string value(state_fb->value()->c_str(), state_fb->value()->size());
-    obj->state_vars_[key] = value;
+absl::Status Decode(const data::GPUObjectDescriptor* fb_obj,
+                    GPUObjectDescriptor* obj) {
+  if (!fb_obj) {
+    return absl::InvalidArgumentError("GPUObjectDescriptor is null.");
   }
+  obj->access_type_ = ToEnum(fb_obj->access_type());
+  if (fb_obj->state_vars()) {
+    for (auto state_fb : *fb_obj->state_vars()) {
+      if (!state_fb) {
+        return absl::InvalidArgumentError("StateVariable is null.");
+      }
+      if (!state_fb->key() || !state_fb->value()) {
+        return absl::InvalidArgumentError(
+            "StateVariable key or value is null.");
+      }
+      std::string key(state_fb->key()->c_str(), state_fb->key()->size());
+      std::string value(state_fb->value()->c_str(), state_fb->value()->size());
+      obj->state_vars_[key] = value;
+    }
+  }
+  return absl::OkStatus();
 }
 
 flatbuffers::Offset<data::BufferDescriptor> Encode(
@@ -293,19 +307,33 @@ flatbuffers::Offset<data::BufferDescriptor> Encode(
   return buf_builder.Finish();
 }
 
-void Decode(const data::BufferDescriptor* fb_desc, BufferDescriptor* desc) {
-  Decode(fb_desc->base_obj(), desc);
+absl::Status Decode(const data::BufferDescriptor* fb_desc,
+                    BufferDescriptor* desc) {
+  if (!fb_desc) {
+    return absl::InvalidArgumentError("BufferDescriptor is null.");
+  }
+  RETURN_IF_ERROR(Decode(fb_desc->base_obj(), desc));
   desc->element_type = ToEnum(fb_desc->element_type());
   desc->element_size = fb_desc->element_size();
   desc->memory_type = ToEnum(fb_desc->memory_type());
-  for (auto attr_fb : *fb_desc->attributes()) {
-    std::string attr(attr_fb->c_str(), attr_fb->size());
-    desc->attributes.push_back(attr);
+  if (fb_desc->attributes()) {
+    for (auto attr_fb : *fb_desc->attributes()) {
+      if (!attr_fb) {
+        return absl::InvalidArgumentError("Buffer attribute is null.");
+      }
+      std::string attr(attr_fb->c_str(), attr_fb->size());
+      desc->attributes.push_back(attr);
+    }
   }
   desc->size = fb_desc->size();
-  desc->data =
-      std::vector<uint8_t>(fb_desc->data()->data(),
-                           fb_desc->data()->data() + fb_desc->data()->size());
+  if (fb_desc->data()) {
+    desc->data =
+        std::vector<uint8_t>(fb_desc->data()->data(),
+                             fb_desc->data()->data() + fb_desc->data()->size());
+  } else {
+    desc->data.clear();
+  }
+  return absl::OkStatus();
 }
 
 flatbuffers::Offset<data::TensorDescriptor> Encode(
@@ -338,22 +366,34 @@ flatbuffers::Offset<data::TensorDescriptor> Encode(
   return tensor_builder.Finish();
 }
 
-void Decode(const data::TensorDescriptor* fb_desc, TensorDescriptor* desc) {
-  Decode(fb_desc->base_obj(), desc);
+absl::Status Decode(const data::TensorDescriptor* fb_desc,
+                    TensorDescriptor* desc) {
+  if (!fb_desc) {
+    return absl::InvalidArgumentError("TensorDescriptor is null.");
+  }
+  RETURN_IF_ERROR(Decode(fb_desc->base_obj(), desc));
   desc->data_type_ = ToEnum(fb_desc->data_type());
   desc->storage_type_ = ToEnum(fb_desc->storage_type());
   desc->layout_ = ToEnum(fb_desc->layout());
   desc->physical_layout_1d_ = ToEnum(fb_desc->physical_layout_1d());
+  if (!fb_desc->shape()) {
+    return absl::InvalidArgumentError("Tensor shape is null.");
+  }
   desc->SetBHWDCShape(BHWDC(fb_desc->shape()->b(), fb_desc->shape()->h(),
                             fb_desc->shape()->w(), fb_desc->shape()->d(),
                             fb_desc->shape()->c()));
-  desc->SetData(
-      std::vector<uint8_t>(fb_desc->data()->data(),
-                           fb_desc->data()->data() + fb_desc->data()->size()));
+  if (fb_desc->data()) {
+    desc->SetData(std::vector<uint8_t>(
+        fb_desc->data()->data(),
+        fb_desc->data()->data() + fb_desc->data()->size()));
+  } else {
+    desc->SetData({});
+  }
   desc->use_buffer_for_write_only_2d_texture_ =
       fb_desc->use_buffer_for_write_only_2d_texture();
   desc->use_buffer_for_write_only_image_buffer_ =
       fb_desc->use_buffer_for_write_only_image_buffer();
+  return absl::OkStatus();
 }
 
 absl::Status Decode(const data::Arguments* fb_args, Arguments* args) {
@@ -391,7 +431,7 @@ absl::Status Decode(const data::Arguments* fb_args, Arguments* args) {
     std::string key(buffer_pair_fb->key()->c_str(),
                     buffer_pair_fb->key()->size());
     BufferDescriptor desc;
-    Decode(buffer_pair_fb->value(), &desc);
+    RETURN_IF_ERROR(Decode(buffer_pair_fb->value(), &desc));
     args->AddObject(key, std::make_unique<BufferDescriptor>(std::move(desc)));
   }
 
@@ -399,7 +439,7 @@ absl::Status Decode(const data::Arguments* fb_args, Arguments* args) {
     std::string key(tensor_pair_fb->key()->c_str(),
                     tensor_pair_fb->key()->size());
     TensorDescriptor desc;
-    Decode(tensor_pair_fb->value(), &desc);
+    RETURN_IF_ERROR(Decode(tensor_pair_fb->value(), &desc));
     args->AddObject(key, std::make_unique<TensorDescriptor>(std::move(desc)));
   }
 
@@ -407,7 +447,7 @@ absl::Status Decode(const data::Arguments* fb_args, Arguments* args) {
     std::string key(buffer_pair_fb->key()->c_str(),
                     buffer_pair_fb->key()->size());
     BufferDescriptor desc;
-    Decode(buffer_pair_fb->value(), &desc);
+    RETURN_IF_ERROR(Decode(buffer_pair_fb->value(), &desc));
     auto access_type = desc.GetAccess();
     args->AddObjectRef(key, access_type,
                        std::make_unique<BufferDescriptor>(std::move(desc)));
@@ -417,7 +457,7 @@ absl::Status Decode(const data::Arguments* fb_args, Arguments* args) {
     std::string key(tensor_pair_fb->key()->c_str(),
                     tensor_pair_fb->key()->size());
     TensorDescriptor desc;
-    Decode(tensor_pair_fb->value(), &desc);
+    RETURN_IF_ERROR(Decode(tensor_pair_fb->value(), &desc));
     auto access_type = desc.GetAccess();
     args->AddObjectRef(key, access_type,
                        std::make_unique<TensorDescriptor>(std::move(desc)));
@@ -530,26 +570,55 @@ flatbuffers::Offset<data::Arguments> Encode(
 }
 
 absl::Status Decode(const data::GPUOperation* fb_op, GPUOperation* op) {
+  if (!fb_op) {
+    return absl::InvalidArgumentError("GPUOperation is null.");
+  }
   RETURN_IF_ERROR(Decode(fb_op->arguments(), &op->args_));
+  if (!fb_op->work_group_size()) {
+    return absl::InvalidArgumentError("GPUOperation work_group_size is null.");
+  }
   op->work_group_size_.x = fb_op->work_group_size()->x();
   op->work_group_size_.y = fb_op->work_group_size()->y();
   op->work_group_size_.z = fb_op->work_group_size()->z();
   op->tensor_to_grid_ = ToEnum(fb_op->tensor_to_grid());
   op->flops_ = fb_op->flops();
   op->grid_dimension_ = fb_op->grid_dimension();
+  if (!fb_op->work_group_launch_order()) {
+    return absl::InvalidArgumentError(
+        "GPUOperation work_group_launch_order is null.");
+  }
   op->work_group_launch_order_.x = fb_op->work_group_launch_order()->x();
   op->work_group_launch_order_.y = fb_op->work_group_launch_order()->y();
   op->work_group_launch_order_.z = fb_op->work_group_launch_order()->z();
+  if (!fb_op->grid_size()) {
+    return absl::InvalidArgumentError("GPUOperation grid_size is null.");
+  }
   op->grid_size_.x = fb_op->grid_size()->x();
   op->grid_size_.y = fb_op->grid_size()->y();
   op->grid_size_.z = fb_op->grid_size()->z();
-  for (auto name_fb : *fb_op->src_objects_names()) {
-    std::string name(name_fb->c_str(), name_fb->size());
-    op->src_objects_names_.push_back(std::move(name));
+  if (fb_op->src_objects_names()) {
+    for (auto name_fb : *fb_op->src_objects_names()) {
+      if (!name_fb) {
+        return absl::InvalidArgumentError(
+            "GPUOperation src_objects_name is null.");
+      }
+      std::string name(name_fb->c_str(), name_fb->size());
+      op->src_objects_names_.push_back(std::move(name));
+    }
   }
-  for (auto name_fb : *fb_op->dst_objects_names()) {
-    std::string name(name_fb->c_str(), name_fb->size());
-    op->dst_objects_names_.push_back(std::move(name));
+  if (fb_op->dst_objects_names()) {
+    for (auto name_fb : *fb_op->dst_objects_names()) {
+      if (!name_fb) {
+        return absl::InvalidArgumentError(
+            "GPUOperation dst_objects_name is null.");
+      }
+      std::string name(name_fb->c_str(), name_fb->size());
+      op->dst_objects_names_.push_back(std::move(name));
+    }
+  }
+  if (!fb_op->work_groups_count()) {
+    return absl::InvalidArgumentError(
+        "GPUOperation work_groups_count is null.");
   }
   op->work_groups_count_.x = fb_op->work_groups_count()->x();
   op->work_groups_count_.y = fb_op->work_groups_count()->y();

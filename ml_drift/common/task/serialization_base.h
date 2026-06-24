@@ -35,7 +35,8 @@ flatbuffers::Offset<data::Int3> Encode(const int3& v,
 
 flatbuffers::Offset<data::TensorDescriptor> Encode(
     const TensorDescriptor& desc, flatbuffers::FlatBufferBuilder* builder);
-void Decode(const data::TensorDescriptor* fb_desc, TensorDescriptor* desc);
+absl::Status Decode(const data::TensorDescriptor* fb_desc,
+                    TensorDescriptor* desc);
 
 flatbuffers::Offset<data::GPUOperation> Encode(
     const GPUOperation& op, flatbuffers::FlatBufferBuilder* builder);
