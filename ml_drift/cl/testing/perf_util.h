@@ -52,7 +52,8 @@ absl::Status ConvolutionInt4PerfTest(const BHWC& src_shape = BHWC(1, 32, 32,
                                      int dst_channels = 1024);
 
 absl::Status ConvMoEPerfTest(int seq_size, int src_channels, int dst_channels,
-                             int num_experts, int num_active_experts);
+                             int num_experts, int num_active_experts,
+                             DataType weights_type);
 
 absl::Status SoftmaxPerfTest(const BHWC& shape = BHWC(1, 1, 4096, 4096),
                              bool reduce_only = false);

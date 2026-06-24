@@ -34,8 +34,9 @@ TEST(OpenCLOperationTest, Performance) {
                                 BHWC(1, 32, 32, 1024), 1024, HW(1, 1)));
   // MLD_ASSERT_OK(ConvolutionSf16Wi4BatchedPerfTest(BHWC(1, 8, 1024, 1024), 1024));
   // MLD_ASSERT_OK(ConvMoEPerfTest(/*seq_size=*/1024, /*src_channels=*/512,
-  //                           /*dst_channels=*/512,
-  //                           /*num_experts=*/128, /*num_active_experts=*/8));
+  //                            /*dst_channels=*/512,
+  //                            /*num_experts=*/128, /*num_active_experts=*/8,
+  //                            DataType::INT4));
   // MLD_ASSERT_OK(ConvolutionWinogradPerfTest(BHWC(1, 36, 144, 960), 960));
   // MLD_ASSERT_OK(FullyConnectedPerfTest(CalculationsPrecision::F16,
   //                                       DataType::INT4, BHWC(1, 1, 1, 4096),
