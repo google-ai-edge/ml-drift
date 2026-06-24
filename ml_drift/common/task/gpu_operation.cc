@@ -28,6 +28,7 @@
 #include "absl/strings/ascii.h"
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_join.h"
 #include "absl/strings/str_replace.h"
 #include "absl/strings/string_view.h"
 #include "absl/strings/substitute.h"
@@ -938,8 +939,21 @@ absl::Status ResolveSelectorsPass(
           RETURN_IF_ERROR(AddQuantizedBufferWrite(gpu_info, type, &write_fcns));
         }
       }
-      RETURN_IF_ERROR(desc_ptr->PerformSelector(
-          gpu_info, selector_name, function_args, template_args, &patch));
+      absl::Status selector_status = desc_ptr->PerformSelector(
+          gpu_info, selector_name, function_args, template_args, &patch);
+      if (!selector_status.ok()) {
+        return absl::Status(
+            selector_status.code(),
+            absl::StrCat(
+                selector_status.message(), "; selector object=", object_name,
+                ", selector=", selector_name, ", args=[",
+                absl::StrJoin(function_args, ", "), "], template_args=[",
+                absl::StrJoin(template_args, ", "), "], descriptor=",
+                desc_ptr->IsTensorDescriptor()
+                    ? ToStringWithShape(
+                          *static_cast<TensorDescriptor*>(desc_ptr))
+                    : ""));
+      }
       for (const auto& member_name : names) {
         const std::string new_name =
             absl::StrCat(kArgsPrefix, object_name, "_", member_name);
