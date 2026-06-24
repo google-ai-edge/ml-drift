@@ -36,6 +36,7 @@
 #include "ml_drift/common/kernels/softmax.h"
 #include "ml_drift/common/kernels/special/conv_softmax_conv.h"
 #include "ml_drift/common/kernels/winograd.h"
+#include "ml_drift/common/task/testing_util.h"
 #include "ml_drift/metal/compute_task.h"
 #include "ml_drift/metal/environment.h"
 #include "ml_drift/metal/metal_spatial_tensor.h"
@@ -814,12 +815,11 @@ absl::Status ConvMoEPerfTest(int seq_size, int src_channels, int dst_channels, i
         /*src_exp=*/nullptr, /*different_weights_for_height=*/true, runtime_check);
     conv = std::make_unique<ConvWaveMatrix>(std::move(conv_wave_matrix));
   } else {
-    // ASSIGN_OR_RETURN(auto conv_fc, CreateFullyConnectedExternalWeights(
-    //                                  gpu_info, CalculationsPrecision::F16, op_def.src_tensors[0],
-    //                                  op_def.dst_tensors[0], external_weights, /*bias=*/nullptr,
-    //                                  &dst_shape, /*src_exp=*/nullptr, runtime_check));
-    // conv = std::make_unique<FullyConnected>(std::move(conv_fc));
-    return absl::InvalidArgumentError("no supported conv");
+    ASSIGN_OR_RETURN(auto conv_fc, CreateFullyConnectedExternalWeights(
+                                       gpu_info, CalculationsPrecision::F16, op_def.src_tensors[0],
+                                       op_def.dst_tensors[0], external_weights, /*bias=*/nullptr,
+                                       &dst_shape, /*src_exp=*/nullptr, runtime_check));
+    conv = std::make_unique<FullyConnected>(std::move(conv_fc));
   }
 
   MetalSpatialTensor src, dst;
@@ -830,21 +830,8 @@ absl::Status ConvMoEPerfTest(int seq_size, int src_channels, int dst_channels, i
   descriptor_with_shape.SetBHWCShape(dst_shape);
   RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &dst));
 
-  TensorInt32 active_expert_ids;
-  active_expert_ids.shape = BHWC(1, 1, seq_size, num_active_experts);
-  active_expert_ids.data.resize(active_expert_ids.shape.DimensionsProduct());
-  absl::BitGen gen;
-
-  for (int w = 0; w < seq_size; ++w) {
-    int count = 0;
-    for (int i = 0; i < num_experts && count < num_active_experts; ++i) {
-      if (absl::Uniform(gen, 0.0, 1.0) <
-          static_cast<double>(num_active_experts - count) / (num_experts - i)) {
-        active_expert_ids.data[w * num_active_experts + count] = i;
-        count++;
-      }
-    }
-  }
+  TensorInt32 active_expert_ids =
+      GenerateGroupIds(BHWC(1, 1, seq_size, num_active_experts), num_experts);
 
   std::vector<int32_t> runtime_sizes(num_experts, 0);
   for (int w = 0; w < seq_size; ++w) {

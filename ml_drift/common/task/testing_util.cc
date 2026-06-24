@@ -355,4 +355,28 @@ float GetEpsilon(CalculationsPrecision precision, const GpuInfo& gpu_info,
   return GetEpsilon(precision, gpu_info) * GetMaxMADSAmount(attr);
 }
 
+TensorInt32 GenerateGroupIds(const BHWC& size, int num_groups) {
+  const int num_active_groups = size.c;
+  TensorInt32 group_ids;
+  group_ids.shape = size;
+  group_ids.data.resize(group_ids.shape.DimensionsProduct());
+  absl::BitGen gen;
+  for (int b = 0; b < size.b; ++b) {
+    for (int h = 0; h < size.h; ++h) {
+      for (int w = 0; w < size.w; ++w) {
+        int count = 0;
+        for (int i = 0; i < num_groups && count < num_active_groups; ++i) {
+          if (absl::Uniform(gen, 0.0, 1.0) <
+              static_cast<double>(num_active_groups - count) /
+                  (num_groups - i)) {
+            group_ids.data[group_ids.shape.LinearIndex({b, h, w, count})] = i;
+            count++;
+          }
+        }
+      }
+    }
+  }
+  return group_ids;
+}
+
 }  // namespace ml_drift

@@ -53,6 +53,7 @@
 #include "ml_drift/common/status.h"
 #include "ml_drift/common/task/gpu_operation.h"
 #include "ml_drift/common/task/tensor_desc.h"
+#include "ml_drift/common/task/testing_util.h"
 #include "ml_drift/common/task/tuning_type.h"
 #include "ml_drift/common/task/weights_conversion.h"
 #include "ml_drift/common/task/weights_layout.h"
@@ -1308,21 +1309,8 @@ absl::Status ConvMoEPerfTest(int seq_size, int src_channels, int dst_channels,
         CreateTensor(env.context(), weights_gpu_descs[i], &weights[i]));
   }
 
-  TensorInt32 active_expert_ids;
-  active_expert_ids.shape = BHWC(1, 1, seq_size, num_active_experts);
-  active_expert_ids.data.resize(active_expert_ids.shape.DimensionsProduct());
-  absl::BitGen gen;
-
-  for (int w = 0; w < seq_size; ++w) {
-    int count = 0;
-    for (int i = 0; i < num_experts && count < num_active_experts; ++i) {
-      if (absl::Uniform(gen, 0.0, 1.0) <
-          static_cast<double>(num_active_experts - count) / (num_experts - i)) {
-        active_expert_ids.data[w * num_active_experts + count] = i;
-        count++;
-      }
-    }
-  }
+  TensorInt32 active_expert_ids =
+      GenerateGroupIds(BHWC(1, 1, seq_size, num_active_experts), num_experts);
 
   std::vector<int32_t> runtime_sizes(num_experts, 0);
   for (int w = 0; w < seq_size; ++w) {

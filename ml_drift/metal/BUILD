@@ -346,6 +346,7 @@ objc_library(
 
 objc_library(
     name = "perf_util",
+    testonly = 1,
     srcs = ["perf_util.mm"],
     hdrs = ["perf_util.h"],
     deps = [
@@ -368,6 +369,7 @@ objc_library(
         "//ml_drift/common/kernels:softmax",
         "//ml_drift/common/kernels:winograd",
         "//ml_drift/common/kernels/special:conv_softmax_conv",
+        "//ml_drift/common/task:testing_util",
         "//third_party/apple_frameworks:Metal",
         "@XNNPACK",
         "@com_google_absl//absl/random",

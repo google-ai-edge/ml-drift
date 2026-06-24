@@ -241,6 +241,12 @@ float GetEpsilon(CalculationsPrecision precision, const GpuInfo& gpu_info,
 float GetEpsilon(CalculationsPrecision precision, const GpuInfo& gpu_info,
                  const ConvolutionTransposed3DAttributes& attr);
 
+// Generates group ids for a tensor of shape BHWC where the last dimension is
+// the number of active groups. The ids are generated such that each active
+// group has a unique id and the ids are sorted in ascending order. Ids range
+// from 0 to num_groups - 1.
+TensorInt32 GenerateGroupIds(const BHWC& size, int num_groups);
+
 }  // namespace ml_drift
 
 #endif  // ML_DRIFT_COMMON_TASK_TESTING_UTIL_H_

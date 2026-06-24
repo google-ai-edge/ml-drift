@@ -123,6 +123,7 @@ cc_test(
 
 cc_library(
     name = "perf_util",
+    testonly = 1,
     srcs = ["perf_util.cc"],
     hdrs = ["perf_util.h"],
     deps = [
@@ -155,6 +156,7 @@ cc_library(
         "//ml_drift/common/selectors:convolution_selector",
         "//ml_drift/common/task:gpu_operation",
         "//ml_drift/common/task:tensor_desc",
+        "//ml_drift/common/task:testing_util",
         "//ml_drift/common/task:tuning_type",
         "//ml_drift/common/task:weights_conversion",
         "//ml_drift/common/task:weights_layout",
