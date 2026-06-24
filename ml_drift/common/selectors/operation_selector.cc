@@ -16,6 +16,8 @@
 
 #include <any>
 #include <memory>
+#include <optional>
+#include <type_traits>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -379,23 +381,34 @@ absl::Status MakeGroupNorm(const GpuInfo& gpu_info,
       outputs[0]);
 }
 
+inline bool IsEmbeddingLookupQuantized(const EmbeddingLookupAttributes& attr) {
+  const auto weights_type = attr.weights_type;
+  return weights_type == EmbeddingLookupAttributes::WeightsType::kInt2 ||
+         weights_type == EmbeddingLookupAttributes::WeightsType::kInt4 ||
+         weights_type == EmbeddingLookupAttributes::WeightsType::kInt8;
+}
+
+template <typename T>
 absl::Status MakeQuantizedEmbeddingLookup(const GpuInfo& gpu_info,
                                           const CreateGpuModelInfo& create_info,
-                                          const std::vector<Value*>& inputs,
-                                          const std::vector<Value*>& outputs,
+                                          const std::vector<T*>& inputs,
+                                          const std::vector<T*>& outputs,
                                           const EmbeddingLookupAttributes& attr,
                                           GpuModelBuilder* model_builder) {
+  static_assert(std::is_same_v<std::decay_t<T>, Value> ||
+                std::is_same_v<std::decay_t<T>, ir::IrTensor>,
+                "T must be either Value or ir::IrTensor.");
   EmbeddingLookupAttributes::WeightsType weights_type = attr.weights_type;
-  if (weights_type != EmbeddingLookupAttributes::WeightsType::kInt2 &&
-      weights_type != EmbeddingLookupAttributes::WeightsType::kInt4 &&
-      weights_type != EmbeddingLookupAttributes::WeightsType::kInt8) {
+  if (!IsEmbeddingLookupQuantized(attr)) {
     return absl::InternalError(
         "Expected only int2, int4 or int8 Embedding Lookup.");
+  } else if (inputs.size() < 3 || inputs.size() > 4 || outputs.size() != 1) {
+    return absl::InvalidArgumentError(absl::StrCat(
+        "EmbeddingLookup operation expects 3 or 4 inputs and 1 output. Got: ",
+        inputs.size(), " inputs and ", outputs.size(), " outputs."));
   }
   ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
   ASSIGN_OR_RETURN(auto weights, model_builder->GetTensor(inputs[1]->id));
-  ASSIGN_OR_RETURN(auto scale, model_builder->GetTensor(inputs[2]->id));
-  ASSIGN_OR_RETURN(auto zero_point, model_builder->GetTensor(inputs[3]->id));
 
   WeightsDescription weights_desc;
   if (weights_type == EmbeddingLookupAttributes::WeightsType::kInt2) {
@@ -413,9 +426,17 @@ absl::Status MakeQuantizedEmbeddingLookup(const GpuInfo& gpu_info,
   }
 
   const DataType dst_type = DeduceDataTypeFromPrecision(create_info.precision);
+  ASSIGN_OR_RETURN(auto scale, model_builder->GetTensor(inputs[2]->id));
+  GpuModelBuilder::TensorHandle* zero_point_ptr = nullptr;
+  GpuModelBuilder::TensorHandle zero_point;
+  if (inputs.size() > 3) {
+    ASSIGN_OR_RETURN(zero_point, model_builder->GetTensor(inputs[3]->id));
+    zero_point_ptr = &zero_point;
+  }
+
   const GpuModelBuilder::Weights external_weights =
       CreateExternalWeights(weights, weights_desc, attr.original_weights_shape,
-                            attr.scale_zp_shape, &scale, &zero_point);
+                            attr.scale_zp_shape, &scale, zero_point_ptr);
   return model_builder->UpdateOutputTensor(
       model_builder->EmbeddingLookup(src, external_weights, dst_type),
       outputs[0]->id);
@@ -770,16 +791,16 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
     case OperationType::EMBEDDING_LOOKUP: {
       const auto& attr = std::any_cast<const EmbeddingLookupAttributes&>(
           node.operation.attributes);
-      if (inputs.size() == 4) {
+      if (IsEmbeddingLookupQuantized(attr) &&
+          (inputs.size() == 3 || inputs.size() == 4)) {
         return MakeQuantizedEmbeddingLookup(gpu_info, create_info, inputs,
                                             outputs, attr, model_builder);
-      } else {
-        std::unique_ptr<GPUOperation> gpu_op;
-        SelectEmbeddingLookup(attr, op_def, gpu_info, &gpu_op);
-        model_builder->AddGpuOperation(src_ids, dst_ids, std::move(gpu_op),
-                                       node.operation.type);
-        return absl::OkStatus();
       }
+      std::unique_ptr<GPUOperation> gpu_op;
+      SelectEmbeddingLookup(attr, op_def, gpu_info, &gpu_op);
+      model_builder->AddGpuOperation(src_ids, dst_ids, std::move(gpu_op),
+                                     node.operation.type);
+      return absl::OkStatus();
     }
     case OperationType::FULLY_CONNECTED: {
       const auto& attr = std::any_cast<const FullyConnectedAttributes&>(
@@ -1340,51 +1361,16 @@ absl::Status GPUOperationFromNode(
     case OperationType::EMBEDDING_LOOKUP: {
       const auto& attr =
           std::any_cast<const EmbeddingLookupAttributes&>(node.attr);
-      if (inputs.size() == 4) {
-        EmbeddingLookupAttributes::WeightsType weights_type = attr.weights_type;
-        if (weights_type != EmbeddingLookupAttributes::WeightsType::kInt4 &&
-            weights_type != EmbeddingLookupAttributes::WeightsType::kInt2 &&
-            weights_type != EmbeddingLookupAttributes::WeightsType::kInt8) {
-          return absl::InternalError(
-              "Expected only int4, int2 or int8 Embedding Lookup.");
-        }
-        ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
-        ASSIGN_OR_RETURN(auto weights, model_builder->GetTensor(inputs[1]->id));
-        ASSIGN_OR_RETURN(auto scale, model_builder->GetTensor(inputs[2]->id));
-        ASSIGN_OR_RETURN(auto zero_point,
-                         model_builder->GetTensor(inputs[3]->id));
-
-        WeightsDescription weights_desc;
-        if (weights_type == EmbeddingLookupAttributes::WeightsType::kInt2) {
-          weights_desc = GetFullyConnectedInt2WeightsDesc(
-              gpu_info, attr.original_weights_shape,
-              create_info.hints.Check(ModelHints::kPreferTextureWeights));
-        } else if (weights_type ==
-                   EmbeddingLookupAttributes::WeightsType::kInt4) {
-          weights_desc = GetFullyConnectedInt4WeightsDesc(
-              gpu_info, attr.original_weights_shape,
-              create_info.hints.Check(ModelHints::kPreferTextureWeights));
-        } else {
-          weights_desc = GetFullyConnectedInt8WeightsDesc(
-              gpu_info, attr.original_weights_shape,
-              create_info.hints.Check(ModelHints::kPreferTextureWeights));
-        }
-
-        const DataType dst_type =
-            DeduceDataTypeFromPrecision(create_info.precision);
-        const GpuModelBuilder::Weights external_weights = CreateExternalWeights(
-            weights, weights_desc, attr.original_weights_shape,
-            attr.scale_zp_shape, &scale, &zero_point);
-        return model_builder->UpdateOutputTensor(
-            model_builder->EmbeddingLookup(src, external_weights, dst_type),
-            outputs[0]->id);
-      } else {
-        std::unique_ptr<GPUOperation> gpu_op;
-        SelectEmbeddingLookup(attr, op_def, gpu_info, &gpu_op);
-        model_builder->AddGpuOperation(src_ids, dst_ids, std::move(gpu_op),
-                                       node.name);
-        return absl::OkStatus();
+      if (IsEmbeddingLookupQuantized(attr) &&
+          (inputs.size() == 3 || inputs.size() == 4)) {
+        return MakeQuantizedEmbeddingLookup(gpu_info, create_info, inputs,
+                                            outputs, attr, model_builder);
       }
+      std::unique_ptr<GPUOperation> gpu_op;
+      SelectEmbeddingLookup(attr, op_def, gpu_info, &gpu_op);
+      model_builder->AddGpuOperation(src_ids, dst_ids, std::move(gpu_op),
+                                     node.name);
+      return absl::OkStatus();
     }
     case OperationType::FULLY_CONNECTED: {
       const auto& attr =
