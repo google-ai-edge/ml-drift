@@ -135,6 +135,10 @@ absl::Status FullyConnectedSi8Wi2BigTest(TestExecutionEnvironment& env,
                                          TensorStorageType src_storage,
                                          TensorStorageType dst_storage);
 
+absl::Status FullyConnectedPackedGroupsTest(TestExecutionEnvironment& env,
+                                            CalculationsPrecision precision,
+                                            TensorStorageType storage);
+
 }  // namespace ml_drift
 
 #endif  // ML_DRIFT_COMMON_KERNELS_TESTS_FULLY_CONNECTED_TEST_UTIL_H_

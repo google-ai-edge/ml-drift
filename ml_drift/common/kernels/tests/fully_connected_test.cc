@@ -379,6 +379,15 @@ TEST_P(FullyConnectedFloatTest,
       *exec_env, precision(), storage()));
 }
 
+TEST_P(FullyConnectedFloatTest, FullyConnectedPackedGroupsTest) {
+  const DataType data_type = DeduceDataTypeFromPrecision(precision());
+  if (!exec_env->IsStorageSupported(storage(), data_type)) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
+                 << " storage type: " << ToString(storage());
+  }
+  MLD_ASSERT_OK(FullyConnectedPackedGroupsTest(*exec_env, precision(), storage()));
+}
+
 INSTANTIATE_TEST_SUITE_P(
     FullyConnectedFloatTestSuite, FullyConnectedFloatTest,
     Combine(ValuesIn(GetCalculationsPrecisions()),
