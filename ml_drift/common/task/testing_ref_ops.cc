@@ -2778,4 +2778,34 @@ PackedGroupsMapReference(const TensorInt32& groups_map,
   return std::make_pair(packed_groups_map, groups_offsets);
 }
 
+TensorFloat32 ConvolutionWithIds(
+    const TensorFloat32& src_tensor,
+    const ml_drift::Tensor<OHWI, DataType::FLOAT32>& weights,
+    const TensorInt32& ids) {
+  TensorFloat32 dst_ref;
+  dst_ref.shape = BHWC(ids.shape.c, src_tensor.shape.h, src_tensor.shape.w,
+                       weights.shape.o);
+  dst_ref.data.resize(dst_ref.shape.DimensionsProduct(), 0.0f);
+  for (int h = 0; h < dst_ref.shape.h; ++h) {
+    for (int w = 0; w < dst_ref.shape.w; ++w) {
+      for (int b = 0; b < dst_ref.shape.b; ++b) {
+        int id = ids.data[ids.shape.LinearIndex({0, h, w, b})];
+        for (int o = 0; o < dst_ref.shape.c; ++o) {
+          float sum = 0.0f;
+          for (int i = 0; i < src_tensor.shape.c; ++i) {
+            int src_b = src_tensor.shape.b == 1 ? 0 : b;
+            float src =
+                src_tensor.data[src_tensor.shape.LinearIndex({src_b, h, w, i})];
+            float weight =
+                weights.data[weights.shape.LinearIndex({o, id, 0, i})];
+            sum += src * weight;
+          }
+          dst_ref.data[dst_ref.shape.LinearIndex({b, h, w, o})] = sum;
+        }
+      }
+    }
+  }
+  return dst_ref;
+}
+
 }  // namespace ml_drift

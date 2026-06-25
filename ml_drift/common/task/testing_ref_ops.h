@@ -229,6 +229,11 @@ std::pair<TensorInt32, Tensor<Linear, DataType::INT32>>
 PackedGroupsMapReference(const TensorInt32& groups_map,
                          const Tensor<Linear, DataType::INT32>& groups_sizes);
 
+TensorFloat32 ConvolutionWithIds(
+    const TensorFloat32& src_tensor,
+    const ml_drift::Tensor<OHWI, DataType::FLOAT32>& weights,
+    const TensorInt32& ids);
+
 }  // namespace ml_drift
 
 #endif  // ML_DRIFT_COMMON_TASK_TESTING_REF_OPS_H_
