@@ -2778,6 +2778,40 @@ PackedGroupsMapReference(const TensorInt32& groups_map,
   return std::make_pair(packed_groups_map, groups_offsets);
 }
 
+TensorFloat32 RemapToReference(const TensorFloat32& src,
+                               const TensorInt32& packed_map) {
+  TensorFloat32 dst;
+  dst.shape = BHWC(1, 1, packed_map.shape.w, src.shape.c);
+  dst.data.resize(dst.shape.DimensionsProduct(), -1.0f);
+  for (int w = 0; w < dst.shape.w; ++w) {
+    const int group_id = std::min(packed_map.data[w * 2 + 0], src.shape.h - 1);
+    const int seq_id = packed_map.data[w * 2 + 1];
+    for (int c = 0; c < dst.shape.c; ++c) {
+      dst.data[dst.shape.LinearIndex({0, 0, w, c})] =
+          src.data[src.shape.LinearIndex({0, group_id, seq_id, c})];
+    }
+  }
+  return dst;
+}
+
+TensorFloat32 RemapFromReference(const TensorFloat32& src,
+                                 const TensorInt32& packed_map,
+                                 int num_groups_per_element) {
+  TensorFloat32 dst;
+  dst.shape = BHWC(1, num_groups_per_element,
+                   packed_map.shape.w / num_groups_per_element, src.shape.c);
+  dst.data.resize(dst.shape.DimensionsProduct(), -1.0f);
+  for (int w = 0; w < src.shape.w; ++w) {
+    const int group_id = packed_map.data[w * 2 + 0];
+    const int seq_id = packed_map.data[w * 2 + 1];
+    for (int c = 0; c < src.shape.c; ++c) {
+      dst.data[dst.shape.LinearIndex({0, group_id, seq_id, c})] =
+          src.data[src.shape.LinearIndex({0, 0, w, c})];
+    }
+  }
+  return dst;
+}
+
 TensorFloat32 ConvolutionWithIds(
     const TensorFloat32& src_tensor,
     const ml_drift::Tensor<OHWI, DataType::FLOAT32>& weights,

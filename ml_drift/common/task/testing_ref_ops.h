@@ -229,6 +229,12 @@ std::pair<TensorInt32, Tensor<Linear, DataType::INT32>>
 PackedGroupsMapReference(const TensorInt32& groups_map,
                          const Tensor<Linear, DataType::INT32>& groups_sizes);
 
+TensorFloat32 RemapToReference(const TensorFloat32& src,
+                               const TensorInt32& packed_map);
+TensorFloat32 RemapFromReference(const TensorFloat32& src,
+                                 const TensorInt32& packed_map,
+                                 int num_groups_per_element);
+
 TensorFloat32 ConvolutionWithIds(
     const TensorFloat32& src_tensor,
     const ml_drift::Tensor<OHWI, DataType::FLOAT32>& weights,
