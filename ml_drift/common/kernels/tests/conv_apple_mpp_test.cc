@@ -59,6 +59,13 @@ TEST_P(ConvAppleMPPFloat16Test, ExternalWeightsBigTest) {
                                             dst_channels));
 }
 
+TEST_P(ConvAppleMPPFloat16Test, PackedGroupsTest) {
+  const BHWC src_shape(1, 1, 383, 128);
+  const int dst_channels = 64;
+  MLD_ASSERT_OK(ConvAppleMPPPackedGroupsTest(*exec_env, GetParam(), src_shape,
+                                         dst_channels));
+}
+
 TEST_P(ConvAppleMPPFloat16Test, ConvAppleMPPExternalWfloatTest) {
   const BHWC src_shape(1, 1, 32, 32 * 3);
   const int dst_channels = 68;

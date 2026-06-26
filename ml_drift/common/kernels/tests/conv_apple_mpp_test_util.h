@@ -32,6 +32,11 @@ absl::Status ConvAppleMPPExternalWeightsTest(TestExecutionEnvironment& env,
                                              const BHWC& src_shape,
                                              int dst_channels);
 
+absl::Status ConvAppleMPPPackedGroupsTest(TestExecutionEnvironment& env,
+                                          TensorStorageType dst_storage,
+                                          const BHWC& src_shape,
+                                          int dst_channels);
+
 absl::Status ConvAppleMPPExternalWfloatTest(TestExecutionEnvironment& env,
                                             TensorStorageType storage,
                                             const BHWC& src_shape,

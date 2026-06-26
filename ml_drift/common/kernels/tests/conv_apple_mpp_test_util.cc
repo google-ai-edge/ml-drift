@@ -127,6 +127,90 @@ absl::Status ConvAppleMPPExternalWeightsTest(TestExecutionEnvironment& env,
   return absl::OkStatus();
 }
 
+absl::Status ConvAppleMPPPackedGroupsTest(TestExecutionEnvironment& env,
+                                          TensorStorageType dst_storage,
+                                          const BHWC& src_shape,
+                                          int dst_channels) {
+  const int weights_batch_size = 16;
+  const int num_groups_per_item = 4;
+
+  Tensor<OHWI, DataType::FLOAT32> weights = MakeSyntheticTensor(
+      OHWI(dst_channels, weights_batch_size, 1, src_shape.c));
+  weights.data.resize(weights.shape.DimensionsProduct() +
+                      XNN_EXTRA_BYTES / sizeof(float));
+
+  TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
+  TensorInt32 group_ids = GenerateGroupIds(
+      BHWC(1, 1, src_shape.w, num_groups_per_item), weights_batch_size);
+  TensorFloat32 dst_ref = ConvolutionWithIds(src_tensor, weights, group_ids);
+
+  auto [groups_map, groups_sizes] =
+      GroupsMapReference(group_ids, weights_batch_size);
+  auto [packed_groups_map, groups_offsets] =
+      PackedGroupsMapReference(groups_map, groups_sizes);
+
+  auto src_packed = RemapToReference(src_tensor, packed_groups_map);
+
+  auto dst_packed_shape = src_packed.shape;
+  dst_packed_shape.c = dst_channels;
+
+  const DataType data_type = DataType::FLOAT16;
+  Layout layout = src_shape.b == 1 ? Layout::HWC : Layout::BHWC;
+  TensorDescriptor src_desc{data_type, TensorStorageType::BUFFER, layout,
+                            TensorDescriptor::PhysicalLayout1D::kDHWBCC4};
+  TensorDescriptor dst_desc{data_type, dst_storage, layout};
+
+  ConvRuntimeCheckDesc::PackedGroups packed_groups;
+  packed_groups.params_offset = 0;
+  packed_groups.num_groups = weights_batch_size;
+  packed_groups.max_group_size = src_shape.w;
+  ConvRuntimeCheckDesc runtime_check;
+  runtime_check.packed_groups = packed_groups;
+
+  auto convolution = CreateConvAppleMPPExternalWeights(
+      src_desc, dst_desc, weights.shape, /*bias=*/nullptr,
+      /*src_exp=*/nullptr,
+      /*different_weights_for_height=*/true, runtime_check);
+
+  std::vector<TensorDescriptor> weights_gpu =
+      GetTensorDescriptorsForWeightsLayout(weights,
+                                           convolution.GetWeightsDescription());
+
+  src_desc.UploadData(src_packed);
+
+  std::vector<int32_t> runtime_params_cpu(weights_batch_size * 2, 0);
+  for (int i = 0; i < weights_batch_size; ++i) {
+    runtime_params_cpu[i] = groups_sizes.data[i];
+    runtime_params_cpu[weights_batch_size + i] = groups_offsets.data[i];
+  }
+  TensorDescriptor runtime_params_td(DataType::INT32, TensorStorageType::BUFFER,
+                                     Layout::LINEAR);
+  runtime_params_td.SetBHWCShape(BHWC(1, 1, 1, weights_batch_size * 2));
+  runtime_params_td.UploadData(runtime_params_cpu.data());
+
+  dst_desc.SetBHWCShape(dst_packed_shape);
+  std::vector<TensorDescriptor*> srcs_td(weights_gpu.size() + 2);
+  int idx = 0;
+  srcs_td[idx++] = &src_desc;
+  for (int i = 0; i < weights_gpu.size(); ++i) {
+    srcs_td[idx++] = &weights_gpu[i];
+  }
+  srcs_td[idx++] = &runtime_params_td;
+  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+      {srcs_td}, {&dst_desc},
+      std::make_unique<ConvAppleMPP>(std::move(convolution))));
+
+  TensorFloat32 dst_packed;
+  dst_desc.DownloadData(&dst_packed);
+  auto dst_tensor =
+      RemapFromReference(dst_packed, packed_groups_map, num_groups_per_item);
+  float eps = GetEpsilon(CalculationsPrecision::F16, env.GetGpuInfo()) * 2.0f *
+              src_shape.c;
+  EXPECT_THAT(dst_tensor.data,
+              testing::Pointwise(testing::FloatNear(eps), dst_ref.data));
+  return absl::OkStatus();
+}
+
 absl::Status ConvAppleMPPExternalWfloatTest(TestExecutionEnvironment& env,
                                             TensorStorageType storage,
                                             const BHWC& src_shape,
