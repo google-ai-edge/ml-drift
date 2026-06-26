@@ -41,6 +41,13 @@ absl::Status ConvWaveMatrixExternalWeightsTest(TestExecutionEnvironment& env,
 absl::Status ConvWaveMatrixExternalBatchedWeightsTest(
     TestExecutionEnvironment& env, CalculationsPrecision precision,
     TensorStorageType storage);
+
+absl::Status ConvWaveMatrixPackedGroupsTest(TestExecutionEnvironment& env,
+                                            CalculationsPrecision precision,
+                                            TensorStorageType storage,
+                                            const BHWC& src_shape,
+                                            int dst_channels);
+
 absl::Status ConvWaveMatrixExternalWfloatTest(TestExecutionEnvironment& env,
                                               CalculationsPrecision precision,
                                               TensorStorageType storage,

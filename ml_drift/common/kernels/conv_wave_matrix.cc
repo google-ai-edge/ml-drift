@@ -128,14 +128,22 @@ std::string GetWorkGroupBaseDstS(const int3& work_group_launch_order,
          ">() * ucl::GetGroupSize<" + std::to_string(s_dimension) + ">()";
 }
 
-std::string GetWorkGroupBaseDstX(const int3& work_group_launch_order,
-                                 bool linear_spatial) {
+std::string GetWorkGroupBaseDstX(const int3& work_group_launch_order) {
   int3 launch_remap;
   launch_remap[work_group_launch_order.x] = 0;
   launch_remap[work_group_launch_order.y] = 1;
   launch_remap[work_group_launch_order.z] = 2;
   return "ucl::GetGroupId<" + std::to_string(launch_remap[0]) +
          ">() * ucl::GetGroupSize<0>()";
+}
+
+std::string GetWorkGroupBaseDstY(const int3& work_group_launch_order) {
+  int3 launch_remap;
+  launch_remap[work_group_launch_order.x] = 0;
+  launch_remap[work_group_launch_order.y] = 1;
+  launch_remap[work_group_launch_order.z] = 2;
+  return "ucl::GetGroupId<" + std::to_string(launch_remap[1]) +
+         ">() * ucl::GetGroupSize<1>()";
 }
 
 std::string GenerateCheck(const OperationDef& definition,
@@ -303,7 +311,8 @@ std::string GenerateConvolution(
     c += "  args.dst_tensor.SetBatchRef(B);\n";
   }
   if (conv_params.runtime_check.packed_groups.has_value()) {
-    c += "  int w_batch_id = DST_Y;\n";
+    c += "  int w_batch_id = " +
+         GetWorkGroupBaseDstY(kernel_params.work_group_launch_order) + ";\n";
     c += "  DST_Y = 0;\n";
     c += "  int w_group_size = args.params.Read(args.packed_params_offset + "
          "w_batch_id);\n";
@@ -312,9 +321,7 @@ std::string GenerateConvolution(
          std::to_string(conv_params.runtime_check.packed_groups->num_groups) +
          ");\n";
     c += "  int wg_first_w = " +
-         GetWorkGroupBaseDstX(kernel_params.work_group_launch_order,
-                              kernel_params.linear_spatial) +
-         ";\n";
+         GetWorkGroupBaseDstX(kernel_params.work_group_launch_order) + ";\n";
     c += "  if (wg_first_w >= w_group_size) return;\n";
     c += "  DST_X = w_group_offset + DST_X;\n";
   } else {
@@ -333,9 +340,13 @@ std::string GenerateConvolution(
     const std::string weights_dst_s = "min(DST_S, args.weight_o_slices_xN - 1)";
     std::string weights_offset;
     if (conv_params.different_weights_for_height) {
-      std::string spatial_size = "args.src_tensor.Height()";
+      const std::string weights_batch_size =
+          conv_params.runtime_check.packed_groups.has_value()
+              ? std::to_string(
+                    conv_params.runtime_check.packed_groups->num_groups)
+              : "args.src_tensor.Height()";
       weights_offset =
-          "(" + weights_dst_s + " * " + spatial_size + " + w_batch_id)";
+          "(" + weights_dst_s + " * " + weights_batch_size + " + w_batch_id)";
     } else {
       std::string spatial_size = "";
       if (!conv_params.x_kernel_is_1) {
