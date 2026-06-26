@@ -50,6 +50,12 @@ absl::Status ConvWaveMemoryBatchedMatMulTest(TestExecutionEnvironment& env,
                                              CalculationsPrecision precision,
                                              TensorStorageType storage);
 
+absl::Status ConvWaveMemoryPackedGroupsTest(TestExecutionEnvironment& env,
+                                            CalculationsPrecision precision,
+                                            TensorStorageType storage,
+                                            const BHWC& src_shape,
+                                            int dst_channels);
+
 absl::Status ConvWaveMemoryInt8Test(TestExecutionEnvironment& env,
                                     TensorStorageType src_storage,
                                     TensorStorageType dst_storage);
