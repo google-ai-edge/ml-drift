@@ -131,6 +131,23 @@ TEST_P(ConvGenericFloatTest, ConvGenericGroupedBigTest) {
   MLD_ASSERT_OK(ConvGenericGroupedBigTest(*exec_env, precision(), storage()));
 }
 
+TEST_P(ConvGenericFloatTest, ConvGenericPackedGroupsTest) {
+  const DataType data_type = DeduceDataTypeFromPrecision(precision());
+  if (!exec_env->IsStorageSupported(storage(), data_type)) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
+                 << " storage type: " << ToString(storage());
+  }
+  const BHWC src_shape(1, 1, 383, 128);
+  const int dst_channels = 64;
+  auto status = ConvGenericPackedGroupsTest(*exec_env, precision(), storage(),
+                                            src_shape, dst_channels);
+  if (!status.ok() &&
+      absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
+    GTEST_SKIP() << status.message();
+  }
+  MLD_ASSERT_OK(status);
+}
+
 TEST_P(ConvGenericFloatTest, ConvGenericExternalWfloatTest) {
   const DataType data_type = DeduceDataTypeFromPrecision(precision());
   if (!exec_env->IsStorageSupported(storage(), data_type)) {

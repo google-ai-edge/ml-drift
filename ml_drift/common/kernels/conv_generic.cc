@@ -225,6 +225,24 @@ std::string GenerateBlockCoords(const ConvGeneric::KernelParams& kernel_params,
   return c;
 }
 
+std::string GetWorkGroupBaseDstX(const int3& work_group_launch_order) {
+  int3 launch_remap;
+  launch_remap[work_group_launch_order.x] = 0;
+  launch_remap[work_group_launch_order.y] = 1;
+  launch_remap[work_group_launch_order.z] = 2;
+  return "ucl::GetGroupId<" + std::to_string(launch_remap[0]) +
+         ">() * ucl::GetGroupSize<0>()";
+}
+
+std::string GetWorkGroupBaseDstY(const int3& work_group_launch_order) {
+  int3 launch_remap;
+  launch_remap[work_group_launch_order.x] = 0;
+  launch_remap[work_group_launch_order.y] = 1;
+  launch_remap[work_group_launch_order.z] = 2;
+  return "ucl::GetGroupId<" + std::to_string(launch_remap[1]) +
+         ">() * ucl::GetGroupSize<1>()";
+}
+
 bool SupportsImgMatMul(const GpuInfo& gpu_info,
                        const ConvGeneric::ConvParams& conv_params) {
   return !conv_params.Is8Bit() && gpu_info.IsApiOpenCl() &&
@@ -321,6 +339,7 @@ class ConvCodeGenerator {
         ConvGeneric::WeightsUploadType::kIntelWave16MatMul;
     const bool late_oob_check =
         need_local_mem || is_wave_memory || use_intel_wave_matmul;
+    // weights_conversion currently only supported for Intel Wave MatMul
     const bool weights_conversion =
         conv_params_.weights_desc.layout != WeightsLayout::kUnknown;
     const bool quantized_weights =
@@ -372,8 +391,13 @@ class ConvCodeGenerator {
       c += "  if (DST_S >= dst_end_slice) return;\n";
     }
     if (conv_params_.runtime_check.packed_groups.has_value()) {
-      // currently only supports Intel Wave MatMul
-      c += "  int w_batch_id = DST_Y;\n";
+      if (gpu_info_.IsApiWebGpu()) {
+        c += "  int w_batch_id = " +
+             GetWorkGroupBaseDstY(kernel_params_.work_group_launch_order) +
+             ";\n";
+      } else {
+        c += "  int w_batch_id = DST_Y;\n";
+      }
       c += "  DST_Y = 0;\n";
       c += "  int w_group_size = args.params.Read(args.packed_params_offset + "
            "w_batch_id);\n";
@@ -382,12 +406,27 @@ class ConvCodeGenerator {
           "w_batch_id + " +
           std::to_string(conv_params_.runtime_check.packed_groups->num_groups) +
           ");\n";
-      const int tile_size = weights_conversion
-                                ? kernel_params_.work_group_size.x
-                                : kernel_params_.simd_sizes[0];
-      const std::string tile_size_str = std::to_string(tile_size);
-      c += "  int tile_first_w = (DST_X / " + tile_size_str + ") * " +
-           tile_size_str + ";\n";
+      if (kernel_params_.weights_upload_type ==
+              ConvGeneric::WeightsUploadType::kLocalMemory ||
+          kernel_params_.weights_upload_type ==
+              ConvGeneric::WeightsUploadType::kLocalMemoryWGLoad) {
+        c += "  int tile_first_w = " +
+             GetWorkGroupBaseDstX(kernel_params_.work_group_launch_order) +
+             " * " + std::to_string(kernel_params_.block_size.x) + ";\n";
+      } else {
+        int tile_size = 1;
+        if (use_intel_wave_matmul) {
+          tile_size = weights_conversion ? kernel_params_.work_group_size.x
+                                         : kernel_params_.simd_sizes[0];
+        } else if (kernel_params_.weights_upload_type ==
+                   ConvGeneric::WeightsUploadType::kWaveMemory) {
+          tile_size = kernel_params_.simd_sizes.back();
+        }
+        tile_size *= kernel_params_.block_size.x;
+        const std::string tile_size_str = std::to_string(tile_size);
+        c += "  int tile_first_w = (DST_X / " + tile_size_str + ") * " +
+             tile_size_str + ";\n";
+      }
       c += "  if (tile_first_w >= w_group_size) return;\n";
       c += "  DST_X = w_group_offset + DST_X;\n";
     } else {
@@ -1276,7 +1315,7 @@ class ConvCodeGenerator {
           f_y = "s - src_start_slice";
         }
         if (conv_params_.different_weights_for_height) {
-          f_y = "DST_Y * args.src_tensor.Slices() + s";
+          f_y = "w_batch_id * args.src_tensor.Slices() + s";
         }
         c += absl::Substitute(
             R"(      Type f$2 = args.weights0.Read(DST_S + $0, $1);

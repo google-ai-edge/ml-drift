@@ -68,6 +68,12 @@ absl::Status ConvGenericGroupedBigTest(TestExecutionEnvironment& env,
                                        CalculationsPrecision precision,
                                        TensorStorageType storage);
 
+absl::Status ConvGenericPackedGroupsTest(TestExecutionEnvironment& env,
+                                         CalculationsPrecision precision,
+                                         TensorStorageType storage,
+                                         const BHWC& src_shape,
+                                         int dst_channels);
+
 absl::Status ConvGenericExternalWfloatTest(TestExecutionEnvironment& env,
                                            CalculationsPrecision precision,
                                            TensorStorageType storage,
