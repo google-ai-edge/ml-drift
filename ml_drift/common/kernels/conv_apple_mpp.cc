@@ -530,7 +530,7 @@ ConvAppleMPP CreateConvAppleMPPExternalWeights(
     const TensorDescriptor& src, const TensorDescriptor& dst,
     const ExternalWeights& weights, const TensorDescriptor* bias,
     const TensorDescriptor* src_exp, bool different_weights_for_height,
-    const ConvRuntimeCheckDesc& runtime_check) {
+    const ConvRuntimeCheckDesc& runtime_check, const BHWC* dst_shape) {
   ConvAppleMPP conv(src, weights.shape, DataType::FLOAT16,
                     different_weights_for_height, src_exp != nullptr,
                     runtime_check);
@@ -542,6 +542,13 @@ ConvAppleMPP CreateConvAppleMPPExternalWeights(
       DivideRoundUp(weights.shape.i, 4) / weights.scale_zp_shape.i;
   conv.SetExternalWeightsParams(params);
   conv.SetNTile(64);
+  if (runtime_check.packed_groups.has_value() && dst_shape) {
+    const int average_task_size =
+        DivideRoundUp(dst_shape->w, runtime_check.packed_groups->num_groups);
+    if (average_task_size <= 32) {
+      conv.SetMTile(32);
+    }
+  }
   conv.code_ = conv.GetKernelCode(dst.HasAxis(Axis::BATCH), bias != nullptr);
   conv.AddSrcTensor("src", src);
   conv.AddDstTensor("dst", dst);

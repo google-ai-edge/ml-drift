@@ -22,6 +22,7 @@
 #include <variant>
 #include <vector>
 
+#include "absl/log/absl_check.h"
 #include "absl/strings/str_replace.h"
 #include "absl/strings/substitute.h"
 #include "absl/types/span.h"
@@ -429,13 +430,17 @@ class ConvCodeGenerator {
     if (use_intel_wave_matmul) {
       c += "  int simd_id = ucl::GetSubGroupLocalId();\n";
       if (weights_conversion) {
+        ABSL_CHECK(kernel_params_.work_group_size.x ==
+                   kernel_params_.block_size.w * 4);
         // WeightsLayout::kBIOI4O4
-        c += R"(
-  __local half4 w_cache[16 * 64 / 4];
-  int sub_i = ucl::GetLocalId<0>() / 16;
-  int sub_o = ucl::GetLocalId<0>() % 16;
-  int w_o_slice = min(DST_S + sub_o, args.dst_tensor.Slices() - 1);
-)";
+        const int cache_size = 16 * kernel_params_.work_group_size.x / 4;
+        c += "  __local half4 w_cache[" + std::to_string(cache_size) + "];\n";
+        c += "  int sub_i = ucl::GetLocalId<0>() / " +
+             std::to_string(kernel_params_.block_size.w) + ";\n";
+        c += "  int sub_o = ucl::GetLocalId<0>() % " +
+             std::to_string(kernel_params_.block_size.w) + ";\n";
+        c += "  int w_o_slice = min(DST_S + sub_o, args.dst_tensor.Slices() - "
+             "1);\n";
         if (conv_params_.weights_desc.IsLinearLayout()) {
           const std::string batch_part =
               conv_params_.different_weights_for_height
@@ -2251,8 +2256,16 @@ ConvGeneric::KernelParams GetKernelParamsIntel(
     kernel_params.block_size = int4(1, 1, 1, dst_slices_per_thread);
     if (conv_params.weights_desc.layout != WeightsLayout::kUnknown) {
       kernel_params.work_group_size = int3(64, 1, 1);
-      kernel_params.block_size = int4(1, 1, 1, 16);
       kernel_params.fixed_work_group_size = true;
+      if (conv_params.runtime_check.packed_groups.has_value()) {
+        const int average_task_size = DivideRoundUp(
+            dst_shape.w, conv_params.runtime_check.packed_groups->num_groups);
+        if (average_task_size <= 32) {
+          kernel_params.work_group_size = int3(32, 1, 1);
+        }
+      }
+      kernel_params.block_size = int4(1, 1, 1, 1);
+      kernel_params.block_size.w = kernel_params.work_group_size.x / 4;
     }
     kernel_params.src_depth_loop_size = 4;
     if (conv_params.Is8Bit()) {

@@ -91,6 +91,7 @@ class ConvAppleMPP : public GPUOperation {
   void SetExternalWeightsParams(const ExternalWeightsParams& weights_params) {
     external_weights_params_ = weights_params;
   }
+  void SetMTile(int m_tile) { m_tile_ = m_tile; }
   void SetNTile(int n_tile) { n_tile_ = n_tile; }
   std::string GetKernelCode(bool has_batch, bool has_bias = false) const;
 
@@ -157,7 +158,8 @@ ConvAppleMPP CreateConvAppleMPPExternalWeights(
     const ExternalWeights& weights, const TensorDescriptor* bias = nullptr,
     const TensorDescriptor* src_exp = nullptr,
     bool different_weights_for_height = false,
-    const ConvRuntimeCheckDesc& runtime_check = {});
+    const ConvRuntimeCheckDesc& runtime_check = {},
+    const BHWC* dst_shape = nullptr);
 
 // Creates an Apple MPP convolution operation with INT8 weights.
 ConvAppleMPP CreateConvAppleMPPInt8(
