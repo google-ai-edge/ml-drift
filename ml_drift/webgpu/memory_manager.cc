@@ -143,7 +143,8 @@ absl::StatusOr<MemoryManager::ModelId> MemoryManager::AllocateMemory(
     tensor_descriptors_[Key(next_model_id_, k)] = v;
   }
   for (const auto& external : external_tensors.immutable_tensors) {
-    SpatialTensor* spatial_tensor = AsSpatialTensor(external.second);
+    SpatialTensor* spatial_tensor =
+        static_cast<SpatialTensor*>(external.second);
     external_immutable_tensors_[Key(next_model_id_, external.first)] =
         spatial_tensor;
   }

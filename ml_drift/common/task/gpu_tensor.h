@@ -28,8 +28,6 @@ class GpuSpatialTensor {
   GpuSpatialTensor() = default;
   virtual ~GpuSpatialTensor() = default;
 
-  virtual bool IsSpatialTensor() const { return false; }
-
   virtual int Width() const = 0;
   virtual int Height() const = 0;
   virtual int Depth() const = 0;

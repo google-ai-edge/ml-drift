@@ -33,7 +33,6 @@ namespace webgpu {
 
 class SpatialTensor : public GpuObject, public GpuSpatialTensor {
  public:
-  bool IsSpatialTensor() const override { return true; }
   struct SpatialTensorCreateInfo {
     wgpu::Buffer buffer;
     wgpu::Texture texture;
@@ -129,17 +128,6 @@ absl::Status CreateSharedTensor(const wgpu::Texture& texture,
                                 const wgpu::TextureView& texture_view,
                                 const TensorDescriptor& descriptor,
                                 SpatialTensor* result);
-
-inline SpatialTensor* AsSpatialTensor(GpuSpatialTensor* desc) {
-  return (desc && desc->IsSpatialTensor()) ? static_cast<SpatialTensor*>(desc)
-                                           : nullptr;
-}
-
-inline const SpatialTensor* AsSpatialTensor(const GpuSpatialTensor* desc) {
-  return (desc && desc->IsSpatialTensor())
-             ? static_cast<const SpatialTensor*>(desc)
-             : nullptr;
-}
 
 }  // namespace webgpu
 }  // namespace ml_drift
