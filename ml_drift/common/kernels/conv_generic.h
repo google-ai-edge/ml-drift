@@ -222,19 +222,6 @@ class ConvGeneric : public GPUOperation {
   ConvGeneric& operator=(const ConvGeneric&) = delete;
 
  private:
-  ConvGeneric(const OperationDef& definition, CalculationsPrecision precision,
-              const Convolution2DAttributes& attr, const GpuInfo& gpu_info,
-              const BHWC* dst_shape = nullptr);
-  ConvGeneric(const OperationDef& definition, CalculationsPrecision precision,
-              const Convolution2DAttributes& attr, const OHWI& weights_shape,
-              const GpuInfo& gpu_info, const BHWC* dst_shape = nullptr);
-  ConvGeneric(const OperationDef& definition, CalculationsPrecision precision,
-              const FullyConnectedAttributes& attr, const GpuInfo& gpu_info,
-              const BHWC* dst_shape = nullptr);
-  ConvGeneric(const OperationDef& definition, CalculationsPrecision precision,
-              const Convolution3DAttributes& attr, const GpuInfo& gpu_info,
-              const BHWDC* dst_shape = nullptr);
-
   void GenerateCode(const OperationDef& definition, const GpuInfo& gpu_info);
 
   template <DataType T>

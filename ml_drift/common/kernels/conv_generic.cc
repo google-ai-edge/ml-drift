@@ -3430,75 +3430,6 @@ ConvGeneric::ConvParams GetConvParams(const OperationDef& definition,
 }
 }  // namespace
 
-ConvGeneric::ConvGeneric(const OperationDef& definition,
-                         CalculationsPrecision precision,
-                         const Convolution2DAttributes& attr,
-                         const GpuInfo& gpu_info, const BHWC* dst_shape) {
-  conv_params_ = GetConvParams(definition, precision, attr);
-  kernel_params_ = GetKernelParams(gpu_info, conv_params_, dst_shape);
-}
-
-ConvGeneric::ConvGeneric(const OperationDef& definition,
-                         CalculationsPrecision precision,
-                         const Convolution2DAttributes& attr,
-                         const OHWI& weights_shape, const GpuInfo& gpu_info,
-                         const BHWC* dst_shape) {
-  conv_params_.stride = int4(attr.strides.w, attr.strides.h, 1, 1);
-  conv_params_.padding_prepended =
-      int4(attr.padding.prepended.w, attr.padding.prepended.h, 0, 0);
-  conv_params_.padding_appended =
-      int4(attr.padding.appended.w, attr.padding.appended.h, 0, 0);
-  conv_params_.kernel_size = int4(weights_shape.w, weights_shape.h, 1, 1);
-  conv_params_.dilation = int4(attr.dilations.w, attr.dilations.h, 1, 1);
-  conv_params_.weights_data_type = DeduceDataTypeFromPrecision(precision);
-  conv_params_.src_desc = definition.src_tensors[0];
-  conv_params_.precision = precision;
-  conv_params_.src_slices = DivideRoundUp(weights_shape.i, 4);
-  conv_params_.dst_slices = DivideRoundUp(weights_shape.o, 4);
-  kernel_params_ = GetKernelParams(gpu_info, conv_params_, dst_shape);
-}
-
-ConvGeneric::ConvGeneric(const OperationDef& definition,
-                         CalculationsPrecision precision,
-                         const FullyConnectedAttributes& attr,
-                         const GpuInfo& gpu_info, const BHWC* dst_shape) {
-  conv_params_.weights_data_type = DeduceDataTypeFromPrecision(precision);
-  conv_params_.src_desc = definition.src_tensors[0];
-  conv_params_.precision = precision;
-  conv_params_.src_slices = DivideRoundUp(attr.weights.shape.i, 4);
-  conv_params_.dst_slices = DivideRoundUp(attr.weights.shape.o, 4);
-  kernel_params_ = GetKernelParams(gpu_info, conv_params_, dst_shape);
-}
-
-ConvGeneric::ConvGeneric(const OperationDef& definition,
-                         CalculationsPrecision precision,
-                         const Convolution3DAttributes& attr,
-                         const GpuInfo& gpu_info, const BHWDC* dst_shape) {
-  conv_params_.stride = int4(attr.strides.w, attr.strides.h, attr.strides.d, 1);
-  conv_params_.padding_prepended =
-      int4(attr.padding.prepended.w, attr.padding.prepended.h,
-           attr.padding.prepended.d, 0);
-  conv_params_.padding_appended =
-      int4(attr.padding.appended.w, attr.padding.appended.h,
-           attr.padding.appended.d, 0);
-  conv_params_.kernel_size =
-      int4(attr.weights.shape.w, attr.weights.shape.h, attr.weights.shape.d, 1);
-  conv_params_.dilation =
-      int4(attr.dilations.w, attr.dilations.h, attr.dilations.d, 1);
-  conv_params_.weights_data_type = DeduceDataTypeFromPrecision(precision);
-  conv_params_.src_desc = definition.src_tensors[0];
-  conv_params_.precision = precision;
-  conv_params_.src_slices = DivideRoundUp(attr.weights.shape.i, 4);
-  conv_params_.dst_slices = DivideRoundUp(attr.weights.shape.o, 4);
-  if (dst_shape) {
-    const BHWC shape = BHWC(dst_shape->b, dst_shape->h * dst_shape->d,
-                            dst_shape->w, dst_shape->c);
-    kernel_params_ = GetKernelParams(gpu_info, conv_params_, &shape);
-  } else {
-    kernel_params_ = GetKernelParams(gpu_info, conv_params_, nullptr);
-  }
-}
-
 void ConvGeneric::InitArgs(const OperationDef& definition) {
   if (!conv_params_.IsXKernelIs1()) {
     args_.AddInt("stride_x", conv_params_.stride.x);
@@ -3679,8 +3610,11 @@ ConvGeneric CreateConvGeneric(const GpuInfo& gpu_info,
                               CalculationsPrecision precision,
                               const Convolution2DAttributes& attr,
                               const BHWC* dst_shape) {
-  ConvGeneric result(definition, precision, attr, gpu_info, dst_shape);
+  ConvGeneric result;
+  result.conv_params_ = GetConvParams(definition, precision, attr);
   result.conv_params_.weights_desc.layout = WeightsLayout::kUnknown;
+  result.kernel_params_ =
+      GetKernelParams(gpu_info, result.conv_params_, dst_shape);
   result.conv_params_.has_bias = !attr.bias.data.empty();
   result.GenerateCode(definition, gpu_info);
   result.UploadWeights(GetFloatWeights(attr));
@@ -3693,8 +3627,16 @@ ConvGeneric CreateConvGeneric(const GpuInfo& gpu_info,
                               CalculationsPrecision precision,
                               const FullyConnectedAttributes& attr,
                               const BHWC* dst_shape) {
-  ConvGeneric result(definition, precision, attr, gpu_info, dst_shape);
+  ConvGeneric result;
+  result.conv_params_.weights_data_type =
+      DeduceDataTypeFromPrecision(precision);
+  result.conv_params_.src_desc = definition.src_tensors[0];
+  result.conv_params_.precision = precision;
+  result.conv_params_.src_slices = DivideRoundUp(attr.weights.shape.i, 4);
+  result.conv_params_.dst_slices = DivideRoundUp(attr.weights.shape.o, 4);
   result.conv_params_.weights_desc.layout = WeightsLayout::kUnknown;
+  result.kernel_params_ =
+      GetKernelParams(gpu_info, result.conv_params_, dst_shape);
   result.conv_params_.has_bias = !attr.bias.data.empty();
   result.GenerateCode(definition, gpu_info);
   result.UploadWeights(attr.weights);
@@ -3868,8 +3810,35 @@ ConvGeneric CreateConvGeneric3D(const GpuInfo& gpu_info,
                                 CalculationsPrecision precision,
                                 const Convolution3DAttributes& attr,
                                 const BHWDC* dst_shape) {
-  ConvGeneric result(definition, precision, attr, gpu_info, dst_shape);
+  ConvGeneric result;
+  result.conv_params_.stride =
+      int4(attr.strides.w, attr.strides.h, attr.strides.d, 1);
+  result.conv_params_.padding_prepended =
+      int4(attr.padding.prepended.w, attr.padding.prepended.h,
+           attr.padding.prepended.d, 0);
+  result.conv_params_.padding_appended =
+      int4(attr.padding.appended.w, attr.padding.appended.h,
+           attr.padding.appended.d, 0);
+  result.conv_params_.kernel_size =
+      int4(attr.weights.shape.w, attr.weights.shape.h, attr.weights.shape.d, 1);
+  result.conv_params_.dilation =
+      int4(attr.dilations.w, attr.dilations.h, attr.dilations.d, 1);
+  result.conv_params_.weights_data_type =
+      DeduceDataTypeFromPrecision(precision);
+  result.conv_params_.src_desc = definition.src_tensors[0];
+  result.conv_params_.precision = precision;
+  result.conv_params_.src_slices = DivideRoundUp(attr.weights.shape.i, 4);
+  result.conv_params_.dst_slices = DivideRoundUp(attr.weights.shape.o, 4);
   result.conv_params_.weights_desc.layout = WeightsLayout::kUnknown;
+  if (dst_shape) {
+    const BHWC shape = BHWC(dst_shape->b, dst_shape->h * dst_shape->d,
+                            dst_shape->w, dst_shape->c);
+    result.kernel_params_ =
+        GetKernelParams(gpu_info, result.conv_params_, &shape);
+  } else {
+    result.kernel_params_ =
+        GetKernelParams(gpu_info, result.conv_params_, nullptr);
+  }
   result.conv_params_.has_bias = !attr.bias.data.empty();
   result.GenerateCode(definition, gpu_info);
   result.UploadWeights(attr.weights);
