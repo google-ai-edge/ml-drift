@@ -49,6 +49,11 @@ std::string ProfilingInfo::GetDetailedReport(
     result += "  " + dispatch.label + "; " +
               std::to_string(absl::ToDoubleMilliseconds(dispatch.duration)) +
               " ms" + "; ";
+    if (options.add_work_group_size) {
+      result += "wg: {" + std::to_string(dispatch.work_group_size.x) + ", " +
+                std::to_string(dispatch.work_group_size.y) + ", " +
+                std::to_string(dispatch.work_group_size.z) + "}; ";
+    }
     if (options.add_shapes_info) {
       for (const auto& curr_shape : dispatch.inshape) {
         result += ToString(curr_shape) + "- ";

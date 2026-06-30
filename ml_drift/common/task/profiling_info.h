@@ -23,6 +23,7 @@
 
 #include "absl/time/time.h"
 #include "ml_drift/common/shape.h"
+#include "ml_drift/common/types.h"
 
 namespace ml_drift {
 
@@ -35,10 +36,12 @@ struct ProfilingInfo {
     uint64_t flops = 0;
     std::vector<Shape> inshape;
     std::vector<Shape> outshape;
+    int3 work_group_size = int3(0, 0, 0);
   };
 
   struct DetailedReportOptions {
     bool add_shapes_info = false;
+    bool add_work_group_size = false;
   };
 
   std::vector<DispatchInfo> dispatches;
@@ -62,7 +65,7 @@ struct ProfilingInfo {
   // set to false.
   std::string GetDetailedReport(
       const DetailedReportOptions& options = DetailedReportOptions{
-          /*add_shapes_info=*/false}) const;
+          .add_shapes_info = true, .add_work_group_size = true}) const;
 };
 
 }  // namespace ml_drift

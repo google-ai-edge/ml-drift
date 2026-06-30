@@ -421,6 +421,7 @@ void InferenceContext::Profile(id<MTLDevice> device, ProfilingInfo* result) {
     dispatch_info.flops = gpu_op.GetFlopsCount();
     dispatch_info.read_mem_size = read_size;
     dispatch_info.write_mem_size = write_size;
+    dispatch_info.work_group_size = gpu_op.GetWorkGroupSize();
   }
   ProfileTime(device, result);
 }

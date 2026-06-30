@@ -146,6 +146,7 @@ cc_library(
     hdrs = ["profiling_info.h"],
     deps = [
         "//ml_drift/common:shape",
+        "//ml_drift/common:types",
         "@com_google_absl//absl/time",
     ],
 )
