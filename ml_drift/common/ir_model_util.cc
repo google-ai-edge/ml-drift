@@ -322,19 +322,19 @@ absl::StatusOr<OperationDef> GetOperationDef(
   return op_def;
 }
 
-class IrModelOpSelector {
+class DefaultIrModelOpSelector : public IrModelOpSelector {
  public:
-  IrModelOpSelector() = delete;
-  IrModelOpSelector(const CreateGpuModelInfo& create_info,
-                    const GpuInfo& gpu_info)
+  DefaultIrModelOpSelector() = delete;
+  DefaultIrModelOpSelector(const CreateGpuModelInfo& create_info,
+                           const GpuInfo& gpu_info)
       : create_info_(create_info), gpu_info_(gpu_info) {}
-  ~IrModelOpSelector() = default;
+  ~DefaultIrModelOpSelector() override = default;
 
   absl::Status GPUOperationFromNode(const OperationDef& op_def,
                                     const std::vector<const IrTensor*>& inputs,
                                     const std::vector<const IrTensor*>& outputs,
                                     const IrOp& node,
-                                    GpuModelBuilder* model_builder) {
+                                    GpuModelBuilder* model_builder) override {
     return ml_drift::GPUOperationFromNode(gpu_info_, op_def, create_info_,
                                           inputs, outputs, node, model_builder);
   }
@@ -343,7 +343,7 @@ class IrModelOpSelector {
       const ir::IrModel& ir_model, IrOpId first_op_id,
       const absl::flat_hash_set<IrOpId>& consumed_ops,
       absl::flat_hash_set<IrOpId>* new_consumed_ops,
-      GpuModelBuilder* model_builder) {
+      GpuModelBuilder* model_builder) override {
     return ml_drift::GPUSubgraphFromIrModel(create_info_.hints, gpu_info_,
                                             ir_model, first_op_id, consumed_ops,
                                             new_consumed_ops, model_builder);
@@ -355,7 +355,7 @@ class IrModelOpSelector {
 };
 
 absl::Status ConvertOperations(const IrModel& ir_model,
-                               IrModelOpSelector& op_selector,
+                               DefaultIrModelOpSelector& op_selector,
                                GpuModelBuilder* model_builder) {
   absl::flat_hash_set<IrOpId> consumed_nodes;
   auto& model_ops = ir_model.ops();
@@ -430,7 +430,7 @@ absl::Status ConvertOperations(const IrModel& ir_model,
 absl::Status IrModelToGpuModel(const IrModel& ir_model,
                                const CreateGpuModelInfo& create_info,
                                const GpuInfo& gpu_info,
-                               IrModelOpSelector& op_selector,
+                               DefaultIrModelOpSelector& op_selector,
                                std::shared_ptr<WeightsManager> weights_manager,
                                GpuModel* gpu_model) {
   if (!gpu_info.SupportsFP16() && gpu_info.IsApiOpenCl() &&
@@ -464,7 +464,7 @@ absl::Status IrModelToGpuModel(const IrModel& ir_model,
 absl::Status IrModelToGpuModel(const IrModel& ir_model,
                                const CreateGpuModelInfo& create_info,
                                const GpuInfo& gpu_info, GpuModel* gpu_model) {
-  IrModelOpSelector default_op_selector(create_info, gpu_info);
+  DefaultIrModelOpSelector default_op_selector(create_info, gpu_info);
   return IrModelToGpuModel(ir_model, create_info, gpu_info, default_op_selector,
                            /*weights_manager=*/nullptr, gpu_model);
 }
@@ -476,7 +476,7 @@ absl::Status IrModelToGpuModelWithWeightsConversion(
     absl::flat_hash_map<ValueId, ValueId>* weights_mapping,
     std::vector<WeightsManager::UploadWeightsInfo>* upload_weights_info) {
   auto weights_manager = std::make_shared<WeightsManager>();
-  IrModelOpSelector default_op_selector(create_info, gpu_info);
+  DefaultIrModelOpSelector default_op_selector(create_info, gpu_info);
   RETURN_IF_ERROR(IrModelToGpuModel(ir_model, create_info, gpu_info,
                                     default_op_selector, weights_manager,
                                     gpu_model));
