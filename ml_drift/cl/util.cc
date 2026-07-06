@@ -204,9 +204,11 @@ absl::Status CreateCLBuffer(cl_context context, size_t size_in_bytes,
   return absl::OkStatus();
 }
 
-absl::Status CreateCLSubBuffer(cl_context context, cl_mem parent,
-                               size_t origin_in_bytes, size_t size_in_bytes,
-                               bool read_only, cl_mem* result) {
+absl::StatusOr<cl_mem> CreateCLSubBuffer(cl_context context, cl_mem parent,
+                                         size_t origin_in_bytes,
+                                         size_t size_in_bytes) {
+  ASSIGN_OR_RETURN(cl_mem_flags parent_flags, GetCLMemObjectFlags(parent));
+  const bool read_only = parent_flags & CL_MEM_READ_ONLY;
   cl_mem_flags flags = read_only ? CL_MEM_READ_ONLY : CL_MEM_READ_WRITE;
 
   cl_buffer_region region{};
@@ -217,19 +219,20 @@ absl::Status CreateCLSubBuffer(cl_context context, cl_mem parent,
   if (!clCreateSubBuffer) {
     return absl::InternalError("clCreateSubBuffer is not supported.");
   }
+  cl_mem result;
   {
     // TODO: b/279347631 - Remove after Nvidia driver is fixed.
     absl::LeakCheckDisabler disabler;
-    *result = clCreateSubBuffer(parent, flags, CL_BUFFER_CREATE_TYPE_REGION,
-                                &region, &error_code);
+    result = clCreateSubBuffer(parent, flags, CL_BUFFER_CREATE_TYPE_REGION,
+                               &region, &error_code);
   }
 
-  if (!*result) {
+  if (!result) {
     return absl::UnknownError(
         absl::StrCat("Failed to allocate device memory (clCreateSubBuffer): ",
                      CLErrorCodeToString(error_code)));
   }
-  return absl::OkStatus();
+  return result;
 }
 
 absl::Status CreateRGBAImage2D(cl_context context, int width, int height,
