@@ -266,6 +266,20 @@ absl::Status CreateRGBAImage2D(cl_context context, int width, int height,
   return absl::OkStatus();
 }
 
+absl::StatusOr<cl_mem_flags> GetCLMemObjectFlags(cl_mem memobj) {
+  cl_mem_flags flags;
+  size_t param_value_size_ret;
+
+  cl_int err = clGetMemObjectInfo(memobj, CL_MEM_FLAGS, sizeof(cl_mem_flags),
+                                  &flags, &param_value_size_ret);
+
+  if (err != CL_SUCCESS) {
+    return absl::UnknownError(absl::StrCat("Failed to get CL mem object info: ",
+                                           CLErrorCodeToString(err)));
+  }
+  return flags;
+}
+
 AdrenoInfo::OpenClCompilerVersion GetQualcommOpenClCompilerVersion(
     const std::string& cl_driver_version) {
   AdrenoInfo::OpenClCompilerVersion result;

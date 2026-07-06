@@ -62,6 +62,8 @@ absl::Status CreateRGBAImage2D(cl_context context, int width, int height,
                                cl_channel_type channel_type, void* data,
                                cl_mem* result);
 
+absl::StatusOr<cl_mem_flags> GetCLMemObjectFlags(cl_mem memobj);
+
 absl::Status CreateQcomConvolutionFilter(cl_context context, int kernel_x,
                                          int kernel_y, cl_mem* filter,
                                          const void* data);

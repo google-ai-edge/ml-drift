@@ -89,10 +89,10 @@ absl::Status CreateReadOnlyBuffer(size_t size_in_bytes, const void* data,
 absl::Status CreateReadWriteBuffer(size_t size_in_bytes, CLContext* context,
                                    Buffer* result);
 
-absl::Status CreateReadWriteSubBuffer(const Buffer& parent,
-                                      size_t origin_in_bytes,
-                                      size_t size_in_bytes, CLContext* context,
-                                      Buffer* result);
+absl::StatusOr<Buffer> CreateSubBuffer(const Buffer& parent,
+                                       size_t origin_in_bytes,
+                                       size_t size_in_bytes,
+                                       CLContext* context);
 
 template <typename T>
 absl::Status Buffer::WriteData(CLCommandQueue* queue,

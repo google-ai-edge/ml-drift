@@ -386,12 +386,12 @@ absl::Status MemoryManager::AllocateBufferBasedTensors(
 
     allocated_buffers.resize(offset_assignment.offsets.size());
     for (int i = 0; i < offset_assignment.offsets.size(); ++i) {
-      auto sub_buf = std::make_unique<Buffer>();
-      RETURN_IF_ERROR(CreateReadWriteSubBuffer(
-          *selected_buffer, offset_assignment.offsets[i],
-          buffer_usage_records[i].tensor_size, context, sub_buf.get()));
-      allocated_buffers[i] = sub_buf.get();
-      sub_buffers_.push_back(std::move(sub_buf));
+      ASSIGN_OR_RETURN(
+          auto sub_buf,
+          CreateSubBuffer(*selected_buffer, offset_assignment.offsets[i],
+                          buffer_usage_records[i].tensor_size, context));
+      sub_buffers_.push_back(std::make_unique<Buffer>(std::move(sub_buf)));
+      allocated_buffers[i] = sub_buffers_.back().get();
     }
   } else {
     const size_t total_size = TotalSize(buffer_assignment, base_align_bytes);
@@ -416,11 +416,10 @@ absl::Status MemoryManager::AllocateBufferBasedTensors(
       for (int i = 0; i < buffer_assignment.object_sizes.size(); ++i) {
         const size_t aligned_size =
             AlignByN(buffer_assignment.object_sizes[i], base_align_bytes);
-        auto sub_buf = std::make_unique<Buffer>();
-        RETURN_IF_ERROR(CreateReadWriteSubBuffer(
-            *selected_buffer, offset, aligned_size, context, sub_buf.get()));
-        allocated_buffers[i] = sub_buf.get();
-        sub_buffers_.push_back(std::move(sub_buf));
+        ASSIGN_OR_RETURN(auto sub_buf, CreateSubBuffer(*selected_buffer, offset,
+                                                       aligned_size, context));
+        sub_buffers_.push_back(std::make_unique<Buffer>(std::move(sub_buf)));
+        allocated_buffers[i] = sub_buffers_.back().get();
         offset += aligned_size;
       }
     } else {

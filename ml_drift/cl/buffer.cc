@@ -41,22 +41,6 @@ absl::Status CreateBuffer(size_t size_in_bytes, bool gpu_read_only,
 
   return absl::OkStatus();
 }
-
-absl::Status CreateSubBuffer(const Buffer& parent, size_t origin_in_bytes,
-                             size_t size_in_bytes, bool gpu_read_only,
-                             CLContext* context, Buffer* result) {
-  cl_mem buffer;
-  if (parent.IsSubBuffer()) {
-    return absl::InvalidArgumentError(
-        "Cannot create a sub-buffer from a sub-buffer!");
-  }
-  RETURN_IF_ERROR(CreateCLSubBuffer(context->context(), parent.GetMemoryPtr(),
-                                    origin_in_bytes, size_in_bytes,
-                                    gpu_read_only, &buffer));
-  *result = Buffer(buffer, size_in_bytes, /*is_sub_buffer=*/true);
-
-  return absl::OkStatus();
-}
 }  // namespace
 
 Buffer::Buffer(cl_mem buffer, size_t size_in_bytes, bool is_sub_buffer)
@@ -134,12 +118,22 @@ absl::Status CreateReadWriteBuffer(size_t size_in_bytes, CLContext* context,
   return CreateBuffer(size_in_bytes, false, nullptr, context, result);
 }
 
-absl::Status CreateReadWriteSubBuffer(const Buffer& parent,
-                                      size_t origin_in_bytes,
-                                      size_t size_in_bytes, CLContext* context,
-                                      Buffer* result) {
-  return CreateSubBuffer(parent, origin_in_bytes, size_in_bytes,
-                         /*gpu_read_only=*/false, context, result);
+absl::StatusOr<Buffer> CreateSubBuffer(const Buffer& parent,
+                                       size_t origin_in_bytes,
+                                       size_t size_in_bytes,
+                                       CLContext* context) {
+  if (parent.IsSubBuffer()) {
+    return absl::InvalidArgumentError(
+        "Cannot create a sub-buffer from a sub-buffer!");
+  }
+  cl_mem buffer;
+  ASSIGN_OR_RETURN(cl_mem_flags flags,
+                   GetCLMemObjectFlags(parent.GetMemoryPtr()));
+  const bool gpu_read_only = flags & CL_MEM_READ_ONLY;
+  RETURN_IF_ERROR(CreateCLSubBuffer(context->context(), parent.GetMemoryPtr(),
+                                    origin_in_bytes, size_in_bytes,
+                                    gpu_read_only, &buffer));
+  return Buffer(buffer, size_in_bytes, /*is_sub_buffer=*/true);
 }
 
 }  // namespace cl
