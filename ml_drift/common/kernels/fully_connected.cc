@@ -508,6 +508,8 @@ FullyConnected::FullyConnected(const OperationDef& definition,
        {"Type", ToUclDataType(definition.dst_tensors[0].GetDataType(), 4)},
        {"AccSType", ToUclDataType(acc_type, 1)},
        {"AccType", ToUclDataType(acc_type, 4)},
+       {"WG_SIZE_X", std::to_string(work_group_size_.x)},
+       {"WG_SIZE_Y", std::to_string(work_group_size_.y)},
        {"LOCAL_MEM_BARRIER", "ucl::SyncThreads<" + scope + ", Local>()"}},
       &code_);
   if (gpu_info.IsMali()) {
@@ -872,36 +874,10 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
          "(args.params.Read(args.src_end_ch_index) + 3) / 4;\n";
     src_end_slices = "src_end_slices";
   }
-  int spatial_local_patch_size = block_spatial;
   if (wg_reduction_) {
     c += "  int2 tid;\n";
     c += "  tid.x = ucl::GetLocalId<0>();\n";
     c += "  tid.y = ucl::GetLocalId<1>();\n";
-
-    int data_type_size =
-        precision == CalculationsPrecision::F16 && gpu_info.SupportsFP16() ? 2
-                                                                           : 4;
-    int workgroup_storage_size = work_group_size_.x * work_group_size_.y *
-                                 block_spatial * data_type_size * 4;
-    if (block_spatial > 8 ||
-        (gpu_info.IsApiWebGpu() &&
-         workgroup_storage_size >
-             gpu_info.webgpu_info.max_compute_workgroup_storage_size)) {
-      spatial_local_patch_size = 1;
-    }
-    if (gpu_info.adreno_info.IsLowEnd()) {
-      spatial_local_patch_size = 1;
-    }
-    if (int8_math) {
-      c += "  __local int4 temp";
-    } else {
-      c += "  __local AccType temp";
-    }
-    if (spatial_local_patch_size != 1) {
-      c += "[" + std::to_string(spatial_local_patch_size) + "]";
-    }
-    c += "[" + std::to_string(work_group_size_.x) + "][" +
-         std::to_string(work_group_size_.y) + "];\n";
     c += "  if (dst_s < args.dst_tensor.Slices()) {\n";
   }
   if (IsQuantized(conv_params_) && !int8_math) {
@@ -929,8 +905,7 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
     }
   }
   const std::string start_slice = wg_reduction_ ? "tid.y" : "0";
-  const std::string slice_stride =
-      wg_reduction_ ? std::to_string(work_group_size_.y) : "1";
+  const std::string slice_stride = wg_reduction_ ? "WG_SIZE_Y" : "1";
   if (IsQuantized(conv_params_) && conv_params_.scale_zp_shape.i != 1) {
     c += "  for (int src_group = " + start_slice +
          "; src_group < args.src_groups; src_group += " + slice_stride +
@@ -1027,6 +1002,31 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
   }
   if (wg_reduction_) {
     c += "  } // end if condition\n";
+    int spatial_local_patch_size = block_spatial;
+    int data_type_size =
+        precision == CalculationsPrecision::F16 && gpu_info.SupportsFP16() ? 2
+                                                                           : 4;
+    int workgroup_storage_size = work_group_size_.x * work_group_size_.y *
+                                 block_spatial * data_type_size * 4;
+    if (block_spatial > 8 ||
+        (gpu_info.IsApiWebGpu() &&
+         workgroup_storage_size >
+             gpu_info.webgpu_info.max_compute_workgroup_storage_size)) {
+      spatial_local_patch_size = 1;
+    }
+    if (gpu_info.adreno_info.IsLowEnd()) {
+      spatial_local_patch_size = 1;
+    }
+    if (int8_math) {
+      c += "  __local int4 temp";
+    } else {
+      c += "  __local AccType temp";
+    }
+    if (spatial_local_patch_size != 1) {
+      c += "[" + std::to_string(spatial_local_patch_size) + "]";
+    }
+    c += "[" + std::to_string(work_group_size_.x * work_group_size_.y) + "];\n";
+
     const int upload_groups =
         DivideRoundUp(block_spatial, spatial_local_patch_size);
     for (int group = 0; group < upload_groups; ++group) {
@@ -1037,11 +1037,10 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
         const std::string local_mem = spatial_local_patch_size == 1
                                           ? "temp"
                                           : "temp[" + std::to_string(i) + "]";
-        c +=
-            "  " + local_mem + "[tid.x][tid.y] = s" + std::to_string(i) + ";\n";
+        c += "  " + local_mem + "[tid.x * WG_SIZE_Y + tid.y] = s" +
+             std::to_string(i) + ";\n";
       }
-      c += "  for (int ystride = " + std::to_string(work_group_size_.y / 2) +
-           "; ystride > 0; ystride /= 2) {\n";
+      c += "  for (int ystride = WG_SIZE_Y / 2; ystride > 0; ystride /= 2) {\n";
       c += "    LOCAL_MEM_BARRIER;\n";
       c += "    if (tid.y < ystride) {\n";
       for (int i = first; i <= last; ++i) {
@@ -1049,9 +1048,9 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
                                           ? "temp"
                                           : "temp[" + std::to_string(i) + "]";
         c += "      s" + std::to_string(i) + " += " + local_mem +
-             "[tid.x][tid.y + ystride];\n";
-        c += "      " + local_mem + "[tid.x][tid.y] = s" + std::to_string(i) +
-             ";\n";
+             "[tid.x * WG_SIZE_Y + tid.y + ystride];\n";
+        c += "      " + local_mem + "[tid.x * WG_SIZE_Y + tid.y] = s" +
+             std::to_string(i) + ";\n";
       }
       c += "    }\n";
       c += "  }\n";
