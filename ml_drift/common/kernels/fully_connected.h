@@ -102,10 +102,6 @@ class FullyConnected : public GPUOperation {
       const GpuInfo& gpu_info, const OperationDef& definition,
       CalculationsPrecision precision, const FullyConnectedInt8Attributes& attr,
       const BHWC* dst_shape_ptr, const int3* wg_size);
-  friend FullyConnected CreateFullyConnected(
-      const GpuInfo& gpu_info, const OperationDef& definition,
-      CalculationsPrecision precision, const FullyConnectedInt4Attributes& attr,
-      const BHWC* dst_shape_ptr, const int3* wg_size);
   friend FullyConnected CreateFullyConnectedInt8(
       const GpuInfo& gpu_info, const OperationDef& definition,
       CalculationsPrecision precision,
@@ -115,15 +111,6 @@ class FullyConnected : public GPUOperation {
       const Tensor<Linear, DataType::FLOAT32>& biases,
       const BHWC* dst_shape_ptr, const int3* wg_size, bool prefer_textures);
 
-  friend FullyConnected CreateFullyConnectedInt4(
-      const GpuInfo& gpu_info, const OperationDef& definition,
-      CalculationsPrecision precision,
-      const std::variant<Tensor<OHWI, DataType::INT8>,
-                         Tensor<OHWI, DataType::INT4>>& weights,
-      const Tensor<OHWI, DataType::FLOAT32>& weights_scale,
-      const Tensor<OHWI, DataType::FLOAT32>& weights_zero_point,
-      const Tensor<Linear, DataType::FLOAT32>& biases,
-      const BHWC* dst_shape_ptr, const int3* wg_size, bool prefer_textures);
   friend FullyConnected CreateFullyConnectedInt4Sparse2x4(
       const GpuInfo& gpu_info, const OperationDef& definition,
       CalculationsPrecision precision,
@@ -261,14 +248,6 @@ FullyConnected CreateFullyConnected(const GpuInfo& gpu_info,
                                     const BHWC* dst_shape_ptr = nullptr,
                                     const int3* wg_size = nullptr);
 
-// Creates a fully connected operation with INT4 attributes.
-FullyConnected CreateFullyConnected(const GpuInfo& gpu_info,
-                                    const OperationDef& definition,
-                                    CalculationsPrecision precision,
-                                    const FullyConnectedInt4Attributes& attr,
-                                    const BHWC* dst_shape_ptr = nullptr,
-                                    const int3* wg_size = nullptr);
-
 // Checks if UINT8 math is supported for fully connected operations on the given
 // GPU.
 bool SupportsFullyConnectedUint8Math(const GpuInfo& gpu_info);
@@ -289,20 +268,6 @@ FullyConnected CreateFullyConnectedInt8(
 // Returns the weights description for an INT8 fully connected operation.
 WeightsDescription GetFullyConnectedInt8WeightsDesc(
     const GpuInfo& gpu_info, const OHWI& weights_shape,
-    bool prefer_textures = false);
-
-// Creates a fully connected operation with INT4 weights.
-// wg_size recommended to use only in profiling/debug goals, no 100% guarantee
-// that exactly this wg_size will be used in combination with other parameters.
-FullyConnected CreateFullyConnectedInt4(
-    const GpuInfo& gpu_info, const OperationDef& definition,
-    CalculationsPrecision precision,
-    const std::variant<Tensor<OHWI, DataType::INT8>,
-                       Tensor<OHWI, DataType::INT4>>& weights,
-    const Tensor<OHWI, DataType::FLOAT32>& weights_scale,
-    const Tensor<OHWI, DataType::FLOAT32>& weights_zero_point,
-    const Tensor<Linear, DataType::FLOAT32>& biases,
-    const BHWC* dst_shape_ptr = nullptr, const int3* wg_size = nullptr,
     bool prefer_textures = false);
 
 // Returns the weights description for an INT4 fully connected operation.

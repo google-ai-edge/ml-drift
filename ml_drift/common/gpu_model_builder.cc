@@ -1743,9 +1743,10 @@ GpuModelBuilder::FullyConnectedInt2ExternalWeights(const TensorHandle& src,
 }
 
 GpuModelBuilder::Weights GpuModelBuilder::GetWeights(
-    const FullyConnectedInt2Attributes& attr, DataType float_type) {
+    const std::variant<Tensor<OHWI, DataType::INT8>,
+                       Tensor<OHWI, DataType::INT2>>& weights) {
   const OHWI weights_shape =
-      std::visit([](const auto& w) { return w.shape; }, attr.weights);
+      std::visit([](const auto& w) { return w.shape; }, weights);
 
   WeightsDescription weights_desc = ml_drift::GetFullyConnectedInt2WeightsDesc(
       gpu_info_, weights_shape,
@@ -1755,9 +1756,8 @@ GpuModelBuilder::Weights GpuModelBuilder::GetWeights(
       GetTotalElementsCountForLayout(weights_desc, weights_shape) / 4;
   std::vector<uint8_t> weights_data(elements_count);
 
-  if (std::holds_alternative<Tensor<OHWI, DataType::INT2>>(attr.weights)) {
-    const auto& int2_weights =
-        std::get<Tensor<OHWI, DataType::INT2>>(attr.weights);
+  if (std::holds_alternative<Tensor<OHWI, DataType::INT2>>(weights)) {
+    const auto& int2_weights = std::get<Tensor<OHWI, DataType::INT2>>(weights);
     if (weights_desc.layout == WeightsLayout::kOSpatialIOGroupI4O4 ||
         weights_desc.layout == WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
       Tensor<OHWI, DataType::UINT8> uint8_weights;
@@ -1773,8 +1773,7 @@ GpuModelBuilder::Weights GpuModelBuilder::GetWeights(
       ABSL_CHECK(false) << "Unsupported layout for packed INT2 weights";
     }
   } else {
-    const auto& int8_weights =
-        std::get<Tensor<OHWI, DataType::INT8>>(attr.weights);
+    const auto& int8_weights = std::get<Tensor<OHWI, DataType::INT8>>(weights);
     RearrangeWeightsInt8AsUint2(int8_weights, weights_desc,
                                 absl::MakeSpan(weights_data), 2, 2u);
   }
@@ -1785,7 +1784,7 @@ GpuModelBuilder::Weights GpuModelBuilder::GetWeights(
                                   Layout::LINEAR);
     weights_td.SetBHWCShape(BHWC(1, 1, 1, weights_data.size()));
   } else {
-    DataType texture_type = DataType::UINT32;
+    DataType texture_type = DataType::UINT8;
     weights_td = TensorDescriptor(texture_type, TensorStorageType::TEXTURE_2D,
                                   Layout::HW);
     uint2 tex_size = Get2dResourceSize(weights_desc, weights_shape);
@@ -1798,39 +1797,130 @@ GpuModelBuilder::Weights GpuModelBuilder::GetWeights(
   external_weights.weights = AddConstantTensor(std::move(weights_td));
   external_weights.desc = weights_desc;
   external_weights.shape = weights_shape;
-
-  if (!attr.scale.data.empty()) {
-    external_weights.scale_zp_shape = attr.scale.shape;
-    auto weights_scale_td =
-        ScaleOrZeroPointToFCTensorDesc(gpu_info_, attr.scale, float_type);
-    external_weights.scale = AddConstantTensor(std::move(weights_scale_td));
-  }
-
-  if (!attr.zero_point.data.empty()) {
-    Tensor<OHWI, DataType::FLOAT32> float_zp;
-    float_zp.shape = attr.zero_point.shape;
-    float_zp.data.resize(attr.zero_point.size());
-    for (size_t i = 0; i < attr.zero_point.size(); ++i) {
-      float_zp.data[i] = static_cast<float>(attr.zero_point.Data()[i]);
-    }
-    auto weights_zero_point_td =
-        ScaleOrZeroPointToFCTensorDesc(gpu_info_, float_zp, float_type);
-    external_weights.zero_point =
-        AddConstantTensor(std::move(weights_zero_point_td));
-  }
   return external_weights;
+}
+
+GpuModelBuilder::Weights GpuModelBuilder::GetWeights(
+    const std::variant<Tensor<OHWI, DataType::INT8>,
+                       Tensor<OHWI, DataType::INT4>>& weights) {
+  const OHWI weights_shape =
+      std::visit([](const auto& w) { return w.shape; }, weights);
+
+  WeightsDescription weights_desc = ml_drift::GetFullyConnectedInt4WeightsDesc(
+      gpu_info_, weights_shape,
+      hints_.Check(ModelHints::kPreferTextureWeights));
+
+  const int elements_count =
+      GetTotalElementsCountForLayout(weights_desc, weights_shape) / 4;
+  std::vector<uint8_t> weights_data(elements_count);
+
+  if (std::holds_alternative<Tensor<OHWI, DataType::INT4>>(weights)) {
+    const auto& int4_weights = std::get<Tensor<OHWI, DataType::INT4>>(weights);
+    if (weights_desc.layout == WeightsLayout::kOSpatialIOGroupI4O4 ||
+        weights_desc.layout == WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
+      Tensor<OHWI, DataType::UINT8> uint8_weights;
+      uint8_weights.shape = int4_weights.shape;
+      uint8_weights.data.assign(int4_weights.data.begin(),
+                                int4_weights.data.end());
+      auto status = RearrangeWeightsUInt4Packed(uint8_weights, weights_desc,
+                                                absl::MakeSpan(weights_data),
+                                                {}, 8, false);
+      ABSL_CHECK(status.ok())
+          << "Failed to rearrange INT4 weights: " << status.message();
+    } else {
+      ABSL_CHECK(false) << "Unsupported layout for packed INT4 weights";
+    }
+  } else {
+    const auto& int8_weights = std::get<Tensor<OHWI, DataType::INT8>>(weights);
+    RearrangeWeightsInt8AsUint4(int8_weights, weights_desc,
+                                absl::MakeSpan(weights_data), 8, 8u);
+  }
+
+  TensorDescriptor weights_td;
+  if (weights_desc.IsLinearLayout()) {
+    weights_td = TensorDescriptor(DataType::UINT8, TensorStorageType::BUFFER,
+                                  Layout::LINEAR);
+    weights_td.SetBHWCShape(BHWC(1, 1, 1, weights_data.size()));
+  } else {
+    DataType texture_type = DataType::UINT16;
+    weights_td = TensorDescriptor(texture_type, TensorStorageType::TEXTURE_2D,
+                                  Layout::HW);
+    uint2 tex_size = Get2dResourceSize(weights_desc, weights_shape);
+    tex_size.x /= 4;  // because we store 16 elements per pixel
+    weights_td.SetBHWDCShape(BHWDC(1, tex_size.y, tex_size.x, 1, 4));
+  }
+  weights_td.UploadDataRaw(absl::MakeConstSpan(weights_data));
+
+  Weights external_weights;
+  external_weights.weights = AddConstantTensor(std::move(weights_td));
+  external_weights.desc = weights_desc;
+  external_weights.shape = weights_shape;
+  return external_weights;
+}
+
+GpuModelBuilder::TensorHandle GpuModelBuilder::GetWeightsScale(
+    const Tensor<OHWI, DataType::FLOAT32>& scale, DataType float_type) {
+  auto weights_scale_td =
+      ScaleOrZeroPointToFCTensorDesc(gpu_info_, scale, float_type);
+  return AddConstantTensor(std::move(weights_scale_td));
+}
+
+GpuModelBuilder::TensorHandle GpuModelBuilder::GetWeightsZeroPoint(
+    const Tensor<OHWI, DataType::INT32>& zero_point, DataType float_type) {
+  Tensor<OHWI, DataType::FLOAT32> float_zp;
+  float_zp.shape = zero_point.shape;
+  float_zp.data.resize(zero_point.size());
+  for (size_t i = 0; i < zero_point.size(); ++i) {
+    float_zp.data[i] = static_cast<float>(zero_point.Data()[i]);
+  }
+  auto weights_zero_point_td =
+      ScaleOrZeroPointToFCTensorDesc(gpu_info_, float_zp, float_type);
+  return AddConstantTensor(std::move(weights_zero_point_td));
+}
+
+GpuModelBuilder::TensorHandle GpuModelBuilder::FullyConnected(
+    const GpuModelBuilder::TensorHandle& src,
+    const FullyConnectedInt4Attributes& attr) {
+  const DataType float_type = src.tensor_desc.GetDataType();
+  Weights weights = GetWeights(attr.weights);
+
+  if (!attr.scale.empty()) {
+    weights.scale_zp_shape = attr.scale.shape;
+    weights.scale = GetWeightsScale(attr.scale, float_type);
+  }
+
+  if (!attr.zero_point.empty()) {
+    weights.zero_point = GetWeightsZeroPoint(attr.zero_point, float_type);
+  }
+
+  GpuModelBuilder::TensorHandle bias_handle;
+  GpuModelBuilder::TensorHandle* bias_handle_ptr = nullptr;
+  if (!attr.bias.empty()) {
+    bias_handle = AddConstantTensor(attr.bias, float_type);
+    bias_handle_ptr = &bias_handle;
+  }
+  return FullyConnectedInt4ExternalWeights(src, weights, bias_handle_ptr);
 }
 
 GpuModelBuilder::TensorHandle GpuModelBuilder::FullyConnected(
     const GpuModelBuilder::TensorHandle& src,
     const FullyConnectedInt2Attributes& attr) {
-  const DataType type = src.tensor_desc.GetDataType();
-  const auto& weights = GetWeights(attr, type);
+  const DataType float_type = src.tensor_desc.GetDataType();
+  Weights weights = GetWeights(attr.weights);
+
+  if (!attr.scale.empty()) {
+    weights.scale_zp_shape = attr.scale.shape;
+    weights.scale = GetWeightsScale(attr.scale, float_type);
+  }
+
+  if (!attr.zero_point.empty()) {
+    weights.zero_point = GetWeightsZeroPoint(attr.zero_point, float_type);
+  }
 
   GpuModelBuilder::TensorHandle bias_handle;
   GpuModelBuilder::TensorHandle* bias_handle_ptr = nullptr;
-  if (!attr.bias.data.empty()) {
-    bias_handle = AddConstantTensor(attr.bias, type);
+  if (!attr.bias.empty()) {
+    bias_handle = AddConstantTensor(attr.bias, float_type);
     bias_handle_ptr = &bias_handle;
   }
   return FullyConnectedInt2ExternalWeights(src, weights, bias_handle_ptr);
@@ -2125,52 +2215,6 @@ GpuModelBuilder::TensorHandle GpuModelBuilder::FullyConnected(
   }
 
   // Dequantize weights to fp32 and use fp conv 1x1.
-  FullyConnectedAttributes attr_f32 = ToFloat32(attr);
-  Convolution2DAttributes conv_attr;
-  conv_attr.op_name = attr.op_name;
-  conv_attr.weights = std::move(attr_f32.weights);
-  conv_attr.bias = std::move(attr_f32.bias);
-  conv_attr.padding.appended = HW(0, 0);
-  conv_attr.padding.prepended = HW(0, 0);
-  conv_attr.strides = HW(1, 1);
-  conv_attr.dilations = HW(1, 1);
-  return Convolution(src, conv_attr);
-}
-
-GpuModelBuilder::TensorHandle GpuModelBuilder::FullyConnected(
-    const GpuModelBuilder::TensorHandle& src,
-    const FullyConnectedInt4Attributes& attr) {
-  const BHWC src_shape = src.tensor_desc.GetBHWCShape();
-  const OHWI weights_shape =
-      std::visit([](const auto& w) { return w.shape; }, attr.weights);
-  const BHWC dst_shape(src_shape.b, src_shape.h, src_shape.w, weights_shape.o);
-  const int total_spatial_size = dst_shape.b * dst_shape.h * dst_shape.w;
-  const DataType float_type = src.tensor_desc.GetDataType();
-
-  if (total_spatial_size <=
-      GetRecommendedMaxTotalSpatialSize(
-          gpu_info_, GetConvPrecision(src.tensor_desc.GetDataType()))) {
-    GpuModelBuilder::TensorHandle dst = AddTensor(dst_shape, float_type);
-    gpu_model_.nodes.push_back({});
-    auto& gpu_node = gpu_model_.nodes.back();
-    gpu_node.name = "fully_connected_int4";
-    gpu_node.op_name = absl::StrCat(attr.op_name, "_fully_connected_int4");
-    gpu_node.inputs = {src.id};
-    gpu_node.outputs = {dst.id};
-    OperationDef op_def;
-    op_def.src_tensors.push_back(src.tensor_desc);
-    op_def.dst_tensors.push_back(dst.tensor_desc);
-    ml_drift::FullyConnected fc = CreateFullyConnected(
-        gpu_info_, op_def, GetConvPrecision(src.tensor_desc.GetDataType()),
-        attr, &dst_shape);
-    gpu_node.gpu_operation =
-        std::make_unique<ml_drift::FullyConnected>(std::move(fc));
-    gpu_node.gpu_operation->flops_ =
-        GetConvolutionFlops(dst_shape, weights_shape);
-    return dst;
-  }
-
-  // Dequantize weights to float32 and use fp conv 1x1.
   FullyConnectedAttributes attr_f32 = ToFloat32(attr);
   Convolution2DAttributes conv_attr;
   conv_attr.op_name = attr.op_name;

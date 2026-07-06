@@ -597,8 +597,15 @@ class GpuModelBuilder {
       const ConvRuntimeCheckDesc& runtime_check = {},
       const TensorHandle* runtime_check_tensor = nullptr);
 
-  Weights GetWeights(const FullyConnectedInt2Attributes& attr,
-                     DataType float_type);
+  Weights GetWeights(const std::variant<Tensor<OHWI, DataType::INT8>,
+                                        Tensor<OHWI, DataType::INT2>>& weights);
+  Weights GetWeights(const std::variant<Tensor<OHWI, DataType::INT8>,
+                                        Tensor<OHWI, DataType::INT4>>& weights);
+
+  TensorHandle GetWeightsScale(const Tensor<OHWI, DataType::FLOAT32>& scale,
+                               DataType float_type);
+  TensorHandle GetWeightsZeroPoint(
+      const Tensor<OHWI, DataType::INT32>& zero_point, DataType float_type);
 
   // returns 2 tensors: quantized and params(min/max/sum)
   std::vector<TensorHandle> Quantize(const TensorHandle& src,

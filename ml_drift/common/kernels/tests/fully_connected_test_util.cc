@@ -1254,14 +1254,39 @@ absl::Status FullyConnectedInt4Test(
   attr.bias = biases;
   TensorFloat32 dst_ref_tensor = FullyConnectedReference(attr, src_tensor);
 
-  auto operation = CreateFullyConnectedInt4(
-      exec_env.GetGpuInfo(), op_def, precision, weights_i4, weights_scale,
-      weights_zero_point, biases, &dst_ref_tensor.shape);
-  float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr);
-  TensorFloat32 dst_tensor;
+  DataType type = op_def.src_tensors[0].GetDataType();
+  auto scale_desc = ScaleOrZeroPointToFCTensorDesc(exec_env.GetGpuInfo(),
+                                                   weights_scale, type);
+  TensorDescriptor bias_td =
+      CreateConstantLinearTensorDescriptor(exec_env.GetGpuInfo(), type, biases);
+
+  WeightsDescription weights_desc =
+      GetFullyConnectedInt4WeightsDesc(exec_env.GetGpuInfo(), weights_i4.shape);
+  TensorDescriptor weights_i4_td =
+      GetTensorDescriptorForWeightsLayout(weights_i4, weights_desc);
+
+  ExternalWeights external_weights;
+  external_weights.desc = weights_desc;
+  external_weights.shape = weights_i4.shape;
+  external_weights.scale_zp_shape = weights_scale.shape;
+  external_weights.scale = &scale_desc;
+  ASSIGN_OR_RETURN(auto operation,
+                   CreateFullyConnectedExternalWeights(
+                       exec_env.GetGpuInfo(), precision, op_def.src_tensors[0],
+                       op_def.dst_tensors[0], external_weights, &bias_td,
+                       &dst_ref_tensor.shape));
+
+  TensorDescriptor src_td = op_def.src_tensors[0];
+  src_td.UploadData(src_tensor);
+  TensorDescriptor dst_td = op_def.dst_tensors[0];
+  dst_td.SetBHWCShape(dst_ref_tensor.shape);
   RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
-      src_tensor, std::make_unique<FullyConnected>(std::move(operation)),
-      dst_ref_tensor.shape, &dst_tensor));
+      {&src_td, &weights_i4_td, &scale_desc, &bias_td}, {&dst_td},
+      std::make_unique<FullyConnected>(std::move(operation))));
+  TensorFloat32 dst_tensor;
+  dst_td.DownloadData(&dst_tensor);
+
+  float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr);
   EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), dst_ref_tensor.data));
   return absl::OkStatus();
 }
@@ -1301,14 +1326,38 @@ absl::Status FullyConnectedInt4BlockwiseTest(TestExecutionEnvironment& env,
 
   ml_drift::Tensor<OHWI, DataType::FLOAT32> weights_zero_point;  // empty
 
-  auto operation = CreateFullyConnectedInt4(
-      env.GetGpuInfo(), op_def, precision, weights_i4, weights_scales,
-      weights_zero_point, biases, nullptr);
+  DataType type = op_def.src_tensors[0].GetDataType();
+  auto scale_desc =
+      ScaleOrZeroPointToFCTensorDesc(env.GetGpuInfo(), weights_scales, type);
+  TensorDescriptor bias_td =
+      CreateConstantLinearTensorDescriptor(env.GetGpuInfo(), type, biases);
+
+  WeightsDescription weights_desc =
+      GetFullyConnectedInt4WeightsDesc(env.GetGpuInfo(), weights_i4.shape);
+  TensorDescriptor weights_i4_td =
+      GetTensorDescriptorForWeightsLayout(weights_i4, weights_desc);
+
+  ExternalWeights external_weights;
+  external_weights.desc = weights_desc;
+  external_weights.shape = weights_i4.shape;
+  external_weights.scale_zp_shape = weights_scales.shape;
+  external_weights.scale = &scale_desc;
+  ASSIGN_OR_RETURN(auto operation,
+                   CreateFullyConnectedExternalWeights(
+                       env.GetGpuInfo(), precision, op_def.src_tensors[0],
+                       op_def.dst_tensors[0], external_weights, &bias_td,
+                       /*dst_shape_ptr=*/nullptr));
+
+  TensorDescriptor src_td = op_def.src_tensors[0];
+  src_td.UploadData(src_tensor);
+  TensorDescriptor dst_td = op_def.dst_tensors[0];
+  dst_td.SetBHWCShape(BHWC(1, 1, 1, dst_channels));
+  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+      {&src_td, &weights_i4_td, &scale_desc, &bias_td}, {&dst_td},
+      std::make_unique<FullyConnected>(std::move(operation))));
 
   TensorFloat32 dst_tensor;
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
-      src_tensor, std::make_unique<FullyConnected>(std::move(operation)),
-      BHWC(1, 1, 1, dst_channels), &dst_tensor));
+  dst_td.DownloadData(&dst_tensor);
 
   float eps = precision == CalculationsPrecision::F32 ? 1e-6f : 1e-2f;
   std::vector<float> expected(dst_channels, 8.0f);
