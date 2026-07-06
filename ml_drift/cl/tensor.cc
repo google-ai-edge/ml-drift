@@ -269,9 +269,12 @@ absl::Status CreateImage2DFromBuffer(const CLContext& context, cl_mem memory,
   format.image_channel_order = ToChannelOrder(channels);
   format.image_channel_data_type = DataTypeToChannelType(data_type);
 
+  ASSIGN_OR_RETURN(cl_mem_flags parent_flags, GetCLMemObjectFlags(memory));
+  const bool read_only = parent_flags & CL_MEM_READ_ONLY;
+  cl_mem_flags flags = read_only ? CL_MEM_READ_ONLY : CL_MEM_READ_WRITE;
   cl_int error_code;
-  *result = CreateImage2DLegacy(context.context(), CL_MEM_READ_WRITE, &format,
-                                &image_desc, nullptr, &error_code);
+  *result = CreateImage2DLegacy(context.context(), flags, &format, &image_desc,
+                                nullptr, &error_code);
   if (error_code != CL_SUCCESS) {
     return absl::UnknownError(
         absl::StrCat("Failed to create Image2D from Buffer (clCreateImage): ",
