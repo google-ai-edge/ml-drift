@@ -331,15 +331,16 @@ Tensor::Tensor(cl_mem memory, bool memory_owner,
                const TensorDescriptor& tensor_desc)
     : memory_(memory),
       image_buffer_memory_(nullptr),
-      memory_owner_(memory_owner),
-      tensor_desc_(tensor_desc) {}
+      memory_owner_(memory_owner) {
+  tensor_desc.CopyWithoutData(&tensor_desc_);
+}
 
 Tensor::Tensor(cl_mem memory, bool memory_owner, cl_mem image_buffer_memory,
                const TensorDescriptor& tensor_desc)
     : memory_(memory),
       image_buffer_memory_(image_buffer_memory),
-      memory_owner_(memory_owner),
-      tensor_desc_(tensor_desc) {
+      memory_owner_(memory_owner) {
+  tensor_desc.CopyWithoutData(&tensor_desc_);
   if (image_buffer_memory &&
       (tensor_desc.GetStorageType() == TensorStorageType::TEXTURE_2D ||
        tensor_desc.GetStorageType() == TensorStorageType::SINGLE_TEXTURE_2D)) {
