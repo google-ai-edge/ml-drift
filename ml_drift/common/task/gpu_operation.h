@@ -333,6 +333,8 @@ struct ExternalWeights {
   OHWI scale_zp_shape = OHWI(1, 1, 1, 1);
   const TensorDescriptor* scale = nullptr;
   const TensorDescriptor* zero_point = nullptr;
+  std::optional<float> scalar_scale = std::nullopt;
+  std::optional<float> scalar_zero_point = std::nullopt;
 };
 
 // A struct to allow runtime-configurable channel bounds with conv or

@@ -178,29 +178,52 @@ absl::Status FullyConnectedInt8Test(TestExecutionEnvironment& env,
   src_tensor.shape = BHWC(1, 1, 1, 4);
   src_tensor.data = {0.0f, 1.0f, 2.0f, 3.0f};
 
-  FullyConnectedInt8Attributes attr;
-  attr.weights.shape = OHWI(2, 1, 1, 4);
-  attr.weights.data = {2,  4,  6,   8,  //
-                       10, 12, -14, 16};
-  attr.bias.shape = Linear(2);
-  attr.bias.data = {0.5f, -0.5f};
-  attr.scale.shape = OHWI(1, 1, 1, 1);
-  attr.scale.data.resize(1, 0.5f);
-  attr.zero_point.shape = OHWI(1, 1, 1, 1);
-  attr.zero_point.data.resize(1, 0);
+  Tensor<OHWI, DataType::INT8> weights_i8;
+  weights_i8.shape = OHWI(2, 1, 1, 4);
+  weights_i8.data = {2, 4, 6, 8, 10, 12, -14, 16};
+  Tensor<Linear, DataType::FLOAT32> biases;
+  biases.shape = Linear(2);
+  biases.data = {0.5f, -0.5f};
 
-  const float eps = precision == CalculationsPrecision::F32 ? 1e-6f : 1e-3f;
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  TensorFloat32 dst_tensor;
-  FullyConnected operation =
-      CreateFullyConnected(env.GetGpuInfo(), op_def, precision, attr);
+
+  DataType type = op_def.src_tensors[0].GetDataType();
+  TensorDescriptor bias_td =
+      CreateConstantLinearTensorDescriptor(env.GetGpuInfo(), type, biases);
+
+  WeightsDescription weights_desc =
+      GetFullyConnectedInt8WeightsDesc(env.GetGpuInfo(), weights_i8.shape);
+  TensorDescriptor weights_i8_td =
+      GetTensorDescriptorForWeightsLayout(weights_i8, weights_desc);
+
+  ExternalWeights external_weights;
+  external_weights.desc = weights_desc;
+  external_weights.shape = weights_i8.shape;
+  external_weights.scale_zp_shape = OHWI(1, 1, 1, 1);
+  external_weights.scalar_scale = 0.5f;
+  ASSIGN_OR_RETURN(auto operation,
+                   CreateFullyConnectedExternalWeights(
+                       env.GetGpuInfo(), precision, op_def.src_tensors[0],
+                       op_def.dst_tensors[0], external_weights, &bias_td,
+                       /*dst_shape_ptr=*/nullptr));
+
+  TensorDescriptor src_td = op_def.src_tensors[0];
+  src_td.UploadData(src_tensor);
+  TensorDescriptor dst_td = op_def.dst_tensors[0];
+  dst_td.SetBHWCShape(BHWC(1, 1, 1, 2));
   RETURN_IF_ERROR(env.ExecuteGPUOperation(
-      src_tensor, std::make_unique<FullyConnected>(std::move(operation)),
-      BHWC(1, 1, 1, 2), &dst_tensor));
+      {&src_td, &weights_i8_td, &bias_td}, {&dst_td},
+      std::make_unique<FullyConnected>(std::move(operation))));
+
+  TensorFloat32 dst_tensor;
+  dst_td.DownloadData(&dst_tensor);
+
+  const float eps = precision == CalculationsPrecision::F32 ? 1e-6f : 1e-3f;
   EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), {20.5f, 15.5f}));
+
   return absl::OkStatus();
 }
 
@@ -211,33 +234,57 @@ absl::Status FullyConnectedInt8BlockwiseAttributesTest(
   src_tensor.shape = BHWC(1, 1, 1, 8);
   src_tensor.data = {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f};
 
-  FullyConnectedInt8Attributes attr;
-  attr.weights.shape = OHWI(2, 1, 1, 8);
-  attr.weights.data = {1, 1, 1, 1, 2, 2, 2, 2,   // output 0
-                       3, 3, 3, 3, 4, 4, 4, 4};  // output 1
-  attr.bias.shape = Linear(2);
-  attr.bias.data = {0.0f, 0.0f};
+  Tensor<OHWI, DataType::INT8> weights_i8;
+  weights_i8.shape = OHWI(2, 1, 1, 8);
+  weights_i8.data = {1, 1, 1, 1, 2, 2, 2, 2,   // output 0
+                     3, 3, 3, 3, 4, 4, 4, 4};  // output 1
+  Tensor<Linear, DataType::FLOAT32> biases;
+  biases.shape = Linear(2);
+  biases.data = {0.0f, 0.0f};
 
+  Tensor<OHWI, DataType::FLOAT32> scale;
   // 2 blocks per output channel, scale shape is (2, 1, 1, 2)
-  attr.scale.shape = OHWI(2, 1, 1, 2);
-  attr.scale.data = {
-      0.5f, 2.0f,   // output 0: block 0 scale=0.5, block 1 scale=2.0
-      1.0f, 0.1f};  // output 1: block 0 scale=1.0, block 1 scale=0.1
-
-  const float eps = precision == CalculationsPrecision::F32 ? 1e-5f : 0.05f;
+  scale.shape = OHWI(2, 1, 1, 2);
+  scale.data = {0.5f, 2.0f,   // output 0: block 0 scale=0.5, block 1 scale=2.0
+                1.0f, 0.1f};  // output 1: block 0 scale=1.0, block 1 scale=0.1
 
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
 
-  FullyConnected operation =
-      CreateFullyConnected(env.GetGpuInfo(), op_def, precision, attr);
+  DataType type = op_def.src_tensors[0].GetDataType();
+  auto scale_desc =
+      ScaleOrZeroPointToFCTensorDesc(env.GetGpuInfo(), scale, type);
+  TensorDescriptor bias_td =
+      CreateConstantLinearTensorDescriptor(env.GetGpuInfo(), type, biases);
+
+  WeightsDescription weights_desc =
+      GetFullyConnectedInt8WeightsDesc(env.GetGpuInfo(), weights_i8.shape);
+  TensorDescriptor weights_i8_td =
+      GetTensorDescriptorForWeightsLayout(weights_i8, weights_desc);
+
+  ExternalWeights external_weights;
+  external_weights.desc = weights_desc;
+  external_weights.shape = weights_i8.shape;
+  external_weights.scale_zp_shape = scale.shape;
+  external_weights.scale = &scale_desc;
+  ASSIGN_OR_RETURN(auto operation,
+                   CreateFullyConnectedExternalWeights(
+                       env.GetGpuInfo(), precision, op_def.src_tensors[0],
+                       op_def.dst_tensors[0], external_weights, &bias_td,
+                       /*dst_shape_ptr=*/nullptr));
+
+  TensorDescriptor src_td = op_def.src_tensors[0];
+  src_td.UploadData(src_tensor);
+  TensorDescriptor dst_td = op_def.dst_tensors[0];
+  dst_td.SetBHWCShape(BHWC(1, 1, 1, 2));
+  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+      {&src_td, &weights_i8_td, &scale_desc, &bias_td}, {&dst_td},
+      std::make_unique<FullyConnected>(std::move(operation))));
 
   TensorFloat32 dst_tensor;
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
-      src_tensor, std::make_unique<FullyConnected>(std::move(operation)),
-      BHWC(1, 1, 1, 2), &dst_tensor));
+  dst_td.DownloadData(&dst_tensor);
 
   // Output 0, Block 0: (0*1 + 1*1 + 2*1 + 3*1) * 0.5 = 6 * 0.5 = 3
   // Output 0, Block 1: (4*2 + 5*2 + 6*2 + 7*2) * 2.0 = 44 * 2.0 = 88
@@ -246,7 +293,9 @@ absl::Status FullyConnectedInt8BlockwiseAttributesTest(
   // Output 1, Block 1: (4*4 + 5*4 + 6*4 + 7*4) * 0.1 = 88 * 0.1 = 8.8
   // Output 1 total: 18 + 8.8 = 26.8
 
+  const float eps = precision == CalculationsPrecision::F32 ? 1e-5f : 0.05f;
   EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), {91.0f, 26.8f}));
+
   return absl::OkStatus();
 }
 
@@ -257,40 +306,70 @@ absl::Status FullyConnectedInt8BlockwiseAttributesWithZeroPointsTest(
   src_tensor.shape = BHWC(1, 1, 1, 8);
   src_tensor.data = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
 
-  FullyConnectedInt8Attributes attr;
-  attr.weights.shape = OHWI(2, 1, 1, 8);
-  attr.weights.data = {1,  2,  3,  4,  5,  6,  7,  8,    // output 0
-                       -8, -7, -6, -5, -4, -3, -2, -1};  // output 1
-  attr.bias.shape = Linear(2);
-  attr.bias.data = {0.0f, 0.0f};
+  Tensor<OHWI, DataType::INT8> weights_i8;
+  weights_i8.shape = OHWI(2, 1, 1, 8);
+  weights_i8.data = {1,  2,  3,  4,  5,  6,  7,  8,    // output 0
+                     -8, -7, -6, -5, -4, -3, -2, -1};  // output 1
+  Tensor<Linear, DataType::FLOAT32> biases;
+  biases.shape = Linear(2);
+  biases.data = {0.0f, 0.0f};
 
+  Tensor<OHWI, DataType::FLOAT32> scale;
   // 2 blocks per output channel, scale shape is (2, 1, 1, 2)
-  attr.scale.shape = OHWI(2, 1, 1, 2);
-  attr.scale.data = {
-      0.5f, 2.0f,   // output 0: block 0 scale=0.5, block 1 scale=2.0
-      1.5f, 0.1f};  // output 1: block 0 scale=1.5, block 1 scale=0.1
+  scale.shape = OHWI(2, 1, 1, 2);
+  scale.data = {0.5f, 2.0f,   // output 0: block 0 scale=0.5, block 1 scale=2.0
+                1.5f, 0.1f};  // output 1: block 0 scale=1.5, block 1 scale=0.1
 
+  Tensor<OHWI, DataType::FLOAT32> zero_point;
   // 2 blocks per output channel, zero_point shape is (2, 1, 1, 2)
-  attr.zero_point.shape = OHWI(2, 1, 1, 2);
-  attr.zero_point.data = {2, -3,  // output 0: block 0 zp=2, block 1 zp=-3
-                          1, 4};  // output 1: block 0 zp=1, block 1 zp=4
-
-  const float eps = precision == CalculationsPrecision::F32 ? 1e-5f : 0.1f;
+  zero_point.shape = OHWI(2, 1, 1, 2);
+  zero_point.data = {2, -3,  // output 0: block 0 zp=2, block 1 zp=-3
+                     1, 4};  // output 1: block 0 zp=1, block 1 zp=4
 
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
 
-  FullyConnected operation =
-      CreateFullyConnected(env.GetGpuInfo(), op_def, precision, attr);
+  DataType type = op_def.src_tensors[0].GetDataType();
+  auto scale_desc =
+      ScaleOrZeroPointToFCTensorDesc(env.GetGpuInfo(), scale, type);
+  auto zero_point_desc =
+      ScaleOrZeroPointToFCTensorDesc(env.GetGpuInfo(), zero_point, type);
+  TensorDescriptor bias_td =
+      CreateConstantLinearTensorDescriptor(env.GetGpuInfo(), type, biases);
+
+  WeightsDescription weights_desc =
+      GetFullyConnectedInt8WeightsDesc(env.GetGpuInfo(), weights_i8.shape);
+  TensorDescriptor weights_i8_td =
+      GetTensorDescriptorForWeightsLayout(weights_i8, weights_desc);
+
+  ExternalWeights external_weights;
+  external_weights.desc = weights_desc;
+  external_weights.shape = weights_i8.shape;
+  external_weights.scale_zp_shape = scale.shape;
+  external_weights.scale = &scale_desc;
+  external_weights.zero_point = &zero_point_desc;
+  ASSIGN_OR_RETURN(auto operation,
+                   CreateFullyConnectedExternalWeights(
+                       env.GetGpuInfo(), precision, op_def.src_tensors[0],
+                       op_def.dst_tensors[0], external_weights, &bias_td,
+                       /*dst_shape_ptr=*/nullptr));
+
+  TensorDescriptor src_td = op_def.src_tensors[0];
+  src_td.UploadData(src_tensor);
+  TensorDescriptor dst_td = op_def.dst_tensors[0];
+  dst_td.SetBHWCShape(BHWC(1, 1, 1, 2));
+  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+      {&src_td, &weights_i8_td, &scale_desc, &zero_point_desc, &bias_td},
+      {&dst_td}, std::make_unique<FullyConnected>(std::move(operation))));
 
   TensorFloat32 dst_tensor;
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
-      src_tensor, std::make_unique<FullyConnected>(std::move(operation)),
-      BHWC(1, 1, 1, 2), &dst_tensor));
+  dst_td.DownloadData(&dst_tensor);
 
+  const float eps = precision == CalculationsPrecision::F32 ? 1e-5f : 0.1f;
   EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), {509.0f, -121.4f}));
+
   return absl::OkStatus();
 }
 

@@ -847,8 +847,17 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
            std::to_string(GetRangeShift(conv_params_.weights_type)) +
            ") + weight_zero_point);\n";
     } else if (IsScalarQuantized(conv_params_)) {
-      c += "  Type weight_scale = ucl::Init<Type>(args.q0);\n";
-      c += "  Type weight_bias = ucl::Init<Type>(args.q1);\n";
+      c += "  Type weight_scale = "
+           "ucl::Convert<Type>(ucl::Init<float4>(args.scale));\n";
+      if (conv_params_.has_zero_point) {
+        c += "  Type weight_zero_point = "
+             "ucl::Convert<Type>(ucl::Init<float4>(args.zero_point));\n";
+      } else {
+        c += "  Type weight_zero_point = ucl::Init<Type>(0.0f);\n";
+      }
+      c += "  Type weight_bias = -weight_scale * (ucl::Init<Type>(" +
+           std::to_string(GetRangeShift(conv_params_.weights_type)) +
+           ") + weight_zero_point);\n";
     }
   }
   const std::string start_slice = wg_reduction_ ? "tid.y" : "0";
@@ -1116,9 +1125,13 @@ void FullyConnected::AddWeightsArguments(const ExternalWeights& weights) {
 
   if (weights.scale) {
     AddSrcTensor("weights_scale", *weights.scale);
+  } else if (weights.scalar_scale.has_value()) {
+    args_.AddFloat("scale", *weights.scalar_scale);
   }
   if (weights.zero_point) {
     AddSrcTensor("weights_zero_point", *weights.zero_point);
+  } else if (weights.scalar_zero_point.has_value()) {
+    args_.AddFloat("zero_point", *weights.scalar_zero_point);
   }
 }
 
@@ -1304,7 +1317,8 @@ absl::StatusOr<FullyConnected> CreateFullyConnectedExternalWeights(
   conv_params.batched_weights = weights_shape.h != 1;
   conv_params.softmax_input_activation = src_exp != nullptr;
   conv_params.has_bias = bias != nullptr;
-  conv_params.has_zero_point = weights.zero_point != nullptr;
+  conv_params.has_zero_point =
+      weights.zero_point != nullptr || weights.scalar_zero_point.has_value();
   conv_params.runtime_check = runtime_check;
   conv_params.block_size =
       GetBlockSize(dst_shape_ptr, conv_params.batched_weights);
@@ -1358,7 +1372,8 @@ absl::StatusOr<FullyConnected> CreateFullyConnectedWeightsBatchIds(
   }
   conv_params.batched_weights = weights_shape.h != 1;
   conv_params.has_bias = bias != nullptr;
-  conv_params.has_zero_point = weights.zero_point != nullptr;
+  conv_params.has_zero_point =
+      weights.zero_point != nullptr || weights.scalar_zero_point.has_value();
   conv_params.runtime_batch_ids = true;
   conv_params.block_size =
       GetBlockSize(dst_shape_ptr, conv_params.batched_weights);
@@ -1408,8 +1423,8 @@ FullyConnected CreateFullyConnected(const GpuInfo& gpu_info,
   if (attr.scale.shape.DimensionsProduct() == 1) {  // tensor-wise
     const float scale = attr.scale.Data()[0];
     const int zp = attr.zero_point.Data()[0];
-    result.args_.AddFloat("q0", scale, src_type);
-    result.args_.AddFloat("q1", -scale * (128.0f + zp), src_type);
+    result.args_.AddFloat("scale", scale);
+    result.args_.AddFloat("zero_point", zp);
   } else if (attr.scale.shape.i == 1) {  // channel-wise
     Tensor<OHWI, DataType::FLOAT32> scale;
     scale.shape = OHWI(attr.scale.shape.o, 1, 1, 1);
