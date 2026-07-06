@@ -540,6 +540,26 @@ uint64_t InferenceContext::GetConstantTensorsSize() const {
   return total_size + memory_manager_.GetConstantTensorsSize();
 }
 
+API_AVAILABLE(ios(18.0), macos(15.0))
+void InferenceContext::AddConstantsToResidencySet(id<MTLResidencySet> residency_set) const {
+  memory_manager_.AddConstantsToResidencySet(residency_set);
+}
+
+API_AVAILABLE(ios(18.0), macos(15.0))
+void InferenceContext::AddIntermediatesToResidencySet(id<MTLResidencySet> residency_set) const {
+  memory_manager_.AddIntermediatesToResidencySet(residency_set);
+}
+
+API_AVAILABLE(ios(18.0), macos(15.0))
+void InferenceContext::AddExternalImmutableToResidencySet(id<MTLResidencySet> residency_set) const {
+  memory_manager_.AddExternalImmutableToResidencySet(residency_set);
+}
+
+API_AVAILABLE(ios(18.0), macos(15.0))
+void InferenceContext::AddExternalMutableToResidencySet(id<MTLResidencySet> residency_set) const {
+  memory_manager_.AddExternalMutableToResidencySet(residency_set);
+}
+
 void InferenceContext::EncodeWithCommandBuffer(
     id<MTLCommandBuffer> command_buffer, int tasks_per_encoder) {
   const int encoders_count = DivideRoundUp(nodes_.size(), tasks_per_encoder);

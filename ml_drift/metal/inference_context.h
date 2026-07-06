@@ -125,6 +125,17 @@ class InferenceContext {
   uint64_t GetIntermediateTensorsSize() const;
   uint64_t GetConstantTensorsSize() const;
 
+  API_AVAILABLE(ios(18.0), macos(15.0))
+  void AddConstantsToResidencySet(id<MTLResidencySet> residency_set) const;
+  API_AVAILABLE(ios(18.0), macos(15.0))
+  void AddIntermediatesToResidencySet(id<MTLResidencySet> residency_set) const;
+  API_AVAILABLE(ios(18.0), macos(15.0))
+  void AddExternalImmutableToResidencySet(
+      id<MTLResidencySet> residency_set) const;
+  API_AVAILABLE(ios(18.0), macos(15.0))
+  void AddExternalMutableToResidencySet(
+      id<MTLResidencySet> residency_set) const;
+
   // Can be used only with ids from external_mutable_tensors in create_info
   // Must be called after initialization and before execution
   absl::Status SetTensor(const ValueId& tensor_id,

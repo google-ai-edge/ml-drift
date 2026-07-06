@@ -57,6 +57,28 @@ class MemoryManager {
   uint64_t GetIntermediateTensorsSize() const;
   uint64_t GetConstantTensorsSize() const;
 
+  // Adds allocated internal constant GPU resources to the given residency set.
+  // The residency_set parameter must be of type id<MTLResidencySet>.
+  API_AVAILABLE(ios(18.0), macos(15.0))
+  void AddConstantsToResidencySet(id<MTLResidencySet> residency_set) const;
+
+  // Adds allocated intermediate GPU resources to the given residency set.
+  // The residency_set parameter must be of type id<MTLResidencySet>.
+  API_AVAILABLE(ios(18.0), macos(15.0))
+  void AddIntermediatesToResidencySet(id<MTLResidencySet> residency_set) const;
+
+  // Adds allocated external immutable GPU resources to the given residency set.
+  // The residency_set parameter must be of type id<MTLResidencySet>.
+  API_AVAILABLE(ios(18.0), macos(15.0))
+  void AddExternalImmutableToResidencySet(
+      id<MTLResidencySet> residency_set) const;
+
+  // Adds allocated external mutable GPU resources to the given residency set.
+  // The residency_set parameter must be of type id<MTLResidencySet>.
+  API_AVAILABLE(ios(18.0), macos(15.0))
+  void AddExternalMutableToResidencySet(
+      id<MTLResidencySet> residency_set) const;
+
  private:
   enum class TensorMemoryType {
     kStrongShape,

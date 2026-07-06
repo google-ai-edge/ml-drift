@@ -314,6 +314,7 @@ objc_library(
         ":converter_test.mm",
         ":metal_spatial_tensor_test.mm",
         ":metal_weights_manager_test.mm",
+        ":residency_test.mm",
     ],
     hdrs = [
     ],
@@ -323,6 +324,7 @@ objc_library(
         ":converter",
         ":environment",
         ":inference_context",
+        ":memory_manager",
         ":metal_spatial_tensor",
         ":metal_weights_manager",
         "//ml_drift/common:data_type",
@@ -332,6 +334,7 @@ objc_library(
         "//ml_drift/common:model",
         "//ml_drift/common:precision",
         "//ml_drift/common:shape",
+        "//ml_drift/common:status",
         "//ml_drift/common:tensor",
         "//ml_drift/common:types",
         "//ml_drift/common/task:tensor_desc",

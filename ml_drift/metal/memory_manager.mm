@@ -491,5 +491,71 @@ absl::Status MemoryManager::SetExternalTensor(const Key& key, MetalSpatialTensor
   return absl::OkStatus();
 }
 
+API_AVAILABLE(ios(18.0), macos(15.0))
+void MemoryManager::AddConstantsToResidencySet(id<MTLResidencySet> residency_set) const {
+  if (residency_set == nil) return;
+
+  for (const auto& [key, tensor] : const_tensors_) {
+    if (tensor.GetBufferHandle() != nil) {
+      [residency_set addAllocation:tensor.GetBufferHandle()];
+    }
+    if (tensor.GetTextureHandle() != nil) {
+      [residency_set addAllocation:tensor.GetTextureHandle()];
+    }
+  }
+}
+
+API_AVAILABLE(ios(18.0), macos(15.0))
+void MemoryManager::AddIntermediatesToResidencySet(id<MTLResidencySet> residency_set) const {
+  if (residency_set == nil) return;
+
+  for (const auto& buffer : shared_buffers_) {
+    if (buffer->GetMemoryPtr() != nil) {
+      [residency_set addAllocation:buffer->GetMemoryPtr()];
+    }
+  }
+
+  for (const auto& tensor : shared_texture_tensors_) {
+    if (tensor->GetTextureHandle() != nil) {
+      [residency_set addAllocation:tensor->GetTextureHandle()];
+    }
+    if (tensor->GetBufferHandle() != nil) {
+      [residency_set addAllocation:tensor->GetBufferHandle()];
+    }
+  }
+}
+
+API_AVAILABLE(ios(18.0), macos(15.0))
+void MemoryManager::AddExternalImmutableToResidencySet(id<MTLResidencySet> residency_set) const {
+  if (residency_set == nil) return;
+
+  for (const auto& [key, tensor] : external_immutable_tensors_) {
+    if (tensor != nullptr) {
+      if (tensor->GetBufferHandle() != nil) {
+        [residency_set addAllocation:tensor->GetBufferHandle()];
+      }
+      if (tensor->GetTextureHandle() != nil) {
+        [residency_set addAllocation:tensor->GetTextureHandle()];
+      }
+    }
+  }
+}
+
+API_AVAILABLE(ios(18.0), macos(15.0))
+void MemoryManager::AddExternalMutableToResidencySet(id<MTLResidencySet> residency_set) const {
+  if (residency_set == nil) return;
+
+  for (const auto& [key, tensor] : external_mutable_tensors_) {
+    if (tensor != nullptr) {
+      if (tensor->GetBufferHandle() != nil) {
+        [residency_set addAllocation:tensor->GetBufferHandle()];
+      }
+      if (tensor->GetTextureHandle() != nil) {
+        [residency_set addAllocation:tensor->GetTextureHandle()];
+      }
+    }
+  }
+}
+
 }  // namespace metal
 }  // namespace ml_drift
