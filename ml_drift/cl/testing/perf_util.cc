@@ -1777,6 +1777,7 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision,
                                     DataType weights_type,
                                     const BHWC& src_shape, int dst_channels,
                                     OHWI scale_zp_shape) {
+  const bool use_zero_point = false;
   ml_drift::Tensor<OHWI, DataType::FLOAT32> weights;
   weights.shape = OHWI(dst_channels, scale_zp_shape.h, 1, src_shape.c);
   weights.data.resize(weights.shape.DimensionsProduct() +
@@ -1900,7 +1901,9 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision,
   if (is_qunatized) {
     external_weights.scale_zp_shape = scale_zp_shape;
     external_weights.scale = &scale_desc;
-    external_weights.zero_point = &zp_desc;
+    if (use_zero_point) {
+      external_weights.zero_point = &zp_desc;
+    }
   }
 
   ASSIGN_OR_RETURN(
@@ -1923,12 +1926,22 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision,
   }
   if (is_qunatized) {
     RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &scale_tensor));
-    RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &zp_tensor));
+    if (use_zero_point) {
+      RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &zp_tensor));
+    }
   }
   RETURN_IF_ERROR(cl_op.SetDstTensor(0, &dst));
   RETURN_IF_ERROR(cl_op.UpdateParams());
   RETURN_IF_ERROR(cl_op.Tune(TuningType::kExhaustive, env.device().GetInfo(),
                              env.profiling_queue()));
+
+  double gbytes_read = src_gbytes + weight_gbytes;
+  if (is_qunatized) {
+    gbytes_read += scale_gbytes;
+    if (use_zero_point) {
+      gbytes_read += scale_gbytes;
+    }
+  }
 
   absl::Duration min_duration = absl::InfiniteDuration();
   for (int i = 0; i < 10; ++i) {
@@ -1938,11 +1951,6 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision,
     double time_ms = absl::ToDoubleMilliseconds(duration);
     const double fps = 1000.0 / time_ms;
     const double gflops_real = fps * gflops_count;
-    double gbytes_read = src_gbytes + weight_gbytes;
-    if (weights_type != DataType::FLOAT16 &&
-        weights_type != DataType::FLOAT32) {
-      gbytes_read += scale_gbytes * 2.0;
-    }
     double gbs_read = fps * gbytes_read;
     const double gbs_write = fps * dst_gbytes;
     std::cout << std::fixed << std::setprecision(4) << " Time - " << time_ms
@@ -1963,11 +1971,21 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision,
     inferences = AlignByN(inferences, kMultiplier);
     std::vector<Tensor> weights_tensors_multiple(weights_gpu.size() *
                                                  kMultiplier);
+    std::vector<Tensor> scale_tensors_multiple(kMultiplier);
+    std::vector<Tensor> zp_tensors_multiple(kMultiplier);
     for (int k = 0; k < kMultiplier; ++k) {
       for (int i = 0; i < weights_gpu.size(); ++i) {
-        RETURN_IF_ERROR(
-            CreateTensor(env.context(), weights_gpu[i],
-                         &weights_tensors_multiple[i * kMultiplier + k]));
+        RETURN_IF_ERROR(CreateTensor(
+            env.context(), weights_gpu[i],
+            &weights_tensors_multiple[k * weights_gpu.size() + i]));
+      }
+      if (is_qunatized) {
+        RETURN_IF_ERROR(CreateTensor(env.context(), scale_desc,
+                                     &scale_tensors_multiple[k]));
+        if (use_zero_point) {
+          RETURN_IF_ERROR(
+              CreateTensor(env.context(), zp_desc, &zp_tensors_multiple[k]));
+        }
       }
     }
     std::cout << "Weight total size: " << weight_gbytes * kMultiplier * 1024.0
@@ -1975,10 +1993,20 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision,
     for (int i = 0; i < 10; ++i) {
       const auto start = absl::Now();
       for (int j = 0; j < inferences; ++j) {
+        int w_id = j % kMultiplier;
+        int index = 1;
         for (int k = 0; k < weights_gpu.size(); ++k) {
           RETURN_IF_ERROR(cl_op.SetSrcTensor(
-              k + 1,
-              &weights_tensors_multiple[k * kMultiplier + j % kMultiplier]));
+              index++,
+              &weights_tensors_multiple[w_id * weights_gpu.size() + k]));
+        }
+        if (is_qunatized) {
+          RETURN_IF_ERROR(
+              cl_op.SetSrcTensor(index++, &scale_tensors_multiple[w_id]));
+          if (use_zero_point) {
+            RETURN_IF_ERROR(
+                cl_op.SetSrcTensor(index++, &zp_tensors_multiple[w_id]));
+          }
         }
         RETURN_IF_ERROR(cl_op.UpdateParams());
         RETURN_IF_ERROR(cl_op.AddToQueue(env.queue()));
@@ -1990,11 +2018,6 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision,
           inferences * 1e-6;
       const double fps = 1000.0 / time_ms;
       const double gflops_real = fps * gflops_count;
-      double gbytes_read = src_gbytes + weight_gbytes;
-      if (weights_type != DataType::FLOAT16 &&
-          weights_type != DataType::FLOAT32) {
-        gbytes_read += scale_gbytes * 2.0;
-      }
       double gbs_read = fps * gbytes_read;
       const double gbs_write = fps * dst_gbytes;
       std::cout << std::fixed << std::setprecision(4) << " Time - " << time_ms
@@ -2011,6 +2034,7 @@ absl::Status FullyConnectedWeightsBatchIdsPerfTest(
     CalculationsPrecision precision, DataType weights_type,
     const BHWC& src_shape, int dst_channels, int batch_size,
     int active_ids_size, OHWI scale_zp_shape) {
+  const bool use_zero_point = false;
   ml_drift::Tensor<OHWI, DataType::FLOAT32> weights;
   weights.shape = OHWI(dst_channels, batch_size, 1, src_shape.c);
   weights.data.resize(weights.shape.DimensionsProduct() +
@@ -2088,8 +2112,8 @@ absl::Status FullyConnectedWeightsBatchIdsPerfTest(
   const double weight_element_size = SizeInBitsOf(weights_type) / 8.0;
   const double weight_gbytes = weights.shape.DimensionsProduct() / batch_size *
                                active_ids_size * weight_element_size / kGByte;
-  const double scale_gbytes =
-      scale_zp_shape.DimensionsProduct() * element_size / kGByte;
+  const double scale_gbytes = scale_zp_shape.DimensionsProduct() / batch_size *
+                              active_ids_size * element_size / kGByte;
 
   WeightsDescription weights_desc;
   std::vector<TensorDescriptor> weights_gpu;
@@ -2142,7 +2166,9 @@ absl::Status FullyConnectedWeightsBatchIdsPerfTest(
   if (is_qunatized) {
     external_weights.scale_zp_shape = scale_zp_shape;
     external_weights.scale = &scale_desc;
-    external_weights.zero_point = &zp_desc;
+    if (use_zero_point) {
+      external_weights.zero_point = &zp_desc;
+    }
   }
 
   ASSIGN_OR_RETURN(
@@ -2166,12 +2192,22 @@ absl::Status FullyConnectedWeightsBatchIdsPerfTest(
   }
   if (is_qunatized) {
     RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &scale_tensor));
-    RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &zp_tensor));
+    if (use_zero_point) {
+      RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &zp_tensor));
+    }
   }
   RETURN_IF_ERROR(cl_op.SetDstTensor(0, &dst));
   RETURN_IF_ERROR(cl_op.UpdateParams());
   RETURN_IF_ERROR(cl_op.Tune(TuningType::kExhaustive, env.device().GetInfo(),
                              env.profiling_queue()));
+
+  double gbytes_read = src_gbytes + weight_gbytes;
+  if (is_qunatized) {
+    gbytes_read += scale_gbytes;
+    if (use_zero_point) {
+      gbytes_read += scale_gbytes;
+    }
+  }
 
   for (int i = 0; i < 10; ++i) {
     ASSIGN_OR_RETURN(auto duration,
@@ -2180,11 +2216,6 @@ absl::Status FullyConnectedWeightsBatchIdsPerfTest(
     double time_ms = absl::ToDoubleMilliseconds(duration);
     const double fps = 1000.0 / time_ms;
     const double gflops_real = fps * gflops_count;
-    double gbytes_read = src_gbytes + weight_gbytes;
-    if (weights_type != DataType::FLOAT16 &&
-        weights_type != DataType::FLOAT32) {
-      gbytes_read += scale_gbytes * 2.0;
-    }
     double gbs_read = fps * gbytes_read;
     const double gbs_write = fps * dst_gbytes;
     std::cout << std::fixed << std::setprecision(4) << " Time - " << time_ms
