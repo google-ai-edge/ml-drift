@@ -2062,6 +2062,9 @@ GpuModelBuilder::TensorHandle GpuModelBuilder::FullyConnected(
                        attr.weights.shape.o);
   const int total_spatial_size = dst_shape.b * dst_shape.h * dst_shape.w;
   const DataType float_type = src.tensor_desc.GetDataType();
+  if (!attr.zero_point.empty()) {
+    ABSL_QCHECK_EQ(attr.scale.shape, attr.zero_point.shape);
+  }
   if (weights_manager_ && weights_manager_->ShouldOffloadPreparationToGPU(
                               gpu_info_, attr.weights.shape,
                               WeightsManager::TargetWeightsType::kStandard)) {
@@ -2075,39 +2078,14 @@ GpuModelBuilder::TensorHandle GpuModelBuilder::FullyConnected(
     weights_manager_->RegisterWeightsConversion(
         {input_weights[0].id}, weights_desc, attr.weights.shape, DataType::INT8,
         attr.weights.Data());
-    // TODO: b/378522761 - remove this copy.
-    Tensor<OHWI, DataType::FLOAT32> scale_values;
-    scale_values.data.resize(attr.scale.shape.DimensionsProduct());
-    for (int i = 0; i < attr.scale.shape.DimensionsProduct(); ++i) {
-      scale_values.data[i] =
-          attr.scale.Data()[i];  // implicit cast of int8 -> fp32
-    }
-    scale_values.shape = attr.scale.shape;
-    auto scale_desc =
-        ScaleOrZeroPointToFCTensorDesc(gpu_info_, scale_values, float_type);
-    auto scale_handle = AddConstantTensor(std::move(scale_desc));
 
-    GpuModelBuilder::TensorHandle zp_handle;
-    if (attr.zero_point.shape.i == 1) {
-      // TODO: b/378522761 - remove this copy.
-      Tensor<Linear, DataType::FLOAT32> zp_values;
-      zp_values.shape = Linear(attr.zero_point.shape.o);
-      zp_values.data.resize(attr.zero_point.shape.o);
-      for (int i = 0; i < attr.zero_point.shape.o; ++i) {
-        zp_values.data[i] = attr.zero_point.Data()[i];
-      }
-      zp_handle = AddConstantTensor(zp_values, float_type);
-    } else {
-      // TODO: b/378522761 - remove this copy.
-      Tensor<OHWI, DataType::INT32> zp_values;
-      zp_values.data.resize(attr.zero_point.shape.DimensionsProduct());
-      for (int i = 0; i < attr.zero_point.shape.DimensionsProduct(); ++i) {
-        zp_values.data[i] = attr.zero_point.Data()[i];
-      }
-      zp_values.shape = attr.zero_point.shape;
-      auto zp_desc =
-          ZeroPoint2DToFCTensorDesc(gpu_info_, zp_values, float_type);
-      zp_handle = AddConstantTensor(std::move(zp_desc));
+    auto scale_th = GetWeightsScale(attr.scale, float_type);
+
+    GpuModelBuilder::TensorHandle zp_th;
+    GpuModelBuilder::TensorHandle* zp_th_ptr = nullptr;
+    if (!attr.zero_point.empty()) {
+      zp_th = GetWeightsZeroPoint(attr.zero_point, float_type);
+      zp_th_ptr = &zp_th;
     }
 
     GpuModelBuilder::TensorHandle bias_th;
@@ -2118,7 +2096,7 @@ GpuModelBuilder::TensorHandle GpuModelBuilder::FullyConnected(
     }
     const Weights external_weights = CreateExternalWeights(
         input_weights[0], weights_desc, attr.weights.shape, attr.scale.shape,
-        &scale_handle, &zp_handle);
+        &scale_th, zp_th_ptr);
     return FullyConnectedInt8ExternalWeights(src, external_weights,
                                              bias_th_ptr);
   }
