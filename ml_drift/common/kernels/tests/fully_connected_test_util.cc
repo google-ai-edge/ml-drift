@@ -747,14 +747,39 @@ absl::Status FullyConnectedInt8Test(
   attr.bias = biases;
   TensorFloat32 dst_ref_tensor = FullyConnectedReference(attr, src_tensor);
 
-  auto operation = CreateFullyConnectedInt8(
-      exec_env.GetGpuInfo(), op_def, precision, weights_i8, weights_scale,
-      weights_zero_point, biases, &dst_ref_tensor.shape);
-  float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr);
-  TensorFloat32 dst_tensor;
+  DataType type = op_def.src_tensors[0].GetDataType();
+  auto scale_desc = ScaleOrZeroPointToFCTensorDesc(exec_env.GetGpuInfo(),
+                                                   weights_scale, type);
+  TensorDescriptor bias_td =
+      CreateConstantLinearTensorDescriptor(exec_env.GetGpuInfo(), type, biases);
+
+  WeightsDescription weights_desc =
+      GetFullyConnectedInt8WeightsDesc(exec_env.GetGpuInfo(), weights_i8.shape);
+  TensorDescriptor weights_i8_td =
+      GetTensorDescriptorForWeightsLayout(weights_i8, weights_desc);
+
+  ExternalWeights external_weights;
+  external_weights.desc = weights_desc;
+  external_weights.shape = weights_i8.shape;
+  external_weights.scale_zp_shape = weights_scale.shape;
+  external_weights.scale = &scale_desc;
+  ASSIGN_OR_RETURN(auto operation,
+                   CreateFullyConnectedExternalWeights(
+                       exec_env.GetGpuInfo(), precision, op_def.src_tensors[0],
+                       op_def.dst_tensors[0], external_weights, &bias_td,
+                       &dst_ref_tensor.shape));
+
+  TensorDescriptor src_td = op_def.src_tensors[0];
+  src_td.UploadData(src_tensor);
+  TensorDescriptor dst_td = op_def.dst_tensors[0];
+  dst_td.SetBHWCShape(dst_ref_tensor.shape);
   RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
-      src_tensor, std::make_unique<FullyConnected>(std::move(operation)),
-      dst_ref_tensor.shape, &dst_tensor));
+      {&src_td, &weights_i8_td, &scale_desc, &bias_td}, {&dst_td},
+      std::make_unique<FullyConnected>(std::move(operation))));
+  TensorFloat32 dst_tensor;
+  dst_td.DownloadData(&dst_tensor);
+
+  float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr);
   EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), dst_ref_tensor.data));
   return absl::OkStatus();
 }

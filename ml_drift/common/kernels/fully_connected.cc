@@ -15,12 +15,10 @@
 #include "ml_drift/common/kernels/fully_connected.h"
 
 #include <algorithm>
-#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <string>
 #include <utility>
-#include <variant>
 #include <vector>
 
 #include "absl/log/absl_check.h"
@@ -1516,45 +1514,6 @@ WeightsDescription GetFullyConnectedInt2WeightsDesc(const GpuInfo& gpu_info,
 bool SupportsFullyConnectedUint8Math(const GpuInfo& gpu_info) {
   return gpu_info.SupportsExtension("cl_qcom_dot_product8") ||
          gpu_info.SupportsExtension("cl_khr_integer_dot_product");
-}
-
-FullyConnected CreateFullyConnectedInt8(
-    const GpuInfo& gpu_info, const OperationDef& definition,
-    CalculationsPrecision precision,
-    const Tensor<OHWI, DataType::INT8>& weights,
-    const Tensor<OHWI, DataType::FLOAT32>& weights_scale,
-    const Tensor<OHWI, DataType::FLOAT32>& weights_zero_point,
-    const Tensor<Linear, DataType::FLOAT32>& biases, const BHWC* dst_shape_ptr,
-    const int3* wg_size, bool prefer_textures) {
-  WeightsDescription weights_desc = GetFullyConnectedInt8WeightsDesc(
-      gpu_info, weights.shape, prefer_textures);
-  FullyConnected::ConvParams conv_params;
-  conv_params.weights_type = DataType::INT8;
-  conv_params.scale_zp_shape = weights_scale.shape;
-  if (weights_scale.shape.i != 1) {
-    conv_params.has_zero_point = false;
-  }
-  if (wg_size) {
-    conv_params.wg_size = *wg_size;
-  }
-  conv_params.has_bias = !biases.data.empty();
-  conv_params.block_size =
-      GetBlockSize(dst_shape_ptr, conv_params.batched_weights);
-  FullyConnected result(definition, precision, gpu_info, weights.shape,
-                        weights_desc, conv_params);
-  ConvertQuantizedInt8Weights(weights_desc, weights, &result.args_);
-
-  const DataType type = definition.dst_tensors[0].GetDataType();
-  AddWeightsParams(gpu_info, weights_scale, weights_zero_point, type,
-                   &result.args_);
-  if (conv_params.has_bias) {
-    TensorDescriptor bias_tensor_desc =
-        CreateConstantLinearTensorDescriptor(gpu_info, type, biases);
-    result.args_.AddObject("biases", std::make_unique<TensorDescriptor>(
-                                         std::move(bias_tensor_desc)));
-  }
-
-  return result;
 }
 
 FullyConnected CreateFullyConnectedInt4Sparse2x4(

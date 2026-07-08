@@ -20,7 +20,6 @@
 #include <memory>
 #include <string>
 #include <utility>
-#include <variant>
 #include <vector>
 
 #include "absl/types/span.h"
@@ -102,14 +101,6 @@ class FullyConnected : public GPUOperation {
       const GpuInfo& gpu_info, const OperationDef& definition,
       CalculationsPrecision precision, const FullyConnectedInt8Attributes& attr,
       const BHWC* dst_shape_ptr, const int3* wg_size);
-  friend FullyConnected CreateFullyConnectedInt8(
-      const GpuInfo& gpu_info, const OperationDef& definition,
-      CalculationsPrecision precision,
-      const Tensor<OHWI, DataType::INT8>& weights,
-      const Tensor<OHWI, DataType::FLOAT32>& weights_scale,
-      const Tensor<OHWI, DataType::FLOAT32>& weights_zero_point,
-      const Tensor<Linear, DataType::FLOAT32>& biases,
-      const BHWC* dst_shape_ptr, const int3* wg_size, bool prefer_textures);
 
   friend FullyConnected CreateFullyConnectedInt4Sparse2x4(
       const GpuInfo& gpu_info, const OperationDef& definition,
@@ -251,19 +242,6 @@ FullyConnected CreateFullyConnected(const GpuInfo& gpu_info,
 // Checks if UINT8 math is supported for fully connected operations on the given
 // GPU.
 bool SupportsFullyConnectedUint8Math(const GpuInfo& gpu_info);
-
-// Creates a fully connected operation with INT8 weights.
-// wg_size recommended to use only in profiling/debug goals, no 100% guarantee
-// that exactly this wg_size will be used in combination with other parameters.
-FullyConnected CreateFullyConnectedInt8(
-    const GpuInfo& gpu_info, const OperationDef& definition,
-    CalculationsPrecision precision,
-    const Tensor<OHWI, DataType::INT8>& weights,
-    const Tensor<OHWI, DataType::FLOAT32>& weights_scale,
-    const Tensor<OHWI, DataType::FLOAT32>& weights_zero_point,
-    const Tensor<Linear, DataType::FLOAT32>& biases,
-    const BHWC* dst_shape_ptr = nullptr, const int3* wg_size = nullptr,
-    bool prefer_textures = false);
 
 // Returns the weights description for an INT8 fully connected operation.
 WeightsDescription GetFullyConnectedInt8WeightsDesc(
