@@ -382,9 +382,9 @@ GPUOperation EmbeddingLookup(const OperationDef& op_def,
   if (weights_desc.type == DataType::UINT8 ||
       weights_desc.type == DataType::UINT4 ||
       weights_desc.type == DataType::UINT2) {
-    auto weights_scale_desc = ScaleOrZeroPointToFCTensorDesc(
+    auto weights_scale_desc = ScaleOrZeroPointToTensorDesc(
         gpu_info, attr.weights_scale, op_def.dst_tensors[0].GetDataType());
-    auto weights_zp_desc = ScaleOrZeroPointToFCTensorDesc(
+    auto weights_zp_desc = ScaleOrZeroPointToTensorDesc(
         gpu_info, attr.weights_zero_point, op_def.dst_tensors[0].GetDataType());
     grouped_quantization = attr.weights_scale.shape.i != 1;
     op.args_.AddObject("weights_scale", std::make_unique<TensorDescriptor>(

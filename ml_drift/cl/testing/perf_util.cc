@@ -960,9 +960,9 @@ absl::Status ConvolutionSf16Wi4BatchedPerfTest(const BHWC& src_shape,
   weights_desc.output_group_size = DivideRoundUp(weights_i4.shape.o, 4);
 
   auto scale_desc =
-      ScaleOrZeroPointToFCTensorDesc(gpu_info, weights_scales, float_type);
+      ScaleOrZeroPointToTensorDesc(gpu_info, weights_scales, float_type);
   auto zp_desc =
-      ScaleOrZeroPointToFCTensorDesc(gpu_info, weights_zero_point, float_type);
+      ScaleOrZeroPointToTensorDesc(gpu_info, weights_zero_point, float_type);
 
   ExternalWeights external_weights;
   external_weights.desc = weights_desc;
@@ -1287,9 +1287,9 @@ absl::Status ConvMoEPerfTest(int seq_size, int src_channels, int dst_channels,
   }
 
   TensorDescriptor scale_desc =
-      ScaleOrZeroPointToFCTensorDesc(gpu_info, weights_scale, data_type);
+      ScaleOrZeroPointToTensorDesc(gpu_info, weights_scale, data_type);
   TensorDescriptor zp_desc =
-      ScaleOrZeroPointToFCTensorDesc(gpu_info, weights_zp, data_type);
+      ScaleOrZeroPointToTensorDesc(gpu_info, weights_zp, data_type);
 
   const bool is_quantized = SizeInBitsOf(weights_type) < 16;
 
@@ -1670,9 +1670,9 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision,
   }
 
   TensorDescriptor scale_desc =
-      ScaleOrZeroPointToFCTensorDesc(gpu_info, weights_scale, data_type);
+      ScaleOrZeroPointToTensorDesc(gpu_info, weights_scale, data_type);
   TensorDescriptor zp_desc =
-      ScaleOrZeroPointToFCTensorDesc(gpu_info, weights_zp, data_type);
+      ScaleOrZeroPointToTensorDesc(gpu_info, weights_zp, data_type);
 
   const bool is_qunatized =
       weights_type != DataType::FLOAT16 && weights_type != DataType::FLOAT32;
@@ -1881,9 +1881,9 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision,
   }
 
   TensorDescriptor scale_desc =
-      ScaleOrZeroPointToFCTensorDesc(gpu_info, weights_scale, data_type);
+      ScaleOrZeroPointToTensorDesc(gpu_info, weights_scale, data_type);
   TensorDescriptor zp_desc =
-      ScaleOrZeroPointToFCTensorDesc(gpu_info, weights_zp, data_type);
+      ScaleOrZeroPointToTensorDesc(gpu_info, weights_zp, data_type);
 
   const bool is_qunatized =
       weights_type != DataType::FLOAT16 && weights_type != DataType::FLOAT32;
@@ -2146,9 +2146,9 @@ absl::Status FullyConnectedWeightsBatchIdsPerfTest(
   }
 
   TensorDescriptor scale_desc =
-      ScaleOrZeroPointToFCTensorDesc(gpu_info, weights_scale, data_type);
+      ScaleOrZeroPointToTensorDesc(gpu_info, weights_scale, data_type);
   TensorDescriptor zp_desc =
-      ScaleOrZeroPointToFCTensorDesc(gpu_info, weights_zp, data_type);
+      ScaleOrZeroPointToTensorDesc(gpu_info, weights_zp, data_type);
 
   const bool is_qunatized =
       weights_type != DataType::FLOAT16 && weights_type != DataType::FLOAT32;

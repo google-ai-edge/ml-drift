@@ -703,9 +703,9 @@ absl::Status ConverterToConvWeightsInt2OHWIToFloatTest(
       GetTensorDescriptorsForWeightsLayout(weights_shape, conv_weight_desc)[0];
   op_def.dst_tensors.push_back(dst_desc);
 
-  auto scale_desc = ScaleOrZeroPointToFCTensorDesc(
+  auto scale_desc = ScaleOrZeroPointToTensorDesc(
       env.GetGpuInfo(), weights_scales, DataType::FLOAT32);
-  auto zp_desc = ScaleOrZeroPointToFCTensorDesc(
+  auto zp_desc = ScaleOrZeroPointToTensorDesc(
       env.GetGpuInfo(), weights_zero_point_f32, DataType::FLOAT32);
 
   RETURN_IF_ERROR(env.ExecuteGPUOperation(
@@ -782,9 +782,9 @@ absl::Status ConverterToConvWeightsInt4OHWIToFloatTest(
       GetTensorDescriptorsForWeightsLayout(weights_shape, conv_weight_desc)[0];
   op_def.dst_tensors.push_back(dst_desc);
 
-  auto scale_desc = ScaleOrZeroPointToFCTensorDesc(
+  auto scale_desc = ScaleOrZeroPointToTensorDesc(
       env.GetGpuInfo(), weights_scales, DataType::FLOAT32);
-  auto zp_desc = ScaleOrZeroPointToFCTensorDesc(
+  auto zp_desc = ScaleOrZeroPointToTensorDesc(
       env.GetGpuInfo(), weights_zero_point_f32, DataType::FLOAT32);
 
   RETURN_IF_ERROR(env.ExecuteGPUOperation(
@@ -854,9 +854,9 @@ absl::Status ConverterToConvWeightsInt8OHWIToFloatTest(
       GetTensorDescriptorsForWeightsLayout(weights_shape, conv_weight_desc)[0];
   op_def.dst_tensors.push_back(dst_desc);
 
-  auto scale_desc = ScaleOrZeroPointToFCTensorDesc(
+  auto scale_desc = ScaleOrZeroPointToTensorDesc(
       env.GetGpuInfo(), weights_scales, DataType::FLOAT32);
-  auto zp_desc = ScaleOrZeroPointToFCTensorDesc(
+  auto zp_desc = ScaleOrZeroPointToTensorDesc(
       env.GetGpuInfo(), weights_zero_point_f32, DataType::FLOAT32);
 
   RETURN_IF_ERROR(env.ExecuteGPUOperation(
@@ -1145,9 +1145,9 @@ absl::Status Int8ToFloatWeightsConverterTest(
     }
   }
 
-  auto scale_desc = ScaleOrZeroPointToFCTensorDesc(
+  auto scale_desc = ScaleOrZeroPointToTensorDesc(
       env.GetGpuInfo(), weights_scales, DataType::FLOAT32);
-  auto zp_desc = ScaleOrZeroPointToFCTensorDesc(
+  auto zp_desc = ScaleOrZeroPointToTensorDesc(
       env.GetGpuInfo(), weights_zero_point, DataType::FLOAT32);
 
   OperationDef op_def;
@@ -1252,9 +1252,9 @@ absl::Status Int4ToFloatWeightsConverterTest(
     }
   }
 
-  auto scale_desc = ScaleOrZeroPointToFCTensorDesc(
+  auto scale_desc = ScaleOrZeroPointToTensorDesc(
       env.GetGpuInfo(), weights_scales, DataType::FLOAT32);
-  auto zp_desc = ScaleOrZeroPointToFCTensorDesc(
+  auto zp_desc = ScaleOrZeroPointToTensorDesc(
       env.GetGpuInfo(), weights_zero_point, DataType::FLOAT32);
 
   OperationDef op_def;
@@ -1359,9 +1359,9 @@ absl::Status Int2ToFloatWeightsConverterTest(
     }
   }
 
-  auto scale_desc = ScaleOrZeroPointToFCTensorDesc(
+  auto scale_desc = ScaleOrZeroPointToTensorDesc(
       env.GetGpuInfo(), weights_scales, DataType::FLOAT32);
-  auto zp_desc = ScaleOrZeroPointToFCTensorDesc(
+  auto zp_desc = ScaleOrZeroPointToTensorDesc(
       env.GetGpuInfo(), weights_zero_point, DataType::FLOAT32);
 
   OperationDef op_def;
@@ -1449,9 +1449,9 @@ absl::Status Int8ToFloatWeightsWithRuntimeInputTest(
       DataType::FLOAT32, TensorStorageType::BUFFER, Layout::LINEAR);
   weights_f32_td.SetBHWCShape(weights_f32_refs[0].GetBHWCShape());
 
-  auto scale_desc = ScaleOrZeroPointToFCTensorDesc(
+  auto scale_desc = ScaleOrZeroPointToTensorDesc(
       env.GetGpuInfo(), weights_scales, DataType::FLOAT32);
-  auto zp_desc = ScaleOrZeroPointToFCTensorDesc(
+  auto zp_desc = ScaleOrZeroPointToTensorDesc(
       env.GetGpuInfo(), weights_zero_point, DataType::FLOAT32);
 
   ConvRuntimeCheckDesc runtime_check;
@@ -1565,9 +1565,9 @@ absl::Status Int8ToFloatWeightsWithRuntimeOutputTest(
       DataType::FLOAT32, TensorStorageType::BUFFER, Layout::LINEAR);
   weights_f32_td.SetBHWCShape(weights_f32_refs[0].GetBHWCShape());
 
-  auto scale_desc = ScaleOrZeroPointToFCTensorDesc(
+  auto scale_desc = ScaleOrZeroPointToTensorDesc(
       env.GetGpuInfo(), weights_scales, DataType::FLOAT32);
-  auto zp_desc = ScaleOrZeroPointToFCTensorDesc(
+  auto zp_desc = ScaleOrZeroPointToTensorDesc(
       env.GetGpuInfo(), weights_zero_point, DataType::FLOAT32);
 
   ConvRuntimeCheckDesc runtime_check;

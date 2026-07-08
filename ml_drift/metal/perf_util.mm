@@ -355,9 +355,9 @@ absl::Status ConvolutionInt8PerfTest(const BHWC& src_shape, int dst_channels) {
     src_params_td = TensorDescriptor{DataType::FLOAT32, TensorStorageType::BUFFER, layout};
     src_params_td.UploadData(src_params);
 
-    weights_scale_td = ScaleOrZeroPointToFCTensorDesc(env.GetInfo(), weights_scales, float_type);
+    weights_scale_td = ScaleOrZeroPointToTensorDesc(env.GetInfo(), weights_scales, float_type);
     weights_zero_point_td =
-        ScaleOrZeroPointToFCTensorDesc(env.GetInfo(), weights_zero_point, float_type);
+        ScaleOrZeroPointToTensorDesc(env.GetInfo(), weights_zero_point, float_type);
 
     auto weights_sum_i = GetWeightsAccumulatedInputChannels(weights);
     weights_sum_i_td = CreateConstantLinearTensorDescriptor(env.GetInfo(), weights_sum_i);
@@ -475,8 +475,8 @@ absl::Status ConvolutionSf16Wi4BatchedPerfTest(const BHWC& src_shape, int dst_ch
   WeightsDescription weights_desc =
       GetFullyConnectedInt4WeightsDesc(env.GetInfo(), weights_i4.shape);
 
-  auto scale_desc = ScaleOrZeroPointToFCTensorDesc(env.GetInfo(), weights_scales, float_type);
-  auto zp_desc = ScaleOrZeroPointToFCTensorDesc(env.GetInfo(), weights_zero_point, float_type);
+  auto scale_desc = ScaleOrZeroPointToTensorDesc(env.GetInfo(), weights_scales, float_type);
+  auto zp_desc = ScaleOrZeroPointToTensorDesc(env.GetInfo(), weights_zero_point, float_type);
 
   ExternalWeights external_weights;
   external_weights.desc = weights_desc;
@@ -635,9 +635,9 @@ absl::Status ConvolutionSi8Wi4PerfTest(const BHWC& src_shape, int dst_channels) 
     src_params_td = TensorDescriptor{DataType::FLOAT32, TensorStorageType::BUFFER, layout};
     src_params_td.UploadData(src_params);
 
-    weights_scale_td = ScaleOrZeroPointToFCTensorDesc(env.GetInfo(), weights_scales, float_type);
+    weights_scale_td = ScaleOrZeroPointToTensorDesc(env.GetInfo(), weights_scales, float_type);
     weights_zero_point_td =
-        ScaleOrZeroPointToFCTensorDesc(env.GetInfo(), weights_zero_point, float_type);
+        ScaleOrZeroPointToTensorDesc(env.GetInfo(), weights_zero_point, float_type);
 
     auto weights_sum_i = GetWeightsAccumulatedInputChannels(weights_i4);
     weights_sum_i_td = CreateConstantLinearTensorDescriptor(env.GetInfo(), weights_sum_i);
@@ -775,8 +775,8 @@ absl::Status ConvMoEPerfTest(int seq_size, int src_channels, int dst_channels, i
     RETURN_IF_ERROR(CreateTensor(env.device(), weights_gpu[i], &weights_tensors[i]));
   }
 
-  TensorDescriptor scale_desc = ScaleOrZeroPointToFCTensorDesc(gpu_info, weights_scale, data_type);
-  TensorDescriptor zp_desc = ScaleOrZeroPointToFCTensorDesc(gpu_info, weights_zp, data_type);
+  TensorDescriptor scale_desc = ScaleOrZeroPointToTensorDesc(gpu_info, weights_scale, data_type);
+  TensorDescriptor zp_desc = ScaleOrZeroPointToTensorDesc(gpu_info, weights_zp, data_type);
 
   const bool is_quantized = SizeInBitsOf(weights_type) < 16;
 
@@ -1004,8 +1004,8 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision, DataTy
     RETURN_IF_ERROR(CreateTensor(env.device(), weights_gpu[i], &weights_tensors[i]));
   }
 
-  TensorDescriptor scale_desc = ScaleOrZeroPointToFCTensorDesc(gpu_info, weights_scale, data_type);
-  TensorDescriptor zp_desc = ScaleOrZeroPointToFCTensorDesc(gpu_info, weights_zp, data_type);
+  TensorDescriptor scale_desc = ScaleOrZeroPointToTensorDesc(gpu_info, weights_scale, data_type);
+  TensorDescriptor zp_desc = ScaleOrZeroPointToTensorDesc(gpu_info, weights_zp, data_type);
 
   const bool is_quantized = SizeInBitsOf(weights_type) < 16;
 
@@ -1191,8 +1191,8 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision, DataType we
     RETURN_IF_ERROR(CreateTensor(env.device(), weights_gpu[i], &weights_tensors[i]));
   }
 
-  TensorDescriptor scale_desc = ScaleOrZeroPointToFCTensorDesc(gpu_info, weights_scale, data_type);
-  TensorDescriptor zp_desc = ScaleOrZeroPointToFCTensorDesc(gpu_info, weights_zp, data_type);
+  TensorDescriptor scale_desc = ScaleOrZeroPointToTensorDesc(gpu_info, weights_scale, data_type);
+  TensorDescriptor zp_desc = ScaleOrZeroPointToTensorDesc(gpu_info, weights_zp, data_type);
 
   const bool is_quantized = SizeInBitsOf(weights_type) < 16;
 

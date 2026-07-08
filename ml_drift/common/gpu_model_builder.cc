@@ -1861,7 +1861,7 @@ GpuModelBuilder::Weights GpuModelBuilder::GetWeights(
 GpuModelBuilder::TensorHandle GpuModelBuilder::GetWeightsScale(
     const Tensor<OHWI, DataType::FLOAT32>& scale, DataType float_type) {
   auto weights_scale_td =
-      ScaleOrZeroPointToFCTensorDesc(gpu_info_, scale, float_type);
+      ScaleOrZeroPointToTensorDesc(gpu_info_, scale, float_type);
   return AddConstantTensor(std::move(weights_scale_td));
 }
 
@@ -1874,7 +1874,7 @@ GpuModelBuilder::TensorHandle GpuModelBuilder::GetWeightsZeroPoint(
     float_zp.data[i] = static_cast<float>(zero_point.Data()[i]);
   }
   auto weights_zero_point_td =
-      ScaleOrZeroPointToFCTensorDesc(gpu_info_, float_zp, float_type);
+      ScaleOrZeroPointToTensorDesc(gpu_info_, float_zp, float_type);
   return AddConstantTensor(std::move(weights_zero_point_td));
 }
 

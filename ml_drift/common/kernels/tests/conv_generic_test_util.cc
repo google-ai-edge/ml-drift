@@ -806,8 +806,8 @@ absl::Status ConvGenericExternalWi8Test(TestExecutionEnvironment& env,
 
   DataType type = conv_def.src_tensors[0].GetDataType();
   auto scale_desc =
-      ScaleOrZeroPointToFCTensorDesc(env.GetGpuInfo(), weights_scales, type);
-  auto zp_desc = ScaleOrZeroPointToFCTensorDesc(env.GetGpuInfo(),
+      ScaleOrZeroPointToTensorDesc(env.GetGpuInfo(), weights_scales, type);
+  auto zp_desc = ScaleOrZeroPointToTensorDesc(env.GetGpuInfo(),
                                                 weights_zero_point, type);
 
   ExternalWeights external_weights;
@@ -897,8 +897,8 @@ absl::Status ConvGenericExternalWi4Test(TestExecutionEnvironment& env,
 
   DataType type = conv_def.src_tensors[0].GetDataType();
   auto scale_desc =
-      ScaleOrZeroPointToFCTensorDesc(env.GetGpuInfo(), weights_scales, type);
-  auto zp_desc = ScaleOrZeroPointToFCTensorDesc(env.GetGpuInfo(),
+      ScaleOrZeroPointToTensorDesc(env.GetGpuInfo(), weights_scales, type);
+  auto zp_desc = ScaleOrZeroPointToTensorDesc(env.GetGpuInfo(),
                                                 weights_zero_point, type);
 
   ExternalWeights external_weights;
@@ -988,8 +988,8 @@ absl::Status ConvGenericExternalWi2Test(TestExecutionEnvironment& env,
 
   DataType type = conv_def.src_tensors[0].GetDataType();
   auto scale_desc =
-      ScaleOrZeroPointToFCTensorDesc(env.GetGpuInfo(), weights_scales, type);
-  auto zp_desc = ScaleOrZeroPointToFCTensorDesc(env.GetGpuInfo(),
+      ScaleOrZeroPointToTensorDesc(env.GetGpuInfo(), weights_scales, type);
+  auto zp_desc = ScaleOrZeroPointToTensorDesc(env.GetGpuInfo(),
                                                 weights_zero_point, type);
 
   ExternalWeights external_weights;

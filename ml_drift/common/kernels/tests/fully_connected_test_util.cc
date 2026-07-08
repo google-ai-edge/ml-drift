@@ -255,7 +255,7 @@ absl::Status FullyConnectedInt8BlockwiseAttributesTest(
 
   DataType type = op_def.src_tensors[0].GetDataType();
   auto scale_desc =
-      ScaleOrZeroPointToFCTensorDesc(env.GetGpuInfo(), scale, type);
+      ScaleOrZeroPointToTensorDesc(env.GetGpuInfo(), scale, type);
   TensorDescriptor bias_td =
       CreateConstantLinearTensorDescriptor(env.GetGpuInfo(), type, biases);
 
@@ -333,9 +333,9 @@ absl::Status FullyConnectedInt8BlockwiseAttributesWithZeroPointsTest(
 
   DataType type = op_def.src_tensors[0].GetDataType();
   auto scale_desc =
-      ScaleOrZeroPointToFCTensorDesc(env.GetGpuInfo(), scale, type);
+      ScaleOrZeroPointToTensorDesc(env.GetGpuInfo(), scale, type);
   auto zero_point_desc =
-      ScaleOrZeroPointToFCTensorDesc(env.GetGpuInfo(), zero_point, type);
+      ScaleOrZeroPointToTensorDesc(env.GetGpuInfo(), zero_point, type);
   TensorDescriptor bias_td =
       CreateConstantLinearTensorDescriptor(env.GetGpuInfo(), type, biases);
 
@@ -748,7 +748,7 @@ absl::Status FullyConnectedInt8Test(
   TensorFloat32 dst_ref_tensor = FullyConnectedReference(attr, src_tensor);
 
   DataType type = op_def.src_tensors[0].GetDataType();
-  auto scale_desc = ScaleOrZeroPointToFCTensorDesc(exec_env.GetGpuInfo(),
+  auto scale_desc = ScaleOrZeroPointToTensorDesc(exec_env.GetGpuInfo(),
                                                    weights_scale, type);
   TensorDescriptor bias_td =
       CreateConstantLinearTensorDescriptor(exec_env.GetGpuInfo(), type, biases);
@@ -908,9 +908,9 @@ absl::Status FullyConnectedInt8ExternalTest(
   }
 
   DataType type = op_def.src_tensors[0].GetDataType();
-  auto scale_desc = ScaleOrZeroPointToFCTensorDesc(exec_env.GetGpuInfo(),
+  auto scale_desc = ScaleOrZeroPointToTensorDesc(exec_env.GetGpuInfo(),
                                                    weights_scale, type);
-  auto zp_desc = ScaleOrZeroPointToFCTensorDesc(exec_env.GetGpuInfo(),
+  auto zp_desc = ScaleOrZeroPointToTensorDesc(exec_env.GetGpuInfo(),
                                                 weights_zero_point, type);
 
   WeightsDescription weights_desc =
@@ -968,9 +968,9 @@ absl::Status FullyConnectedInt8BatchedWeightsIdsTest(
       attr.weights, src_tensor, weights_ids);
 
   DataType type = op_def.src_tensors[0].GetDataType();
-  auto scale_desc = ScaleOrZeroPointToFCTensorDesc(exec_env.GetGpuInfo(),
+  auto scale_desc = ScaleOrZeroPointToTensorDesc(exec_env.GetGpuInfo(),
                                                    weights_scale, type);
-  auto zp_desc = ScaleOrZeroPointToFCTensorDesc(exec_env.GetGpuInfo(),
+  auto zp_desc = ScaleOrZeroPointToTensorDesc(exec_env.GetGpuInfo(),
                                                 weights_zero_point, type);
 
   WeightsDescription weights_desc =
@@ -1040,9 +1040,9 @@ absl::Status FullyConnectedInt8ExternalTest(
   }
 
   DataType type = op_def.src_tensors[0].GetDataType();
-  auto scale_desc = ScaleOrZeroPointToFCTensorDesc(exec_env.GetGpuInfo(),
+  auto scale_desc = ScaleOrZeroPointToTensorDesc(exec_env.GetGpuInfo(),
                                                    weights_scale, type);
-  auto zp_desc = ScaleOrZeroPointToFCTensorDesc(exec_env.GetGpuInfo(),
+  auto zp_desc = ScaleOrZeroPointToTensorDesc(exec_env.GetGpuInfo(),
                                                 weights_zero_point, type);
   TensorDescriptor bias_td =
       CreateConstantLinearTensorDescriptor(exec_env.GetGpuInfo(), type, biases);
@@ -1359,7 +1359,7 @@ absl::Status FullyConnectedInt4Test(
   TensorFloat32 dst_ref_tensor = FullyConnectedReference(attr, src_tensor);
 
   DataType type = op_def.src_tensors[0].GetDataType();
-  auto scale_desc = ScaleOrZeroPointToFCTensorDesc(exec_env.GetGpuInfo(),
+  auto scale_desc = ScaleOrZeroPointToTensorDesc(exec_env.GetGpuInfo(),
                                                    weights_scale, type);
   TensorDescriptor bias_td =
       CreateConstantLinearTensorDescriptor(exec_env.GetGpuInfo(), type, biases);
@@ -1432,7 +1432,7 @@ absl::Status FullyConnectedInt4BlockwiseTest(TestExecutionEnvironment& env,
 
   DataType type = op_def.src_tensors[0].GetDataType();
   auto scale_desc =
-      ScaleOrZeroPointToFCTensorDesc(env.GetGpuInfo(), weights_scales, type);
+      ScaleOrZeroPointToTensorDesc(env.GetGpuInfo(), weights_scales, type);
   TensorDescriptor bias_td =
       CreateConstantLinearTensorDescriptor(env.GetGpuInfo(), type, biases);
 
@@ -1539,7 +1539,7 @@ absl::Status FullyConnectedInt2BlockwiseTest(TestExecutionEnvironment& env,
 
   DataType type = op_def.src_tensors[0].GetDataType();
   auto scale_desc =
-      ScaleOrZeroPointToFCTensorDesc(env.GetGpuInfo(), weights_scales, type);
+      ScaleOrZeroPointToTensorDesc(env.GetGpuInfo(), weights_scales, type);
   TensorDescriptor bias_td =
       CreateConstantLinearTensorDescriptor(env.GetGpuInfo(), type, biases);
 
@@ -1661,9 +1661,9 @@ absl::Status FullyConnectedInt4ExternalTest(
   TensorFloat32 dst_ref_tensor = FullyConnectedReference(attr, src_tensor);
 
   DataType type = op_def.src_tensors[0].GetDataType();
-  auto scale_desc = ScaleOrZeroPointToFCTensorDesc(exec_env.GetGpuInfo(),
+  auto scale_desc = ScaleOrZeroPointToTensorDesc(exec_env.GetGpuInfo(),
                                                    weights_scale, type);
-  auto zp_desc = ScaleOrZeroPointToFCTensorDesc(exec_env.GetGpuInfo(),
+  auto zp_desc = ScaleOrZeroPointToTensorDesc(exec_env.GetGpuInfo(),
                                                 weights_zero_point, type);
   TensorDescriptor bias_td =
       CreateConstantLinearTensorDescriptor(exec_env.GetGpuInfo(), type, biases);
@@ -1859,7 +1859,7 @@ absl::Status FullyConnectedInt2Test(
   TensorFloat32 dst_ref_tensor = FullyConnectedReference(attr, src_tensor);
 
   DataType type = op_def.src_tensors[0].GetDataType();
-  auto scale_desc = ScaleOrZeroPointToFCTensorDesc(exec_env.GetGpuInfo(),
+  auto scale_desc = ScaleOrZeroPointToTensorDesc(exec_env.GetGpuInfo(),
                                                    weights_scale, type);
   TensorDescriptor bias_td =
       CreateConstantLinearTensorDescriptor(exec_env.GetGpuInfo(), type, biases);
@@ -2014,9 +2014,9 @@ absl::Status FullyConnectedInt2ExternalTest(
   TensorFloat32 dst_ref_tensor = FullyConnectedReference(attr, src_tensor);
 
   DataType type = op_def.src_tensors[0].GetDataType();
-  auto scale_desc = ScaleOrZeroPointToFCTensorDesc(exec_env.GetGpuInfo(),
+  auto scale_desc = ScaleOrZeroPointToTensorDesc(exec_env.GetGpuInfo(),
                                                    weights_scale, type);
-  auto zp_desc = ScaleOrZeroPointToFCTensorDesc(exec_env.GetGpuInfo(),
+  auto zp_desc = ScaleOrZeroPointToTensorDesc(exec_env.GetGpuInfo(),
                                                 weights_zero_point, type);
   TensorDescriptor bias_td =
       CreateConstantLinearTensorDescriptor(exec_env.GetGpuInfo(), type, biases);

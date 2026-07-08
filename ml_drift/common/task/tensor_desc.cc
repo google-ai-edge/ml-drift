@@ -240,7 +240,54 @@ TensorStorageType GetRecommendedStorageTypeForLinearTensor(
   }
 }
 
+Tensor<HWC, DataType::FLOAT32> OHIToHOIO4(
+    const Tensor<OHWI, DataType::FLOAT32>& tensor) {
+  Tensor<HWC, DataType::FLOAT32> dst;
+  dst.shape =
+      HWC(tensor.shape.h, DivideRoundUp(tensor.shape.o, 4), 4 * tensor.shape.i);
+  dst.data.resize(dst.shape.DimensionsProduct());
+  const int o_ch = tensor.shape.o;
+  const int o_slices = DivideRoundUp(o_ch, 4);
+  const int i_ch = tensor.shape.i;
+  const int weights_batch = tensor.shape.h;
+  for (int b = 0; b < weights_batch; ++b) {
+    for (int i = 0; i < i_ch; ++i) {
+      for (int o_slice = 0; o_slice < o_slices; ++o_slice) {
+        for (int ch = 0; ch < 4; ++ch) {
+          const int dst_ch = o_slice * 4 + ch;
+          float value = 0.0f;
+          if (dst_ch < tensor.shape.o) {
+            value = tensor.data[tensor.shape.LinearIndex({dst_ch, b, 0, i})];
+          }
+          dst.data[dst.shape.LinearIndex({b, o_slice, i * 4 + ch})] = value;
+        }
+      }
+    }
+  }
+  return dst;
+}
+
+TensorDescriptor ScaleOrZeroPointToHWCTensorDesc(
+    const GpuInfo& gpu_info, const Tensor<OHWI, DataType::FLOAT32>& src,
+    DataType dst_data_type) {
+  auto src_hwc = OHIToHOIO4(src);
+  const auto storage_type =
+      TensorDescriptor(dst_data_type, TensorStorageType::TEXTURE_2D,
+                       Layout::HWC)
+              .CanCreateTensorWithShape(
+                  gpu_info,
+                  BHWC(1, src_hwc.shape.h, src_hwc.shape.w, src_hwc.shape.c))
+              .ok()
+          ? TensorStorageType::TEXTURE_2D
+          : TensorStorageType::BUFFER;
+  TensorDescriptor td =
+      TensorDescriptor(dst_data_type, storage_type, Layout::HWC);
+  td.UploadData(src_hwc);
+  return td;
+}
+
 }  // namespace
+
 
 std::string ToString(TensorStorageType type) {
   switch (type) {
@@ -2144,5 +2191,19 @@ TensorDescriptor CreateConstantHWVec4TensorDescriptor(
   memcpy(tensor_desc.data_.data(), data, data_size);
   return tensor_desc;
 }
+
+TensorDescriptor ScaleOrZeroPointToTensorDesc(
+    const GpuInfo& gpu_info, const Tensor<OHWI, DataType::FLOAT32>& src,
+    DataType dst_data_type) {
+  if (src.shape.i == 1 && src.shape.h == 1) {
+    Tensor<Linear, DataType::FLOAT32> src_linear;
+    src_linear.shape = Linear(src.shape.o);
+    src_linear.data = src.data;
+    return CreateConstantLinearTensorDescriptor(gpu_info, dst_data_type,
+                                                src_linear);
+  }
+  return ScaleOrZeroPointToHWCTensorDesc(gpu_info, src, dst_data_type);
+}
+
 
 }  // namespace ml_drift

@@ -495,6 +495,12 @@ TensorDescriptor CreateConstantHWVec4TensorDescriptor(
     DataType data_type, TensorStorageType storage_type, int width, int height,
     const uint8_t* data);
 
+// Converts a scale or zero point tensor to a tensor descriptor.
+TensorDescriptor ScaleOrZeroPointToTensorDesc(
+    const GpuInfo& gpu_info, const Tensor<OHWI, DataType::FLOAT32>& src,
+    DataType dst_data_type);
+
+
 template <typename H>
 H AbslHashValue(H h, const TensorDescriptor& tensor_desc) {
   return H::combine(std::move(h), tensor_desc.data_type_,

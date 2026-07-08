@@ -169,10 +169,7 @@ inline bool IsFullyConnectedWeightsAreSpatialTensorSupported(
          weight_shape.w == 1;
 }
 
-// Converts a scale or zero point tensor to a fully connected tensor descriptor.
-TensorDescriptor ScaleOrZeroPointToFCTensorDesc(
-    const GpuInfo& gpu_info, const Tensor<OHWI, DataType::FLOAT32>& src,
-    DataType dst_data_type);
+
 
 // Creates a fully connected operation.
 // wg_size recommended to use only in profiling/debug goals, no 100% guarantee
@@ -253,6 +250,11 @@ WeightsDescription GetFullyConnectedInt4WeightsDesc(
     const GpuInfo& gpu_info, const OHWI& weights_shape,
     bool prefer_textures = false);
 
+// Returns the weights description for an INT2 fully connected operation.
+WeightsDescription GetFullyConnectedInt2WeightsDesc(
+    const GpuInfo& gpu_info, const OHWI& weights_shape,
+    bool prefer_textures = false);
+
 // Creates a sparse 2x4 fully connected operation with INT4 weights.
 // prototype, no correctness check, dummy values, not works for all cases
 FullyConnected CreateFullyConnectedInt4Sparse2x4(
@@ -264,11 +266,6 @@ FullyConnected CreateFullyConnectedInt4Sparse2x4(
     const Tensor<OHWI, DataType::FLOAT32>& weights_zero_point,
     const Tensor<Linear, DataType::FLOAT32>& biases,
     const BHWC* dst_shape_ptr = nullptr, const int3* wg_size = nullptr);
-
-// Returns the weights description for an INT2 fully connected operation.
-WeightsDescription GetFullyConnectedInt2WeightsDesc(
-    const GpuInfo& gpu_info, const OHWI& weights_shape,
-    bool prefer_textures = false);
 
 }  // namespace ml_drift
 

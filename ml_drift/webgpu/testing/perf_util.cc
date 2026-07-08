@@ -509,9 +509,9 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision,
   }
 
   TensorDescriptor scale_desc =
-      ScaleOrZeroPointToFCTensorDesc(gpu_info, weights_scale, data_type);
+      ScaleOrZeroPointToTensorDesc(gpu_info, weights_scale, data_type);
   TensorDescriptor zp_desc =
-      ScaleOrZeroPointToFCTensorDesc(gpu_info, weights_zp, data_type);
+      ScaleOrZeroPointToTensorDesc(gpu_info, weights_zp, data_type);
 
   const bool is_qunatized =
       weights_type != DataType::FLOAT16 && weights_type != DataType::FLOAT32;

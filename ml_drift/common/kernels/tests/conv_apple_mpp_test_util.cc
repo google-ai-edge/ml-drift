@@ -325,9 +325,9 @@ absl::Status ConvAppleMPPExternalWi8Test(TestExecutionEnvironment& env,
   WeightsDescription weights_desc =
       GetFullyConnectedInt8WeightsDesc(env.GetGpuInfo(), weights_i8.shape);
 
-  auto scale_desc = ScaleOrZeroPointToFCTensorDesc(env.GetGpuInfo(),
+  auto scale_desc = ScaleOrZeroPointToTensorDesc(env.GetGpuInfo(),
                                                    weights_scales, float_type);
-  auto zp_desc = ScaleOrZeroPointToFCTensorDesc(env.GetGpuInfo(),
+  auto zp_desc = ScaleOrZeroPointToTensorDesc(env.GetGpuInfo(),
                                                 weights_zero_point, float_type);
 
   ExternalWeights external_weights;
@@ -413,9 +413,9 @@ absl::Status ConvAppleMPPExternalWi4Test(TestExecutionEnvironment& env,
   WeightsDescription weights_desc =
       GetFullyConnectedInt4WeightsDesc(env.GetGpuInfo(), weights_i4.shape);
 
-  auto scale_desc = ScaleOrZeroPointToFCTensorDesc(env.GetGpuInfo(),
+  auto scale_desc = ScaleOrZeroPointToTensorDesc(env.GetGpuInfo(),
                                                    weights_scales, float_type);
-  auto zp_desc = ScaleOrZeroPointToFCTensorDesc(env.GetGpuInfo(),
+  auto zp_desc = ScaleOrZeroPointToTensorDesc(env.GetGpuInfo(),
                                                 weights_zero_point, float_type);
 
   ExternalWeights external_weights;
@@ -501,9 +501,9 @@ absl::Status ConvAppleMPPExternalWi2Test(TestExecutionEnvironment& env,
   WeightsDescription weights_desc =
       GetFullyConnectedInt2WeightsDesc(env.GetGpuInfo(), weights_i2.shape);
 
-  auto scale_desc = ScaleOrZeroPointToFCTensorDesc(env.GetGpuInfo(),
+  auto scale_desc = ScaleOrZeroPointToTensorDesc(env.GetGpuInfo(),
                                                    weights_scales, float_type);
-  auto zp_desc = ScaleOrZeroPointToFCTensorDesc(env.GetGpuInfo(),
+  auto zp_desc = ScaleOrZeroPointToTensorDesc(env.GetGpuInfo(),
                                                 weights_zero_point, float_type);
 
   ExternalWeights external_weights;
