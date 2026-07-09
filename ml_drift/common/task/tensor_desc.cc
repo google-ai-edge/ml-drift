@@ -232,12 +232,35 @@ TensorStorageType GetRecommendedStorageTypeForLinearTensor(
       gpu_info.apple_info.IsFamilyOrLower(AppleInfo::Family::kApple2)) {
     return TensorStorageType::TEXTURE_2D;
   }
+  // Observed that intel has internally big alignment for memory of textures.
+  if (gpu_info.IsIntel() && gpu_info.IsApiOpenCl()) {
+    return TensorStorageType::BUFFER;
+  }
   if (!gpu_info.SupportsImages() || gpu_info.IsMali() ||
       gpu_info.IsBroadcom() || gpu_info.IsApple() || gpu_info.IsAMD()) {
     return TensorStorageType::BUFFER;
   } else {
     return TensorStorageType::TEXTURE_2D;
   }
+}
+
+TensorStorageType GetRecommendedStorageTypeFor2D(const GpuInfo& gpu_info) {
+  if (gpu_info.IsApiWebGpu()) {
+    return TensorStorageType::BUFFER;
+  }
+  if (gpu_info.IsApple() &&
+      gpu_info.apple_info.IsFamilyOrLower(AppleInfo::Family::kApple2)) {
+    return TensorStorageType::TEXTURE_2D;
+  }
+  // Observed that intel has internally big alignment for memory of textures.
+  if (gpu_info.IsIntel() && gpu_info.IsApiOpenCl()) {
+    return TensorStorageType::BUFFER;
+  }
+  if (gpu_info.IsApple()) {
+    return TensorStorageType::BUFFER;
+  }
+  return gpu_info.SupportsImages() ? TensorStorageType::TEXTURE_2D
+                                   : TensorStorageType::BUFFER;
 }
 
 Tensor<HWC, DataType::FLOAT32> OHIToHOIO4(
@@ -271,14 +294,14 @@ TensorDescriptor ScaleOrZeroPointToHWCTensorDesc(
     const GpuInfo& gpu_info, const Tensor<OHWI, DataType::FLOAT32>& src,
     DataType dst_data_type) {
   auto src_hwc = OHIToHOIO4(src);
+  const auto default_storage = GetRecommendedStorageTypeFor2D(gpu_info);
   const auto storage_type =
-      TensorDescriptor(dst_data_type, TensorStorageType::TEXTURE_2D,
-                       Layout::HWC)
+      TensorDescriptor(dst_data_type, default_storage, Layout::HWC)
               .CanCreateTensorWithShape(
                   gpu_info,
                   BHWC(1, src_hwc.shape.h, src_hwc.shape.w, src_hwc.shape.c))
               .ok()
-          ? TensorStorageType::TEXTURE_2D
+          ? default_storage
           : TensorStorageType::BUFFER;
   TensorDescriptor td =
       TensorDescriptor(dst_data_type, storage_type, Layout::HWC);
