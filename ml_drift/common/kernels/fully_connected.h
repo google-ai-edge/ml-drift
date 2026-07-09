@@ -58,7 +58,7 @@ class FullyConnected : public GPUOperation {
     bool has_bias = true;
     bool has_zero_point = true;  // applicable with int8/4/2 weights
     bool sparse_2x4 = false;
-    bool runtime_batch_ids = false;
+    int runtime_batch_ids = 0;
     ConvRuntimeCheckDesc runtime_check;
     BHWC block_size = BHWC(1, 1, 1, 1);
     int3 wg_size = int3(0, 0, 0);

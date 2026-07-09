@@ -52,6 +52,9 @@ inline bool UseBufferForWeights(const GpuInfo& gpu_info,
       gpu_info.IsBroadcom() || gpu_info.IsApple() || gpu_info.IsApiWebGpu()) {
     return true;
   }
+  if (gpu_info.IsIntel() && gpu_info.IsApiOpenCl()) {
+    return true;
+  }
   WeightsDescription texture_weights_desc;
   texture_weights_desc.layout =
       WeightsLayout::k2DX4I4YIsSpatialIAndXIsOOGroupO4;
@@ -76,6 +79,9 @@ int GetSplitFactor(const GpuInfo& gpu_info, const OHWI& weights_shape) {
 inline bool UseBufferForIntWeights(const GpuInfo& gpu_info, int int_bit_size,
                                    const OHWI& weights_shape,
                                    bool prefer_textures) {
+  if (gpu_info.IsIntel() && gpu_info.IsApiOpenCl()) {
+    return true;
+  }
   if (int_bit_size == 2 && gpu_info.IsApiOpenCl() && gpu_info.IsMali()) {
     return true;
   }
@@ -131,7 +137,45 @@ inline int GetRangeShift(DataType type) {
 
 int3 GetWorkGroupSize(const FullyConnected::ConvParams& params,
                       const GpuInfo& gpu_info, DataType acc_type,
-                      int dst_slices) {
+                      const OHWI& weights_shape) {
+  const int dst_slices = DivideRoundUp(weights_shape.o, 4);
+  if (gpu_info.IsIntel() && gpu_info.IsApiOpenCl()) {
+    const int cu_count = gpu_info.GetComputeUnitsCount();
+    int wg_total_size = cu_count >= 64 ? 256 : 128;
+    int total_task_size = dst_slices;
+    if (params.batched_weights) {
+      if (params.runtime_batch_ids) {
+        total_task_size *= params.runtime_batch_ids;
+      } else {
+        total_task_size *= weights_shape.h;
+      }
+    }
+    double task_size_per_cu =
+        static_cast<double>(total_task_size) / cu_count;
+    float multiplier = 1.0;
+    if (SizeInBitsOf(params.weights_type) <= 8) {
+      multiplier = 16.0 / SizeInBitsOf(params.weights_type);
+    }
+    int x_size = 1;
+    int y_size = 1;
+    if (task_size_per_cu <= 1 * multiplier) {
+      y_size = 64;
+    } else if (task_size_per_cu <= 2 * multiplier) {
+      y_size = 32;
+    } else if (task_size_per_cu <= 4 * multiplier) {
+      y_size = 16;
+    } else if (task_size_per_cu <= 8 * multiplier) {
+      y_size = 8;
+    } else if (task_size_per_cu <= 16 * multiplier) {
+      y_size = 4;
+    } else if (task_size_per_cu <= 32 * multiplier) {
+      y_size = 2;
+    } else {
+      y_size = 2;
+    }
+    x_size = wg_total_size / y_size;
+    return int3(x_size, y_size, 1);
+  }
   const int block_spatial =
       params.block_size.b * params.block_size.w * params.block_size.h;
   int wg_total_size = 32;
@@ -389,8 +433,7 @@ FullyConnected::FullyConnected(const OperationDef& definition,
     work_group_size_ =
         conv_params_.wg_size.x != 0
             ? conv_params_.wg_size
-            : GetWorkGroupSize(conv_params_, gpu_info, acc_type,
-                               DivideRoundUp(weights_shape.o, 4));
+            : GetWorkGroupSize(conv_params_, gpu_info, acc_type, weights_shape);
   }
   wg_reduction_ = work_group_size_.y != 1 && !split_dst_slices_;
   const int scale_zp_group_size =
@@ -1315,7 +1358,7 @@ absl::StatusOr<FullyConnected> CreateFullyConnectedWeightsBatchIds(
   conv_params.has_bias = bias != nullptr;
   conv_params.has_zero_point =
       weights.zero_point != nullptr || weights.scalar_zero_point.has_value();
-  conv_params.runtime_batch_ids = true;
+  conv_params.runtime_batch_ids = dst_shape_ptr ? dst_shape_ptr->h : 1;
   conv_params.block_size =
       GetBlockSize(dst_shape_ptr, conv_params.batched_weights);
   OperationDef op_def;
