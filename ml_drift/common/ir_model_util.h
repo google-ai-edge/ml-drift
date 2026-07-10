@@ -52,12 +52,25 @@ absl::Status IrModelToGpuModel(const ir::IrModel& ir_model,
                                const CreateGpuModelInfo& create_info,
                                const GpuInfo& gpu_info, GpuModel* gpu_model);
 
+absl::Status IrModelToGpuModel(const ir::IrModel& ir_model,
+                               const CreateGpuModelInfo& create_info,
+                               const GpuInfo& gpu_info, GpuModel* gpu_model,
+                               IrModelOpSelector* op_selector);
+
 absl::Status IrModelToGpuModelWithWeightsConversion(
     const ir::IrModel& ir_model, const CreateGpuModelInfo& create_info,
     const GpuInfo& gpu_info, GpuModel* gpu_model,
     GpuModel* gpu_weights_conversion_model,
     absl::flat_hash_map<ValueId, ValueId>* weights_mapping,
     std::vector<WeightsManager::UploadWeightsInfo>* upload_weights_info);
+
+absl::Status IrModelToGpuModelWithWeightsConversion(
+    const ir::IrModel& ir_model, const CreateGpuModelInfo& create_info,
+    const GpuInfo& gpu_info, GpuModel* gpu_model,
+    GpuModel* gpu_weights_conversion_model,
+    absl::flat_hash_map<ValueId, ValueId>* weights_mapping,
+    std::vector<WeightsManager::UploadWeightsInfo>* upload_weights_info,
+    IrModelOpSelector* op_selector);
 
 }  // namespace ml_drift::ir
 

@@ -355,7 +355,7 @@ class DefaultIrModelOpSelector : public IrModelOpSelector {
 };
 
 absl::Status ConvertOperations(const IrModel& ir_model,
-                               DefaultIrModelOpSelector& op_selector,
+                               IrModelOpSelector& op_selector,
                                GpuModelBuilder* model_builder) {
   absl::flat_hash_set<IrOpId> consumed_nodes;
   auto& model_ops = ir_model.ops();
@@ -430,7 +430,7 @@ absl::Status ConvertOperations(const IrModel& ir_model,
 absl::Status IrModelToGpuModel(const IrModel& ir_model,
                                const CreateGpuModelInfo& create_info,
                                const GpuInfo& gpu_info,
-                               DefaultIrModelOpSelector& op_selector,
+                               IrModelOpSelector& op_selector,
                                std::shared_ptr<WeightsManager> weights_manager,
                                GpuModel* gpu_model) {
   if (!gpu_info.SupportsFP16() && gpu_info.IsApiOpenCl() &&
@@ -469,6 +469,14 @@ absl::Status IrModelToGpuModel(const IrModel& ir_model,
                            /*weights_manager=*/nullptr, gpu_model);
 }
 
+absl::Status IrModelToGpuModel(const IrModel& ir_model,
+                               const CreateGpuModelInfo& create_info,
+                               const GpuInfo& gpu_info, GpuModel* gpu_model,
+                               IrModelOpSelector* op_selector) {
+  return IrModelToGpuModel(ir_model, create_info, gpu_info, *op_selector,
+                           /*weights_manager=*/nullptr, gpu_model);
+}
+
 absl::Status IrModelToGpuModelWithWeightsConversion(
     const IrModel& ir_model, const CreateGpuModelInfo& create_info,
     const GpuInfo& gpu_info, GpuModel* gpu_model,
@@ -480,6 +488,21 @@ absl::Status IrModelToGpuModelWithWeightsConversion(
   RETURN_IF_ERROR(IrModelToGpuModel(ir_model, create_info, gpu_info,
                                     default_op_selector, weights_manager,
                                     gpu_model));
+  return weights_manager->CreateConversionGpuModel(
+      gpu_info, gpu_weights_conversion_model, weights_mapping,
+      upload_weights_info);
+}
+
+absl::Status IrModelToGpuModelWithWeightsConversion(
+    const IrModel& ir_model, const CreateGpuModelInfo& create_info,
+    const GpuInfo& gpu_info, GpuModel* gpu_model,
+    GpuModel* gpu_weights_conversion_model,
+    absl::flat_hash_map<ValueId, ValueId>* weights_mapping,
+    std::vector<WeightsManager::UploadWeightsInfo>* upload_weights_info,
+    IrModelOpSelector* op_selector) {
+  auto weights_manager = std::make_shared<WeightsManager>();
+  RETURN_IF_ERROR(IrModelToGpuModel(ir_model, create_info, gpu_info,
+                                    *op_selector, weights_manager, gpu_model));
   return weights_manager->CreateConversionGpuModel(
       gpu_info, gpu_weights_conversion_model, weights_mapping,
       upload_weights_info);
