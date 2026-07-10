@@ -408,6 +408,126 @@ NvidiaArchitecture GetNvidiaArchitecture(const std::string& gpu_description) {
   return NvidiaArchitecture::kUnknown;
 }
 
+NvidiaGpu GetNvidiaGpu(const std::string& gpu_description) {
+  // Order must be preserved (more specific names before general ones, e.g., 980
+  // ti before 980)
+  const std::vector<std::pair<std::string, NvidiaGpu>> kMapping = {
+      // Lovelace / Ada Workstation
+      {"rtx 6000 ada", NvidiaGpu::kRTX6000Ada},
+      {"rtx 5000 ada", NvidiaGpu::kRTX5000Ada},
+      {"rtx 4000 ada", NvidiaGpu::kRTX4000Ada},
+      {"rtx 3500 ada", NvidiaGpu::kRTX3500Ada},
+      {"rtx 2000 ada", NvidiaGpu::kRTX2000Ada},
+      // Ampere Workstation
+      {"rtx a6000", NvidiaGpu::kRTXA6000},
+      {"rtx a5000", NvidiaGpu::kRTXA5000},
+      {"rtx a4500", NvidiaGpu::kRTXA4500},
+      {"rtx a4000", NvidiaGpu::kRTXA4000},
+      {"rtx a2000", NvidiaGpu::kRTXA2000},
+      // Blackwell
+      {"5090", NvidiaGpu::kRTX5090},
+      {"5080", NvidiaGpu::kRTX5080},
+      {"5070 ti", NvidiaGpu::kRTX5070Ti},
+      {"5070", NvidiaGpu::kRTX5070},
+      {"5060 ti", NvidiaGpu::kRTX5060Ti},
+      {"5060", NvidiaGpu::kRTX5060},
+      {"gb200", NvidiaGpu::kGB200},
+      {"b800", NvidiaGpu::kB800},
+      {"b200", NvidiaGpu::kB200},
+      {"b100", NvidiaGpu::kB100},
+      // Hopper
+      {"gh200", NvidiaGpu::kGH200},
+      {"h800", NvidiaGpu::kH800},
+      {"h200", NvidiaGpu::kH200},
+      {"h100", NvidiaGpu::kH100},
+      // Lovelace
+      {"4090", NvidiaGpu::kRTX4090},
+      {"4080 super", NvidiaGpu::kRTX4080Super},
+      {"4080", NvidiaGpu::kRTX4080},
+      {"4070 ti super", NvidiaGpu::kRTX4070TiSuper},
+      {"4070 ti", NvidiaGpu::kRTX4070Ti},
+      {"4070 super", NvidiaGpu::kRTX4070Super},
+      {"4070", NvidiaGpu::kRTX4070},
+      {"4060 ti", NvidiaGpu::kRTX4060Ti},
+      {"4060", NvidiaGpu::kRTX4060},
+      {"l40s", NvidiaGpu::kL40S},
+      {"l40", NvidiaGpu::kL40},
+      {"l20", NvidiaGpu::kL20},
+      {"l4", NvidiaGpu::kL4},
+      // Ampere
+      {"3090 ti", NvidiaGpu::kRTX3090Ti},
+      {"3090", NvidiaGpu::kRTX3090},
+      {"3080 ti", NvidiaGpu::kRTX3080Ti},
+      {"3080", NvidiaGpu::kRTX3080},
+      {"3070 ti", NvidiaGpu::kRTX3070Ti},
+      {"3070", NvidiaGpu::kRTX3070},
+      {"3060 ti", NvidiaGpu::kRTX3060Ti},
+      {"3060", NvidiaGpu::kRTX3060},
+      {"3050", NvidiaGpu::kRTX3050},
+      {"a800", NvidiaGpu::kA800},
+      {"a100", NvidiaGpu::kA100},
+      {"a40", NvidiaGpu::kA40},
+      {"a30", NvidiaGpu::kA30},
+      {"a16", NvidiaGpu::kA16},
+      {"a10g", NvidiaGpu::kA10G},
+      {"a10", NvidiaGpu::kA10G},
+      {"a2", NvidiaGpu::kA2},
+      // Turing Workstation / Gaming
+      {"titan rtx", NvidiaGpu::kTitanRTX},
+      {"rtx 8000", NvidiaGpu::kRTX8000Turing},
+      {"rtx 6000", NvidiaGpu::kRTX6000Turing},
+      {"rtx 5000", NvidiaGpu::kRTX5000Turing},
+      {"rtx 4000", NvidiaGpu::kRTX4000Turing},
+      {"2080 ti", NvidiaGpu::kRTX2080Ti},
+      {"2080 super", NvidiaGpu::kRTX2080Super},
+      {"2080", NvidiaGpu::kRTX2080},
+      {"2070 super", NvidiaGpu::kRTX2070Super},
+      {"2070", NvidiaGpu::kRTX2070},
+      {"2060 super", NvidiaGpu::kRTX2060Super},
+      {"2060", NvidiaGpu::kRTX2060},
+      {"1660 ti", NvidiaGpu::kGTX1660Ti},
+      {"1660 super", NvidiaGpu::kGTX1660Super},
+      {"1660", NvidiaGpu::kGTX1660},
+      {"1650 super", NvidiaGpu::kGTX1650Super},
+      {"1650", NvidiaGpu::kGTX1650},
+      {"t4", NvidiaGpu::kT4},
+      // Volta
+      {"v100", NvidiaGpu::kV100},
+      {"titan v", NvidiaGpu::kTitanV},
+      // Pascal
+      {"titan xp", NvidiaGpu::kTitanXp},
+      {"1080 ti", NvidiaGpu::kGTX1080Ti},
+      {"1080", NvidiaGpu::kGTX1080},
+      {"1070 ti", NvidiaGpu::kGTX1070Ti},
+      {"1070", NvidiaGpu::kGTX1070},
+      {"1060", NvidiaGpu::kGTX1060},
+      {"1050 ti", NvidiaGpu::kGTX1050Ti},
+      {"1050", NvidiaGpu::kGTX1050},
+      {"p100", NvidiaGpu::kP100},
+      {"p40", NvidiaGpu::kP40},
+      {"p4", NvidiaGpu::kP4},
+      // Maxwell
+      {"titan x", NvidiaGpu::kTitanX},
+      {"980 ti", NvidiaGpu::kGTX980Ti},
+      {"980", NvidiaGpu::kGTX980},
+      {"970", NvidiaGpu::kGTX970},
+      {"960", NvidiaGpu::kGTX960},
+      {"m40", NvidiaGpu::kM40},
+      // Kepler
+      {"780", NvidiaGpu::kGTX780},
+      {"k80", NvidiaGpu::kK80},
+      {"k40", NvidiaGpu::kK40},
+      // Fermi
+      {"580", NvidiaGpu::kGTX580},
+  };
+  for (const auto& v : kMapping) {
+    if (gpu_description.find(v.first) != std::string::npos) {
+      return v.second;
+    }
+  }
+  return NvidiaGpu::kUnknown;
+}
+
 AMDArchitecture GetAMDArchitecture(const std::string& gpu_description) {
   // Order must be preserved
   const std::vector<std::pair<std::string, AMDArchitecture>> kMapping = {
@@ -921,11 +1041,226 @@ bool PowerVRInfo::IsImgCxx() const { return gpu_version == PowerVRGpu::kCXT; }
 
 bool PowerVRInfo::IsImgDxx() const { return gpu_version == PowerVRGpu::kDXT; }
 
-NvidiaInfo::NvidiaInfo(const std::string& gpu_description)
-    : architecture(GetNvidiaArchitecture(gpu_description)) {}
+NvidiaInfo::NvidiaInfo(const std::string& gpu_description) {
+  std::string lowered = gpu_description;
+  absl::AsciiStrToLower(&lowered);
+  architecture = GetNvidiaArchitecture(lowered);
+  gpu_type = GetNvidiaGpu(lowered);
+}
 
 bool NvidiaInfo::IsArchitectureOrNewer(NvidiaArchitecture arch) const {
   return architecture >= arch;
+}
+
+int NvidiaInfo::GetComputeUnitsCount() const {
+  switch (gpu_type) {
+    // Fermi
+    case NvidiaGpu::kGTX580:
+      return 16;
+    // Kepler
+    case NvidiaGpu::kGTX780:
+      return 12;
+    case NvidiaGpu::kK80:
+      return 13;
+    case NvidiaGpu::kK40:
+      return 15;
+    // Maxwell
+    case NvidiaGpu::kGTX960:
+      return 8;
+    case NvidiaGpu::kGTX970:
+      return 13;
+    case NvidiaGpu::kGTX980:
+      return 16;
+    case NvidiaGpu::kGTX980Ti:
+      return 22;
+    case NvidiaGpu::kTitanX:
+    case NvidiaGpu::kM40:
+      return 24;
+    // Pascal
+    case NvidiaGpu::kGTX1050:
+      return 5;
+    case NvidiaGpu::kGTX1050Ti:
+      return 6;
+    case NvidiaGpu::kGTX1060:
+      return 10;
+    case NvidiaGpu::kGTX1070:
+      return 15;
+    case NvidiaGpu::kGTX1070Ti:
+      return 19;
+    case NvidiaGpu::kGTX1080:
+    case NvidiaGpu::kP4:
+      return 20;
+    case NvidiaGpu::kGTX1080Ti:
+      return 28;
+    case NvidiaGpu::kTitanXp:
+    case NvidiaGpu::kP40:
+      return 30;
+    case NvidiaGpu::kP100:
+      return 56;
+    // Volta
+    case NvidiaGpu::kV100:
+    case NvidiaGpu::kTitanV:
+      return 80;
+    // Turing
+    case NvidiaGpu::kGTX1650:
+      return 14;
+    case NvidiaGpu::kGTX1650Super:
+      return 20;
+    case NvidiaGpu::kGTX1660:
+    case NvidiaGpu::kGTX1660Super:
+      return 22;
+    case NvidiaGpu::kGTX1660Ti:
+      return 24;
+    case NvidiaGpu::kRTX2060:
+      return 30;
+    case NvidiaGpu::kRTX2060Super:
+      return 34;
+    case NvidiaGpu::kRTX2070:
+    case NvidiaGpu::kRTX4000Turing:
+      return 36;
+    case NvidiaGpu::kRTX2070Super:
+    case NvidiaGpu::kT4:
+      return 40;
+    case NvidiaGpu::kRTX2080:
+      return 46;
+    case NvidiaGpu::kRTX2080Super:
+    case NvidiaGpu::kRTX5000Turing:
+      return 48;
+    case NvidiaGpu::kRTX2080Ti:
+      return 68;
+    case NvidiaGpu::kTitanRTX:
+    case NvidiaGpu::kRTX6000Turing:
+    case NvidiaGpu::kRTX8000Turing:
+      return 72;
+    // Ampere
+    case NvidiaGpu::kA2:
+    case NvidiaGpu::kA16:
+      return 10;
+    case NvidiaGpu::kRTX3050:
+      return 20;
+    case NvidiaGpu::kRTXA2000:
+      return 26;
+    case NvidiaGpu::kRTX3060:
+      return 28;
+    case NvidiaGpu::kRTX3060Ti:
+      return 38;
+    case NvidiaGpu::kRTX3070:
+      return 46;
+    case NvidiaGpu::kRTX3070Ti:
+    case NvidiaGpu::kRTXA4000:
+      return 48;
+    case NvidiaGpu::kA30:
+    case NvidiaGpu::kRTXA4500:
+      return 56;
+    case NvidiaGpu::kRTXA5000:
+      return 64;
+    case NvidiaGpu::kRTX3080:
+      return 68;
+    case NvidiaGpu::kRTX3080Ti:
+    case NvidiaGpu::kA10G:
+      return 80;
+    case NvidiaGpu::kRTX3090:
+      return 82;
+    case NvidiaGpu::kRTX3090Ti:
+    case NvidiaGpu::kA40:
+    case NvidiaGpu::kRTXA6000:
+      return 84;
+    case NvidiaGpu::kA100:
+    case NvidiaGpu::kA800:
+      return 108;
+    // Lovelace
+    case NvidiaGpu::kRTX2000Ada:
+      return 22;
+    case NvidiaGpu::kRTX4060:
+      return 24;
+    case NvidiaGpu::kRTX4060Ti:
+      return 34;
+    case NvidiaGpu::kRTX3500Ada:
+      return 40;
+    case NvidiaGpu::kRTX4070:
+      return 46;
+    case NvidiaGpu::kRTX4000Ada:
+      return 48;
+    case NvidiaGpu::kRTX4070Super:
+      return 56;
+    case NvidiaGpu::kL4:
+      return 58;
+    case NvidiaGpu::kRTX4070Ti:
+      return 60;
+    case NvidiaGpu::kRTX4070TiSuper:
+      return 66;
+    case NvidiaGpu::kRTX4080:
+      return 76;
+    case NvidiaGpu::kRTX4080Super:
+      return 80;
+    case NvidiaGpu::kL20:
+      return 92;
+    case NvidiaGpu::kRTX5000Ada:
+      return 100;
+    case NvidiaGpu::kRTX4090:
+      return 128;
+    case NvidiaGpu::kL40S:
+    case NvidiaGpu::kL40:
+    case NvidiaGpu::kRTX6000Ada:
+      return 142;
+    // Hopper
+    case NvidiaGpu::kH100:
+    case NvidiaGpu::kH200:
+    case NvidiaGpu::kH800:
+    case NvidiaGpu::kGH200:
+      return 132;
+    // Blackwell
+    case NvidiaGpu::kRTX5060:
+      return 30;
+    case NvidiaGpu::kRTX5060Ti:
+      return 36;
+    case NvidiaGpu::kRTX5070:
+      return 48;
+    case NvidiaGpu::kRTX5070Ti:
+      return 70;
+    case NvidiaGpu::kRTX5080:
+      return 84;
+    case NvidiaGpu::kB100:
+      return 132;
+    case NvidiaGpu::kB200:
+    case NvidiaGpu::kB800:
+    case NvidiaGpu::kGB200:
+      return 148;
+    case NvidiaGpu::kRTX5090:
+      return 170;
+    case NvidiaGpu::kUnknown:
+      break;
+  }
+
+  // If the exact GPU model was not identified, fallback to a representative
+  // SM (Streaming Multiprocessor) count for a typical flagship/server GPU
+  // belonging to the detected architecture generation.
+  switch (architecture) {
+    case NvidiaArchitecture::kFermi:
+      return 16;  // GF100/GF110 (e.g., GTX 580).
+    case NvidiaArchitecture::kKepler:
+      return 15;  // GK110 (e.g., GTX 780 Ti / K40).
+    case NvidiaArchitecture::kMaxwell:
+      return 24;  // GM200 (e.g., Titan X / GTX 980 Ti).
+    case NvidiaArchitecture::kPascal:
+      return 28;  // GP102 (e.g., GTX 1080 Ti).
+    case NvidiaArchitecture::kVolta:
+      return 80;  // GV100 (e.g., V100 / Titan V).
+    case NvidiaArchitecture::kTuring:
+      return 40;  // TU104 (e.g., T4), ubiquitous in cloud inference.
+    case NvidiaArchitecture::kAmpere:
+      return 80;  // GA102 (e.g., A10G / RTX 3080 12GB).
+    case NvidiaArchitecture::kLovelace:
+      return 128;  // AD102 (e.g., RTX 4090).
+    case NvidiaArchitecture::kHopper:
+      return 132;  // GH100 (e.g., H100 SXM / H200).
+    case NvidiaArchitecture::kBlackwell:
+      return 148;  // GB200/B200 (per die SM count).
+    default:
+      // Default fallback of 16 SMs provides a safe, moderate baseline for
+      // unknown NVIDIA GPU architectures.
+      return 16;
+  }
 }
 
 void GetGpuInfoFromDeviceDescription(const std::string& gpu_description,
@@ -1312,6 +1647,9 @@ int GpuInfo::GetComputeUnitsCount() const {
   }
   if (IsApple()) {
     return apple_info.GetComputeUnitsCount();
+  }
+  if (IsNvidia()) {
+    return nvidia_info.GetComputeUnitsCount();
   }
   if (IsAMD()) {
     if (amd_info.GetComputeUnitsCount() != 0) {

@@ -656,6 +656,16 @@ cc_test(
 )
 
 cc_test(
+    name = "gpu_info_test",
+    srcs = ["gpu_info_test.cc"],
+    deps = [
+        ":gpu_info",
+        "//ml_drift/common/default:status_matchers",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
     name = "util_test",
     srcs = ["util_test.cc"],
     linkstatic = 1,

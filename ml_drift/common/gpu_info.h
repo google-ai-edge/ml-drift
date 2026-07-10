@@ -466,13 +466,123 @@ enum class NvidiaArchitecture {
   kBlackwell,
 };
 
+enum class NvidiaGpu {
+  kUnknown,
+  // Fermi
+  kGTX580,
+  // Kepler
+  kGTX780,
+  kK40,
+  kK80,
+  // Maxwell
+  kGTX960,
+  kGTX970,
+  kGTX980,
+  kGTX980Ti,
+  kTitanX,
+  kM40,
+  // Pascal
+  kGTX1050,
+  kGTX1050Ti,
+  kGTX1060,
+  kGTX1070,
+  kGTX1070Ti,
+  kGTX1080,
+  kGTX1080Ti,
+  kTitanXp,
+  kP4,
+  kP40,
+  kP100,
+  // Volta
+  kV100,
+  kTitanV,
+  // Turing
+  kGTX1650,
+  kGTX1650Super,
+  kGTX1660,
+  kGTX1660Super,
+  kGTX1660Ti,
+  kRTX2060,
+  kRTX2060Super,
+  kRTX2070,
+  kRTX2070Super,
+  kRTX2080,
+  kRTX2080Super,
+  kRTX2080Ti,
+  kTitanRTX,
+  kT4,
+  kRTX4000Turing,
+  kRTX5000Turing,
+  kRTX6000Turing,
+  kRTX8000Turing,
+  // Ampere
+  kRTX3050,
+  kRTX3060,
+  kRTX3060Ti,
+  kRTX3070,
+  kRTX3070Ti,
+  kRTX3080,
+  kRTX3080Ti,
+  kRTX3090,
+  kRTX3090Ti,
+  kA2,
+  kA16,
+  kA10G,
+  kA30,
+  kA40,
+  kA100,
+  kA800,
+  kRTXA2000,
+  kRTXA4000,
+  kRTXA4500,
+  kRTXA5000,
+  kRTXA6000,
+  // Lovelace
+  kRTX4060,
+  kRTX4060Ti,
+  kRTX4070,
+  kRTX4070Super,
+  kRTX4070Ti,
+  kRTX4070TiSuper,
+  kRTX4080,
+  kRTX4080Super,
+  kRTX4090,
+  kL4,
+  kL20,
+  kL40,
+  kL40S,
+  kRTX2000Ada,
+  kRTX3500Ada,
+  kRTX4000Ada,
+  kRTX5000Ada,
+  kRTX6000Ada,
+  // Hopper
+  kH100,
+  kH200,
+  kH800,
+  kGH200,
+  // Blackwell
+  kRTX5060,
+  kRTX5060Ti,
+  kRTX5070,
+  kRTX5070Ti,
+  kRTX5080,
+  kRTX5090,
+  kB100,
+  kB200,
+  kB800,
+  kGB200,
+};
+
 struct NvidiaInfo {
   NvidiaInfo() = default;
   explicit NvidiaInfo(const std::string& gpu_description);
 
   NvidiaArchitecture architecture;
+  NvidiaGpu gpu_type = NvidiaGpu::kUnknown;
 
   bool IsArchitectureOrNewer(NvidiaArchitecture arch) const;
+  int GetComputeUnitsCount() const;
 };
 
 struct OpenGlInfo {

@@ -466,6 +466,12 @@ std::vector<int3> GetPossibleWorkGroups(TuningType tuning_type,
   if (gpu_info.IsApple()) {
     return {GetWorkGroupSizeForApple(grid)};
   }
+  if ((gpu_info.IsApiOpenGl() || gpu_info.IsApiVulkan()) &&
+      gpu_info.IsNvidia() &&
+      !gpu_info.nvidia_info.IsArchitectureOrNewer(NvidiaArchitecture::kVolta)) {
+    // Old Nvidia EGL/Vulkan drivers don't work with non-power of 2 work groups.
+    return {int3(8, 4, 1)};
+  }
   switch (tuning_type) {
     case TuningType::kFast:
       return {GetWorkGroup(grid, gpu_info, kernel_info.max_work_group_size)};
