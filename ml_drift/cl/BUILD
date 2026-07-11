@@ -326,6 +326,7 @@ cc_library(
         ":cl_context",
         ":cl_device",
         ":program_cache",
+        ":util",
         ":util_types",
         "//ml_drift/common:gpu_info",
         "//ml_drift/common:precision",

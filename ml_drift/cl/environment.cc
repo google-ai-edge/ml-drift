@@ -21,6 +21,7 @@
 #include "ml_drift/cl/cl_command_queue.h"
 #include "ml_drift/cl/cl_context.h"
 #include "ml_drift/cl/cl_device.h"
+#include "ml_drift/cl/util.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/precision.h"
 #include "ml_drift/common/status.h"
@@ -71,7 +72,13 @@ Environment::Environment(CLDevice&& device, CLContext&& context,
     : device_(std::move(device)),
       context_(std::move(context)),
       queue_(std::move(queue)),
-      profiling_queue_(std::move(profiling_queue)) {}
+      profiling_queue_(std::move(profiling_queue)) {
+  if (device_.info_.IsPowerVR() &&
+      device_.info_.powervr_info.gpu_version >= PowerVRGpu::kCXT &&
+      SupportsImgPixelWaveDot(context_.context())) {
+    device_.AddExtension("cl_img_pixel_wave_dot");
+  }
+}
 
 Environment::Environment(Environment&& environment)
     : device_(std::move(environment.device_)),

@@ -45,6 +45,10 @@ class CLDevice {
   // To track bug on some Adreno. b/131099086
   void DisableOneLayerTextureArray();
 
+  void AddExtension(const std::string& extension) {
+    info_.opencl_info.extensions.push_back(extension);
+  }
+
   const GpuInfo& GetInfo() const { return info_; }
   // We update device info during context creation, so as supported texture
   // formats can be requested from context only.
