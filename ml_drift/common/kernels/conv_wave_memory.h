@@ -53,6 +53,7 @@ class ConvWaveMemory : public GPUOperation {
         true;  // if false, spatial loops will be first(most internal), (false)
                // supported only in specific combinations.
     bool unroll_x_loop = false;  // applicable with slices_loop_first = false;
+    bool img_wave_dot = false;
   };
   struct ConvParams {
     TensorDescriptor src_desc;
@@ -83,6 +84,15 @@ class ConvWaveMemory : public GPUOperation {
   WeightsDescription GetWeightsDescription() const {
     WeightsDescription desc;
     desc.type = conv_params_.weights_data_type;
+    if (kernel_params_.img_wave_dot) {
+      if (kernel_params_.slices_loop_first) {
+        desc.layout = WeightsLayout::kOSpatialIOGroupO4I4;
+      } else {
+        desc.layout = WeightsLayout::kOISpatialOGroupO4I4;
+      }
+      desc.output_group_size = kernel_params_.slices_out;
+      return desc;
+    }
     if (conv_params_.weights_data_type == DataType::INT8) {
       desc.layout = WeightsLayout::kOSpatialIOGroupO4I4;
     } else {

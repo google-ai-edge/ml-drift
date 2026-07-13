@@ -117,6 +117,30 @@ std::string GenerateDstCoords(bool precise_xy, bool slices_first,
   return c;
 }
 
+std::string GenerateConvImg(const ConvWaveMemory::ConvParams& conv_params,
+                            const std::string& dst, const std::string& src,
+                            int index) {
+  std::string c;
+  switch (conv_params.precision) {
+    case CalculationsPrecision::F32:
+      c += "  $0.x = __builtin_PXL_dot_f32_x4($1, weights_cache_wave_var0, $2, "
+           "$0.x);\n";
+      c += "  $0.y = __builtin_PXL_dot_f32_x4($1, weights_cache_wave_var0, $3, "
+           "$0.y);\n";
+      c += "  $0.z = __builtin_PXL_dot_f32_x4($1, weights_cache_wave_var0, $4, "
+           "$0.z);\n";
+      c += "  $0.w = __builtin_PXL_dot_f32_x4($1, weights_cache_wave_var0, $5, "
+           "$0.w);\n";
+      break;
+    case CalculationsPrecision::F16:
+      break;
+    case CalculationsPrecision::F32_F16:
+      break;
+  }
+  return absl::Substitute(c, dst, src, index * 4 + 0, index * 4 + 1,
+                          index * 4 + 2, index * 4 + 3);
+}
+
 std::string GenerateConv(const ConvWaveMemory::ConvParams& conv_params,
                          const std::string& dst, const std::string& src,
                          int index) {
@@ -168,6 +192,12 @@ std::string GenerateConvolutionGeneric(
   c += "#pragma OPENCL EXTENSION ucl_wave_memory: enable\n";
   if (gpu_info.IsAdreno() && conv_params.Is8Bit()) {
     c += "#pragma OPENCL EXTENSION cl_qcom_dot_product8 : enable\n";
+  }
+  if (kernel_params.img_wave_dot) {
+    if (conv_params.precision == CalculationsPrecision::F32) {
+      c += "float __builtin_PXL_dot_f32_x4(float4 a, float4 b, uint index, "
+           "float acc);\n";
+    }
   }
   c += "MAIN_FUNCTION($0) {\n";
   c += GenerateDstCoords(kernel_params.precise_spatial,
@@ -386,8 +416,13 @@ std::string GenerateConvolutionGeneric(
       std::string src_name = "src" + std::to_string(kx);
       for (int s_out = 0; s_out < kernel_params.slices_out; ++s_out) {
         const std::string dst_name = "r" + std::to_string(s_out);
-        c += GenerateConv(conv_params, dst_name, src_name,
-                          kx * kernel_params.slices_out + s_out);
+        if (kernel_params.img_wave_dot) {
+          c += GenerateConvImg(conv_params, dst_name, src_name,
+                               kx * kernel_params.slices_out + s_out);
+        } else {
+          c += GenerateConv(conv_params, dst_name, src_name,
+                            kx * kernel_params.slices_out + s_out);
+        }
       }
     }
   } else {
@@ -395,8 +430,13 @@ std::string GenerateConvolutionGeneric(
       const std::string src_name = "src" + std::to_string(s_in);
       for (int s_out = 0; s_out < kernel_params.slices_out; ++s_out) {
         const std::string dst_name = "r" + std::to_string(s_out);
-        c += GenerateConv(conv_params, dst_name, src_name,
-                          s_in * kernel_params.slices_out + s_out);
+        if (kernel_params.img_wave_dot) {
+          c += GenerateConvImg(conv_params, dst_name, src_name,
+                               s_in * kernel_params.slices_out + s_out);
+        } else {
+          c += GenerateConv(conv_params, dst_name, src_name,
+                            s_in * kernel_params.slices_out + s_out);
+        }
       }
     }
   }
@@ -573,6 +613,14 @@ ConvWaveMemory::KernelParams GetKernelParamsPowerVR(
   kernel_params.slices_out = 4;
   kernel_params.slices_in = src_slices % 2 == 0 ? 2 : 1;
   kernel_params.wave_size = 128;
+
+  if (gpu_info.SupportsExtension("cl_img_pixel_wave_dot")) {
+    if (!params.Is8Bit() && params.precision == CalculationsPrecision::F32) {
+      kernel_params.img_wave_dot = true;
+      kernel_params.slices_in = 1;
+    }
+  }
+
   return kernel_params;
 }
 
@@ -646,6 +694,13 @@ ConvWaveMemory::ConvWaveMemory(const ConvWaveMemory::ConvParams& conv_params,
     } else {
       work_group_size_ = int3(kernel_params_.wave_size, 1, 1);
     }
+  }
+
+  if (kernel_params_.img_wave_dot) {
+    compiler_options_.push_back(CompilerOptions::kClFastRelaxedMath);
+    compiler_options_.push_back(
+        CompilerOptions::kClPixelDisableKernelBlobCache);
+    compiler_options_.push_back(CompilerOptions::kClPixelDisableRecompile);
   }
 
   args_.AddInt("i_slices", src_slices);
