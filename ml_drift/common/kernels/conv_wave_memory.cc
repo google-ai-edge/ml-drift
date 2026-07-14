@@ -121,24 +121,25 @@ std::string GenerateConvImg(const ConvWaveMemory::ConvParams& conv_params,
                             const std::string& dst, const std::string& src,
                             int index) {
   std::string c;
-  switch (conv_params.precision) {
-    case CalculationsPrecision::F32:
-      c += "  $0.x = __builtin_PXL_dot_f32_x4($1, weights_cache_wave_var0, $2, "
-           "$0.x);\n";
-      c += "  $0.y = __builtin_PXL_dot_f32_x4($1, weights_cache_wave_var0, $3, "
-           "$0.y);\n";
-      c += "  $0.z = __builtin_PXL_dot_f32_x4($1, weights_cache_wave_var0, $4, "
-           "$0.z);\n";
-      c += "  $0.w = __builtin_PXL_dot_f32_x4($1, weights_cache_wave_var0, $5, "
-           "$0.w);\n";
-      break;
-    case CalculationsPrecision::F16:
-      break;
-    case CalculationsPrecision::F32_F16:
-      break;
+  if (conv_params.precision == CalculationsPrecision::F32) {
+    c += "  $0.x = __builtin_PXL_dot_f32_x4($1, weights_cache_wave_var0, $2, "
+         "$0.x);\n";
+    c += "  $0.y = __builtin_PXL_dot_f32_x4($1, weights_cache_wave_var0, $3, "
+         "$0.y);\n";
+    c += "  $0.z = __builtin_PXL_dot_f32_x4($1, weights_cache_wave_var0, $4, "
+         "$0.z);\n";
+    c += "  $0.w = __builtin_PXL_dot_f32_x4($1, weights_cache_wave_var0, $5, "
+         "$0.w);\n";
+    return absl::Substitute(c, dst, src, index * 4 + 0, index * 4 + 1,
+                            index * 4 + 2, index * 4 + 3);
+  } else if (conv_params.precision == CalculationsPrecision::F16) {
+    c += "  $0a = pixel_dot4_f16_x2($1, weights_cache_wave_var0, "
+         "$2, $0a);\n";
+    c += "  $0b = pixel_dot4_f16_x2($1, weights_cache_wave_var0, "
+         "$3, $0b);\n";
+    return absl::Substitute(c, dst, src, index * 2 + 0, index * 2 + 1);
   }
-  return absl::Substitute(c, dst, src, index * 4 + 0, index * 4 + 1,
-                          index * 4 + 2, index * 4 + 3);
+  return c;
 }
 
 std::string GenerateConv(const ConvWaveMemory::ConvParams& conv_params,
@@ -197,6 +198,15 @@ std::string GenerateConvolutionGeneric(
     if (conv_params.precision == CalculationsPrecision::F32) {
       c += "float __builtin_PXL_dot_f32_x4(float4 a, float4 b, uint index, "
            "float acc);\n";
+    } else if (conv_params.precision == CalculationsPrecision::F16) {
+      c +=
+          "uint __builtin_PXL_dot_x2_f16_x4(uint2 a, uint4 b, uint sglid, uint "
+          "acc);\n";
+      c += "half2 pixel_dot4_f16_x2(half4 a, half8 b, uint sglid, half2 acc) "
+           "{\n";
+      c += "  return as_half2(__builtin_PXL_dot_x2_f16_x4(as_uint2(a), "
+           "as_uint4(b), sglid, as_uint(acc)));\n";
+      c += "}\n";
     }
   }
   c += "MAIN_FUNCTION($0) {\n";
@@ -236,12 +246,23 @@ std::string GenerateConvolutionGeneric(
          " >= dst_end_slice_runtime) return;\n";
   }
   const DataType acc_type = GetAccumulatorType(conv_params);
-  const std::string acc_type_ucl = ToUclDataType(acc_type, 4);
   const std::string zero_value = GetZeroValue(acc_type);
+  const bool accum_as_vec2 =
+      kernel_params.img_wave_dot &&
+      conv_params.precision == CalculationsPrecision::F16;
+  const int acc_vec_size = accum_as_vec2 ? 2 : 4;
+  const std::string acc_type_ucl = ToUclDataType(acc_type, acc_vec_size);
   for (int s_out = 0; s_out < kernel_params.slices_out; ++s_out) {
-    const std::string val_name = "r" + std::to_string(s_out);
-    c += "  " + acc_type_ucl + " " + val_name + " = ucl::Init<" + acc_type_ucl +
-         ">(" + zero_value + ");\n";
+    std::string val_name = "r" + std::to_string(s_out);
+    if (accum_as_vec2) {
+      c += "  " + acc_type_ucl + " " + val_name + "a = ucl::Init<" +
+           acc_type_ucl + ">(" + zero_value + ");\n";
+      c += "  " + acc_type_ucl + " " + val_name + "b = ucl::Init<" +
+           acc_type_ucl + ">(" + zero_value + ");\n";
+    } else {
+      c += "  " + acc_type_ucl + " " + val_name + " = ucl::Init<" +
+           acc_type_ucl + ">(" + zero_value + ");\n";
+    }
   }
   c += "\n";
   std::string src_start_slice = "0";
@@ -285,6 +306,12 @@ std::string GenerateConvolutionGeneric(
     // 8 bit conv uses 4 uint32 values instead of 4 uint8 values.
     wave_cache_size /= 4;
     wave_cache_type = "uint4";
+  } else if (kernel_params.img_wave_dot &&
+             conv_params.precision == CalculationsPrecision::F16) {
+    // f16 conv uses 8 x float16 (128 bit per thread) instead of 4 x float16
+    // values.
+    wave_cache_size /= 2;
+    wave_cache_type = "half8";
   }
   if (kernel_params.unroll_x_loop) {
     wave_cache_size *= conv_params.kernel_size.x;
@@ -406,9 +433,13 @@ std::string GenerateConvolutionGeneric(
   if (!gpu_info.IsAdreno()) {
     c += "        ucl::SyncThreads<WaveLoad>();\n";
   }
-  c += "        ucl::WaveLoad(weights_cache, args.weights.GetPtr(), "
-       "f_offset, " +
-       std::to_string(wave_cache_size) + ");\n";
+  std::string weights_base_ptr = "args.weights.GetPtr()";
+  if (kernel_params.img_wave_dot &&
+      conv_params.precision == CalculationsPrecision::F16) {
+    weights_base_ptr = "((__global half8*)(" + weights_base_ptr + "))";
+  }
+  c += "        ucl::WaveLoad(weights_cache, " + weights_base_ptr +
+       ", f_offset, " + std::to_string(wave_cache_size) + ");\n";
   c += "        f_offset += " + std::to_string(wave_cache_size) + ";\n";
   c += "        ucl::SyncThreads<WaveLoad>();\n";
   if (kernel_params.unroll_x_loop) {
@@ -482,6 +513,10 @@ std::string GenerateConvolutionGeneric(
   c += "  coord_y = Y;\n";
   for (int s_out = 0; s_out < kernel_params.slices_out; ++s_out) {
     std::string val_name = "r" + std::to_string(s_out);
+    if (accum_as_vec2) {
+      const std::string acc_type_ucl = ToUclDataType(acc_type, 4);
+      val_name = "(" + acc_type_ucl + ")(" + val_name + "a, " + val_name + "b)";
+    }
     c += "  if (coord_s < args.dst_tensor.Slices()) {\n";
     c += "    args.dst_tensor::type res = "
          "ucl::Convert<args.dst_tensor::type>(" +
@@ -615,9 +650,11 @@ ConvWaveMemory::KernelParams GetKernelParamsPowerVR(
   kernel_params.wave_size = 128;
 
   if (gpu_info.SupportsExtension("cl_img_pixel_wave_dot")) {
-    if (!params.Is8Bit() && params.precision == CalculationsPrecision::F32) {
+    if (!params.Is8Bit() && (params.precision == CalculationsPrecision::F32 ||
+                             params.precision == CalculationsPrecision::F16)) {
       kernel_params.img_wave_dot = true;
       kernel_params.slices_in = 1;
+      kernel_params.slices_out = 4;
     }
   }
 

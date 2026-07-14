@@ -85,12 +85,30 @@ class ConvWaveMemory : public GPUOperation {
     WeightsDescription desc;
     desc.type = conv_params_.weights_data_type;
     if (kernel_params_.img_wave_dot) {
-      if (kernel_params_.slices_loop_first) {
-        desc.layout = WeightsLayout::kOSpatialIOGroupO4I4;
-      } else {
-        desc.layout = WeightsLayout::kOISpatialOGroupO4I4;
+      if (conv_params_.precision == CalculationsPrecision::F32) {
+        if (kernel_params_.slices_loop_first) {
+          desc.layout = WeightsLayout::kOSpatialIOGroupO4I4;
+        } else {
+          desc.layout = WeightsLayout::kOISpatialOGroupO4I4;
+        }
+        desc.output_group_size = kernel_params_.slices_out;
+      } else if (conv_params_.precision == CalculationsPrecision::F16) {
+        desc.layout = WeightsLayout::kCustomGroups;
+        desc.group_sizes = {{Axis::OUTPUT_CHANNELS, 2},
+                            {Axis::INPUT_CHANNELS, 4},
+                            {Axis::OUTPUT_CHANNELS, 2},
+                            {Axis::OUTPUT_CHANNELS, kernel_params_.slices_out}};
+        if (kernel_params_.slices_loop_first) {
+          desc.group_sizes.push_back({Axis::INPUT_CHANNELS, 0});
+          desc.group_sizes.push_back({Axis::WIDTH, 0});
+          desc.group_sizes.push_back({Axis::HEIGHT, 0});
+        } else {
+          desc.group_sizes.push_back({Axis::WIDTH, 0});
+          desc.group_sizes.push_back({Axis::HEIGHT, 0});
+          desc.group_sizes.push_back({Axis::INPUT_CHANNELS, 0});
+        }
+        desc.group_sizes.push_back({Axis::OUTPUT_CHANNELS, 0});
       }
-      desc.output_group_size = kernel_params_.slices_out;
       return desc;
     }
     if (conv_params_.weights_data_type == DataType::INT8) {
