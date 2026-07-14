@@ -85,7 +85,15 @@ class ConvWaveMemory : public GPUOperation {
     WeightsDescription desc;
     desc.type = conv_params_.weights_data_type;
     if (kernel_params_.img_wave_dot) {
-      if (conv_params_.precision == CalculationsPrecision::F32) {
+      if (conv_params_.Is8Bit()) {
+        desc.type = DataType::UINT8;
+        desc.layout = WeightsLayout::kCustomGroups;
+        desc.group_sizes = {{Axis::INPUT_CHANNELS, 16},
+                            {Axis::OUTPUT_CHANNELS, 4},
+                            {Axis::OUTPUT_CHANNELS, kernel_params_.slices_out},
+                            {Axis::INPUT_CHANNELS, 0},
+                            {Axis::OUTPUT_CHANNELS, 0}};
+      } else if (conv_params_.precision == CalculationsPrecision::F32) {
         if (kernel_params_.slices_loop_first) {
           desc.layout = WeightsLayout::kOSpatialIOGroupO4I4;
         } else {
@@ -186,7 +194,16 @@ void ConvWaveMemory::UploadWeights(const GpuInfo& gpu_info,
   const WeightsDescription weights_desc = GetWeightsDescription();
   BufferDescriptor buffer_desc =
       GetBufferDescForWaveMemoryUpload(gpu_info, weights_desc, weights.shape);
-  RearrangeWeights(weights, weights_desc, absl::MakeSpan(buffer_desc.data));
+  if constexpr (T == DataType::INT8) {
+    if (conv_params_.Is8Bit() && kernel_params_.img_wave_dot) {
+      RearrangeWeightsInt8AsUint8(weights, weights_desc,
+                                  absl::MakeSpan(buffer_desc.data), 128, 128u);
+    } else {
+      RearrangeWeights(weights, weights_desc, absl::MakeSpan(buffer_desc.data));
+    }
+  } else {
+    RearrangeWeights(weights, weights_desc, absl::MakeSpan(buffer_desc.data));
+  }
   args_.AddObject("weights",
                   std::make_unique<BufferDescriptor>(std::move(buffer_desc)));
 }

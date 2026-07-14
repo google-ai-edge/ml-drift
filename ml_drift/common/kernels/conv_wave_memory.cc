@@ -19,6 +19,7 @@
 #include <variant>
 #include <vector>
 
+#include "absl/log/check.h"
 #include "absl/strings/str_replace.h"
 #include "absl/strings/substitute.h"
 #include "ml_drift/common/data_type.h"
@@ -121,7 +122,16 @@ std::string GenerateConvImg(const ConvWaveMemory::ConvParams& conv_params,
                             const std::string& dst, const std::string& src,
                             int index) {
   std::string c;
-  if (conv_params.precision == CalculationsPrecision::F32) {
+  if (conv_params.Is8Bit()) {
+    c = R"(
+  $0.x = __builtin_PXL_dot_u8_x16($1, weights_cache_wave_var0, $2, $0.x);
+  $0.y = __builtin_PXL_dot_u8_x16($1, weights_cache_wave_var0, $3, $0.y);
+  $0.z = __builtin_PXL_dot_u8_x16($1, weights_cache_wave_var0, $4, $0.z);
+  $0.w = __builtin_PXL_dot_u8_x16($1, weights_cache_wave_var0, $5, $0.w);
+)";
+    return absl::Substitute(c, dst, src, index * 4 + 0, index * 4 + 1,
+                            index * 4 + 2, index * 4 + 3);
+  } else if (conv_params.precision == CalculationsPrecision::F32) {
     c += "  $0.x = __builtin_PXL_dot_f32_x4($1, weights_cache_wave_var0, $2, "
          "$0.x);\n";
     c += "  $0.y = __builtin_PXL_dot_f32_x4($1, weights_cache_wave_var0, $3, "
@@ -195,7 +205,10 @@ std::string GenerateConvolutionGeneric(
     c += "#pragma OPENCL EXTENSION cl_qcom_dot_product8 : enable\n";
   }
   if (kernel_params.img_wave_dot) {
-    if (conv_params.precision == CalculationsPrecision::F32) {
+    if (conv_params.Is8Bit()) {
+      c += "uint __builtin_PXL_dot_u8_x16(uint4 a, uint4 b, uint index, uint "
+           "acc);\n";
+    } else if (conv_params.precision == CalculationsPrecision::F32) {
       c += "float __builtin_PXL_dot_f32_x4(float4 a, float4 b, uint index, "
            "float acc);\n";
     } else if (conv_params.precision == CalculationsPrecision::F16) {
@@ -425,6 +438,11 @@ std::string GenerateConvolutionGeneric(
              " - exp_val.y) * exp_val.x;\n";
       }
     }
+    if (kernel_params.img_wave_dot && conv_params.Is8Bit() &&
+        src_type == DataType::UINT8) {
+      c += "        uint4 src_packed = (uint4)(src0_uint, src1_uint, "
+           "src2_uint, src3_uint);\n";
+    }
     if (!kernel_params.slices_loop_first) {
       c += "        coord_s -= " + std::to_string(kernel_params.slices_in) +
            ";\n";
@@ -434,14 +452,21 @@ std::string GenerateConvolutionGeneric(
     c += "        ucl::SyncThreads<WaveLoad>();\n";
   }
   std::string weights_base_ptr = "args.weights.GetPtr()";
-  if (kernel_params.img_wave_dot &&
-      conv_params.precision == CalculationsPrecision::F16) {
-    weights_base_ptr = "((__global half8*)(" + weights_base_ptr + "))";
+  if (kernel_params.img_wave_dot) {
+    if (conv_params.Is8Bit()) {
+      weights_base_ptr = "((__global uint4*)(" + weights_base_ptr + "))";
+    } else if (conv_params.precision == CalculationsPrecision::F16) {
+      weights_base_ptr = "((__global half8*)(" + weights_base_ptr + "))";
+    }
   }
   c += "        ucl::WaveLoad(weights_cache, " + weights_base_ptr +
        ", f_offset, " + std::to_string(wave_cache_size) + ");\n";
   c += "        f_offset += " + std::to_string(wave_cache_size) + ";\n";
   c += "        ucl::SyncThreads<WaveLoad>();\n";
+  int in_slices = kernel_params.slices_in;
+  if (kernel_params.img_wave_dot && conv_params.Is8Bit()) {
+    in_slices /= 4;
+  }
   if (kernel_params.unroll_x_loop) {
     for (int kx = 0; kx < conv_params.kernel_size.x; ++kx) {
       std::string src_name = "src" + std::to_string(kx);
@@ -457,8 +482,12 @@ std::string GenerateConvolutionGeneric(
       }
     }
   } else {
-    for (int s_in = 0; s_in < kernel_params.slices_in; ++s_in) {
-      const std::string src_name = "src" + std::to_string(s_in);
+    for (int s_in = 0; s_in < in_slices; ++s_in) {
+      std::string src_name = "src" + std::to_string(s_in);
+      if (kernel_params.img_wave_dot && conv_params.Is8Bit() &&
+          src_type == DataType::UINT8) {
+        src_name = "src_packed";
+      }
       for (int s_out = 0; s_out < kernel_params.slices_out; ++s_out) {
         const std::string dst_name = "r" + std::to_string(s_out);
         if (kernel_params.img_wave_dot) {
@@ -650,8 +679,13 @@ ConvWaveMemory::KernelParams GetKernelParamsPowerVR(
   kernel_params.wave_size = 128;
 
   if (gpu_info.SupportsExtension("cl_img_pixel_wave_dot")) {
-    if (!params.Is8Bit() && (params.precision == CalculationsPrecision::F32 ||
-                             params.precision == CalculationsPrecision::F16)) {
+    if (params.Is8Bit()) {
+      kernel_params.img_wave_dot = true;
+      kernel_params.slices_out = 4;
+      kernel_params.slices_in = 4;
+      CHECK_EQ(src_slices % kernel_params.slices_in, 0);
+    } else if (params.precision == CalculationsPrecision::F32 ||
+               params.precision == CalculationsPrecision::F16) {
       kernel_params.img_wave_dot = true;
       kernel_params.slices_in = 1;
       kernel_params.slices_out = 4;

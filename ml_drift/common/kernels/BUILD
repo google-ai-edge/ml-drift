@@ -276,6 +276,7 @@ cc_library(
         "//ml_drift/common/task:weights_conversion",
         "//ml_drift/common/task:weights_layout",
         "//ml_drift/common/task:work_group_picking",
+        "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:span",
     ],
