@@ -74,9 +74,9 @@ Environment::Environment(CLDevice&& device, CLContext&& context,
       queue_(std::move(queue)),
       profiling_queue_(std::move(profiling_queue)) {
   if (device_.info_.IsPowerVR() &&
-      device_.info_.powervr_info.gpu_version >= PowerVRGpu::kCXT &&
+      device_.info_.powervr_info.gpu_version == PowerVRGpu::kDXT &&
       SupportsImgPixelWaveDot(context_.context())) {
-    device_.AddExtension("cl_img_pixel_wave_dot");
+    device_.AddExtension("cl_img_pixel_subgroup_dot");
   }
 }
 

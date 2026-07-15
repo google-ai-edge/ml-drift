@@ -678,7 +678,7 @@ ConvWaveMemory::KernelParams GetKernelParamsPowerVR(
   kernel_params.slices_in = src_slices % 2 == 0 ? 2 : 1;
   kernel_params.wave_size = 128;
 
-  if (gpu_info.SupportsExtension("cl_img_pixel_wave_dot")) {
+  if (gpu_info.SupportsExtension("cl_img_pixel_subgroup_dot")) {
     if (params.Is8Bit()) {
       kernel_params.img_wave_dot = true;
       kernel_params.slices_out = 4;
