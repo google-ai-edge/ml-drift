@@ -1963,9 +1963,16 @@ GpuModelBuilder::DepthwiseConvolution(
         "No support of depthwise runtime weights with channel multiplier "
         "!= 1");
   }
+  const auto src_type = src.tensor_desc.GetDataType();
+  const auto weights_type = weights.tensor_desc.GetDataType();
+  if (src_type != weights_type) {
+    return absl::UnimplementedError(absl::StrCat(
+        "No support of depthwise runtime weights with different data types. "
+        "src: ",
+        ToString(src_type), " weights: ", ToString(weights_type)));
+  }
   BHWC dst_shape = CalculateOutputShape(src.tensor_desc.GetBHWCShape(), attr);
-  GpuModelBuilder::TensorHandle dst =
-      AddTensor(dst_shape, src.tensor_desc.GetDataType());
+  auto dst = AddTensor(dst_shape, src_type);
 
   gpu_model_.nodes.push_back({});
   auto& gpu_node = gpu_model_.nodes.back();
@@ -1981,7 +1988,7 @@ GpuModelBuilder::DepthwiseConvolution(
   op_def.src_tensors.push_back(weights.tensor_desc);
   op_def.dst_tensors.push_back(dst.tensor_desc);
   gpu_node.gpu_operation = SelectDWConvolutionExternalWeights(
-      attr, gpu_info_, op_def, GetConvPrecision(src.tensor_desc.GetDataType()));
+      attr, gpu_info_, op_def, GetConvPrecision(src_type));
   gpu_node.gpu_operation->flops_ =
       GetDepthwiseConvolutionFlops(dst_shape, dw_weights_shape);
   return dst;
