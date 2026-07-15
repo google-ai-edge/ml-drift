@@ -415,12 +415,18 @@ std::string GenerateConvolutionGeneric(
       c += "    Type src" + std::to_string(kx) + " = " + read_src();
     }
   } else if (src_type == DataType::UINT32) {
-    c += "  uint4 src0 = " + read_src();
-    c += "  coord_s++;\n";
-    c += "  uint src0_uint = src0.x;\n";
-    c += "  uint src1_uint = src0.y;\n";
-    c += "  uint src2_uint = src0.z;\n";
-    c += "  uint src3_uint = src0.w;\n";
+    for (int s_in = 0; s_in < kernel_params.slices_in / 4; ++s_in) {
+      const std::string val_name = "src" + std::to_string(s_in);
+      c += "  uint4 " + val_name + " = " + read_src();
+      c += "  coord_s++;\n";
+      if (!kernel_params.img_wave_dot) {
+        const std::string coords[4] = {"x", "y", "z", "w"};
+        for (int i = 0; i < 4; ++i) {
+          c += "  uint src" + std::to_string(s_in * 4 + i) +
+               "_uint = " + val_name + "." + coords[i] + ";\n";
+        }
+      }
+    }
   } else {
     for (int s_in = 0; s_in < kernel_params.slices_in; ++s_in) {
       std::string val_name = "src" + std::to_string(s_in);
@@ -683,6 +689,9 @@ ConvWaveMemory::KernelParams GetKernelParamsPowerVR(
       kernel_params.img_wave_dot = true;
       kernel_params.slices_out = 4;
       kernel_params.slices_in = 4;
+      if (params.src_desc.GetDataType() == DataType::UINT32) {
+        kernel_params.slices_in = src_slices % 8 == 0 ? 8 : 4;
+      }
       CHECK_EQ(src_slices % kernel_params.slices_in, 0);
     } else if (params.precision == CalculationsPrecision::F32 ||
                params.precision == CalculationsPrecision::F16) {
@@ -1031,6 +1040,10 @@ bool SupportsConvWaveMemoryInt8(const GpuInfo& gpu_info) {
     }
     // Adreno650 has very bad performance in int8, worse than fp16
     return gpu_info.adreno_info.adreno_gpu != AdrenoGpu::kAdreno650;
+  }
+  if (gpu_info.IsPowerVR() &&
+      gpu_info.SupportsExtension("cl_img_pixel_subgroup_dot")) {
+    return true;
   }
   return false;
 }
