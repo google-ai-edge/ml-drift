@@ -87,7 +87,7 @@ AdrenoInfo::OpenClCompilerVersion GetQualcommOpenClCompilerVersion(
 
 void FixAdrenoBinary(std::vector<uint8_t>* binary);
 
-bool SupportsImgPixelWaveDot(cl_context context);
+std::string GetImgPixelSubgroupDotSample();
 
 }  // namespace cl
 }  // namespace ml_drift

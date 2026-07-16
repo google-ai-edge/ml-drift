@@ -325,6 +325,7 @@ cc_library(
         ":cl_command_queue",
         ":cl_context",
         ":cl_device",
+        ":cl_program",
         ":program_cache",
         ":util",
         ":util_types",

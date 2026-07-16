@@ -21,6 +21,7 @@
 #include "ml_drift/cl/cl_command_queue.h"
 #include "ml_drift/cl/cl_context.h"
 #include "ml_drift/cl/cl_device.h"
+#include "ml_drift/cl/cl_program.h"
 #include "ml_drift/cl/util.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/precision.h"
@@ -64,6 +65,19 @@ bool IsGpuSupportsPrecision(const GpuInfo& gpu_info,
   }
 }
 
+bool SupportsImgPixelSubgroupDot(const CLDevice& device,
+                                 const CLContext& context) {
+  if (device.info_.IsPowerVR() &&
+      device.info_.powervr_info.gpu_version == PowerVRGpu::kDXT) {
+    auto result = CreateCLProgram(GetImgPixelSubgroupDotSample(),
+                                  /*compiler_options=*/"", context, device);
+    if (result.ok()) {
+      return true;
+    }
+  }
+  return false;
+}
+
 }  // namespace
 
 Environment::Environment(CLDevice&& device, CLContext&& context,
@@ -73,9 +87,7 @@ Environment::Environment(CLDevice&& device, CLContext&& context,
       context_(std::move(context)),
       queue_(std::move(queue)),
       profiling_queue_(std::move(profiling_queue)) {
-  if (device_.info_.IsPowerVR() &&
-      device_.info_.powervr_info.gpu_version == PowerVRGpu::kDXT &&
-      SupportsImgPixelWaveDot(context_.context())) {
+  if (SupportsImgPixelSubgroupDot(device_, context_)) {
     device_.AddExtension("cl_img_pixel_subgroup_dot");
   }
 }

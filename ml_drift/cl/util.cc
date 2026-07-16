@@ -317,32 +317,17 @@ AdrenoInfo::OpenClCompilerVersion GetQualcommOpenClCompilerVersion(
   return result;
 }
 
-bool SupportsImgPixelWaveDot(cl_context context) {
-  const std::string source = R"(
+std::string GetImgPixelSubgroupDotSample() {
+  return R"(
 float __builtin_PXL_dot_f32_x4(float4 a, float4 b, uint index, float acc);
 
-__kernel void main(__global float4* src, __global float* dst) {
+__kernel void main_function(__global float4* src, __global float* dst) {
   int i = get_global_id(0);
   float4 s0 = src[i];
   float4 s1 = src[i + 1];
   dst[i] = __builtin_PXL_dot_f32_x4(s0, s1, 0, 0.0f);
 }
 )";
-  const char* source_ptr = source.c_str();
-
-  int error_code;
-  cl_program program =
-      clCreateProgramWithSource(context, 1, &source_ptr, nullptr, &error_code);
-  if (program) {
-    if (error_code != CL_SUCCESS) return false;
-    const std::string compiler_options =
-        "-pixel-disable-recompile -pixel-disable-kernelblobcache";
-    error_code = clBuildProgram(program, 0, nullptr, compiler_options.c_str(),
-                                nullptr, nullptr);
-    clReleaseProgram(program);
-    return error_code == CL_SUCCESS;
-  }
-  return false;
 }
 
 }  // namespace cl
