@@ -674,7 +674,7 @@ exports_files(
         "fully_connected.h",
     ],
     visibility = [
-        "//third_party/odml/infra/ml_drift_delegate/serialization_weight_cache:__pkg__",
+        "//third_party/odml/litert/ml_drift/delegate/serialization_weight_cache:__pkg__",
     ],
 )
 
