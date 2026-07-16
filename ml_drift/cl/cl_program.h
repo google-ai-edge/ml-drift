@@ -66,20 +66,19 @@ class CLProgram {
   cl_device_id device_id_ = nullptr;
 };
 
-absl::Status CreateCLProgram(const std::string& code,
-                             const std::string& compiler_options,
-                             const CLContext& context, const CLDevice& device,
-                             CLProgram* result);
+absl::StatusOr<CLProgram> CreateCLProgram(const std::string& code,
+                                          const std::string& compiler_options,
+                                          const CLContext& context,
+                                          const CLDevice& device);
 
-absl::Status CreateCLProgram(
+absl::StatusOr<CLProgram> CreateCLProgram(
     const std::string& code,
     const std::vector<CompilerOptions>& compiler_options,
-    const CLContext& context, const CLDevice& device, CLProgram* result);
+    const CLContext& context, const CLDevice& device);
 
-absl::Status CreateCLProgramFromBinary(const CLContext& context,
-                                       const CLDevice& device,
-                                       absl::Span<const uint8_t> binary,
-                                       CLProgram* result);
+absl::StatusOr<CLProgram> CreateCLProgramFromBinary(
+    const CLContext& context, const CLDevice& device,
+    absl::Span<const uint8_t> binary);
 
 }  // namespace cl
 }  // namespace ml_drift

@@ -99,9 +99,8 @@ absl::Status ProgramCache::GetOrCreateCLKernel(
     return result->CreateFromProgram(it->second, function_name);
   }
 
-  CLProgram program;
-  RETURN_IF_ERROR(
-      CreateCLProgram(code, compiler_options, context, device, &program));
+  ASSIGN_OR_RETURN(auto program,
+                   CreateCLProgram(code, compiler_options, context, device));
   RETURN_IF_ERROR(result->CreateFromProgram(program, function_name));
   programs_.insert(std::make_pair(std::move(desc), std::move(program)));
   return absl::OkStatus();
@@ -135,9 +134,8 @@ absl::Status ProgramCache::AddProgramBinary(const CLContext& context,
   ProgramDescriptor desc(fingerprint);
   auto it = programs_.find(desc);
   if (it == programs_.end()) {
-    CLProgram program;
-    RETURN_IF_ERROR(
-        CreateCLProgramFromBinary(context, device, binary, &program));
+    ASSIGN_OR_RETURN(auto program,
+                     CreateCLProgramFromBinary(context, device, binary));
     programs_.insert(std::make_pair(std::move(desc), std::move(program)));
   }
   return absl::OkStatus();

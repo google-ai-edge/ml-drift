@@ -69,7 +69,7 @@ absl::Status GetBinarySize(cl_program program, size_t* binary_size) {
   return absl::OkStatus();
 }
 
-absl::Status BuildProgram(cl_program program, const CLDevice& device,
+absl::Status BuildProgram(cl_program program, cl_device_id device_id,
                           const std::string& compiler_options) {
   // TODO: b/279347631 - Remove after Nvidia driver is fixed.
   absl::LeakCheckDisabler disabler;
@@ -79,7 +79,7 @@ absl::Status BuildProgram(cl_program program, const CLDevice& device,
     return absl::UnknownError(absl::StrCat(
         "Failed to build program executable - ",
         CLErrorCodeToString(error_code),
-        GetProgramBuildInfo(program, device.id(), CL_PROGRAM_BUILD_LOG)));
+        GetProgramBuildInfo(program, device_id, CL_PROGRAM_BUILD_LOG)));
   }
 
   return absl::OkStatus();
@@ -202,10 +202,10 @@ absl::Status CLProgram::GetBinary(std::vector<uint8_t>* result) const {
   return absl::OkStatus();
 }
 
-absl::Status CreateCLProgram(const std::string& code,
-                             const std::string& compiler_options,
-                             const CLContext& context, const CLDevice& device,
-                             CLProgram* result) {
+absl::StatusOr<CLProgram> CreateCLProgram(const std::string& code,
+                                          const std::string& compiler_options,
+                                          const CLContext& context,
+                                          const CLDevice& device) {
   int error_code;
   const char* source = code.c_str();
 
@@ -217,35 +217,36 @@ absl::Status CreateCLProgram(const std::string& code,
                      CLErrorCodeToString(error_code)));
   }
 
-  *result = CLProgram(program, device.id());
-  RETURN_IF_ERROR(BuildProgram(program, device, compiler_options));
-  return absl::OkStatus();
+  CLProgram result = CLProgram(program, device.id());
+  RETURN_IF_ERROR(BuildProgram(program, device.id(), compiler_options));
+  return result;
 }
 
-absl::Status CreateCLProgram(
+absl::StatusOr<CLProgram> CreateCLProgram(
     const std::string& code,
     const std::vector<CompilerOptions>& compiler_options,
-    const CLContext& context, const CLDevice& device, CLProgram* result) {
-  RETURN_IF_ERROR(CreateCLProgram(
-      code, CompilerOptionsToString(device.GetInfo(), compiler_options),
-      context, device, result));
+    const CLContext& context, const CLDevice& device) {
+  ASSIGN_OR_RETURN(
+      auto program,
+      CreateCLProgram(
+          code, CompilerOptionsToString(device.GetInfo(), compiler_options),
+          context, device));
   const bool fix_adreno_binary =
       std::find(compiler_options.begin(), compiler_options.end(),
                 CompilerOptions::kClAdrenoFixBinary) != compiler_options.end();
   if (fix_adreno_binary) {
     std::vector<uint8_t> binary;
-    RETURN_IF_ERROR(result->GetBinary(&binary));
+    RETURN_IF_ERROR(program.GetBinary(&binary));
     FixAdrenoBinary(&binary);
-    *result = CLProgram();
-    return CreateCLProgramFromBinary(context, device, binary, result);
+    return CreateCLProgramFromBinary(context, device, binary);
+  } else {
+    return program;
   }
-  return absl::OkStatus();
 }
 
-absl::Status CreateCLProgramFromBinary(const CLContext& context,
-                                       const CLDevice& device,
-                                       absl::Span<const uint8_t> binary,
-                                       CLProgram* result) {
+absl::StatusOr<CLProgram> CreateCLProgramFromBinary(
+    const CLContext& context, const CLDevice& device,
+    absl::Span<const uint8_t> binary) {
   cl_int binary_status;
   cl_int error_code;
   cl_device_id devices_list[] = {device.id()};
@@ -263,8 +264,9 @@ absl::Status CreateCLProgramFromBinary(const CLContext& context,
     return absl::UnknownError(absl::StrCat("Failed to create program - ",
                                            CLErrorCodeToString(error_code)));
   }
-  *result = CLProgram(program, device.id());
-  return BuildProgram(program, device, "");
+  CLProgram result = CLProgram(program, device.id());
+  RETURN_IF_ERROR(BuildProgram(program, device.id(), ""));
+  return result;
 }
 
 }  // namespace cl
