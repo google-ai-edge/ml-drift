@@ -334,6 +334,11 @@ __kernel void main(__global float4* src, __global float* dst) {
   cl_program program =
       clCreateProgramWithSource(context, 1, &source_ptr, nullptr, &error_code);
   if (program) {
+    if (error_code != CL_SUCCESS) return false;
+    const std::string compiler_options =
+        "-pixel-disable-recompile -pixel-disable-kernelblobcache";
+    error_code = clBuildProgram(program, 0, nullptr, compiler_options.c_str(),
+                                nullptr, nullptr);
     clReleaseProgram(program);
     return error_code == CL_SUCCESS;
   }
