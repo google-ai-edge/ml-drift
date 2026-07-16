@@ -327,7 +327,7 @@ std::string GenerateConvolutionGeneric(
     wave_cache_type = "half8";
   }
   if (kernel_params.unroll_x_loop) {
-    wave_cache_size *= conv_params.kernel_size.x;
+    wave_cache_size *= conv_params.weights_shape.w;
   }
   c += "  __wave " + wave_cache_type + " weights_cache[" +
        std::to_string(wave_cache_size) + "];\n";
@@ -409,7 +409,7 @@ std::string GenerateConvolutionGeneric(
     }
   };
   if (kernel_params.unroll_x_loop) {
-    for (int kx = 0; kx < conv_params.kernel_size.x; ++kx) {
+    for (int kx = 0; kx < conv_params.weights_shape.w; ++kx) {
       c += "    coord_x = mad24(" + std::to_string(kx) +
            ", args.dilation_x, x_coord);\n";
       c += "    Type src" + std::to_string(kx) + " = " + read_src();
@@ -474,7 +474,7 @@ std::string GenerateConvolutionGeneric(
     in_slices /= 4;
   }
   if (kernel_params.unroll_x_loop) {
-    for (int kx = 0; kx < conv_params.kernel_size.x; ++kx) {
+    for (int kx = 0; kx < conv_params.weights_shape.w; ++kx) {
       std::string src_name = "src" + std::to_string(kx);
       for (int s_out = 0; s_out < kernel_params.slices_out; ++s_out) {
         const std::string dst_name = "r" + std::to_string(s_out);
@@ -847,7 +847,7 @@ ConvWaveMemory::ConvWaveMemory(const ConvWaveMemory::ConvParams& conv_params,
     args_.AddInt("kernel_size_y", weights_shape.h);
   }
 
-  conv_params_.kernel_size = int2(weights_shape.w, weights_shape.h);
+  conv_params_.weights_shape = weights_shape;
 }
 
 void ConvWaveMemory::GenerateCode(const GpuInfo& gpu_info,

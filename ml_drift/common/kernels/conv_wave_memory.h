@@ -69,7 +69,7 @@ class ConvWaveMemory : public GPUOperation {
     bool has_bias = true;
     bool softmax_input_activation = false;
     bool blocked_quantization = false;  // for using with int8 convs
-    int2 kernel_size = int2(1, 1);
+    OHWI weights_shape = OHWI(1, 1, 1, 1);
     ConvRuntimeCheckDesc runtime_check;
 
     bool Is8Bit() const { return weights_data_type == DataType::INT8; }
