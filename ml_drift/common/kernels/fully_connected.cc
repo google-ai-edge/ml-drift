@@ -968,7 +968,7 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
              gpu_info.webgpu_info.max_compute_workgroup_storage_size)) {
       local_patch_size = 1;
     }
-    if (gpu_info.adreno_info.IsLowEnd()) {
+    if (gpu_info.IsAdreno() && gpu_info.adreno_info.IsLowEnd()) {
       local_patch_size = 1;
     }
     if (int8_math) {
