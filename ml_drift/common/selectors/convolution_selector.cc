@@ -224,6 +224,12 @@ std::unique_ptr<GPUOperation> SelectConvolution(
                                    hints);
   } else if (gpu_info.IsMali()) {
     return SelectConvolutionMali(attr, dst_shape, gpu_info, op_def, precision);
+  } else if (gpu_info.IsPowerVR() &&
+             gpu_info.SupportsExtension("cl_img_pixel_subgroup_dot") &&
+             IsConvWaveMemorySupported(gpu_info)) {
+    ConvWaveMemory conv =
+        CreateConvWaveMemory(gpu_info, op_def, precision, attr, &dst_shape);
+    return std::make_unique<ConvWaveMemory>(std::move(conv));
   } else if (gpu_info.IsNvidia() || gpu_info.IsPowerVR() || gpu_info.IsAMD()) {
     if (IsConvConstantsSupported(gpu_info, precision, attr) &&
         !hints.Check(ModelHints::kReduceKernelsCount)) {
@@ -291,6 +297,14 @@ std::unique_ptr<GPUOperation> SelectConvolutionWithExternalWeights(
     return SelectConvolutionExternalWeightsMali(
         attr, bias_desc, dst_shape, gpu_info, op_def, precision, hints,
         weights_desc, src_exp, different_weights_for_height, runtime_check);
+  } else if (gpu_info.IsPowerVR() &&
+             gpu_info.SupportsExtension("cl_img_pixel_subgroup_dot") &&
+             IsConvWaveMemorySupported(gpu_info)) {
+    ConvWaveMemory convolution = CreateConvWaveMemoryExternalWeights(
+        gpu_info, op_def, precision, attr, bias_desc, &dst_shape, src_exp,
+        different_weights_for_height, runtime_check);
+    *weights_desc = convolution.GetWeightsDescription();
+    return std::make_unique<ConvWaveMemory>(std::move(convolution));
   } else if (gpu_info.IsNvidia() || gpu_info.IsPowerVR() || gpu_info.IsAMD()) {
     if (IsConvConstantsSupported(gpu_info, precision, attr) &&
         !hints.Check(ModelHints::kReduceKernelsCount) &&
