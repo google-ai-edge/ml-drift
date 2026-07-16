@@ -697,7 +697,63 @@ ConvWaveMemory::KernelParams GetKernelParamsPowerVR(
                params.precision == CalculationsPrecision::F16) {
       kernel_params.img_wave_dot = true;
       kernel_params.slices_in = 1;
-      kernel_params.slices_out = 4;
+      kernel_params.slices_out =
+          params.precision == CalculationsPrecision::F16 ? 8 : 4;
+
+      if (!params.src_desc.IsLinear() &&
+          (!params.x_kernel_is_1 || !params.y_kernel_is_1)) {
+        kernel_params.slices_loop_first = false;
+        kernel_params.slices_in = 1;
+        kernel_params.slices_out = 4;
+        kernel_params.unroll_x_loop = true;
+        kernel_params.precise_spatial = false;
+      }
+
+      if (dst_shape) {
+        int min_1d_work_groups =
+            DivideRoundUp(dst_shape->w * dst_shape->b * dst_shape->h, 128);
+        const auto base_work_groups = Get2DWorkgroupsEqualTo128();
+        int min_2d_work_groups = min_1d_work_groups * 10;
+        for (const auto& work_group : base_work_groups) {
+          int x_groups =
+              DivideRoundUp(dst_shape->w * dst_shape->b, work_group.x);
+          int y_groups = DivideRoundUp(dst_shape->h, work_group.y);
+          int xy_groups = x_groups * y_groups;
+          min_2d_work_groups = std::min(min_2d_work_groups, xy_groups);
+        }
+        float min_waves;
+        if (min_1d_work_groups < min_2d_work_groups &&
+            !params.different_weights_for_height) {
+          kernel_params.precise_spatial = true;
+          min_waves = min_1d_work_groups * dst_slices;
+        } else {
+          kernel_params.precise_spatial = false;
+          min_waves = min_2d_work_groups * dst_slices;
+        }
+        const float waves_per_cu = min_waves / gpu_info.GetComputeUnitsCount();
+        if (waves_per_cu < 256.0 && kernel_params.slices_out >= 8) {
+          kernel_params.slices_out = 4;
+        }
+        if (waves_per_cu < 128.0 && kernel_params.slices_out >= 4) {
+          kernel_params.slices_out = 2;
+        }
+        if (waves_per_cu < 64.0 && kernel_params.slices_out >= 2) {
+          kernel_params.slices_out = 1;
+        }
+      }
+      if (dst_slices < 4) {
+        kernel_params.slices_out =
+            std::min(kernel_params.slices_out, dst_slices);
+      }
+      if (kernel_params.slices_loop_first) {
+        int max_slices_in = src_slices % 2 == 0 ? 2 : 1;
+        max_slices_in = src_slices % 4 == 0 ? 4 : max_slices_in;
+        if (kernel_params.slices_out <= 2) {
+          kernel_params.slices_in = std::min(max_slices_in, 4);
+        } else {
+          kernel_params.slices_in = std::min(max_slices_in, 2);
+        }
+      }
     }
   }
 
