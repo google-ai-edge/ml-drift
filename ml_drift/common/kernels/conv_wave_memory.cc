@@ -1041,10 +1041,10 @@ bool SupportsConvWaveMemoryInt8(const GpuInfo& gpu_info) {
     // Adreno650 has very bad performance in int8, worse than fp16
     return gpu_info.adreno_info.adreno_gpu != AdrenoGpu::kAdreno650;
   }
-  if (gpu_info.IsPowerVR() &&
-      gpu_info.SupportsExtension("cl_img_pixel_subgroup_dot")) {
-    return true;
-  }
+  // if (gpu_info.IsPowerVR() &&
+  //     gpu_info.SupportsExtension("cl_img_pixel_subgroup_dot")) {
+  //   return true;
+  // }
   return false;
 }
 
