@@ -19,7 +19,6 @@
 #include <variant>
 #include <vector>
 
-#include "absl/log/check.h"
 #include "absl/strings/str_replace.h"
 #include "absl/strings/substitute.h"
 #include "ml_drift/common/data_type.h"
@@ -428,19 +427,29 @@ std::string GenerateConvolutionGeneric(
       }
     }
   } else {
+    const int src_slices = DivideRoundUp(conv_params.weights_shape.i, 4);
     for (int s_in = 0; s_in < kernel_params.slices_in; ++s_in) {
-      std::string val_name = "src" + std::to_string(s_in);
+      const std::string val = "src" + std::to_string(s_in);
       if (src_type == DataType::UINT8) {
-        c += "        uchar4 " + val_name + " = " + read_src();
+        c += "        uchar4 " + val + ";\n";
+        if (kernel_params.img_wave_dot &&
+            src_slices % kernel_params.slices_in != 0) {
+          c += "        if (coord_s < args.src_tensor.Slices()) {\n";
+          c += "          " + val + " = " + read_src();
+          c += "        } else {\n";
+          c += "          " + val + " = (uchar4)(0);\n";
+          c += "        }\n";
+        } else {
+          c += "        " + val + " = " + read_src();
+        }
+        c += "        uint " + val + "_uint = as_uint(" + val + ");\n";
         c += "        coord_s++;\n";
-        c +=
-            "        uint " + val_name + "_uint = as_uint(" + val_name + ");\n";
       } else {
-        c += "        Type " + val_name + " = " + read_src();
+        c += "        Type " + val + " = " + read_src();
         c += "        coord_s++;\n";
       }
       if (conv_params.softmax_input_activation) {
-        c += "  " + val_name + " = ucl::Exp<Type>(" + val_name +
+        c += "  " + val + " = ucl::Exp<Type>(" + val +
              " - exp_val.y) * exp_val.x;\n";
       }
     }
@@ -692,7 +701,6 @@ ConvWaveMemory::KernelParams GetKernelParamsPowerVR(
       if (params.src_desc.GetDataType() == DataType::UINT32) {
         kernel_params.slices_in = src_slices % 8 == 0 ? 8 : 4;
       }
-      CHECK_EQ(src_slices % kernel_params.slices_in, 0);
     } else if (params.precision == CalculationsPrecision::F32 ||
                params.precision == CalculationsPrecision::F16) {
       kernel_params.img_wave_dot = true;
