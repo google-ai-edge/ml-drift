@@ -747,6 +747,10 @@ GPUOperation CreateDequantization(const OHWI& weights_shape,
     c += ", B_COORD";
   }
   c += ");\n";
+  // Using extra checks to reduce register usage on PowerVR.
+  const bool pvr_checks =
+      gpu_info.IsPowerVR() &&
+      gpu_info.SupportsExtension("cl_img_pixel_subgroup_dot");
   if (src.GetDataType() == DataType::UINT32) {
     // Adjusting sum(Su * Wu) to sum(Su * Wi)
     // Uint8MathForInt8 used only with src as uint(Su)
@@ -754,8 +758,15 @@ GPUOperation CreateDequantization(const OHWI& weights_shape,
     //   sum(Su * Wu) - sum(Su * 128) = sum(Su * Wu) - 128 * sum(Su)
     //   sum(Su * Wu) is rid
     c += "  int4 ri32 = ucl::Convert<int4>(in_value);\n";
-    c += "  float4 resf32 = ucl::Convert<float4>(ri32 - 128 * "
-         "ucl::Convert<int>(src_params.z));\n";
+    if (pvr_checks) {
+      c += "  if (S_COORD > -1) {\n";
+      c += "    ri32 = ri32 - 128 * ucl::Convert<int>(src_params.z);\n";
+      c += "  }\n";
+      c += "  float4 resf32 = ucl::Convert<float4>(ri32);\n";
+    } else {
+      c += "  float4 resf32 = ucl::Convert<float4>(ri32 - 128 * "
+           "ucl::Convert<int>(src_params.z));\n";
+    }
   } else {
     c += "  float4 resf32 = ucl::Convert<float4>(in_value);\n";
   }
@@ -764,16 +775,30 @@ GPUOperation CreateDequantization(const OHWI& weights_shape,
   float src_scale = src_params.x;
   float src_zero_point = src_params.y;
   resf32 *= weights_scale * src_scale;
+)";
+  if (pvr_checks) {
+    c += "  if (S_COORD > -2) {\n";
+  }
+  c += R"(
   float4 weights_sum = ucl::Convert<float4>(args.weights_sum.Read(S_COORD));
   resf32 += weights_scale * src_zero_point * weights_sum;
 )";
+  if (pvr_checks) {
+    c += "  }\n";
+  }
   if (weights_zero_point != nullptr) {
+    if (pvr_checks) {
+      c += "  if (S_COORD > -3) {\n";
+    }
     c += R"(
   float4 weights_zero_point = args.weights_zero_point.Read<float>(S_COORD);
   float src_sum = src_params.z;
   resf32 += src_scale * weights_zero_point * src_sum;
   resf32 += src_zero_point * weights_zero_point * args.in_channels;
 )";
+    if (pvr_checks) {
+      c += "  }\n";
+    }
   }
   c += "  out_value = ucl::Convert<" + ToUclDataType(dst.GetDataType(), 4) +
        ">(resf32);\n";
