@@ -484,7 +484,7 @@ bool UseFMA(const GpuInfo& gpu_info) {
 
 std::string ReadWeightsAsFloat(const FullyConnected::ConvParams& conv_params,
                                const WeightsDescription& weights_desc,
-                               bool split_dst_slices) {
+                               bool split_dst_slices, int dst_sub_s = 0) {
   std::string c;
   if (weights_desc.layout == WeightsLayout::kUnknown) {
     const std::string h_coord =
@@ -499,6 +499,9 @@ std::string ReadWeightsAsFloat(const FullyConnected::ConvParams& conv_params,
          ", src_s, dst_s * 4 + 3);\n";
   } else if (weights_desc.IsLinearLayout()) {
     c += "    int linear_i4o4 = src_s * args.dst_tensor.Slices() + dst_s;\n";
+    if (dst_sub_s != 0) {
+      c += "    linear_i4o4 += " + std::to_string(dst_sub_s) + ";\n";
+    }
     if (conv_params.batched_weights) {
       c += "    linear_i4o4 += weights_batch_id * args.src_tensor.Slices() * "
            "args.dst_tensor.Slices();\n";
@@ -525,6 +528,9 @@ std::string ReadWeightsAsFloat(const FullyConnected::ConvParams& conv_params,
     }
   } else {
     std::string x_c = "dst_s";
+    if (dst_sub_s != 0) {
+      x_c += " + " + std::to_string(dst_sub_s);
+    }
     std::string y_c = "src_s";
     if (conv_params.batched_weights) {
       y_c = "weights_batch_id * args.src_tensor.Slices() + src_s";
@@ -937,9 +943,54 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
   }
 
   if (!int8_math) {
+    c += "    Type w0, w1, w2, w3;\n";
+    const bool optimized_block2_read =
+        block_s == 2 &&
+        (conv_params_.weights_type == DataType::INT2 ||
+         conv_params_.weights_type == DataType::INT4) &&
+        weights_desc.IsLinearLayout();
+    const bool optimized_block4_read =
+        block_s == 4 && (conv_params_.weights_type == DataType::INT2) &&
+        weights_desc.IsLinearLayout();
+    if (optimized_block2_read) {
+      c += "    int linear_i4o4 = src_s * args.dst_tensor.Slices() + dst_s;\n";
+      c += "    int linear_o2i4o4 = linear_i4o4 / 2;\n";
+      if (conv_params_.weights_type == DataType::INT4) {
+        c += "    uint4 w = args.weights.Read(linear_o2i4o4);\n";
+      } else if (conv_params_.weights_type == DataType::INT2) {
+        c += "    uint2 w = args.weights.Read(linear_o2i4o4);\n";
+      }
+    }
+    if (optimized_block4_read) {
+      c += "    int linear_i4o4 = src_s * args.dst_tensor.Slices() + dst_s;\n";
+      c += "    int linear_o4i4o4 = linear_i4o4 / 4;\n";
+      c += "    uint4 w = args.weights.Read(linear_o4i4o4);\n";
+    }
     for (int s_id = 0; s_id < block_s; ++s_id) {
-      c += "    Type w0, w1, w2, w3;\n";
-      c += ReadWeightsAsFloat(conv_params_, weights_desc, split_dst_slices_);
+      if (optimized_block2_read) {
+        if (conv_params_.weights_type == DataType::INT4) {
+          const std::string coords[] = {"xy", "zw"};
+          c += "    ucl::U32x2ToU4x16AsVec4x4<SType>(w." + coords[s_id] +
+               ", w0, w1, w2, w3);\n";
+        } else if (conv_params_.weights_type == DataType::INT2) {
+          const std::string coords[] = {"x", "y"};
+          c += "    ucl::U32x1ToU2x16AsVec4x4<SType>(w." + coords[s_id] +
+               ", w0, w1, w2, w3);\n";
+        }
+      } else if (optimized_block4_read) {
+        const std::string coords[] = {"x", "y", "z", "w"};
+        c += "    ucl::U32x1ToU2x16AsVec4x4<SType>(w." + coords[s_id] +
+             ", w0, w1, w2, w3);\n";
+      } else {
+        if (block_s != 1) {
+          c += "    {\n";
+        }
+        c += ReadWeightsAsFloat(conv_params_, weights_desc, split_dst_slices_,
+                                s_id);
+        if (block_s != 1) {
+          c += "    }\n";
+        }
+      }
       const bool isI4O4 = weights_desc.IsI4O4() || conv_params_.sparse_2x4;
       const bool use_fma = UseFMA(gpu_info);
       if (IsQuantized(conv_params_)) {
@@ -1012,8 +1063,7 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
         int sp_id = i % block_spatial;
         int s_id = i / block_spatial;
         const std::string local_mem =
-            local_patch_size == 1 ? "temp"
-                                  : "temp[" + std::to_string(sp_id) + "]";
+            local_patch_size == 1 ? "temp" : "temp[" + std::to_string(i) + "]";
         c += "  " + local_mem + "[tid.x * WG_SIZE_Y + tid.y] = r_sp" +
              std::to_string(sp_id) + "_s" + std::to_string(s_id) + ";\n";
       }
@@ -1136,7 +1186,7 @@ void FullyConnected::AddWeightsArguments(const ExternalWeights& weights) {
     if (weights.desc.IsLinearLayout()) {
       BufferDescriptor desc;
       desc.element_type = DataType::UINT32;
-      desc.element_size = 2;
+      desc.element_size = 2 * conv_params_.block_size.c;
       AddSrcBuffer("weights", desc);
     } else {
       TensorDescriptor desc = TensorDescriptor(
@@ -1147,7 +1197,7 @@ void FullyConnected::AddWeightsArguments(const ExternalWeights& weights) {
     if (weights.desc.IsLinearLayout()) {
       BufferDescriptor desc;
       desc.element_type = DataType::UINT32;
-      desc.element_size = 1;
+      desc.element_size = conv_params_.block_size.c;
       AddSrcBuffer("weights", desc);
     } else {
       TensorDescriptor desc = TensorDescriptor(
