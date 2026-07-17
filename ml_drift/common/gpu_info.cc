@@ -686,6 +686,8 @@ AppleInfo::AppleInfo(const std::string& gpu_description) {
       {"apple m4 pro", AppleGpu::kM4Pro},
       {"apple m4 max", AppleGpu::kM4Max},
       {"apple m5", AppleGpu::kM5},
+      {"apple m5 pro", AppleGpu::kM5Pro},
+      {"apple m5 max", AppleGpu::kM5Max},
   };
   gpu_type = AppleGpu::kUnknown;
   std::string gpu_name = "";
@@ -797,7 +799,10 @@ bool AppleInfo::IsM4Series() const {
          gpu_type == AppleGpu::kM4Max;
 }
 
-bool AppleInfo::IsM5Series() const { return gpu_type == AppleGpu::kM5; }
+bool AppleInfo::IsM5Series() const {
+  return gpu_type == AppleGpu::kM5 || gpu_type == AppleGpu::kM5Pro ||
+         gpu_type == AppleGpu::kM5Max;
+}
 
 bool AppleInfo::IsBionic() const {
   return gpu_family >= AppleInfo::Family::kApple4;
@@ -903,7 +908,14 @@ int AppleInfo::GetComputeUnitsCount() const {
       // approximate
       return 40;
     case AppleGpu::kM5:
+      // approximate
       return 10;
+    case AppleGpu::kM5Pro:
+      // approximate
+      return 20;
+    case AppleGpu::kM5Max:
+      // approximate
+      return 40;
     case AppleGpu::kUnknown:
       return 4;
   }
