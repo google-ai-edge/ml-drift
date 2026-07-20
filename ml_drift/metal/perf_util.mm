@@ -1105,6 +1105,7 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision, DataTy
 
 absl::Status FullyConnectedPerfTest(CalculationsPrecision precision, DataType weights_type,
                                     const BHWC& src_shape, int dst_channels, OHWI scale_zp_shape) {
+  const bool use_zero_point = false;
   ml_drift::Tensor<OHWI, DataType::FLOAT32> weights;
   weights.shape = OHWI(dst_channels, scale_zp_shape.h, 1, src_shape.c);
   weights.data.resize(weights.shape.DimensionsProduct() + XNN_EXTRA_BYTES / sizeof(float));
@@ -1209,7 +1210,9 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision, DataType we
   if (is_quantized) {
     external_weights.scale_zp_shape = scale_zp_shape;
     external_weights.scale = &scale_desc;
-    external_weights.zero_point = &zp_desc;
+    if (use_zero_point) {
+      external_weights.zero_point = &zp_desc;
+    }
   }
 
   ASSIGN_OR_RETURN(auto operation,
@@ -1230,26 +1233,99 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision, DataType we
   }
   if (is_quantized) {
     gpu_task.SetSrcTensor(&scale_tensor, index++);
-    gpu_task.SetSrcTensor(&zp_tensor, index++);
+    if (use_zero_point) {
+      gpu_task.SetSrcTensor(&zp_tensor, index++);
+    }
   }
   gpu_task.SetDstTensor(&dst, 0);
   RETURN_IF_ERROR(gpu_task.UpdateParams());
 
+  double gbytes_read = src_gbytes + weight_gbytes;
+  if (is_quantized) {
+    gbytes_read += scale_gbytes;
+    if (use_zero_point) {
+      gbytes_read += scale_gbytes;
+    }
+  }
+
   id<MTLCommandQueue> command_queue = [env.device() newCommandQueue];
+  absl::Duration min_duration = absl::InfiniteDuration();
   for (int i = 0; i < 10; ++i) {
     absl::Duration gpu_task_time = gpu_task.GetTaskTime(command_queue);
+    min_duration = std::min(min_duration, gpu_task_time);
     double time_ms = absl::ToDoubleMilliseconds(gpu_task_time);
     const double fps = 1000.0 / time_ms;
     const double gflops_real = fps * gflops_count;
-    double gbytes_read = src_gbytes + weight_gbytes;
-    if (is_quantized) {
-      gbytes_read += scale_gbytes * 2.0;
-    }
-    double gbs_read = fps * gbytes_read;
+    const double gbs_read = fps * gbytes_read;
     const double gbs_write = fps * dst_gbytes;
     std::cout << std::fixed << std::setprecision(4) << " Time - " << time_ms << "(ms), GFlops - "
               << gflops_real << ", Bandwidth - " << gbs_read + gbs_write << "(GB/s), Read - "
               << gbs_read << "(GB/s), Write - " << gbs_write << "(GB/s)" << std::endl;
+  }
+
+  // For testing weights reading from global memory. Often tensors can be cached
+  // into some cache levels. This can lead to better bandwidth in test above
+  // than theoretical or when reading from global memory. With this test we want
+  // to test the weights reading from global memory.
+  const bool kUseMultipleWeights = false;
+  if (kUseMultipleWeights) {
+    const int kMultiplier = 32;
+    int inferences = 1000.0 / absl::ToDoubleMilliseconds(min_duration);
+    inferences = AlignByN(inferences, kMultiplier);
+    std::vector<MetalSpatialTensor> weights_tensors_multiple(weights_gpu.size() * kMultiplier);
+    std::vector<MetalSpatialTensor> scale_tensors_multiple(kMultiplier);
+    std::vector<MetalSpatialTensor> zp_tensors_multiple(kMultiplier);
+    for (int k = 0; k < kMultiplier; ++k) {
+      for (int i = 0; i < weights_gpu.size(); ++i) {
+        RETURN_IF_ERROR(CreateTensor(env.device(), weights_gpu[i],
+                                     &weights_tensors_multiple[k * weights_gpu.size() + i]));
+      }
+      if (is_quantized) {
+        RETURN_IF_ERROR(CreateTensor(env.device(), scale_desc, &scale_tensors_multiple[k]));
+        if (use_zero_point) {
+          RETURN_IF_ERROR(CreateTensor(env.device(), zp_desc, &zp_tensors_multiple[k]));
+        }
+      }
+    }
+    std::cout << "Weight total size: " << weight_gbytes * kMultiplier * 1024.0 << " MB"
+              << std::endl;
+    for (int i = 0; i < 10; ++i) {
+      @autoreleasepool {
+        id<MTLCommandBuffer> command_buffer = [command_queue commandBuffer];
+        id<MTLComputeCommandEncoder> encoder = [command_buffer computeCommandEncoder];
+        for (int j = 0; j < inferences; ++j) {
+          int w_id = j % kMultiplier;
+          int index = 1;
+          for (int k = 0; k < weights_gpu.size(); ++k) {
+            gpu_task.SetSrcTensor(&weights_tensors_multiple[w_id * weights_gpu.size() + k],
+                                  index++);
+          }
+          if (is_quantized) {
+            gpu_task.SetSrcTensor(&scale_tensors_multiple[w_id], index++);
+            if (use_zero_point) {
+              gpu_task.SetSrcTensor(&zp_tensors_multiple[w_id], index++);
+            }
+          }
+          RETURN_IF_ERROR(gpu_task.UpdateParams());
+          gpu_task.Encode(encoder);
+        }
+        [encoder endEncoding];
+        auto start = absl::Now();
+        [command_buffer commit];
+        [command_buffer waitUntilCompleted];
+        auto end = absl::Now();
+        double time_ms =
+            static_cast<double>((end - start) / absl::Nanoseconds(1)) / inferences * 1e-6;
+        const double fps = 1000.0 / time_ms;
+        const double gflops_real = fps * gflops_count;
+        const double gbs_read = fps * gbytes_read;
+        const double gbs_write = fps * dst_gbytes;
+        std::cout << std::fixed << std::setprecision(4) << " Time - " << time_ms
+                  << "(ms), GFlops - " << gflops_real << ", Bandwidth - " << gbs_read + gbs_write
+                  << "(GB/s), Read - " << gbs_read << "(GB/s), Write - " << gbs_write << "(GB/s)"
+                  << std::endl;
+      }
+    }
   }
 
   return absl::OkStatus();
