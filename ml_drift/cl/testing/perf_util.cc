@@ -1674,12 +1674,12 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision,
   TensorDescriptor zp_desc =
       ScaleOrZeroPointToTensorDesc(gpu_info, weights_zp, data_type);
 
-  const bool is_qunatized =
+  const bool is_quantized =
       weights_type != DataType::FLOAT16 && weights_type != DataType::FLOAT32;
 
   Tensor scale_tensor;
   Tensor zp_tensor;
-  if (is_qunatized) {
+  if (is_quantized) {
     RETURN_IF_ERROR(CreateTensor(env.context(), scale_desc, &scale_tensor));
     RETURN_IF_ERROR(CreateTensor(env.context(), zp_desc, &zp_tensor));
   }
@@ -1687,7 +1687,7 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision,
   ExternalWeights external_weights;
   external_weights.desc = weights_desc;
   external_weights.shape = weights.shape;
-  if (is_qunatized) {
+  if (is_quantized) {
     external_weights.scale_zp_shape = scale_zp_shape;
     external_weights.scale = &scale_desc;
     external_weights.zero_point = &zp_desc;
@@ -1713,7 +1713,7 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision,
     for (int i = 0; i < weights_tensors.size(); ++i) {
       RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &weights_tensors[i]));
     }
-    if (is_qunatized) {
+    if (is_quantized) {
       RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &scale_tensor));
       RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &zp_tensor));
     }
@@ -1885,12 +1885,12 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision,
   TensorDescriptor zp_desc =
       ScaleOrZeroPointToTensorDesc(gpu_info, weights_zp, data_type);
 
-  const bool is_qunatized =
+  const bool is_quantized =
       weights_type != DataType::FLOAT16 && weights_type != DataType::FLOAT32;
 
   Tensor scale_tensor;
   Tensor zp_tensor;
-  if (is_qunatized) {
+  if (is_quantized) {
     RETURN_IF_ERROR(CreateTensor(env.context(), scale_desc, &scale_tensor));
     RETURN_IF_ERROR(CreateTensor(env.context(), zp_desc, &zp_tensor));
   }
@@ -1898,7 +1898,7 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision,
   ExternalWeights external_weights;
   external_weights.desc = weights_desc;
   external_weights.shape = weights.shape;
-  if (is_qunatized) {
+  if (is_quantized) {
     external_weights.scale_zp_shape = scale_zp_shape;
     external_weights.scale = &scale_desc;
     if (use_zero_point) {
@@ -1924,7 +1924,7 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision,
   for (int i = 0; i < weights_tensors.size(); ++i) {
     RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &weights_tensors[i]));
   }
-  if (is_qunatized) {
+  if (is_quantized) {
     RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &scale_tensor));
     if (use_zero_point) {
       RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &zp_tensor));
@@ -1936,7 +1936,7 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision,
                              env.profiling_queue()));
 
   double gbytes_read = src_gbytes + weight_gbytes;
-  if (is_qunatized) {
+  if (is_quantized) {
     gbytes_read += scale_gbytes;
     if (use_zero_point) {
       gbytes_read += scale_gbytes;
@@ -1951,7 +1951,7 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision,
     double time_ms = absl::ToDoubleMilliseconds(duration);
     const double fps = 1000.0 / time_ms;
     const double gflops_real = fps * gflops_count;
-    double gbs_read = fps * gbytes_read;
+    const double gbs_read = fps * gbytes_read;
     const double gbs_write = fps * dst_gbytes;
     std::cout << std::fixed << std::setprecision(4) << " Time - " << time_ms
               << "(ms), GFlops - " << gflops_real << ", Bandwidth - "
@@ -1979,7 +1979,7 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision,
             env.context(), weights_gpu[i],
             &weights_tensors_multiple[k * weights_gpu.size() + i]));
       }
-      if (is_qunatized) {
+      if (is_quantized) {
         RETURN_IF_ERROR(CreateTensor(env.context(), scale_desc,
                                      &scale_tensors_multiple[k]));
         if (use_zero_point) {
@@ -2000,7 +2000,7 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision,
               index++,
               &weights_tensors_multiple[w_id * weights_gpu.size() + k]));
         }
-        if (is_qunatized) {
+        if (is_quantized) {
           RETURN_IF_ERROR(
               cl_op.SetSrcTensor(index++, &scale_tensors_multiple[w_id]));
           if (use_zero_point) {
@@ -2150,12 +2150,12 @@ absl::Status FullyConnectedWeightsBatchIdsPerfTest(
   TensorDescriptor zp_desc =
       ScaleOrZeroPointToTensorDesc(gpu_info, weights_zp, data_type);
 
-  const bool is_qunatized =
+  const bool is_quantized =
       weights_type != DataType::FLOAT16 && weights_type != DataType::FLOAT32;
 
   Tensor scale_tensor;
   Tensor zp_tensor;
-  if (is_qunatized) {
+  if (is_quantized) {
     RETURN_IF_ERROR(CreateTensor(env.context(), scale_desc, &scale_tensor));
     RETURN_IF_ERROR(CreateTensor(env.context(), zp_desc, &zp_tensor));
   }
@@ -2163,7 +2163,7 @@ absl::Status FullyConnectedWeightsBatchIdsPerfTest(
   ExternalWeights external_weights;
   external_weights.desc = weights_desc;
   external_weights.shape = weights.shape;
-  if (is_qunatized) {
+  if (is_quantized) {
     external_weights.scale_zp_shape = scale_zp_shape;
     external_weights.scale = &scale_desc;
     if (use_zero_point) {
@@ -2190,7 +2190,7 @@ absl::Status FullyConnectedWeightsBatchIdsPerfTest(
   for (int i = 0; i < weights_tensors.size(); ++i) {
     RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &weights_tensors[i]));
   }
-  if (is_qunatized) {
+  if (is_quantized) {
     RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &scale_tensor));
     if (use_zero_point) {
       RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &zp_tensor));
@@ -2202,7 +2202,7 @@ absl::Status FullyConnectedWeightsBatchIdsPerfTest(
                              env.profiling_queue()));
 
   double gbytes_read = src_gbytes + weight_gbytes;
-  if (is_qunatized) {
+  if (is_quantized) {
     gbytes_read += scale_gbytes;
     if (use_zero_point) {
       gbytes_read += scale_gbytes;
