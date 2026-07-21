@@ -84,6 +84,7 @@ struct ModelHints {
   bool allow_cl_khr_command_buffer = true;
 
   // If true, will use Metal argument buffers. This is only supported on Metal.
+  // Can reduce GPU kernels performance.
   bool use_metal_argument_buffers = false;
 };
 
