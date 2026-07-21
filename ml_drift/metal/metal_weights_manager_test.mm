@@ -126,8 +126,8 @@ using ml_drift::TensorDescriptor;
   [command_buffer waitUntilCompleted];
 
   // Batch execution.
-  auto weights_map_or =
-      weights_manager.PrepareWeightsInBatches(env, WeightsManager::ScheduleStrategy::kDefaultBatch);
+  auto weights_map_or = weights_manager.PrepareWeightsInBatches(
+      env, WeightsManager::ScheduleStrategy::kDefaultBatch, 0);
   XCTAssertTrue(weights_map_or.ok(), @"%s", std::string(weights_map_or.status().message()).c_str());
   auto weights_map = std::move(weights_map_or).value();
 

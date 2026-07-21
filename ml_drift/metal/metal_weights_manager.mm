@@ -104,7 +104,8 @@ absl::Status PrepareWeightsInBatchInternal(
 
 absl::StatusOr<std::vector<std::vector<WeightsManager::WeightsPrepOperationInfo>>>
 MetalWeightsManager::GetBatchesForWeightsPreparation(Environment& env,
-                                                     const ScheduleStrategy schedule_strategy) {
+                                                     const ScheduleStrategy schedule_strategy,
+                                                     size_t total_shared_tensor_size) {
   // Convert weights conversion requests to GPU operations.
   std::vector<WeightsPrepOperationInfo> op_infos = ConvertWeightsPrepRequestsToOperations(
       env.GetInfo(), std::move(weights_conversion_requests_));
@@ -112,7 +113,7 @@ MetalWeightsManager::GetBatchesForWeightsPreparation(Environment& env,
 
   // Schedule GPU operations to batches.
   std::vector<std::vector<WeightsPrepOperationInfo>> batches =
-      BatchGpuOperations(std::move(op_infos), schedule_strategy);
+      BatchGpuOperations(std::move(op_infos), schedule_strategy, total_shared_tensor_size);
   return batches;
 }
 
@@ -131,8 +132,10 @@ MetalWeightsManager::PrepareWeightsInBatch(
 
 absl::StatusOr<absl::flat_hash_map<ValueId, std::unique_ptr<GpuSpatialTensor>>>
 MetalWeightsManager::PrepareWeightsInBatches(Environment& env,
-                                             const ScheduleStrategy schedule_strategy) {
-  ASSIGN_OR_RETURN(auto batches, GetBatchesForWeightsPreparation(env, schedule_strategy));
+                                             const ScheduleStrategy schedule_strategy,
+                                             size_t total_shared_tensor_size) {
+  ASSIGN_OR_RETURN(auto batches, GetBatchesForWeightsPreparation(env, schedule_strategy,
+                                                                 total_shared_tensor_size));
 
   absl::flat_hash_map<ValueId, std::unique_ptr<GpuSpatialTensor>> main_model_id_to_tensor;
   @autoreleasepool {

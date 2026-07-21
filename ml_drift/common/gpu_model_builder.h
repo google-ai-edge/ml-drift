@@ -789,7 +789,7 @@ class WeightsManager {
   // Separate the array of GPU operations into batches.
   static std::vector<std::vector<WeightsPrepOperationInfo>> BatchGpuOperations(
       std::vector<WeightsPrepOperationInfo>&& operations,
-      ScheduleStrategy schedule_strategy);
+      ScheduleStrategy schedule_strategy, size_t total_shared_tensor_size);
 
  private:
   GpuModelBuilder::TensorHandle AddRawWeightTensor(

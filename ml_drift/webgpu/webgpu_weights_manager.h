@@ -37,7 +37,8 @@ class WebGpuWeightsManager : public WeightsManager {
   // according to the specified schedule strategy.
   absl::StatusOr<std::vector<std::vector<WeightsPrepOperationInfo>>>
   GetBatchesForWeightsPreparation(const Environment& env,
-                                  const ScheduleStrategy schedule_strategy);
+                                  const ScheduleStrategy schedule_strategy,
+                                  size_t total_shared_tensor_size);
 
   // Prepares weights for a single batch of operations.
   // Executes the operations specified in op_infos and returns a map of
@@ -53,7 +54,8 @@ class WebGpuWeightsManager : public WeightsManager {
   absl::StatusOr<
       absl::flat_hash_map<ValueId, std::unique_ptr<GpuSpatialTensor>>>
   PrepareWeightsInBatches(const Environment& env,
-                          ScheduleStrategy schedule_strategy);
+                          ScheduleStrategy schedule_strategy,
+                          size_t total_shared_tensor_size);
 };
 
 }  // namespace webgpu

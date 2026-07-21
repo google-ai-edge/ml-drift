@@ -4557,7 +4557,7 @@ WeightsManager::ConvertWeightsPrepRequestsToOperations(
 std::vector<std::vector<WeightsManager::WeightsPrepOperationInfo>>
 WeightsManager::BatchGpuOperations(
     std::vector<WeightsPrepOperationInfo>&& operations,
-    ScheduleStrategy schedule_strategy) {
+    ScheduleStrategy schedule_strategy, size_t total_shared_tensor_size) {
   std::vector<std::vector<WeightsManager::WeightsPrepOperationInfo>> batches;
   switch (schedule_strategy) {
     case ScheduleStrategy::kDefaultBatch: {
@@ -4574,8 +4574,13 @@ WeightsManager::BatchGpuOperations(
       break;
     }
     case ScheduleStrategy::kBatchByMaxWeightSize: {
-      const size_t kMinSumOfWeightSizesPerBatch = 256 * 1024 * 1024;
-      size_t max_size = kMinSumOfWeightSizesPerBatch;
+      // 10% was chosen through some very rough experiments and may need to be
+      // tuned in the future.
+      const size_t percentage_of_total_shared_tensor_size =
+          total_shared_tensor_size / 10;
+      const size_t min_sum_of_weight_sizes_per_batch = std::min<size_t>(
+          256 * 1024 * 1024, percentage_of_total_shared_tensor_size);
+      size_t max_size = min_sum_of_weight_sizes_per_batch;
       for (const auto& op : operations) {
         max_size = std::max(max_size, op.size);
       }

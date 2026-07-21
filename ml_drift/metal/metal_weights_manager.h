@@ -39,7 +39,8 @@ class MetalWeightsManager : public WeightsManager {
   absl::StatusOr<
       std::vector<std::vector<WeightsManager::WeightsPrepOperationInfo>>>
   GetBatchesForWeightsPreparation(Environment& env,
-                                  const ScheduleStrategy schedule_strategy);
+                                  const ScheduleStrategy schedule_strategy,
+                                  size_t total_shared_tensor_size);
 
   // Prepares the weights in one batch gotten from
   // GetBatchesForWeightsPreparation.
@@ -55,7 +56,8 @@ class MetalWeightsManager : public WeightsManager {
   // function.
   absl::StatusOr<
       absl::flat_hash_map<ValueId, std::unique_ptr<GpuSpatialTensor>>>
-  PrepareWeightsInBatches(Environment& env, ScheduleStrategy schedule_strategy);
+  PrepareWeightsInBatches(Environment& env, ScheduleStrategy schedule_strategy,
+                          size_t total_shared_tensor_size);
 };
 
 }  // namespace metal

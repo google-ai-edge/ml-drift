@@ -116,7 +116,7 @@ TEST(WebGpuWeightsManagerTest,
   MLD_ASSERT_OK_AND_ASSIGN(
       auto weights_map,
       weights_manager.PrepareWeightsInBatches(
-          env, WeightsManager::ScheduleStrategy::kDefaultBatch));
+          env, WeightsManager::ScheduleStrategy::kDefaultBatch, 0));
 
   for (int i = 0; i < num_weights_to_prepare; ++i) {
     TensorFloat32 ic_exec_output;
