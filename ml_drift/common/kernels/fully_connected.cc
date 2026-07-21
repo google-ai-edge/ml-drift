@@ -139,10 +139,8 @@ int3 GetWorkGroupSize(const FullyConnected::ConvParams& params,
                       const GpuInfo& gpu_info, DataType acc_type,
                       const OHWI& weights_shape) {
   const int dst_slices = DivideRoundUp(weights_shape.o, 4);
-  if (gpu_info.IsIntel() && gpu_info.IsApiOpenCl()) {
-    const int cu_count = gpu_info.GetComputeUnitsCount();
-    int wg_total_size = cu_count >= 64 ? 256 : 128;
-    int total_task_size = dst_slices;
+  if (gpu_info.IsApple() && gpu_info.IsApiMetal()) {
+    int total_task_size = dst_slices / params.block_size.c;
     if (params.batched_weights) {
       if (params.runtime_batch_ids) {
         total_task_size *= params.runtime_batch_ids;
@@ -150,8 +148,47 @@ int3 GetWorkGroupSize(const FullyConnected::ConvParams& params,
         total_task_size *= weights_shape.h;
       }
     }
-    double task_size_per_cu =
-        static_cast<double>(total_task_size) / cu_count;
+    const int cu_count = gpu_info.GetComputeUnitsCount();
+    double task_size_per_cu = static_cast<double>(total_task_size) / cu_count;
+    float multiplier = 1.0;
+    if (SizeInBitsOf(params.weights_type) <= 8) {
+      multiplier = 16.0 / SizeInBitsOf(params.weights_type);
+    }
+    int x_size = 1;
+    int y_size = 1;
+    if (task_size_per_cu <= 2 * multiplier) {
+      y_size = 128;
+    } else if (task_size_per_cu <= 4 * multiplier) {
+      y_size = 64;
+    } else if (task_size_per_cu <= 8 * multiplier) {
+      y_size = 32;
+    } else if (task_size_per_cu <= 16 * multiplier) {
+      y_size = 16;
+    } else if (task_size_per_cu <= 32 * multiplier) {
+      y_size = 8;
+    } else if (task_size_per_cu <= 64 * multiplier) {
+      y_size = 4;
+    } else if (task_size_per_cu <= 128 * multiplier) {
+      y_size = 2;
+    } else {
+      y_size = 1;
+    }
+    int wg_total_size = cu_count >= 16 ? 256 : 128;
+    y_size = std::min(y_size, wg_total_size);
+    x_size = wg_total_size / y_size;
+    return int3(x_size, y_size, 1);
+  }
+  if (gpu_info.IsIntel() && gpu_info.IsApiOpenCl()) {
+    int total_task_size = dst_slices / params.block_size.c;
+    if (params.batched_weights) {
+      if (params.runtime_batch_ids) {
+        total_task_size *= params.runtime_batch_ids;
+      } else {
+        total_task_size *= weights_shape.h;
+      }
+    }
+    const int cu_count = gpu_info.GetComputeUnitsCount();
+    double task_size_per_cu = static_cast<double>(total_task_size) / cu_count;
     float multiplier = 1.0;
     if (SizeInBitsOf(params.weights_type) <= 8) {
       multiplier = 16.0 / SizeInBitsOf(params.weights_type);
@@ -173,6 +210,8 @@ int3 GetWorkGroupSize(const FullyConnected::ConvParams& params,
     } else {
       y_size = 2;
     }
+    int wg_total_size = cu_count >= 64 ? 256 : 128;
+    y_size = std::min(y_size, wg_total_size);
     x_size = wg_total_size / y_size;
     return int3(x_size, y_size, 1);
   }
