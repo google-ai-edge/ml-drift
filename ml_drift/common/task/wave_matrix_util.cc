@@ -93,7 +93,7 @@ absl::Status ResolveWaveMatrix(const GpuInfo& gpu_info, std::string* code) {
     size_t pos = declaration_pos + decl_name.size();
     std::vector<std::string> args;
     size_t close_bracket_pos;
-    RETURN_IF_ERROR(ParseArguments(*code, pos, &close_bracket_pos, &args));
+    ABSL_RETURN_IF_ERROR(ParseArguments(*code, pos, &close_bracket_pos, &args));
     if (args.size() != 4) {
       return absl::InvalidArgumentError(
           "Expected 4 arguments in ucl::wave_matrix<matrix_type, data_type, "
@@ -106,7 +106,7 @@ absl::Status ResolveWaveMatrix(const GpuInfo& gpu_info, std::string* code) {
     } else if (gpu_info.IsGlsl()) {
       DataType data_type;
       int vector_size;
-      RETURN_IF_ERROR(
+      ABSL_RETURN_IF_ERROR(
           DataTypeFromTemplateArg(args[1], &data_type, &vector_size));
       if (gpu_info.SupportsExtension("VK_KHR_cooperative_matrix")) {
         std::string usage;
@@ -135,7 +135,7 @@ absl::Status ResolveWaveMatrix(const GpuInfo& gpu_info, std::string* code) {
     } else if (gpu_info.IsApiWebGpu()) {
       DataType data_type;
       int vector_size;
-      RETURN_IF_ERROR(
+      ABSL_RETURN_IF_ERROR(
           DataTypeFromTemplateArg(args[1], &data_type, &vector_size));
       const MatrixDesc matrix_desc = {args[0], data_type, args[2], args[3]};
       patch = GetWebGpuSubgroupMatrixType(matrix_desc);
@@ -164,7 +164,7 @@ absl::Status ResolveWaveMatrix(const GpuInfo& gpu_info, std::string* code) {
     size_t pos = load_pos + load_func_name.size();
     std::vector<std::string> args;
     size_t close_bracket_pos;
-    RETURN_IF_ERROR(ParseArguments(*code, pos, &close_bracket_pos, &args));
+    ABSL_RETURN_IF_ERROR(ParseArguments(*code, pos, &close_bracket_pos, &args));
     if (args.size() != 4 && args.size() != 5) {
       return absl::InvalidArgumentError(
           "Expected 4 or 5 arguments in ucl::WaveMatrixLoad(dst_matrix, "
@@ -210,7 +210,7 @@ absl::Status ResolveWaveMatrix(const GpuInfo& gpu_info, std::string* code) {
     size_t pos = mac_pos + mac_func_name.size();
     std::vector<std::string> args;
     size_t close_bracket_pos;
-    RETURN_IF_ERROR(ParseArguments(*code, pos, &close_bracket_pos, &args));
+    ABSL_RETURN_IF_ERROR(ParseArguments(*code, pos, &close_bracket_pos, &args));
     if (args.size() != 3) {
       return absl::InvalidArgumentError(
           "Expected 3 arguments in ucl::WaveMatrixMAC(C, A, B).");
@@ -243,7 +243,7 @@ absl::Status ResolveWaveMatrix(const GpuInfo& gpu_info, std::string* code) {
     size_t pos = store_pos + store_func_name.size();
     std::vector<std::string> args;
     size_t close_bracket_pos;
-    RETURN_IF_ERROR(ParseArguments(*code, pos, &close_bracket_pos, &args));
+    ABSL_RETURN_IF_ERROR(ParseArguments(*code, pos, &close_bracket_pos, &args));
     if (args.size() != 4) {
       return absl::InvalidArgumentError(
           "Expected 4 arguments in ucl::WaveMatrixStore(src_matrix, dst_ptr, "

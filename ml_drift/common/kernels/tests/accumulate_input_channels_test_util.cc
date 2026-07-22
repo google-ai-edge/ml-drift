@@ -66,7 +66,7 @@ absl::Status AccumulateInputChannelsInt8ToInt32Test(
 
   std::vector<TensorDescriptor*> src_cpu_desc_ptrs{&src_raw_ohwi};
   std::vector<TensorDescriptor*> dst_cpu_desc_ptrs{&dst_descriptor};
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_cpu_desc_ptrs, dst_cpu_desc_ptrs,
       std::make_unique<GPUOperation>(std::move(operation))));
 
@@ -134,7 +134,7 @@ absl::Status AccumulateInputChannelsInt4ToInt32Test(
 
   std::vector<TensorDescriptor*> src_cpu_desc_ptrs{&src_descriptor};
   std::vector<TensorDescriptor*> dst_cpu_desc_ptrs{&dst_descriptor};
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_cpu_desc_ptrs, dst_cpu_desc_ptrs,
       std::make_unique<GPUOperation>(std::move(operation))));
 
@@ -201,7 +201,7 @@ absl::Status AccumulateInputChannelsInt2ToInt32Test(
 
   std::vector<TensorDescriptor*> src_cpu_desc_ptrs{&src_descriptor};
   std::vector<TensorDescriptor*> dst_cpu_desc_ptrs{&dst_descriptor};
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_cpu_desc_ptrs, dst_cpu_desc_ptrs,
       std::make_unique<GPUOperation>(std::move(operation))));
 

@@ -35,38 +35,40 @@ absl::Status WebGpuExecutionEnvironment::ExecuteGpuOperationInternal(
     std::unique_ptr<GPUOperation>&& operation) {
   std::vector<SpatialTensor> src(src_cpu.size());
   for (size_t i = 0; i < src_cpu.size(); ++i) {
-    RETURN_IF_ERROR(src[i].CreateFromDescriptor(env_.device(), *src_cpu[i]));
+    ABSL_RETURN_IF_ERROR(
+        src[i].CreateFromDescriptor(env_.device(), *src_cpu[i]));
     operation->SetSrc(&src[i], i);
   }
 
   std::vector<SpatialTensor> dst(dst_cpu.size());
   for (size_t i = 0; i < dst_cpu.size(); ++i) {
-    RETURN_IF_ERROR(dst[i].CreateFromDescriptor(env_.device(), *dst_cpu[i]));
+    ABSL_RETURN_IF_ERROR(
+        dst[i].CreateFromDescriptor(env_.device(), *dst_cpu[i]));
     operation->SetDst(&dst[i], i);
   }
 
   ComputeTask webgpu_op;
-  RETURN_IF_ERROR(webgpu_op.Init(env_, std::move(operation)));
+  ABSL_RETURN_IF_ERROR(webgpu_op.Init(env_, std::move(operation)));
   for (size_t i = 0; i < src.size(); ++i) {
-    RETURN_IF_ERROR(webgpu_op.SetSrcTensor(i, &src[i]));
+    ABSL_RETURN_IF_ERROR(webgpu_op.SetSrcTensor(i, &src[i]));
   }
   for (size_t i = 0; i < dst.size(); ++i) {
-    RETURN_IF_ERROR(webgpu_op.SetDstTensor(i, &dst[i]));
+    ABSL_RETURN_IF_ERROR(webgpu_op.SetDstTensor(i, &dst[i]));
   }
-  RETURN_IF_ERROR(webgpu_op.Update(env_.device()));
+  ABSL_RETURN_IF_ERROR(webgpu_op.Update(env_.device()));
   webgpu_op.UpdateGpuObjectBindings(env_.device());
-  RETURN_IF_ERROR(webgpu_op.Compile(env_));
+  ABSL_RETURN_IF_ERROR(webgpu_op.Compile(env_));
 
   wgpu::CommandEncoder encoder = env_.device().CreateCommandEncoder();
 
   wgpu::ComputePassEncoder compute_encoder = encoder.BeginComputePass();
-  RETURN_IF_ERROR(webgpu_op.Encode(compute_encoder));
+  ABSL_RETURN_IF_ERROR(webgpu_op.Encode(compute_encoder));
   compute_encoder.End();
   wgpu::CommandBuffer cb = encoder.Finish();
   env_.queue().Submit(1, &cb);
 
   for (size_t i = 0; i < dst_cpu.size(); ++i) {
-    RETURN_IF_ERROR(dst[i].ToDescriptor(env_.device(), dst_cpu[i]));
+    ABSL_RETURN_IF_ERROR(dst[i].ToDescriptor(env_.device(), dst_cpu[i]));
   }
   return absl::OkStatus();
 }

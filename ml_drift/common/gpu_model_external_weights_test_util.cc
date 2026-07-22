@@ -81,11 +81,11 @@ absl::Status TestDynamicConvolution(TestExecutionEnvironment* env) {
     conv_node->operation.attributes = conv_attr;
     graph.AddConsumer(conv_node->id, input->id);
     Value* conv_output = nullptr;
-    RETURN_IF_ERROR(AddOutput(&graph, conv_node, &conv_output));
+    ABSL_RETURN_IF_ERROR(AddOutput(&graph, conv_node, &conv_output));
     conv_output->tensor.type = DataType::FLOAT32;
     conv_output->tensor.shape = output_shape;
 
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         GraphToGpuModel(graph, create_info, env->GetGpuInfo(), &gpu_model));
   }
 
@@ -121,13 +121,14 @@ absl::Status TestDynamicConvolution(TestExecutionEnvironment* env) {
     graph_dynamic_conv.AddConsumer(conv_node->id, input->id);
     graph_dynamic_conv.AddConsumer(conv_node->id, const_value->id);
     Value* conv_output = nullptr;
-    RETURN_IF_ERROR(AddOutput(&graph_dynamic_conv, conv_node, &conv_output));
+    ABSL_RETURN_IF_ERROR(
+        AddOutput(&graph_dynamic_conv, conv_node, &conv_output));
 
     conv_output->tensor.type = DataType::FLOAT32;
     conv_output->tensor.shape = output_shape;
-    RETURN_IF_ERROR(GraphToGpuModel(graph_dynamic_conv, create_info,
-                                    env->GetGpuInfo(),
-                                    &gpu_model_dynamic_conv));
+    ABSL_RETURN_IF_ERROR(GraphToGpuModel(graph_dynamic_conv, create_info,
+                                         env->GetGpuInfo(),
+                                         &gpu_model_dynamic_conv));
   }
 
   TensorFloat32 src_tensor;
@@ -138,11 +139,11 @@ absl::Status TestDynamicConvolution(TestExecutionEnvironment* env) {
   }
 
   TensorFloat32 dst_tensor_v1;
-  RETURN_IF_ERROR(env->ExecuteGpuModel(
+  ABSL_RETURN_IF_ERROR(env->ExecuteGpuModel(
       {src_tensor}, std::vector<TensorFloat32*>{&dst_tensor_v1}, &gpu_model));
 
   TensorFloat32 dst_tensor_v2;
-  RETURN_IF_ERROR(env->ExecuteGpuModel(
+  ABSL_RETURN_IF_ERROR(env->ExecuteGpuModel(
       {src_tensor}, std::vector<TensorFloat32*>{&dst_tensor_v2},
       &gpu_model_dynamic_conv));
 
@@ -196,7 +197,7 @@ absl::Status TestExternalConvWeights(TestExecutionEnvironment* env) {
       auto src_tensor_handle = model_builder.AddTensor(src_shape, float_type);
       auto out = model_builder.Convolution(src_tensor_handle, conv_attr);
 
-      RETURN_IF_ERROR(model_builder.GetGpuModel(
+      ABSL_RETURN_IF_ERROR(model_builder.GetGpuModel(
           std::vector<unsigned int>{src_tensor_handle.id},
           std::vector<unsigned int>{out.id}, &gpu_model));
     }
@@ -228,21 +229,21 @@ absl::Status TestExternalConvWeights(TestExecutionEnvironment* env) {
       auto bias_th = model_builder.AddConstantTensor(std::move(bias_td));
       const GpuModelBuilder::Weights external_weights =
           CreateExternalWeights(weights_th, weights_desc, attr_weights.shape);
-      ASSIGN_OR_RETURN(auto out,
-                       model_builder.FullyConnectedExternalWeights(
-                           src_tensor_handle, external_weights, &bias_th));
+      ABSL_ASSIGN_OR_RETURN(auto out,
+                            model_builder.FullyConnectedExternalWeights(
+                                src_tensor_handle, external_weights, &bias_th));
 
-      RETURN_IF_ERROR(model_builder.GetGpuModel(
+      ABSL_RETURN_IF_ERROR(model_builder.GetGpuModel(
           std::vector<unsigned int>{src_tensor_handle.id},
           std::vector<unsigned int>{out.id}, &gpu_model_external));
     }
 
     TensorFloat32 dst_tensor_v0;
-    RETURN_IF_ERROR(env->ExecuteGpuModel(
+    ABSL_RETURN_IF_ERROR(env->ExecuteGpuModel(
         {src_tensor}, std::vector<TensorFloat32*>{&dst_tensor_v0}, &gpu_model));
 
     TensorFloat32 dst_tensor_v1;
-    RETURN_IF_ERROR(env->ExecuteGpuModel(
+    ABSL_RETURN_IF_ERROR(env->ExecuteGpuModel(
         {src_tensor}, std::vector<TensorFloat32*>{&dst_tensor_v1},
         &gpu_model_external));
 
@@ -280,7 +281,7 @@ absl::Status TestFullyConnected(TestExecutionEnvironment* env,
   }
   auto out = model_builder.FullyConnected(src_th, fc_attr);
 
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       model_builder.GetGpuModel(std::vector<unsigned int>{src_th.id},
                                 std::vector<unsigned int>{out.id}, &gpu_model));
 
@@ -292,7 +293,7 @@ absl::Status TestFullyConnected(TestExecutionEnvironment* env,
   }
 
   TensorFloat32 dst_tensor_gpu;
-  RETURN_IF_ERROR(env->ExecuteGpuModel(
+  ABSL_RETURN_IF_ERROR(env->ExecuteGpuModel(
       {src_tensor}, std::vector<TensorFloat32*>{&dst_tensor_gpu}, &gpu_model));
 
   TensorFloat32 dst_ref_tensor = FullyConnectedReference(fc_attr, src_tensor);

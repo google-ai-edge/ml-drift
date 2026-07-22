@@ -64,7 +64,7 @@ absl::Status DotGeneral2DIntTest(TestExecutionEnvironment& env,
   rhs_td.UploadData(rhs);
   dst.SetBHWCShape(ref.shape);
   GPUOperation operation = CreateDotGeneral(op_def, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&lhs_td, &rhs_td}, {&dst},
       std::make_unique<GPUOperation>(std::move(operation))));
   Tensor<BHWC, T> dst_tensor;
@@ -110,7 +110,7 @@ absl::Status DotGeneral2DBfloatTest(TestExecutionEnvironment& env,
   rhs_td.UploadData(rhs);
   dst.SetBHWCShape(BHWC(2, 1, 1, 2));
   GPUOperation operation = CreateDotGeneral(op_def, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&lhs_td, &rhs_td}, {&dst},
       std::make_unique<GPUOperation>(std::move(operation))));
   Tensor<BHWC, DataType::BFLOAT16> dst_tensor;
@@ -144,7 +144,7 @@ absl::Status DotGeneral1DTest(TestExecutionEnvironment& env, DataType data_type,
   rhs_td.UploadData(rhs);
   dst.SetBHWCShape(BHWC(2, 1, 1, 1));
   GPUOperation operation = CreateDotGeneral(op_def, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&lhs_td, &rhs_td}, {&dst},
       std::make_unique<GPUOperation>(std::move(operation))));
   TensorFloat32 dst_tensor;
@@ -178,7 +178,7 @@ absl::Status DotGeneral2DTest(TestExecutionEnvironment& env, DataType data_type,
   rhs_td.UploadData(rhs);
   dst.SetBHWCShape(BHWC(2, 1, 1, 2));
   GPUOperation operation = CreateDotGeneral(op_def, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&lhs_td, &rhs_td}, {&dst},
       std::make_unique<GPUOperation>(std::move(operation))));
   TensorFloat32 dst_tensor;
@@ -216,7 +216,7 @@ absl::Status DotGeneral3DBatchTest(TestExecutionEnvironment& env,
   rhs_td.UploadData(rhs);
   dst.SetBHWCShape(BHWC(2, 1, 2, 2));
   GPUOperation operation = CreateDotGeneral(op_def, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&lhs_td, &rhs_td}, {&dst},
       std::make_unique<GPUOperation>(std::move(operation))));
   TensorFloat32 dst_tensor;
@@ -254,7 +254,7 @@ absl::Status DotGeneral4DTest(TestExecutionEnvironment& env, DataType data_type,
   rhs_td.UploadData(rhs);
   dst.SetBHWCShape(BHWC(2, 2, 2, 2));
   GPUOperation operation = CreateDotGeneral(op_def, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&lhs_td, &rhs_td}, {&dst},
       std::make_unique<GPUOperation>(std::move(operation))));
   TensorFloat32 dst_tensor;

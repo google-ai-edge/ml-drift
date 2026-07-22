@@ -41,10 +41,10 @@ absl::Status RandomNormalPhiloxTest(TestExecutionEnvironment& env,
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateRandomNormalPhilox(env.GetGpuInfo(), op_def);
-  RETURN_IF_ERROR(operation.args_.SetInt("seed", 1));
-  RETURN_IF_ERROR(operation.args_.SetInt("seed2", 1));
+  ABSL_RETURN_IF_ERROR(operation.args_.SetInt("seed", 1));
+  ABSL_RETURN_IF_ERROR(operation.args_.SetInt("seed2", 1));
   std::vector<TensorFloat32> src_cpu = {};
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_cpu, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 1, 1, 12), &dst_tensor));
   //  tf.random.stateless_normal(shape=[12], seed=(1, 1), mean=0.0,

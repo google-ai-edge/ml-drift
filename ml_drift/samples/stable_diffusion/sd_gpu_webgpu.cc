@@ -123,31 +123,33 @@ class OpHolder {
   absl::Status Encode(wgpu::ComputePassEncoder encoder, Environment* env,
                       const ExecutionParams& params) {
     for (int i = 0; i < params.src.size(); ++i) {
-      RETURN_IF_ERROR(webgpu_op_.SetSrcTensor(i, params.src[i]));
+      ABSL_RETURN_IF_ERROR(webgpu_op_.SetSrcTensor(i, params.src[i]));
     }
     for (int i = 0; i < params.dst.size(); ++i) {
-      RETURN_IF_ERROR(webgpu_op_.SetDstTensor(i, params.dst[i]));
+      ABSL_RETURN_IF_ERROR(webgpu_op_.SetDstTensor(i, params.dst[i]));
     }
     for (const auto& float_param : params.float_params) {
-      RETURN_IF_ERROR(
+      ABSL_RETURN_IF_ERROR(
           webgpu_op_.SetFloat(float_param.first, float_param.second));
     }
     for (const auto& half_param : params.half_params) {
-      RETURN_IF_ERROR(webgpu_op_.SetHalf(half_param.first, half_param.second));
+      ABSL_RETURN_IF_ERROR(
+          webgpu_op_.SetHalf(half_param.first, half_param.second));
     }
     for (const auto& int_param : params.int_params) {
-      RETURN_IF_ERROR(webgpu_op_.SetInt(int_param.first, int_param.second));
+      ABSL_RETURN_IF_ERROR(
+          webgpu_op_.SetInt(int_param.first, int_param.second));
     }
-    RETURN_IF_ERROR(webgpu_op_.Update(env->device()));
+    ABSL_RETURN_IF_ERROR(webgpu_op_.Update(env->device()));
     webgpu_op_.UpdateGpuObjectBindings(env->device());
     return webgpu_op_.Encode(encoder);
   }
 
   absl::Status Encode(wgpu::ComputePassEncoder encoder, Environment* env,
                       SpatialTensor* src, SpatialTensor* dst) {
-    RETURN_IF_ERROR(webgpu_op_.SetSrcTensor(0, src));
-    RETURN_IF_ERROR(webgpu_op_.SetDstTensor(0, dst));
-    RETURN_IF_ERROR(webgpu_op_.Update(env->device()));
+    ABSL_RETURN_IF_ERROR(webgpu_op_.SetSrcTensor(0, src));
+    ABSL_RETURN_IF_ERROR(webgpu_op_.SetDstTensor(0, dst));
+    ABSL_RETURN_IF_ERROR(webgpu_op_.Update(env->device()));
     webgpu_op_.UpdateGpuObjectBindings(env->device());
     return webgpu_op_.Encode(encoder);
   }
@@ -156,10 +158,10 @@ class OpHolder {
   absl::Status InitWebgpuOp(Environment* env, GPUOperation&& operation) {
     auto gpu_op = std::make_unique<GPUOperation>(std::move(operation));
 
-    RETURN_IF_ERROR(gpu_op->AssembleCode(env->GetInfo()));
+    ABSL_RETURN_IF_ERROR(gpu_op->AssembleCode(env->GetInfo()));
 
-    RETURN_IF_ERROR(webgpu_op_.Init(*env, std::move(gpu_op)));
-    RETURN_IF_ERROR(webgpu_op_.Compile(*env));
+    ABSL_RETURN_IF_ERROR(webgpu_op_.Init(*env, std::move(gpu_op)));
+    ABSL_RETURN_IF_ERROR(webgpu_op_.Compile(*env));
     return absl::OkStatus();
   }
   ComputeTask webgpu_op_;
@@ -175,7 +177,7 @@ class DiffusionStepper {
     TensorDescriptor desc(DataType::FLOAT16,
                           GetFastestStorageType(env->GetInfo()), Layout::HWC);
 
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         custom_op_.Init(env, CreateDiffusionStepOp(desc, desc, desc, desc)));
     return absl::OkStatus();
   }
@@ -227,11 +229,12 @@ class TextGuidance {
     config.num_heads = 12;
     config.file_folder = file_folder;
     TextGuidanceBuilder builder;
-    RETURN_IF_ERROR(builder.Build(config, gpu_info, create_info, &gpu_model,
-                                  &src_, /*mask_ptr=*/nullptr, &dst_));
+    ABSL_RETURN_IF_ERROR(builder.Build(config, gpu_info, create_info,
+                                       &gpu_model, &src_, /*mask_ptr=*/nullptr,
+                                       &dst_));
 
     const auto start_init = std::chrono::high_resolution_clock::now();
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         inference_context_.InitFromGpuModel(*env, create_info, &gpu_model));
     const auto end_init = std::chrono::high_resolution_clock::now();
     std::cout << "TextGuidance initialization time: "
@@ -284,14 +287,14 @@ class UNet {
     config.transformer_depth = 1;
     config.context_dim = 768;
     config.unet_file_dir = file_folder;
-    RETURN_IF_ERROR(builder.Build(config, gpu_info, create_info, width, height,
-                                  &gpu_model, &src_, &temb_, &guidance_,
-                                  /*text_proj_ptr=*/nullptr,
-                                  /*masked_image_latent_ptr=*/nullptr, &eta0_,
-                                  &eta1_, nullptr));
+    ABSL_RETURN_IF_ERROR(builder.Build(
+        config, gpu_info, create_info, width, height, &gpu_model, &src_, &temb_,
+        &guidance_,
+        /*text_proj_ptr=*/nullptr,
+        /*masked_image_latent_ptr=*/nullptr, &eta0_, &eta1_, nullptr));
 
     const auto start_init = std::chrono::high_resolution_clock::now();
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         inference_context_.InitFromGpuModel(*env, create_info, &gpu_model));
     const auto end_init = std::chrono::high_resolution_clock::now();
     std::cout << "UNet initialization time: "
@@ -348,12 +351,12 @@ class Decoder {
     config.ch = 128;
     config.ch_mult = {1, 2, 4, 4};
     config.num_res_blocks = 2;
-    RETURN_IF_ERROR(builder.BuildDecoder(config, gpu_info, create_info, width,
-                                         height, &gpu_model, &src_, &dst_,
-                                         file_folder));
+    ABSL_RETURN_IF_ERROR(builder.BuildDecoder(config, gpu_info, create_info,
+                                              width, height, &gpu_model, &src_,
+                                              &dst_, file_folder));
 
     const auto start_init = std::chrono::high_resolution_clock::now();
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         inference_context_.InitFromGpuModel(*env, create_info, &gpu_model));
     const auto end_init = std::chrono::high_resolution_clock::now();
     std::cout << "Decoder initialization time: "
@@ -385,29 +388,29 @@ absl::Status TestStableDiffusion(std::string weights_path) {
 
   Environment env;
   env.RequestExtension("shader_f16");
-  RETURN_IF_ERROR(env.Initialize());
+  ABSL_RETURN_IF_ERROR(env.Initialize());
   const auto& gpu_info = env.GetInfo();
 
   TensorDescriptor default_desc(DataType::FLOAT16,
                                 GetFastestStorageType(gpu_info), Layout::HWC);
 
   OpHolder temb_generation_op;
-  RETURN_IF_ERROR(temb_generation_op.Init(
+  ABSL_RETURN_IF_ERROR(temb_generation_op.Init(
       &env, CreateTembGenerationOp(gpu_info, default_desc, weights_path)));
 
   OpHolder noise_op;
   {
     OperationDef op_def;
     op_def.dst_tensors.push_back(default_desc);
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         noise_op.Init(&env, CreateRandomNormalPhilox(gpu_info, op_def)));
   }
 
   DiffusionStepper diffusion;
-  RETURN_IF_ERROR(diffusion.Init(&env, weights_path));
+  ABSL_RETURN_IF_ERROR(diffusion.Init(&env, weights_path));
 
   TextGuidance text_guidance_graph;
-  RETURN_IF_ERROR(text_guidance_graph.Init(&env, weights_path));
+  ABSL_RETURN_IF_ERROR(text_guidance_graph.Init(&env, weights_path));
 
   const int final_image_width = 512;
   const int final_image_height = 512;
@@ -416,15 +419,15 @@ absl::Status TestStableDiffusion(std::string weights_path) {
   const int latent_image_height = final_image_height / 8;
 
   UNet unet;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       unet.Init(latent_image_width, latent_image_height, &env, weights_path));
 
   Decoder decoder;
-  RETURN_IF_ERROR(decoder.Init(latent_image_width, latent_image_height, &env,
-                               weights_path));
+  ABSL_RETURN_IF_ERROR(decoder.Init(latent_image_width, latent_image_height,
+                                    &env, weights_path));
 
   OpHolder copier;
-  RETURN_IF_ERROR(copier.InitElementwiseOneInput(
+  ABSL_RETURN_IF_ERROR(copier.InitElementwiseOneInput(
       OperationType::COPY, default_desc, default_desc, &env));
 
   ml_drift::Tensor<BHWC, DataType::INT32> tokens;
@@ -438,7 +441,7 @@ absl::Status TestStableDiffusion(std::string weights_path) {
     descriptor_with_shape.SetBHWCShape(
         BHWC(unet_latent->Batch(), unet_latent->Height(), unet_latent->Width(),
              unet_latent->Channels()));
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         CreateTensor(env.device(), descriptor_with_shape, &latent_copy));
   }
 
@@ -464,12 +467,12 @@ absl::Status TestStableDiffusion(std::string weights_path) {
       tokens.data[i] = bpe_base_tokens[i];
       tokens.data[i + 77] = bpe_tokens[i];
     }
-    RETURN_IF_ERROR(text_guidance_graph.SetInput(&env, tokens));
+    ABSL_RETURN_IF_ERROR(text_guidance_graph.SetInput(&env, tokens));
 
     const auto p1 = std::chrono::high_resolution_clock::now();
 
     {
-      RETURN_IF_ERROR(text_guidance_graph.Execute(&env));
+      ABSL_RETURN_IF_ERROR(text_guidance_graph.Execute(&env));
     }
 
     {
@@ -478,16 +481,16 @@ absl::Status TestStableDiffusion(std::string weights_path) {
       exec_params.dst = {unet.GetLatentTensor()};
       exec_params.int_params = {{"seed", seed}};
       ComputePassHelper helper(&env);
-      RETURN_IF_ERROR(
+      ABSL_RETURN_IF_ERROR(
           noise_op.Encode(helper.compute_pass_encoder(), &env, exec_params));
       helper.Submit();
     }
 
     {
       ComputePassHelper helper(&env);
-      RETURN_IF_ERROR(copier.Encode(helper.compute_pass_encoder(), &env,
-                                    text_guidance_graph.GetGuidanceTensor(),
-                                    unet.GetGuidanceTensor()));
+      ABSL_RETURN_IF_ERROR(copier.Encode(
+          helper.compute_pass_encoder(), &env,
+          text_guidance_graph.GetGuidanceTensor(), unet.GetGuidanceTensor()));
       helper.Submit();
     }
 
@@ -501,26 +504,27 @@ absl::Status TestStableDiffusion(std::string weights_path) {
         exec_params.dst = {unet.GetTembTensor()};
         exec_params.float_params = {{"index_val", ts}};
         ComputePassHelper helper(&env);
-        RETURN_IF_ERROR(temb_generation_op.Encode(helper.compute_pass_encoder(),
-                                                  &env, exec_params));
+        ABSL_RETURN_IF_ERROR(temb_generation_op.Encode(
+            helper.compute_pass_encoder(), &env, exec_params));
         helper.Submit();
       }
 
       {
         ComputePassHelper helper(&env);
-        RETURN_IF_ERROR(copier.Encode(helper.compute_pass_encoder(), &env,
-                                      unet.GetLatentTensor(), &latent_copy));
+        ABSL_RETURN_IF_ERROR(copier.Encode(helper.compute_pass_encoder(), &env,
+                                           unet.GetLatentTensor(),
+                                           &latent_copy));
         helper.Submit();
       }
 
       {
-        RETURN_IF_ERROR(unet.Execute(&env));
+        ABSL_RETURN_IF_ERROR(unet.Execute(&env));
       }
 
       float guidance_scale = 7.5f;
       {
         ComputePassHelper helper(&env);
-        RETURN_IF_ERROR(diffusion.StepCustomOp(
+        ABSL_RETURN_IF_ERROR(diffusion.StepCustomOp(
             helper.compute_pass_encoder(), &env, &latent_copy,
             unet.GetEtaUncondTensor(), unet.GetEtaCondTensor(),
             unet.GetLatentTensor(), ts, tsPrev, guidance_scale));
@@ -531,20 +535,20 @@ absl::Status TestStableDiffusion(std::string weights_path) {
 
     {
       ComputePassHelper helper(&env);
-      RETURN_IF_ERROR(copier.Encode(helper.compute_pass_encoder(), &env,
-                                    unet.GetLatentTensor(),
-                                    decoder.GetInputTensor()));
+      ABSL_RETURN_IF_ERROR(copier.Encode(helper.compute_pass_encoder(), &env,
+                                         unet.GetLatentTensor(),
+                                         decoder.GetInputTensor()));
       helper.Submit();
     }
 
     {
-      RETURN_IF_ERROR(decoder.Execute(&env));
+      ABSL_RETURN_IF_ERROR(decoder.Execute(&env));
     }
-    RETURN_IF_ERROR(WaitUntilCompleted(&env));  // Required sync.
+    ABSL_RETURN_IF_ERROR(WaitUntilCompleted(&env));  // Required sync.
 
     const auto p2 = std::chrono::high_resolution_clock::now();
     TensorFloat32 result;
-    RETURN_IF_ERROR(decoder.GetOutput(&env, &result));
+    ABSL_RETURN_IF_ERROR(decoder.GetOutput(&env, &result));
     const auto p3 = std::chrono::high_resolution_clock::now();
 
     std::cout << "Cpu begin time: " << (p1 - p0).count() * 1e-6f << " ms."

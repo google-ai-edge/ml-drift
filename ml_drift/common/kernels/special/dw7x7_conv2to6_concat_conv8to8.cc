@@ -290,7 +290,8 @@ absl::Status TryDW7x7Conv2To6ConcatConv8to8(
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
 
-  ASSIGN_OR_RETURN(auto dw_handle, model_builder->GetTensor(dw_inputs[0]->id));
+  ABSL_ASSIGN_OR_RETURN(auto dw_handle,
+                        model_builder->GetTensor(dw_inputs[0]->id));
 
   if (model_builder->GetConvPrecision(dw_handle.tensor_desc.GetDataType()) !=
       CalculationsPrecision::F16) {
@@ -453,10 +454,10 @@ absl::Status TryDW7x7Conv2To6ConcatConv8to8(
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
 
-  ASSIGN_OR_RETURN(auto out0_handle,
-                   model_builder->GetTensor(concat_outputs[0]->id));
-  ASSIGN_OR_RETURN(auto out1_handle,
-                   model_builder->GetTensor(prelu2_outputs[0]->id));
+  ABSL_ASSIGN_OR_RETURN(auto out0_handle,
+                        model_builder->GetTensor(concat_outputs[0]->id));
+  ABSL_ASSIGN_OR_RETURN(auto out1_handle,
+                        model_builder->GetTensor(prelu2_outputs[0]->id));
   OperationDef op_def;
   op_def.src_tensors.push_back(dw_handle.tensor_desc);
   op_def.dst_tensors.push_back(out0_handle.tensor_desc);
@@ -514,7 +515,7 @@ absl::Status TryDW7x7Conv2To6ConcatConv8to8(
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
 
-  ASSIGN_OR_RETURN(auto dw_handle, model_builder->GetTensor(dw_inputs[0]));
+  ABSL_ASSIGN_OR_RETURN(auto dw_handle, model_builder->GetTensor(dw_inputs[0]));
 
   if (model_builder->GetConvPrecision(dw_handle.tensor_desc.GetDataType()) !=
       CalculationsPrecision::F16) {
@@ -666,10 +667,10 @@ absl::Status TryDW7x7Conv2To6ConcatConv8to8(
   }
   auto prelu2_outputs = prelu2_op->outputs;
 
-  ASSIGN_OR_RETURN(auto out0_handle,
-                   model_builder->GetTensor(concat_outputs[0]));
-  ASSIGN_OR_RETURN(auto out1_handle,
-                   model_builder->GetTensor(prelu2_outputs[0]));
+  ABSL_ASSIGN_OR_RETURN(auto out0_handle,
+                        model_builder->GetTensor(concat_outputs[0]));
+  ABSL_ASSIGN_OR_RETURN(auto out1_handle,
+                        model_builder->GetTensor(prelu2_outputs[0]));
   OperationDef op_def;
   op_def.src_tensors.push_back(dw_handle.tensor_desc);
   op_def.dst_tensors.push_back(out0_handle.tensor_desc);

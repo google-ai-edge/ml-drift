@@ -301,7 +301,6 @@ objc_library(
         "//ml_drift/common/task:gpu_tensor",
         "//third_party/apple_frameworks:Metal",
         "@com_google_absl//absl/container:flat_hash_map",
-        "@com_google_absl//absl/status:statusor",
     ],
 )
 
@@ -343,7 +342,6 @@ objc_library(
         "//third_party/apple_frameworks:Metal",
         "//third_party/apple_frameworks:XCTest",
         "@com_google_absl//absl/container:flat_hash_map",
-        "@com_google_absl//absl/status",
     ],
 )
 

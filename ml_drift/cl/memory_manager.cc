@@ -198,7 +198,7 @@ absl::Status GetBufferAssignment(
          static_cast<TaskId>(usage.second.y)});
   }
 
-  RETURN_IF_ERROR(AssignObjectsToTensors(
+  ABSL_RETURN_IF_ERROR(AssignObjectsToTensors(
       *buffer_usage_records, MemoryStrategy::GREEDY_BEST, buffer_assignment));
 
   const bool has_buffer_based_images =
@@ -211,7 +211,7 @@ absl::Status GetBufferAssignment(
 
   *use_offset_assignment = false;
   if (*is_sub_buffers_supported) {
-    RETURN_IF_ERROR(AssignOffsetsToTensors(
+    ABSL_RETURN_IF_ERROR(AssignOffsetsToTensors(
         *buffer_usage_records, MemoryStrategy::GREEDY_BY_SIZE,
         offset_assignment, base_align_bytes));
     if (offset_assignment->total_size <= TotalSize(*buffer_assignment) &&
@@ -282,18 +282,18 @@ absl::StatusOr<MemoryManager::ModelId> MemoryManager::AllocateMemory(
   for (const auto& [id, tensor_desc] : gpu_model.tensors) {
     tensors_descs_[Key(model_id, id)] = tensor_desc;
   }
-  ASSIGN_OR_RETURN(
+  ABSL_ASSIGN_OR_RETURN(
       external_mutable_tensors,
       AllocateExternalTensors(model_id, *context, gpu_model, external_tensors));
-  RETURN_IF_ERROR(AllocateConstTensors(model_id, gpu_model, context));
+  ABSL_RETURN_IF_ERROR(AllocateConstTensors(model_id, gpu_model, context));
   std::map<ValueId, int2> buffer_usages;
   std::map<ValueId, int2> texture_usages;
   CollectUsageInformation(gpu_model, gpu_info, external_tensors, &buffer_usages,
                           &texture_usages);
-  RETURN_IF_ERROR(AllocateBufferBasedTensors(model_id, buffer_usages, gpu_model,
-                                             gpu_info, context));
-  RETURN_IF_ERROR(AllocateTextureBasedTensors(model_id, texture_usages,
-                                              gpu_model, gpu_info, context));
+  ABSL_RETURN_IF_ERROR(AllocateBufferBasedTensors(
+      model_id, buffer_usages, gpu_model, gpu_info, context));
+  ABSL_RETURN_IF_ERROR(AllocateTextureBasedTensors(
+      model_id, texture_usages, gpu_model, gpu_info, context));
   return model_id;
 }
 
@@ -325,7 +325,7 @@ MemoryManager::AllocateExternalTensors(
     }
     temp_tensors.push_back(std::make_unique<Tensor>());
     auto* cl_spatial_tensor = temp_tensors.back().get();
-    RETURN_IF_ERROR(CreateTensor(context, tensor_desc, cl_spatial_tensor));
+    ABSL_RETURN_IF_ERROR(CreateTensor(context, tensor_desc, cl_spatial_tensor));
     mutable_tensors[tensor_desc_unique_key] = cl_spatial_tensor;
     external_mutable_tensors_[Key(model_id, id)] = cl_spatial_tensor;
   }
@@ -336,7 +336,7 @@ absl::Status MemoryManager::AllocateConstTensors(ModelId model_id,
                                                  const GpuModel& gpu_model,
                                                  CLContext* context) {
   for (auto& description : gpu_model.const_tensors) {
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         const_tensors_[Key(model_id, description.first)].CreateFromDescriptor(
             description.second, *context));
   }
@@ -352,7 +352,7 @@ absl::Status MemoryManager::AllocateBufferBasedTensors(
   bool use_offset_assignment;
   bool is_sub_buffers_supported;
   std::map<ValueId, int> value_id_to_shared_buffer_tensors;
-  RETURN_IF_ERROR(GetBufferAssignment(
+  ABSL_RETURN_IF_ERROR(GetBufferAssignment(
       buffer_usages, gpu_model, gpu_info, &buffer_usage_records,
       &value_id_to_shared_buffer_tensors, &buffer_assignment,
       &offset_assignment, &use_offset_assignment, &is_sub_buffers_supported));
@@ -376,7 +376,7 @@ absl::Status MemoryManager::AllocateBufferBasedTensors(
     if (!selected_buffer) {
       auto parent_buf = std::make_unique<Buffer>();
       Buffer shared_buffer;
-      RETURN_IF_ERROR(
+      ABSL_RETURN_IF_ERROR(
           CreateReadWriteBuffer(required_size, context, &shared_buffer));
       *parent_buf = std::move(shared_buffer);
       selected_buffer = parent_buf.get();
@@ -386,7 +386,7 @@ absl::Status MemoryManager::AllocateBufferBasedTensors(
 
     allocated_buffers.resize(offset_assignment.offsets.size());
     for (int i = 0; i < offset_assignment.offsets.size(); ++i) {
-      ASSIGN_OR_RETURN(
+      ABSL_ASSIGN_OR_RETURN(
           auto sub_buf,
           CreateSubBuffer(*selected_buffer, offset_assignment.offsets[i],
                           buffer_usage_records[i].tensor_size, context));
@@ -403,7 +403,7 @@ absl::Status MemoryManager::AllocateBufferBasedTensors(
       if (!selected_buffer) {
         auto parent_buf = std::make_unique<Buffer>();
         Buffer shared_buffer;
-        RETURN_IF_ERROR(
+        ABSL_RETURN_IF_ERROR(
             CreateReadWriteBuffer(total_size, context, &shared_buffer));
         *parent_buf = std::move(shared_buffer);
         selected_buffer = parent_buf.get();
@@ -416,8 +416,9 @@ absl::Status MemoryManager::AllocateBufferBasedTensors(
       for (int i = 0; i < buffer_assignment.object_sizes.size(); ++i) {
         const size_t aligned_size =
             AlignByN(buffer_assignment.object_sizes[i], base_align_bytes);
-        ASSIGN_OR_RETURN(auto sub_buf, CreateSubBuffer(*selected_buffer, offset,
-                                                       aligned_size, context));
+        ABSL_ASSIGN_OR_RETURN(
+            auto sub_buf,
+            CreateSubBuffer(*selected_buffer, offset, aligned_size, context));
         sub_buffers_.push_back(std::make_unique<Buffer>(std::move(sub_buf)));
         allocated_buffers[i] = sub_buffers_.back().get();
         offset += aligned_size;
@@ -433,7 +434,8 @@ absl::Status MemoryManager::AllocateBufferBasedTensors(
         if (!selected_buffer) {
           auto buf = std::make_unique<Buffer>();
           Buffer shared_buffer;
-          RETURN_IF_ERROR(CreateReadWriteBuffer(size, context, &shared_buffer));
+          ABSL_RETURN_IF_ERROR(
+              CreateReadWriteBuffer(size, context, &shared_buffer));
           *buf = std::move(shared_buffer);
           selected_buffer = buf.get();
           new_buffers.push_back(std::move(buf));
@@ -460,11 +462,11 @@ absl::Status MemoryManager::AllocateBufferBasedTensors(
           SizeOf(td.GetDataType()) * td.GetElementSize();
       const size_t width_pixel_alignment =
           GetWidthAlignment(gpu_info, bytes_per_pixel);
-      RETURN_IF_ERROR(CreateTensorSharedImage2DBuffer(
+      ABSL_RETURN_IF_ERROR(CreateTensorSharedImage2DBuffer(
           *context, allocated_buffers[buffer_index]->GetMemoryPtr(), td,
           width_pixel_alignment, &tensor));
     } else {
-      RETURN_IF_ERROR(CreateTensorShared(
+      ABSL_RETURN_IF_ERROR(CreateTensorShared(
           *context, allocated_buffers[buffer_index]->GetMemoryPtr(), td,
           &tensor));
     }
@@ -494,7 +496,7 @@ absl::Status MemoryManager::AllocateTextureBasedTensors(
   }
 
   ObjectsAssignment<TensorDescComparator> assignment;
-  RETURN_IF_ERROR(AssignObjectsToTensors(
+  ABSL_RETURN_IF_ERROR(AssignObjectsToTensors(
       usage_records, MemoryStrategy::EQUALITY, &assignment));
 
   std::vector<const Tensor*> cl_textures(assignment.object_sizes.size(),
@@ -512,7 +514,8 @@ absl::Status MemoryManager::AllocateTextureBasedTensors(
       cl_textures[i] = selected_tensor;
     } else {
       new_textures.push_back(std::make_unique<Tensor>());
-      RETURN_IF_ERROR(CreateTensor(*context, td, new_textures.back().get()));
+      ABSL_RETURN_IF_ERROR(
+          CreateTensor(*context, td, new_textures.back().get()));
       cl_textures[i] = new_textures.back().get();
     }
   }
@@ -524,7 +527,7 @@ absl::Status MemoryManager::AllocateTextureBasedTensors(
   for (auto& usage : texture_usages) {
     const auto& td = tensors_descs_[Key(model_id, usage.first)];
     const auto id = assignment.object_ids[remap_from_value_ids[usage.first]];
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         CreateTensorShared(*context, cl_textures[id]->GetMemoryPtr(), td,
                            &value_id_to_texture_[Key(model_id, usage.first)]));
   }
@@ -608,7 +611,7 @@ absl::Status GetTotalBufferSizeForTensors(
   std::map<ValueId, int2> texture_usages;
   CollectUsageInformation(gpu_model, gpu_info, external_tensors, &buffer_usages,
                           &texture_usages);
-  RETURN_IF_ERROR(GetBufferAssignment(
+  ABSL_RETURN_IF_ERROR(GetBufferAssignment(
       buffer_usages, gpu_model, gpu_info, &buffer_usage_records, nullptr,
       &buffer_assignment, &offset_assignment, &use_offset_assignment,
       &is_sub_buffers_supported));

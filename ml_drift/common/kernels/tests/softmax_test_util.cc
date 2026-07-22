@@ -85,7 +85,7 @@ absl::Status RuntimeChannelsTest(
       params_td.UploadData(params_tensor);
       TensorDescriptor dst_td = op_def.dst_tensors[0];
       dst_td.SetBHWCShape(src_tensor.shape);
-      RETURN_IF_ERROR(
+      ABSL_RETURN_IF_ERROR(
           env.ExecuteGPUOperation({&src_td, &params_td}, {&dst_td},
                                   std::make_unique<T>(std::move(operation))));
       TensorFloat32 dst_tensor;
@@ -113,7 +113,7 @@ absl::Status RuntimeChannelsTest(
       TensorDescriptor exp_td = {data_type, storage, Layout::BHWC};
       exp_td.SetBHWCShape(
           BHWC(src_tensor.shape.b, src_tensor.shape.h, src_tensor.shape.w, 2));
-      RETURN_IF_ERROR(env.ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
           {&src_td, &params_td}, {&exp_td},
           std::make_unique<T>(std::move(operation_part0))));
       OperationDef op_def_part1;
@@ -121,7 +121,7 @@ absl::Status RuntimeChannelsTest(
       op_def_part1.src_tensors.push_back({data_type, storage, Layout::BHWC});
       op_def_part1.dst_tensors.push_back({data_type, storage, Layout::BHWC});
       GPUOperation operation_part1 = CreateSoftmaxFinal(op_def_part1);
-      RETURN_IF_ERROR(env.ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
           {&src_td, &exp_td}, {&dst_td},
           std::make_unique<GPUOperation>(std::move(operation_part1))));
       TensorFloat32 reduce_dst_tensor;
@@ -276,7 +276,7 @@ absl::Status SoftmaxTest(TestExecutionEnvironment& env, DataType data_type,
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
   TensorFloat32 dst_tensor;
   Softmax operation = CreateSoftmax(op_def, env.GetGpuInfo(), src_tensor.shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<Softmax>(std::move(operation)),
       BHWC(1, 2, 1, 2), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -286,7 +286,7 @@ absl::Status SoftmaxTest(TestExecutionEnvironment& env, DataType data_type,
   TensorFloat32 exp_tensor;
   Softmax op_part0 =
       CreateSoftmaxReduce(op_def, env.GetGpuInfo(), src_tensor.shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<Softmax>(std::move(op_part0)),
       BHWC(1, 2, 1, 2), &exp_tensor));
 
@@ -295,7 +295,7 @@ absl::Status SoftmaxTest(TestExecutionEnvironment& env, DataType data_type,
   op_def_part1.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def_part1.dst_tensors.push_back({data_type, storage, Layout::HWC});
   GPUOperation op_part1 = CreateSoftmaxFinal(op_def_part1);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor, exp_tensor},
       std::make_unique<GPUOperation>(std::move(op_part1)), BHWC(1, 2, 1, 2),
       &dst_tensor));
@@ -318,7 +318,7 @@ absl::Status SoftmaxWGTest(TestExecutionEnvironment& env, DataType data_type,
   TensorFloat32 dst_tensor;
   Softmax operation =
       CreateSoftmaxReduce(op_def, env.GetGpuInfo(), src_tensor.shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<Softmax>(std::move(operation)),
       BHWC(1, 1, 1, 1), &dst_tensor));
   EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), {1.0f / 256.0f}));
@@ -340,7 +340,7 @@ absl::Status SoftmaxReduceTest(TestExecutionEnvironment& env,
   TensorFloat32 exp_tensor;
   Softmax op_part0 =
       CreateSoftmaxReduce(op_def, env.GetGpuInfo(), src_tensor.shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<Softmax>(std::move(op_part0)),
       BHWC(1, 1, 1, 2), &exp_tensor));
   EXPECT_THAT(exp_tensor.data,
@@ -375,7 +375,7 @@ absl::Status SoftmaxBigNumberTest(TestExecutionEnvironment& env,
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
   TensorFloat32 dst_tensor;
   Softmax operation = CreateSoftmax(op_def, env.GetGpuInfo(), src_tensor.shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<Softmax>(std::move(operation)),
       BHWC(1, 2, 1, 2), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -388,7 +388,7 @@ absl::Status SoftmaxBigNumberTest(TestExecutionEnvironment& env,
   TensorFloat32 exp_tensor;
   Softmax op_part0 =
       CreateSoftmaxReduce(op_def, env.GetGpuInfo(), src_tensor.shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<Softmax>(std::move(op_part0)),
       BHWC(1, 2, 1, 2), &exp_tensor));
 
@@ -397,7 +397,7 @@ absl::Status SoftmaxBigNumberTest(TestExecutionEnvironment& env,
   op_def_part1.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def_part1.dst_tensors.push_back({data_type, storage, Layout::HWC});
   GPUOperation op_part1 = CreateSoftmaxFinal(op_def_part1);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor, exp_tensor},
       std::make_unique<GPUOperation>(std::move(op_part1)), BHWC(1, 2, 1, 2),
       &dst_tensor));
@@ -502,7 +502,7 @@ absl::Status Softmax1x1Test(TestExecutionEnvironment& env, DataType data_type,
   TensorFloat32 dst_tensor;
   Softmax1x1 operation =
       CreateSoftmax1x1(op_def, env.GetGpuInfo(), src_tensor.shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<Softmax1x1>(std::move(operation)),
       BHWC(1, 1, 1, 4), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -511,7 +511,7 @@ absl::Status Softmax1x1Test(TestExecutionEnvironment& env, DataType data_type,
   TensorFloat32 exp_tensor;
   Softmax1x1 op_part0 =
       CreateSoftmax1x1Reduce(op_def, env.GetGpuInfo(), src_tensor.shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<Softmax1x1>(std::move(op_part0)),
       BHWC(1, 1, 1, 4), &exp_tensor));
 
@@ -520,7 +520,7 @@ absl::Status Softmax1x1Test(TestExecutionEnvironment& env, DataType data_type,
   op_def_part1.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def_part1.dst_tensors.push_back({data_type, storage, Layout::HWC});
   GPUOperation op_part1 = CreateSoftmaxFinal(op_def_part1);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor, exp_tensor},
       std::make_unique<GPUOperation>(std::move(op_part1)), BHWC(1, 1, 1, 4),
       &dst_tensor));
@@ -557,7 +557,7 @@ absl::Status Softmax1x1BigNumberTest(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   Softmax1x1 operation =
       CreateSoftmax1x1(op_def, env.GetGpuInfo(), src_tensor.shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<Softmax1x1>(std::move(operation)),
       BHWC(1, 1, 1, 4), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -570,7 +570,7 @@ absl::Status Softmax1x1BigNumberTest(TestExecutionEnvironment& env,
   TensorFloat32 exp_tensor;
   Softmax1x1 op_part0 =
       CreateSoftmax1x1Reduce(op_def, env.GetGpuInfo(), src_tensor.shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<Softmax1x1>(std::move(op_part0)),
       BHWC(1, 1, 1, 4), &exp_tensor));
 
@@ -579,7 +579,7 @@ absl::Status Softmax1x1BigNumberTest(TestExecutionEnvironment& env,
   op_def_part1.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def_part1.dst_tensors.push_back({data_type, storage, Layout::HWC});
   GPUOperation op_part1 = CreateSoftmaxFinal(op_def_part1);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor, exp_tensor},
       std::make_unique<GPUOperation>(std::move(op_part1)), BHWC(1, 1, 1, 4),
       &dst_tensor));
@@ -617,7 +617,7 @@ absl::Status Softmax1x1Custom1Test(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   Softmax1x1 operation =
       CreateSoftmax1x1(op_def, env.GetGpuInfo(), src_tensor.shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<Softmax1x1>(std::move(operation)),
       BHWC(1, 1, 1, 128), &dst_tensor));
   EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), expected_results));
@@ -726,7 +726,7 @@ absl::Status Softmax5DTest(TestExecutionEnvironment& env, DataType data_type,
   Softmax operation = CreateSoftmax(op_def, env.GetGpuInfo(), collapsed_shape);
 
   Tensor5DFloat32 dst_tensor;
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<Softmax>(std::move(operation)),
       dst_ref_5d.shape, &dst_tensor));
 
@@ -765,7 +765,7 @@ absl::Status Softmax1x15DTest(TestExecutionEnvironment& env, DataType data_type,
       CreateSoftmax1x1(op_def, env.GetGpuInfo(), collapsed_shape);
 
   Tensor5DFloat32 dst_tensor;
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<Softmax1x1>(std::move(operation)),
       dst_ref_5d.shape, &dst_tensor));
 

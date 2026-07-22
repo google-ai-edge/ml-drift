@@ -32,7 +32,7 @@ absl::Status TensorToBHWCBufferConverter::Init(Environment* env,
   TensorToBhwcBuffer gpu_op =
       CreateTensorToBhwcBufferOp(gpu_info, src_desc, dst_desc);
   gpu_op.RecalculateWorkGroupsSize(gpu_info, src_desc.GetBHWCShape());
-  RETURN_IF_ERROR(gpu_op.AssembleCode(gpu_info));
+  ABSL_RETURN_IF_ERROR(gpu_op.AssembleCode(gpu_info));
   task_.Init(std::make_unique<TensorToBhwcBuffer>(std::move(gpu_op)));
   return task_.Compile(env);
 }
@@ -42,7 +42,7 @@ absl::Status TensorToBHWCBufferConverter::Encode(
     Buffer* dst) {
   task_.SetSrcTensor(src, 0);
   task_.SetDstBuffer(dst, 0);
-  RETURN_IF_ERROR(task_.UpdateParams());
+  ABSL_RETURN_IF_ERROR(task_.UpdateParams());
   task_.Encode(encoder);
   return absl::OkStatus();
 }
@@ -65,7 +65,7 @@ absl::Status BHWCBufferToTensorConverter::Init(
   BhwcBufferToTensor gpu_op =
       CreateBhwcBufferToTensorOp(gpu_info, src_desc, dst_desc);
   gpu_op.RecalculateWorkGroupsSize(gpu_info, dst_desc.GetBHWCShape());
-  RETURN_IF_ERROR(gpu_op.AssembleCode(gpu_info));
+  ABSL_RETURN_IF_ERROR(gpu_op.AssembleCode(gpu_info));
   task_.Init(std::make_unique<GPUOperation>(std::move(gpu_op)));
   return task_.Compile(env);
 }
@@ -75,7 +75,7 @@ absl::Status BHWCBufferToTensorConverter::Encode(
     MetalSpatialTensor* dst) {
   task_.SetSrcBuffer(src, 0);
   task_.SetDstTensor(dst, 0);
-  RETURN_IF_ERROR(task_.UpdateParams());
+  ABSL_RETURN_IF_ERROR(task_.UpdateParams());
   task_.Encode(encoder);
   return absl::OkStatus();
 }

@@ -94,9 +94,9 @@ absl::Status ConvGenericWinograd4x4To6x6Test(TestExecutionEnvironment& exec_env,
       GetTensorDescriptorsForWeightsLayout(wino_weights,
                                            convolution.GetWeightsDescription());
 
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(src_tensor, std::move(wino_up),
-                                               BHWC(wino_up_result.shape),
-                                               &wino_up_result));
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+      src_tensor, std::move(wino_up), BHWC(wino_up_result.shape),
+      &wino_up_result));
   {
     TensorDescriptor src_td = op_def.src_tensors[0];
     src_td.UploadData(wino_up_result);
@@ -108,7 +108,7 @@ absl::Status ConvGenericWinograd4x4To6x6Test(TestExecutionEnvironment& exec_env,
     }
     TensorDescriptor dst_td = op_def.dst_tensors[0];
     dst_td.SetBHWCShape(BHWC(conv_result.shape));
-    RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+    ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
         srcs_td, {&dst_td},
         std::make_unique<ConvGeneric>(std::move(convolution))));
     dst_td.DownloadData(&conv_result);
@@ -116,7 +116,7 @@ absl::Status ConvGenericWinograd4x4To6x6Test(TestExecutionEnvironment& exec_env,
 
   float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr) * 3.0f;
   TensorFloat32 dst_tensor;
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       conv_result, std::move(wino_down), dst_ref_tensor.shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), dst_ref_tensor.data));
   return absl::OkStatus();
@@ -169,7 +169,7 @@ absl::Status ConvolutionGenericExternalWeightsTest(
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
 
   float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr);
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       srcs_td, {&dst_td}, std::make_unique<ConvGeneric>(std::move(operation))));
   TensorFloat32 dst_tensor;
   dst_td.DownloadData(&dst_tensor);
@@ -233,7 +233,7 @@ absl::Status ConvolutionGenericExternalBatchedWeightsTest(
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
 
   float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr);
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       srcs_td, {&dst_td}, std::make_unique<ConvGeneric>(std::move(operation))));
   TensorFloat32 dst_tensor;
   dst_td.DownloadData(&dst_tensor);
@@ -322,7 +322,7 @@ absl::Status ConvolutionGenericBatchedMatMulTest(
 
   int mads_count = left_tensor.shape.c;
   float eps = GetEpsilon(precision, exec_env.GetGpuInfo()) * mads_count;
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       srcs_td, {&dst_td}, std::make_unique<ConvGeneric>(std::move(operation))));
   TensorFloat32 dst_tensor;
   dst_td.DownloadData(&dst_tensor);

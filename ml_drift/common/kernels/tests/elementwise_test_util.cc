@@ -54,7 +54,7 @@ absl::Status AbsTest(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   GPUOperation operation =
       CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::ABS);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 1, 2), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -79,7 +79,7 @@ absl::Status CosTest(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   GPUOperation operation =
       CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::COS);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 1, 2), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -105,7 +105,7 @@ absl::Status CosIntTest(TestExecutionEnvironment& env,
   src_desc = op_def.src_tensors[0];
   src_desc.UploadData(src_tensor);
   dst_desc.SetBHWCShape(src_tensor.shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
@@ -133,7 +133,7 @@ absl::Status CopyTest(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   GPUOperation operation =
       CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::COPY);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 1, 2), &dst_tensor));
   EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(kEps), src_tensor.data));
@@ -155,7 +155,7 @@ absl::Status EluTest(TestExecutionEnvironment& env, DataType data_type,
   TensorFloat32 dst_tensor;
   GPUOperation operation =
       CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::ELU);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 1, 1, 7), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -181,7 +181,7 @@ absl::Status ExpTest(TestExecutionEnvironment& env, DataType data_type,
   TensorFloat32 dst_tensor;
   GPUOperation operation =
       CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::EXP);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 1, 1, 7), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -207,7 +207,7 @@ absl::Status FloorTest(TestExecutionEnvironment& env, DataType data_type,
   TensorFloat32 dst_tensor;
   GPUOperation operation =
       CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::FLOOR);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       src_tensor.shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -235,7 +235,7 @@ absl::Status FloorDivTest(TestExecutionEnvironment& env, DataType data_type,
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateElementwise(env.GetGpuInfo(), op_def,
                                              OperationType::FLOOR_DIV, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       src_tensor.shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -272,7 +272,7 @@ absl::Status FloorDivIntTest(TestExecutionEnvironment& env,
   src_desc1 = op_def.src_tensors[1];
   src_desc1.UploadData(src_tensor_1);
   dst_desc.SetBHWCShape(src_tensor_0.shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc0, &src_desc1}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
@@ -303,7 +303,7 @@ absl::Status FloorModTest(TestExecutionEnvironment& env, DataType data_type,
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateElementwise(env.GetGpuInfo(), op_def,
                                              OperationType::FLOOR_MOD, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       src_tensor.shape, &dst_tensor));
   EXPECT_THAT(
@@ -343,7 +343,7 @@ absl::Status FloorModIntTest(TestExecutionEnvironment& env,
   src_desc1 = op_def.src_tensors[1];
   src_desc1.UploadData(src_tensor_1);
   dst_desc.SetBHWCShape(src_tensor_0.shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc0, &src_desc1}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
@@ -375,7 +375,7 @@ absl::Status GeluTest(TestExecutionEnvironment& env, DataType data_type,
   TensorFloat32 dst_tensor;
   GPUOperation operation =
       CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::GELU);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 1, 1, 6), &dst_tensor));
   EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(kEps), ref_out));
@@ -398,7 +398,7 @@ absl::Status HardSwishTest(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateElementwiseOneInput(env.GetGpuInfo(), op_def,
                                                      OperationType::HARD_SWISH);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       src_tensor.shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -423,7 +423,7 @@ absl::Status LogTest(TestExecutionEnvironment& env, DataType data_type,
   TensorFloat32 dst_tensor;
   GPUOperation operation =
       CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::LOG);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 1, 2), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -449,7 +449,7 @@ absl::Status NegTest(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   GPUOperation operation =
       CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::NEG);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 1, 2), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -473,7 +473,7 @@ absl::Status RoundTest(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   GPUOperation operation =
       CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::ROUND);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 1, 2), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -497,7 +497,7 @@ absl::Status RsqrtTest(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   GPUOperation operation =
       CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::RSQRT);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 1, 2), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -525,7 +525,7 @@ absl::Status SigmoidTest(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateElementwiseOneInput(env.GetGpuInfo(), op_def,
                                                      OperationType::SIGMOID);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 1, 2), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -549,7 +549,7 @@ absl::Status SignTest(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   GPUOperation operation =
       CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::SIGN);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 1, 2), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -578,7 +578,7 @@ absl::Status SignInt8Test(TestExecutionEnvironment& env,
   dst_desc.SetBHWCShape(ref_tensor_si8.shape);
   GPUOperation operation =
       CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::SIGN);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
@@ -606,7 +606,7 @@ absl::Status SinTest(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   GPUOperation operation =
       CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::SIN);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 1, 2), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -633,7 +633,7 @@ absl::Status SqrtTest(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   GPUOperation operation =
       CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::SQRT);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 1, 2), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -658,7 +658,7 @@ absl::Status SquareTest(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateElementwiseOneInput(env.GetGpuInfo(), op_def,
                                                      OperationType::SQUARE);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 1, 2), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -683,7 +683,7 @@ absl::Status TanhTest(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   GPUOperation operation =
       CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::TANH);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 1, 3), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -714,7 +714,7 @@ absl::Status SubTest(TestExecutionEnvironment& env,
   GPUOperation operation =
       CreateElementwiseTwoInput(env.GetGpuInfo(), op_def, OperationType::SUB,
                                 src_tensor_1.shape, dst_shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor_0, src_tensor_1},
       std::make_unique<GPUOperation>(std::move(operation)), dst_shape,
       &dst_tensor));
@@ -750,7 +750,7 @@ absl::Status ShiftLeftTest(TestExecutionEnvironment& env,
   GPUOperation operation = CreateElementwiseTwoInput(
       env.GetGpuInfo(), op_def, OperationType::SHIFT_LEFT, src_tensor_1.shape,
       dst_shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc0, &src_desc1}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
@@ -787,7 +787,7 @@ absl::Status ShiftRightTest(TestExecutionEnvironment& env,
   GPUOperation operation = CreateElementwiseTwoInput(
       env.GetGpuInfo(), op_def, OperationType::SHIFT_RIGHT, src_tensor_1.shape,
       dst_shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc0, &src_desc1}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
@@ -818,7 +818,7 @@ absl::Status SquaredDiffTest(TestExecutionEnvironment& env,
   GPUOperation operation = CreateElementwiseTwoInput(
       env.GetGpuInfo(), op_def, OperationType::SQUARED_DIFF, src_tensor_1.shape,
       dst_shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor_0, src_tensor_1},
       std::make_unique<GPUOperation>(std::move(operation)), dst_shape,
       &dst_tensor));
@@ -848,7 +848,7 @@ absl::Status DivTest(TestExecutionEnvironment& env,
   GPUOperation operation =
       CreateElementwiseTwoInput(env.GetGpuInfo(), op_def, OperationType::DIV,
                                 src_tensor_1.shape, dst_shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor_0, src_tensor_1},
       std::make_unique<GPUOperation>(std::move(operation)), dst_shape,
       &dst_tensor));
@@ -877,7 +877,7 @@ absl::Status ModInt3Test(TestExecutionEnvironment& env,
   attr.param = 3;
   GPUOperation operation =
       CreateElementwise(env.GetGpuInfo(), op_def, OperationType::MOD, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_td}, {&dst_td},
       std::make_unique<GPUOperation>(std::move(operation))));
   Tensor<BHWC, DataType::INT32> dst_tensor;
@@ -907,7 +907,7 @@ absl::Status ModUint5Test(TestExecutionEnvironment& env,
   attr.param = 5u;
   GPUOperation operation =
       CreateElementwise(env.GetGpuInfo(), op_def, OperationType::MOD, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_td}, {&dst_td},
       std::make_unique<GPUOperation>(std::move(operation))));
   Tensor<BHWC, DataType::UINT32> dst_tensor;
@@ -936,7 +936,7 @@ absl::Status PowTest(TestExecutionEnvironment& env,
   GPUOperation operation =
       CreateElementwiseTwoInput(env.GetGpuInfo(), op_def, OperationType::POW,
                                 src_tensor_1.shape, dst_shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor_0, src_tensor_1},
       std::make_unique<GPUOperation>(std::move(operation)), dst_shape,
       &dst_tensor));
@@ -964,7 +964,7 @@ absl::Status AddTest(TestExecutionEnvironment& env,
   GPUOperation operation =
       CreateElementwiseTwoInput(env.GetGpuInfo(), op_def, OperationType::ADD,
                                 src_tensor_1.shape, dst_shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor_0, src_tensor_1},
       std::make_unique<GPUOperation>(std::move(operation)), dst_shape,
       &dst_tensor));
@@ -993,7 +993,7 @@ absl::Status AddWithConstantBHWCTensorTest(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   GPUOperation operation =
       CreateElementwise(env.GetGpuInfo(), op_def, OperationType::ADD, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor_0, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 1, 2), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -1024,7 +1024,7 @@ absl::Status AddTiledTest(TestExecutionEnvironment& env,
     GPUOperation operation =
         CreateElementwiseTwoInput(env.GetGpuInfo(), op_def, OperationType::ADD,
                                   src_tensor_1.shape, dst_shape);
-    RETURN_IF_ERROR(env.ExecuteGPUOperation(
+    ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
         {src_tensor_0, src_tensor_1},
         std::make_unique<GPUOperation>(std::move(operation)), dst_shape,
         &dst_tensor));
@@ -1055,7 +1055,7 @@ absl::Status Atan2Test(TestExecutionEnvironment& env,
   GPUOperation operation =
       CreateElementwiseTwoInput(env.GetGpuInfo(), op_def, OperationType::ATAN2,
                                 src_tensor_1.shape, dst_shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor_0, src_tensor_1},
       std::make_unique<GPUOperation>(std::move(operation)), dst_shape,
       &dst_tensor));
@@ -1091,7 +1091,7 @@ absl::Status Atan2IntTest(TestExecutionEnvironment& env,
   src_desc1 = op_def.src_tensors[1];
   src_desc1.UploadData(src_tensor_1);
   dst_desc.SetBHWCShape(src_tensor_0.shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc0, &src_desc1}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
@@ -1125,7 +1125,7 @@ absl::Status MaximumTest(TestExecutionEnvironment& env,
   GPUOperation operation = CreateElementwiseTwoInput(
       env.GetGpuInfo(), op_def, OperationType::MAXIMUM, src_tensor_1.shape,
       dst_shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor_0, src_tensor_1},
       std::make_unique<GPUOperation>(std::move(operation)), dst_shape,
       &dst_tensor));
@@ -1162,7 +1162,7 @@ absl::Status MaximumInt8Test(TestExecutionEnvironment& env,
   GPUOperation operation = CreateElementwiseTwoInput(
       env.GetGpuInfo(), op_def, OperationType::MAXIMUM, src_tensor_1_si8.shape,
       dst_shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc0, &src_desc1}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
@@ -1190,7 +1190,7 @@ absl::Status MaximumWithScalarTest(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   GPUOperation operation =
       CreateElementwise(env.GetGpuInfo(), op_def, OperationType::MAXIMUM, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor_0, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 4, 1, 1), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -1225,7 +1225,7 @@ absl::Status MaximumWithIntScalarTest(TestExecutionEnvironment& env,
   GPUOperation operation =
       CreateElementwise(env.GetGpuInfo(), op_def, OperationType::MAXIMUM, attr);
 
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_0}, {&dst}, std::make_unique<GPUOperation>(std::move(operation))));
 
   Tensor<BHWC, DataType::INT32> dst_tensor;
@@ -1262,7 +1262,7 @@ absl::Status MaximumWithUintScalarTest(TestExecutionEnvironment& env,
   GPUOperation operation =
       CreateElementwise(env.GetGpuInfo(), op_def, OperationType::MAXIMUM, attr);
 
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_0}, {&dst}, std::make_unique<GPUOperation>(std::move(operation))));
 
   Tensor<BHWC, DataType::UINT32> dst_tensor;
@@ -1292,7 +1292,7 @@ absl::Status MaximumWithConstantLinearTensorTest(
   TensorFloat32 dst_tensor;
   GPUOperation operation =
       CreateElementwise(env.GetGpuInfo(), op_def, OperationType::MAXIMUM, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor_0, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 1, 2), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -1321,7 +1321,7 @@ absl::Status MaximumWithConstantBHWCTensorTest(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   GPUOperation operation =
       CreateElementwise(env.GetGpuInfo(), op_def, OperationType::MAXIMUM, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor_0, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 1, 2), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -1348,7 +1348,7 @@ absl::Status MaximumWithConstantBHWCTensorBroadcastChannelsTest(
   TensorFloat32 dst_tensor;
   GPUOperation operation =
       CreateElementwise(env.GetGpuInfo(), op_def, OperationType::MAXIMUM, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor_0, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 1, 2), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -1375,7 +1375,7 @@ absl::Status MinimumTest(TestExecutionEnvironment& env,
   GPUOperation operation = CreateElementwiseTwoInput(
       env.GetGpuInfo(), op_def, OperationType::MINIMUM, src_tensor_1.shape,
       dst_shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor_0, src_tensor_1},
       std::make_unique<GPUOperation>(std::move(operation)), dst_shape,
       &dst_tensor));
@@ -1412,7 +1412,7 @@ absl::Status MinimumInt8Test(TestExecutionEnvironment& env,
   GPUOperation operation = CreateElementwiseTwoInput(
       env.GetGpuInfo(), op_def, OperationType::MINIMUM, src_tensor_1_si8.shape,
       dst_shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc0, &src_desc1}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
@@ -1440,7 +1440,7 @@ absl::Status MinimumWithScalarTest(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   GPUOperation operation =
       CreateElementwise(env.GetGpuInfo(), op_def, OperationType::MINIMUM, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor_0, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 4, 1, 1), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -1468,7 +1468,7 @@ absl::Status MulTest(TestExecutionEnvironment& env,
   GPUOperation operation =
       CreateElementwiseTwoInput(env.GetGpuInfo(), op_def, OperationType::MUL,
                                 src_tensor_1.shape, dst_shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor_0, src_tensor_1},
       std::make_unique<GPUOperation>(std::move(operation)), dst_shape,
       &dst_tensor));
@@ -1497,7 +1497,7 @@ absl::Status MulBroadcastHWTest(TestExecutionEnvironment& env,
   GPUOperation operation =
       CreateElementwiseTwoInput(env.GetGpuInfo(), op_def, OperationType::MUL,
                                 src_tensor_1.shape, dst_shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor_0, src_tensor_1},
       std::make_unique<GPUOperation>(std::move(operation)), dst_shape,
       &dst_tensor));
@@ -1525,7 +1525,7 @@ absl::Status MulBroadcastChannelsTest(TestExecutionEnvironment& env,
   GPUOperation operation =
       CreateElementwiseTwoInput(env.GetGpuInfo(), op_def, OperationType::MUL,
                                 src_tensor_1.shape, dst_shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor_0, src_tensor_1},
       std::make_unique<GPUOperation>(std::move(operation)), dst_shape,
       &dst_tensor));
@@ -1552,7 +1552,7 @@ absl::Status SubWithScalarAtFirstPositionTest(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   GPUOperation operation =
       CreateElementwise(env.GetGpuInfo(), op_def, OperationType::SUB, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor_0, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 4, 1, 1), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -1587,7 +1587,7 @@ absl::Status LessTest(TestExecutionEnvironment& env,
   GPUOperation operation =
       CreateElementwiseTwoInput(env.GetGpuInfo(), op_def, OperationType::LESS,
                                 src_tensor_1.shape, dst_shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc0, &src_desc1}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
@@ -1620,7 +1620,7 @@ absl::Status LessEqualTest(TestExecutionEnvironment& env,
   dst_desc.SetBHWCShape(BHWC(1, 2, 1, 2));
   GPUOperation operation = CreateElementwise(env.GetGpuInfo(), op_def,
                                              OperationType::LESS_EQUAL, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
@@ -1653,7 +1653,7 @@ absl::Status GreaterTest(TestExecutionEnvironment& env,
   dst_desc.SetBHWCShape(BHWC(1, 2, 1, 2));
   GPUOperation operation =
       CreateElementwise(env.GetGpuInfo(), op_def, OperationType::GREATER, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
@@ -1686,7 +1686,7 @@ absl::Status GreaterEqualTest(TestExecutionEnvironment& env,
   dst_desc.SetBHWCShape(BHWC(1, 2, 1, 2));
   GPUOperation operation = CreateElementwise(
       env.GetGpuInfo(), op_def, OperationType::GREATER_EQUAL, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
@@ -1719,7 +1719,7 @@ absl::Status EqualTest(TestExecutionEnvironment& env,
   dst_desc.SetBHWCShape(BHWC(1, 2, 1, 2));
   GPUOperation operation =
       CreateElementwise(env.GetGpuInfo(), op_def, OperationType::EQUAL, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
@@ -1752,7 +1752,7 @@ absl::Status NotEqualTest(TestExecutionEnvironment& env,
   dst_desc.SetBHWCShape(BHWC(1, 2, 1, 2));
   GPUOperation operation = CreateElementwise(env.GetGpuInfo(), op_def,
                                              OperationType::NOT_EQUAL, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
@@ -1779,7 +1779,7 @@ absl::Status CosBroadcastTest(TestExecutionEnvironment& env,
   GPUOperation operation = CreateElementwiseOneInputWithBroadcast(
       env.GetGpuInfo(), op_def, OperationType::COS, src_tensor.shape,
       output_shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       output_shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -1807,7 +1807,7 @@ absl::Status MaximumScalarBroadcastInputTest(TestExecutionEnvironment& env,
   GPUOperation operation = CreateElementwiseWithBroadcast(
       env.GetGpuInfo(), op_def, OperationType::MAXIMUM, attr,
       src_tensor_0.shape, output_shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor_0, std::make_unique<GPUOperation>(std::move(operation)),
       output_shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -1838,7 +1838,7 @@ absl::Status MulLinearBroadcastInputTest(TestExecutionEnvironment& env,
   GPUOperation operation = CreateElementwiseWithBroadcast(
       env.GetGpuInfo(), op_def, OperationType::MUL, attr, src_tensor_0.shape,
       output_shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor_0, std::make_unique<GPUOperation>(std::move(operation)),
       output_shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -1867,7 +1867,7 @@ absl::Status MulBroadcastBothInputsTest(TestExecutionEnvironment& env,
   GPUOperation operation = CreateElementwiseTwoInputWithBroadcast(
       env.GetGpuInfo(), op_def, OperationType::MUL, src_tensor_0.shape,
       src_tensor_1.shape, output_shape, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor_0, src_tensor_1},
       std::make_unique<GPUOperation>(std::move(operation)), output_shape,
       &dst_tensor));
@@ -1893,7 +1893,7 @@ absl::Status MishTest(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   GPUOperation operation =
       CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::MISH);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 2, 2), &dst_tensor));
 
@@ -1940,7 +1940,7 @@ absl::Status LogicalAndTest(TestExecutionEnvironment& env,
   GPUOperation operation = CreateElementwiseTwoInput(
       env.GetGpuInfo(), op_def, OperationType::LOGICAL_AND, src_tensor_1.shape,
       dst_shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc0, &src_desc1}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
@@ -1978,7 +1978,7 @@ absl::Status LogicalAndInt8Test(TestExecutionEnvironment& env,
   GPUOperation operation = CreateElementwiseTwoInput(
       env.GetGpuInfo(), op_def, OperationType::LOGICAL_AND,
       src_tensor_1_si8.shape, dst_shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc0, &src_desc1}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
@@ -2016,7 +2016,7 @@ absl::Status LogicalOrTest(TestExecutionEnvironment& env,
   GPUOperation operation = CreateElementwiseTwoInput(
       env.GetGpuInfo(), op_def, OperationType::LOGICAL_OR, src_tensor_1.shape,
       dst_shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc0, &src_desc1}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
@@ -2054,7 +2054,7 @@ absl::Status LogicalOrInt8Test(TestExecutionEnvironment& env,
   GPUOperation operation = CreateElementwiseTwoInput(
       env.GetGpuInfo(), op_def, OperationType::LOGICAL_OR,
       src_tensor_1_si8.shape, dst_shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc0, &src_desc1}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
@@ -2086,7 +2086,7 @@ absl::Status LogicalNotTest(TestExecutionEnvironment& env,
   dst_desc.SetBHWCShape(dst_shape);
   GPUOperation operation = CreateElementwiseOneInput(
       env.GetGpuInfo(), op_def, OperationType::LOGICAL_NOT);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
@@ -2118,7 +2118,7 @@ absl::Status LogicalNotInt8Test(TestExecutionEnvironment& env,
   dst_desc.SetBHWCShape(dst_shape);
   GPUOperation operation = CreateElementwiseOneInput(
       env.GetGpuInfo(), op_def, OperationType::LOGICAL_NOT);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
@@ -2156,7 +2156,7 @@ absl::Status LogicalXorTest(TestExecutionEnvironment& env,
   GPUOperation operation = CreateElementwiseTwoInput(
       env.GetGpuInfo(), op_def, OperationType::LOGICAL_XOR, src_tensor_1.shape,
       dst_shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc0, &src_desc1}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
@@ -2193,7 +2193,7 @@ absl::Status LogicalXorInt8Test(TestExecutionEnvironment& env,
   GPUOperation operation = CreateElementwiseTwoInput(
       env.GetGpuInfo(), op_def, OperationType::LOGICAL_XOR,
       src_tensor_1_si8.shape, dst_shape_si8);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc0, &src_desc1}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
@@ -2222,7 +2222,7 @@ absl::Status Add5DTest(TestExecutionEnvironment& env, DataType data_type,
   GPUOperation operation =
       CreateElementwiseTwoInput(env.GetGpuInfo(), op_def, OperationType::ADD,
                                 src_tensor_1.shape, dst_shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor_0, src_tensor_1},
       std::make_unique<GPUOperation>(std::move(operation)), dst_shape,
       &dst_tensor));
@@ -2249,7 +2249,7 @@ absl::Status OneInputWithBroadcast5DTest(TestExecutionEnvironment& env,
   GPUOperation operation = CreateElementwiseOneInputWithBroadcast(
       env.GetGpuInfo(), op_def, OperationType::COS, src_tensor.shape,
       dst_shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       dst_shape, &dst_tensor));
   EXPECT_THAT(
@@ -2283,7 +2283,7 @@ absl::Status WithBroadcast5DTest(TestExecutionEnvironment& env,
   GPUOperation operation = CreateElementwiseWithBroadcast(
       env.GetGpuInfo(), op_def, OperationType::MUL, attr, src_tensor.shape,
       dst_shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       dst_shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -2318,7 +2318,7 @@ absl::Status WithBroadcast5DPaddedGridTest(TestExecutionEnvironment& env,
   GPUOperation operation = CreateElementwiseWithBroadcast(
       env.GetGpuInfo(), op_def, OperationType::ADD, attr, src_tensor.shape,
       dst_shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       dst_shape, &dst_tensor));
 
@@ -2357,7 +2357,7 @@ absl::Status TwoInputWithBroadcast5DTest(TestExecutionEnvironment& env,
   GPUOperation operation = CreateElementwiseTwoInputWithBroadcast(
       env.GetGpuInfo(), op_def, OperationType::MUL, src_tensor_0.shape,
       src_tensor_1.shape, dst_shape, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor_0, src_tensor_1},
       std::make_unique<GPUOperation>(std::move(operation)), dst_shape,
       &dst_tensor));

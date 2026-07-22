@@ -16,7 +16,7 @@
 #include <string>
 #include <vector>
 
-#include "absl/status/status.h"
+#include "ml_drift/common/status.h"
 #include "ml_drift/cl/opencl_wrapper.h"
 #include "ml_drift/cl/util_types.h"
 #include "ml_drift/common/gpu_info.h"

@@ -26,10 +26,10 @@
 //                                  ObjectType::OPENGL_TEXTURE, true});
 //   builder->SetOutputObjectDef(0, {DataType::FLOAT32, DataLayout::BHWC,
 //                                  ObjectType::CPU_MEMORY, false});
-//   ASSIGN_OR_RETURN(auto runner, builder->Build());  // may be slow
-//   RETURN_IF_ERROR(
+//   ABSL_ASSIGN_OR_RETURN(auto runner, builder->Build());  // may be slow
+//   ABSL_RETURN_IF_ERROR(
 //       runner->SetInputObject(0, OpenGlTexture{texture_id, texture_format}));
-//   RETURN_IF_ERROR(runner->Run());
+//   ABSL_RETURN_IF_ERROR(runner->Run());
 
 #include <cstdint>
 #include <memory>
@@ -218,14 +218,14 @@ class InferenceBuilder {
   virtual absl::Status SetAllInputObjectDefsTo(ObjectDef def) {
     auto input_defs = inputs();
     for (int i = 0; i < input_defs.size(); ++i) {
-      RETURN_IF_ERROR(SetInputObjectDef(i, def));
+      ABSL_RETURN_IF_ERROR(SetInputObjectDef(i, def));
     }
     return absl::OkStatus();
   }
   virtual absl::Status SetAllOutputObjectDefsTo(ObjectDef def) {
     auto output_defs = outputs();
     for (int i = 0; i < output_defs.size(); ++i) {
-      RETURN_IF_ERROR(SetOutputObjectDef(i, def));
+      ABSL_RETURN_IF_ERROR(SetOutputObjectDef(i, def));
     }
     return absl::OkStatus();
   }

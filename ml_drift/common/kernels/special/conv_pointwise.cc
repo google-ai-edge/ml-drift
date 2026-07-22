@@ -142,7 +142,8 @@ absl::Status IsNode(const GraphFloat32& graph, OperationType op_type,
 
 absl::Status IsMeanNode(const GraphFloat32& graph, Node* node,
                         NodeContext* node_context) {
-  RETURN_IF_ERROR(IsNode(graph, OperationType::MEAN, 1, 1, node, node_context));
+  ABSL_RETURN_IF_ERROR(
+      IsNode(graph, OperationType::MEAN, 1, 1, node, node_context));
   auto mean_attr =
       std::any_cast<ReduceAttributes>(node_context->node->operation.attributes);
   if (mean_attr.dims != std::set<Axis>{Axis::CHANNELS}) {
@@ -153,7 +154,7 @@ absl::Status IsMeanNode(const GraphFloat32& graph, Node* node,
 
 absl::Status IsReduceSumNode(const GraphFloat32& graph, Node* node,
                              NodeContext* node_context) {
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       IsNode(graph, OperationType::REDUCE_SUM, 1, 1, node, node_context));
   auto reduce_attr =
       std::any_cast<ReduceAttributes>(node_context->node->operation.attributes);
@@ -166,7 +167,8 @@ absl::Status IsReduceSumNode(const GraphFloat32& graph, Node* node,
 
 absl::Status IsMulNode(const GraphFloat32& graph, Node* node,
                        NodeContext* node_context) {
-  RETURN_IF_ERROR(IsNode(graph, OperationType::MUL, 2, 1, node, node_context));
+  ABSL_RETURN_IF_ERROR(
+      IsNode(graph, OperationType::MUL, 2, 1, node, node_context));
   if (node_context->inputs[0]->tensor.shape !=
       node_context->inputs[1]->tensor.shape) {
     return absl::InternalError("Expected mul node with 2 equal tensors.");
@@ -176,7 +178,7 @@ absl::Status IsMulNode(const GraphFloat32& graph, Node* node,
 
 absl::Status IsSliceNode(const GraphFloat32& graph, Node* node,
                          NodeContext* node_context) {
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       IsNode(graph, OperationType::SLICE, 1, 1, node, node_context));
   auto slice_attr =
       std::any_cast<SliceAttributes>(node_context->node->operation.attributes);
@@ -188,7 +190,7 @@ absl::Status IsSliceNode(const GraphFloat32& graph, Node* node,
 
 absl::Status IsConcatNode(const GraphFloat32& graph, Node* node,
                           NodeContext* node_context) {
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       IsNode(graph, OperationType::CONCAT, -1, 1, node, node_context));
   auto concat_attr =
       std::any_cast<ConcatAttributes>(node_context->node->operation.attributes);
@@ -205,15 +207,15 @@ absl::Status GetOffset(const GraphFloat32& graph, NodeId concat_input_node,
   absl::Status status =
       IsMeanNode(graph, graph.FindProducer(concat_input_node), &reduce_node);
   if (!status.ok()) {
-    RETURN_IF_ERROR(IsReduceSumNode(
+    ABSL_RETURN_IF_ERROR(IsReduceSumNode(
         graph, graph.FindProducer(concat_input_node), &reduce_node));
   }
-  RETURN_IF_ERROR(IsMulNode(
+  ABSL_RETURN_IF_ERROR(IsMulNode(
       graph, graph.FindProducer(reduce_node.inputs[0]->id), &mul_node));
   const ValueId slice_output_id =
       mul_node.inputs[0]->id == second_commom_input_id ? mul_node.inputs[1]->id
                                                        : mul_node.inputs[0]->id;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       IsSliceNode(graph, graph.FindProducer(slice_output_id), &slice_node));
   auto slice_attr =
       std::any_cast<SliceAttributes>(slice_node.node->operation.attributes);
@@ -262,7 +264,7 @@ absl::Status TryFusedPointwiseConv(const GraphFloat32& graph,
                                    std::set<NodeId>* new_consumed_nodes,
                                    GpuModelBuilder* model_builder) {
   NodeContext slice_node;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       IsSliceNode(graph, graph.GetNode(first_node_id), &slice_node));
   const auto& first_commom_input = slice_node.inputs[0];
   auto slice_consumers = graph.FindConsumers(slice_node.outputs[0]->id);
@@ -270,7 +272,7 @@ absl::Status TryFusedPointwiseConv(const GraphFloat32& graph,
     return absl::NotFoundError("FusedPointwiseConv not suitable.");
   }
   NodeContext mul_node;
-  RETURN_IF_ERROR(IsMulNode(graph, slice_consumers[0], &mul_node));
+  ABSL_RETURN_IF_ERROR(IsMulNode(graph, slice_consumers[0], &mul_node));
   const auto& second_commom_input =
       mul_node.inputs[0]->id == slice_node.outputs[0]->id ? mul_node.inputs[1]
                                                           : mul_node.inputs[0];
@@ -282,7 +284,8 @@ absl::Status TryFusedPointwiseConv(const GraphFloat32& graph,
   bool mean = true;
   absl::Status status = IsMeanNode(graph, mul_consumers[0], &reduce_node);
   if (!status.ok()) {
-    RETURN_IF_ERROR(IsReduceSumNode(graph, mul_consumers[0], &reduce_node));
+    ABSL_RETURN_IF_ERROR(
+        IsReduceSumNode(graph, mul_consumers[0], &reduce_node));
     mean = false;
   }
   auto reduce_consumers = graph.FindConsumers(reduce_node.outputs[0]->id);
@@ -290,23 +293,24 @@ absl::Status TryFusedPointwiseConv(const GraphFloat32& graph,
     return absl::NotFoundError("FusedPointwiseConv not suitable.");
   }
   NodeContext concat_node;
-  RETURN_IF_ERROR(IsConcatNode(graph, reduce_consumers[0], &concat_node));
+  ABSL_RETURN_IF_ERROR(IsConcatNode(graph, reduce_consumers[0], &concat_node));
   ConvPointwiseAttributes op_attr;
   op_attr.mean = mean;
   std::set<NodeId> temp_consumed_nodes;
   for (const auto& concat_input : concat_node.inputs) {
     int offset_x, offset_y;
-    RETURN_IF_ERROR(GetOffset(graph, concat_input->id, second_commom_input->id,
-                              &offset_x, &offset_y, &temp_consumed_nodes));
+    ABSL_RETURN_IF_ERROR(GetOffset(graph, concat_input->id,
+                                   second_commom_input->id, &offset_x,
+                                   &offset_y, &temp_consumed_nodes));
     op_attr.offsets.push_back(int2(offset_x, offset_y));
   }
 
-  ASSIGN_OR_RETURN(auto src0_handle,
-                   model_builder->GetTensor(second_commom_input->id));
-  ASSIGN_OR_RETURN(auto src1_handle,
-                   model_builder->GetTensor(first_commom_input->id));
-  ASSIGN_OR_RETURN(auto dst_handle,
-                   model_builder->GetTensor(concat_node.outputs[0]->id));
+  ABSL_ASSIGN_OR_RETURN(auto src0_handle,
+                        model_builder->GetTensor(second_commom_input->id));
+  ABSL_ASSIGN_OR_RETURN(auto src1_handle,
+                        model_builder->GetTensor(first_commom_input->id));
+  ABSL_ASSIGN_OR_RETURN(auto dst_handle,
+                        model_builder->GetTensor(concat_node.outputs[0]->id));
   OperationDef op_def;
   op_def.src_tensors.push_back(src0_handle.tensor_desc);
   op_def.src_tensors.push_back(src1_handle.tensor_desc);
@@ -365,7 +369,8 @@ absl::Status IsOp(const ir::IrModel& ir_model, OperationType op_type,
 
 absl::Status IsMeanOp(const ir::IrModel& ir_model, const ir::IrOp* op,
                       IrOpContext* op_context) {
-  RETURN_IF_ERROR(IsOp(ir_model, OperationType::MEAN, 1, 1, op, op_context));
+  ABSL_RETURN_IF_ERROR(
+      IsOp(ir_model, OperationType::MEAN, 1, 1, op, op_context));
   auto mean_attr = std::any_cast<ReduceAttributes>(op_context->op->attr);
   if (mean_attr.dims != std::set<Axis>{Axis::CHANNELS}) {
     return absl::InternalError("Expected mean node with channels reduction.");
@@ -375,7 +380,7 @@ absl::Status IsMeanOp(const ir::IrModel& ir_model, const ir::IrOp* op,
 
 absl::Status IsReduceSumOp(const ir::IrModel& ir_model, const ir::IrOp* op,
                            IrOpContext* op_context) {
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       IsOp(ir_model, OperationType::REDUCE_SUM, 1, 1, op, op_context));
   auto reduce_attr = std::any_cast<ReduceAttributes>(op_context->op->attr);
   if (reduce_attr.dims != std::set<Axis>{Axis::CHANNELS}) {
@@ -387,7 +392,8 @@ absl::Status IsReduceSumOp(const ir::IrModel& ir_model, const ir::IrOp* op,
 
 absl::Status IsMulOp(const ir::IrModel& ir_model, const ir::IrOp* op,
                      IrOpContext* op_context) {
-  RETURN_IF_ERROR(IsOp(ir_model, OperationType::MUL, 2, 1, op, op_context));
+  ABSL_RETURN_IF_ERROR(
+      IsOp(ir_model, OperationType::MUL, 2, 1, op, op_context));
   if (ir_model.tensor(op_context->inputs[0])->desc.GetBHWCShape() !=
       ir_model.tensor(op_context->inputs[1])->desc.GetBHWCShape()) {
     return absl::InternalError("Expected mul node with 2 equal tensors.");
@@ -397,7 +403,8 @@ absl::Status IsMulOp(const ir::IrModel& ir_model, const ir::IrOp* op,
 
 absl::Status IsSliceOp(const ir::IrModel& ir_model, const ir::IrOp* op,
                        IrOpContext* op_context) {
-  RETURN_IF_ERROR(IsOp(ir_model, OperationType::SLICE, 1, 1, op, op_context));
+  ABSL_RETURN_IF_ERROR(
+      IsOp(ir_model, OperationType::SLICE, 1, 1, op, op_context));
   auto slice_attr = std::any_cast<SliceAttributes>(op_context->op->attr);
   if (slice_attr.strides != BHWC(1, 1, 1, 1)) {
     return absl::InternalError("Not valid attributes in slice node.");
@@ -407,7 +414,8 @@ absl::Status IsSliceOp(const ir::IrModel& ir_model, const ir::IrOp* op,
 
 absl::Status IsConcatOp(const ir::IrModel& ir_model, const ir::IrOp* op,
                         IrOpContext* op_context) {
-  RETURN_IF_ERROR(IsOp(ir_model, OperationType::CONCAT, -1, 1, op, op_context));
+  ABSL_RETURN_IF_ERROR(
+      IsOp(ir_model, OperationType::CONCAT, -1, 1, op, op_context));
   auto concat_attr = std::any_cast<ConcatAttributes>(op_context->op->attr);
   if (concat_attr.axis != Axis::CHANNELS) {
     return absl::InternalError("Not valid attributes in concat node.");
@@ -424,15 +432,15 @@ absl::Status GetOffset(const ir::IrModel& ir_model,
   absl::Status status = IsMeanOp(
       ir_model, ir_model.FindProducer(concat_input_tensor), &reduce_op);
   if (!status.ok()) {
-    RETURN_IF_ERROR(IsReduceSumOp(
+    ABSL_RETURN_IF_ERROR(IsReduceSumOp(
         ir_model, ir_model.FindProducer(concat_input_tensor), &reduce_op));
   }
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       IsMulOp(ir_model, ir_model.FindProducer(reduce_op.inputs[0]), &mul_op));
   const ir::IrTensorId slice_output_id =
       mul_op.inputs[0] == second_commom_input_id ? mul_op.inputs[1]
                                                  : mul_op.inputs[0];
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       IsSliceOp(ir_model, ir_model.FindProducer(slice_output_id), &slice_op));
   auto slice_attr = std::any_cast<SliceAttributes>(slice_op.op->attr);
   *offset_x = slice_attr.starts.w;
@@ -450,14 +458,15 @@ absl::Status TryFusedPointwiseConv(
     absl::flat_hash_set<ir::IrOpId>* new_consumed_ops,
     GpuModelBuilder* model_builder) {
   IrOpContext slice_op;
-  RETURN_IF_ERROR(IsSliceOp(ir_model, ir_model.op(first_op_id), &slice_op));
+  ABSL_RETURN_IF_ERROR(
+      IsSliceOp(ir_model, ir_model.op(first_op_id), &slice_op));
   const auto& first_commom_input = slice_op.inputs[0];
   auto slice_consumers = ir_model.FindConsumers(slice_op.outputs[0]);
   if (slice_consumers.size() != 1) {
     return absl::NotFoundError("FusedPointwiseConv not suitable.");
   }
   IrOpContext mul_op;
-  RETURN_IF_ERROR(IsMulOp(ir_model, slice_consumers[0], &mul_op));
+  ABSL_RETURN_IF_ERROR(IsMulOp(ir_model, slice_consumers[0], &mul_op));
   const auto& second_commom_input = mul_op.inputs[0] == slice_op.outputs[0]
                                         ? mul_op.inputs[1]
                                         : mul_op.inputs[0];
@@ -469,7 +478,7 @@ absl::Status TryFusedPointwiseConv(
   bool mean = true;
   absl::Status status = IsMeanOp(ir_model, mul_consumers[0], &reduce_op);
   if (!status.ok()) {
-    RETURN_IF_ERROR(IsReduceSumOp(ir_model, mul_consumers[0], &reduce_op));
+    ABSL_RETURN_IF_ERROR(IsReduceSumOp(ir_model, mul_consumers[0], &reduce_op));
     mean = false;
   }
   const auto& reduce_consumers = ir_model.FindConsumers(reduce_op.outputs[0]);
@@ -477,23 +486,23 @@ absl::Status TryFusedPointwiseConv(
     return absl::NotFoundError("FusedPointwiseConv not suitable.");
   }
   IrOpContext concat_op;
-  RETURN_IF_ERROR(IsConcatOp(ir_model, reduce_consumers[0], &concat_op));
+  ABSL_RETURN_IF_ERROR(IsConcatOp(ir_model, reduce_consumers[0], &concat_op));
   ConvPointwiseAttributes op_attr;
   op_attr.mean = mean;
   absl::flat_hash_set<ir::IrOpId> temp_consumed_ops;
   for (const auto& concat_input : concat_op.inputs) {
     int offset_x, offset_y;
-    RETURN_IF_ERROR(GetOffset(ir_model, concat_input, second_commom_input,
-                              &offset_x, &offset_y, &temp_consumed_ops));
+    ABSL_RETURN_IF_ERROR(GetOffset(ir_model, concat_input, second_commom_input,
+                                   &offset_x, &offset_y, &temp_consumed_ops));
     op_attr.offsets.push_back(int2(offset_x, offset_y));
   }
 
-  ASSIGN_OR_RETURN(auto src0_handle,
-                   model_builder->GetTensor(second_commom_input));
-  ASSIGN_OR_RETURN(auto src1_handle,
-                   model_builder->GetTensor(first_commom_input));
-  ASSIGN_OR_RETURN(auto dst_handle,
-                   model_builder->GetTensor(concat_op.outputs[0]));
+  ABSL_ASSIGN_OR_RETURN(auto src0_handle,
+                        model_builder->GetTensor(second_commom_input));
+  ABSL_ASSIGN_OR_RETURN(auto src1_handle,
+                        model_builder->GetTensor(first_commom_input));
+  ABSL_ASSIGN_OR_RETURN(auto dst_handle,
+                        model_builder->GetTensor(concat_op.outputs[0]));
   OperationDef op_def;
   op_def.src_tensors.push_back(src0_handle.tensor_desc);
   op_def.src_tensors.push_back(src1_handle.tensor_desc);

@@ -490,7 +490,8 @@ absl::Status ThinPointwiseFuser::ReserveNode(const GpuInfo& gpu_info,
                                              Node* node) {
   if (nodes_.empty()) {
     auto inputs = graph_->FindInputs(node->id);
-    ASSIGN_OR_RETURN(auto handle, model_builder_->GetTensor(inputs[0]->id));
+    ABSL_ASSIGN_OR_RETURN(auto handle,
+                          model_builder_->GetTensor(inputs[0]->id));
     op_def_.src_tensors.push_back(handle.tensor_desc);
   }
   if (!IsNodeSupported(gpu_info, node)) {
@@ -552,7 +553,7 @@ absl::Status ThinPointwiseFuser::AddNode(const GpuInfo& gpu_info,
                                ? add_inputs[0]
                                : add_inputs[1];
     inputs_.push_back(add_new_input);
-    RETURN_IF_ERROR(AddAddNode(add_new_input->id));
+    ABSL_RETURN_IF_ERROR(AddAddNode(add_new_input->id));
   } else if (IsElementwiseOneInput(op_type)) {
     AddElementwiseOneInputNode(gpu_info, op_type);
   } else if (op_type == OperationType::DEPTHWISE_CONVOLUTION) {
@@ -701,7 +702,8 @@ absl::Status ThinPointwiseFuser::AddAddNode(ValueId add_new_input_id) {
   op_name_ += "->add";
   const std::string tensor_name =
       absl::StrCat("src_tensor", op_def_.src_tensors.size());
-  ASSIGN_OR_RETURN(auto handle, model_builder_->GetTensor(add_new_input_id));
+  ABSL_ASSIGN_OR_RETURN(auto handle,
+                        model_builder_->GetTensor(add_new_input_id));
   op_def_.src_tensors.push_back(handle.tensor_desc);
   for (int i = 0; i < outputs_.size(); ++i) {
     code_ += "  if (" + std::to_string(i) + " < args." + tensor_name +
@@ -917,7 +919,7 @@ absl::Status ThinPointwiseFuser::Finalize(const GpuInfo& gpu_info,
   code_ += "  } \n";
 
   for (int i = 0; i < nodes_.size(); ++i) {
-    RETURN_IF_ERROR(AddNode(gpu_info, i));
+    ABSL_RETURN_IF_ERROR(AddNode(gpu_info, i));
   }
   code_ += "}\n";
   const DataType type = op_def_.src_tensors[0].GetDataType();
@@ -1011,8 +1013,8 @@ absl::Status TryThinPointwiseFuser(const GpuInfo& gpu_info,
     return absl::NotFoundError("ThinPointwiseFuser not suitable.");
   }
 
-  ASSIGN_OR_RETURN(auto tensor_handle,
-                   model_builder->GetTensor(node_inputs[0]->id));
+  ABSL_ASSIGN_OR_RETURN(auto tensor_handle,
+                        model_builder->GetTensor(node_inputs[0]->id));
 
   ThinPointwiseFuser fuser;
   fuser.Init(&graph, model_builder, tensor_handle.tensor_desc.GetDataType(),
@@ -1024,7 +1026,7 @@ absl::Status TryThinPointwiseFuser(const GpuInfo& gpu_info,
       break;
     }
   }
-  RETURN_IF_ERROR(fuser.Finalize(gpu_info, model_builder));
+  ABSL_RETURN_IF_ERROR(fuser.Finalize(gpu_info, model_builder));
   const auto fused_nodes = fuser.GetFusedNodes();
   new_consumed_nodes->insert(fused_nodes.begin(), fused_nodes.end());
   return absl::OkStatus();
@@ -1397,7 +1399,7 @@ absl::Status ThinPointwiseFuserIr::ReserveOp(const GpuInfo& gpu_info,
                                              ir::IrOp* op) {
   if (ops_.empty()) {
     auto inputs = op->inputs;
-    ASSIGN_OR_RETURN(auto handle, model_builder_->GetTensor(inputs[0]));
+    ABSL_ASSIGN_OR_RETURN(auto handle, model_builder_->GetTensor(inputs[0]));
     op_def_.src_tensors.push_back(handle.tensor_desc);
   }
   if (!IsOpSupported(gpu_info, op)) {
@@ -1455,7 +1457,7 @@ absl::Status ThinPointwiseFuserIr::AddOp(const GpuInfo& gpu_info,
     ir::IrTensorId add_new_input_id =
         add_inputs[0] != prev_op_outputs[0] ? add_inputs[0] : add_inputs[1];
     input_tensors_.push_back(add_new_input_id);
-    RETURN_IF_ERROR(AddAddOp(add_new_input_id));
+    ABSL_RETURN_IF_ERROR(AddAddOp(add_new_input_id));
   } else if (IsElementwiseOneInput(op_type)) {
     AddElementwiseOneInputOp(gpu_info, op_type);
   } else if (op_type == OperationType::DEPTHWISE_CONVOLUTION) {
@@ -1603,7 +1605,8 @@ absl::Status ThinPointwiseFuserIr::AddAddOp(ir::IrTensorId add_new_input_id) {
   op_name_ += "->add";
   const std::string tensor_name =
       absl::StrCat("src_tensor", op_def_.src_tensors.size());
-  ASSIGN_OR_RETURN(auto handle, model_builder_->GetTensor(add_new_input_id));
+  ABSL_ASSIGN_OR_RETURN(auto handle,
+                        model_builder_->GetTensor(add_new_input_id));
   op_def_.src_tensors.push_back(handle.tensor_desc);
   for (int i = 0; i < outputs_.size(); ++i) {
     code_ += "  if (" + std::to_string(i) + " < args." + tensor_name +
@@ -1798,7 +1801,8 @@ absl::Status ThinPointwiseFuserIr::Finalize(const GpuInfo& gpu_info,
   }
   input_tensors_ = ops_.front()->inputs;
   auto last_op_outputs = ops_.back()->outputs;
-  ASSIGN_OR_RETURN(auto handle, model_builder_->GetTensor(last_op_outputs[0]));
+  ABSL_ASSIGN_OR_RETURN(auto handle,
+                        model_builder_->GetTensor(last_op_outputs[0]));
   op_def_.dst_tensors.push_back(handle.tensor_desc);
 
   code_ = "MAIN_FUNCTION($0) {\n";
@@ -1819,7 +1823,7 @@ absl::Status ThinPointwiseFuserIr::Finalize(const GpuInfo& gpu_info,
   code_ += "  } \n";
 
   for (int i = 0; i < ops_.size(); ++i) {
-    RETURN_IF_ERROR(AddOp(gpu_info, i));
+    ABSL_RETURN_IF_ERROR(AddOp(gpu_info, i));
   }
   code_ += "}\n";
   const DataType type = op_def_.src_tensors[0].GetDataType();
@@ -1910,7 +1914,8 @@ absl::Status TryThinPointwiseFuser(
     return absl::NotFoundError("ThinPointwiseFuser not suitable.");
   }
 
-  ASSIGN_OR_RETURN(auto tensor_handle, model_builder->GetTensor(op_inputs[0]));
+  ABSL_ASSIGN_OR_RETURN(auto tensor_handle,
+                        model_builder->GetTensor(op_inputs[0]));
 
   ThinPointwiseFuserIr fuser;
   std::set<ir::IrOpId> consumed_ops_set(consumed_ops.begin(),
@@ -1923,7 +1928,7 @@ absl::Status TryThinPointwiseFuser(
       break;
     }
   }
-  RETURN_IF_ERROR(fuser.Finalize(gpu_info, model_builder));
+  ABSL_RETURN_IF_ERROR(fuser.Finalize(gpu_info, model_builder));
   const auto fused_ops = fuser.GetFusedOps();
   new_consumed_ops->insert(fused_ops.begin(), fused_ops.end());
   return absl::OkStatus();

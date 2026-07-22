@@ -159,19 +159,20 @@ absl::StatusOr<MemoryManager::ModelId> MemoryManager::AllocateMemory(
     }
     external_mutable_tensors.push_back(std::make_unique<SpatialTensor>());
     auto* tensor = external_mutable_tensors.back().get();
-    RETURN_IF_ERROR(CreateTensor(environment.device(), tensor_desc, tensor));
+    ABSL_RETURN_IF_ERROR(
+        CreateTensor(environment.device(), tensor_desc, tensor));
     mutable_tensors[tensor_desc_unique_key] = tensor;
     // It will be reset to nullptr by the caller later.
     external_mutable_tensors_[key] = tensor;
   }
-  RETURN_IF_ERROR(AllocateMemoryForConstTensors(environment, gpu_model));
+  ABSL_RETURN_IF_ERROR(AllocateMemoryForConstTensors(environment, gpu_model));
   std::map<ValueId, int2> buffer_usages;
   std::map<ValueId, int2> texture_usages;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       CollectUsageInformation(gpu_model, &buffer_usages, &texture_usages));
 
-  RETURN_IF_ERROR(AllocateMemoryForBuffers(environment, buffer_usages));
-  RETURN_IF_ERROR(AllocateMemoryForTextures(environment, texture_usages));
+  ABSL_RETURN_IF_ERROR(AllocateMemoryForBuffers(environment, buffer_usages));
+  ABSL_RETURN_IF_ERROR(AllocateMemoryForTextures(environment, texture_usages));
   return next_model_id_++;
 }
 
@@ -269,7 +270,7 @@ absl::Status MemoryManager::AllocateMemoryForConstTensors(
   for (const auto& description : gpu_model.const_tensors) {
     auto& tensor = const_tensors_[Key(next_model_id_, description.first)];
     tensor = std::make_unique<SpatialTensor>();
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         tensor->CreateFromDescriptor(environment.device(), description.second));
   }
   return absl::OkStatus();
@@ -290,7 +291,7 @@ absl::Status MemoryManager::AllocateMemoryForBuffers(
   }
 
   ObjectsAssignment<size_t> assignment;
-  RETURN_IF_ERROR(AssignObjectsToTensors(
+  ABSL_RETURN_IF_ERROR(AssignObjectsToTensors(
       usage_records, MemoryStrategy::GREEDY_BEST, &assignment));
 
   std::vector<wgpu::Buffer> buffers(assignment.object_sizes.size());
@@ -313,7 +314,7 @@ absl::Status MemoryManager::AllocateMemoryForBuffers(
         assignment.object_ids[value_id_to_shared_buffer_tensors[usage.first]];
     auto& buffer = value_id_to_buffer_[Key(next_model_id_, usage.first)];
     buffer = std::make_unique<SpatialTensor>();
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         CreateSharedTensor(buffers[buffer_index], td, buffer.get()));
   }
   return absl::OkStatus();
@@ -345,7 +346,7 @@ absl::Status MemoryManager::AllocateMemoryForTextures(
   }
 
   ObjectsAssignment<TensorDescComparator> assignment;
-  RETURN_IF_ERROR(AssignObjectsToTensors(
+  ABSL_RETURN_IF_ERROR(AssignObjectsToTensors(
       usage_records, MemoryStrategy::EQUALITY, &assignment));
 
   std::vector<std::pair<wgpu::Texture, wgpu::TextureView>> textures(
@@ -358,7 +359,8 @@ absl::Status MemoryManager::AllocateMemoryForTextures(
     if (!tensor) {
       auto& new_tensor =
           shared_texture_tensors_.emplace_back(new SpatialTensor());
-      RETURN_IF_ERROR(CreateTensor(environment.device(), td, new_tensor.get()));
+      ABSL_RETURN_IF_ERROR(
+          CreateTensor(environment.device(), td, new_tensor.get()));
       tensor = new_tensor.get();
     }
     textures[i] = {tensor->GetTextureHandle(), tensor->GetTextureViewHandle()};
@@ -370,7 +372,7 @@ absl::Status MemoryManager::AllocateMemoryForTextures(
     const auto& texture = textures[id];
     auto& tensor = value_id_to_texture_[Key(next_model_id_, usage.first)];
     tensor = std::make_unique<SpatialTensor>();
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         CreateSharedTensor(texture.first, texture.second, td, tensor.get()));
   }
   return absl::OkStatus();

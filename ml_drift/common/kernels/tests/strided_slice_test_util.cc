@@ -58,7 +58,7 @@ absl::Status StridedSliceTest(TestExecutionEnvironment& env, DataType data_type,
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
   TensorFloat32 dst_tensor;
   StridedSlice operation = CreateStridedSlice(op_def, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<StridedSlice>(std::move(operation)),
       BHWC(1, 2, 1, 2), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -87,7 +87,7 @@ absl::Status StridedSliceBoolTest(TestExecutionEnvironment& env,
   dst_desc.SetBHWCShape(BHWC(1, 1, 1, 1));
 
   StridedSlice operation = CreateStridedSlice(op_def, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc}, {&dst_desc},
       std::make_unique<StridedSlice>(std::move(operation))));
 
@@ -103,8 +103,8 @@ absl::Status StridedSliceBigTest(TestExecutionEnvironment& exec_env,
                                  const BHWC& src_shape, DataType data_type,
                                  TensorStorageType storage) {
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
-  ASSIGN_OR_RETURN(TensorFloat32 dst_ref_tensor,
-                   SliceReference(attr, src_tensor));
+  ABSL_ASSIGN_OR_RETURN(TensorFloat32 dst_ref_tensor,
+                        SliceReference(attr, src_tensor));
 
   OperationDef op_def;
   const Layout layout = src_shape.b > 1 ? Layout::BHWC : Layout::HWC;
@@ -144,7 +144,7 @@ absl::Status StridedSlice3DTest(TestExecutionEnvironment& env,
   op_def.dst_tensors.push_back({data_type, storage, Layout::BHWDC});
   Tensor5DFloat32 dst_tensor;
   StridedSlice operation = CreateStridedSlice(op_def, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<StridedSlice>(std::move(operation)),
       BHWDC(1, 1, 1, 1, 1), &dst_tensor));
 
@@ -174,7 +174,7 @@ absl::Status StridedSlice3DPaddedGridTest(TestExecutionEnvironment& env,
   op_def.dst_tensors.push_back({data_type, storage, Layout::BHWDC});
   Tensor5DFloat32 dst_tensor;
   StridedSlice operation = CreateStridedSlice(op_def, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<StridedSlice>(std::move(operation)),
       src_tensor.shape, &dst_tensor));
 
@@ -187,8 +187,8 @@ absl::Status StridedSlice3DBigTest(TestExecutionEnvironment& exec_env,
                                    const BHWDC& src_shape, DataType data_type,
                                    TensorStorageType storage) {
   Tensor5DFloat32 src_tensor = MakeSyntheticTensor(src_shape);
-  ASSIGN_OR_RETURN(Tensor5DFloat32 dst_ref_tensor,
-                   SliceReference(attr, src_tensor));
+  ABSL_ASSIGN_OR_RETURN(Tensor5DFloat32 dst_ref_tensor,
+                        SliceReference(attr, src_tensor));
 
   OperationDef op_def;
   const Layout layout = Layout::BHWDC;

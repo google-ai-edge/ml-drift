@@ -65,7 +65,7 @@ absl::Status ConvConstantsSimpleWeightsTest(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   ConvConstants operation =
       CreateConvConstants(env.GetGpuInfo(), op_def, precision, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<ConvConstants>(std::move(operation)),
       BHWC(1, 2, 2, 1), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -101,7 +101,7 @@ absl::Status ConvConstantsTest(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   ConvConstants operation =
       CreateConvConstants(env.GetGpuInfo(), op_def, precision, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<ConvConstants>(std::move(operation)),
       BHWC(1, 2, 2, 2), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -122,7 +122,7 @@ absl::Status ConvConstantsTest(TestExecutionEnvironment& exec_env,
       CreateConvConstants(exec_env.GetGpuInfo(), op_def, precision, attr);
   float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr);
   TensorFloat32 dst_tensor;
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       src_tensor, std::make_unique<ConvConstants>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), dst_ref_tensor.data));
@@ -236,7 +236,7 @@ absl::Status ConvConstantsExternalWeightsBigTest(
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
 
   float eps = GetEpsilon(precision, env.GetGpuInfo(), attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       srcs_td, {&dst_td},
       std::make_unique<ConvConstants>(std::move(operation))));
   TensorFloat32 dst_tensor;

@@ -119,7 +119,7 @@ absl::Status MergeElementwiseNodes(const GpuInfo& gpu_info,
         continue;
       }
       GPUOperation new_operation;
-      RETURN_IF_ERROR(FuseSimpleElemWithSimpleElem(
+      ABSL_RETURN_IF_ERROR(FuseSimpleElemWithSimpleElem(
           gpu_info, std::move(*prev_node.gpu_operation.get()),
           std::move(*elem_root.gpu_operation.get()), &new_operation));
 
@@ -188,7 +188,7 @@ absl::Status MergeElementwiseNodes(const GpuInfo& gpu_info,
         }
 
         GPUOperation new_operation;
-        RETURN_IF_ERROR(Fuse2InputElemWithSimpleElemAsFirstInput(
+        ABSL_RETURN_IF_ERROR(Fuse2InputElemWithSimpleElemAsFirstInput(
             gpu_info, std::move(*prev_first_node.gpu_operation.get()),
             std::move(*elem_root.gpu_operation.get()), &new_operation));
 
@@ -246,7 +246,7 @@ absl::Status MergeElementwiseNodes(const GpuInfo& gpu_info,
         }
 
         GPUOperation new_operation;
-        RETURN_IF_ERROR(Fuse2InputElemWithSimpleElemAsSecondInput(
+        ABSL_RETURN_IF_ERROR(Fuse2InputElemWithSimpleElemAsSecondInput(
             gpu_info, std::move(*prev_second_node.gpu_operation.get()),
             std::move(*elem_root.gpu_operation.get()), &new_operation));
 
@@ -327,7 +327,7 @@ absl::Status MergeElementwiseNodes(const GpuInfo& gpu_info,
         }
 
         GPUOperation new_operation;
-        RETURN_IF_ERROR(Fuse2InputElemWith2SimpleElem(
+        ABSL_RETURN_IF_ERROR(Fuse2InputElemWith2SimpleElem(
             gpu_info, std::move(*prev_first_node.gpu_operation.get()),
             std::move(*prev_second_node.gpu_operation.get()),
             std::move(*elem_root.gpu_operation.get()), &new_operation));
@@ -410,7 +410,7 @@ absl::Status LinkNodes(const GpuInfo& gpu_info, GpuModel* gpu_model) {
       new_nodes.push_back(std::move(node));
       continue;
     }
-    RETURN_IF_ERROR(MergeGpuNodes(gpu_info, &linkable_node, &node));
+    ABSL_RETURN_IF_ERROR(MergeGpuNodes(gpu_info, &linkable_node, &node));
     // Clear the GPU operation to indicate this node has been merged.
     nodes[next_nodes[0]].gpu_operation = nullptr;
     i -= 1;
@@ -459,7 +459,7 @@ absl::Status MergeReorderNodes(GpuModel* gpu_model) {
         gpu_model->tensors[first_node.outputs[0]].GetBHWCShape();
     second_node.inputs[0] = first_node.inputs[0];
     second_node.name = first_node.name + " -> " + second_node.name;
-    RETURN_IF_ERROR(second_node.gpu_operation->AddReorderOperation(
+    ABSL_RETURN_IF_ERROR(second_node.gpu_operation->AddReorderOperation(
         interm_shape, first_node.gpu_operation.get()));
     nodes.erase(nodes.begin() + i);
     i -= 1;
@@ -512,7 +512,7 @@ absl::Status ResolvePolymorphicArgs(GpuModel* gpu_model) {
           DummySpatialTensor(tensor_desc.GetBHWDCShape(), tensor_desc);
       node.gpu_operation->SetDst(&dst_tensors[i], i);
     }
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         node.gpu_operation->BindArguments(&node.gpu_operation->args_));
     node.gpu_operation->RecalculateGridSize();
   }
@@ -630,10 +630,10 @@ void ExpandSubgraphNodes(GpuModel* gpu_model) {
 
 absl::Status AssembleCode(const GpuInfo& gpu_info, GpuModel* gpu_model) {
   for (auto& node : gpu_model->nodes) {
-    RETURN_IF_ERROR(node.gpu_operation->AssembleCode(gpu_info));
+    ABSL_RETURN_IF_ERROR(node.gpu_operation->AssembleCode(gpu_info));
   }
   for (auto& [id, subgraph] : gpu_model->subgraphs) {
-    RETURN_IF_ERROR(AssembleCode(gpu_info, &subgraph));
+    ABSL_RETURN_IF_ERROR(AssembleCode(gpu_info, &subgraph));
   }
   return absl::OkStatus();
 }
@@ -645,9 +645,9 @@ absl::Status ResolveArgs(GpuModel* gpu_model) {
 void ExpandSubgraphs(GpuModel* gpu_model) { ExpandSubgraphNodes(gpu_model); }
 
 absl::Status MergeNodes(const GpuInfo& gpu_info, GpuModel* gpu_model) {
-  RETURN_IF_ERROR(MergeReorderNodes(gpu_model));
-  RETURN_IF_ERROR(MergeElementwiseNodes(gpu_info, gpu_model));
-  RETURN_IF_ERROR(LinkNodes(gpu_info, gpu_model));
+  ABSL_RETURN_IF_ERROR(MergeReorderNodes(gpu_model));
+  ABSL_RETURN_IF_ERROR(MergeElementwiseNodes(gpu_info, gpu_model));
+  ABSL_RETURN_IF_ERROR(LinkNodes(gpu_info, gpu_model));
   return absl::OkStatus();
 }
 

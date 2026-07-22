@@ -228,7 +228,7 @@ absl::Status ValidateConvertToPHWC4(absl::Span<const float> in,
 // Layout is Pc,H,W,C4 where P - is a plane based on channels.
 absl::Status ConvertToPHWC4(absl::Span<const float> in, const BHWC& shape,
                             absl::Span<float> out) {
-  RETURN_IF_ERROR(ValidateConvertToPHWC4(in, shape, out));
+  ABSL_RETURN_IF_ERROR(ValidateConvertToPHWC4(in, shape, out));
   if (shape.c == 4) {
     std::memcpy(out.data(), in.data(),
                 shape.DimensionsProduct() * sizeof(float));
@@ -322,7 +322,7 @@ absl::Status ValidateConvertFromPHWC4(absl::Span<const T> in, const BHWC& shape,
 
 absl::Status ConvertFromPHWC4(absl::Span<const float> in, const BHWC& shape,
                               absl::Span<float> out) {
-  RETURN_IF_ERROR(ValidateConvertFromPHWC4(in, shape, out));
+  ABSL_RETURN_IF_ERROR(ValidateConvertFromPHWC4(in, shape, out));
   if (shape.c == 4) {
     std::memcpy(out.data(), in.data(),
                 shape.DimensionsProduct() * sizeof(float));

@@ -69,7 +69,7 @@ absl::StatusOr<std::vector<WebGpuNode>> CopyNodes(
   std::vector<WebGpuNode> nodes(gpu_nodes.size());
   for (int i = 0; i < nodes.size(); ++i) {
     if (gpu_nodes[i].gpu_operation) {
-      RETURN_IF_ERROR(nodes[i].webgpu_operation.Init(
+      ABSL_RETURN_IF_ERROR(nodes[i].webgpu_operation.Init(
           env, std::move(gpu_nodes[i].gpu_operation),
           env.GetUniformBufferCreator(), from_serialized_model));
     }
@@ -104,8 +104,8 @@ absl::Status InferenceContext::InitFromGpuModel(const Environment& env,
   for (const auto& output : gpu_model.output_ids_and_refs) {
     output_ids_.push_back(output.first);
   }
-  ASSIGN_OR_RETURN(nodes_,
-                   CopyNodes(env, gpu_model.nodes, from_serialized_model));
+  ABSL_ASSIGN_OR_RETURN(nodes_,
+                        CopyNodes(env, gpu_model.nodes, from_serialized_model));
   return absl::OkStatus();
 }
 
@@ -193,28 +193,30 @@ absl::Status InferenceContext::RestoreDeserialized(
         "Platform description does not match the current platform.");
   }
   GpuModel gpu_model;
-  RETURN_IF_ERROR(ml_drift::Decode(decoded_fb->gpu_model(), &gpu_model));
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(ml_drift::Decode(decoded_fb->gpu_model(), &gpu_model));
+  ABSL_RETURN_IF_ERROR(
       InitFromGpuModel(env, gpu_model, /*from_serialized_model=*/true));
   const auto& create_info_copy =
       create_info != nullptr ? *create_info : CreateGpuModelInfo();
-  ASSIGN_OR_RETURN(auto external_mutable_tensors_allocated_temporarily,
-                   UpdateMutableObjects(env, create_info_copy, &gpu_model));
+  ABSL_ASSIGN_OR_RETURN(
+      auto external_mutable_tensors_allocated_temporarily,
+      UpdateMutableObjects(env, create_info_copy, &gpu_model));
 
   absl::flat_hash_map<std::string, std::vector<WebGpuNode>> subgraphs;
   for (auto& [id, subgraph] : gpu_model.subgraphs) {
-    ASSIGN_OR_RETURN(subgraphs[id], CopyNodes(env, subgraph.nodes,
-                                              /*from_serialized_model=*/true));
+    ABSL_ASSIGN_OR_RETURN(subgraphs[id],
+                          CopyNodes(env, subgraph.nodes,
+                                    /*from_serialized_model=*/true));
   }
-  RETURN_IF_ERROR(InitSubgraphNodes(env, std::move(subgraphs)));
+  ABSL_RETURN_IF_ERROR(InitSubgraphNodes(env, std::move(subgraphs)));
 
-  RETURN_IF_ERROR(BindGpuMemory(env));
+  ABSL_RETURN_IF_ERROR(BindGpuMemory(env));
   // Compile must be called after BindGpuMemory
-  RETURN_IF_ERROR(CompileForSerializedModel(env, *decoded_fb));
+  ABSL_RETURN_IF_ERROR(CompileForSerializedModel(env, *decoded_fb));
 
   // Reset external tensors to nullptr as they are allocated temporarily.
   for (auto& external_tensor : create_info_copy.external_mutable_tensors) {
-    RETURN_IF_ERROR(memory_manager_.SetExternalTensor(
+    ABSL_RETURN_IF_ERROR(memory_manager_.SetExternalTensor(
         GetKey(external_tensor.first), nullptr));
   }
   return absl::OkStatus();
@@ -246,9 +248,9 @@ InferenceContext::UpdateMutableObjects(const Environment& env,
   external_tensors.immutable_tensors = create_info.external_immutable_tensors;
   external_tensors.mutable_tensors = create_info.external_mutable_tensors;
   std::vector<std::unique_ptr<SpatialTensor>> external_mutable_tensors;
-  ASSIGN_OR_RETURN(model_id_, memory_manager_.AllocateMemory(
-                                  env, *gpu_model, external_tensors,
-                                  external_mutable_tensors));
+  ABSL_ASSIGN_OR_RETURN(model_id_, memory_manager_.AllocateMemory(
+                                       env, *gpu_model, external_tensors,
+                                       external_mutable_tensors));
   return external_mutable_tensors;
 }
 
@@ -266,28 +268,29 @@ absl::Status InferenceContext::InitFromGpuModel(
   if (serialized_model) {
     gpu_model_fb = ml_drift::Encode(*gpu_model, &builder);
   }
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       InitFromGpuModel(env, *gpu_model, /*from_serialized_model=*/false));
 
   absl::flat_hash_map<std::string, std::vector<WebGpuNode>> subgraphs;
   for (auto& [id, subgraph] : gpu_model->subgraphs) {
-    ASSIGN_OR_RETURN(subgraphs[id], CopyNodes(env, subgraph.nodes));
+    ABSL_ASSIGN_OR_RETURN(subgraphs[id], CopyNodes(env, subgraph.nodes));
   }
-  ASSIGN_OR_RETURN(auto external_mutable_tensors_allocated_temporarily,
-                   UpdateMutableObjects(env, create_info, gpu_model));
+  ABSL_ASSIGN_OR_RETURN(auto external_mutable_tensors_allocated_temporarily,
+                        UpdateMutableObjects(env, create_info, gpu_model));
 
   TuningType tuning_type = TuningType::kExhaustive;
   if (create_info.hints.Check(ModelHints::kFastTuning)) {
     tuning_type = TuningType::kFast;
   }
-  RETURN_IF_ERROR(InitSubgraphNodes(env, std::move(subgraphs), &tuning_type));
-  RETURN_IF_ERROR(BindGpuMemory(env));
+  ABSL_RETURN_IF_ERROR(
+      InitSubgraphNodes(env, std::move(subgraphs), &tuning_type));
+  ABSL_RETURN_IF_ERROR(BindGpuMemory(env));
   // Compile must be called after BindGpuMemory
-  RETURN_IF_ERROR(Compile(env, tuning_type));
+  ABSL_RETURN_IF_ERROR(Compile(env, tuning_type));
 
   // Reset external tensors to nullptr as they are allocated temporarily.
   for (auto& external_tensor : create_info.external_mutable_tensors) {
-    RETURN_IF_ERROR(memory_manager_.SetExternalTensor(
+    ABSL_RETURN_IF_ERROR(memory_manager_.SetExternalTensor(
         GetKey(external_tensor.first), nullptr));
   }
 
@@ -307,14 +310,14 @@ absl::Status InferenceContext::BindGpuMemory(const Environment& environment) {
     for (int i = 0; i < node.inputs.size(); ++i) {
       SpatialTensor* tensor =
           memory_manager_.GetSpatialTensor(GetKey(node.inputs[i]));
-      RETURN_IF_ERROR(node.webgpu_operation.SetSrcTensor(i, tensor));
+      ABSL_RETURN_IF_ERROR(node.webgpu_operation.SetSrcTensor(i, tensor));
     }
     for (int i = 0; i < node.outputs.size(); ++i) {
       SpatialTensor* tensor =
           memory_manager_.GetSpatialTensor(GetKey(node.outputs[i]));
-      RETURN_IF_ERROR(node.webgpu_operation.SetDstTensor(i, tensor));
+      ABSL_RETURN_IF_ERROR(node.webgpu_operation.SetDstTensor(i, tensor));
     }
-    RETURN_IF_ERROR(node.webgpu_operation.Update(environment.device()));
+    ABSL_RETURN_IF_ERROR(node.webgpu_operation.Update(environment.device()));
     if (std::find(mutable_node_indexes_.begin(), mutable_node_indexes_.end(),
                   node_index) == mutable_node_indexes_.end()) {
       node.webgpu_operation.UpdateGpuObjectBindings(environment.device());
@@ -329,7 +332,7 @@ absl::Status InferenceContext::Compile(const Environment& env,
     if (!node.subgraph_id.empty()) {
       continue;
     }
-    RETURN_IF_ERROR(node.webgpu_operation.TuneAndCompile(
+    ABSL_RETURN_IF_ERROR(node.webgpu_operation.TuneAndCompile(
         env, tuning_type, env.GetComputePipelineCache()));
   }
   return absl::OkStatus();
@@ -356,7 +359,7 @@ absl::Status InferenceContext::CompileForSerializedModel(
                        (*decoded_fb.tuned_work_group_sizes_per_node())[i]->y(),
                        (*decoded_fb.tuned_work_group_sizes_per_node())[i]->z());
     node.webgpu_operation.SetWorkGroupSize(wg_size);
-    RETURN_IF_ERROR(node.webgpu_operation.RestoreDeserialized(
+    ABSL_RETURN_IF_ERROR(node.webgpu_operation.RestoreDeserialized(
         env, code, fingerprint, env.GetComputePipelineCache()));
   }
   return absl::OkStatus();
@@ -367,7 +370,7 @@ InferenceContext::CreateCommandBuffers(
     const Environment& environment, int num_nodes_per_encoder,
     std::vector<CommandBufferInfo>* command_buffer_infos,
     bool submit_command_buffers) {
-  RETURN_IF_ERROR(UpdateMutableObjectsBindings(environment));
+  ABSL_RETURN_IF_ERROR(UpdateMutableObjectsBindings(environment));
   std::vector<wgpu::CommandBuffer> command_buffers;
   // Process nodes in batches since executing all the nodes in the same command
   // buffer can cause hangs on some platforms.
@@ -380,7 +383,7 @@ InferenceContext::CreateCommandBuffers(
                          [&](int t) { return !enabled_tags_.contains(t); })) {
         continue;
       }
-      RETURN_IF_ERROR(nodes_[i].webgpu_operation.Encode(compute_encoder));
+      ABSL_RETURN_IF_ERROR(nodes_[i].webgpu_operation.Encode(compute_encoder));
       if (command_buffer_infos) {
         command_buffer_info.src_tensors.insert(nodes_[i].inputs.begin(),
                                                nodes_[i].inputs.end());
@@ -407,7 +410,7 @@ absl::Status InferenceContext::Execute(const Environment& environment) {
 absl::Status InferenceContext::AddToQueue(const Environment& environment) {
   // At least Adreno 730 and some Intel GPUs fail sometimes with 512(or more)
   // nodes per encoder.  Haven't observed perf drop with 64 nodes per encoder.
-  ASSIGN_OR_RETURN(
+  ABSL_ASSIGN_OR_RETURN(
       auto command_buffers,
       CreateCommandBuffers(environment, /*num_nodes_per_encoder=*/64));
   for (auto& cb : command_buffers) {
@@ -424,10 +427,10 @@ absl::Status InferenceContext::ProfilingAddToQueue(
   for (int i = 0; i < nodes_.size(); ++i) {
     names[i] = nodes_[i].name;
   }
-  RETURN_IF_ERROR(metrics_collector->Init(names));
-  RETURN_IF_ERROR(UpdateMutableObjectsBindings(environment));
+  ABSL_RETURN_IF_ERROR(metrics_collector->Init(names));
+  ABSL_RETURN_IF_ERROR(UpdateMutableObjectsBindings(environment));
   wgpu::CommandEncoder encoder = environment.device().CreateCommandEncoder();
-  RETURN_IF_ERROR(ProfilingEncode(&encoder, metrics_collector));
+  ABSL_RETURN_IF_ERROR(ProfilingEncode(&encoder, metrics_collector));
   wgpu::CommandBuffer cb = encoder.Finish();
   environment.queue().Submit(1, &cb);
   return absl::OkStatus();
@@ -467,7 +470,7 @@ absl::Status InferenceContext::ProfileWithTimestamps(
         encoder.BeginComputePass(&compute_pass_descriptor);
     const int ops_count = i < ops_per_encoder.size() ? ops_per_encoder[i] : 1;
     for (int j = 0; j < ops_count; ++j) {
-      RETURN_IF_ERROR(nodes_[i + node_first_index].webgpu_operation.Encode(
+      ABSL_RETURN_IF_ERROR(nodes_[i + node_first_index].webgpu_operation.Encode(
           compute_encoder));
     }
     compute_encoder.End();
@@ -477,12 +480,12 @@ absl::Status InferenceContext::ProfileWithTimestamps(
                           /*destinationOffset=*/0);
   wgpu::CommandBuffer cb = encoder.Finish();
   env.queue().Submit(1, &cb);
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       WaitUntilCompleted(env.queue(), env.device(), absl::Seconds(10)));
   std::vector<uint64_t> query_data(query_count);
-  RETURN_IF_ERROR(ReadDataFromBuffer(env.device(), env.queue(), query_buffer,
-                                     query_buffer.GetSize(),
-                                     query_data.data()));
+  ABSL_RETURN_IF_ERROR(ReadDataFromBuffer(env.device(), env.queue(),
+                                          query_buffer, query_buffer.GetSize(),
+                                          query_data.data()));
   for (int i = 0; i < nodes_count; ++i) {
     const double duration_ns = query_data[i * 2 + 1] - query_data[i * 2];
     const int ops_count = i < ops_per_encoder.size() ? ops_per_encoder[i] : 1;
@@ -500,12 +503,12 @@ absl::Status InferenceContext::Profile(const Environment& env,
     {
       const int batch_size = 64;
       for (int i = 0; i < nodes_.size(); i += batch_size) {
-        RETURN_IF_ERROR(ProfileWithTimestamps(
+        ABSL_RETURN_IF_ERROR(ProfileWithTimestamps(
             env, result, {}, i,
             std::min(i + batch_size - 1, static_cast<int>(nodes_.size()) - 1)));
       }
       for (int i = 0; i < nodes_.size(); i += batch_size) {
-        RETURN_IF_ERROR(ProfileWithTimestamps(
+        ABSL_RETURN_IF_ERROR(ProfileWithTimestamps(
             env, result, {}, i,
             std::min(i + batch_size - 1, static_cast<int>(nodes_.size()) - 1)));
       }
@@ -531,7 +534,7 @@ absl::Status InferenceContext::Profile(const Environment& env,
         ops_per_encoder[j] = std::max(ops_per_encoder[j], min_ops_per_encoder);
         ops_per_encoder[j] = std::min(ops_per_encoder[j], max_ops_per_encoder);
       }
-      RETURN_IF_ERROR(ProfileWithTimestamps(
+      ABSL_RETURN_IF_ERROR(ProfileWithTimestamps(
           env, result, ops_per_encoder, i,
           std::min(i + batch_size - 1, static_cast<int>(nodes_.size()) - 1)));
     }
@@ -645,7 +648,7 @@ absl::Status InferenceContext::GetOutputTensor(const Environment& environment,
     return absl::InternalError(absl::StrCat("Can not find tensor.", id));
   }
   TensorDescriptor desc;
-  RETURN_IF_ERROR(gpu_tensor->ToDescriptor(environment.device(), &desc));
+  ABSL_RETURN_IF_ERROR(gpu_tensor->ToDescriptor(environment.device(), &desc));
   desc.DownloadData(result);
   return absl::OkStatus();
 }
@@ -658,7 +661,7 @@ absl::Status InferenceContext::GetOutputTensor(const Environment& environment,
     return absl::InternalError(absl::StrCat("Can not find tensor.", id));
   }
   TensorDescriptor desc;
-  RETURN_IF_ERROR(gpu_tensor->ToDescriptor(environment.device(), &desc));
+  ABSL_RETURN_IF_ERROR(gpu_tensor->ToDescriptor(environment.device(), &desc));
   desc.DownloadData(result);
   return absl::OkStatus();
 }
@@ -667,10 +670,10 @@ absl::Status InferenceContext::ProfilingEncode(
     wgpu::CommandEncoder* encoder,
     InternalMetricsCollector* metrics_collector) {
   if (metrics_collector->IsSingleCommandBuffer()) {
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         ProfilingEncodeSingleCommandBuffer(encoder, metrics_collector));
   } else {
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         ProfilingEncodePerOpCommandBuffer(encoder, metrics_collector));
   }
   metrics_collector->ResolveQueries(encoder);
@@ -685,7 +688,7 @@ absl::Status InferenceContext::ProfilingEncodeSingleCommandBuffer(
   wgpu::ComputePassEncoder compute_encoder =
       encoder->BeginComputePass(&descriptor);
   for (const auto& node : nodes_) {
-    RETURN_IF_ERROR(node.webgpu_operation.Encode(compute_encoder));
+    ABSL_RETURN_IF_ERROR(node.webgpu_operation.Encode(compute_encoder));
   }
   compute_encoder.End();
   return absl::OkStatus();
@@ -699,7 +702,7 @@ absl::Status InferenceContext::ProfilingEncodePerOpCommandBuffer(
         metrics_collector->GetComputePassDescriptor(i);
     wgpu::ComputePassEncoder compute_encoder =
         encoder->BeginComputePass(&descriptor);
-    RETURN_IF_ERROR(nodes_[i].webgpu_operation.Encode(compute_encoder));
+    ABSL_RETURN_IF_ERROR(nodes_[i].webgpu_operation.Encode(compute_encoder));
     compute_encoder.End();
   }
   return absl::OkStatus();
@@ -714,10 +717,12 @@ absl::Status InferenceContext::UpdateMutableObjectsBindings(
       auto& node = nodes_[indexes.node_index];
       if (indexes.object_index < node.inputs.size()) {
         int src_index = indexes.object_index;
-        RETURN_IF_ERROR(node.webgpu_operation.SetSrcTensor(src_index, tensor));
+        ABSL_RETURN_IF_ERROR(
+            node.webgpu_operation.SetSrcTensor(src_index, tensor));
       } else {
         int dst_index = indexes.object_index - node.inputs.size();
-        RETURN_IF_ERROR(node.webgpu_operation.SetDstTensor(dst_index, tensor));
+        ABSL_RETURN_IF_ERROR(
+            node.webgpu_operation.SetDstTensor(dst_index, tensor));
       }
     }
   }
@@ -759,8 +764,8 @@ absl::Status InferenceContext::InitSubgraphNodes(
       ++i;
     } else {
       auto& subgraph_nodes = subgraphs[nodes_[i].subgraph_id];
-      RETURN_IF_ERROR(InitFromSubgraph(env, i, subgraph_nodes,
-                                       compiled_subgraphs, tuning_type));
+      ABSL_RETURN_IF_ERROR(InitFromSubgraph(env, i, subgraph_nodes,
+                                            compiled_subgraphs, tuning_type));
       i += subgraph_nodes.size();
     }
   }
@@ -781,17 +786,17 @@ absl::Status InferenceContext::InitFromSubgraph(
     if (needs_compile) {
       // Set all src/dst tensors since this is needed for compile.
       for (int i = 0; i < node.inputs.size(); ++i) {
-        RETURN_IF_ERROR(sub_node.webgpu_operation.SetSrcTensor(
+        ABSL_RETURN_IF_ERROR(sub_node.webgpu_operation.SetSrcTensor(
             i, GetTensor(node.inputs[i])));
       }
       for (int i = 0; i < node.outputs.size(); ++i) {
-        RETURN_IF_ERROR(sub_node.webgpu_operation.SetDstTensor(
+        ABSL_RETURN_IF_ERROR(sub_node.webgpu_operation.SetDstTensor(
             i, GetTensor(node.outputs[i])));
       }
       // Update and compile the subgraph op.
-      RETURN_IF_ERROR(sub_node.webgpu_operation.Update(env.device()));
+      ABSL_RETURN_IF_ERROR(sub_node.webgpu_operation.Update(env.device()));
       if (tuning_type != nullptr) {
-        RETURN_IF_ERROR(sub_node.webgpu_operation.TuneAndCompile(
+        ABSL_RETURN_IF_ERROR(sub_node.webgpu_operation.TuneAndCompile(
             env, *tuning_type, env.GetComputePipelineCache()));
       }
     }
@@ -804,9 +809,9 @@ absl::Status IrModelToInferenceContext(
     Environment* env, const ::ml_drift::ir::IrModel& ir_model,
     ::ml_drift::CreateGpuModelInfo& create_info, InferenceContext* result) {
   GpuModel gpu_model;
-  RETURN_IF_ERROR(::ml_drift::ir::IrModelToGpuModel(
+  ABSL_RETURN_IF_ERROR(::ml_drift::ir::IrModelToGpuModel(
       ir_model, create_info, env->GetInfo(), &gpu_model));
-  RETURN_IF_ERROR(result->InitFromGpuModel(*env, create_info, &gpu_model));
+  ABSL_RETURN_IF_ERROR(result->InitFromGpuModel(*env, create_info, &gpu_model));
   return absl::OkStatus();
 }
 

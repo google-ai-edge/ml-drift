@@ -67,18 +67,19 @@ absl::Status CreateConvReluGpuModel(
     GpuModelBuilder sub_builder = model_builder.CreateBuilder();
     auto in = sub_builder.AddTensor(BHWC(1, 32, 32, 16), DataType::FLOAT32);
     auto out = sub_builder.Convolution(in, conv_attr);
-    RETURN_IF_ERROR(model_builder.RegisterSubgraph(
+    ABSL_RETURN_IF_ERROR(model_builder.RegisterSubgraph(
         std::move(sub_builder), "conv_subgraph", {in}, {out}));
 
-    ASSIGN_OR_RETURN(auto dsts,
-                     model_builder.Subgraph("conv_subgraph", {src_th}));
+    ABSL_ASSIGN_OR_RETURN(auto dsts,
+                          model_builder.Subgraph("conv_subgraph", {src_th}));
     conv_out = dsts[0];
   } else {
     conv_out = model_builder.Convolution(src_th, conv_attr);
   }
   if (optional_conv_tag >= 0) {
-    RETURN_IF_ERROR(model_builder.EndOptionalNodes(optional_context, conv_out,
-                                                   /*add_copy_to_src=*/false));
+    ABSL_RETURN_IF_ERROR(
+        model_builder.EndOptionalNodes(optional_context, conv_out,
+                                       /*add_copy_to_src=*/false));
   }
   ReLUAttributes relu_attr;
   relu_attr.activation_max = 0.0f;
@@ -90,8 +91,9 @@ absl::Status CreateConvReluGpuModel(
   }
   auto out = model_builder.ReLU(conv_out, relu_attr);
   if (optional_relu_tag >= 0) {
-    RETURN_IF_ERROR(model_builder.EndOptionalNodes(optional_context, out,
-                                                   /*add_copy_to_src=*/false));
+    ABSL_RETURN_IF_ERROR(
+        model_builder.EndOptionalNodes(optional_context, out,
+                                       /*add_copy_to_src=*/false));
   }
 
   //    input         input
@@ -116,11 +118,11 @@ absl::Status CreateConvReluGpuModel(const GpuInfo& gpu_info,
 
   std::vector<GpuModelBuilder::TensorHandle> inputs;
   std::vector<GpuModelBuilder::TensorHandle> outputs;
-  RETURN_IF_ERROR(CreateConvReluGpuModel(gpu_info, model_builder, inputs,
-                                         outputs, optional_conv_tag,
-                                         optional_relu_tag, conv_subgraph));
+  ABSL_RETURN_IF_ERROR(CreateConvReluGpuModel(
+      gpu_info, model_builder, inputs, outputs, optional_conv_tag,
+      optional_relu_tag, conv_subgraph));
 
-  RETURN_IF_ERROR(model_builder.GetGpuModel(
+  ABSL_RETURN_IF_ERROR(model_builder.GetGpuModel(
       std::vector<unsigned int>{inputs[0].id},
       std::vector<unsigned int>{outputs[0].id}, &gpu_model));
   return absl::OkStatus();
@@ -187,8 +189,9 @@ absl::Status CreateTransposeTransposeGpuModel(
   }
   auto interm = model_builder.Transpose(src_th, BHWC(0, 2, 1, 3));
   if (optional_transpose0_tag >= 0) {
-    RETURN_IF_ERROR(model_builder.EndOptionalNodes(optional_context, interm,
-                                                   /*add_copy_to_src=*/false));
+    ABSL_RETURN_IF_ERROR(
+        model_builder.EndOptionalNodes(optional_context, interm,
+                                       /*add_copy_to_src=*/false));
   }
   if (optional_transpose1_tag >= 0) {
     optional_context =
@@ -196,8 +199,9 @@ absl::Status CreateTransposeTransposeGpuModel(
   }
   auto out = model_builder.Transpose(interm, BHWC(1, 0, 2, 3));
   if (optional_transpose1_tag >= 0) {
-    RETURN_IF_ERROR(model_builder.EndOptionalNodes(optional_context, out,
-                                                   /*add_copy_to_src=*/false));
+    ABSL_RETURN_IF_ERROR(
+        model_builder.EndOptionalNodes(optional_context, out,
+                                       /*add_copy_to_src=*/false));
   }
 
   //    input                   input
@@ -208,7 +212,7 @@ absl::Status CreateTransposeTransposeGpuModel(
   //      |                       |
   //    output                  output
   // The created nodes can be merged by MergeReorderNodes().
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       model_builder.GetGpuModel(std::vector<unsigned int>{src_th.id},
                                 std::vector<unsigned int>{out.id}, &gpu_model));
   return absl::OkStatus();
@@ -255,8 +259,9 @@ absl::Status CreateAddReluGpuModel(const GpuInfo& gpu_info, GpuModel& gpu_model,
   add_attr.param = 1.0f;
   auto interm = model_builder.Elementwise(src_th, add_attr, OperationType::ADD);
   if (optional_tags[0] >= 0) {
-    RETURN_IF_ERROR(model_builder.EndOptionalNodes(optional_context, interm,
-                                                   /*add_copy_to_src=*/false));
+    ABSL_RETURN_IF_ERROR(
+        model_builder.EndOptionalNodes(optional_context, interm,
+                                       /*add_copy_to_src=*/false));
   }
   ReLUAttributes relu_attr;
   relu_attr.activation_max = 0.0f;
@@ -268,8 +273,9 @@ absl::Status CreateAddReluGpuModel(const GpuInfo& gpu_info, GpuModel& gpu_model,
   }
   auto out = model_builder.ReLU(interm, relu_attr);
   if (optional_tags[1] >= 0) {
-    RETURN_IF_ERROR(model_builder.EndOptionalNodes(optional_context, out,
-                                                   /*add_copy_to_src=*/false));
+    ABSL_RETURN_IF_ERROR(
+        model_builder.EndOptionalNodes(optional_context, out,
+                                       /*add_copy_to_src=*/false));
   }
 
   //    input       input
@@ -280,7 +286,7 @@ absl::Status CreateAddReluGpuModel(const GpuInfo& gpu_info, GpuModel& gpu_model,
   //      |           |
   //    output      output
   // The created nodes can be merged by MergeElementwiseNodes().
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       model_builder.GetGpuModel(std::vector<unsigned int>{src_th.id},
                                 std::vector<unsigned int>{out.id}, &gpu_model));
   return absl::OkStatus();
@@ -322,8 +328,9 @@ absl::Status CreateSumReluAddGpuModel(const GpuInfo& gpu_info,
   auto interm0 =
       model_builder.Reduce(src_th, Reduce::Type::kSum, {Axis::CHANNELS});
   if (optional_tags[0] >= 0) {
-    RETURN_IF_ERROR(model_builder.EndOptionalNodes(optional_context, interm0,
-                                                   /*add_copy_to_src=*/false));
+    ABSL_RETURN_IF_ERROR(
+        model_builder.EndOptionalNodes(optional_context, interm0,
+                                       /*add_copy_to_src=*/false));
   }
   ReLUAttributes relu_attr;
   relu_attr.activation_max = 0.0f;
@@ -335,8 +342,9 @@ absl::Status CreateSumReluAddGpuModel(const GpuInfo& gpu_info,
   }
   auto interm1 = model_builder.ReLU(interm0, relu_attr);
   if (optional_tags[1] >= 0) {
-    RETURN_IF_ERROR(model_builder.EndOptionalNodes(optional_context, interm1,
-                                                   /*add_copy_to_src=*/false));
+    ABSL_RETURN_IF_ERROR(
+        model_builder.EndOptionalNodes(optional_context, interm1,
+                                       /*add_copy_to_src=*/false));
   }
 
   if (optional_tags[2] >= 0) {
@@ -345,8 +353,9 @@ absl::Status CreateSumReluAddGpuModel(const GpuInfo& gpu_info,
   }
   auto out = model_builder.Add(interm0, interm1);
   if (optional_tags[2] >= 0) {
-    RETURN_IF_ERROR(model_builder.EndOptionalNodes(optional_context, out,
-                                                   /*add_copy_to_src=*/false));
+    ABSL_RETURN_IF_ERROR(
+        model_builder.EndOptionalNodes(optional_context, out,
+                                       /*add_copy_to_src=*/false));
   }
 
   //      sum              sum
@@ -358,7 +367,7 @@ absl::Status CreateSumReluAddGpuModel(const GpuInfo& gpu_info,
   //     output           output               output
   // (1) can be merged by MergeElementwiseNodes().
   // (2) can be merged by LinkNodes().
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       model_builder.GetGpuModel(std::vector<unsigned int>{src_th.id},
                                 std::vector<unsigned int>{out.id}, &gpu_model));
   return absl::OkStatus();
@@ -404,8 +413,9 @@ absl::Status CreateTransposeReluMulAddGpuModel(
   }
   auto interm0 = model_builder.Transpose(src_th, BHWC(0, 2, 1, 3));
   if (optional_tags[0] >= 0) {
-    RETURN_IF_ERROR(model_builder.EndOptionalNodes(optional_context, interm0,
-                                                   /*add_copy_to_src=*/false));
+    ABSL_RETURN_IF_ERROR(
+        model_builder.EndOptionalNodes(optional_context, interm0,
+                                       /*add_copy_to_src=*/false));
   }
   ReLUAttributes relu_attr;
   relu_attr.activation_max = 0.0f;
@@ -417,8 +427,9 @@ absl::Status CreateTransposeReluMulAddGpuModel(
   }
   auto interm1 = model_builder.ReLU(interm0, relu_attr);
   if (optional_tags[1] >= 0) {
-    RETURN_IF_ERROR(model_builder.EndOptionalNodes(optional_context, interm1,
-                                                   /*add_copy_to_src=*/false));
+    ABSL_RETURN_IF_ERROR(
+        model_builder.EndOptionalNodes(optional_context, interm1,
+                                       /*add_copy_to_src=*/false));
   }
 
   if (optional_tags[2] >= 0) {
@@ -430,8 +441,9 @@ absl::Status CreateTransposeReluMulAddGpuModel(
   auto interm2 =
       model_builder.Elementwise(interm0, mul_attr, OperationType::MUL);
   if (optional_tags[2] >= 0) {
-    RETURN_IF_ERROR(model_builder.EndOptionalNodes(optional_context, interm2,
-                                                   /*add_copy_to_src=*/false));
+    ABSL_RETURN_IF_ERROR(
+        model_builder.EndOptionalNodes(optional_context, interm2,
+                                       /*add_copy_to_src=*/false));
   }
 
   if (optional_tags[3] >= 0) {
@@ -440,8 +452,9 @@ absl::Status CreateTransposeReluMulAddGpuModel(
   }
   auto out = model_builder.Add(interm1, interm2);
   if (optional_tags[3] >= 0) {
-    RETURN_IF_ERROR(model_builder.EndOptionalNodes(optional_context, out,
-                                                   /*add_copy_to_src=*/false));
+    ABSL_RETURN_IF_ERROR(
+        model_builder.EndOptionalNodes(optional_context, out,
+                                       /*add_copy_to_src=*/false));
   }
 
   //    transpose
@@ -472,7 +485,7 @@ absl::Status CreateTransposeReluMulAddGpuModel(
   std::vector<GpuModelBuilder::TensorHandle> inputs;
   std::vector<GpuModelBuilder::TensorHandle> outputs;
 
-  RETURN_IF_ERROR(CreateTransposeReluMulAddGpuModel(
+  ABSL_RETURN_IF_ERROR(CreateTransposeReluMulAddGpuModel(
       gpu_info, model_builder, inputs, outputs, optional_tags, relu_output,
       mul_output));
 
@@ -480,7 +493,7 @@ absl::Status CreateTransposeReluMulAddGpuModel(
   for (int i = 0; i < outputs.size(); ++i) {
     output_ids[i] = outputs[i].id;
   }
-  RETURN_IF_ERROR(model_builder.GetGpuModel(
+  ABSL_RETURN_IF_ERROR(model_builder.GetGpuModel(
       std::vector<unsigned int>{inputs[0].id}, output_ids, &gpu_model));
   return absl::OkStatus();
 }

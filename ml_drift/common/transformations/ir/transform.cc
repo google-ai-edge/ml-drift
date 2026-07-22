@@ -19,8 +19,6 @@
 #include <variant>
 #include <vector>
 
-#include "absl/status/status.h"
-#include "absl/status/statusor.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/ir_model.h"
 #include "ml_drift/common/operations.h"
@@ -38,7 +36,7 @@ namespace {
 absl::StatusOr<bool> TryRemoveNoop(IrModel* ir_model, const IrOp* op) {
   if (op->name == ToString(::ml_drift::OperationType::CONCAT) &&
       op->inputs.size() == 1) {
-    RETURN_IF_ERROR(ir_model->RemoveSimpleOp(op->id));
+    ABSL_RETURN_IF_ERROR(ir_model->RemoveSimpleOp(op->id));
     return true;
   }
 
@@ -50,7 +48,7 @@ absl::StatusOr<bool> TryRemoveNoop(IrModel* ir_model, const IrOp* op) {
     if (input_tensor && output_tensor &&
         input_tensor->desc.GetBHWDCShape() ==
             output_tensor->desc.GetBHWDCShape()) {
-      RETURN_IF_ERROR(ir_model->RemoveSimpleOp(op->id));
+      ABSL_RETURN_IF_ERROR(ir_model->RemoveSimpleOp(op->id));
       return true;
     }
   }
@@ -61,7 +59,7 @@ absl::StatusOr<bool> TryRemoveNoop(IrModel* ir_model, const IrOp* op) {
     const auto& attr =
         std::any_cast<const ::ml_drift::ElementwiseAttributes&>(op->attr);
     if (std::holds_alternative<std::monostate>(attr.param)) {
-      RETURN_IF_ERROR(ir_model->RemoveSimpleOp(op->id));
+      ABSL_RETURN_IF_ERROR(ir_model->RemoveSimpleOp(op->id));
       return true;
     }
   }
@@ -79,7 +77,7 @@ absl::StatusOr<bool> TryRemoveNoop(IrModel* ir_model, const IrOp* op) {
         attr.starts == ::ml_drift::BHWC(0, 0, 0, 0) &&
         attr.strides == ::ml_drift::BHWC(1, 1, 1, 1) &&
         attr.ends == output_tensor->desc.GetBHWCShape()) {
-      RETURN_IF_ERROR(ir_model->RemoveSimpleOp(op->id));
+      ABSL_RETURN_IF_ERROR(ir_model->RemoveSimpleOp(op->id));
       return true;
     }
   }
@@ -122,7 +120,7 @@ absl::StatusOr<bool> TryFusePad(IrModel* ir_model, const IrOp* op) {
     if (!std::holds_alternative<std::monostate>(add_attr.param)) {
       return false;
     }
-    RETURN_IF_ERROR(ir_model->RemoveSimpleOp(op->id));
+    ABSL_RETURN_IF_ERROR(ir_model->RemoveSimpleOp(op->id));
     return true;
   }
 
@@ -136,7 +134,7 @@ absl::StatusOr<bool> TryFusePad(IrModel* ir_model, const IrOp* op) {
   if (consumer_op->name == ToString(OperationType::CONVOLUTION_2D)) {
     if (auto* attr = ir_model->GetMutableAttr<Convolution2DAttributes>(
             consumer_op->id)) {
-      RETURN_IF_ERROR(ir_model->RemoveSimpleOp(op->id));
+      ABSL_RETURN_IF_ERROR(ir_model->RemoveSimpleOp(op->id));
       attr->padding.appended.h += pad_attr.appended.h;
       attr->padding.appended.w += pad_attr.appended.w;
       attr->padding.prepended.h += pad_attr.prepended.h;
@@ -147,7 +145,7 @@ absl::StatusOr<bool> TryFusePad(IrModel* ir_model, const IrOp* op) {
              ToString(OperationType::DEPTHWISE_CONVOLUTION)) {
     if (auto* attr = ir_model->GetMutableAttr<DepthwiseConvolution2DAttributes>(
             consumer_op->id)) {
-      RETURN_IF_ERROR(ir_model->RemoveSimpleOp(op->id));
+      ABSL_RETURN_IF_ERROR(ir_model->RemoveSimpleOp(op->id));
       attr->padding.appended.h += pad_attr.appended.h;
       attr->padding.appended.w += pad_attr.appended.w;
       attr->padding.prepended.h += pad_attr.prepended.h;
@@ -157,7 +155,7 @@ absl::StatusOr<bool> TryFusePad(IrModel* ir_model, const IrOp* op) {
   } else if (consumer_op->name == ToString(OperationType::POOLING_2D)) {
     if (auto* attr =
             ir_model->GetMutableAttr<Pooling2DAttributes>(consumer_op->id)) {
-      RETURN_IF_ERROR(ir_model->RemoveSimpleOp(op->id));
+      ABSL_RETURN_IF_ERROR(ir_model->RemoveSimpleOp(op->id));
       attr->padding.appended.h += pad_attr.appended.h;
       attr->padding.appended.w += pad_attr.appended.w;
       attr->padding.prepended.h += pad_attr.prepended.h;
@@ -194,7 +192,7 @@ absl::StatusOr<bool> TryAbsorbProducer(IrModel* ir_model, const IrOp* gemm_op,
       if (attr->groups == 1 && attr->padding.appended.w == 0 &&
           attr->padding.appended.h == 0 && attr->padding.prepended.w == 0 &&
           attr->padding.prepended.h == 0) {
-        RETURN_IF_ERROR(ir_model->RemoveSimpleOp(producer->id));
+        ABSL_RETURN_IF_ERROR(ir_model->RemoveSimpleOp(producer->id));
         ::ml_drift::FuseAddWithConvolution2D(add_attr, attr);
         return true;
       }
@@ -208,7 +206,7 @@ absl::StatusOr<bool> TryAbsorbProducer(IrModel* ir_model, const IrOp* gemm_op,
         !HoldsFloatScalar(mul_attr.param)) {
       return false;
     }
-    RETURN_IF_ERROR(ir_model->RemoveSimpleOp(producer->id));
+    ABSL_RETURN_IF_ERROR(ir_model->RemoveSimpleOp(producer->id));
 
     if constexpr (std::is_same_v<AttrType, Convolution2DAttributes>) {
       ::ml_drift::FuseMultiplyWithConvolution2D(mul_attr, attr);
@@ -247,7 +245,7 @@ absl::StatusOr<bool> TryAbsorbConsumer(IrModel* ir_model, const IrOp* gemm_op,
         !HoldsFloatScalar(add_attr.param)) {
       return false;
     }
-    RETURN_IF_ERROR(ir_model->RemoveSimpleOp(consumer->id));
+    ABSL_RETURN_IF_ERROR(ir_model->RemoveSimpleOp(consumer->id));
 
     if constexpr (std::is_same_v<AttrType, Convolution2DAttributes>) {
       ::ml_drift::FuseConvolution2DWithAdd(add_attr, attr);
@@ -270,7 +268,7 @@ absl::StatusOr<bool> TryAbsorbConsumer(IrModel* ir_model, const IrOp* gemm_op,
         !HoldsFloatScalar(mul_attr.param)) {
       return false;
     }
-    RETURN_IF_ERROR(ir_model->RemoveSimpleOp(consumer->id));
+    ABSL_RETURN_IF_ERROR(ir_model->RemoveSimpleOp(consumer->id));
 
     if constexpr (std::is_same_v<AttrType, Convolution2DAttributes>) {
       ::ml_drift::FuseConvolution2DWithMultiply(mul_attr, attr);
@@ -361,7 +359,7 @@ absl::StatusOr<bool> TryAddQuantAdjustments(IrModel* model, const IrOp* op) {
     model->SetProducer(adjusted_tensor->id, qdq_op->id);
 
     for (IrOpId consumer_id : original_consumers) {
-      RETURN_IF_ERROR(
+      ABSL_RETURN_IF_ERROR(
           model->ReplaceInput(consumer_id, output_id, adjusted_tensor->id));
     }
 
@@ -382,24 +380,25 @@ absl::Status TransformIrModel(::ml_drift::ir::IrModel* ir_model) {
       // nominal effect on performance.
       const IrOp* op = ir_model->op(i);
       if (!op) continue;
-      ASSIGN_OR_RETURN(const bool removed_noop, TryRemoveNoop(ir_model, op));
+      ABSL_ASSIGN_OR_RETURN(const bool removed_noop,
+                            TryRemoveNoop(ir_model, op));
       if (removed_noop) {
         changed = true;
         continue;
       }
-      ASSIGN_OR_RETURN(const bool fused_pad, TryFusePad(ir_model, op));
+      ABSL_ASSIGN_OR_RETURN(const bool fused_pad, TryFusePad(ir_model, op));
       if (fused_pad) {
         changed = true;
         continue;
       }
-      ASSIGN_OR_RETURN(const bool fused_into_gemm,
-                       TryFuseIntoGemm(ir_model, op));
+      ABSL_ASSIGN_OR_RETURN(const bool fused_into_gemm,
+                            TryFuseIntoGemm(ir_model, op));
       if (fused_into_gemm) {
         changed = true;
         continue;
       }
-      ASSIGN_OR_RETURN(const bool added_quant_adjustments,
-                       TryAddQuantAdjustments(ir_model, op));
+      ABSL_ASSIGN_OR_RETURN(const bool added_quant_adjustments,
+                            TryAddQuantAdjustments(ir_model, op));
       if (added_quant_adjustments) {
         changed = true;
         continue;

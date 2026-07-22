@@ -176,7 +176,7 @@ absl::Status DepthwiseConvSimpleWeightsTest(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   DepthwiseConv operation =
       CreateDepthwiseConvolution2D(env.GetGpuInfo(), op_def, precision, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<DepthwiseConv>(std::move(operation)),
       BHWC(1, 2, 2, 2), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -212,7 +212,7 @@ absl::Status DepthwiseConvNoMultiplierTest(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   DepthwiseConv operation =
       CreateDepthwiseConvolution2D(env.GetGpuInfo(), op_def, precision, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<DepthwiseConv>(std::move(operation)),
       BHWC(1, 2, 2, 2), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -249,7 +249,7 @@ absl::Status DepthwiseConvMultiplier2Test(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   DepthwiseConv operation =
       CreateDepthwiseConvolution2D(env.GetGpuInfo(), op_def, precision, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<DepthwiseConv>(std::move(operation)),
       BHWC(1, 2, 2, 4), &dst_tensor));
   EXPECT_THAT(
@@ -459,7 +459,7 @@ absl::Status DepthwiseConv3x3SimpleWeightsTest(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   DepthwiseConv3x3 operation =
       CreateDepthwiseConv3x3(env.GetGpuInfo(), op_def, precision, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<DepthwiseConv3x3>(std::move(operation)),
       BHWC(1, 2, 2, 2), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -495,7 +495,7 @@ absl::Status DepthwiseConv3x3Test(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   DepthwiseConv3x3 operation =
       CreateDepthwiseConv3x3(env.GetGpuInfo(), op_def, precision, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<DepthwiseConv3x3>(std::move(operation)),
       BHWC(1, 2, 2, 2), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -579,8 +579,8 @@ absl::Status DepthwiseConvTiledSimpleWeightsTest(
   TensorFloat32 dst_tensor;
   auto operation =
       CreateDepthwiseConvTiled(env.GetGpuInfo(), op_def, precision, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(src_tensor, std::move(operation),
-                                          BHWC(1, 2, 2, 2), &dst_tensor));
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(src_tensor, std::move(operation),
+                                               BHWC(1, 2, 2, 2), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
               Pointwise(FloatNear(eps), {6.0f, 16.0f, 8.0f, 16.0f, 10.0f, 16.0f,
                                          12.0f, 16.0f}));
@@ -614,8 +614,8 @@ absl::Status DepthwiseConvTiledTest(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   auto operation =
       CreateDepthwiseConvTiled(env.GetGpuInfo(), op_def, precision, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(src_tensor, std::move(operation),
-                                          BHWC(1, 2, 2, 2), &dst_tensor));
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(src_tensor, std::move(operation),
+                                               BHWC(1, 2, 2, 2), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
               Pointwise(FloatNear(eps), {40.5f, 67.5f, 16.5f, 35.5f, 40.5f,
                                          67.5f, 16.5f, 35.5f}));

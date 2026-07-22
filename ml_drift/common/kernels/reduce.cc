@@ -638,11 +638,12 @@ absl::Status Reduce::BindArguments(ArgumentsBinder* args) {
     const double size_0 =
         work_group_size_.x * work_group_size_.y * work_group_size_.z;
     const double size_1 = reduction_size / size_0;
-    RETURN_IF_ERROR(args->SetFloat("inv_multiplier_1", 1.0 / size_1));
-    RETURN_IF_ERROR(args->SetFloat("inv_multiplier_2", 1.0 / size_0));
+    ABSL_RETURN_IF_ERROR(args->SetFloat("inv_multiplier_1", 1.0 / size_1));
+    ABSL_RETURN_IF_ERROR(args->SetFloat("inv_multiplier_2", 1.0 / size_0));
   } else {
-    RETURN_IF_ERROR(args->SetFloat("inv_multiplier_1", 1.0 / reduction_size));
-    RETURN_IF_ERROR(args->SetFloat("inv_multiplier_2", 1.0));
+    ABSL_RETURN_IF_ERROR(
+        args->SetFloat("inv_multiplier_1", 1.0 / reduction_size));
+    ABSL_RETURN_IF_ERROR(args->SetFloat("inv_multiplier_2", 1.0));
   }
   return absl::OkStatus();
 }

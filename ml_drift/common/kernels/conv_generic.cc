@@ -3524,11 +3524,11 @@ absl::Status ConvGeneric::BindArguments(ArgumentsBinder* args) {
       DivideRoundUp(dst_[0]->Depth(), kernel_params_.block_size.z);
   const int task_size_s =
       DivideRoundUp(dst_[0]->Slices(), kernel_params_.block_size.w);
-  RETURN_IF_ERROR(args->SetInt("task_size_b", task_size_b));
-  RETURN_IF_ERROR(args->SetInt("task_size_x", task_size_x));
-  RETURN_IF_ERROR(args->SetInt("task_size_y", task_size_y));
-  RETURN_IF_ERROR(args->SetInt("task_size_z", task_size_z));
-  RETURN_IF_ERROR(args->SetInt("task_size_s", task_size_s));
+  ABSL_RETURN_IF_ERROR(args->SetInt("task_size_b", task_size_b));
+  ABSL_RETURN_IF_ERROR(args->SetInt("task_size_x", task_size_x));
+  ABSL_RETURN_IF_ERROR(args->SetInt("task_size_y", task_size_y));
+  ABSL_RETURN_IF_ERROR(args->SetInt("task_size_z", task_size_z));
+  ABSL_RETURN_IF_ERROR(args->SetInt("task_size_s", task_size_s));
   return absl::OkStatus();
 }
 

@@ -612,7 +612,7 @@ absl::StatusOr<ElementwiseDescriptor> CreateElementwiseTwoInput(
     const OperationType& op_type,
     const Tensor<BHWC, DataType::FLOAT32>& constant_tensor, bool swap_inputs) {
   TensorDescriptor const_tensor_desc = definition.src_tensors[0];
-  RETURN_IF_ERROR(const_tensor_desc.UpdateToSupportedStorageType(
+  ABSL_RETURN_IF_ERROR(const_tensor_desc.UpdateToSupportedStorageType(
       gpu_info, constant_tensor.shape));
   const_tensor_desc.UploadData(constant_tensor);
 
@@ -645,7 +645,7 @@ absl::StatusOr<ElementwiseDescriptor> CreateElementwiseTwoInput(
   TensorDescriptor const_tensor_desc = definition.src_tensors[0];
   const_tensor_desc.SetBHWDCShape(constant_tensor.shape);
   const_tensor_desc.SetLayout(Layout::BHWDC);
-  RETURN_IF_ERROR(const_tensor_desc.UpdateToSupportedStorageType(
+  ABSL_RETURN_IF_ERROR(const_tensor_desc.UpdateToSupportedStorageType(
       gpu_info, constant_tensor.shape));
   const_tensor_desc.UploadData(constant_tensor);
 

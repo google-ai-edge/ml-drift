@@ -125,24 +125,22 @@ void ComputeTask::Init(std::unique_ptr<GPUOperation>&& operation,
 }
 
 absl::Status ComputeTask::InitArgs(Environment* env) {
-  RETURN_IF_ERROR(metal_args_.Init(operation_->code_info_,
-                                   use_arguments_buffer_, env,
-                                   &operation_->args_, &operation_->code_));
+  ABSL_RETURN_IF_ERROR(metal_args_.Init(operation_->code_info_, use_arguments_buffer_, env,
+                                        &operation_->args_, &operation_->code_));
 
   operation_->args_.ReleaseCPURepresentation();
   return absl::OkStatus();
 }
 
 absl::Status ComputeTask::InitArgsDeserialized(Environment* env) {
-  RETURN_IF_ERROR(
-      metal_args_.Init(use_arguments_buffer_, env, &operation_->args_));
+  ABSL_RETURN_IF_ERROR(metal_args_.Init(use_arguments_buffer_, env, &operation_->args_));
 
   operation_->args_.ReleaseCPURepresentation();
   return absl::OkStatus();
 }
 
 absl::Status ComputeTask::Compile(Environment* env) {
-  RETURN_IF_ERROR(InitArgs(env));
+  ABSL_RETURN_IF_ERROR(InitArgs(env));
 
   // manually resolving Metal reserved types(float16, half8, etc)
   std::string struct_definitions;
@@ -171,13 +169,11 @@ absl::Status ComputeTask::CompileProgram(
     if (use_arguments_buffer_) {
       id<MTLArgumentEncoder> arguments_encoder;
       if (need_icb_support_) {
-        RETURN_IF_ERROR(CreateComputeProgramWithICBSupport(
-            env->device(), code, "ComputeFunction", defines, &program,
-            &arguments_encoder));
+        ABSL_RETURN_IF_ERROR(CreateComputeProgramWithICBSupport(
+            env->device(), code, "ComputeFunction", defines, &program, &arguments_encoder));
       } else {
-        RETURN_IF_ERROR(CreateComputeProgramWithArgumentBuffer(
-            env->device(), code, "ComputeFunction", defines, &program,
-            &arguments_encoder));
+        ABSL_RETURN_IF_ERROR(CreateComputeProgramWithArgumentBuffer(
+            env->device(), code, "ComputeFunction", defines, &program, &arguments_encoder));
       }
       arguments_encoder_ = arguments_encoder;
       arg_buffer_ =
@@ -187,8 +183,8 @@ absl::Status ComputeTask::CompileProgram(
         return absl::InternalError("Failed to create MTLBuffer.");
       }
     } else {
-      RETURN_IF_ERROR(CreateComputeProgram(
-          env->device(), code, "ComputeFunction", defines, &program));
+      ABSL_RETURN_IF_ERROR(
+          CreateComputeProgram(env->device(), code, "ComputeFunction", defines, &program));
     }
     program_ = program;
   }
@@ -206,7 +202,7 @@ absl::Status ComputeTask::RestoreDeserialized(Environment* env) {
 }
 
 absl::Status ComputeTask::UpdateParams() {
-  RETURN_IF_ERROR(operation_->BindArguments(&metal_args_));
+  ABSL_RETURN_IF_ERROR(operation_->BindArguments(&metal_args_));
   operation_->RecalculateGridSize();
   operation_->RecalculateWorkGroupsCount();
   UpdateArgumentBuffer();

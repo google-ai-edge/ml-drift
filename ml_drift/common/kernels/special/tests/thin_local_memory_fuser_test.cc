@@ -82,7 +82,7 @@ absl::Status CreateGraph(const BHWC& resize_shape, const BHWC& add_shape,
   conv_node->operation.attributes = conv_attr;
   graph->AddConsumer(conv_node->id, add_output->id);
   Value* conv_output = nullptr;
-  RETURN_IF_ERROR(AddOutput(graph, conv_node, &conv_output));
+  ABSL_RETURN_IF_ERROR(AddOutput(graph, conv_node, &conv_output));
   conv_output->tensor.shape =
       CalculateOutputShape(add_output->tensor.shape, conv_attr);
 
@@ -133,8 +133,8 @@ absl::Status ResizeAddConv(TestExecutionEnvironment* exec_env,
   {
     GraphFloat32 graph;
     std::vector<ValueId> values_ids;
-    RETURN_IF_ERROR(CreateGraph(resize_shape, add_shape, resize_attr, conv_attr,
-                                &graph, &values_ids));
+    ABSL_RETURN_IF_ERROR(CreateGraph(resize_shape, add_shape, resize_attr,
+                                     conv_attr, &graph, &values_ids));
 
     std::set<NodeId> consumed_nodes;
     std::set<NodeId> new_consumed_nodes;
@@ -152,8 +152,8 @@ absl::Status ResizeAddConv(TestExecutionEnvironment* exec_env,
     auto s = TryThinLocalMemoryFuser(exec_env->GetGpuInfo(), graph,
                                      values_ids[0], consumed_nodes,
                                      &new_consumed_nodes, &model_builder);
-    RETURN_IF_ERROR(model_builder.GetGpuModel({values_ids[0], values_ids[2]},
-                                              {values_ids[4]}, &gpu_model));
+    ABSL_RETURN_IF_ERROR(model_builder.GetGpuModel(
+        {values_ids[0], values_ids[2]}, {values_ids[4]}, &gpu_model));
     if (!s.ok()) {
       std::cout << "This case not supported on this device." << std::endl;
       return absl::OkStatus();
@@ -167,8 +167,8 @@ absl::Status ResizeAddConv(TestExecutionEnvironment* exec_env,
     const BHWC dst_shape = CalculateOutputShape(add_shape, conv_attr);
     const int num_repeats = 5;
     auto operation = std::move(gpu_model.nodes[0].gpu_operation);
-    ASSIGN_OR_RETURN(auto report,
-                     exec_env->GetGpuOperationTimeMs({src0_tensor, src1_tensor},
+    ABSL_ASSIGN_OR_RETURN(
+        auto report, exec_env->GetGpuOperationTimeMs({src0_tensor, src1_tensor},
                                                      std::move(operation),
                                                      {dst_shape}, num_repeats));
 

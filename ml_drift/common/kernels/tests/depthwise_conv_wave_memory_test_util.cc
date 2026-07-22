@@ -46,7 +46,7 @@ absl::Status DepthwiseConvWaveMemoryTest(
   float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr);
 
   TensorFloat32 dst_tensor;
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       src_tensor,
       std::make_unique<DepthwiseConvWaveMemory>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
@@ -79,7 +79,7 @@ absl::Status DepthwiseConvWaveMemory3x3Test(TestExecutionEnvironment& env,
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       DepthwiseConvWaveMemoryTest(env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();
 }
@@ -107,7 +107,7 @@ absl::Status DepthwiseConvWaveMemory3x3BatchedTest(
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
   op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       DepthwiseConvWaveMemoryTest(env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();
 }
@@ -135,7 +135,7 @@ absl::Status DepthwiseConvWaveMemory5x5Test(TestExecutionEnvironment& env,
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       DepthwiseConvWaveMemoryTest(env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();
 }
@@ -163,7 +163,7 @@ absl::Status DepthwiseConvWaveMemory2x4Test(TestExecutionEnvironment& env,
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       DepthwiseConvWaveMemoryTest(env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();
 }
@@ -191,7 +191,7 @@ absl::Status DepthwiseConvWaveMemory7x3Test(TestExecutionEnvironment& env,
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       DepthwiseConvWaveMemoryTest(env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();
 }
@@ -219,7 +219,7 @@ absl::Status DepthwiseConvWaveMemory7x7Test(TestExecutionEnvironment& env,
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       DepthwiseConvWaveMemoryTest(env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();
 }

@@ -2205,20 +2205,21 @@ absl::Status SliceReference(const ml_drift::SliceAttributes& attr,
                             const ml_drift::TensorFloat32& src,
                             ml_drift::TensorFloat32* dst) {
   for (int b = 0; b < dst->shape.b; b++) {
-    ASSIGN_OR_RETURN(int next_b, GetNext(attr.starts.b, attr.strides.b,
-                                         attr.ends.b, b, src.shape.b));
+    ABSL_ASSIGN_OR_RETURN(int next_b, GetNext(attr.starts.b, attr.strides.b,
+                                              attr.ends.b, b, src.shape.b));
     const bool b_inside = next_b >= 0 && next_b < src.shape.b;
     for (int c = 0; c < dst->shape.c; c++) {
-      ASSIGN_OR_RETURN(int next_ch, GetNext(attr.starts.c, attr.strides.c,
-                                            attr.ends.c, c, src.shape.c));
+      ABSL_ASSIGN_OR_RETURN(int next_ch, GetNext(attr.starts.c, attr.strides.c,
+                                                 attr.ends.c, c, src.shape.c));
       const bool c_inside = next_ch >= 0 && next_ch < src.shape.c;
       for (int h = 0; h < dst->shape.h; h++) {
-        ASSIGN_OR_RETURN(int next_h, GetNext(attr.starts.h, attr.strides.h,
-                                             attr.ends.h, h, src.shape.h));
+        ABSL_ASSIGN_OR_RETURN(int next_h, GetNext(attr.starts.h, attr.strides.h,
+                                                  attr.ends.h, h, src.shape.h));
         const bool h_inside = next_h >= 0 && next_h < src.shape.h;
         for (int w = 0; w < dst->shape.w; w++) {
-          ASSIGN_OR_RETURN(int next_w, GetNext(attr.starts.w, attr.strides.w,
-                                               attr.ends.w, w, src.shape.w));
+          ABSL_ASSIGN_OR_RETURN(
+              int next_w, GetNext(attr.starts.w, attr.strides.w, attr.ends.w, w,
+                                  src.shape.w));
           const bool w_inside = next_w >= 0 && next_w < src.shape.w;
           const int src_index =
               src.shape.LinearIndex({next_b, next_h, next_w, next_ch});
@@ -2240,7 +2241,7 @@ absl::StatusOr<ml_drift::TensorFloat32> SliceReference(
     const ml_drift::TensorFloat32& input) {
   ml_drift::TensorFloat32 output =
       MakeZeroTensor(CalculateOutputShape(input.shape, attr));
-  RETURN_IF_ERROR(SliceReference(attr, input, &output));
+  ABSL_RETURN_IF_ERROR(SliceReference(attr, input, &output));
   return output;
 }
 
@@ -2248,24 +2249,26 @@ absl::Status SliceReference(const ::ml_drift::Slice3DAttributes& attr,
                             const ::ml_drift::Tensor5DFloat32& src,
                             ::ml_drift::Tensor5DFloat32* dst) {
   for (int b = 0; b < dst->shape.b; b++) {
-    ASSIGN_OR_RETURN(int next_b, GetNext(attr.starts.b, attr.strides.b,
-                                         attr.ends.b, b, src.shape.b));
+    ABSL_ASSIGN_OR_RETURN(int next_b, GetNext(attr.starts.b, attr.strides.b,
+                                              attr.ends.b, b, src.shape.b));
     const bool b_inside = next_b >= 0 && next_b < src.shape.b;
     for (int c = 0; c < dst->shape.c; c++) {
-      ASSIGN_OR_RETURN(int next_ch, GetNext(attr.starts.c, attr.strides.c,
-                                            attr.ends.c, c, src.shape.c));
+      ABSL_ASSIGN_OR_RETURN(int next_ch, GetNext(attr.starts.c, attr.strides.c,
+                                                 attr.ends.c, c, src.shape.c));
       const bool c_inside = next_ch >= 0 && next_ch < src.shape.c;
       for (int h = 0; h < dst->shape.h; h++) {
-        ASSIGN_OR_RETURN(int next_h, GetNext(attr.starts.h, attr.strides.h,
-                                             attr.ends.h, h, src.shape.h));
+        ABSL_ASSIGN_OR_RETURN(int next_h, GetNext(attr.starts.h, attr.strides.h,
+                                                  attr.ends.h, h, src.shape.h));
         const bool h_inside = next_h >= 0 && next_h < src.shape.h;
         for (int w = 0; w < dst->shape.w; w++) {
-          ASSIGN_OR_RETURN(int next_w, GetNext(attr.starts.w, attr.strides.w,
-                                               attr.ends.w, w, src.shape.w));
+          ABSL_ASSIGN_OR_RETURN(
+              int next_w, GetNext(attr.starts.w, attr.strides.w, attr.ends.w, w,
+                                  src.shape.w));
           const bool w_inside = next_w >= 0 && next_w < src.shape.w;
           for (int d = 0; d < dst->shape.d; d++) {
-            ASSIGN_OR_RETURN(int next_d, GetNext(attr.starts.d, attr.strides.d,
-                                                 attr.ends.d, d, src.shape.d));
+            ABSL_ASSIGN_OR_RETURN(
+                int next_d, GetNext(attr.starts.d, attr.strides.d, attr.ends.d,
+                                    d, src.shape.d));
             const bool d_inside = next_d >= 0 && next_d < src.shape.d;
 
             const int src_index = src.shape.LinearIndex(
@@ -2289,7 +2292,7 @@ absl::StatusOr<::ml_drift::Tensor5DFloat32> SliceReference(
     const ::ml_drift::Tensor5DFloat32& input) {
   ml_drift::Tensor5DFloat32 output =
       MakeZeroTensor(CalculateOutputShape(input.shape, attr));
-  RETURN_IF_ERROR(SliceReference(attr, input, &output));
+  ABSL_RETURN_IF_ERROR(SliceReference(attr, input, &output));
   return output;
 }
 

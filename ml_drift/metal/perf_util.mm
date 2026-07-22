@@ -76,10 +76,10 @@ absl::Status TestConvolutionPerformance(const Convolution2DAttributes& attr, con
   MetalSpatialTensor src, dst;
   TensorDescriptor descriptor_with_shape = op_def.src_tensors[0];
   descriptor_with_shape.SetBHWCShape(src_shape);
-  RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &src));
+  ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &src));
   descriptor_with_shape = op_def.dst_tensors[0];
   descriptor_with_shape.SetBHWCShape(dst_shape);
-  RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &dst));
+  ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &dst));
 
   const auto w_shape =
       std::visit([](const auto& weights) -> const auto& { return weights.shape; }, attr.weights);
@@ -96,7 +96,7 @@ absl::Status TestConvolutionPerformance(const Convolution2DAttributes& attr, con
             << attr.padding.prepended.h << ", (appended) - " << attr.padding.appended.w << "x"
             << attr.padding.appended.h << std::endl;
 
-  RETURN_IF_ERROR(conv->AssembleCode(env.GetInfo()));
+  ABSL_RETURN_IF_ERROR(conv->AssembleCode(env.GetInfo()));
 
   const int float_size = precision == CalculationsPrecision::F32 ? 4 : 2;
   const int64_t flops_per_element = w_shape.i * w_shape.h * w_shape.w * 2;
@@ -114,10 +114,10 @@ absl::Status TestConvolutionPerformance(const Convolution2DAttributes& attr, con
 
   ComputeTask gpu_task;
   gpu_task.Init(std::move(conv));
-  RETURN_IF_ERROR(gpu_task.Compile(&env));
+  ABSL_RETURN_IF_ERROR(gpu_task.Compile(&env));
   gpu_task.SetSrcTensor(&src, 0);
   gpu_task.SetDstTensor(&dst, 0);
-  RETURN_IF_ERROR(gpu_task.UpdateParams());
+  ABSL_RETURN_IF_ERROR(gpu_task.UpdateParams());
 
   id<MTLCommandQueue> command_queue = [env.device() newCommandQueue];
   for (int i = 0; i < 10; ++i) {
@@ -160,10 +160,10 @@ absl::Status TestConvSoftmaxConvPerformance(const BHWC& dst_shape, int src_ch0, 
   TensorDescriptor descriptor_with_shape = op_def.src_tensors[0];
   const BHWC src_shape = BHWC(dst_shape.b, dst_shape.h, dst_shape.w, src_ch0);
   descriptor_with_shape.SetBHWCShape(src_shape);
-  RETURN_IF_ERROR(CreateTensor(device.device(), descriptor_with_shape, &src));
+  ABSL_RETURN_IF_ERROR(CreateTensor(device.device(), descriptor_with_shape, &src));
   descriptor_with_shape = op_def.dst_tensors[0];
   descriptor_with_shape.SetBHWCShape(dst_shape);
-  RETURN_IF_ERROR(CreateTensor(device.device(), descriptor_with_shape, &dst));
+  ABSL_RETURN_IF_ERROR(CreateTensor(device.device(), descriptor_with_shape, &dst));
 
   std::cout << "Src size(HWC) - " << src_shape.h << "x" << src_shape.w << "x" << src_shape.c
             << std::endl;
@@ -171,7 +171,7 @@ absl::Status TestConvSoftmaxConvPerformance(const BHWC& dst_shape, int src_ch0, 
             << std::endl;
   std::cout << "Attention attributes : " << std::endl;
 
-  RETURN_IF_ERROR(conv->AssembleCode(device.GetInfo()));
+  ABSL_RETURN_IF_ERROR(conv->AssembleCode(device.GetInfo()));
 
   const int float_size = precision == CalculationsPrecision::F32 ? 4 : 2;
   const int64_t conv0_flops_per_element = weights0.shape.i * 2;
@@ -194,10 +194,10 @@ absl::Status TestConvSoftmaxConvPerformance(const BHWC& dst_shape, int src_ch0, 
 
   ComputeTask gpu_task;
   gpu_task.Init(std::move(conv));
-  RETURN_IF_ERROR(gpu_task.Compile(&device));
+  ABSL_RETURN_IF_ERROR(gpu_task.Compile(&device));
   gpu_task.SetSrcTensor(&src, 0);
   gpu_task.SetDstTensor(&dst, 0);
-  RETURN_IF_ERROR(gpu_task.UpdateParams());
+  ABSL_RETURN_IF_ERROR(gpu_task.UpdateParams());
 
   id<MTLCommandQueue> command_queue = [device.device() newCommandQueue];
   for (int i = 0; i < 5; ++i) {
@@ -228,10 +228,10 @@ absl::Status TestDepthwiseConvPerformance(const DepthwiseConvolution2DAttributes
   MetalSpatialTensor src, dst;
   TensorDescriptor descriptor_with_shape = op_def.src_tensors[0];
   descriptor_with_shape.SetBHWCShape(src_shape);
-  RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &src));
+  ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &src));
   descriptor_with_shape = op_def.dst_tensors[0];
   descriptor_with_shape.SetBHWCShape(dst_shape);
-  RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &dst));
+  ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &dst));
 
   const auto w_shape =
       std::visit([](const auto& weights) -> const auto& { return weights.shape; }, attr.weights);
@@ -248,7 +248,7 @@ absl::Status TestDepthwiseConvPerformance(const DepthwiseConvolution2DAttributes
             << attr.padding.prepended.h << ", (appended) - " << attr.padding.appended.w << "x"
             << attr.padding.appended.h << std::endl;
 
-  RETURN_IF_ERROR(conv->AssembleCode(env.GetInfo()));
+  ABSL_RETURN_IF_ERROR(conv->AssembleCode(env.GetInfo()));
 
   const int64_t flops_count = GetDepthwiseConvolutionFlops(dst_shape, w_shape);
 
@@ -263,10 +263,10 @@ absl::Status TestDepthwiseConvPerformance(const DepthwiseConvolution2DAttributes
 
   ComputeTask gpu_task;
   gpu_task.Init(std::move(conv));
-  RETURN_IF_ERROR(gpu_task.Compile(&env));
+  ABSL_RETURN_IF_ERROR(gpu_task.Compile(&env));
   gpu_task.SetSrcTensor(&src, 0);
   gpu_task.SetDstTensor(&dst, 0);
-  RETURN_IF_ERROR(gpu_task.UpdateParams());
+  ABSL_RETURN_IF_ERROR(gpu_task.UpdateParams());
 
   id<MTLCommandQueue> command_queue = [env.device() newCommandQueue];
   for (int i = 0; i < 10; ++i) {
@@ -308,7 +308,7 @@ absl::Status ConvolutionPerfTest(CalculationsPrecision precision, const BHWC& sr
   op_def.src_tensors.push_back({data_type, TensorStorageType::BUFFER, layout});
   op_def.dst_tensors.push_back({data_type, TensorStorageType::BUFFER, layout});
 
-  RETURN_IF_ERROR(TestConvolutionPerformance(attr, src_shape, op_def, precision));
+  ABSL_RETURN_IF_ERROR(TestConvolutionPerformance(attr, src_shape, op_def, precision));
 
   return absl::OkStatus();
 }
@@ -368,26 +368,27 @@ absl::Status ConvolutionInt8PerfTest(const BHWC& src_shape, int dst_channels) {
                                            dequant_dst, src_params_td, weights_sum_i_td,
                                            weights_scale_td, &weights_zero_point_td);
     dst_tensor_desc = dequant_dst;
-    RETURN_IF_ERROR(conv->AddOperation(env.GetInfo(), &dequant_op));
+    ABSL_RETURN_IF_ERROR(conv->AddOperation(env.GetInfo(), &dequant_op));
   }
 
   MetalSpatialTensor src, dst;
   TensorDescriptor descriptor_with_shape = src_tensor_desc;
   descriptor_with_shape.SetBHWCShape(GetShapeForPackedType(src_shape, quantized_type));
-  RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &src));
+  ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &src));
   descriptor_with_shape = dst_tensor_desc;
   descriptor_with_shape.SetBHWCShape(dst_shape);
-  RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &dst));
+  ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &dst));
 
   MetalSpatialTensor src_params_tensor;
   MetalSpatialTensor weights_scale_tensor;
   MetalSpatialTensor weights_zero_point_tensor;
   MetalSpatialTensor weights_sum_i_tensor;
   if (dequantize) {
-    RETURN_IF_ERROR(CreateTensor(env.device(), src_params_td, &src_params_tensor));
-    RETURN_IF_ERROR(CreateTensor(env.device(), weights_scale_td, &weights_scale_tensor));
-    RETURN_IF_ERROR(CreateTensor(env.device(), weights_zero_point_td, &weights_zero_point_tensor));
-    RETURN_IF_ERROR(CreateTensor(env.device(), weights_sum_i_td, &weights_sum_i_tensor));
+    ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), src_params_td, &src_params_tensor));
+    ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), weights_scale_td, &weights_scale_tensor));
+    ABSL_RETURN_IF_ERROR(
+        CreateTensor(env.device(), weights_zero_point_td, &weights_zero_point_tensor));
+    ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), weights_sum_i_td, &weights_sum_i_tensor));
   }
 
   const auto w_shape = weights.shape;
@@ -396,7 +397,7 @@ absl::Status ConvolutionInt8PerfTest(const BHWC& src_shape, int dst_channels) {
             << std::endl;
   std::cout << "Dst size(HWC) - " << dst_shape.h << "x" << dst_shape.w << "x" << dst_shape.c
             << std::endl;
-  RETURN_IF_ERROR(conv->AssembleCode(env.GetInfo()));
+  ABSL_RETURN_IF_ERROR(conv->AssembleCode(env.GetInfo()));
 
   const int64_t flops_per_element = w_shape.i * 2;
   const int64_t dst_elements = dst.Width() * dst.Height() * dst.Channels();
@@ -410,7 +411,7 @@ absl::Status ConvolutionInt8PerfTest(const BHWC& src_shape, int dst_channels) {
 
   ComputeTask gpu_task;
   gpu_task.Init(std::move(conv));
-  RETURN_IF_ERROR(gpu_task.Compile(&env));
+  ABSL_RETURN_IF_ERROR(gpu_task.Compile(&env));
   gpu_task.SetSrcTensor(&src, 0);
   if (dequantize) {
     gpu_task.SetSrcTensor(&src_params_tensor, 1);
@@ -419,7 +420,7 @@ absl::Status ConvolutionInt8PerfTest(const BHWC& src_shape, int dst_channels) {
     gpu_task.SetSrcTensor(&weights_zero_point_tensor, 4);
   }
   gpu_task.SetDstTensor(&dst, 0);
-  RETURN_IF_ERROR(gpu_task.UpdateParams());
+  ABSL_RETURN_IF_ERROR(gpu_task.UpdateParams());
 
   id<MTLCommandQueue> command_queue = [env.device() newCommandQueue];
   for (int i = 0; i < 10; ++i) {
@@ -514,22 +515,22 @@ absl::Status ConvolutionSf16Wi4BatchedPerfTest(const BHWC& src_shape, int dst_ch
   MetalSpatialTensor src, dst;
   TensorDescriptor descriptor_with_shape = src_tensor_desc;
   descriptor_with_shape.SetBHWCShape(src_shape);
-  RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &src));
+  ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &src));
 
   descriptor_with_shape = dst_tensor_desc;
   descriptor_with_shape.SetBHWCShape(dst_shape);
-  RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &dst));
+  ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &dst));
 
   MetalSpatialTensor weights_i4_tensor;
-  RETURN_IF_ERROR(CreateTensor(env.device(), weights_i4_td, &weights_i4_tensor));
+  ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), weights_i4_td, &weights_i4_tensor));
 
   MetalSpatialTensor weights_scale_tensor;
-  RETURN_IF_ERROR(CreateTensor(env.device(), scale_desc, &weights_scale_tensor));
+  ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), scale_desc, &weights_scale_tensor));
 
   MetalSpatialTensor weights_zero_point_tensor;
-  RETURN_IF_ERROR(CreateTensor(env.device(), zp_desc, &weights_zero_point_tensor));
+  ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), zp_desc, &weights_zero_point_tensor));
 
-  RETURN_IF_ERROR(conv->AssembleCode(env.GetInfo()));
+  ABSL_RETURN_IF_ERROR(conv->AssembleCode(env.GetInfo()));
 
   const int64_t flops_per_element = weights_i4.shape.i * 2;
   const int64_t dst_elements = dst.Width() * dst.Height() * dst.Channels();
@@ -543,7 +544,7 @@ absl::Status ConvolutionSf16Wi4BatchedPerfTest(const BHWC& src_shape, int dst_ch
 
   ComputeTask gpu_task;
   gpu_task.Init(std::move(conv));
-  RETURN_IF_ERROR(gpu_task.Compile(&env));
+  ABSL_RETURN_IF_ERROR(gpu_task.Compile(&env));
   gpu_task.SetSrcTensor(&src, 0);
   gpu_task.SetSrcTensor(&weights_i4_tensor, 1);
   gpu_task.SetSrcTensor(&weights_scale_tensor, 2);
@@ -551,7 +552,7 @@ absl::Status ConvolutionSf16Wi4BatchedPerfTest(const BHWC& src_shape, int dst_ch
     gpu_task.SetSrcTensor(&weights_zero_point_tensor, 3);
   }
   gpu_task.SetDstTensor(&dst, 0);
-  RETURN_IF_ERROR(gpu_task.UpdateParams());
+  ABSL_RETURN_IF_ERROR(gpu_task.UpdateParams());
 
   id<MTLCommandQueue> command_queue = [env.device() newCommandQueue];
   for (int i = 0; i < 10; ++i) {
@@ -648,7 +649,7 @@ absl::Status ConvolutionSi8Wi4PerfTest(const BHWC& src_shape, int dst_channels) 
                                            dequant_dst, src_params_td, weights_sum_i_td,
                                            weights_scale_td, &weights_zero_point_td);
     dst_tensor_desc = dequant_dst;
-    RETURN_IF_ERROR(conv->AddOperation(env.GetInfo(), &dequant_op));
+    ABSL_RETURN_IF_ERROR(conv->AddOperation(env.GetInfo(), &dequant_op));
   }
 
   TensorDescriptor weights_i4_td = GetTensorDescriptorForWeightsLayout(weights_i4, weights_desc);
@@ -656,26 +657,27 @@ absl::Status ConvolutionSi8Wi4PerfTest(const BHWC& src_shape, int dst_channels) 
   MetalSpatialTensor src, dst;
   TensorDescriptor descriptor_with_shape = src_tensor_desc;
   descriptor_with_shape.SetBHWCShape(src_shape);
-  RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &src));
+  ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &src));
 
   descriptor_with_shape = dst_tensor_desc;
   descriptor_with_shape.SetBHWCShape(dst_shape);
-  RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &dst));
+  ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &dst));
 
   MetalSpatialTensor weights_i4_tensor;
-  RETURN_IF_ERROR(CreateTensor(env.device(), weights_i4_td, &weights_i4_tensor));
+  ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), weights_i4_td, &weights_i4_tensor));
 
   MetalSpatialTensor src_params_tensor;
   MetalSpatialTensor weights_scale_tensor;
   MetalSpatialTensor weights_zero_point_tensor;
   MetalSpatialTensor weights_sum_i_tensor;
   if (dequantize) {
-    RETURN_IF_ERROR(CreateTensor(env.device(), src_params_td, &src_params_tensor));
-    RETURN_IF_ERROR(CreateTensor(env.device(), weights_scale_td, &weights_scale_tensor));
-    RETURN_IF_ERROR(CreateTensor(env.device(), weights_zero_point_td, &weights_zero_point_tensor));
-    RETURN_IF_ERROR(CreateTensor(env.device(), weights_sum_i_td, &weights_sum_i_tensor));
+    ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), src_params_td, &src_params_tensor));
+    ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), weights_scale_td, &weights_scale_tensor));
+    ABSL_RETURN_IF_ERROR(
+        CreateTensor(env.device(), weights_zero_point_td, &weights_zero_point_tensor));
+    ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), weights_sum_i_td, &weights_sum_i_tensor));
   }
-  RETURN_IF_ERROR(conv->AssembleCode(env.GetInfo()));
+  ABSL_RETURN_IF_ERROR(conv->AssembleCode(env.GetInfo()));
 
   const int64_t flops_per_element = weights_i4.shape.i * 2;
   const int64_t dst_elements = dst.Width() * dst.Height() * dst.Channels();
@@ -689,7 +691,7 @@ absl::Status ConvolutionSi8Wi4PerfTest(const BHWC& src_shape, int dst_channels) 
 
   ComputeTask gpu_task;
   gpu_task.Init(std::move(conv));
-  RETURN_IF_ERROR(gpu_task.Compile(&env));
+  ABSL_RETURN_IF_ERROR(gpu_task.Compile(&env));
   gpu_task.SetSrcTensor(&src, 0);
   gpu_task.SetSrcTensor(&weights_i4_tensor, 1);
   if (dequantize) {
@@ -699,7 +701,7 @@ absl::Status ConvolutionSi8Wi4PerfTest(const BHWC& src_shape, int dst_channels) 
     gpu_task.SetSrcTensor(&weights_zero_point_tensor, 5);
   }
   gpu_task.SetDstTensor(&dst, 0);
-  RETURN_IF_ERROR(gpu_task.UpdateParams());
+  ABSL_RETURN_IF_ERROR(gpu_task.UpdateParams());
 
   id<MTLCommandQueue> command_queue = [env.device() newCommandQueue];
   for (int i = 0; i < 10; ++i) {
@@ -772,7 +774,7 @@ absl::Status ConvMoEPerfTest(int seq_size, int src_channels, int dst_channels, i
 
   std::vector<MetalSpatialTensor> weights_tensors(weights_gpu.size());
   for (int i = 0; i < weights_gpu.size(); ++i) {
-    RETURN_IF_ERROR(CreateTensor(env.device(), weights_gpu[i], &weights_tensors[i]));
+    ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), weights_gpu[i], &weights_tensors[i]));
   }
 
   TensorDescriptor scale_desc = ScaleOrZeroPointToTensorDesc(gpu_info, weights_scale, data_type);
@@ -783,8 +785,8 @@ absl::Status ConvMoEPerfTest(int seq_size, int src_channels, int dst_channels, i
   MetalSpatialTensor scale_tensor;
   MetalSpatialTensor zp_tensor;
   if (is_quantized) {
-    RETURN_IF_ERROR(CreateTensor(env.device(), scale_desc, &scale_tensor));
-    RETURN_IF_ERROR(CreateTensor(env.device(), zp_desc, &zp_tensor));
+    ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), scale_desc, &scale_tensor));
+    ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), zp_desc, &zp_tensor));
   }
 
   ExternalWeights external_weights;
@@ -816,20 +818,21 @@ absl::Status ConvMoEPerfTest(int seq_size, int src_channels, int dst_channels, i
         /*src_exp=*/nullptr, /*different_weights_for_height=*/true, runtime_check);
     conv = std::make_unique<ConvWaveMatrix>(std::move(conv_wave_matrix));
   } else {
-    ASSIGN_OR_RETURN(auto conv_fc, CreateFullyConnectedExternalWeights(
-                                       gpu_info, CalculationsPrecision::F16, op_def.src_tensors[0],
-                                       op_def.dst_tensors[0], external_weights, /*bias=*/nullptr,
-                                       &dst_shape, /*src_exp=*/nullptr, runtime_check));
+    ABSL_ASSIGN_OR_RETURN(
+        auto conv_fc,
+        CreateFullyConnectedExternalWeights(
+            gpu_info, CalculationsPrecision::F16, op_def.src_tensors[0], op_def.dst_tensors[0],
+            external_weights, /*bias=*/nullptr, &dst_shape, /*src_exp=*/nullptr, runtime_check));
     conv = std::make_unique<FullyConnected>(std::move(conv_fc));
   }
 
   MetalSpatialTensor src, dst;
   TensorDescriptor descriptor_with_shape = op_def.src_tensors[0];
   descriptor_with_shape.SetBHWCShape(src_shape);
-  RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &src));
+  ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &src));
   descriptor_with_shape = op_def.dst_tensors[0];
   descriptor_with_shape.SetBHWCShape(dst_shape);
-  RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &dst));
+  ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &dst));
 
   TensorInt32 active_expert_ids =
       GenerateGroupIds(BHWC(1, 1, seq_size, num_active_experts), num_experts);
@@ -846,14 +849,14 @@ absl::Status ConvMoEPerfTest(int seq_size, int src_channels, int dst_channels, i
   TensorDescriptor runtime_params_td(DataType::INT32, TensorStorageType::BUFFER, Layout::LINEAR);
   runtime_params_td.SetBHWCShape(BHWC(1, 1, 1, num_experts * 2));
   runtime_params_td.UploadData(runtime_params_cpu.data());
-  RETURN_IF_ERROR(CreateTensor(env.device(), runtime_params_td, &runtime_params));
+  ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), runtime_params_td, &runtime_params));
 
   std::cout << "Src size(BHWC) - " << src_shape.b << "x" << src_shape.h << "x" << src_shape.w << "x"
             << src_shape.c << std::endl;
   std::cout << "Dst size(BHWC) - " << dst_shape.b << "x" << dst_shape.h << "x" << dst_shape.w << "x"
             << dst_shape.c << std::endl;
 
-  RETURN_IF_ERROR(conv->AssembleCode(gpu_info));
+  ABSL_RETURN_IF_ERROR(conv->AssembleCode(gpu_info));
 
   const int64_t flops_count = 2.0 * dst_shape.DimensionsProduct() * weights_f32.shape.i;
   const double gflops_count = flops_count * 1e-9;
@@ -867,7 +870,7 @@ absl::Status ConvMoEPerfTest(int seq_size, int src_channels, int dst_channels, i
 
   ComputeTask gpu_task;
   gpu_task.Init(std::move(conv));
-  RETURN_IF_ERROR(gpu_task.Compile(&env));
+  ABSL_RETURN_IF_ERROR(gpu_task.Compile(&env));
   int index = 0;
   gpu_task.SetSrcTensor(&src, index++);
   for (int i = 0; i < weights_tensors.size(); ++i) {
@@ -879,7 +882,7 @@ absl::Status ConvMoEPerfTest(int seq_size, int src_channels, int dst_channels, i
   }
   gpu_task.SetSrcTensor(&runtime_params, index++);
   gpu_task.SetDstTensor(&dst, 0);
-  RETURN_IF_ERROR(gpu_task.UpdateParams());
+  ABSL_RETURN_IF_ERROR(gpu_task.UpdateParams());
 
   id<MTLCommandQueue> command_queue = [env.device() newCommandQueue];
   for (int i = 0; i < 10; ++i) {
@@ -909,7 +912,7 @@ absl::Status ConvSoftmaxConvPerfTest() {
   op_def.src_tensors.push_back({data_type, TensorStorageType::BUFFER, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, TensorStorageType::BUFFER, Layout::HWC});
 
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       TestConvSoftmaxConvPerformance(BHWC(1, 16, 4096, 40), 40, 4096, op_def, precision));
 
   return absl::OkStatus();
@@ -950,10 +953,10 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision, DataTy
   MetalSpatialTensor src, dst;
   TensorDescriptor descriptor_with_shape = op_def.src_tensors[0];
   descriptor_with_shape.SetBHWCShape(src_shape);
-  RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &src));
+  ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &src));
   descriptor_with_shape = op_def.dst_tensors[0];
   descriptor_with_shape.SetBHWCShape(dst_shape);
-  RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &dst));
+  ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &dst));
 
   const auto w_shape = weights.shape;
 
@@ -1001,7 +1004,7 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision, DataTy
 
   std::vector<MetalSpatialTensor> weights_tensors(weights_gpu.size());
   for (int i = 0; i < weights_gpu.size(); ++i) {
-    RETURN_IF_ERROR(CreateTensor(env.device(), weights_gpu[i], &weights_tensors[i]));
+    ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), weights_gpu[i], &weights_tensors[i]));
   }
 
   TensorDescriptor scale_desc = ScaleOrZeroPointToTensorDesc(gpu_info, weights_scale, data_type);
@@ -1012,8 +1015,8 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision, DataTy
   MetalSpatialTensor scale_tensor;
   MetalSpatialTensor zp_tensor;
   if (is_quantized) {
-    RETURN_IF_ERROR(CreateTensor(env.device(), scale_desc, &scale_tensor));
-    RETURN_IF_ERROR(CreateTensor(env.device(), zp_desc, &zp_tensor));
+    ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), scale_desc, &scale_tensor));
+    ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), zp_desc, &zp_tensor));
   }
 
   ExternalWeights external_weights;
@@ -1036,17 +1039,17 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision, DataTy
   std::vector<double> time_ms(wg_sizes.size());
 
   for (int i = 0; i < wg_sizes.size(); ++i) {
-    ASSIGN_OR_RETURN(auto operation, CreateFullyConnectedExternalWeights(
-                                         gpu_info, precision, op_def.src_tensors[0],
-                                         op_def.dst_tensors[0], external_weights,
-                                         /*bias=*/nullptr, &dst_shape, /*src_exp=*/nullptr,
-                                         /*runtime_check=*/{}, &wg_sizes[i]));
+    ABSL_ASSIGN_OR_RETURN(auto operation, CreateFullyConnectedExternalWeights(
+                                              gpu_info, precision, op_def.src_tensors[0],
+                                              op_def.dst_tensors[0], external_weights,
+                                              /*bias=*/nullptr, &dst_shape, /*src_exp=*/nullptr,
+                                              /*runtime_check=*/{}, &wg_sizes[i]));
     std::unique_ptr<GPUOperation> conv = std::make_unique<FullyConnected>(std::move(operation));
-    RETURN_IF_ERROR(conv->AssembleCode(env.GetInfo()));
+    ABSL_RETURN_IF_ERROR(conv->AssembleCode(env.GetInfo()));
 
     ComputeTask gpu_kernel;
     gpu_kernel.Init(std::move(conv));
-    RETURN_IF_ERROR(gpu_kernel.Compile(&env));
+    ABSL_RETURN_IF_ERROR(gpu_kernel.Compile(&env));
     int index = 0;
     gpu_kernel.SetSrcTensor(&src, index++);
     for (int i = 0; i < weights_tensors.size(); ++i) {
@@ -1057,7 +1060,7 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision, DataTy
       gpu_kernel.SetSrcTensor(&zp_tensor, index++);
     }
     gpu_kernel.SetDstTensor(&dst, 0);
-    RETURN_IF_ERROR(gpu_kernel.UpdateParams());
+    ABSL_RETURN_IF_ERROR(gpu_kernel.UpdateParams());
 
     time_ms[i] = absl::ToDoubleMilliseconds(gpu_kernel.GetTaskTime(command_queue));
     std::cout << "WG size: " << wg_sizes[i].x << "x" << wg_sizes[i].y << " - time: " << time_ms[i]
@@ -1137,10 +1140,10 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision, DataType we
   MetalSpatialTensor src, dst;
   TensorDescriptor descriptor_with_shape = op_def.src_tensors[0];
   descriptor_with_shape.SetBHWCShape(src_shape);
-  RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &src));
+  ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &src));
   descriptor_with_shape = op_def.dst_tensors[0];
   descriptor_with_shape.SetBHWCShape(dst_shape);
-  RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &dst));
+  ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &dst));
 
   const auto w_shape = weights.shape;
 
@@ -1189,7 +1192,7 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision, DataType we
 
   std::vector<MetalSpatialTensor> weights_tensors(weights_gpu.size());
   for (int i = 0; i < weights_gpu.size(); ++i) {
-    RETURN_IF_ERROR(CreateTensor(env.device(), weights_gpu[i], &weights_tensors[i]));
+    ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), weights_gpu[i], &weights_tensors[i]));
   }
 
   TensorDescriptor scale_desc = ScaleOrZeroPointToTensorDesc(gpu_info, weights_scale, data_type);
@@ -1200,8 +1203,8 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision, DataType we
   MetalSpatialTensor scale_tensor;
   MetalSpatialTensor zp_tensor;
   if (is_quantized) {
-    RETURN_IF_ERROR(CreateTensor(env.device(), scale_desc, &scale_tensor));
-    RETURN_IF_ERROR(CreateTensor(env.device(), zp_desc, &zp_tensor));
+    ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), scale_desc, &scale_tensor));
+    ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), zp_desc, &zp_tensor));
   }
 
   ExternalWeights external_weights;
@@ -1215,16 +1218,16 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision, DataType we
     }
   }
 
-  ASSIGN_OR_RETURN(auto operation,
-                   CreateFullyConnectedExternalWeights(gpu_info, precision, op_def.src_tensors[0],
-                                                       op_def.dst_tensors[0], external_weights,
-                                                       /*bias=*/nullptr, &dst_shape));
+  ABSL_ASSIGN_OR_RETURN(auto operation, CreateFullyConnectedExternalWeights(
+                                            gpu_info, precision, op_def.src_tensors[0],
+                                            op_def.dst_tensors[0], external_weights,
+                                            /*bias=*/nullptr, &dst_shape));
   std::unique_ptr<GPUOperation> conv = std::make_unique<FullyConnected>(std::move(operation));
-  RETURN_IF_ERROR(conv->AssembleCode(gpu_info));
+  ABSL_RETURN_IF_ERROR(conv->AssembleCode(gpu_info));
 
   ComputeTask gpu_task;
   gpu_task.Init(std::move(conv));
-  RETURN_IF_ERROR(gpu_task.Compile(&env));
+  ABSL_RETURN_IF_ERROR(gpu_task.Compile(&env));
   gpu_task.SetSrcTensor(&src, 0);
   int index = 0;
   gpu_task.SetSrcTensor(&src, index++);
@@ -1238,7 +1241,7 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision, DataType we
     }
   }
   gpu_task.SetDstTensor(&dst, 0);
-  RETURN_IF_ERROR(gpu_task.UpdateParams());
+  ABSL_RETURN_IF_ERROR(gpu_task.UpdateParams());
 
   double gbytes_read = src_gbytes + weight_gbytes;
   if (is_quantized) {
@@ -1277,13 +1280,13 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision, DataType we
     std::vector<MetalSpatialTensor> zp_tensors_multiple(kMultiplier);
     for (int k = 0; k < kMultiplier; ++k) {
       for (int i = 0; i < weights_gpu.size(); ++i) {
-        RETURN_IF_ERROR(CreateTensor(env.device(), weights_gpu[i],
-                                     &weights_tensors_multiple[k * weights_gpu.size() + i]));
+        ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), weights_gpu[i],
+                                          &weights_tensors_multiple[k * weights_gpu.size() + i]));
       }
       if (is_quantized) {
-        RETURN_IF_ERROR(CreateTensor(env.device(), scale_desc, &scale_tensors_multiple[k]));
+        ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), scale_desc, &scale_tensors_multiple[k]));
         if (use_zero_point) {
-          RETURN_IF_ERROR(CreateTensor(env.device(), zp_desc, &zp_tensors_multiple[k]));
+          ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), zp_desc, &zp_tensors_multiple[k]));
         }
       }
     }
@@ -1306,7 +1309,7 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision, DataType we
               gpu_task.SetSrcTensor(&zp_tensors_multiple[w_id], index++);
             }
           }
-          RETURN_IF_ERROR(gpu_task.UpdateParams());
+          ABSL_RETURN_IF_ERROR(gpu_task.UpdateParams());
           gpu_task.Encode(encoder);
         }
         [encoder endEncoding];
@@ -1368,10 +1371,10 @@ absl::Status FullyConnectedInt4Sparse2x4PerfTest(CalculationsPrecision precision
   MetalSpatialTensor src, dst;
   TensorDescriptor descriptor_with_shape = op_def.src_tensors[0];
   descriptor_with_shape.SetBHWCShape(src_shape);
-  RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &src));
+  ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &src));
   descriptor_with_shape = op_def.dst_tensors[0];
   descriptor_with_shape.SetBHWCShape(dst_shape);
-  RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &dst));
+  ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &dst));
 
   std::cout << "Src size(HWC) - " << src_shape.h << "x" << src_shape.w << "x" << src_shape.c
             << std::endl;
@@ -1398,14 +1401,14 @@ absl::Status FullyConnectedInt4Sparse2x4PerfTest(CalculationsPrecision precision
   std::unique_ptr<GPUOperation> conv = std::make_unique<FullyConnected>(
       CreateFullyConnectedInt4Sparse2x4(env.GetInfo(), op_def, precision, weights, weights_indices,
                                         weights_scale, weights_zp, bias, &dst_shape));
-  RETURN_IF_ERROR(conv->AssembleCode(env.GetInfo()));
+  ABSL_RETURN_IF_ERROR(conv->AssembleCode(env.GetInfo()));
 
   ComputeTask gpu_task;
   gpu_task.Init(std::move(conv));
-  RETURN_IF_ERROR(gpu_task.Compile(&env));
+  ABSL_RETURN_IF_ERROR(gpu_task.Compile(&env));
   gpu_task.SetSrcTensor(&src, 0);
   gpu_task.SetDstTensor(&dst, 0);
-  RETURN_IF_ERROR(gpu_task.UpdateParams());
+  ABSL_RETURN_IF_ERROR(gpu_task.UpdateParams());
 
   id<MTLCommandQueue> command_queue = [env.device() newCommandQueue];
   for (int i = 0; i < 10; ++i) {
@@ -1438,12 +1441,12 @@ absl::Status AddScalarTest(const BHWC& shape, const DataType& data_type) {
   MetalSpatialTensor src, dst;
   TensorDescriptor descriptor_with_shape = op_def.src_tensors[0];
   descriptor_with_shape.SetBHWCShape(shape);
-  RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &src));
+  ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &src));
   descriptor_with_shape = op_def.dst_tensors[0];
   descriptor_with_shape.SetBHWCShape(shape);
-  RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &dst));
+  ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &dst));
 
-  RETURN_IF_ERROR(add->AssembleCode(env.GetInfo()));
+  ABSL_RETURN_IF_ERROR(add->AssembleCode(env.GetInfo()));
 
   const double kGByte = 1024.0 * 1024.0 * 1024.0;
   const int64_t dst_elements_alignedx4 = dst.Width() * dst.Height() * dst.Slices() * 4;
@@ -1456,10 +1459,10 @@ absl::Status AddScalarTest(const BHWC& shape, const DataType& data_type) {
 
   ComputeTask gpu_task;
   gpu_task.Init(std::move(add));
-  RETURN_IF_ERROR(gpu_task.Compile(&env));
+  ABSL_RETURN_IF_ERROR(gpu_task.Compile(&env));
   gpu_task.SetSrcTensor(&src, 0);
   gpu_task.SetDstTensor(&dst, 0);
-  RETURN_IF_ERROR(gpu_task.UpdateParams());
+  ABSL_RETURN_IF_ERROR(gpu_task.UpdateParams());
 
   id<MTLCommandQueue> command_queue = [env.device() newCommandQueue];
   for (int i = 0; i < 10; ++i) {
@@ -1503,12 +1506,12 @@ absl::Status WinogradForwardTest(const BHWC& src_shape, const DataType& data_typ
   MetalSpatialTensor src, dst;
   TensorDescriptor descriptor_with_shape = op_def.src_tensors[0];
   descriptor_with_shape.SetBHWCShape(src_shape);
-  RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &src));
+  ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &src));
   descriptor_with_shape = op_def.dst_tensors[0];
   descriptor_with_shape.SetBHWCShape(dst_shape);
-  RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &dst));
+  ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &dst));
 
-  RETURN_IF_ERROR(operation->AssembleCode(env.GetInfo()));
+  ABSL_RETURN_IF_ERROR(operation->AssembleCode(env.GetInfo()));
 
   const double kGByte = 1024.0 * 1024.0 * 1024.0;
   const int64_t dst_elements_alignedx4 = dst.Width() * dst.Height() * dst.Slices() * 4;
@@ -1525,10 +1528,10 @@ absl::Status WinogradForwardTest(const BHWC& src_shape, const DataType& data_typ
 
   ComputeTask gpu_task;
   gpu_task.Init(std::move(operation));
-  RETURN_IF_ERROR(gpu_task.Compile(&env));
+  ABSL_RETURN_IF_ERROR(gpu_task.Compile(&env));
   gpu_task.SetSrcTensor(&src, 0);
   gpu_task.SetDstTensor(&dst, 0);
-  RETURN_IF_ERROR(gpu_task.UpdateParams());
+  ABSL_RETURN_IF_ERROR(gpu_task.UpdateParams());
 
   id<MTLCommandQueue> command_queue = [env.device() newCommandQueue];
   for (int i = 0; i < 10; ++i) {
@@ -1573,12 +1576,12 @@ absl::Status WinogradBackwardTest(const BHWC& dst_shape, const DataType& data_ty
   MetalSpatialTensor src, dst;
   TensorDescriptor descriptor_with_shape = op_def.src_tensors[0];
   descriptor_with_shape.SetBHWCShape(src_shape);
-  RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &src));
+  ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &src));
   descriptor_with_shape = op_def.dst_tensors[0];
   descriptor_with_shape.SetBHWCShape(dst_shape);
-  RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &dst));
+  ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &dst));
 
-  RETURN_IF_ERROR(operation->AssembleCode(env.GetInfo()));
+  ABSL_RETURN_IF_ERROR(operation->AssembleCode(env.GetInfo()));
 
   const double kGByte = 1024.0 * 1024.0 * 1024.0;
   const int64_t dst_elements_alignedx4 = dst.Width() * dst.Height() * dst.Slices() * 4;
@@ -1595,10 +1598,10 @@ absl::Status WinogradBackwardTest(const BHWC& dst_shape, const DataType& data_ty
 
   ComputeTask gpu_task;
   gpu_task.Init(std::move(operation));
-  RETURN_IF_ERROR(gpu_task.Compile(&env));
+  ABSL_RETURN_IF_ERROR(gpu_task.Compile(&env));
   gpu_task.SetSrcTensor(&src, 0);
   gpu_task.SetDstTensor(&dst, 0);
-  RETURN_IF_ERROR(gpu_task.UpdateParams());
+  ABSL_RETURN_IF_ERROR(gpu_task.UpdateParams());
 
   id<MTLCommandQueue> command_queue = [env.device() newCommandQueue];
   for (int i = 0; i < 10; ++i) {
@@ -1635,7 +1638,7 @@ absl::Status DepthwiseConvPerfTest(CalculationsPrecision precision, const BHWC& 
   op_def.src_tensors.push_back({data_type, TensorStorageType::BUFFER, layout});
   op_def.dst_tensors.push_back({data_type, TensorStorageType::BUFFER, layout});
 
-  RETURN_IF_ERROR(TestDepthwiseConvPerformance(attr, src_shape, op_def, precision));
+  ABSL_RETURN_IF_ERROR(TestDepthwiseConvPerformance(attr, src_shape, op_def, precision));
 
   return absl::OkStatus();
 }
@@ -1662,20 +1665,20 @@ absl::Status QuantizationPerfTest(const BHWC& src_shape, DataType src_type, Pack
   MetalSpatialTensor src, dst, params;
   TensorDescriptor descriptor_with_shape = op_def.src_tensors[0];
   descriptor_with_shape.SetBHWCShape(src_shape);
-  RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &src));
+  ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &src));
   descriptor_with_shape = op_def.dst_tensors[0];
   descriptor_with_shape.SetBHWCShape(dst_shape);
-  RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &dst));
+  ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &dst));
   descriptor_with_shape = op_def.dst_tensors[1];
   descriptor_with_shape.SetBHWCShape(params_shape);
-  RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &params));
+  ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &params));
 
   std::cout << "Src size(HWC) - " << src_shape.h << "x" << src_shape.w << "x" << src_shape.c
             << std::endl;
   std::cout << "Dst size(HWC) - " << dst_shape.h << "x" << dst_shape.w << "x" << dst_shape.c
             << std::endl;
 
-  RETURN_IF_ERROR(quant_op->AssembleCode(env.GetInfo()));
+  ABSL_RETURN_IF_ERROR(quant_op->AssembleCode(env.GetInfo()));
 
   const double kGByte = 1024.0 * 1024.0 * 1024.0;
   const double dst_gbytes = (dst.GetMemorySizeInBytes() + params.GetMemorySizeInBytes()) / kGByte;
@@ -1683,11 +1686,11 @@ absl::Status QuantizationPerfTest(const BHWC& src_shape, DataType src_type, Pack
 
   ComputeTask gpu_task;
   gpu_task.Init(std::move(quant_op));
-  RETURN_IF_ERROR(gpu_task.Compile(&env));
+  ABSL_RETURN_IF_ERROR(gpu_task.Compile(&env));
   gpu_task.SetSrcTensor(&src, 0);
   gpu_task.SetDstTensor(&dst, 0);
   gpu_task.SetDstTensor(&params, 1);
-  RETURN_IF_ERROR(gpu_task.UpdateParams());
+  ABSL_RETURN_IF_ERROR(gpu_task.UpdateParams());
 
   id<MTLCommandQueue> command_queue = [env.device() newCommandQueue];
   for (int i = 0; i < 5; ++i) {
@@ -1713,7 +1716,7 @@ absl::Status SoftmaxPerfTest(const BHWC& shape, bool reduce_only) {
   auto storage_type = TensorStorageType::BUFFER;
   Layout layout = shape.b == 1 ? Layout::HWC : Layout::BHWC;
   TensorDescriptor tensor_desc{data_type, storage_type, layout};
-  RETURN_IF_ERROR(tensor_desc.UpdateToSupportedStorageType(env.GetInfo(), shape));
+  ABSL_RETURN_IF_ERROR(tensor_desc.UpdateToSupportedStorageType(env.GetInfo(), shape));
   op_def.src_tensors.push_back(tensor_desc);
   op_def.dst_tensors.push_back(tensor_desc);
 
@@ -1733,19 +1736,19 @@ absl::Status SoftmaxPerfTest(const BHWC& shape, bool reduce_only) {
   MetalSpatialTensor src, dst;
   TensorDescriptor descriptor_with_shape = op_def.src_tensors[0];
   descriptor_with_shape.SetBHWCShape(shape);
-  RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &src));
+  ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &src));
   descriptor_with_shape = op_def.dst_tensors[0];
   BHWC dst_shape = shape;
   if (reduce_only) {
     dst_shape.c = 2;
   }
   descriptor_with_shape.SetBHWCShape(dst_shape);
-  RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &dst));
+  ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &dst));
 
   std::cout << "Src shape - " << ToString(shape) << std::endl;
   std::cout << "Dst shape - " << ToString(dst_shape) << std::endl;
 
-  RETURN_IF_ERROR(softmax->AssembleCode(env.GetInfo()));
+  ABSL_RETURN_IF_ERROR(softmax->AssembleCode(env.GetInfo()));
 
   const double kGByte = 1024.0 * 1024.0 * 1024.0;
   const double src_gbytes = src.GetMemorySizeInBytes() / kGByte;
@@ -1753,10 +1756,10 @@ absl::Status SoftmaxPerfTest(const BHWC& shape, bool reduce_only) {
 
   ComputeTask gpu_task;
   gpu_task.Init(std::move(softmax));
-  RETURN_IF_ERROR(gpu_task.Compile(&env));
+  ABSL_RETURN_IF_ERROR(gpu_task.Compile(&env));
   gpu_task.SetSrcTensor(&src, 0);
   gpu_task.SetDstTensor(&dst, 0);
-  RETURN_IF_ERROR(gpu_task.UpdateParams());
+  ABSL_RETURN_IF_ERROR(gpu_task.UpdateParams());
 
   id<MTLCommandQueue> command_queue = [env.device() newCommandQueue];
   for (int i = 0; i < 5; ++i) {

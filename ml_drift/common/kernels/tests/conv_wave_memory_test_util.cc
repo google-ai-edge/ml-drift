@@ -60,7 +60,7 @@ absl::Status ConvWaveMemoryTest(TestExecutionEnvironment& exec_env,
       CreateConvWaveMemory(exec_env.GetGpuInfo(), op_def, precision, attr);
   float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr);
   TensorFloat32 dst_tensor;
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       src_tensor, std::make_unique<ConvWaveMemory>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), dst_ref_tensor.data));
@@ -98,7 +98,7 @@ absl::Status ConvWaveMemoryExternalWeightsTest(
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
 
   float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr);
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       srcs_td, {&dst_td},
       std::make_unique<ConvWaveMemory>(std::move(operation))));
   TensorFloat32 dst_tensor;
@@ -137,7 +137,7 @@ absl::Status ConvWaveMemoryExternalBatchedWeightsTest(
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
 
   float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr);
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       srcs_td, {&dst_td},
       std::make_unique<ConvWaveMemory>(std::move(operation))));
   TensorFloat32 dst_tensor;
@@ -188,9 +188,9 @@ absl::Status ConvWaveMemoryWinograd4x4To6x6(TestExecutionEnvironment& exec_env,
   conv_result.shape =
       BHWC(src_tensor.shape.b, 36, tiles_x * tiles_y, dst_ref_tensor.shape.c);
 
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(src_tensor, std::move(wino_up),
-                                               BHWC(wino_up_result.shape),
-                                               &wino_up_result));
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+      src_tensor, std::move(wino_up), BHWC(wino_up_result.shape),
+      &wino_up_result));
   {
     TensorDescriptor src_td = op_def.src_tensors[0];
     src_td.UploadData(wino_up_result);
@@ -202,14 +202,14 @@ absl::Status ConvWaveMemoryWinograd4x4To6x6(TestExecutionEnvironment& exec_env,
     }
     TensorDescriptor dst_td = op_def.dst_tensors[0];
     dst_td.SetBHWCShape(BHWC(conv_result.shape));
-    RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+    ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
         srcs_td, {&dst_td},
         std::make_unique<ConvWaveMemory>(std::move(convolution))));
     dst_td.DownloadData(&conv_result);
   }
   float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr) * 3.0f;
   TensorFloat32 dst_tensor;
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       conv_result, std::move(wino_down), dst_ref_tensor.shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), dst_ref_tensor.data));
   return absl::OkStatus();
@@ -271,7 +271,7 @@ absl::Status ConvWaveMemoryBatchedMatMulTest(TestExecutionEnvironment& exec_env,
 
   int mads_count = left_tensor.shape.c;
   float eps = GetEpsilon(precision, exec_env.GetGpuInfo()) * mads_count;
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       srcs_td, {&dst_td},
       std::make_unique<ConvWaveMemory>(std::move(operation))));
   TensorFloat32 dst_tensor;
@@ -341,7 +341,7 @@ absl::Status ConvWaveMemoryInt8Test(
 
   TensorDescriptor dst_td = op_def.dst_tensors[0];
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       {&src_td}, {&dst_td},
       std::make_unique<ConvWaveMemory>(std::move(operation))));
   TensorInt32 dst_tensor;
@@ -432,7 +432,7 @@ absl::Status ConvWaveMemoryInt8ExternalWeightsTest(
 
   TensorDescriptor dst_td = op_def.dst_tensors[0];
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       {&src_td, &weights_i8_td}, {&dst_td},
       std::make_unique<ConvWaveMemory>(std::move(operation))));
   TensorInt32 dst_tensor;
@@ -482,7 +482,7 @@ absl::Status ConvWaveMemoryInt8WithSrcQuantizationTest(
     params_shape.c = need_src_sum ? 3 : 2;
     src_params_td.SetBHWCShape(params_shape);
 
-    RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+    ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
         {&src_td}, {&src_quantized_td, &src_params_td},
         std::move(quantization_op)));
   }
@@ -517,7 +517,8 @@ absl::Status ConvWaveMemoryInt8WithSrcQuantizationTest(
       weights_i8.shape, exec_env.GetGpuInfo(), conv_def.dst_tensors[0],
       dequant_dst, src_params_td, weights_sum_i_td, weights_scale_td,
       weights_zero_point_td_ptr);
-  RETURN_IF_ERROR(conv_op.AddOperation(exec_env.GetGpuInfo(), &dequant_op));
+  ABSL_RETURN_IF_ERROR(
+      conv_op.AddOperation(exec_env.GetGpuInfo(), &dequant_op));
 
   TensorDescriptor weights_i8_td;
   if (UseUint8MathForInt8Weights(exec_env.GetGpuInfo())) {
@@ -550,7 +551,7 @@ absl::Status ConvWaveMemoryInt8WithSrcQuantizationTest(
   if (weights_zero_point != nullptr) {
     src_descs.push_back(&weights_zero_point_td);
   }
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       src_descs, {&dst_td},
       std::make_unique<ConvWaveMemory>(std::move(conv_op))));
   TensorFloat32 dst_tensor;
@@ -591,7 +592,8 @@ absl::Status ConvWaveMemoryTest(TestExecutionEnvironment& env,
   const Layout layout = shape.b == 1 ? Layout::HWC : Layout::BHWC;
   op_def.src_tensors.push_back({data_type, storage, layout});
   op_def.dst_tensors.push_back({data_type, storage, layout});
-  RETURN_IF_ERROR(ConvWaveMemoryTest(env, attr, src_tensor, op_def, precision));
+  ABSL_RETURN_IF_ERROR(
+      ConvWaveMemoryTest(env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();
 }
 
@@ -622,7 +624,8 @@ absl::Status ConvWaveMemoryGroupedX3Test(TestExecutionEnvironment& env,
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  RETURN_IF_ERROR(ConvWaveMemoryTest(env, attr, src_tensor, op_def, precision));
+  ABSL_RETURN_IF_ERROR(
+      ConvWaveMemoryTest(env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();
 }
 
@@ -653,7 +656,8 @@ absl::Status ConvWaveMemoryGroupedX7Test(TestExecutionEnvironment& env,
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  RETURN_IF_ERROR(ConvWaveMemoryTest(env, attr, src_tensor, op_def, precision));
+  ABSL_RETURN_IF_ERROR(
+      ConvWaveMemoryTest(env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();
 }
 
@@ -683,8 +687,8 @@ absl::Status ConvWaveMemoryExternalWeightsTest(TestExecutionEnvironment& env,
   conv_def.src_tensors.push_back(
       {data_type, TensorStorageType::BUFFER, Layout::UNKNOWN});
   conv_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  RETURN_IF_ERROR(ConvWaveMemoryExternalWeightsTest(env, src_tensor, attr,
-                                                    conv_def, precision));
+  ABSL_RETURN_IF_ERROR(ConvWaveMemoryExternalWeightsTest(env, src_tensor, attr,
+                                                         conv_def, precision));
   return absl::OkStatus();
 }
 
@@ -710,7 +714,7 @@ absl::Status ConvWaveMemoryExternalBatchedWeightsTest(
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
   conv_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   conv_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  RETURN_IF_ERROR(ConvWaveMemoryExternalBatchedWeightsTest(
+  ABSL_RETURN_IF_ERROR(ConvWaveMemoryExternalBatchedWeightsTest(
       env, src_tensor, attr, conv_def, precision));
   return absl::OkStatus();
 }
@@ -741,7 +745,7 @@ absl::Status ConvWaveMemoryWinograd4x4To6x6Test(TestExecutionEnvironment& env,
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       ConvWaveMemoryWinograd4x4To6x6(env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();
 }
@@ -759,7 +763,7 @@ absl::Status ConvWaveMemoryBatchedMatMulTest(TestExecutionEnvironment& env,
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
   conv_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   conv_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  RETURN_IF_ERROR(ConvWaveMemoryBatchedMatMulTest(
+  ABSL_RETURN_IF_ERROR(ConvWaveMemoryBatchedMatMulTest(
       env, left_tensor, right_tensor, conv_def, precision));
   return absl::OkStatus();
 }
@@ -845,7 +849,7 @@ absl::Status ConvWaveMemoryPackedGroupsTest(TestExecutionEnvironment& env,
     srcs_td[idx++] = &weights_gpu[i];
   }
   srcs_td[idx++] = &runtime_params_td;
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {srcs_td}, {&dst_desc},
       std::make_unique<ConvWaveMemory>(std::move(convolution))));
 
@@ -897,8 +901,8 @@ absl::Status ConvWaveMemoryInt8Test(TestExecutionEnvironment& env,
     OperationDef op_def;
     op_def.src_tensors.push_back({src_data_type, src_storage, Layout::HWC});
     op_def.dst_tensors.push_back({dst_data_type, dst_storage, Layout::HWC});
-    RETURN_IF_ERROR(ConvWaveMemoryInt8Test(env, src_ui8_tensor, quantized_type,
-                                           weights_i8, op_def));
+    ABSL_RETURN_IF_ERROR(ConvWaveMemoryInt8Test(
+        env, src_ui8_tensor, quantized_type, weights_i8, op_def));
   }
   return absl::OkStatus();
 }
@@ -942,7 +946,7 @@ absl::Status ConvWaveMemoryInt8ExternalWeightsTest(
     OperationDef op_def;
     op_def.src_tensors.push_back({src_data_type, src_storage, Layout::HWC});
     op_def.dst_tensors.push_back({dst_data_type, dst_storage, Layout::HWC});
-    RETURN_IF_ERROR(ConvWaveMemoryInt8ExternalWeightsTest(
+    ABSL_RETURN_IF_ERROR(ConvWaveMemoryInt8ExternalWeightsTest(
         env, src_ui8_tensor, quantized_type, weights_i8, op_def));
   }
   return absl::OkStatus();
@@ -982,11 +986,11 @@ absl::Status ConvWaveMemoryInt8WithSrcQuantizationTest(
 
   for (const PackedType quantized_type :
        {PackedType::kUint8C4, PackedType::kUint8C16}) {
-    RETURN_IF_ERROR(ConvWaveMemoryInt8WithSrcQuantizationTest(
+    ABSL_RETURN_IF_ERROR(ConvWaveMemoryInt8WithSrcQuantizationTest(
         env, src_tensor, weights_i8, weights_scale,
         /*weights_zero_point=*/nullptr, quantized_type, int_storage, float_type,
         float_storage));
-    RETURN_IF_ERROR(ConvWaveMemoryInt8WithSrcQuantizationTest(
+    ABSL_RETURN_IF_ERROR(ConvWaveMemoryInt8WithSrcQuantizationTest(
         env, src_tensor, weights_i8, weights_scale, &weights_zp, quantized_type,
         int_storage, float_type, float_storage));
   }
@@ -1039,7 +1043,7 @@ absl::Status ConvWaveMemoryRuntimeChannelsTest(
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
 
   float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr);
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       srcs_td, {&dst_td},
       std::make_unique<ConvWaveMemory>(std::move(operation))));
   TensorFloat32 dst_tensor;

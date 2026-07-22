@@ -269,7 +269,7 @@ absl::Status CreateImage2DFromBuffer(const CLContext& context, cl_mem memory,
   format.image_channel_order = ToChannelOrder(channels);
   format.image_channel_data_type = DataTypeToChannelType(data_type);
 
-  ASSIGN_OR_RETURN(cl_mem_flags parent_flags, GetCLMemObjectFlags(memory));
+  ABSL_ASSIGN_OR_RETURN(cl_mem_flags parent_flags, GetCLMemObjectFlags(memory));
   const bool read_only = parent_flags & CL_MEM_READ_ONLY;
   cl_mem_flags flags = read_only ? CL_MEM_READ_ONLY : CL_MEM_READ_WRITE;
   cl_int error_code;
@@ -461,11 +461,12 @@ absl::Status Tensor::CreateFromDescriptor(const TensorDescriptor& tensor_desc,
   tensor_desc.CopyWithoutData(&tensor_desc_);
   memory_owner_ = true;
   CLMemory memory;
-  RETURN_IF_ERROR(AllocateTensorMemoryInternal(context, tensor_desc, &memory));
+  ABSL_RETURN_IF_ERROR(
+      AllocateTensorMemoryInternal(context, tensor_desc, &memory));
   memory_ = memory.Release();
   if (tensor_desc.GetStorageType() == TensorStorageType::IMAGE_BUFFER) {
     std::vector<uint64_t> storage_dims = tensor_desc_.GetStorageDims();
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         CreateImageBufferFromBuffer(context, memory_, tensor_desc.GetDataType(),
                                     storage_dims[0], &image_buffer_memory_));
   }
@@ -481,7 +482,7 @@ absl::Status Tensor::ToDescriptor(TensorDescriptor* tensor_desc,
                                   CLCommandQueue* queue) const {
   *tensor_desc = tensor_desc_;
   std::vector<uint8_t> data(GetMemorySizeInBytes());
-  RETURN_IF_ERROR(ReadData(data.data(), queue));
+  ABSL_RETURN_IF_ERROR(ReadData(data.data(), queue));
   tensor_desc->SetData(std::move(data));
   return absl::OkStatus();
 }
@@ -511,15 +512,15 @@ absl::Status Tensor::WriteData(const void* ptr, CLCommandQueue* queue,
   switch (tensor_desc_.GetStorageType()) {
     case TensorStorageType::BUFFER:
     case TensorStorageType::IMAGE_BUFFER:
-      RETURN_IF_ERROR(queue->EnqueueWriteBuffer(memory_, GetMemorySizeInBytes(),
-                                                ptr, async));
+      ABSL_RETURN_IF_ERROR(queue->EnqueueWriteBuffer(
+          memory_, GetMemorySizeInBytes(), ptr, async));
       break;
     case TensorStorageType::TEXTURE_ARRAY:
     case TensorStorageType::TEXTURE_2D:
     case TensorStorageType::TEXTURE_3D:
     case TensorStorageType::SINGLE_TEXTURE_2D: {
       cl_mem mem = buffer_based_ ? image_buffer_memory_ : memory_;
-      RETURN_IF_ERROR(queue->EnqueueWriteImage(
+      ABSL_RETURN_IF_ERROR(queue->EnqueueWriteImage(
           mem, tensor_desc_.GetFullTensorRegion(), ptr, async));
       break;
     }
@@ -533,7 +534,7 @@ absl::Status Tensor::ReadData(void* ptr, CLCommandQueue* queue) const {
   switch (tensor_desc_.GetStorageType()) {
     case TensorStorageType::BUFFER:
     case TensorStorageType::IMAGE_BUFFER:
-      RETURN_IF_ERROR(
+      ABSL_RETURN_IF_ERROR(
           queue->EnqueueReadBuffer(memory_, GetMemorySizeInBytes(), ptr));
       break;
     case TensorStorageType::TEXTURE_ARRAY:
@@ -541,7 +542,7 @@ absl::Status Tensor::ReadData(void* ptr, CLCommandQueue* queue) const {
     case TensorStorageType::TEXTURE_3D:
     case TensorStorageType::SINGLE_TEXTURE_2D: {
       cl_mem mem = buffer_based_ ? image_buffer_memory_ : memory_;
-      RETURN_IF_ERROR(queue->EnqueueReadImage(
+      ABSL_RETURN_IF_ERROR(queue->EnqueueReadImage(
           mem, tensor_desc_.GetFullTensorRegion(), ptr));
       break;
     }
@@ -554,12 +555,13 @@ absl::Status Tensor::ReadData(void* ptr, CLCommandQueue* queue) const {
 absl::Status CreateTensor(const CLContext& context,
                           const TensorDescriptor& tensor_desc, Tensor* result) {
   CLMemory mem;
-  RETURN_IF_ERROR(AllocateTensorMemoryInternal(context, tensor_desc, &mem));
+  ABSL_RETURN_IF_ERROR(
+      AllocateTensorMemoryInternal(context, tensor_desc, &mem));
   cl_mem memory = mem.Release();
   cl_mem image_memory = nullptr;
   if (tensor_desc.GetStorageType() == TensorStorageType::IMAGE_BUFFER) {
     std::vector<uint64_t> storage_dims = tensor_desc.GetStorageDims();
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         CreateImageBufferFromBuffer(context, memory, tensor_desc.GetDataType(),
                                     storage_dims[0], &image_memory));
   }
@@ -576,7 +578,7 @@ absl::Status CreateTensorShared(const CLContext& context, cl_mem memory,
   if (tensor_desc.GetStorageType() == TensorStorageType::IMAGE_BUFFER) {
     std::vector<uint64_t> storage_dims = tensor_desc.GetStorageDims();
     cl_mem image_memory;
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         CreateImageBufferFromBuffer(context, memory, tensor_desc.GetDataType(),
                                     storage_dims[0], &image_memory));
     *result = Tensor(memory, memory_owner, image_memory, tensor_desc);
@@ -595,7 +597,7 @@ absl::Status CreateTensorSharedImage2DBuffer(
   const int height = storage_dims[1];
   const int channels = tensor_desc.GetElementSize();
   cl_mem image_memory;
-  RETURN_IF_ERROR(CreateImage2DFromBuffer(
+  ABSL_RETURN_IF_ERROR(CreateImage2DFromBuffer(
       context, memory, tensor_desc.GetDataType(), width, height, channels,
       width_pixel_alignment, &image_memory));
   *result = Tensor(memory, false, image_memory, tensor_desc);

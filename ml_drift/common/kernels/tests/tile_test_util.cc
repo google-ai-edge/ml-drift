@@ -46,7 +46,7 @@ absl::Status TileChannelsTest(TestExecutionEnvironment& env, DataType data_type,
   TensorFloat32 dst_tensor;
   GPUOperation operation =
       CreateTile(src_desc, dst_desc, src_tensor.shape.c % 4 == 0);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 1, 6), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -66,7 +66,7 @@ absl::Status TileChannelsX4Test(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   GPUOperation operation =
       CreateTile(src_desc, dst_desc, src_tensor.shape.c % 4 == 0);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 1, 8), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -87,7 +87,7 @@ absl::Status TileWidthTest(TestExecutionEnvironment& env, DataType data_type,
   TensorFloat32 dst_tensor;
   GPUOperation operation =
       CreateTile(src_desc, dst_desc, src_tensor.shape.c % 4 == 0);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 1, 4, 3), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -107,7 +107,7 @@ absl::Status TileHeightTest(TestExecutionEnvironment& env, DataType data_type,
   TensorFloat32 dst_tensor;
   GPUOperation operation =
       CreateTile(src_desc, dst_desc, src_tensor.shape.c % 4 == 0);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 4, 1, 3), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -128,7 +128,7 @@ absl::Status TileHWCTest(TestExecutionEnvironment& env, DataType data_type,
   TensorFloat32 dst_tensor;
   GPUOperation operation =
       CreateTile(src_desc, dst_desc, src_tensor.shape.c % 4 == 0);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 4, 4, 6), &dst_tensor));
   EXPECT_THAT(
@@ -170,7 +170,7 @@ absl::Status TileChannelsIntTest(TestExecutionEnvironment& env,
       CreateTile(src_desc, dst_desc, src_tensor.shape.c % 4 == 0);
   Tensor<BHWC, T> dst_tensor;
   dst_tensor.shape = BHWC(1, 2, 1, 6);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
   dst_desc.DownloadData(&dst_tensor);
@@ -212,7 +212,7 @@ absl::Status TileChannelsX4IntTest(TestExecutionEnvironment& env,
       CreateTile(src_desc, dst_desc, src_tensor.shape.c % 4 == 0);
   Tensor<BHWC, T> dst_tensor;
   dst_tensor.shape = BHWC(1, 2, 1, 8);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
   dst_desc.DownloadData(&dst_tensor);
@@ -244,7 +244,7 @@ absl::Status Tile5DTest(TestExecutionEnvironment& env, DataType data_type,
   TensorDescriptor dst_desc(data_type, storage, Layout::BHWDC);
   Tensor5DFloat32 dst_tensor;
   GPUOperation operation = CreateTile(src_desc, dst_desc, true);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWDC(2, 4, 1, 2, 1), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,

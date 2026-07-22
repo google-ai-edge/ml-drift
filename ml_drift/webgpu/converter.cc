@@ -39,19 +39,19 @@ absl::Status TensorToTensorConverter::Init(const Environment& env,
   const GpuInfo& gpu_info = env.GetInfo();
   TensorToTensor gpu_op = CreateTensorToTensorOp(gpu_info, src_desc, dst_desc);
   gpu_op.RecalculateWorkGroupsSize(gpu_info, dst_desc.GetBHWCShape());
-  RETURN_IF_ERROR(gpu_op.AssembleCode(gpu_info));
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(gpu_op.AssembleCode(gpu_info));
+  ABSL_RETURN_IF_ERROR(
       op_.Init(env, std::make_unique<GPUOperation>(std::move(gpu_op))));
-  RETURN_IF_ERROR(op_.Compile(env, env.GetComputePipelineCache()));
+  ABSL_RETURN_IF_ERROR(op_.Compile(env, env.GetComputePipelineCache()));
   return absl::OkStatus();
 }
 
 absl::Status TensorToTensorConverter::Convert(
     const wgpu::Device& device, wgpu::ComputePassEncoder compute_encoder,
     SpatialTensor* src, SpatialTensor* dst) {
-  RETURN_IF_ERROR(op_.SetSrcTensor(0, src));
-  RETURN_IF_ERROR(op_.SetDstTensor(0, dst));
-  RETURN_IF_ERROR(op_.Update(device));
+  ABSL_RETURN_IF_ERROR(op_.SetSrcTensor(0, src));
+  ABSL_RETURN_IF_ERROR(op_.SetDstTensor(0, dst));
+  ABSL_RETURN_IF_ERROR(op_.Update(device));
   op_.UpdateGpuObjectBindings(device);
   return op_.Encode(compute_encoder);
 }
@@ -77,19 +77,19 @@ absl::Status TensorToBHWCBufferConverter::Init(
     gpu_op = CreateTensorToBhwcBufferAlignedOp(gpu_info, src_desc, dst_desc);
   }
   gpu_op.RecalculateWorkGroupsSize(gpu_info, src_desc.GetBHWCShape());
-  RETURN_IF_ERROR(gpu_op.AssembleCode(gpu_info));
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(gpu_op.AssembleCode(gpu_info));
+  ABSL_RETURN_IF_ERROR(
       op_.Init(env, std::make_unique<TensorToBhwcBuffer>(std::move(gpu_op))));
-  RETURN_IF_ERROR(op_.Compile(env, env.GetComputePipelineCache()));
+  ABSL_RETURN_IF_ERROR(op_.Compile(env, env.GetComputePipelineCache()));
   return absl::OkStatus();
 }
 
 absl::Status TensorToBHWCBufferConverter::Convert(
     const wgpu::Device& device, wgpu::ComputePassEncoder compute_encoder,
     SpatialTensor* src, Buffer* dst) {
-  RETURN_IF_ERROR(op_.SetSrcTensor(0, src));
-  RETURN_IF_ERROR(op_.SetDstBuffer(0, dst));
-  RETURN_IF_ERROR(op_.Update(device));
+  ABSL_RETURN_IF_ERROR(op_.SetSrcTensor(0, src));
+  ABSL_RETURN_IF_ERROR(op_.SetDstBuffer(0, dst));
+  ABSL_RETURN_IF_ERROR(op_.Update(device));
   op_.UpdateGpuObjectBindings(device);
   return op_.Encode(compute_encoder);
 }
@@ -115,19 +115,19 @@ absl::Status BHWCBufferToTensorConverter::Init(
     gpu_op = CreateBhwcBufferAlignedToTensorOp(gpu_info, src_desc, dst_desc);
   }
   gpu_op.RecalculateWorkGroupsSize(gpu_info, dst_desc.GetBHWCShape());
-  RETURN_IF_ERROR(gpu_op.AssembleCode(gpu_info));
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(gpu_op.AssembleCode(gpu_info));
+  ABSL_RETURN_IF_ERROR(
       op_.Init(env, std::make_unique<GPUOperation>(std::move(gpu_op))));
-  RETURN_IF_ERROR(op_.Compile(env, env.GetComputePipelineCache()));
+  ABSL_RETURN_IF_ERROR(op_.Compile(env, env.GetComputePipelineCache()));
   return absl::OkStatus();
 }
 
 absl::Status BHWCBufferToTensorConverter::Convert(
     const wgpu::Device& device, wgpu::ComputePassEncoder compute_encoder,
     Buffer* src, SpatialTensor* dst) {
-  RETURN_IF_ERROR(op_.SetSrcBuffer(0, src));
-  RETURN_IF_ERROR(op_.SetDstTensor(0, dst));
-  RETURN_IF_ERROR(op_.Update(device));
+  ABSL_RETURN_IF_ERROR(op_.SetSrcBuffer(0, src));
+  ABSL_RETURN_IF_ERROR(op_.SetDstTensor(0, dst));
+  ABSL_RETURN_IF_ERROR(op_.Update(device));
   op_.UpdateGpuObjectBindings(device);
   return op_.Encode(compute_encoder);
 }

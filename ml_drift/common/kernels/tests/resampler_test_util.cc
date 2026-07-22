@@ -61,7 +61,7 @@ absl::Status ResamplerIdentityTest(TestExecutionEnvironment& env,
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateResampler(env.GetGpuInfo(), op_def);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor, warp_tensor},
       std::make_unique<GPUOperation>(std::move(operation)), src_tensor.shape,
       &dst_tensor));

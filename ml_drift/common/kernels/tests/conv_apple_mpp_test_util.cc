@@ -67,8 +67,8 @@ absl::Status ConvAppleMPPBigTest(TestExecutionEnvironment& env,
           src_tensor_desc, dst_tensor_desc, attr.weights, attr.bias));
 
   TensorFloat32 dst_tensor;
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(src_tensor, std::move(conv),
-                                          dst_ref_tensor.shape, &dst_tensor));
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
+      src_tensor, std::move(conv), dst_ref_tensor.shape, &dst_tensor));
   float eps = GetEpsilon(CalculationsPrecision::F16, env.GetGpuInfo(), attr);
   EXPECT_THAT(dst_tensor.data,
               testing::Pointwise(testing::FloatNear(eps), dst_ref_tensor.data));
@@ -117,7 +117,7 @@ absl::Status ConvAppleMPPExternalWeightsTest(TestExecutionEnvironment& env,
   TensorDescriptor dst_td = dst_tensor_desc;
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
 
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       srcs_td, {&dst_td}, std::make_unique<ConvAppleMPP>(std::move(conv))));
   TensorFloat32 dst_tensor;
   dst_td.DownloadData(&dst_tensor);
@@ -196,7 +196,7 @@ absl::Status ConvAppleMPPPackedGroupsTest(TestExecutionEnvironment& env,
     srcs_td[idx++] = &weights_gpu[i];
   }
   srcs_td[idx++] = &runtime_params_td;
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {srcs_td}, {&dst_desc},
       std::make_unique<ConvAppleMPP>(std::move(convolution))));
 
@@ -263,7 +263,7 @@ absl::Status ConvAppleMPPExternalWfloatTest(TestExecutionEnvironment& env,
 
   float eps = GetEpsilon(CalculationsPrecision::F16, env.GetGpuInfo()) *
               weights_f32.shape.i * 4.0f;
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_td, &weights_td}, {&dst_td},
       std::make_unique<ConvAppleMPP>(std::move(operation))));
   TensorFloat32 dst_tensor;
@@ -352,7 +352,7 @@ absl::Status ConvAppleMPPExternalWi8Test(TestExecutionEnvironment& env,
 
   float eps = GetEpsilon(CalculationsPrecision::F16, env.GetGpuInfo()) *
               group_size * 8.0f;
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_td, &weights_i8_td, &scale_desc, &zp_desc}, {&dst_td},
       std::make_unique<ConvAppleMPP>(std::move(operation))));
   TensorFloat32 dst_tensor;
@@ -440,7 +440,7 @@ absl::Status ConvAppleMPPExternalWi4Test(TestExecutionEnvironment& env,
 
   float eps = GetEpsilon(CalculationsPrecision::F16, env.GetGpuInfo()) *
               group_size * 4.0f;
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_td, &weights_i4_td, &scale_desc, &zp_desc}, {&dst_td},
       std::make_unique<ConvAppleMPP>(std::move(operation))));
   TensorFloat32 dst_tensor;
@@ -528,7 +528,7 @@ absl::Status ConvAppleMPPExternalWi2Test(TestExecutionEnvironment& env,
 
   float eps = GetEpsilon(CalculationsPrecision::F16, env.GetGpuInfo()) *
               group_size * 2.0f;
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_td, &weights_i2_td, &scale_desc, &zp_desc}, {&dst_td},
       std::make_unique<ConvAppleMPP>(std::move(operation))));
   TensorFloat32 dst_tensor;
@@ -592,7 +592,7 @@ absl::Status ConvAppleMPPBatchedMatMulTest(TestExecutionEnvironment& env,
   int mads_count = left_tensor.shape.c;
   float eps =
       GetEpsilon(CalculationsPrecision::F16, env.GetGpuInfo()) * mads_count;
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       srcs_td, {&dst_td}, std::make_unique<ConvAppleMPP>(std::move(conv))));
   TensorFloat32 dst_tensor;
   dst_td.DownloadData(&dst_tensor);
@@ -662,7 +662,7 @@ absl::Status ConvWaveMemoryRuntimeChannelsTest(
 
   float eps =
       GetEpsilon(CalculationsPrecision::F16, exec_env.GetGpuInfo(), attr);
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       srcs_td, {&dst_td},
       std::make_unique<ConvAppleMPP>(std::move(operation))));
   TensorFloat32 dst_tensor;
@@ -766,7 +766,7 @@ absl::Status ConvAppleMPPInt8BigTest(TestExecutionEnvironment& env,
 
   TensorDescriptor dst_td = dst_tensor_desc;
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       env.ExecuteGPUOperation({&src_td}, {&dst_td}, std::move(conv)));
   TensorInt32 dst_tensor;
   dst_td.DownloadData(&dst_tensor);
@@ -827,7 +827,7 @@ absl::Status ConvAppleMPPInt8ExternalWeightsBigTest(
 
   TensorDescriptor dst_td = dst_tensor_desc;
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       env.ExecuteGPUOperation({&src_td, &weights_i8_td}, {&dst_td},
                               std::make_unique<ConvAppleMPP>(std::move(conv))));
   TensorInt32 dst_tensor;
@@ -884,7 +884,7 @@ absl::Status ConvAppleMPPInt8ExternalBatchedWi4Test(
 
   TensorDescriptor dst_td = dst_tensor_desc;
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       env.ExecuteGPUOperation({&src_td, &weights_i4_td}, {&dst_td},
                               std::make_unique<ConvAppleMPP>(std::move(conv))));
   TensorInt32 dst_tensor;
@@ -930,7 +930,7 @@ absl::Status ConvAppleMPPInt8WithSrcQuantizationTest(
     params_shape.c = calculate_sum ? 3 : 2;
     src_params_td.SetBHWCShape(params_shape);
 
-    RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+    ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
         {&src_td}, {&src_i8_td, &src_params_td}, std::move(quantization_op)));
   }
 
@@ -957,7 +957,7 @@ absl::Status ConvAppleMPPInt8WithSrcQuantizationTest(
       weights_i8.shape, exec_env.GetGpuInfo(), dst_tensor_desc, dequant_dst,
       src_params_td, weights_sum_i_td, weights_scale_td,
       weights_zero_point_td_ptr);
-  RETURN_IF_ERROR(conv.AddOperation(exec_env.GetGpuInfo(), &dequant_op));
+  ABSL_RETURN_IF_ERROR(conv.AddOperation(exec_env.GetGpuInfo(), &dequant_op));
 
   TensorDescriptor weights_i8_td;
   {
@@ -980,7 +980,7 @@ absl::Status ConvAppleMPPInt8WithSrcQuantizationTest(
   if (weights_zero_point != nullptr) {
     src_descs.push_back(&weights_zero_point_td);
   }
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       src_descs, {&dst_td}, std::make_unique<ConvAppleMPP>(std::move(conv))));
   TensorFloat32 dst_tensor;
   dst_td.DownloadData(&dst_tensor);
@@ -1025,10 +1025,10 @@ absl::Status ConvAppleMPPInt8WithSrcQuantizationBigTest(
     src_tensor.data[i] = src_tensor.data[i] * 2.0f + 2.5f;
   }
 
-  RETURN_IF_ERROR(ConvAppleMPPInt8WithSrcQuantizationTest(
+  ABSL_RETURN_IF_ERROR(ConvAppleMPPInt8WithSrcQuantizationTest(
       env, src_tensor, weights_i8, weights_scale,
       /*weights_zero_point=*/nullptr, float_type, float_storage, int_storage));
-  RETURN_IF_ERROR(ConvAppleMPPInt8WithSrcQuantizationTest(
+  ABSL_RETURN_IF_ERROR(ConvAppleMPPInt8WithSrcQuantizationTest(
       env, src_tensor, weights_i8, weights_scale, &weights_zp, float_type,
       float_storage, int_storage));
   return absl::OkStatus();

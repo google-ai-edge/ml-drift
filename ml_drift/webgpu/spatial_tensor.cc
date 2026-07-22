@@ -187,9 +187,9 @@ absl::Status WriteDataToBufferViaStagingBufferInChunks(
     uintptr_t aligned_intptr = AlignByN(data_intptr, kMappedPointerAlignment);
     if (aligned_intptr > data_intptr) {
       size_t chunk_size = aligned_intptr - data_intptr;
-      RETURN_IF_ERROR(WriteDataToBufferViaStagingBuffer(env, buffer, chunk_size,
-                                                        data_ptr, offset,
-                                                        /*dont_split=*/true));
+      ABSL_RETURN_IF_ERROR(WriteDataToBufferViaStagingBuffer(
+          env, buffer, chunk_size, data_ptr, offset,
+          /*dont_split=*/true));
       data_ptr = reinterpret_cast<const void*>(aligned_intptr);
       data_size -= chunk_size;
       offset += chunk_size;
@@ -200,9 +200,9 @@ absl::Status WriteDataToBufferViaStagingBufferInChunks(
   int num_chunks = DivideRoundUp(data_size, kMaxUploadChunkBytes);
   for (int i = 0; i < num_chunks; ++i) {
     size_t chunk_size = std::min(data_size, kMaxUploadChunkBytes);
-    RETURN_IF_ERROR(WriteDataToBufferViaStagingBuffer(env, buffer, chunk_size,
-                                                      data_ptr, offset,
-                                                      /*dont_split=*/true));
+    ABSL_RETURN_IF_ERROR(WriteDataToBufferViaStagingBuffer(
+        env, buffer, chunk_size, data_ptr, offset,
+        /*dont_split=*/true));
     data_ptr = static_cast<const uint8_t*>(data_ptr) + chunk_size;
     data_size -= chunk_size;
     offset += chunk_size;
@@ -300,7 +300,7 @@ absl::Status WriteDataToBufferViaStagingBuffer(const Environment& env,
   // Can't be blocked on Web. Try best effort to get the work done.
   Instance::Get().ProcessEvents();
 #else
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       WaitUntilCompleted(device.GetQueue(), device, absl::Seconds(10)));
 #endif  // !__EMSCRIPTEN__
   staging_buffer.Destroy();
@@ -421,7 +421,7 @@ absl::Status SpatialTensor::CreateFromDescriptor(const wgpu::Device& device,
   desc.CopyWithoutData(&descriptor_);
   memory_owner_ = true;
   SpatialTensorCreateInfo create_info;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       AllocateTensorMemory(device, descriptor_, desc.GetData(), &create_info));
   buffer_ = create_info.buffer;
   texture_ = create_info.texture;
@@ -440,7 +440,7 @@ absl::Status SpatialTensor::ToDescriptor(const wgpu::Device& device,
                                          TensorDescriptor* desc) const {
   *desc = descriptor_;
   std::vector<uint8_t> data(GetMemorySizeInBytes());
-  RETURN_IF_ERROR(ReadData(device, data.data()));
+  ABSL_RETURN_IF_ERROR(ReadData(device, data.data()));
   desc->SetData(std::move(data));
   return absl::OkStatus();
 }
@@ -497,8 +497,8 @@ absl::Status SpatialTensor::ReadData(const wgpu::Device& device,
   switch (descriptor_.GetStorageType()) {
     case TensorStorageType::BUFFER:
     case TensorStorageType::IMAGE_BUFFER:
-      RETURN_IF_ERROR(ReadDataFromBuffer(device, device.GetQueue(), buffer_,
-                                         GetMemorySizeInBytes(), ptr));
+      ABSL_RETURN_IF_ERROR(ReadDataFromBuffer(
+          device, device.GetQueue(), buffer_, GetMemorySizeInBytes(), ptr));
       break;
     case TensorStorageType::TEXTURE_ARRAY:
     case TensorStorageType::TEXTURE_2D:
@@ -510,9 +510,9 @@ absl::Status SpatialTensor::ReadData(const wgpu::Device& device,
               : 4;
       const int pixel_size = SizeOf(descriptor_.GetDataType()) * channels;
       auto region = descriptor_.GetFullTensorRegion();
-      RETURN_IF_ERROR(ReadDataFromTexture(device, device.GetQueue(), texture_,
-                                          pixel_size, region.x, region.y,
-                                          region.z, ptr));
+      ABSL_RETURN_IF_ERROR(ReadDataFromTexture(device, device.GetQueue(),
+                                               texture_, pixel_size, region.x,
+                                               region.y, region.z, ptr));
       break;
     }
     default:
@@ -525,7 +525,8 @@ absl::Status CreateTensor(const wgpu::Device& device,
                           const TensorDescriptor& descriptor,
                           SpatialTensor* result) {
   SpatialTensor::SpatialTensorCreateInfo create_info;
-  RETURN_IF_ERROR(AllocateTensorMemory(device, descriptor, {}, &create_info));
+  ABSL_RETURN_IF_ERROR(
+      AllocateTensorMemory(device, descriptor, {}, &create_info));
   *result = SpatialTensor(create_info, descriptor);
   return absl::OkStatus();
 }

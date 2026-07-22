@@ -50,7 +50,7 @@ absl::Status ReverseHWCTest(TestExecutionEnvironment& env, DataType data_type,
   src.UploadData(src_tensor);
   dst.SetBHWCShape(BHWC(1, 1, 3, 2));
   GPUOperation operation = CreateReverse(op_def, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src}, {&dst}, std::make_unique<GPUOperation>(std::move(operation))));
   TensorFloat32 dst_tensor;
   dst.DownloadData(&dst_tensor);
@@ -74,7 +74,7 @@ absl::Status ReverseBHWCTest(TestExecutionEnvironment& env, DataType data_type,
   src.UploadData(src_tensor);
   dst.SetBHWCShape(BHWC(3, 1, 1, 2));
   GPUOperation operation = CreateReverse(op_def, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src}, {&dst}, std::make_unique<GPUOperation>(std::move(operation))));
   TensorFloat32 dst_tensor;
   dst.DownloadData(&dst_tensor);

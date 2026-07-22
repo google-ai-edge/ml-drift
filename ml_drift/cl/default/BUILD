@@ -42,6 +42,6 @@ cc_library(
         "//ml_drift/cl:opencl_wrapper",
         "//ml_drift/cl:util_types",
         "//ml_drift/common:gpu_info",
-        "@com_google_absl//absl/status",
+        "//ml_drift/common:status",
     ],
 )

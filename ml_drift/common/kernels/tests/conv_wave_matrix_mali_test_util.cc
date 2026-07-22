@@ -23,7 +23,6 @@
 #include "gtest/gtest.h"
 #include "ml_drift/common/default/status_matchers.h"
 #include "xnnpack.h"  // from @XNNPACK
-#include "absl/status/status.h"
 #include "absl/types/span.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/kernels/conv_wave_matrix_mali.h"
@@ -70,7 +69,7 @@ absl::Status ConvWaveMatrixMaliInt8Test(
 
   TensorDescriptor dst_td = op_def.dst_tensors[0];
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       exec_env.ExecuteGPUOperation({&src_td}, {&dst_td}, std::move(conv)));
   TensorInt32 dst_tensor;
   dst_td.DownloadData(&dst_tensor);
@@ -110,7 +109,7 @@ absl::Status ConvWaveMatrixMaliInt8BigTest(TestExecutionEnvironment& env,
     op_def.src_tensors.push_back(
         {src_data_type, TensorStorageType::TEXTURE_2D, Layout::HWC});
     op_def.dst_tensors.push_back({dst_data_type, dst_storage, Layout::HWC});
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         ConvWaveMatrixMaliInt8Test(env, src_i8_tensor, weights_i8, op_def));
   }
   return absl::OkStatus();
@@ -154,7 +153,7 @@ absl::Status ConvWaveMatrixMaliInt8ExternalWeightsTest(
 
   TensorDescriptor dst_td = op_def.dst_tensors[0];
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       {&src_td, &weights_i8_td}, {&dst_td},
       std::make_unique<ConvWaveMatrixMali>(std::move(conv))));
   TensorInt32 dst_tensor;
@@ -194,7 +193,7 @@ absl::Status ConvWaveMatrixMaliInt8ExternalWeightsBigTest(
   op_def.src_tensors.push_back(
       {src_data_type, TensorStorageType::TEXTURE_2D, Layout::HWC});
   op_def.dst_tensors.push_back({dst_data_type, dst_storage, Layout::HWC});
-  RETURN_IF_ERROR(ConvWaveMatrixMaliInt8ExternalWeightsTest(
+  ABSL_RETURN_IF_ERROR(ConvWaveMatrixMaliInt8ExternalWeightsTest(
       env, src_i8_tensor, weights_i8, op_def));
   return absl::OkStatus();
 }
@@ -238,7 +237,7 @@ absl::Status ConvWaveMatrixMaliInt8WithSrcQuantizationTest(
     params_shape.c = calculate_sum ? 3 : 2;
     src_params_td.SetBHWCShape(params_shape);
 
-    RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+    ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
         {&src_td}, {&src_i8_td, &src_params_td}, std::move(quantization_op)));
   }
 
@@ -268,7 +267,7 @@ absl::Status ConvWaveMatrixMaliInt8WithSrcQuantizationTest(
       weights_i8.shape, exec_env.GetGpuInfo(), conv_def.dst_tensors[0],
       dequant_dst, src_params_td, weights_sum_i_td, weights_scale_td,
       weights_zero_point_td_ptr);
-  RETURN_IF_ERROR(conv.AddOperation(exec_env.GetGpuInfo(), &dequant_op));
+  ABSL_RETURN_IF_ERROR(conv.AddOperation(exec_env.GetGpuInfo(), &dequant_op));
 
   TensorDescriptor weights_i8_td;
   {
@@ -291,7 +290,7 @@ absl::Status ConvWaveMatrixMaliInt8WithSrcQuantizationTest(
   if (weights_zero_point != nullptr) {
     src_descs.push_back(&weights_zero_point_td);
   }
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       src_descs, {&dst_td},
       std::make_unique<ConvWaveMatrixMali>(std::move(conv))));
   TensorFloat32 dst_tensor;
@@ -337,10 +336,10 @@ absl::Status ConvWaveMatrixMaliInt8WithSrcQuantizationBigTest(
     src_tensor.data[i] = src_tensor.data[i] * 2.0f + 2.5f;
   }
 
-  RETURN_IF_ERROR(ConvWaveMatrixMaliInt8WithSrcQuantizationTest(
+  ABSL_RETURN_IF_ERROR(ConvWaveMatrixMaliInt8WithSrcQuantizationTest(
       env, src_tensor, weights_i8, weights_scale,
       /*weights_zero_point=*/nullptr, float_type, float_storage, int_storage));
-  RETURN_IF_ERROR(ConvWaveMatrixMaliInt8WithSrcQuantizationTest(
+  ABSL_RETURN_IF_ERROR(ConvWaveMatrixMaliInt8WithSrcQuantizationTest(
       env, src_tensor, weights_i8, weights_scale, &weights_zp, float_type,
       float_storage, int_storage));
   return absl::OkStatus();

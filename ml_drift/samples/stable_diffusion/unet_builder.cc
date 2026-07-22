@@ -86,10 +86,11 @@ absl::Status UnetBuilder::Build(
     emb = builder_.Add(emb, pooled_text_proj_tensor);
   }
   emb = builder_.SiLU(emb);
-  ASSIGN_OR_RETURN(auto t, MakeUNet(config, input_tensor, emb, guidance_tensor,
-                    "model.diffusion_model", /*plugins=*/{},
-                    /*plugins_strength=*/nullptr, /*control=*/nullptr,
-                    /*only_mid_control=*/false, debug_tensor_ptr));
+  ABSL_ASSIGN_OR_RETURN(
+      auto t, MakeUNet(config, input_tensor, emb, guidance_tensor,
+                       "model.diffusion_model", /*plugins=*/{},
+                       /*plugins_strength=*/nullptr, /*control=*/nullptr,
+                       /*only_mid_control=*/false, debug_tensor_ptr));
   auto etas = builder_.Split(t, Axis::BATCH, 1);
 
   if (latent_ptr) {
@@ -156,12 +157,12 @@ absl::Status UnetBuilder::BuildControlNet(
       builder_.AddTensor(BHWC(1, 2, 77, config.context_dim), float_type);
 
   auto emb_control = MakeTimeEmbed(temb_tensor, "control_model.time_embed");
-  ASSIGN_OR_RETURN(
+  ABSL_ASSIGN_OR_RETURN(
       auto control_tensors,
       MakeControlNet(config, src_tensor, condition_tensor, emb_control,
                      guidance_tensor, "control_model", debug_tensor_ptr));
   auto emb = MakeTimeEmbed(temb_tensor, "model.diffusion_model.time_embed");
-  ASSIGN_OR_RETURN(
+  ABSL_ASSIGN_OR_RETURN(
       auto t, MakeUNet(config, src_tensor, emb, guidance_tensor,
                        "model.diffusion_model",
 
@@ -233,11 +234,12 @@ absl::Status UnetBuilder::BuildUNetWithPlugins(
   auto plugins_strength_tensor =
       builder_.AddTensor(BHWC(1, 1, 1, 1), float_type);
   auto emb = MakeTimeEmbed(temb_tensor, "model.diffusion_model.time_embed");
-  ASSIGN_OR_RETURN(auto t, MakeUNet(config, src_tensor, emb, guidance_tensor,
-                    "model.diffusion_model", /*plugins=*/*plugin_tensors,
-                    /*plugins_strength=*/&plugins_strength_tensor,
-                    /*control=*/nullptr, /*only_mid_control=*/false,
-                    debug_tensor_ptr));
+  ABSL_ASSIGN_OR_RETURN(
+      auto t, MakeUNet(config, src_tensor, emb, guidance_tensor,
+                       "model.diffusion_model", /*plugins=*/*plugin_tensors,
+                       /*plugins_strength=*/&plugins_strength_tensor,
+                       /*control=*/nullptr, /*only_mid_control=*/false,
+                       debug_tensor_ptr));
   auto etas = builder_.Split(t, Axis::BATCH, 1);
 
   if (latent_ptr) {
@@ -476,8 +478,8 @@ absl::StatusOr<GpuModelBuilder::TensorHandle> UnetBuilder::MakeCrossAttention(
       v, BHWC{1, v.tensor_desc.GetBHWCShape().h * n,
               v.tensor_desc.GetBHWCShape().w, v.tensor_desc.GetBHWCShape().c});
 
-  ASSIGN_OR_RETURN(GpuModelBuilder::TensorHandle att,
-                   builder_.BatchedMatMulSoftmaxBatchedMatMul(q, k, v));
+  ABSL_ASSIGN_OR_RETURN(GpuModelBuilder::TensorHandle att,
+                        builder_.BatchedMatMulSoftmaxBatchedMatMul(q, k, v));
   att = builder_.Reshape(att, BHWC{n, att.tensor_desc.GetBHWCShape().h / n,
                                    att.tensor_desc.GetBHWCShape().w,
                                    att.tensor_desc.GetBHWCShape().c});
@@ -520,13 +522,13 @@ UnetBuilder::MakeBasicTransformerBlock(
   auto x = src;
   if (use_self_attn) {
     auto attn1 = MakeLayerNorm(x, name + ".norm1", /*epsilon=*/1e-5f);
-    ASSIGN_OR_RETURN(attn1, MakeCrossAttention(attn1, name + ".attn1", nullptr,
-                                               num_attn_heads));
+    ABSL_ASSIGN_OR_RETURN(attn1, MakeCrossAttention(attn1, name + ".attn1",
+                                                    nullptr, num_attn_heads));
     x = builder_.Add(attn1, x);
   }
   auto attn2 = MakeLayerNorm(x, name + ".norm2", /*epsilon=*/1e-5f);
-  ASSIGN_OR_RETURN(attn2, MakeCrossAttention(attn2, name + ".attn2", &context,
-                                             num_attn_heads));
+  ABSL_ASSIGN_OR_RETURN(attn2, MakeCrossAttention(attn2, name + ".attn2",
+                                                  &context, num_attn_heads));
   x = builder_.Add(attn2, x);
   auto ff = MakeLayerNorm(x, name + ".norm3", /*epsilon=*/1e-5f);
   ff = MakeFeedForward(ff, name + ".ff.net");
@@ -543,7 +545,7 @@ UnetBuilder::MakeSpatialTransformerBlock(
   x = MakeGroupNorm(x, name + ".norm");
   x = MakeConv(x, name + ".proj_in", src_shape.c, 1);
   for (int i = 0; i < transformer_blocks; ++i) {
-    ASSIGN_OR_RETURN(
+    ABSL_ASSIGN_OR_RETURN(
         x, MakeBasicTransformerBlock(
                x, context,
                absl::StrCat(name, ".transformer_blocks.", std::to_string(i)),
@@ -636,10 +638,10 @@ absl::StatusOr<GpuModelBuilder::TensorHandle> UnetBuilder::MakeUNet(
             config.num_transformer_blocks[level].size() > block) {
           int num_transformer_blocks =
               config.num_transformer_blocks[level][block];
-          ASSIGN_OR_RETURN(x, MakeSpatialTransformerBlock(
-                                  x, context, name_block + ".1",
-                                  config.num_attn_heads[level],
-                                  num_transformer_blocks, use_self_attn));
+          ABSL_ASSIGN_OR_RETURN(x, MakeSpatialTransformerBlock(
+                                       x, context, name_block + ".1",
+                                       config.num_attn_heads[level],
+                                       num_transformer_blocks, use_self_attn));
         }
       } else {
         // AttentionBlock
@@ -674,7 +676,7 @@ absl::StatusOr<GpuModelBuilder::TensorHandle> UnetBuilder::MakeUNet(
         !config_.use_convnext.empty() && config_.use_convnext.back() == true;
     x = MakeUNetResBlock(x, emb, name + ".middle_block.0", ch, ch,
                          use_convnext);
-    ASSIGN_OR_RETURN(
+    ABSL_ASSIGN_OR_RETURN(
         x, MakeSpatialTransformerBlock(
                x, context, name + ".middle_block.1",
                config.num_attn_heads[config.num_attn_heads.size() - 1]));
@@ -720,10 +722,10 @@ absl::StatusOr<GpuModelBuilder::TensorHandle> UnetBuilder::MakeUNet(
             config.num_transformer_blocks[level_idx].size() > block) {
           int num_transformer_blocks =
               config.num_transformer_blocks[level_idx][block];
-          ASSIGN_OR_RETURN(x, MakeSpatialTransformerBlock(
-                                  x, context, name_block + ".1",
-                                  config.num_attn_heads[level],
-                                  num_transformer_blocks, use_self_attn));
+          ABSL_ASSIGN_OR_RETURN(x, MakeSpatialTransformerBlock(
+                                       x, context, name_block + ".1",
+                                       config.num_attn_heads[level],
+                                       num_transformer_blocks, use_self_attn));
           ++sub_block_id;
         }
       } else {
@@ -818,7 +820,7 @@ UnetBuilder::MakeControlNet(const Config& config,
             config.num_transformer_blocks[level].size() > block) {
           int num_transformer_blocks =
               config.num_transformer_blocks[level][block];
-          ASSIGN_OR_RETURN(
+          ABSL_ASSIGN_OR_RETURN(
               x, MakeSpatialTransformerBlock(x, context, name_block + ".1",
                                              config.num_attn_heads[level],
                                              num_transformer_blocks));
@@ -848,9 +850,10 @@ UnetBuilder::MakeControlNet(const Config& config,
   if (!config_.skip_middle_blocks) {
     // middle blocks
     x = MakeUNetResBlock(x, emb, name + ".middle_block.0", ch, ch);
-    ASSIGN_OR_RETURN(x, MakeSpatialTransformerBlock(
-        x, context, name + ".middle_block.1",
-        config.num_attn_heads[config.num_attn_heads.size() - 1]));
+    ABSL_ASSIGN_OR_RETURN(
+        x, MakeSpatialTransformerBlock(
+               x, context, name + ".middle_block.1",
+               config.num_attn_heads[config.num_attn_heads.size() - 1]));
     x = MakeUNetResBlock(x, emb, name + ".middle_block.2", ch, ch);
     // "zero conv"
     outs.push_back(MakeConv(x, name + ".middle_block_out.0", ch, 1));

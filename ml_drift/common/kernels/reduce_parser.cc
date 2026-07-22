@@ -72,12 +72,12 @@ absl::Status TryAddThenReduce(const GpuInfo& gpu_info,
   }
   auto reduce_outputs = graph.FindOutputs(reduce_node->id);
 
-  ASSIGN_OR_RETURN(auto src0_handle,
-                   model_builder->GetTensor(add_inputs[0]->id));
-  ASSIGN_OR_RETURN(auto src1_handle,
-                   model_builder->GetTensor(add_inputs[1]->id));
-  ASSIGN_OR_RETURN(auto dst_handle,
-                   model_builder->GetTensor(reduce_outputs[0]->id));
+  ABSL_ASSIGN_OR_RETURN(auto src0_handle,
+                        model_builder->GetTensor(add_inputs[0]->id));
+  ABSL_ASSIGN_OR_RETURN(auto src1_handle,
+                        model_builder->GetTensor(add_inputs[1]->id));
+  ABSL_ASSIGN_OR_RETURN(auto dst_handle,
+                        model_builder->GetTensor(reduce_outputs[0]->id));
   OperationDef op_def;
   op_def.src_tensors.push_back(src0_handle.tensor_desc);
   op_def.src_tensors.push_back(src1_handle.tensor_desc);
@@ -137,10 +137,12 @@ absl::Status TryAddThenReduce(
   }
   const auto& reduce_outputs = reduce_op->outputs;
 
-  ASSIGN_OR_RETURN(auto src0_handle, model_builder->GetTensor(add_inputs[0]));
-  ASSIGN_OR_RETURN(auto src1_handle, model_builder->GetTensor(add_inputs[1]));
-  ASSIGN_OR_RETURN(auto dst_handle,
-                   model_builder->GetTensor(reduce_outputs[0]));
+  ABSL_ASSIGN_OR_RETURN(auto src0_handle,
+                        model_builder->GetTensor(add_inputs[0]));
+  ABSL_ASSIGN_OR_RETURN(auto src1_handle,
+                        model_builder->GetTensor(add_inputs[1]));
+  ABSL_ASSIGN_OR_RETURN(auto dst_handle,
+                        model_builder->GetTensor(reduce_outputs[0]));
   OperationDef op_def;
   op_def.src_tensors.push_back(src0_handle.tensor_desc);
   op_def.src_tensors.push_back(src1_handle.tensor_desc);

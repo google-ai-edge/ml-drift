@@ -49,7 +49,7 @@ absl::Status OneHotTest(TestExecutionEnvironment& env, DataType data_type,
   GPUOperation operation = CreateOneHot(op_def, attr);
   src.UploadData(src_tensor);
   dst.SetBHWCShape(BHWC(1, 1, 1, 8));
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src}, {&dst}, std::make_unique<GPUOperation>(std::move(operation))));
   TensorFloat32 dst_tensor;
   dst.DownloadData(&dst_tensor);
@@ -74,7 +74,7 @@ absl::Status OneHotBatchTest(TestExecutionEnvironment& env, DataType data_type,
   GPUOperation operation = CreateOneHot(op_def, attr);
   src.UploadData(src_tensor);
   dst.SetBHWCShape(BHWC(10, 1, 1, 10));
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src}, {&dst}, std::make_unique<GPUOperation>(std::move(operation))));
   TensorFloat32 dst_tensor;
   dst.DownloadData(&dst_tensor);
@@ -101,7 +101,7 @@ absl::Status OneHot2DTest(TestExecutionEnvironment& env, DataType data_type,
   GPUOperation operation = CreateOneHot(op_def, attr);
   src.UploadData(src_tensor);
   dst.SetBHWCShape(BHWC(2, 1, 3, 3));
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src}, {&dst}, std::make_unique<GPUOperation>(std::move(operation))));
   TensorFloat32 dst_tensor;
   dst.DownloadData(&dst_tensor);

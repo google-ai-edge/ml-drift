@@ -257,22 +257,23 @@ absl::Status ProfilingCommandQueue::ProfilingDispatch(
   number_of_dispatches_.push_back(n);
   if (n == 1) {
     events_.push_back(CLEvent());
-    RETURN_IF_ERROR(Dispatch(kernel, work_groups_count, work_group_size,
-                             &events_[events_.size() - 1]));
+    ABSL_RETURN_IF_ERROR(Dispatch(kernel, work_groups_count, work_group_size,
+                                  &events_[events_.size() - 1]));
     events_.back().SetName(current_label_);
   } else {
     events_.push_back(CLEvent());
     events_.push_back(CLEvent());
-    RETURN_IF_ERROR(Dispatch(kernel, work_groups_count, work_group_size,
-                             &events_[events_.size() - 2]));
+    ABSL_RETURN_IF_ERROR(Dispatch(kernel, work_groups_count, work_group_size,
+                                  &events_[events_.size() - 2]));
     for (int i = 1; i < n - 1; ++i) {
-      RETURN_IF_ERROR(Dispatch(kernel, work_groups_count, work_group_size));
+      ABSL_RETURN_IF_ERROR(
+          Dispatch(kernel, work_groups_count, work_group_size));
       if (flush_period && i % flush_period == 0) {
         clFlush(queue_);
       }
     }
-    RETURN_IF_ERROR(Dispatch(kernel, work_groups_count, work_group_size,
-                             &events_[events_.size() - 1]));
+    ABSL_RETURN_IF_ERROR(Dispatch(kernel, work_groups_count, work_group_size,
+                                  &events_[events_.size() - 1]));
     clFlush(queue_);
     events_[events_.size() - 2].SetName(current_label_);
     events_[events_.size() - 1].SetName(current_label_);
@@ -310,8 +311,8 @@ absl::Status ProfilingCommandQueue::GetBestWorkGroupIndex(
       gpu_info.IsAdreno() && gpu_info.adreno_info.IsAdreno3xx();
   events_.resize(work_group_sizes.size());
   for (int i = 0; i < work_group_sizes.size(); ++i) {
-    RETURN_IF_ERROR(CLCommandQueue::Dispatch(kernel, work_groups_count[i],
-                                             work_group_sizes[i], &events_[i]));
+    ABSL_RETURN_IF_ERROR(CLCommandQueue::Dispatch(
+        kernel, work_groups_count[i], work_group_sizes[i], &events_[i]));
 
     // reducing the speed of memory leak on Mali for some kernels
     if (gpu_info.IsMali() && i % 8 == 7) {
@@ -319,15 +320,15 @@ absl::Status ProfilingCommandQueue::GetBestWorkGroupIndex(
     }
     if (possible_bug_with_events) {
       // We are trying to increase probability for correct result.
-      RETURN_IF_ERROR(WaitForCompletion());
+      ABSL_RETURN_IF_ERROR(WaitForCompletion());
     }
   }
 
-  RETURN_IF_ERROR(WaitForCompletion());
+  ABSL_RETURN_IF_ERROR(WaitForCompletion());
 
   // To release memory of some kernel pool on Mali.
   if (gpu_info.IsMali()) {
-    RETURN_IF_ERROR(kernel.ReInit());
+    ABSL_RETURN_IF_ERROR(kernel.ReInit());
   }
 
   int minimum_index = 0;
@@ -384,8 +385,9 @@ absl::Status CreateCLCommandQueue(const CLDevice& device,
                                   const CLContext& context,
                                   CLCommandQueue* result,
                                   CLCommandQueueOptions options) {
-  ASSIGN_OR_RETURN(cl_command_queue queue,
-                   CreateCLCommandQueue(device, context, 0, options.priority));
+  ABSL_ASSIGN_OR_RETURN(
+      cl_command_queue queue,
+      CreateCLCommandQueue(device, context, 0, options.priority));
   *result = CLCommandQueue(queue, true);
   return absl::OkStatus();
 }
@@ -394,7 +396,7 @@ absl::Status CreateProfilingCommandQueue(const CLDevice& device,
                                          const CLContext& context,
                                          ProfilingCommandQueue* result,
                                          CLCommandQueueOptions options) {
-  ASSIGN_OR_RETURN(
+  ABSL_ASSIGN_OR_RETURN(
       cl_command_queue queue,
       CreateCLCommandQueue(device, context, CL_QUEUE_PROFILING_ENABLE,
                            options.priority));

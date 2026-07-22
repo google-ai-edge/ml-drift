@@ -207,7 +207,7 @@ absl::Status CreateCLBuffer(cl_context context, size_t size_in_bytes,
 absl::StatusOr<cl_mem> CreateCLSubBuffer(cl_context context, cl_mem parent,
                                          size_t origin_in_bytes,
                                          size_t size_in_bytes) {
-  ASSIGN_OR_RETURN(cl_mem_flags parent_flags, GetCLMemObjectFlags(parent));
+  ABSL_ASSIGN_OR_RETURN(cl_mem_flags parent_flags, GetCLMemObjectFlags(parent));
   const bool read_only = parent_flags & CL_MEM_READ_ONLY;
   cl_mem_flags flags = read_only ? CL_MEM_READ_ONLY : CL_MEM_READ_WRITE;
 

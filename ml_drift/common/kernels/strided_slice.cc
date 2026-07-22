@@ -215,16 +215,16 @@ absl::Status StridedSlice::BindArguments(ArgumentsBinder* args) {
     }
   }
 
-  RETURN_IF_ERROR(args->SetInt("offset_x", offset.x));
-  RETURN_IF_ERROR(args->SetInt("offset_y", offset.y));
-  RETURN_IF_ERROR(args->SetInt("offset_z", offset.z));
-  RETURN_IF_ERROR(args->SetInt("offset_d", offset_d));
-  RETURN_IF_ERROR(args->SetInt("offset_b", offset.w));
-  RETURN_IF_ERROR(args->SetInt("stride_x", attributes_.strides.w));
-  RETURN_IF_ERROR(args->SetInt("stride_y", attributes_.strides.h));
-  RETURN_IF_ERROR(args->SetInt("stride_z", attributes_.strides.c));
-  RETURN_IF_ERROR(args->SetInt("stride_d", attributes_.strides.d));
-  RETURN_IF_ERROR(args->SetInt("stride_b", attributes_.strides.b));
+  ABSL_RETURN_IF_ERROR(args->SetInt("offset_x", offset.x));
+  ABSL_RETURN_IF_ERROR(args->SetInt("offset_y", offset.y));
+  ABSL_RETURN_IF_ERROR(args->SetInt("offset_z", offset.z));
+  ABSL_RETURN_IF_ERROR(args->SetInt("offset_d", offset_d));
+  ABSL_RETURN_IF_ERROR(args->SetInt("offset_b", offset.w));
+  ABSL_RETURN_IF_ERROR(args->SetInt("stride_x", attributes_.strides.w));
+  ABSL_RETURN_IF_ERROR(args->SetInt("stride_y", attributes_.strides.h));
+  ABSL_RETURN_IF_ERROR(args->SetInt("stride_z", attributes_.strides.c));
+  ABSL_RETURN_IF_ERROR(args->SetInt("stride_d", attributes_.strides.d));
+  ABSL_RETURN_IF_ERROR(args->SetInt("stride_b", attributes_.strides.b));
   return absl::OkStatus();
 }
 

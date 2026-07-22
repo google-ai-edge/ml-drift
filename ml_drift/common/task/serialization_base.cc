@@ -312,7 +312,7 @@ absl::Status Decode(const data::BufferDescriptor* fb_desc,
   if (!fb_desc) {
     return absl::InvalidArgumentError("BufferDescriptor is null.");
   }
-  RETURN_IF_ERROR(Decode(fb_desc->base_obj(), desc));
+  ABSL_RETURN_IF_ERROR(Decode(fb_desc->base_obj(), desc));
   desc->element_type = ToEnum(fb_desc->element_type());
   desc->element_size = fb_desc->element_size();
   desc->memory_type = ToEnum(fb_desc->memory_type());
@@ -371,7 +371,7 @@ absl::Status Decode(const data::TensorDescriptor* fb_desc,
   if (!fb_desc) {
     return absl::InvalidArgumentError("TensorDescriptor is null.");
   }
-  RETURN_IF_ERROR(Decode(fb_desc->base_obj(), desc));
+  ABSL_RETURN_IF_ERROR(Decode(fb_desc->base_obj(), desc));
   desc->data_type_ = ToEnum(fb_desc->data_type());
   desc->storage_type_ = ToEnum(fb_desc->storage_type());
   desc->layout_ = ToEnum(fb_desc->layout());
@@ -431,7 +431,7 @@ absl::Status Decode(const data::Arguments* fb_args, Arguments* args) {
     std::string key(buffer_pair_fb->key()->c_str(),
                     buffer_pair_fb->key()->size());
     BufferDescriptor desc;
-    RETURN_IF_ERROR(Decode(buffer_pair_fb->value(), &desc));
+    ABSL_RETURN_IF_ERROR(Decode(buffer_pair_fb->value(), &desc));
     args->AddObject(key, std::make_unique<BufferDescriptor>(std::move(desc)));
   }
 
@@ -439,7 +439,7 @@ absl::Status Decode(const data::Arguments* fb_args, Arguments* args) {
     std::string key(tensor_pair_fb->key()->c_str(),
                     tensor_pair_fb->key()->size());
     TensorDescriptor desc;
-    RETURN_IF_ERROR(Decode(tensor_pair_fb->value(), &desc));
+    ABSL_RETURN_IF_ERROR(Decode(tensor_pair_fb->value(), &desc));
     args->AddObject(key, std::make_unique<TensorDescriptor>(std::move(desc)));
   }
 
@@ -447,7 +447,7 @@ absl::Status Decode(const data::Arguments* fb_args, Arguments* args) {
     std::string key(buffer_pair_fb->key()->c_str(),
                     buffer_pair_fb->key()->size());
     BufferDescriptor desc;
-    RETURN_IF_ERROR(Decode(buffer_pair_fb->value(), &desc));
+    ABSL_RETURN_IF_ERROR(Decode(buffer_pair_fb->value(), &desc));
     auto access_type = desc.GetAccess();
     args->AddObjectRef(key, access_type,
                        std::make_unique<BufferDescriptor>(std::move(desc)));
@@ -457,7 +457,7 @@ absl::Status Decode(const data::Arguments* fb_args, Arguments* args) {
     std::string key(tensor_pair_fb->key()->c_str(),
                     tensor_pair_fb->key()->size());
     TensorDescriptor desc;
-    RETURN_IF_ERROR(Decode(tensor_pair_fb->value(), &desc));
+    ABSL_RETURN_IF_ERROR(Decode(tensor_pair_fb->value(), &desc));
     auto access_type = desc.GetAccess();
     args->AddObjectRef(key, access_type,
                        std::make_unique<TensorDescriptor>(std::move(desc)));
@@ -573,7 +573,7 @@ absl::Status Decode(const data::GPUOperation* fb_op, GPUOperation* op) {
   if (!fb_op) {
     return absl::InvalidArgumentError("GPUOperation is null.");
   }
-  RETURN_IF_ERROR(Decode(fb_op->arguments(), &op->args_));
+  ABSL_RETURN_IF_ERROR(Decode(fb_op->arguments(), &op->args_));
   if (!fb_op->work_group_size()) {
     return absl::InvalidArgumentError("GPUOperation work_group_size is null.");
   }

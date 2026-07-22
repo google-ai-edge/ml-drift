@@ -61,26 +61,26 @@ absl::Status MetalExecutionEnvironment::ExecuteGpuOperationInternal(
   @autoreleasepool {
     std::vector<MetalSpatialTensor> src(src_cpu.size());
     for (int i = 0; i < src_cpu.size(); ++i) {
-      RETURN_IF_ERROR(
+      ABSL_RETURN_IF_ERROR(
           src[i].CreateFromDescriptor(*src_cpu[i], device_.device()));
     }
 
     std::vector<MetalSpatialTensor> dst(dst_cpu.size());
     for (int i = 0; i < dst_cpu.size(); ++i) {
-      RETURN_IF_ERROR(
+      ABSL_RETURN_IF_ERROR(
           dst[i].CreateFromDescriptor(*dst_cpu[i], device_.device()));
     }
 
     ComputeTask gpu_task;
     gpu_task.Init(std::move(operation));
-    RETURN_IF_ERROR(gpu_task.Compile(&device_));
+    ABSL_RETURN_IF_ERROR(gpu_task.Compile(&device_));
     for (int i = 0; i < src_cpu.size(); ++i) {
       gpu_task.SetSrcTensor(&src[i], i);
     }
     for (int i = 0; i < dst_cpu.size(); ++i) {
       gpu_task.SetDstTensor(&dst[i], i);
     }
-    RETURN_IF_ERROR(gpu_task.UpdateParams());
+    ABSL_RETURN_IF_ERROR(gpu_task.UpdateParams());
 
     bool use_icb = false;
     if (use_icb) {
@@ -127,7 +127,7 @@ absl::Status MetalExecutionEnvironment::ExecuteGpuOperationInternal(
     }
 
     for (int i = 0; i < dst_cpu.size(); ++i) {
-      RETURN_IF_ERROR(dst[i].ToDescriptor(dst_cpu[i], device_.device()));
+      ABSL_RETURN_IF_ERROR(dst[i].ToDescriptor(dst_cpu[i], device_.device()));
     }
   }
   return absl::OkStatus();

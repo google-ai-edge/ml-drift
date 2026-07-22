@@ -15,6 +15,8 @@
 #ifndef ML_DRIFT_COMMON_DEFAULT_STATUS_MACROS_H_
 #define ML_DRIFT_COMMON_DEFAULT_STATUS_MACROS_H_
 
+#include <utility>
+
 #include "absl/status/status.h"
 
 // Evaluates an expression that produces a `absl::Status`.
@@ -26,9 +28,9 @@
 //     RETURN_IF_ERROR(foo.Method(args...));
 //     return absl::OkStatus();
 //   }
-#define RETURN_IF_ERROR(expr)                                   \
+#define ABSL_RETURN_IF_ERROR(expr)                              \
   if (::ml_drift::status_macro_internal::StatusAdaptorForMacros \
-          status_macro_internal_adaptor = {expr}) {             \
+          status_macro_internal_adaptor{expr}) {               \
   } else /* NOLINT */                                           \
     return status_macro_internal_adaptor.Consume()
 
@@ -61,8 +63,8 @@
 // Example: Assigning to a std::unique_ptr.
 //   ASSIGN_OR_RETURN(std::unique_ptr<T> ptr, MaybeGetPtr(arg));
 //
-#define ASSIGN_OR_RETURN(lhs, rexpr)    \
-  STATUS_MACROS_IMPL_ASSIGN_OR_RETURN_( \
+#define ABSL_ASSIGN_OR_RETURN(lhs, rexpr) \
+  STATUS_MACROS_IMPL_ASSIGN_OR_RETURN_(   \
       STATUS_MACROS_IMPL_CONCAT_(_status_or_value, __LINE__), lhs, rexpr)
 
 // =================================================================
@@ -86,9 +88,11 @@ namespace status_macro_internal {
 // that declares a variable.
 class StatusAdaptorForMacros {
  public:
-  StatusAdaptorForMacros(const absl::Status& status) : status_(status) {}
+  explicit StatusAdaptorForMacros(const absl::Status& status)
+      : status_(status) {}
 
-  StatusAdaptorForMacros(absl::Status&& status) : status_(std::move(status)) {}
+  explicit StatusAdaptorForMacros(absl::Status&& status)
+      : status_(std::move(status)) {}
 
   StatusAdaptorForMacros(const StatusAdaptorForMacros&) = delete;
   StatusAdaptorForMacros& operator=(const StatusAdaptorForMacros&) = delete;
@@ -102,5 +106,11 @@ class StatusAdaptorForMacros {
 };
 }  // namespace status_macro_internal
 }  // namespace ml_drift
+
+// Non-prefixed aliases retained for backward compatibility. The google3 build
+// gets these (and the ABSL_-prefixed forms) from Abseil; this open-source shim
+// defines both spellings so either can be used interchangeably.
+#define RETURN_IF_ERROR(...) ABSL_RETURN_IF_ERROR(__VA_ARGS__)
+#define ASSIGN_OR_RETURN(...) ABSL_ASSIGN_OR_RETURN(__VA_ARGS__)
 
 #endif  // ML_DRIFT_COMMON_DEFAULT_STATUS_MACROS_H_

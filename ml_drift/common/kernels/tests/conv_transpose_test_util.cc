@@ -54,7 +54,7 @@ absl::Status ConvolutionTransposedTest(
                                                precision, attr);
   float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr);
   TensorFloat32 dst_tensor;
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       src_tensor, std::make_unique<ConvolutionTransposed>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), dst_ref_tensor.data));
@@ -73,7 +73,7 @@ absl::Status ConvolutionTransposed3DTest(
                                                  precision, attr);
   float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr);
   Tensor5DFloat32 dst_tensor;
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       src_tensor, std::make_unique<ConvolutionTransposed>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), dst_ref_tensor.data));
@@ -108,7 +108,7 @@ absl::Status ConvolutionTransposedDynamicWeightsTest(
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
 
   float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr);
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       srcs_td, {&dst_td},
       std::make_unique<ConvolutionTransposed>(std::move(operation))));
   TensorFloat32 dst_tensor;
@@ -146,7 +146,7 @@ absl::Status ConvTransposedSimpleWeightsTest(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   ConvolutionTransposed operation =
       CreateConvolutionTransposed(env.GetGpuInfo(), op_def, precision, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<ConvolutionTransposed>(std::move(operation)),
       BHWC(1, 4, 4, 2), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -186,7 +186,7 @@ absl::Status ConvTransposedTest(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   ConvolutionTransposed operation =
       CreateConvolutionTransposed(env.GetGpuInfo(), op_def, precision, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<ConvolutionTransposed>(std::move(operation)),
       BHWC(1, 4, 4, 1), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -338,7 +338,7 @@ absl::Status ConvolutionTransposed2x2Test(
                                                   precision, attr);
   float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr);
   TensorFloat32 dst_tensor;
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       src_tensor,
       std::make_unique<ConvolutionTransposed2x2>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
@@ -374,7 +374,7 @@ absl::Status ConvolutionTransposed2x2DynamicWeightsTest(
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
 
   float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr);
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       srcs_td, {&dst_td},
       std::make_unique<ConvolutionTransposed2x2>(std::move(operation))));
   TensorFloat32 dst_tensor;
@@ -407,7 +407,7 @@ absl::Status ConvolutionTransposed2x2Test(TestExecutionEnvironment& env,
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       ConvolutionTransposed2x2Test(env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();
 }
@@ -435,7 +435,7 @@ absl::Status ConvolutionTransposed2x2BatchedTest(
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
   op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       ConvolutionTransposed2x2Test(env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();
 }
@@ -465,7 +465,7 @@ absl::Status ConvolutionTransposed2x2DynamicWeightsTest(
   op_def.src_tensors.push_back(
       {data_type, TensorStorageType::BUFFER, Layout::UNKNOWN});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  RETURN_IF_ERROR(ConvolutionTransposed2x2DynamicWeightsTest(
+  ABSL_RETURN_IF_ERROR(ConvolutionTransposed2x2DynamicWeightsTest(
       env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();
 }
@@ -483,7 +483,7 @@ absl::Status ConvolutionTransposed3x3Test(
                                                   precision, attr);
   float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr);
   TensorFloat32 dst_tensor;
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       src_tensor,
       std::make_unique<ConvolutionTransposed3x3>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
@@ -519,7 +519,7 @@ absl::Status ConvolutionTransposed3x3ExternalWeightsTest(
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
 
   float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr);
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       srcs_td, {&dst_td},
       std::make_unique<ConvolutionTransposed3x3>(std::move(operation))));
   TensorFloat32 dst_tensor;
@@ -555,7 +555,7 @@ absl::Status ConvolutionTransposed3x3SimpleWeightsTest(
   TensorFloat32 dst_tensor;
   ConvolutionTransposed3x3 operation =
       CreateConvolutionTransposed3x3(env.GetGpuInfo(), op_def, precision, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor,
       std::make_unique<ConvolutionTransposed3x3>(std::move(operation)),
       BHWC(1, 4, 4, 1), &dst_tensor));
@@ -589,7 +589,7 @@ absl::Status ConvolutionTransposed3x3Test(TestExecutionEnvironment& env,
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       ConvolutionTransposed3x3Test(env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();
 }
@@ -617,7 +617,7 @@ absl::Status ConvolutionTransposed3x3BatchedTest(
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
   op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       ConvolutionTransposed3x3Test(env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();
 }
@@ -647,7 +647,7 @@ absl::Status ConvolutionTransposed3x3ExternalWeightsTest(
   op_def.src_tensors.push_back(
       {data_type, TensorStorageType::BUFFER, Layout::UNKNOWN});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  RETURN_IF_ERROR(ConvolutionTransposed3x3ExternalWeightsTest(
+  ABSL_RETURN_IF_ERROR(ConvolutionTransposed3x3ExternalWeightsTest(
       env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();
 }
@@ -666,7 +666,7 @@ absl::Status ConvolutionTransposed4x4Test(
                                                   precision, attr);
   float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr);
   TensorFloat32 dst_tensor;
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       src_tensor,
       std::make_unique<ConvolutionTransposed4x4>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
@@ -702,7 +702,7 @@ absl::Status ConvolutionTransposed4x4ExternalWeightsTest(
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
 
   float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr);
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       srcs_td, {&dst_td},
       std::make_unique<ConvolutionTransposed4x4>(std::move(operation))));
   TensorFloat32 dst_tensor;
@@ -739,7 +739,7 @@ absl::Status ConvolutionTransposed4x4SimpleWeightsTest(
   TensorFloat32 dst_tensor;
   ConvolutionTransposed4x4 operation =
       CreateConvolutionTransposed4x4(env.GetGpuInfo(), op_def, precision, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor,
       std::make_unique<ConvolutionTransposed4x4>(std::move(operation)),
       BHWC(1, 4, 4, 1), &dst_tensor));
@@ -773,7 +773,7 @@ absl::Status ConvolutionTransposed4x4Test(TestExecutionEnvironment& env,
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       ConvolutionTransposed4x4Test(env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();
 }
@@ -801,7 +801,7 @@ absl::Status ConvolutionTransposed4x4BatchedTest(
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
   op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       ConvolutionTransposed4x4Test(env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();
 }
@@ -831,7 +831,7 @@ absl::Status ConvolutionTransposed4x4ExternalWeightsTest(
   op_def.src_tensors.push_back(
       {data_type, TensorStorageType::BUFFER, Layout::UNKNOWN});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  RETURN_IF_ERROR(ConvolutionTransposed4x4ExternalWeightsTest(
+  ABSL_RETURN_IF_ERROR(ConvolutionTransposed4x4ExternalWeightsTest(
       env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();
 }

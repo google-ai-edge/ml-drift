@@ -64,8 +64,7 @@ absl::Status CreateMetalObject(id<MTLDevice> device, GPUObjectDescriptor* desc,
   const auto* buffer_desc = dynamic_cast<const BufferDescriptor*>(desc);
   if (buffer_desc) {
     Buffer gpu_buffer;
-    RETURN_IF_ERROR(
-        gpu_buffer.CreateFromBufferDescriptor(*buffer_desc, device));
+    ABSL_RETURN_IF_ERROR(gpu_buffer.CreateFromBufferDescriptor(*buffer_desc, device));
     *result = std::make_unique<Buffer>(std::move(gpu_buffer));
     return absl::OkStatus();
   }
@@ -73,7 +72,7 @@ absl::Status CreateMetalObject(id<MTLDevice> device, GPUObjectDescriptor* desc,
   const auto* tensor_desc = dynamic_cast<const TensorDescriptor*>(desc);
   if (tensor_desc) {
     MetalSpatialTensor gpu_tensor;
-    RETURN_IF_ERROR(gpu_tensor.CreateFromDescriptor(*tensor_desc, device));
+    ABSL_RETURN_IF_ERROR(gpu_tensor.CreateFromDescriptor(*tensor_desc, device));
     *result = std::make_unique<MetalSpatialTensor>(std::move(gpu_tensor));
     return absl::OkStatus();
   }
@@ -100,13 +99,13 @@ constexpr char MetalArguments::kArgsPrefix[];
 absl::Status MetalArguments::Init(const CodeInfo& code_info,
                                   bool use_arguments_buffer, Environment* env,
                                   Arguments* args, std::string* code) {
-  RETURN_IF_ERROR(AllocateObjects(*args, env->device()));
-  RETURN_IF_ERROR(AddObjectArgs(env->GetInfo(), *args));
+  ABSL_RETURN_IF_ERROR(AllocateObjects(*args, env->device()));
+  ABSL_RETURN_IF_ERROR(AddObjectArgs(env->GetInfo(), *args));
   args->MoveObjectRefs(&object_refs_);
   std::string call_prefix = use_arguments_buffer ? "args." : "";
   std::string struct_desc =
       CopyScalarArgumentsToStructWithVec4Fields(*args, call_prefix, code);
-  RETURN_IF_ERROR(SetObjectsResources(*args));
+  ABSL_RETURN_IF_ERROR(SetObjectsResources(*args));
   if (!use_arguments_buffer) {
     args->ResolveArgsPass(code);
   }
@@ -161,11 +160,11 @@ using namespace metal;
 
 absl::Status MetalArguments::Init(bool use_arguments_buffer, Environment* env,
                                   Arguments* args) {
-  RETURN_IF_ERROR(AllocateObjects(*args, env->device()));
-  RETURN_IF_ERROR(AddObjectArgs(env->GetInfo(), *args));
+  ABSL_RETURN_IF_ERROR(AllocateObjects(*args, env->device()));
+  ABSL_RETURN_IF_ERROR(AddObjectArgs(env->GetInfo(), *args));
   args->MoveObjectRefs(&object_refs_);
   CopyScalarArgumentsToStructWithVec4Fields(*args);
-  RETURN_IF_ERROR(SetObjectsResources(*args));
+  ABSL_RETURN_IF_ERROR(SetObjectsResources(*args));
   return absl::OkStatus();
 }
 
@@ -397,7 +396,7 @@ absl::Status MetalArguments::SetObjectRef(const std::string& name,
         absl::StrCat("No object ref with name - ", name));
   }
   GPUResourcesWithValue resources;
-  RETURN_IF_ERROR(object.GetGPUResources(it->second.get(), &resources));
+  ABSL_RETURN_IF_ERROR(object.GetGPUResources(it->second.get(), &resources));
   return SetGPUResources(name, resources);
 }
 
@@ -492,7 +491,7 @@ absl::Status MetalArguments::AllocateObjects(const Arguments& args,
   objects_.resize(args.GetObjects().size());
   int i = 0;
   for (auto& t : args.GetObjects()) {
-    RETURN_IF_ERROR(CreateMetalObject(device, t.second.get(), &objects_[i]));
+    ABSL_RETURN_IF_ERROR(CreateMetalObject(device, t.second.get(), &objects_[i]));
     i++;
   }
   return absl::OkStatus();
@@ -585,30 +584,29 @@ std::string MetalArguments::GetListOfArgs(const GpuInfo& gpu_info,
 absl::Status MetalArguments::SetGPUResources(
     const std::string& name, const GPUResourcesWithValue& resources) {
   for (const auto& r : resources.generic.ints) {
-    RETURN_IF_ERROR(SetInt(absl::StrCat(name, "_", r.first), r.second));
+    ABSL_RETURN_IF_ERROR(SetInt(absl::StrCat(name, "_", r.first), r.second));
   }
   for (const auto& r : resources.generic.uints) {
-    RETURN_IF_ERROR(SetUint(absl::StrCat(name, "_", r.first), r.second));
+    ABSL_RETURN_IF_ERROR(SetUint(absl::StrCat(name, "_", r.first), r.second));
   }
   for (const auto& r : resources.generic.floats) {
-    RETURN_IF_ERROR(SetFloat(absl::StrCat(name, "_", r.first), r.second));
+    ABSL_RETURN_IF_ERROR(SetFloat(absl::StrCat(name, "_", r.first), r.second));
   }
   for (const auto& r : resources.buffers) {
-    RETURN_IF_ERROR(SetBuffer(absl::StrCat(name, "_", r.first), r.second.handle,
-                              r.second.offset));
+    ABSL_RETURN_IF_ERROR(
+        SetBuffer(absl::StrCat(name, "_", r.first), r.second.handle, r.second.offset));
   }
   for (const auto& r : resources.images2d) {
-    RETURN_IF_ERROR(SetImage2D(absl::StrCat(name, "_", r.first), r.second));
+    ABSL_RETURN_IF_ERROR(SetImage2D(absl::StrCat(name, "_", r.first), r.second));
   }
   for (const auto& r : resources.image2d_arrays) {
-    RETURN_IF_ERROR(
-        SetImage2DArray(absl::StrCat(name, "_", r.first), r.second));
+    ABSL_RETURN_IF_ERROR(SetImage2DArray(absl::StrCat(name, "_", r.first), r.second));
   }
   for (const auto& r : resources.images3d) {
-    RETURN_IF_ERROR(SetImage3D(absl::StrCat(name, "_", r.first), r.second));
+    ABSL_RETURN_IF_ERROR(SetImage3D(absl::StrCat(name, "_", r.first), r.second));
   }
   for (const auto& r : resources.image_buffers) {
-    RETURN_IF_ERROR(SetImageBuffer(absl::StrCat(name, "_", r.first), r.second));
+    ABSL_RETURN_IF_ERROR(SetImageBuffer(absl::StrCat(name, "_", r.first), r.second));
   }
   return absl::OkStatus();
 }
@@ -717,8 +715,8 @@ absl::Status MetalArguments::SetObjectsResources(const Arguments& args) {
   int i = 0;
   for (const auto& t : args.GetObjects()) {
     GPUResourcesWithValue resources;
-    RETURN_IF_ERROR(objects_[i]->GetGPUResources(t.second.get(), &resources));
-    RETURN_IF_ERROR(SetGPUResources(t.first, resources));
+    ABSL_RETURN_IF_ERROR(objects_[i]->GetGPUResources(t.second.get(), &resources));
+    ABSL_RETURN_IF_ERROR(SetGPUResources(t.first, resources));
     i++;
   }
   return absl::OkStatus();

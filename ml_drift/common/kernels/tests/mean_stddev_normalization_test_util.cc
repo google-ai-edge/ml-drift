@@ -94,7 +94,7 @@ absl::Status MeanStddevNormSeparateBatchesUnit(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   auto operation =
       CreateMeanStdDevNormalization(op_def, env.GetGpuInfo(), src_tensor.shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor},
       std::make_unique<MeanStdDevNormalization>(std::move(operation)),
       BHWC(1, 1, 2, 4), &dst_tensor));
@@ -115,7 +115,7 @@ absl::Status MeanStddevNormSeparateBatchesUnit(TestExecutionEnvironment& env,
   auto operation_single_step = CreateMeanStdDevNormalization(
       op_def, env.GetGpuInfo(), src_tensor.shape,
       /*variance_bias=*/1.0e-8f, /*two_step=*/false);
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       env.ExecuteGPUOperation({src_tensor},
                               std::make_unique<MeanStdDevNormalization>(
                                   std::move(operation_single_step)),
@@ -133,40 +133,40 @@ absl::Status MeanStddevNormSeparateBatchesTest(TestExecutionEnvironment& env,
                                                DataType data_type,
                                                TensorStorageType storage) {
   // zero mean, zero variance
-  RETURN_IF_ERROR(MeanStddevNormSeparateBatchesUnit(env, data_type, storage,
-                                                    0.0f, 0.0f, 0.0f));
+  ABSL_RETURN_IF_ERROR(MeanStddevNormSeparateBatchesUnit(
+      env, data_type, storage, 0.0f, 0.0f, 0.0f));
 
   // zero mean, small variance
-  RETURN_IF_ERROR(MeanStddevNormSeparateBatchesUnit(env, data_type, storage,
-                                                    0.0f, 0.01f, 2.63e-4f));
+  ABSL_RETURN_IF_ERROR(MeanStddevNormSeparateBatchesUnit(
+      env, data_type, storage, 0.0f, 0.01f, 2.63e-4f));
 
   // zero mean, large variance
-  RETURN_IF_ERROR(MeanStddevNormSeparateBatchesUnit(env, data_type, storage,
-                                                    0.0f, 100.0f, 2.63e-4f));
+  ABSL_RETURN_IF_ERROR(MeanStddevNormSeparateBatchesUnit(
+      env, data_type, storage, 0.0f, 100.0f, 2.63e-4f));
 
   // small mean, zero variance
-  RETURN_IF_ERROR(MeanStddevNormSeparateBatchesUnit(env, data_type, storage,
-                                                    0.01f, 0.0f, 0.0f));
+  ABSL_RETURN_IF_ERROR(MeanStddevNormSeparateBatchesUnit(
+      env, data_type, storage, 0.01f, 0.0f, 0.0f));
 
   // small mean, small variance
-  RETURN_IF_ERROR(MeanStddevNormSeparateBatchesUnit(env, data_type, storage,
-                                                    0.01f, 0.01f, 3.57e-4f));
+  ABSL_RETURN_IF_ERROR(MeanStddevNormSeparateBatchesUnit(
+      env, data_type, storage, 0.01f, 0.01f, 3.57e-4f));
 
   // small mean, large variance
-  RETURN_IF_ERROR(MeanStddevNormSeparateBatchesUnit(env, data_type, storage,
-                                                    1.0f, 100.0f, 2.63e-4f));
+  ABSL_RETURN_IF_ERROR(MeanStddevNormSeparateBatchesUnit(
+      env, data_type, storage, 1.0f, 100.0f, 2.63e-4f));
 
   // large mean, zero variance
-  RETURN_IF_ERROR(MeanStddevNormSeparateBatchesUnit(env, data_type, storage,
-                                                    100.0f, 0.0f, 0.0f));
+  ABSL_RETURN_IF_ERROR(MeanStddevNormSeparateBatchesUnit(
+      env, data_type, storage, 100.0f, 0.0f, 0.0f));
 
   // large mean, small variance
-  RETURN_IF_ERROR(MeanStddevNormSeparateBatchesUnit(env, data_type, storage,
-                                                    100.0f, 1.0f, 2.63e-4f));
+  ABSL_RETURN_IF_ERROR(MeanStddevNormSeparateBatchesUnit(
+      env, data_type, storage, 100.0f, 1.0f, 2.63e-4f));
 
   // large mean, large variance
-  RETURN_IF_ERROR(MeanStddevNormSeparateBatchesUnit(env, data_type, storage,
-                                                    100.0f, 100.0f, 2.63e-4f));
+  ABSL_RETURN_IF_ERROR(MeanStddevNormSeparateBatchesUnit(
+      env, data_type, storage, 100.0f, 100.0f, 2.63e-4f));
 
   return absl::OkStatus();
 }
@@ -194,7 +194,7 @@ absl::Status MeanStddevNormalizationAllBatchesTest(
   TensorFloat32 dst_tensor;
   auto operation = CreateMeanStdDevNormalization(op_def, env.GetGpuInfo(),
                                                   src_tensor.shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor},
       std::make_unique<MeanStdDevNormalization>(std::move(operation)),
       BHWC(9, 1, 1, 4), &dst_tensor));
@@ -218,7 +218,7 @@ absl::Status MeanStddevNormalizationAllBatchesTest(
   auto operation_single_step = CreateMeanStdDevNormalization(
       op_def, env.GetGpuInfo(), src_tensor.shape,
       /*variance_bias=*/1.0e-8f, /*two_step=*/false);
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       env.ExecuteGPUOperation({src_tensor},
                               std::make_unique<MeanStdDevNormalization>(
                                   std::move(operation_single_step)),
@@ -257,7 +257,7 @@ absl::Status MeanStddevNormalizationLargeVectorTest(
   TensorFloat32 dst_tensor;
   auto operation =
       CreateMeanStdDevNormalization(op_def, env.GetGpuInfo(), src_tensor.shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor},
       std::make_unique<MeanStdDevNormalization>(std::move(operation)),
       BHWC(1, 1, 2, kVectorSize), &dst_tensor));
@@ -282,7 +282,7 @@ absl::Status MeanStddevNormalizationLargeVectorTest(
     auto operation_single_step = CreateMeanStdDevNormalization(
         op_def, env.GetGpuInfo(), src_tensor.shape,
         /*variance_bias=*/1.0e-8f, /*two_step=*/false);
-    RETURN_IF_ERROR(env.ExecuteGPUOperation(
+    ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
         {src_tensor},
         std::make_unique<MeanStdDevNormalization>(
             std::move(operation_single_step)),
@@ -330,7 +330,7 @@ absl::Status HWCGroupNormalizationTest(TestExecutionEnvironment& env,
       HWCGroupNormalization(op_def, env.GetGpuInfo(), src_tensor.shape,
                             kNumGroups, kVarianceBias, gamma, beta);
 
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor},
       std::make_unique<HWCGroupNormalization>(std::move(operation)),
       src_tensor.shape, &dst_tensor));
@@ -376,7 +376,7 @@ absl::Status HWCGroupNormalizationBatchTest(TestExecutionEnvironment& env,
       HWCGroupNormalization(op_def, env.GetGpuInfo(), src_tensor.shape,
                             kNumGroups, kVarianceBias, gamma, beta);
 
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor},
       std::make_unique<HWCGroupNormalization>(std::move(operation)),
       src_tensor.shape, &dst_tensor));
@@ -397,7 +397,7 @@ absl::Status RMSNormalizationTest(TestExecutionEnvironment& exec_env,
   float error_eps =
       GetEpsilon(data_type, exec_env.GetGpuInfo()) * src_tensor.shape.c;
   TensorFloat32 dst_tensor;
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       src_tensor,
       std::make_unique<MeanStdDevNormalization>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
@@ -415,7 +415,8 @@ absl::Status RMSNormalizationBigTest(TestExecutionEnvironment& env,
   OperationDef op_def;
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  RETURN_IF_ERROR(RMSNormalizationTest(env, src_tensor, op_def, data_type));
+  ABSL_RETURN_IF_ERROR(
+      RMSNormalizationTest(env, src_tensor, op_def, data_type));
 
   return absl::OkStatus();
 }
@@ -439,8 +440,8 @@ absl::Status StatisticalTopKTest(TestExecutionEnvironment& env,
   float error_eps =
       GetEpsilon(data_type, env.GetGpuInfo()) * src_tensor.shape.c;
   TensorFloat32 dst_tensor;
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(src_tensor, std::move(operation),
-                                          dst_ref_tensor.shape, &dst_tensor));
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
+      src_tensor, std::move(operation), dst_ref_tensor.shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
               Pointwise(FloatNear(error_eps), dst_ref_tensor.data));
   return absl::OkStatus();
@@ -468,7 +469,7 @@ absl::Status MeanStddevNormalization5DTest(TestExecutionEnvironment& env,
   BHWC mock_shape = BHWC(1, 1, 4, 4);
   auto operation =
       CreateMeanStdDevNormalization(op_def, env.GetGpuInfo(), mock_shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor},
       std::make_unique<MeanStdDevNormalization>(std::move(operation)),
       src_tensor.shape, &dst_tensor));

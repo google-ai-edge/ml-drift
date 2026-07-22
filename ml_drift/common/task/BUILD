@@ -101,7 +101,6 @@ cc_library(
         "//ml_drift/common:status",
         "//ml_drift/common:types",
         "//ml_drift/common:util",
-        "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
         "@flatbuffers//:runtime_cc",
     ],

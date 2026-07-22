@@ -111,11 +111,11 @@ absl::StatusOr<int> GetBestDispatchIndex(
         {.key = "1", .value = static_cast<double>(wg_size.y)},
         {.key = "2", .value = static_cast<double>(wg_size.z)},
     };
-    ASSIGN_OR_RETURN(pipelines[i],
-                     CreateComputePipeline(env.device(), code, constants,
-                                           "main", args.GetPipelineLayout(),
-                                           /*executor=*/nullptr,
-                                           /*async_create_call=*/false));
+    ABSL_ASSIGN_OR_RETURN(
+        pipelines[i], CreateComputePipeline(env.device(), code, constants,
+                                            "main", args.GetPipelineLayout(),
+                                            /*executor=*/nullptr,
+                                            /*async_create_call=*/false));
   }
 
   const int query_count = 2 * possible_dispatches.size();
@@ -148,7 +148,7 @@ absl::StatusOr<int> GetBestDispatchIndex(
         encoder.BeginComputePass(&compute_pass_descriptor);
     {
       const auto& wg_count = possible_dispatches[i].work_groups_count;
-      ASSIGN_OR_RETURN(auto pipeline, pipelines[i]->Get());
+      ABSL_ASSIGN_OR_RETURN(auto pipeline, pipelines[i]->Get());
       compute_encoder.SetPipeline(pipeline);
       args.Bind(compute_encoder);
       for (int loop = 0; loop < kNumOpDispatchesForTuning; ++loop) {
@@ -162,12 +162,12 @@ absl::StatusOr<int> GetBestDispatchIndex(
                           /*destinationOffset=*/0);
   wgpu::CommandBuffer cb = encoder.Finish();
   env.queue().Submit(1, &cb);
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       WaitUntilCompleted(env.queue(), env.device(), absl::Seconds(10)));
   std::vector<uint64_t> query_data(query_count);
-  RETURN_IF_ERROR(ReadDataFromBuffer(env.device(), env.queue(), query_buffer,
-                                     query_buffer.GetSize(),
-                                     query_data.data()));
+  ABSL_RETURN_IF_ERROR(ReadDataFromBuffer(env.device(), env.queue(),
+                                          query_buffer, query_buffer.GetSize(),
+                                          query_data.data()));
   uint64_t best_time_ns = query_data[1] - query_data[0];
   int best_index = 0;
   for (int i = 1; i < possible_dispatches.size(); ++i) {
@@ -242,9 +242,10 @@ absl::Status ComputeTask::Tune(const Environment& env, TuningType tuning_type) {
   }
 
   UpdateGpuObjectBindings(env.device());
-  ASSIGN_OR_RETURN(int best_dispatch_index,
-                   GetBestDispatchIndex(env, operation_->code_, webgpu_args_,
-                                        possible_dispatches));
+  ABSL_ASSIGN_OR_RETURN(
+      int best_dispatch_index,
+      GetBestDispatchIndex(env, operation_->code_, webgpu_args_,
+                           possible_dispatches));
   operation_->work_group_size_ =
       possible_dispatches[best_dispatch_index].work_group_size;
   operation_->RecalculateWorkGroupsCount();
@@ -292,15 +293,15 @@ fn Unpack4x16float(v : vec2<u32>) -> vec4<f32> {
 absl::Status ComputeTask::TuneAndCompile(
     const Environment& env, TuningType tuning_type,
     ComputePipelineCache* compute_pipeline_cache) {
-  RETURN_IF_ERROR(CompileToWGSL(env, compute_pipeline_cache));
+  ABSL_RETURN_IF_ERROR(CompileToWGSL(env, compute_pipeline_cache));
   code_fingerprint_ = ::util::Fingerprint64(operation_->code_);
-  RETURN_IF_ERROR(Tune(env, tuning_type));
+  ABSL_RETURN_IF_ERROR(Tune(env, tuning_type));
   return CompileWGSLToPipeline(env, compute_pipeline_cache);
 }
 
 absl::Status ComputeTask::Compile(
     const Environment& env, ComputePipelineCache* compute_pipeline_cache) {
-  RETURN_IF_ERROR(CompileToWGSL(env, compute_pipeline_cache));
+  ABSL_RETURN_IF_ERROR(CompileToWGSL(env, compute_pipeline_cache));
   code_fingerprint_ = ::util::Fingerprint64(operation_->code_);
   return CompileWGSLToPipeline(env, compute_pipeline_cache);
 }
@@ -317,11 +318,11 @@ absl::Status ComputeTask::CompileToWGSL(
     const Environment& env, ComputePipelineCache* compute_pipeline_cache) {
   ExtensionsInfo extensions_info;
   if (compute_pipeline_cache) {
-    RETURN_IF_ERROR(compute_pipeline_cache->ConvertToWGSL(
+    ABSL_RETURN_IF_ERROR(compute_pipeline_cache->ConvertToWGSL(
         env.GetInfo().webgpu_info, &operation_->code_, &extensions_info));
   } else {
-    RETURN_IF_ERROR(ConvertToWGSL(env.GetInfo().webgpu_info, &operation_->code_,
-                                  &extensions_info));
+    ABSL_RETURN_IF_ERROR(ConvertToWGSL(env.GetInfo().webgpu_info,
+                                       &operation_->code_, &extensions_info));
   }
   AddSystemArguments(operation_->code_info_, &operation_->code_);
   ResolveSystemDefines(&operation_->code_);
@@ -338,18 +339,20 @@ absl::Status ComputeTask::CompileWGSLToPipeline(
       {.key = "2", .value = static_cast<double>(wg_size.z)},
   }};
   if (compute_pipeline_cache != nullptr) {
-    ASSIGN_OR_RETURN(compute_pipeline_,
-                     compute_pipeline_cache->GetOrCreatePipeline(
-                         env.device(), operation_->code_, constants, "main",
-                         webgpu_args_.GetPipelineLayout(),
-                         env.use_async_create_calls(), GetFullFingerprint()));
+    ABSL_ASSIGN_OR_RETURN(
+        compute_pipeline_,
+        compute_pipeline_cache->GetOrCreatePipeline(
+            env.device(), operation_->code_, constants, "main",
+            webgpu_args_.GetPipelineLayout(), env.use_async_create_calls(),
+            GetFullFingerprint()));
   } else {
     // No caching in this case.
-    ASSIGN_OR_RETURN(owned_compute_pipeline_,
-                     CreateComputePipeline(
-                         env.device(), operation_->code_, constants, "main",
-                         webgpu_args_.GetPipelineLayout(),
-                         /*executor=*/nullptr, env.use_async_create_calls()));
+    ABSL_ASSIGN_OR_RETURN(
+        owned_compute_pipeline_,
+        CreateComputePipeline(env.device(), operation_->code_, constants,
+                              "main", webgpu_args_.GetPipelineLayout(),
+                              /*executor=*/nullptr,
+                              env.use_async_create_calls()));
     compute_pipeline_ = owned_compute_pipeline_.get();
   }
   return absl::OkStatus();
@@ -360,8 +363,8 @@ void ComputeTask::UpdateGpuObjectBindings(const wgpu::Device& device) {
 }
 
 absl::Status ComputeTask::Update(const wgpu::Device& device) {
-  RETURN_IF_ERROR(operation_->BindArguments(&webgpu_args_));
-  RETURN_IF_ERROR(webgpu_args_.UpdateScalars(device));
+  ABSL_RETURN_IF_ERROR(operation_->BindArguments(&webgpu_args_));
+  ABSL_RETURN_IF_ERROR(webgpu_args_.UpdateScalars(device));
   operation_->RecalculateGridSize();
   operation_->RecalculateWorkGroupsCount();
   return absl::OkStatus();
@@ -372,7 +375,7 @@ absl::Status ComputeTask::Encode(
   if (!compute_pipeline_) {
     return absl::InternalError("Compute pipeline has not been created.");
   }
-  ASSIGN_OR_RETURN(auto pipeline, compute_pipeline_->Get());
+  ABSL_ASSIGN_OR_RETURN(auto pipeline, compute_pipeline_->Get());
   compute_encoder.SetPipeline(pipeline);
   webgpu_args_.Bind(compute_encoder);
   const int3 work_groups_count = operation_->GetWorkGroupsCount();
@@ -385,7 +388,7 @@ absl::Status ComputeTask::Execute(const Environment& env) {
   UpdateGpuObjectBindings(env.device());
   wgpu::CommandEncoder encoder = env.device().CreateCommandEncoder();
   wgpu::ComputePassEncoder compute_encoder = encoder.BeginComputePass();
-  RETURN_IF_ERROR(Encode(compute_encoder));
+  ABSL_RETURN_IF_ERROR(Encode(compute_encoder));
   compute_encoder.End();
   wgpu::CommandBuffer cb = encoder.Finish();
   env.queue().Submit(1, &cb);

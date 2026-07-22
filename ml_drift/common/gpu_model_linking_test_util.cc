@@ -24,7 +24,6 @@
 #include "gtest/gtest.h"
 #include "ml_drift/common/default/status_matchers.h"
 #include "xnnpack.h"  // from @XNNPACK
-#include "absl/status/status.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_model.h"
 #include "ml_drift/common/gpu_model_util.h"
@@ -85,12 +84,13 @@ absl::Status TestLinkingConvolutionAndCosOp(TestExecutionEnvironment* env) {
   auto cos_node = graph.NewNode();
   cos_node->operation.type = ToString(OperationType::COS);
   Value* conv_output = nullptr;
-  RETURN_IF_ERROR(ConnectTwoNodes(&graph, conv_node, cos_node, &conv_output));
+  ABSL_RETURN_IF_ERROR(
+      ConnectTwoNodes(&graph, conv_node, cos_node, &conv_output));
   conv_output->tensor.type = DataType::FLOAT32;
   conv_output->tensor.shape = BHWC(1, 32, 32, 16);
 
   Value* cos_output = nullptr;
-  RETURN_IF_ERROR(AddOutput(&graph, cos_node, &cos_output));
+  ABSL_RETURN_IF_ERROR(AddOutput(&graph, cos_node, &cos_output));
   cos_output->tensor.type = DataType::FLOAT32;
   cos_output->tensor.shape = BHWC(1, 32, 32, 16);
 
@@ -105,7 +105,7 @@ absl::Status TestLinkingConvolutionAndCosOp(TestExecutionEnvironment* env) {
       create_info.hints.Add(ModelHints::kAllowSpecialKernels);
 
       GpuModel gpu_model;
-      RETURN_IF_ERROR(
+      ABSL_RETURN_IF_ERROR(
           GraphToGpuModel(graph, create_info, env->GetGpuInfo(), &gpu_model));
 
       if (gpu_model.nodes.size() != 1) {
@@ -120,7 +120,7 @@ absl::Status TestLinkingConvolutionAndCosOp(TestExecutionEnvironment* env) {
       }
 
       TensorFloat32 dst_tensor_v1;
-      RETURN_IF_ERROR(env->ExecuteGpuModel(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGpuModel(
           {src_tensor}, std::vector<TensorFloat32*>{&dst_tensor_v1},
           &gpu_model));
 
@@ -131,14 +131,14 @@ absl::Status TestLinkingConvolutionAndCosOp(TestExecutionEnvironment* env) {
       ConvGeneric conv_operation =
           CreateConvGeneric(env->GetGpuInfo(), op_def, precision, conv_attr);
       TensorFloat32 intermediate;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           src_tensor, std::make_unique<ConvGeneric>(std::move(conv_operation)),
           conv_output->tensor.shape, &intermediate));
 
       GPUOperation cos_operation = CreateElementwiseOneInput(
           env->GetGpuInfo(), op_def, OperationType::COS);
       TensorFloat32 dst_tensor_v0;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           intermediate,
           std::make_unique<GPUOperation>(std::move(cos_operation)),
           cos_output->tensor.shape, &dst_tensor_v0));
@@ -189,7 +189,8 @@ absl::Status TestLinkingConvolution2InputMul2InputMul(
   auto mul0_node = graph.NewNode();
   mul0_node->operation.type = ToString(OperationType::MUL);
   Value* conv_output = nullptr;
-  RETURN_IF_ERROR(ConnectTwoNodes(&graph, conv_node, mul0_node, &conv_output));
+  ABSL_RETURN_IF_ERROR(
+      ConnectTwoNodes(&graph, conv_node, mul0_node, &conv_output));
   graph.AddConsumer(mul0_node->id, input1->id);
   conv_output->tensor.type = DataType::FLOAT32;
   conv_output->tensor.shape = BHWC(1, 32, 32, 16);
@@ -197,13 +198,14 @@ absl::Status TestLinkingConvolution2InputMul2InputMul(
   auto mul1_node = graph.NewNode();
   mul1_node->operation.type = ToString(OperationType::MUL);
   Value* mul0_output = nullptr;
-  RETURN_IF_ERROR(ConnectTwoNodes(&graph, mul0_node, mul1_node, &mul0_output));
+  ABSL_RETURN_IF_ERROR(
+      ConnectTwoNodes(&graph, mul0_node, mul1_node, &mul0_output));
   graph.AddConsumer(mul1_node->id, input2->id);
   mul0_output->tensor.type = DataType::FLOAT32;
   mul0_output->tensor.shape = BHWC(1, 32, 32, 16);
 
   Value* mul1_output = nullptr;
-  RETURN_IF_ERROR(AddOutput(&graph, mul1_node, &mul1_output));
+  ABSL_RETURN_IF_ERROR(AddOutput(&graph, mul1_node, &mul1_output));
   mul1_output->tensor.type = DataType::FLOAT32;
   mul1_output->tensor.shape = BHWC(1, 32, 32, 16);
 
@@ -218,7 +220,7 @@ absl::Status TestLinkingConvolution2InputMul2InputMul(
       create_info.hints.Add(ModelHints::kAllowSpecialKernels);
 
       GpuModel gpu_model;
-      RETURN_IF_ERROR(
+      ABSL_RETURN_IF_ERROR(
           GraphToGpuModel(graph, create_info, env->GetGpuInfo(), &gpu_model));
 
       if (gpu_model.nodes.size() != 1) {
@@ -245,7 +247,7 @@ absl::Status TestLinkingConvolution2InputMul2InputMul(
       }
 
       TensorFloat32 dst_tensor_v1;
-      RETURN_IF_ERROR(env->ExecuteGpuModel(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGpuModel(
           {src0_tensor, src1_tensor, src2_tensor},
           std::vector<TensorFloat32*>{&dst_tensor_v1}, &gpu_model));
 
@@ -256,7 +258,7 @@ absl::Status TestLinkingConvolution2InputMul2InputMul(
       ConvGeneric conv_operation =
           CreateConvGeneric(env->GetGpuInfo(), op_def, precision, conv_attr);
       TensorFloat32 intermediate0;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           src0_tensor, std::make_unique<ConvGeneric>(std::move(conv_operation)),
           conv_output->tensor.shape, &intermediate0));
 
@@ -269,7 +271,7 @@ absl::Status TestLinkingConvolution2InputMul2InputMul(
           env->GetGpuInfo(), op_def_mul, OperationType::MUL, src1_tensor.shape,
           mul0_output->tensor.shape);
       TensorFloat32 intermediate1;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           {intermediate0, src1_tensor},
           std::make_unique<GPUOperation>(std::move(mul0_operation)),
           mul0_output->tensor.shape, &intermediate1));
@@ -278,7 +280,7 @@ absl::Status TestLinkingConvolution2InputMul2InputMul(
           env->GetGpuInfo(), op_def_mul, OperationType::MUL, src2_tensor.shape,
           mul1_output->tensor.shape);
       TensorFloat32 dst_tensor_v0;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           {intermediate1, src2_tensor},
           std::make_unique<GPUOperation>(std::move(mul1_operation)),
           mul1_output->tensor.shape, &dst_tensor_v0));
@@ -329,7 +331,8 @@ absl::Status TestLinkingConvolution2InputBroadcastMul2InputMul(
   auto mul0_node = graph.NewNode();
   mul0_node->operation.type = ToString(OperationType::MUL);
   Value* conv_output = nullptr;
-  RETURN_IF_ERROR(ConnectTwoNodes(&graph, conv_node, mul0_node, &conv_output));
+  ABSL_RETURN_IF_ERROR(
+      ConnectTwoNodes(&graph, conv_node, mul0_node, &conv_output));
   graph.AddConsumer(mul0_node->id, input1->id);
   conv_output->tensor.type = DataType::FLOAT32;
   conv_output->tensor.shape = BHWC(1, 32, 32, 16);
@@ -337,13 +340,14 @@ absl::Status TestLinkingConvolution2InputBroadcastMul2InputMul(
   auto mul1_node = graph.NewNode();
   mul1_node->operation.type = ToString(OperationType::MUL);
   Value* mul0_output = nullptr;
-  RETURN_IF_ERROR(ConnectTwoNodes(&graph, mul0_node, mul1_node, &mul0_output));
+  ABSL_RETURN_IF_ERROR(
+      ConnectTwoNodes(&graph, mul0_node, mul1_node, &mul0_output));
   graph.AddConsumer(mul1_node->id, input2->id);
   mul0_output->tensor.type = DataType::FLOAT32;
   mul0_output->tensor.shape = BHWC(1, 32, 32, 16);
 
   Value* mul1_output = nullptr;
-  RETURN_IF_ERROR(AddOutput(&graph, mul1_node, &mul1_output));
+  ABSL_RETURN_IF_ERROR(AddOutput(&graph, mul1_node, &mul1_output));
   mul1_output->tensor.type = DataType::FLOAT32;
   mul1_output->tensor.shape = BHWC(1, 32, 32, 16);
 
@@ -358,7 +362,7 @@ absl::Status TestLinkingConvolution2InputBroadcastMul2InputMul(
       create_info.hints.Add(ModelHints::kAllowSpecialKernels);
 
       GpuModel gpu_model;
-      RETURN_IF_ERROR(
+      ABSL_RETURN_IF_ERROR(
           GraphToGpuModel(graph, create_info, env->GetGpuInfo(), &gpu_model));
 
       if (gpu_model.nodes.size() != 1) {
@@ -385,7 +389,7 @@ absl::Status TestLinkingConvolution2InputBroadcastMul2InputMul(
       }
 
       TensorFloat32 dst_tensor_v1;
-      RETURN_IF_ERROR(env->ExecuteGpuModel(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGpuModel(
           {src0_tensor, src1_tensor, src2_tensor},
           std::vector<TensorFloat32*>{&dst_tensor_v1}, &gpu_model));
 
@@ -396,7 +400,7 @@ absl::Status TestLinkingConvolution2InputBroadcastMul2InputMul(
       ConvGeneric conv_operation =
           CreateConvGeneric(env->GetGpuInfo(), op_def, precision, conv_attr);
       TensorFloat32 intermediate0;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           src0_tensor, std::make_unique<ConvGeneric>(std::move(conv_operation)),
           conv_output->tensor.shape, &intermediate0));
 
@@ -409,7 +413,7 @@ absl::Status TestLinkingConvolution2InputBroadcastMul2InputMul(
           env->GetGpuInfo(), op_def_mul, OperationType::MUL, src1_tensor.shape,
           mul0_output->tensor.shape);
       TensorFloat32 intermediate1;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           {intermediate0, src1_tensor},
           std::make_unique<GPUOperation>(std::move(mul0_operation)),
           mul0_output->tensor.shape, &intermediate1));
@@ -418,7 +422,7 @@ absl::Status TestLinkingConvolution2InputBroadcastMul2InputMul(
           env->GetGpuInfo(), op_def_mul, OperationType::MUL, src2_tensor.shape,
           mul1_output->tensor.shape);
       TensorFloat32 dst_tensor_v0;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           {intermediate1, src2_tensor},
           std::make_unique<GPUOperation>(std::move(mul1_operation)),
           mul1_output->tensor.shape, &dst_tensor_v0));
@@ -469,7 +473,8 @@ absl::Status TestLinkingConvolution2InputMul2InputBroadcastMul(
   auto mul0_node = graph.NewNode();
   mul0_node->operation.type = ToString(OperationType::MUL);
   Value* conv_output = nullptr;
-  RETURN_IF_ERROR(ConnectTwoNodes(&graph, conv_node, mul0_node, &conv_output));
+  ABSL_RETURN_IF_ERROR(
+      ConnectTwoNodes(&graph, conv_node, mul0_node, &conv_output));
   graph.AddConsumer(mul0_node->id, input1->id);
   conv_output->tensor.type = DataType::FLOAT32;
   conv_output->tensor.shape = BHWC(1, 32, 32, 16);
@@ -477,13 +482,14 @@ absl::Status TestLinkingConvolution2InputMul2InputBroadcastMul(
   auto mul1_node = graph.NewNode();
   mul1_node->operation.type = ToString(OperationType::MUL);
   Value* mul0_output = nullptr;
-  RETURN_IF_ERROR(ConnectTwoNodes(&graph, mul0_node, mul1_node, &mul0_output));
+  ABSL_RETURN_IF_ERROR(
+      ConnectTwoNodes(&graph, mul0_node, mul1_node, &mul0_output));
   graph.AddConsumer(mul1_node->id, input2->id);
   mul0_output->tensor.type = DataType::FLOAT32;
   mul0_output->tensor.shape = BHWC(1, 32, 32, 16);
 
   Value* mul1_output = nullptr;
-  RETURN_IF_ERROR(AddOutput(&graph, mul1_node, &mul1_output));
+  ABSL_RETURN_IF_ERROR(AddOutput(&graph, mul1_node, &mul1_output));
   mul1_output->tensor.type = DataType::FLOAT32;
   mul1_output->tensor.shape = BHWC(1, 32, 32, 16);
 
@@ -498,7 +504,7 @@ absl::Status TestLinkingConvolution2InputMul2InputBroadcastMul(
       create_info.hints.Add(ModelHints::kAllowSpecialKernels);
 
       GpuModel gpu_model;
-      RETURN_IF_ERROR(
+      ABSL_RETURN_IF_ERROR(
           GraphToGpuModel(graph, create_info, env->GetGpuInfo(), &gpu_model));
 
       if (gpu_model.nodes.size() != 1) {
@@ -525,7 +531,7 @@ absl::Status TestLinkingConvolution2InputMul2InputBroadcastMul(
       }
 
       TensorFloat32 dst_tensor_v1;
-      RETURN_IF_ERROR(env->ExecuteGpuModel(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGpuModel(
           {src0_tensor, src1_tensor, src2_tensor},
           std::vector<TensorFloat32*>{&dst_tensor_v1}, &gpu_model));
 
@@ -536,7 +542,7 @@ absl::Status TestLinkingConvolution2InputMul2InputBroadcastMul(
       ConvGeneric conv_operation =
           CreateConvGeneric(env->GetGpuInfo(), op_def, precision, conv_attr);
       TensorFloat32 intermediate0;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           src0_tensor, std::make_unique<ConvGeneric>(std::move(conv_operation)),
           conv_output->tensor.shape, &intermediate0));
 
@@ -549,7 +555,7 @@ absl::Status TestLinkingConvolution2InputMul2InputBroadcastMul(
           env->GetGpuInfo(), op_def_mul, OperationType::MUL, src1_tensor.shape,
           mul0_output->tensor.shape);
       TensorFloat32 intermediate1;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           {intermediate0, src1_tensor},
           std::make_unique<GPUOperation>(std::move(mul0_operation)),
           mul0_output->tensor.shape, &intermediate1));
@@ -558,7 +564,7 @@ absl::Status TestLinkingConvolution2InputMul2InputBroadcastMul(
           env->GetGpuInfo(), op_def_mul, OperationType::MUL, src2_tensor.shape,
           mul1_output->tensor.shape);
       TensorFloat32 dst_tensor_v0;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           {intermediate1, src2_tensor},
           std::make_unique<GPUOperation>(std::move(mul1_operation)),
           mul1_output->tensor.shape, &dst_tensor_v0));
@@ -609,7 +615,8 @@ absl::Status TestLinkingConvolution2InputMul2InputMulCos(
   auto mul0_node = graph.NewNode();
   mul0_node->operation.type = ToString(OperationType::MUL);
   Value* conv_output = nullptr;
-  RETURN_IF_ERROR(ConnectTwoNodes(&graph, conv_node, mul0_node, &conv_output));
+  ABSL_RETURN_IF_ERROR(
+      ConnectTwoNodes(&graph, conv_node, mul0_node, &conv_output));
   graph.AddConsumer(mul0_node->id, input1->id);
   conv_output->tensor.type = DataType::FLOAT32;
   conv_output->tensor.shape = BHWC(1, 32, 32, 16);
@@ -617,7 +624,8 @@ absl::Status TestLinkingConvolution2InputMul2InputMulCos(
   auto mul1_node = graph.NewNode();
   mul1_node->operation.type = ToString(OperationType::MUL);
   Value* mul0_output = nullptr;
-  RETURN_IF_ERROR(ConnectTwoNodes(&graph, mul0_node, mul1_node, &mul0_output));
+  ABSL_RETURN_IF_ERROR(
+      ConnectTwoNodes(&graph, mul0_node, mul1_node, &mul0_output));
   graph.AddConsumer(mul1_node->id, input2->id);
   mul0_output->tensor.type = DataType::FLOAT32;
   mul0_output->tensor.shape = BHWC(1, 32, 32, 16);
@@ -625,12 +633,13 @@ absl::Status TestLinkingConvolution2InputMul2InputMulCos(
   auto cos_node = graph.NewNode();
   cos_node->operation.type = ToString(OperationType::COS);
   Value* mul1_output = nullptr;
-  RETURN_IF_ERROR(ConnectTwoNodes(&graph, mul1_node, cos_node, &mul1_output));
+  ABSL_RETURN_IF_ERROR(
+      ConnectTwoNodes(&graph, mul1_node, cos_node, &mul1_output));
   mul1_output->tensor.type = DataType::FLOAT32;
   mul1_output->tensor.shape = BHWC(1, 32, 32, 16);
 
   Value* cos_output = nullptr;
-  RETURN_IF_ERROR(AddOutput(&graph, cos_node, &cos_output));
+  ABSL_RETURN_IF_ERROR(AddOutput(&graph, cos_node, &cos_output));
   cos_output->tensor.type = DataType::FLOAT32;
   cos_output->tensor.shape = BHWC(1, 32, 32, 16);
 
@@ -645,7 +654,7 @@ absl::Status TestLinkingConvolution2InputMul2InputMulCos(
       create_info.hints.Add(ModelHints::kAllowSpecialKernels);
 
       GpuModel gpu_model;
-      RETURN_IF_ERROR(
+      ABSL_RETURN_IF_ERROR(
           GraphToGpuModel(graph, create_info, env->GetGpuInfo(), &gpu_model));
 
       if (gpu_model.nodes.size() != 1) {
@@ -672,7 +681,7 @@ absl::Status TestLinkingConvolution2InputMul2InputMulCos(
       }
 
       TensorFloat32 dst_tensor_v1;
-      RETURN_IF_ERROR(env->ExecuteGpuModel(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGpuModel(
           {src0_tensor, src1_tensor, src2_tensor},
           std::vector<TensorFloat32*>{&dst_tensor_v1}, &gpu_model));
 
@@ -683,7 +692,7 @@ absl::Status TestLinkingConvolution2InputMul2InputMulCos(
       ConvGeneric conv_operation =
           CreateConvGeneric(env->GetGpuInfo(), op_def, precision, conv_attr);
       TensorFloat32 intermediate0;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           src0_tensor, std::make_unique<ConvGeneric>(std::move(conv_operation)),
           conv_output->tensor.shape, &intermediate0));
 
@@ -696,7 +705,7 @@ absl::Status TestLinkingConvolution2InputMul2InputMulCos(
           env->GetGpuInfo(), op_def_mul, OperationType::MUL, src1_tensor.shape,
           mul0_output->tensor.shape);
       TensorFloat32 intermediate1;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           {intermediate0, src1_tensor},
           std::make_unique<GPUOperation>(std::move(mul0_operation)),
           mul0_output->tensor.shape, &intermediate1));
@@ -705,7 +714,7 @@ absl::Status TestLinkingConvolution2InputMul2InputMulCos(
           env->GetGpuInfo(), op_def_mul, OperationType::MUL, src2_tensor.shape,
           mul1_output->tensor.shape);
       TensorFloat32 intermediate2;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           {intermediate1, src2_tensor},
           std::make_unique<GPUOperation>(std::move(mul1_operation)),
           mul1_output->tensor.shape, &intermediate2));
@@ -713,7 +722,7 @@ absl::Status TestLinkingConvolution2InputMul2InputMulCos(
       GPUOperation cos_operation = CreateElementwiseOneInput(
           env->GetGpuInfo(), op_def, OperationType::COS);
       TensorFloat32 dst_tensor_v0;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           intermediate2,
           std::make_unique<GPUOperation>(std::move(cos_operation)),
           cos_output->tensor.shape, &dst_tensor_v0));
@@ -758,7 +767,8 @@ absl::Status TestLinkingConvolutionFirstTanh2InputDiff(
   auto tanh_node = graph.NewNode();
   tanh_node->operation.type = ToString(OperationType::TANH);
   Value* conv_output = nullptr;
-  RETURN_IF_ERROR(ConnectTwoNodes(&graph, conv_node, tanh_node, &conv_output));
+  ABSL_RETURN_IF_ERROR(
+      ConnectTwoNodes(&graph, conv_node, tanh_node, &conv_output));
   conv_output->tensor.type = DataType::FLOAT32;
   conv_output->tensor.shape = BHWC(1, 32, 32, 16);
 
@@ -786,7 +796,7 @@ absl::Status TestLinkingConvolutionFirstTanh2InputDiff(
       create_info.hints.Add(ModelHints::kAllowSpecialKernels);
 
       GpuModel gpu_model;
-      RETURN_IF_ERROR(
+      ABSL_RETURN_IF_ERROR(
           GraphToGpuModel(graph, create_info, env->GetGpuInfo(), &gpu_model));
 
       if (gpu_model.nodes.size() != 1) {
@@ -801,7 +811,7 @@ absl::Status TestLinkingConvolutionFirstTanh2InputDiff(
       }
 
       TensorFloat32 dst_tensor_v1;
-      RETURN_IF_ERROR(env->ExecuteGpuModel(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGpuModel(
           {src_tensor}, std::vector<TensorFloat32*>{&dst_tensor_v1},
           &gpu_model));
 
@@ -812,14 +822,14 @@ absl::Status TestLinkingConvolutionFirstTanh2InputDiff(
       ConvGeneric conv_operation =
           CreateConvGeneric(env->GetGpuInfo(), op_def, precision, conv_attr);
       TensorFloat32 intermediate0;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           src_tensor, std::make_unique<ConvGeneric>(std::move(conv_operation)),
           conv_output->tensor.shape, &intermediate0));
 
       GPUOperation tanh_operation = CreateElementwiseOneInput(
           env->GetGpuInfo(), op_def, OperationType::TANH);
       TensorFloat32 intermediate1;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           intermediate0,
           std::make_unique<GPUOperation>(std::move(tanh_operation)),
           tanh_output->tensor.shape, &intermediate1));
@@ -832,7 +842,7 @@ absl::Status TestLinkingConvolutionFirstTanh2InputDiff(
           env->GetGpuInfo(), op_def_sub, OperationType::SUB,
           conv_output->tensor.shape, sub_output->tensor.shape);
       TensorFloat32 dst_tensor_v0;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           {intermediate1, intermediate0},
           std::make_unique<GPUOperation>(std::move(sub_operation)),
           sub_output->tensor.shape, &dst_tensor_v0));
@@ -877,7 +887,8 @@ absl::Status TestLinkingConvolutionSecondTanh2InputDiff(
   auto tanh_node = graph.NewNode();
   tanh_node->operation.type = ToString(OperationType::TANH);
   Value* conv_output = nullptr;
-  RETURN_IF_ERROR(ConnectTwoNodes(&graph, conv_node, tanh_node, &conv_output));
+  ABSL_RETURN_IF_ERROR(
+      ConnectTwoNodes(&graph, conv_node, tanh_node, &conv_output));
   conv_output->tensor.type = DataType::FLOAT32;
   conv_output->tensor.shape = BHWC(1, 32, 32, 16);
 
@@ -905,7 +916,7 @@ absl::Status TestLinkingConvolutionSecondTanh2InputDiff(
       create_info.hints.Add(ModelHints::kAllowSpecialKernels);
 
       GpuModel gpu_model;
-      RETURN_IF_ERROR(
+      ABSL_RETURN_IF_ERROR(
           GraphToGpuModel(graph, create_info, env->GetGpuInfo(), &gpu_model));
 
       if (gpu_model.nodes.size() != 1) {
@@ -920,7 +931,7 @@ absl::Status TestLinkingConvolutionSecondTanh2InputDiff(
       }
 
       TensorFloat32 dst_tensor_v1;
-      RETURN_IF_ERROR(env->ExecuteGpuModel(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGpuModel(
           {src_tensor}, std::vector<TensorFloat32*>{&dst_tensor_v1},
           &gpu_model));
 
@@ -931,14 +942,14 @@ absl::Status TestLinkingConvolutionSecondTanh2InputDiff(
       ConvGeneric conv_operation =
           CreateConvGeneric(env->GetGpuInfo(), op_def, precision, conv_attr);
       TensorFloat32 intermediate0;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           src_tensor, std::make_unique<ConvGeneric>(std::move(conv_operation)),
           conv_output->tensor.shape, &intermediate0));
 
       GPUOperation tanh_operation = CreateElementwiseOneInput(
           env->GetGpuInfo(), op_def, OperationType::TANH);
       TensorFloat32 intermediate1;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           intermediate0,
           std::make_unique<GPUOperation>(std::move(tanh_operation)),
           tanh_output->tensor.shape, &intermediate1));
@@ -951,7 +962,7 @@ absl::Status TestLinkingConvolutionSecondTanh2InputDiff(
           env->GetGpuInfo(), op_def_sub, OperationType::SUB,
           conv_output->tensor.shape, sub_output->tensor.shape);
       TensorFloat32 dst_tensor_v0;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           {intermediate0, intermediate1},
           std::make_unique<GPUOperation>(std::move(sub_operation)),
           sub_output->tensor.shape, &dst_tensor_v0));
@@ -1005,7 +1016,8 @@ absl::Status TestLinkingConvolutionFirstTanhSecondCos2InputDiff(
   auto tanh_node = graph.NewNode();
   tanh_node->operation.type = ToString(OperationType::TANH);
   Value* conv_output = nullptr;
-  RETURN_IF_ERROR(ConnectTwoNodes(&graph, conv_node, tanh_node, &conv_output));
+  ABSL_RETURN_IF_ERROR(
+      ConnectTwoNodes(&graph, conv_node, tanh_node, &conv_output));
   conv_output->tensor.type = DataType::FLOAT32;
   conv_output->tensor.shape = BHWC(1, 32, 32, 16);
 
@@ -1041,7 +1053,7 @@ absl::Status TestLinkingConvolutionFirstTanhSecondCos2InputDiff(
       create_info.hints.Add(ModelHints::kAllowSpecialKernels);
 
       GpuModel gpu_model;
-      RETURN_IF_ERROR(
+      ABSL_RETURN_IF_ERROR(
           GraphToGpuModel(graph, create_info, env->GetGpuInfo(), &gpu_model));
 
       if (gpu_model.nodes.size() != 1) {
@@ -1056,7 +1068,7 @@ absl::Status TestLinkingConvolutionFirstTanhSecondCos2InputDiff(
       }
 
       TensorFloat32 dst_tensor_v1;
-      RETURN_IF_ERROR(env->ExecuteGpuModel(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGpuModel(
           {src_tensor}, std::vector<TensorFloat32*>{&dst_tensor_v1},
           &gpu_model));
 
@@ -1067,14 +1079,14 @@ absl::Status TestLinkingConvolutionFirstTanhSecondCos2InputDiff(
       ConvGeneric conv_operation =
           CreateConvGeneric(env->GetGpuInfo(), op_def, precision, conv_attr);
       TensorFloat32 intermediate0;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           src_tensor, std::make_unique<ConvGeneric>(std::move(conv_operation)),
           conv_output->tensor.shape, &intermediate0));
 
       GPUOperation tanh_operation = CreateElementwiseOneInput(
           env->GetGpuInfo(), op_def, OperationType::TANH);
       TensorFloat32 intermediate1;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           intermediate0,
           std::make_unique<GPUOperation>(std::move(tanh_operation)),
           tanh_output->tensor.shape, &intermediate1));
@@ -1082,7 +1094,7 @@ absl::Status TestLinkingConvolutionFirstTanhSecondCos2InputDiff(
       GPUOperation cos_operation = CreateElementwiseOneInput(
           env->GetGpuInfo(), op_def, OperationType::COS);
       TensorFloat32 intermediate2;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           intermediate0,
           std::make_unique<GPUOperation>(std::move(cos_operation)),
           cos_output->tensor.shape, &intermediate2));
@@ -1095,7 +1107,7 @@ absl::Status TestLinkingConvolutionFirstTanhSecondCos2InputDiff(
           env->GetGpuInfo(), op_def_sub, OperationType::SUB,
           conv_output->tensor.shape, sub_output->tensor.shape);
       TensorFloat32 dst_tensor_v0;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           {intermediate1, intermediate2},
           std::make_unique<GPUOperation>(std::move(sub_operation)),
           sub_output->tensor.shape, &dst_tensor_v0));
@@ -1243,7 +1255,7 @@ absl::Status TestLinkingComplex0(TestExecutionEnvironment* env) {
       create_info.hints.Add(ModelHints::kAllowSpecialKernels);
 
       GpuModel gpu_model;
-      RETURN_IF_ERROR(
+      ABSL_RETURN_IF_ERROR(
           GraphToGpuModel(graph, create_info, env->GetGpuInfo(), &gpu_model));
 
       if (gpu_model.nodes.size() != 1) {
@@ -1258,7 +1270,7 @@ absl::Status TestLinkingComplex0(TestExecutionEnvironment* env) {
       }
 
       TensorFloat32 dst_tensor_v1;
-      RETURN_IF_ERROR(env->ExecuteGpuModel(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGpuModel(
           {src_tensor}, std::vector<TensorFloat32*>{&dst_tensor_v1},
           &gpu_model));
 
@@ -1274,14 +1286,14 @@ absl::Status TestLinkingComplex0(TestExecutionEnvironment* env) {
       ConvGeneric conv_operation =
           CreateConvGeneric(env->GetGpuInfo(), op_def, precision, conv_attr);
       TensorFloat32 intermediate0;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           src_tensor, std::make_unique<ConvGeneric>(std::move(conv_operation)),
           conv_output->tensor.shape, &intermediate0));
 
       GPUOperation tanh_operation = CreateElementwiseOneInput(
           env->GetGpuInfo(), op_def, OperationType::TANH);
       TensorFloat32 intermediate1;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           intermediate0,
           std::make_unique<GPUOperation>(std::move(tanh_operation)),
           tanh_output->tensor.shape, &intermediate1));
@@ -1289,7 +1301,7 @@ absl::Status TestLinkingComplex0(TestExecutionEnvironment* env) {
       GPUOperation cos_operation = CreateElementwiseOneInput(
           env->GetGpuInfo(), op_def, OperationType::COS);
       TensorFloat32 intermediate2;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           intermediate0,
           std::make_unique<GPUOperation>(std::move(cos_operation)),
           cos_output->tensor.shape, &intermediate2));
@@ -1297,7 +1309,7 @@ absl::Status TestLinkingComplex0(TestExecutionEnvironment* env) {
       GPUOperation prelu_operation =
           CreatePReLU(env->GetGpuInfo(), op_def, prelu_attr);
       TensorFloat32 intermediate3;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           intermediate2,
           std::make_unique<GPUOperation>(std::move(prelu_operation)),
           prelu_output->tensor.shape, &intermediate3));
@@ -1305,7 +1317,7 @@ absl::Status TestLinkingComplex0(TestExecutionEnvironment* env) {
       GPUOperation abs_operation = CreateElementwiseOneInput(
           env->GetGpuInfo(), op_def, OperationType::ABS);
       TensorFloat32 intermediate4;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           intermediate3,
           std::make_unique<GPUOperation>(std::move(abs_operation)),
           prelu_output->tensor.shape, &intermediate4));
@@ -1313,7 +1325,7 @@ absl::Status TestLinkingComplex0(TestExecutionEnvironment* env) {
       GPUOperation sin_operation = CreateElementwiseOneInput(
           env->GetGpuInfo(), op_def, OperationType::SIN);
       TensorFloat32 intermediate5;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           intermediate2,
           std::make_unique<GPUOperation>(std::move(sin_operation)),
           sin_output->tensor.shape, &intermediate5));
@@ -1322,7 +1334,7 @@ absl::Status TestLinkingComplex0(TestExecutionEnvironment* env) {
           env->GetGpuInfo(), op_def_two_input, OperationType::POW,
           sin_output->tensor.shape, pow_output->tensor.shape);
       TensorFloat32 intermediate6;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           {intermediate4, intermediate5},
           std::make_unique<GPUOperation>(std::move(pow_operation)),
           pow_output->tensor.shape, &intermediate6));
@@ -1330,7 +1342,7 @@ absl::Status TestLinkingComplex0(TestExecutionEnvironment* env) {
       GPUOperation exp_operation = CreateElementwiseOneInput(
           env->GetGpuInfo(), op_def, OperationType::EXP);
       TensorFloat32 intermediate7;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           intermediate6,
           std::make_unique<GPUOperation>(std::move(exp_operation)),
           exp_output->tensor.shape, &intermediate7));
@@ -1339,7 +1351,7 @@ absl::Status TestLinkingComplex0(TestExecutionEnvironment* env) {
           env->GetGpuInfo(), op_def_two_input, OperationType::SUB,
           conv_output->tensor.shape, sub_output->tensor.shape);
       TensorFloat32 dst_tensor_v0;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           {intermediate1, intermediate7},
           std::make_unique<GPUOperation>(std::move(sub_operation)),
           sub_output->tensor.shape, &dst_tensor_v0));
@@ -1458,7 +1470,7 @@ absl::Status TestLinkingConvElem2InputAddElemsOp(
       create_info.hints.Add(ModelHints::kAllowSpecialKernels);
 
       GpuModel gpu_model;
-      RETURN_IF_ERROR(
+      ABSL_RETURN_IF_ERROR(
           GraphToGpuModel(graph, create_info, env->GetGpuInfo(), &gpu_model));
 
       if (gpu_model.nodes.size() != 1) {
@@ -1478,7 +1490,7 @@ absl::Status TestLinkingConvElem2InputAddElemsOp(
       }
 
       TensorFloat32 dst_tensor_v1;
-      RETURN_IF_ERROR(env->ExecuteGpuModel(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGpuModel(
           {src0_tensor, src1_tensor},
           std::vector<TensorFloat32*>{&dst_tensor_v1}, &gpu_model));
 
@@ -1494,14 +1506,14 @@ absl::Status TestLinkingConvElem2InputAddElemsOp(
       ConvGeneric conv_operation =
           CreateConvGeneric(env->GetGpuInfo(), op_def, precision, conv_attr);
       TensorFloat32 intermediate1;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           src1_tensor, std::make_unique<ConvGeneric>(std::move(conv_operation)),
           conv_output->tensor.shape, &intermediate1));
 
       GPUOperation cos0_operation = CreateElementwiseOneInput(
           env->GetGpuInfo(), op_def, OperationType::COS);
       TensorFloat32 intermediate2;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           intermediate1,
           std::make_unique<GPUOperation>(std::move(cos0_operation)),
           cos0_output->tensor.shape, &intermediate2));
@@ -1510,7 +1522,7 @@ absl::Status TestLinkingConvElem2InputAddElemsOp(
           env->GetGpuInfo(), op_def_two_input, OperationType::ADD,
           add_output->tensor.shape, add_output->tensor.shape);
       TensorFloat32 intermediate3;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           {src0_tensor, intermediate2},
           std::make_unique<GPUOperation>(std::move(add_operation)),
           add_output->tensor.shape, &intermediate3));
@@ -1518,7 +1530,7 @@ absl::Status TestLinkingConvElem2InputAddElemsOp(
       GPUOperation cos1_operation = CreateElementwiseOneInput(
           env->GetGpuInfo(), op_def, OperationType::COS);
       TensorFloat32 intermediate4;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           intermediate3,
           std::make_unique<GPUOperation>(std::move(cos1_operation)),
           cos1_output->tensor.shape, &intermediate4));
@@ -1526,7 +1538,7 @@ absl::Status TestLinkingConvElem2InputAddElemsOp(
       GPUOperation sin_operation = CreateElementwiseOneInput(
           env->GetGpuInfo(), op_def, OperationType::SIN);
       TensorFloat32 intermediate5;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           intermediate4,
           std::make_unique<GPUOperation>(std::move(sin_operation)),
           sin_output->tensor.shape, &intermediate5));
@@ -1534,7 +1546,7 @@ absl::Status TestLinkingConvElem2InputAddElemsOp(
       GPUOperation abs_operation = CreateElementwiseOneInput(
           env->GetGpuInfo(), op_def, OperationType::ABS);
       TensorFloat32 dst_tensor_v0;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           intermediate5,
           std::make_unique<GPUOperation>(std::move(abs_operation)),
           abs_output->tensor.shape, &dst_tensor_v0));
@@ -1572,13 +1584,13 @@ absl::Status TestLinkingSliceCastOp(TestExecutionEnvironment* env) {
   auto cast_int_node = graph.NewNode();
   cast_int_node->operation.type = ToString(OperationType::CAST);
   Value* slice_output = nullptr;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       ConnectTwoNodes(&graph, slice_node, cast_int_node, &slice_output));
   slice_output->tensor.type = DataType::FLOAT32;
   slice_output->tensor.shape = BHWC(1, 1, 1, 1);
 
   Value* cast_int_output = nullptr;
-  RETURN_IF_ERROR(AddOutput(&graph, cast_int_node, &cast_int_output));
+  ABSL_RETURN_IF_ERROR(AddOutput(&graph, cast_int_node, &cast_int_output));
   cast_int_output->tensor.type = DataType::INT32;
   cast_int_output->tensor.shape = BHWC(1, 1, 1, 1);
 
@@ -1599,13 +1611,13 @@ absl::Status TestLinkingSliceCastOp(TestExecutionEnvironment* env) {
       }
 
       GpuModel gpu_model;
-      RETURN_IF_ERROR(
+      ABSL_RETURN_IF_ERROR(
           GraphToGpuModel(graph, create_info, env->GetGpuInfo(), &gpu_model));
       if (gpu_model.nodes.size() != 1) {
         return absl::InternalError("Expected model with one node");
       }
       TensorInt32 dst_tensor_v1;
-      RETURN_IF_ERROR(env->ExecuteGpuModel(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGpuModel(
           {src_tensor}, std::vector<TensorInt32*>{&dst_tensor_v1}, &gpu_model));
 
       TensorFloat32 intermediate;
@@ -1614,7 +1626,7 @@ absl::Status TestLinkingSliceCastOp(TestExecutionEnvironment* env) {
       op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
 
       StridedSlice slice_operation = CreateStridedSlice(op_def, slice_attr);
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           src_tensor,
           std::make_unique<StridedSlice>(std::move(slice_operation)),
           slice_output->tensor.shape, &intermediate));
@@ -1629,7 +1641,7 @@ absl::Status TestLinkingSliceCastOp(TestExecutionEnvironment* env) {
           CreateCast(cast_int_op_def, env->GetGpuInfo());
       using TensorInt32 = Tensor<BHWC, DataType::INT32>;
       TensorInt32 dst_tensor_v0;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           std::vector<TensorFloat32>{intermediate},
           std::make_unique<GPUOperation>(std::move(cast_int_operation)),
           std::vector<BHWC>{slice_output->tensor.shape},
@@ -1671,7 +1683,7 @@ absl::Status TestLinkingAddAddMulOp(TestExecutionEnvironment* env,
   add_left_node->operation.type = ToString(OperationType::ADD);
   add_left_node->operation.attributes = add_attr;
   Value* reshape_output = nullptr;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       ConnectTwoNodes(&graph, reshape_node, add_left_node, &reshape_output));
   reshape_output->tensor.type = DataType::FLOAT32;
   reshape_output->tensor.shape = BHWC(1, 1, 1, 20);
@@ -1681,29 +1693,29 @@ absl::Status TestLinkingAddAddMulOp(TestExecutionEnvironment* env,
     auto add_right_node = graph.NewNode();
     add_right_node->operation.type = ToString(OperationType::ADD);
     add_right_node->operation.attributes = add_attr;
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         ConnectTwoNodes(&graph, reshape_node, add_right_node, &reshape_output));
     second_input_node = add_right_node;
   }
   auto mul_node = graph.NewNode();
   mul_node->operation.type = ToString(OperationType::MUL);
   Value* add_left_output = nullptr;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       ConnectTwoNodes(&graph, add_left_node, mul_node, &add_left_output));
   add_left_output->tensor.type = DataType::FLOAT32;
   add_left_output->tensor.shape = BHWC(1, 1, 1, 20);
   if (use_second_input_add) {
     Value* add_right_output = nullptr;
-    RETURN_IF_ERROR(ConnectTwoNodes(&graph, second_input_node, mul_node,
-                                    &add_right_output));
+    ABSL_RETURN_IF_ERROR(ConnectTwoNodes(&graph, second_input_node, mul_node,
+                                         &add_right_output));
     add_right_output->tensor.type = DataType::FLOAT32;
     add_right_output->tensor.shape = BHWC(1, 1, 1, 20);
   } else {
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         ConnectTwoNodes(&graph, second_input_node, mul_node, &reshape_output));
   }
   Value* mul_output = nullptr;
-  RETURN_IF_ERROR(AddOutput(&graph, mul_node, &mul_output));
+  ABSL_RETURN_IF_ERROR(AddOutput(&graph, mul_node, &mul_output));
   mul_output->tensor.type = DataType::FLOAT32;
   mul_output->tensor.shape = BHWC(1, 1, 1, 20);
 
@@ -1723,10 +1735,10 @@ absl::Status TestLinkingAddAddMulOp(TestExecutionEnvironment* env,
         src_tensor.data[i] = std::sin(i * 0.12345f);
       }
       GpuModel gpu_model;
-      RETURN_IF_ERROR(
+      ABSL_RETURN_IF_ERROR(
           GraphToGpuModel(graph, create_info, env->GetGpuInfo(), &gpu_model));
       TensorFloat32 dst_tensor_v1;
-      RETURN_IF_ERROR(env->ExecuteGpuModel(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGpuModel(
           {src_tensor}, std::vector<TensorFloat32*>{&dst_tensor_v1},
           &gpu_model));
       TensorFloat32 intermediate;
@@ -1736,7 +1748,7 @@ absl::Status TestLinkingAddAddMulOp(TestExecutionEnvironment* env,
       op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
 
       GPUOperation reshape_operation = CreateReshape(op_def);
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           src_tensor,
           std::make_unique<GPUOperation>(std::move(reshape_operation)),
           reshape_output->tensor.shape, &intermediate));
@@ -1748,7 +1760,7 @@ absl::Status TestLinkingAddAddMulOp(TestExecutionEnvironment* env,
       GPUOperation add_operation = CreateElementwiseTwoInput(
           env->GetGpuInfo(), op_def, OperationType::ADD,
           reshape_output->tensor.shape, add_left_output->tensor.shape);
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           {intermediate, ones},
           std::make_unique<GPUOperation>(std::move(add_operation)),
           add_left_output->tensor.shape, &add));
@@ -1760,7 +1772,7 @@ absl::Status TestLinkingAddAddMulOp(TestExecutionEnvironment* env,
       GPUOperation mul_operation = CreateElementwiseTwoInput(
           env->GetGpuInfo(), op_def, OperationType::MUL,
           add_left_output->tensor.shape, add_left_output->tensor.shape);
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           {add, second_input},
           std::make_unique<GPUOperation>(std::move(mul_operation)),
           add_left_output->tensor.shape, &dst_tensor_v0));
@@ -1792,13 +1804,13 @@ absl::Status TestLinkingConcatAndCosOp(TestExecutionEnvironment* env) {
   auto cos_node = graph.NewNode();
   cos_node->operation.type = ToString(OperationType::COS);
   Value* concat_output = nullptr;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       ConnectTwoNodes(&graph, concat_node, cos_node, &concat_output));
   concat_output->tensor.type = DataType::FLOAT32;
   concat_output->tensor.shape = BHWC(1, 32, 32, 28);
 
   Value* cos_output = nullptr;
-  RETURN_IF_ERROR(AddOutput(&graph, cos_node, &cos_output));
+  ABSL_RETURN_IF_ERROR(AddOutput(&graph, cos_node, &cos_output));
   cos_output->tensor.type = DataType::FLOAT32;
   cos_output->tensor.shape = BHWC(1, 32, 32, 28);
 
@@ -1812,7 +1824,7 @@ absl::Status TestLinkingConcatAndCosOp(TestExecutionEnvironment* env) {
       create_info.storage_type = storage;
 
       GpuModel gpu_model;
-      RETURN_IF_ERROR(
+      ABSL_RETURN_IF_ERROR(
           GraphToGpuModel(graph, create_info, env->GetGpuInfo(), &gpu_model));
 
       if (gpu_model.nodes.size() != 1) {
@@ -1833,7 +1845,7 @@ absl::Status TestLinkingConcatAndCosOp(TestExecutionEnvironment* env) {
       }
 
       TensorFloat32 dst_tensor_v1;
-      RETURN_IF_ERROR(env->ExecuteGpuModel(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGpuModel(
           {src_tensor0, src_tensor1},
           std::vector<TensorFloat32*>{&dst_tensor_v1}, &gpu_model));
 
@@ -1849,7 +1861,7 @@ absl::Status TestLinkingConcatAndCosOp(TestExecutionEnvironment* env) {
       GPUOperation concat_operation =
           CreateConcatZ(op_def_two_input, {21, 7}, env->GetGpuInfo());
       TensorFloat32 intermediate;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           {src_tensor0, src_tensor1},
           std::make_unique<GPUOperation>(std::move(concat_operation)),
           concat_output->tensor.shape, &intermediate));
@@ -1857,7 +1869,7 @@ absl::Status TestLinkingConcatAndCosOp(TestExecutionEnvironment* env) {
       GPUOperation cos_operation = CreateElementwiseOneInput(
           env->GetGpuInfo(), op_def, OperationType::COS);
       TensorFloat32 dst_tensor_v0;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           intermediate,
           std::make_unique<GPUOperation>(std::move(cos_operation)),
           cos_output->tensor.shape, &dst_tensor_v0));
@@ -1882,12 +1894,13 @@ absl::Status TestLinkingCosAndCosOp(TestExecutionEnvironment* env) {
   auto cos1_node = graph.NewNode();
   cos1_node->operation.type = ToString(OperationType::COS);
   Value* cos0_output = nullptr;
-  RETURN_IF_ERROR(ConnectTwoNodes(&graph, cos0_node, cos1_node, &cos0_output));
+  ABSL_RETURN_IF_ERROR(
+      ConnectTwoNodes(&graph, cos0_node, cos1_node, &cos0_output));
   cos0_output->tensor.type = DataType::FLOAT32;
   cos0_output->tensor.shape = BHWC(1, 32, 32, 16);
 
   Value* cos1_output = nullptr;
-  RETURN_IF_ERROR(AddOutput(&graph, cos1_node, &cos1_output));
+  ABSL_RETURN_IF_ERROR(AddOutput(&graph, cos1_node, &cos1_output));
   cos1_output->tensor.type = DataType::FLOAT32;
   cos1_output->tensor.shape = BHWC(1, 32, 32, 16);
 
@@ -1902,7 +1915,7 @@ absl::Status TestLinkingCosAndCosOp(TestExecutionEnvironment* env) {
       create_info.hints.Add(ModelHints::kAllowSpecialKernels);
 
       GpuModel gpu_model;
-      RETURN_IF_ERROR(
+      ABSL_RETURN_IF_ERROR(
           GraphToGpuModel(graph, create_info, env->GetGpuInfo(), &gpu_model));
 
       if (gpu_model.nodes.size() != 1) {
@@ -1917,7 +1930,7 @@ absl::Status TestLinkingCosAndCosOp(TestExecutionEnvironment* env) {
       }
 
       TensorFloat32 dst_tensor_v1;
-      RETURN_IF_ERROR(env->ExecuteGpuModel(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGpuModel(
           {src_tensor}, std::vector<TensorFloat32*>{&dst_tensor_v1},
           &gpu_model));
 
@@ -1928,14 +1941,14 @@ absl::Status TestLinkingCosAndCosOp(TestExecutionEnvironment* env) {
       GPUOperation cos0_operation = CreateElementwiseOneInput(
           env->GetGpuInfo(), op_def, OperationType::COS);
       TensorFloat32 intermediate;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           src_tensor, std::make_unique<GPUOperation>(std::move(cos0_operation)),
           cos0_output->tensor.shape, &intermediate));
 
       GPUOperation cos1_operation = CreateElementwiseOneInput(
           env->GetGpuInfo(), op_def, OperationType::COS);
       TensorFloat32 dst_tensor_v0;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           intermediate,
           std::make_unique<GPUOperation>(std::move(cos1_operation)),
           cos1_output->tensor.shape, &dst_tensor_v0));
@@ -1960,13 +1973,13 @@ absl::Status TestFloatCastToBoolCastToFloat(TestExecutionEnvironment* env) {
   auto cast1_node = graph.NewNode();
   cast1_node->operation.type = ToString(OperationType::CAST);
   Value* cast0_output = nullptr;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       ConnectTwoNodes(&graph, cast0_node, cast1_node, &cast0_output));
   cast0_output->tensor.type = DataType::BOOL;
   cast0_output->tensor.shape = BHWC(1, 32, 32, 16);
 
   Value* cast1_output = nullptr;
-  RETURN_IF_ERROR(AddOutput(&graph, cast1_node, &cast1_output));
+  ABSL_RETURN_IF_ERROR(AddOutput(&graph, cast1_node, &cast1_output));
   cast1_output->tensor.type = DataType::FLOAT32;
   cast1_output->tensor.shape = BHWC(1, 32, 32, 16);
 
@@ -1978,7 +1991,7 @@ absl::Status TestFloatCastToBoolCastToFloat(TestExecutionEnvironment* env) {
       create_info.hints.Add(ModelHints::kAllowSpecialKernels);
 
       GpuModel gpu_model;
-      RETURN_IF_ERROR(
+      ABSL_RETURN_IF_ERROR(
           GraphToGpuModel(graph, create_info, env->GetGpuInfo(), &gpu_model));
 
       if (gpu_model.nodes.size() != 1) {
@@ -1993,7 +2006,7 @@ absl::Status TestFloatCastToBoolCastToFloat(TestExecutionEnvironment* env) {
       }
 
       TensorFloat32 dst_tensor_v1;
-      RETURN_IF_ERROR(env->ExecuteGpuModel(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGpuModel(
           {src_tensor}, std::vector<TensorFloat32*>{&dst_tensor_v1},
           &gpu_model));
 
@@ -2022,7 +2035,7 @@ absl::Status TestFloatCastToBoolCastToFloat(TestExecutionEnvironment* env) {
         dst_cpu_descs[0] = op0_def.dst_tensors[0];
         dst_cpu_descs[0].SetBHWCShape(cast0_output->tensor.shape);
         dst_cpu_desc_ptrs[0] = &dst_cpu_descs[0];
-        RETURN_IF_ERROR(env->ExecuteGPUOperation(
+        ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
             src_cpu_desc_ptrs, dst_cpu_desc_ptrs,
             std::make_unique<GPUOperation>(std::move(cast0_operation))));
         dst_cpu_descs[0].DownloadData(&intermediate);
@@ -2041,7 +2054,7 @@ absl::Status TestFloatCastToBoolCastToFloat(TestExecutionEnvironment* env) {
         dst_cpu_descs[0] = op1_def.dst_tensors[0];
         dst_cpu_descs[0].SetBHWCShape(cast1_output->tensor.shape);
         dst_cpu_desc_ptrs[0] = &dst_cpu_descs[0];
-        RETURN_IF_ERROR(env->ExecuteGPUOperation(
+        ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
             src_cpu_desc_ptrs, dst_cpu_desc_ptrs,
             std::make_unique<GPUOperation>(std::move(cast1_operation))));
         dst_cpu_descs[0].DownloadData(&dst_tensor_v0);
@@ -2082,13 +2095,13 @@ absl::Status TestReshapeTranspose(TestExecutionEnvironment* env) {
   transpose_attr.perm = BHWC(0, 2, 1, 3);
   transpose_node->operation.attributes = transpose_attr;
   Value* interm_tensor_ptr = nullptr;
-  RETURN_IF_ERROR(ConnectTwoNodes(&graph, reshape_node, transpose_node,
-                                  &interm_tensor_ptr));
+  ABSL_RETURN_IF_ERROR(ConnectTwoNodes(&graph, reshape_node, transpose_node,
+                                       &interm_tensor_ptr));
   interm_tensor_ptr->tensor.type = DataType::FLOAT32;
   interm_tensor_ptr->tensor.shape = BHWC(1, 2, 8, 4);
 
   Value* output_tensor_ptr = nullptr;
-  RETURN_IF_ERROR(AddOutput(&graph, transpose_node, &output_tensor_ptr));
+  ABSL_RETURN_IF_ERROR(AddOutput(&graph, transpose_node, &output_tensor_ptr));
   output_tensor_ptr->tensor.type = DataType::FLOAT32;
   output_tensor_ptr->tensor.shape = BHWC(1, 8, 2, 4);
 
@@ -2103,7 +2116,7 @@ absl::Status TestReshapeTranspose(TestExecutionEnvironment* env) {
       create_info.hints.Add(ModelHints::kAllowSpecialKernels);
 
       GpuModel gpu_model;
-      RETURN_IF_ERROR(
+      ABSL_RETURN_IF_ERROR(
           GraphToGpuModel(graph, create_info, env->GetGpuInfo(), &gpu_model));
 
       if (gpu_model.nodes.size() != 1) {
@@ -2118,7 +2131,7 @@ absl::Status TestReshapeTranspose(TestExecutionEnvironment* env) {
       }
 
       TensorFloat32 dst_tensor_v1;
-      RETURN_IF_ERROR(env->ExecuteGpuModel(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGpuModel(
           {src_tensor}, std::vector<TensorFloat32*>{&dst_tensor_v1},
           &gpu_model));
 
@@ -2128,14 +2141,14 @@ absl::Status TestReshapeTranspose(TestExecutionEnvironment* env) {
 
       Reshapex4 reshape_operation = CreateReshapex4(op_def);
       TensorFloat32 intermediate;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           src_tensor, std::make_unique<Reshapex4>(std::move(reshape_operation)),
           interm_tensor_ptr->tensor.shape, &intermediate));
 
       GPUOperation transpose_operation =
           CreateTranspose(op_def, transpose_attr);
       TensorFloat32 dst_tensor_v0;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           intermediate,
           std::make_unique<GPUOperation>(std::move(transpose_operation)),
           output_tensor_ptr->tensor.shape, &dst_tensor_v0));
@@ -2179,8 +2192,8 @@ absl::Status TestReshapeTransposeReshape(TestExecutionEnvironment* env) {
   transpose_attr.perm = BHWC(0, 2, 1, 3);
   transpose_node->operation.attributes = transpose_attr;
   Value* interm0_tensor_ptr = nullptr;
-  RETURN_IF_ERROR(ConnectTwoNodes(&graph, reshape0_node, transpose_node,
-                                  &interm0_tensor_ptr));
+  ABSL_RETURN_IF_ERROR(ConnectTwoNodes(&graph, reshape0_node, transpose_node,
+                                       &interm0_tensor_ptr));
   interm0_tensor_ptr->tensor.type = DataType::FLOAT32;
   interm0_tensor_ptr->tensor.shape = BHWC(1, 2, 8, 4);
 
@@ -2190,13 +2203,13 @@ absl::Status TestReshapeTransposeReshape(TestExecutionEnvironment* env) {
   reshape1_attr.new_shape = BHWC(1, 2, 8, 4);
   reshape1_node->operation.attributes = reshape1_attr;
   Value* interm1_tensor_ptr = nullptr;
-  RETURN_IF_ERROR(ConnectTwoNodes(&graph, transpose_node, reshape1_node,
-                                  &interm1_tensor_ptr));
+  ABSL_RETURN_IF_ERROR(ConnectTwoNodes(&graph, transpose_node, reshape1_node,
+                                       &interm1_tensor_ptr));
   interm1_tensor_ptr->tensor.type = DataType::FLOAT32;
   interm1_tensor_ptr->tensor.shape = BHWC(1, 8, 2, 4);
 
   Value* output_tensor_ptr = nullptr;
-  RETURN_IF_ERROR(AddOutput(&graph, reshape1_node, &output_tensor_ptr));
+  ABSL_RETURN_IF_ERROR(AddOutput(&graph, reshape1_node, &output_tensor_ptr));
   output_tensor_ptr->tensor.type = DataType::FLOAT32;
   output_tensor_ptr->tensor.shape = BHWC(1, 1, 1, 64);
 
@@ -2211,7 +2224,7 @@ absl::Status TestReshapeTransposeReshape(TestExecutionEnvironment* env) {
       create_info.hints.Add(ModelHints::kAllowSpecialKernels);
 
       GpuModel gpu_model;
-      RETURN_IF_ERROR(
+      ABSL_RETURN_IF_ERROR(
           GraphToGpuModel(graph, create_info, env->GetGpuInfo(), &gpu_model));
 
       if (gpu_model.nodes.size() != 1) {
@@ -2226,7 +2239,7 @@ absl::Status TestReshapeTransposeReshape(TestExecutionEnvironment* env) {
       }
 
       TensorFloat32 dst_tensor_v1;
-      RETURN_IF_ERROR(env->ExecuteGpuModel(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGpuModel(
           {src_tensor}, std::vector<TensorFloat32*>{&dst_tensor_v1},
           &gpu_model));
 
@@ -2236,7 +2249,7 @@ absl::Status TestReshapeTransposeReshape(TestExecutionEnvironment* env) {
 
       Reshapex4 reshape0_operation = CreateReshapex4(op_def);
       TensorFloat32 intermediate0;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           src_tensor,
           std::make_unique<Reshapex4>(std::move(reshape0_operation)),
           interm0_tensor_ptr->tensor.shape, &intermediate0));
@@ -2244,14 +2257,14 @@ absl::Status TestReshapeTransposeReshape(TestExecutionEnvironment* env) {
       GPUOperation transpose_operation =
           CreateTranspose(op_def, transpose_attr);
       TensorFloat32 intermediate1;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           intermediate0,
           std::make_unique<GPUOperation>(std::move(transpose_operation)),
           interm1_tensor_ptr->tensor.shape, &intermediate1));
 
       Reshapex4 reshape1_operation = CreateReshapex4(op_def);
       TensorFloat32 dst_tensor_v0;
-      RETURN_IF_ERROR(env->ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           intermediate1,
           std::make_unique<Reshapex4>(std::move(reshape1_operation)),
           output_tensor_ptr->tensor.shape, &dst_tensor_v0));
@@ -2351,7 +2364,7 @@ absl::Status TestTwoInputTwise(TestExecutionEnvironment* env) {
   create_info.hints.Add(ModelHints::kAllowSpecialKernels);
 
   GpuModel gpu_model;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       GraphToGpuModel(graph, create_info, env->GetGpuInfo(), &gpu_model));
 
   if (gpu_model.nodes.size() != 1) {
@@ -2366,7 +2379,7 @@ absl::Status TestTwoInputTwise(TestExecutionEnvironment* env) {
   }
 
   TensorFloat32 dst_tensor_v1;
-  RETURN_IF_ERROR(env->ExecuteGpuModel(
+  ABSL_RETURN_IF_ERROR(env->ExecuteGpuModel(
       {src_tensor}, std::vector<TensorFloat32*>{&dst_tensor_v1}, &gpu_model));
 
   OperationDef op_def;
@@ -2380,21 +2393,21 @@ absl::Status TestTwoInputTwise(TestExecutionEnvironment* env) {
 
   Reshapex4 reshape_operation = CreateReshapex4(op_def);
   TensorFloat32 input_reshaped;
-  RETURN_IF_ERROR(env->ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
       src_tensor, std::make_unique<Reshapex4>(std::move(reshape_operation)),
       reshape_output->tensor.shape, &input_reshaped));
 
   GPUOperation sin0_operation =
       CreateElementwiseOneInput(env->GetGpuInfo(), op_def, OperationType::SIN);
   TensorFloat32 interm0;
-  RETURN_IF_ERROR(env->ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
       input_reshaped, std::make_unique<GPUOperation>(std::move(sin0_operation)),
       sin0_output->tensor.shape, &interm0));
 
   GPUOperation cos0_operation =
       CreateElementwiseOneInput(env->GetGpuInfo(), op_def, OperationType::COS);
   TensorFloat32 interm1;
-  RETURN_IF_ERROR(env->ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
       input_reshaped, std::make_unique<GPUOperation>(std::move(cos0_operation)),
       cos0_output->tensor.shape, &interm1));
 
@@ -2402,7 +2415,7 @@ absl::Status TestTwoInputTwise(TestExecutionEnvironment* env) {
   GPUOperation sub0_operation = CreateElementwiseTwoInput(
       env->GetGpuInfo(), op_def_sub, OperationType::SUB,
       cos0_output->tensor.shape, sub0_output->tensor.shape);
-  RETURN_IF_ERROR(env->ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
       {interm0, interm1},
       std::make_unique<GPUOperation>(std::move(sub0_operation)),
       sub0_output->tensor.shape, &interm2));
@@ -2410,14 +2423,14 @@ absl::Status TestTwoInputTwise(TestExecutionEnvironment* env) {
   GPUOperation sin1_operation =
       CreateElementwiseOneInput(env->GetGpuInfo(), op_def, OperationType::SIN);
   TensorFloat32 interm3;
-  RETURN_IF_ERROR(env->ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
       interm2, std::make_unique<GPUOperation>(std::move(sin1_operation)),
       sin1_output->tensor.shape, &interm3));
 
   GPUOperation cos1_operation =
       CreateElementwiseOneInput(env->GetGpuInfo(), op_def, OperationType::COS);
   TensorFloat32 interm4;
-  RETURN_IF_ERROR(env->ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
       interm2, std::make_unique<GPUOperation>(std::move(cos1_operation)),
       cos0_output->tensor.shape, &interm4));
 
@@ -2425,7 +2438,7 @@ absl::Status TestTwoInputTwise(TestExecutionEnvironment* env) {
   GPUOperation sub1_operation = CreateElementwiseTwoInput(
       env->GetGpuInfo(), op_def_sub, OperationType::SUB,
       cos1_output->tensor.shape, sub1_output->tensor.shape);
-  RETURN_IF_ERROR(env->ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
       {interm3, interm4},
       std::make_unique<GPUOperation>(std::move(sub1_operation)),
       sub1_output->tensor.shape, &interm5));
@@ -2532,14 +2545,14 @@ absl::Status TestConvWithPaddedAdd(TestExecutionEnvironment* env) {
   ConvGeneric conv_operation =
       CreateConvGeneric(env->GetGpuInfo(), op_def_conv, precision, conv_attr);
   TensorFloat32 interm0;
-  RETURN_IF_ERROR(env->ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
       src_tensor, std::make_unique<ConvGeneric>(std::move(conv_operation)),
       conv_output->tensor.shape, &interm0));
 
   GPUOperation pad_operation =
       CreatePadding(env->GetGpuInfo(), op_def_pad, pad_attr);
   TensorFloat32 interm1;
-  RETURN_IF_ERROR(env->ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(pad_operation)),
       pad_output->tensor.shape, &interm1));
 
@@ -2547,15 +2560,15 @@ absl::Status TestConvWithPaddedAdd(TestExecutionEnvironment* env) {
       env->GetGpuInfo(), op_def_add, OperationType::ADD,
       pad_output->tensor.shape, add_output->tensor.shape);
   TensorFloat32 interm2;
-  RETURN_IF_ERROR(env->ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
       {interm0, interm1},
       std::make_unique<GPUOperation>(std::move(add_operation)),
       add_output->tensor.shape, &interm2));
 
-  RETURN_IF_ERROR(ApplyGpuModelTransformations(&graph));
+  ABSL_RETURN_IF_ERROR(ApplyGpuModelTransformations(&graph));
 
   GpuModel gpu_model;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       GraphToGpuModel(graph, create_info, env->GetGpuInfo(), &gpu_model));
 
   if (gpu_model.nodes.size() != 1) {
@@ -2563,7 +2576,7 @@ absl::Status TestConvWithPaddedAdd(TestExecutionEnvironment* env) {
   }
 
   TensorFloat32 dst_tensor_v1;
-  RETURN_IF_ERROR(env->ExecuteGpuModel(
+  ABSL_RETURN_IF_ERROR(env->ExecuteGpuModel(
       {src_tensor}, std::vector<TensorFloat32*>{&dst_tensor_v1}, &gpu_model));
 
   EXPECT_EQ(dst_tensor_v1.data, interm2.data);

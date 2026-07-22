@@ -64,25 +64,27 @@ absl::Status ClExecutionEnvironment::ExecuteGpuOperationInternal(
     std::unique_ptr<GPUOperation>&& operation) {
   ClOperation cl_op;
   cl_op.Init(std::move(operation));
-  RETURN_IF_ERROR(cl_op.Compile(env_.GetDevicePtr(), &env_.context(),
-                                env_.program_cache()));
+  ABSL_RETURN_IF_ERROR(cl_op.Compile(env_.GetDevicePtr(), &env_.context(),
+                                     env_.program_cache()));
   std::vector<Tensor> src(src_cpu.size());
   for (int i = 0; i < src_cpu.size(); ++i) {
-    RETURN_IF_ERROR(src[i].CreateFromDescriptor(*src_cpu[i], env_.context()));
-    RETURN_IF_ERROR(cl_op.SetSrcTensor(i, &src[i]));
+    ABSL_RETURN_IF_ERROR(
+        src[i].CreateFromDescriptor(*src_cpu[i], env_.context()));
+    ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(i, &src[i]));
   }
 
   std::vector<Tensor> dst(dst_cpu.size());
   for (int i = 0; i < dst_cpu.size(); ++i) {
-    RETURN_IF_ERROR(dst[i].CreateFromDescriptor(*dst_cpu[i], env_.context()));
-    RETURN_IF_ERROR(cl_op.SetDstTensor(i, &dst[i]));
+    ABSL_RETURN_IF_ERROR(
+        dst[i].CreateFromDescriptor(*dst_cpu[i], env_.context()));
+    ABSL_RETURN_IF_ERROR(cl_op.SetDstTensor(i, &dst[i]));
   }
-  RETURN_IF_ERROR(cl_op.UpdateParams());
-  RETURN_IF_ERROR(cl_op.AddToQueue(env_.queue()));
-  RETURN_IF_ERROR(env_.queue()->WaitForCompletion());
+  ABSL_RETURN_IF_ERROR(cl_op.UpdateParams());
+  ABSL_RETURN_IF_ERROR(cl_op.AddToQueue(env_.queue()));
+  ABSL_RETURN_IF_ERROR(env_.queue()->WaitForCompletion());
 
   for (int i = 0; i < dst_cpu.size(); ++i) {
-    RETURN_IF_ERROR(dst[i].ToDescriptor(dst_cpu[i], env_.queue()));
+    ABSL_RETURN_IF_ERROR(dst[i].ToDescriptor(dst_cpu[i], env_.queue()));
   }
   return absl::OkStatus();
 }
@@ -93,44 +95,44 @@ absl::StatusOr<ProfilingInfo> ClExecutionEnvironment::GetGpuOperationTimeMs(
     const std::vector<BHWC>& dst_sizes, int num_repeats) {
   std::vector<TensorDescriptor> src_cpu_descs(src_cpu.size());
   for (int i = 0; i < src_cpu.size(); ++i) {
-    RETURN_IF_ERROR(operation->GetTensorDescriptor(
+    ABSL_RETURN_IF_ERROR(operation->GetTensorDescriptor(
         operation->GetSrcTensorsNames()[i], &src_cpu_descs[i]));
     src_cpu_descs[i].UploadData(src_cpu[i]);
   }
   std::vector<TensorDescriptor> dst_cpu_descs(dst_sizes.size());
   for (int i = 0; i < dst_sizes.size(); ++i) {
-    RETURN_IF_ERROR(operation->GetTensorDescriptor(
+    ABSL_RETURN_IF_ERROR(operation->GetTensorDescriptor(
         operation->GetDstTensorsNames()[i], &dst_cpu_descs[i]));
     dst_cpu_descs[i].SetBHWCShape(dst_sizes[i]);
   }
 
-  RETURN_IF_ERROR(operation->AssembleCode(GetGpuInfo()));
+  ABSL_RETURN_IF_ERROR(operation->AssembleCode(GetGpuInfo()));
   ClOperation cl_op;
   cl_op.Init(std::move(operation));
-  RETURN_IF_ERROR(cl_op.Compile(env_.GetDevicePtr(), &env_.context(),
-                                env_.program_cache()));
+  ABSL_RETURN_IF_ERROR(cl_op.Compile(env_.GetDevicePtr(), &env_.context(),
+                                     env_.program_cache()));
   std::vector<Tensor> src(src_cpu.size());
   for (int i = 0; i < src_cpu.size(); ++i) {
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         src[i].CreateFromDescriptor(src_cpu_descs[i], env_.context()));
-    RETURN_IF_ERROR(cl_op.SetSrcTensor(i, &src[i]));
+    ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(i, &src[i]));
   }
 
   std::vector<Tensor> dst(dst_sizes.size());
   for (int i = 0; i < dst_sizes.size(); ++i) {
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         dst[i].CreateFromDescriptor(dst_cpu_descs[i], env_.context()));
-    RETURN_IF_ERROR(cl_op.SetDstTensor(i, &dst[i]));
+    ABSL_RETURN_IF_ERROR(cl_op.SetDstTensor(i, &dst[i]));
   }
-  RETURN_IF_ERROR(cl_op.UpdateParams());
+  ABSL_RETURN_IF_ERROR(cl_op.UpdateParams());
 
-  RETURN_IF_ERROR(cl_op.Tune(TuningType::kExhaustive, GetGpuInfo(),
-                             env_.profiling_queue()));
+  ABSL_RETURN_IF_ERROR(cl_op.Tune(TuningType::kExhaustive, GetGpuInfo(),
+                                  env_.profiling_queue()));
 
   ProfilingInfo result;
   result.dispatches.resize(num_repeats);
   for (int i = 0; i < num_repeats; ++i) {
-    ASSIGN_OR_RETURN(
+    ABSL_ASSIGN_OR_RETURN(
         result.dispatches[i].duration,
         cl_op.GetOpTime(GetGpuInfo(), env_.queue(), env_.profiling_queue()));
     result.dispatches[i].label = "test_op";

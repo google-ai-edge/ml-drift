@@ -55,7 +55,7 @@ std::string GetCommonOpenCLDefines() {
 }  // namespace
 
 absl::Status ClOperation::UpdateParams() {
-  RETURN_IF_ERROR(operation_->BindArguments(&cl_args_));
+  ABSL_RETURN_IF_ERROR(operation_->BindArguments(&cl_args_));
   operation_->RecalculateGridSize();
   operation_->RecalculateWorkGroupsCount();
   return absl::OkStatus();
@@ -80,13 +80,13 @@ absl::Status ClOperation::SetDstBuffer(int index, Buffer* buffer) {
 }
 
 absl::Status ClOperation::AddToQueue(CLCommandQueue* queue, CLEvent* event) {
-  RETURN_IF_ERROR(cl_args_.Bind(kernel_.kernel()));
+  ABSL_RETURN_IF_ERROR(cl_args_.Bind(kernel_.kernel()));
   return queue->Dispatch(kernel_, operation_->GetWorkGroupsCount(),
                          operation_->work_group_size_, event);
 }
 
 absl::Status ClOperation::AddToCommandBuffer(cl_command_buffer_khr cb) {
-  RETURN_IF_ERROR(cl_args_.Bind(kernel_.kernel()));
+  ABSL_RETURN_IF_ERROR(cl_args_.Bind(kernel_.kernel()));
   std::array<size_t, 3> local;
   std::array<size_t, 3> global;
   for (int i = 0; i < 3; ++i) {
@@ -111,7 +111,7 @@ absl::Status ClOperation::AddToCommandBuffer(cl_command_buffer_khr cb) {
 
 absl::Status ClOperation::AddToQueueForProfiling(ProfilingCommandQueue* queue,
                                                  int n, int flush_period) {
-  RETURN_IF_ERROR(cl_args_.Bind(kernel_.kernel()));
+  ABSL_RETURN_IF_ERROR(cl_args_.Bind(kernel_.kernel()));
   return queue->ProfilingDispatch(kernel_, operation_->GetWorkGroupsCount(),
                                   operation_->work_group_size_, n,
                                   flush_period);
@@ -119,7 +119,7 @@ absl::Status ClOperation::AddToQueueForProfiling(ProfilingCommandQueue* queue,
 
 absl::Status ClOperation::InitArgs(const GpuInfo& gpu_info,
                                    CLContext* context) {
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       cl_args_.Init(gpu_info, context, &operation_->args_, &operation_->code_));
   operation_->args_.ReleaseCPURepresentation();
   return absl::OkStatus();
@@ -127,7 +127,7 @@ absl::Status ClOperation::InitArgs(const GpuInfo& gpu_info,
 
 absl::Status ClOperation::InitArgsDeserialized(const GpuInfo& gpu_info,
                                                CLContext* context) {
-  RETURN_IF_ERROR(cl_args_.Init(gpu_info, &operation_->args_, context));
+  ABSL_RETURN_IF_ERROR(cl_args_.Init(gpu_info, &operation_->args_, context));
   operation_->args_.ReleaseCPURepresentation();
   return absl::OkStatus();
 }
@@ -135,7 +135,7 @@ absl::Status ClOperation::InitArgsDeserialized(const GpuInfo& gpu_info,
 absl::Status ClOperation::Compile(const CLDevice* device, CLContext* context,
                                   ProgramCache* cache) {
   const GpuInfo& gpu_info = device->info_;
-  RETURN_IF_ERROR(InitArgs(gpu_info, context));
+  ABSL_RETURN_IF_ERROR(InitArgs(gpu_info, context));
   const std::string defines = GetCommonOpenCLDefines();
   std::string extensions;
   if (gpu_info.SupportsExtension("cl_khr_fp16")) {
@@ -165,11 +165,11 @@ absl::Status ClOperation::RestoreDeserialized(const ProgramCache& program_cache,
                                               const int3& work_group_size,
                                               CLContext* context) {
   kernel_fingerprint_ = fingerprint;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       program_cache.GetKernel(kernel_fingerprint_, "main_function", &kernel_));
   operation_->work_group_size_ = work_group_size;
   operation_->RecalculateWorkGroupsCount();
-  RETURN_IF_ERROR(InitArgsDeserialized(gpu_info, context));
+  ABSL_RETURN_IF_ERROR(InitArgsDeserialized(gpu_info, context));
   return absl::OkStatus();
 }
 
@@ -192,9 +192,9 @@ absl::Status ClOperation::Tune(TuningType tuning_type, const GpuInfo& gpu_info,
       work_group_sizes[i] = possible_dispatches[i].work_group_size;
       work_groups_counts[i] = possible_dispatches[i].work_groups_count;
     }
-    RETURN_IF_ERROR(cl_args_.Bind(kernel_.kernel()));
+    ABSL_RETURN_IF_ERROR(cl_args_.Bind(kernel_.kernel()));
     int best_work_group_index;
-    RETURN_IF_ERROR(profiling_queue->GetBestWorkGroupIndex(
+    ABSL_RETURN_IF_ERROR(profiling_queue->GetBestWorkGroupIndex(
         kernel_, gpu_info, work_groups_counts, work_group_sizes,
         &best_work_group_index));
     operation_->work_group_size_ = work_group_sizes[best_work_group_index];
@@ -215,9 +215,9 @@ absl::StatusOr<absl::Duration> ClOperation::GetOpTime(
   const int kTestRuns = 16;
   std::vector<CLEvent> events(kTestRuns);
   for (int j = 0; j < kTestRuns; ++j) {
-    RETURN_IF_ERROR(AddToQueue(profiling_queue, &events[j]));
+    ABSL_RETURN_IF_ERROR(AddToQueue(profiling_queue, &events[j]));
   }
-  RETURN_IF_ERROR(profiling_queue->WaitForCompletion());
+  ABSL_RETURN_IF_ERROR(profiling_queue->WaitForCompletion());
   for (int j = 0; j < kTestRuns; ++j) {
     min_time_ns = std::min(min_time_ns, events[j].GetEventTimeNs());
   }
@@ -234,12 +234,12 @@ absl::StatusOr<absl::Duration> ClOperation::GetOpTime(
   const int kFlush = std::max(4, static_cast<int>(10.0 / min_time_ms));
   const auto start = absl::Now();
   for (int j = 0; j < kRuns; ++j) {
-    RETURN_IF_ERROR(AddToQueue(queue));
+    ABSL_RETURN_IF_ERROR(AddToQueue(queue));
     if ((j + 1) % kFlush == 0) {
       clFlush(queue->queue());
     }
   }
-  RETURN_IF_ERROR(queue->WaitForCompletion());
+  ABSL_RETURN_IF_ERROR(queue->WaitForCompletion());
   const auto end = absl::Now();
   return (end - start) / kRuns;
 }

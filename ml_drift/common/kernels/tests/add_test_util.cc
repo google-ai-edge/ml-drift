@@ -53,7 +53,7 @@ absl::Status AddTest(TestExecutionEnvironment& exec_env,
 
   GPUOperation operation = CreateAdd(op_def, channels, channels[0]);
   TensorFloat32 dst_tensor;
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       src_tensors, std::make_unique<GPUOperation>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -78,7 +78,7 @@ absl::Status AddNotEqualTest(TestExecutionEnvironment& exec_env,
 
   GPUOperation operation = CreateAdd(op_def, channels, src_shape0.c);
   TensorFloat32 dst_tensor;
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       {src_tensor0, src_tensor1},
       std::make_unique<GPUOperation>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
@@ -101,7 +101,7 @@ absl::Status AddNotEqualFirstTensorTest(TestExecutionEnvironment& exec_env,
 
   GPUOperation operation = CreateAdd(op_def, channels, src_shape1.c);
   TensorFloat32 dst_tensor;
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       {src_tensor0, src_tensor1},
       std::make_unique<GPUOperation>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
@@ -136,7 +136,7 @@ absl::Status AddTwoEqualIntTensorsTest(TestExecutionEnvironment& env,
   src_1.UploadData(src1);
   dst.SetBHWCShape(BHWC(1, 2, 1, 2));
   GPUOperation operation = CreateAdd(op_def, channels, channels[0]);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_0, &src_1}, {&dst},
       std::make_unique<GPUOperation>(std::move(operation))));
   Tensor<BHWC, data_type> dst_tensor;
@@ -176,7 +176,7 @@ absl::Status AddTwoEqualUintTensorsTest(TestExecutionEnvironment& env,
   src_1.UploadData(src1);
   dst.SetBHWCShape(BHWC(1, 2, 1, 2));
   GPUOperation operation = CreateAdd(op_def, channels, channels[0]);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_0, &src_1}, {&dst},
       std::make_unique<GPUOperation>(std::move(operation))));
   Tensor<BHWC, data_type> dst_tensor;
@@ -212,7 +212,7 @@ absl::Status AddTwoEqualTensorsBFloatTest(TestExecutionEnvironment& env,
   src_1.UploadData(src1);
   dst.SetBHWCShape(BHWC(1, 2, 1, 2));
   GPUOperation operation = CreateAdd(op_def, channels, channels[0]);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_0, &src_1}, {&dst},
       std::make_unique<GPUOperation>(std::move(operation))));
   Tensor<BHWC, DataType::BFLOAT16> dst_tensor;
@@ -240,7 +240,7 @@ absl::Status AddTwoEqualTensorsTest(TestExecutionEnvironment& env,
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateAdd(op_def, channels, channels[0]);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src0, src1}, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 1, 2), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -265,7 +265,7 @@ absl::Status AddFirstTensorHasMoreChannelsThanSecondTest(
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateAdd(op_def, channels, channels[0]);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src0, src1}, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 1, 6), &dst_tensor));
   EXPECT_THAT(
@@ -292,7 +292,7 @@ absl::Status AddFirstTensorHasLessChannelsThanSecondTest(
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateAdd(op_def, channels, 6);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src0, src1}, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 1, 6), &dst_tensor));
   EXPECT_THAT(
@@ -440,7 +440,7 @@ absl::Status AddBroadcast5DTest(TestExecutionEnvironment& env,
   src_1.UploadData(src1);
   dst.SetBHWDCShape(BHWDC(1, 2, 1, 2, 4));
 
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_0, &src_1}, {&dst},
       std::make_unique<GPUOperation>(std::move(operation))));
 

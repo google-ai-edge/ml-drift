@@ -60,7 +60,7 @@ OffsetsAssignment ObjectsToOffsets(
 absl::Status BestGreedy(
     const std::vector<TensorUsageRecord<size_t>>& usage_records,
     ObjectsAssignment<size_t>* assignment) {
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       GreedyBySizeDistPriorityAssignment(usage_records, assignment));
   ObjectsAssignment<size_t> assignment_by_breadth;
   if (GreedyByBreadthAssignment(usage_records, &assignment_by_breadth).ok() &&
@@ -162,7 +162,7 @@ absl::Status AssignOffsetsToTensors(
                                   assignment);
   }
   ObjectsAssignment<size_t> objects_assignment;
-  RETURN_IF_ERROR(AssignObjectsToTensors(
+  ABSL_RETURN_IF_ERROR(AssignObjectsToTensors(
       usage_records, strategy, &objects_assignment, reallocation_graph));
   *assignment = ObjectsToOffsets(objects_assignment);
   return absl::OkStatus();

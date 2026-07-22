@@ -60,7 +60,7 @@ absl::Status RoPETest(TestExecutionEnvironment& env, DataType data_type,
   TensorFloat32 dst_r;
   RoPEAttributes attr;
   GPUOperation operation = CreateRoPE(env.GetGpuInfo(), op_def, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_l, src_r, pos_tensor},
       std::make_unique<GPUOperation>(std::move(operation)),
       {BHWC(1, 1, 4, 4), BHWC(1, 1, 4, 4)}, {&dst_l, &dst_r}));
@@ -102,7 +102,7 @@ absl::Status SplitRoPEConcatTest(TestExecutionEnvironment& env,
   RoPEAttributes attr;
   GPUOperation operation =
       CreateSplitRoPEConcat(env.GetGpuInfo(), op_def, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src, pos_tensor}, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 1, 4, 8), &dst));
   EXPECT_THAT(

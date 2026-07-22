@@ -107,10 +107,10 @@ std::string Resize::GetResizeCode(const OperationDef& op_def,
 }
 
 absl::Status Resize::BindArguments(ArgumentsBinder* args) {
-  RETURN_IF_ERROR(args->SetFloat(
+  ABSL_RETURN_IF_ERROR(args->SetFloat(
       "scale_factor_x",
       CalculateResizeScale(src_[0]->Width(), dst_[0]->Width(), attr_)));
-  RETURN_IF_ERROR(args->SetFloat(
+  ABSL_RETURN_IF_ERROR(args->SetFloat(
       "scale_factor_y",
       CalculateResizeScale(src_[0]->Height(), dst_[0]->Height(), attr_)));
   return absl::OkStatus();
@@ -206,13 +206,13 @@ std::string Resize3D::GetResize3DCode(const OperationDef& op_def,
 }
 
 absl::Status Resize3D::BindArguments(ArgumentsBinder* args) {
-  RETURN_IF_ERROR(args->SetFloat(
+  ABSL_RETURN_IF_ERROR(args->SetFloat(
       "scale_factor_x",
       CalculateResizeScale(src_[0]->Width(), dst_[0]->Width(), attr_)));
-  RETURN_IF_ERROR(args->SetFloat(
+  ABSL_RETURN_IF_ERROR(args->SetFloat(
       "scale_factor_y",
       CalculateResizeScale(src_[0]->Height(), dst_[0]->Height(), attr_)));
-  RETURN_IF_ERROR(args->SetFloat(
+  ABSL_RETURN_IF_ERROR(args->SetFloat(
       "scale_factor_z",
       CalculateResizeScale(src_[0]->Depth(), dst_[0]->Depth(), attr_)));
   return absl::OkStatus();

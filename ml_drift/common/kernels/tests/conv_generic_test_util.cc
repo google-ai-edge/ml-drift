@@ -363,7 +363,7 @@ absl::Status ConvGenericWinograd3x3TileNxNTest(TestExecutionEnvironment& env,
       }
       TensorDescriptor dst_td = op_def.dst_tensors[0];
       dst_td.SetBHWCShape(BHWC(conv_wino_shape));
-      RETURN_IF_ERROR(env.ExecuteGPUOperation(
+      ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
           srcs_td, {&dst_td},
           std::make_unique<ConvGeneric>(std::move(convolution))));
       dst_td.DownloadData(&output_conv_wino);
@@ -672,7 +672,7 @@ absl::Status ConvGenericPackedGroupsTest(TestExecutionEnvironment& env,
     srcs_td[idx++] = &weights_gpu[i];
   }
   srcs_td[idx++] = &runtime_params_td;
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {srcs_td}, {&dst_desc},
       std::make_unique<ConvGeneric>(std::move(convolution))));
 
@@ -745,7 +745,7 @@ absl::Status ConvGenericExternalWfloatTest(TestExecutionEnvironment& env,
   for (auto& td : weights_td) {
     src_cpu.push_back(&td);
   }
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_cpu, {&dst_td}, std::make_unique<ConvGeneric>(std::move(operation))));
   TensorFloat32 dst_tensor;
   dst_td.DownloadData(&dst_tensor);
@@ -837,7 +837,7 @@ absl::Status ConvGenericExternalWi8Test(TestExecutionEnvironment& env,
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
 
   float eps = GetEpsilon(precision, env.GetGpuInfo()) * group_size * 8.0f;
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_td, &weights_i8_td, &scale_desc, &zp_desc}, {&dst_td},
       std::make_unique<ConvGeneric>(std::move(operation))));
   TensorFloat32 dst_tensor;
@@ -928,7 +928,7 @@ absl::Status ConvGenericExternalWi4Test(TestExecutionEnvironment& env,
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
 
   float eps = GetEpsilon(precision, env.GetGpuInfo()) * group_size * 4.0f;
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_td, &weights_i4_td, &scale_desc, &zp_desc}, {&dst_td},
       std::make_unique<ConvGeneric>(std::move(operation))));
   TensorFloat32 dst_tensor;
@@ -1019,7 +1019,7 @@ absl::Status ConvGenericExternalWi2Test(TestExecutionEnvironment& env,
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
 
   float eps = GetEpsilon(precision, env.GetGpuInfo()) * group_size * 2.0f;
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_td, &weights_i2_td, &scale_desc, &zp_desc}, {&dst_td},
       std::make_unique<ConvGeneric>(std::move(operation))));
   TensorFloat32 dst_tensor;
@@ -1043,7 +1043,7 @@ absl::Status ConvGeneric3DTest(TestExecutionEnvironment& exec_env,
                                        attr, &dst_ref_tensor.shape);
   float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr);
   Tensor5DFloat32 dst_tensor;
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       src_tensor, std::make_unique<ConvGeneric>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), dst_ref_tensor.data));
@@ -1340,7 +1340,7 @@ absl::Status ConvGenericInt8BigTest(TestExecutionEnvironment& env,
       OperationDef op_def;
       op_def.src_tensors.push_back({src_data_type, src_storage, Layout::HWC});
       op_def.dst_tensors.push_back({dst_data_type, dst_storage, Layout::HWC});
-      RETURN_IF_ERROR(ConvolutionGenericInt8Test(
+      ABSL_RETURN_IF_ERROR(ConvolutionGenericInt8Test(
           env, src_i8_tensor, quantized_type, weights_i8, op_def));
     }
   } else {
@@ -1361,7 +1361,7 @@ absl::Status ConvGenericInt8BigTest(TestExecutionEnvironment& env,
       OperationDef op_def;
       op_def.src_tensors.push_back({src_data_type, src_storage, Layout::HWC});
       op_def.dst_tensors.push_back({dst_data_type, dst_storage, Layout::HWC});
-      RETURN_IF_ERROR(ConvolutionGenericInt8Test(
+      ABSL_RETURN_IF_ERROR(ConvolutionGenericInt8Test(
           env, src_ui8_tensor, quantized_type, weights_i8, op_def));
     }
   }
@@ -2026,11 +2026,11 @@ absl::Status ConvGenericInt8WeightsInt4WithSrcQuantizationBigTest(
                        << " data type: " << ToString(float_type);
         continue;
       }
-      RETURN_IF_ERROR(ConvGenericInt8WeightsInt4WithSrcQuantizationBig(
+      ABSL_RETURN_IF_ERROR(ConvGenericInt8WeightsInt4WithSrcQuantizationBig(
           env, src_tensor, weights_i4, weights_scale,
           /*weights_zero_point=*/nullptr, quantized_type, quantized_storage,
           float_type, float_storage));
-      RETURN_IF_ERROR(ConvGenericInt8WeightsInt4WithSrcQuantizationBig(
+      ABSL_RETURN_IF_ERROR(ConvGenericInt8WeightsInt4WithSrcQuantizationBig(
           env, src_tensor, weights_i4, weights_scale, &weights_zp,
           quantized_type, quantized_storage, float_type, float_storage));
     }

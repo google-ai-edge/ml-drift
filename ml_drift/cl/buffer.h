@@ -102,7 +102,7 @@ absl::Status Buffer::WriteData(CLCommandQueue* queue,
     return absl::InvalidArgumentError(
         "absl::Span<T> data size is greater from buffer allocated size.");
   }
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       queue->EnqueueWriteBuffer(buffer_, data_size_in_bytes, data.data()));
   return absl::OkStatus();
 }

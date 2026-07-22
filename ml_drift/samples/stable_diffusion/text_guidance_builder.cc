@@ -48,8 +48,9 @@ absl::Status TextGuidanceBuilder::Build(
     GpuModelBuilder::TensorHandle* dst_ptr,
     GpuModelBuilder::TensorHandle* text_proj_ptr) {
   config_ = config;
-  ASSIGN_OR_RETURN(model_data_loader_,
-                   ModelDataLoader::CreateFromWeightsDir(config.file_folder));
+  ABSL_ASSIGN_OR_RETURN(
+      model_data_loader_,
+      ModelDataLoader::CreateFromWeightsDir(config.file_folder));
   builder_ = GpuModelBuilder(gpu_info, create_info.hints, create_info.precision,
                              create_info.storage_type);
   const DataType float_type =
@@ -83,8 +84,8 @@ absl::Status TextGuidanceBuilder::Build(
   }
   std::vector<GpuModelBuilder::ValueId> output_ids;
   if (text_proj_ptr) {
-    ASSIGN_OR_RETURN(auto t, MakeTextGuidanceWithTextProjection(
-                                 input_tensors[0], float_type));
+    ABSL_ASSIGN_OR_RETURN(auto t, MakeTextGuidanceWithTextProjection(
+                                      input_tensors[0], float_type));
     if (dst_ptr) {
       *dst_ptr = t[0];
     }
@@ -93,7 +94,8 @@ absl::Status TextGuidanceBuilder::Build(
     }
     output_ids = {t[0].id, t[1].id};
   } else {
-    ASSIGN_OR_RETURN(auto t, MakeTextGuidance(input_tensors[0], float_type));
+    ABSL_ASSIGN_OR_RETURN(auto t,
+                          MakeTextGuidance(input_tensors[0], float_type));
     if (dst_ptr) {
       *dst_ptr = t;
     }
@@ -154,9 +156,9 @@ absl::StatusOr<GpuModelBuilder::TensorHandle>
 TextGuidanceBuilder::MakeTextGuidance(const GpuModelBuilder::TensorHandle& x_in,
                                       DataType float_type) {
   const std::string name = "cond_stage_model.transformer.text_model";
-  ASSIGN_OR_RETURN(auto x,
-                   MakeTextEmbeddings(x_in, float_type, name + ".embeddings"));
-  ASSIGN_OR_RETURN(x, MakeTextEncoder(x, name + ".encoder"));
+  ABSL_ASSIGN_OR_RETURN(
+      auto x, MakeTextEmbeddings(x_in, float_type, name + ".embeddings"));
+  ABSL_ASSIGN_OR_RETURN(x, MakeTextEncoder(x, name + ".encoder"));
   if (config_.skip_final_layer_norm) {
     return x;
   }
@@ -167,7 +169,7 @@ absl::StatusOr<std::vector<GpuModelBuilder::TensorHandle>>
 TextGuidanceBuilder::MakeTextGuidanceWithTextProjection(
     const GpuModelBuilder::TensorHandle& x_in, DataType float_type) {
   std::vector<GpuModelBuilder::TensorHandle> outputs(2);
-  ASSIGN_OR_RETURN(outputs[0], MakeTextGuidance(x_in, float_type));
+  ABSL_ASSIGN_OR_RETURN(outputs[0], MakeTextGuidance(x_in, float_type));
   const std::string name = "cond_stage_model.transformer.text_model";
   auto final_norm = outputs[0];
   if (config_.skip_final_layer_norm) {
@@ -193,7 +195,7 @@ TextGuidanceBuilder::MakeTextEncoderLayer(
     const GpuModelBuilder::TensorHandle& xIn, const std::string& name) {
   auto x = xIn;
   x = MakeLayerNorm(x, name + ".layer_norm1");
-  ASSIGN_OR_RETURN(x, MakeTextAttention(x, name + ".self_attn"));
+  ABSL_ASSIGN_OR_RETURN(x, MakeTextAttention(x, name + ".self_attn"));
   x = builder_.Add(x, xIn);
   auto skip = x;
   x = MakeLayerNorm(x, name + ".layer_norm2");
@@ -213,7 +215,7 @@ TextGuidanceBuilder::MakeTextEncoder(const GpuModelBuilder::TensorHandle& xIn,
                                      const std::string& name) {
   auto x = xIn;
   for (int i = 0; i < config_.num_layers; i++) {
-    ASSIGN_OR_RETURN(
+    ABSL_ASSIGN_OR_RETURN(
         x, MakeTextEncoderLayer(x, name + ".layers." + std::to_string(i)));
   }
   return x;
@@ -310,11 +312,11 @@ TextGuidanceBuilder::MakeTextAttention(const GpuModelBuilder::TensorHandle& xIn,
       v, BHWC{1, v.tensor_desc.GetBHWCShape().h * n,
               v.tensor_desc.GetBHWCShape().w, v.tensor_desc.GetBHWCShape().c});
 
-  ASSIGN_OR_RETURN(auto att, builder_.BatchedMatMul(q, k));
+  ABSL_ASSIGN_OR_RETURN(auto att, builder_.BatchedMatMul(q, k));
   att = builder_.Multiplication(att, 1.0f / sqrt(static_cast<float>(dHead)));
   att = builder_.Elementwise(att, mask_, OperationType::MINIMUM);
   att = builder_.Softmax(att);
-  ASSIGN_OR_RETURN(att, builder_.BatchedMatMul(att, v));
+  ABSL_ASSIGN_OR_RETURN(att, builder_.BatchedMatMul(att, v));
 
   att = builder_.Reshape(att, BHWC{n, att.tensor_desc.GetBHWCShape().h / n,
                                    att.tensor_desc.GetBHWCShape().w,

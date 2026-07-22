@@ -24,7 +24,6 @@
 #include <utility>
 #include <vector>
 
-#include "absl/status/status.h"
 #include "absl/strings/ascii.h"
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
@@ -196,7 +195,7 @@ absl::Status AddConvertFromBfloat(const GpuInfo& gpu_info,
   }
   int type_size = 0;
   DataType dst_data_type;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       DataTypeFromTemplateArg(template_args[0], &dst_data_type, &type_size));
   const std::string dst_ucl = ToUclDataType(dst_data_type, type_size);
   if (gpu_info.IsApiOpenCl()) {
@@ -328,7 +327,7 @@ absl::Status AddConvertToBfloat(const GpuInfo& gpu_info,
   }
   int type_size = 0;
   DataType src_data_type;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       DataTypeFromTemplateArg(template_args[0], &src_data_type, &type_size));
   const std::string src_ucl = ToUclDataType(src_data_type, type_size);
   if (gpu_info.IsApiOpenCl()) {
@@ -640,12 +639,12 @@ absl::Status AddGlslBitsToVec(const GpuInfo& gpu_info,
                                  template_args[0], " src) {\n");
   DataType src_data_type;
   int src_type_size;
-  RETURN_IF_ERROR(DataTypeFromTemplateArg(template_args[0], &src_data_type,
-                                          &src_type_size));
+  ABSL_RETURN_IF_ERROR(DataTypeFromTemplateArg(template_args[0], &src_data_type,
+                                               &src_type_size));
   DataType dst_data_type;
   int dst_type_size;
-  RETURN_IF_ERROR(DataTypeFromTemplateArg(template_args[1], &dst_data_type,
-                                          &dst_type_size));
+  ABSL_RETURN_IF_ERROR(DataTypeFromTemplateArg(template_args[1], &dst_data_type,
+                                               &dst_type_size));
   if (src_type_size != 1 && dst_type_size != 1 &&
       src_type_size != dst_type_size) {
     return absl::UnimplementedError(
@@ -789,7 +788,7 @@ absl::Status ResolveLinking(const GpuInfo& gpu_info,
                             std::vector<std::string>* function_args,
                             std::string* result) {
   std::string value_name, x_coord, y_coord, z_coord, s_coord, b_coord;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       linkable_context.tensor_desc->GetLinkingContextFromWriteSelector(
           *function_args, &value_name, &x_coord, &y_coord, &z_coord, &s_coord,
           &b_coord));
@@ -843,8 +842,8 @@ absl::Status ResolveConstExprPass(const GpuInfo& gpu_info,
       next_position += const_expr_name.size();
       std::string patch;
       GPUObjectDescriptor* desc_ptr;
-      RETURN_IF_ERROR(args.GetDescriptor(object_name, &desc_ptr));
-      RETURN_IF_ERROR(
+      ABSL_RETURN_IF_ERROR(args.GetDescriptor(object_name, &desc_ptr));
+      ABSL_RETURN_IF_ERROR(
           desc_ptr->PerformConstExpr(gpu_info, const_expr_name, &patch));
       code->replace(arg_pos, next_position - arg_pos, patch);
       position = arg_pos + patch.size();
@@ -883,8 +882,8 @@ absl::Status ResolveSelectorsPass(
       template_args.clear();
       if (next == '<') {
         size_t close_bracket_pos;
-        RETURN_IF_ERROR(ParseArguments(*code, next_position, &close_bracket_pos,
-                                       &template_args));
+        ABSL_RETURN_IF_ERROR(ParseArguments(
+            *code, next_position, &close_bracket_pos, &template_args));
         next_position = close_bracket_pos + 1;
         next = (*code)[next_position];
       }
@@ -894,15 +893,15 @@ absl::Status ResolveSelectorsPass(
       }
       function_args.clear();
       size_t close_bracket_pos;
-      RETURN_IF_ERROR(ParseArguments(*code, next_position, &close_bracket_pos,
-                                     &function_args));
+      ABSL_RETURN_IF_ERROR(ParseArguments(*code, next_position,
+                                          &close_bracket_pos, &function_args));
       for (auto& arg : function_args) {
-        RETURN_IF_ERROR(ResolveSelectorsPass(gpu_info, {}, args, &arg));
+        ABSL_RETURN_IF_ERROR(ResolveSelectorsPass(gpu_info, {}, args, &arg));
       }
       std::string patch;
       std::string linkable_patch;
       GPUObjectDescriptor* desc_ptr;
-      RETURN_IF_ERROR(args.GetDescriptor(object_name, &desc_ptr));
+      ABSL_RETURN_IF_ERROR(args.GetDescriptor(object_name, &desc_ptr));
       auto names = desc_ptr->GetGPUResources(gpu_info).GetNames();
       if (desc_ptr && !linkables.empty()) {
         if (selector_name == "WriteLinear") {
@@ -910,11 +909,11 @@ absl::Status ResolveSelectorsPass(
         } else if (selector_name == "Write") {
           auto it = linkables.find(object_name);
           if (it != linkables.end()) {
-            RETURN_IF_ERROR(ResolveLinking(gpu_info, it->second, &function_args,
-                                           &linkable_patch));
-            RETURN_IF_ERROR(
+            ABSL_RETURN_IF_ERROR(ResolveLinking(
+                gpu_info, it->second, &function_args, &linkable_patch));
+            ABSL_RETURN_IF_ERROR(
                 ResolveConstExprPass(gpu_info, args, &linkable_patch));
-            RETURN_IF_ERROR(
+            ABSL_RETURN_IF_ERROR(
                 ResolveSelectorsPass(gpu_info, {}, args, &linkable_patch));
           }
         }
@@ -936,7 +935,8 @@ absl::Status ResolveSelectorsPass(
         add_quantized_write &=
             (selector_name == "Write" || selector_name == "WriteLinear");
         if (add_quantized_write) {
-          RETURN_IF_ERROR(AddQuantizedBufferWrite(gpu_info, type, &write_fcns));
+          ABSL_RETURN_IF_ERROR(
+              AddQuantizedBufferWrite(gpu_info, type, &write_fcns));
         }
       }
       absl::Status selector_status = desc_ptr->PerformSelector(
@@ -998,8 +998,8 @@ absl::Status ResolveSystemFunctionsPass(const GpuInfo& gpu_info,
     template_args.clear();
     if (next == '<') {
       size_t close_bracket_pos;
-      RETURN_IF_ERROR(ParseArguments(*code, next_position, &close_bracket_pos,
-                                     &template_args));
+      ABSL_RETURN_IF_ERROR(ParseArguments(*code, next_position,
+                                          &close_bracket_pos, &template_args));
       next_position = close_bracket_pos + 1;
       next = (*code)[next_position];
     }
@@ -1009,8 +1009,8 @@ absl::Status ResolveSystemFunctionsPass(const GpuInfo& gpu_info,
     }
     function_args.clear();
     size_t close_bracket_pos;
-    RETURN_IF_ERROR(ParseArguments(*code, next_position, &close_bracket_pos,
-                                   &function_args));
+    ABSL_RETURN_IF_ERROR(ParseArguments(*code, next_position,
+                                        &close_bracket_pos, &function_args));
     if (function_name == "GetGlobalId") {
       code_info->uses_global_id = true;
     } else if (function_name == "GetLocalId") {
@@ -1033,34 +1033,34 @@ absl::Status ResolveSystemFunctionsPass(const GpuInfo& gpu_info,
                     new_function_name);
       if (function_names.find(new_function_name) == function_names.end()) {
         std::string function_code = GetU8ToVec4I2Function(gpu_info);
-        RETURN_IF_ERROR(
+        ABSL_RETURN_IF_ERROR(
             ResolveSystemFunctionsPass(gpu_info, &function_code, code_info));
         *code = function_code + *code;
         function_names.insert(new_function_name);
       }
     } else {
-      RETURN_IF_ERROR(PerformSystemFunction(
+      ABSL_RETURN_IF_ERROR(PerformSystemFunction(
           gpu_info, function_name, function_args, template_args, &patch));
       code->replace(start_pos, close_bracket_pos + 1 - start_pos, patch);
     }
     if (function_name.rfind("ConvertFromBfloat", 0) == 0) {  // startswith
-      RETURN_IF_ERROR(AddConvertFromBfloat(gpu_info, template_args, code));
+      ABSL_RETURN_IF_ERROR(AddConvertFromBfloat(gpu_info, template_args, code));
       start_pos = 0;
     } else if (function_name.rfind("ConvertToBfloat", 0) == 0) {  // startswith
-      RETURN_IF_ERROR(AddConvertToBfloat(gpu_info, template_args, code));
+      ABSL_RETURN_IF_ERROR(AddConvertToBfloat(gpu_info, template_args, code));
       start_pos = 0;
     }
     if (absl::StrContains(patch, "ReinterpretUvec2ToHalf4")) {
-      RETURN_IF_ERROR(AddGlslReinterpretUvec2ToHalf4(gpu_info, code));
+      ABSL_RETURN_IF_ERROR(AddGlslReinterpretUvec2ToHalf4(gpu_info, code));
       start_pos = 0;
     }
     if (absl::StrContains(patch, "ReinterpretHalf4ToUvec2")) {
-      RETURN_IF_ERROR(AddGlslReinterpretHalf4ToUvec2(gpu_info, code));
+      ABSL_RETURN_IF_ERROR(AddGlslReinterpretHalf4ToUvec2(gpu_info, code));
       start_pos = 0;
     }
     if (absl::StrContains(patch, "BitsTo") && absl::StrContains(patch, "vec")) {
-      RETURN_IF_ERROR(AddGlslBitsToVec(gpu_info, GetNextWord(patch, 0),
-                                       template_args, code));
+      ABSL_RETURN_IF_ERROR(AddGlslBitsToVec(gpu_info, GetNextWord(patch, 0),
+                                            template_args, code));
       start_pos = 0;
     }
     next_position = code->find(kPrefix, start_pos);
@@ -1154,7 +1154,7 @@ absl::Status GPUOperation::SetOutputDescriptor(
                      dst_objects_names_.size(), ")"));
   }
   TensorDescriptor* dst_tensor_desc;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       GetTensorDescriptor(dst_objects_names_[index], &dst_tensor_desc));
   new_tensor_desc.CopyWithoutData(dst_tensor_desc);
   return absl::OkStatus();
@@ -1162,18 +1162,19 @@ absl::Status GPUOperation::SetOutputDescriptor(
 
 absl::Status GPUOperation::AddOperation(const GpuInfo& gpu_info,
                                         GPUOperation* operation) {
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       ResolveConstExprPass(gpu_info, operation->args_, &operation->code_));
   if (!const_expr_resolved_) {
     // if we fuse ops, dst desc can changes and as result, const expr can also
     // changes.
-    RETURN_IF_ERROR(ResolveConstExprPass(gpu_info, args_, &code_));
+    ABSL_RETURN_IF_ERROR(ResolveConstExprPass(gpu_info, args_, &code_));
     const_expr_resolved_ = true;
   }
   TensorDescriptor* dst_tensor_desc;
-  RETURN_IF_ERROR(GetTensorDescriptor(dst_objects_names_[0], &dst_tensor_desc));
+  ABSL_RETURN_IF_ERROR(
+      GetTensorDescriptor(dst_objects_names_[0], &dst_tensor_desc));
   TensorDescriptor* new_dst_tensor_desc;
-  RETURN_IF_ERROR(operation->GetTensorDescriptor(
+  ABSL_RETURN_IF_ERROR(operation->GetTensorDescriptor(
       operation->dst_objects_names_[0], &new_dst_tensor_desc));
   const auto prev_type = dst_tensor_desc->GetDataType();
   new_dst_tensor_desc->CopyWithoutData(dst_tensor_desc);
@@ -1195,7 +1196,7 @@ absl::Status GPUOperation::AddOperation(const GpuInfo& gpu_info,
         // if we have fusion of 2 2-input elementwise ops, we will get 3-input
         // elementwise, but currently we support only max 2-input elementwise.
         // So we will resolve one input here.
-        RETURN_IF_ERROR(ResolveSecondElementwiseInput(gpu_info));
+        ABSL_RETURN_IF_ERROR(ResolveSecondElementwiseInput(gpu_info));
       }
       second_elementwise_tensor_name_ =
           operation->second_elementwise_tensor_name_;
@@ -1212,8 +1213,8 @@ absl::Status GPUOperation::AddOperation(const GpuInfo& gpu_info,
         absl::Substitute(elementwise_code_, out_var_declaration);
     elementwise_code_ = elementwise_code_ + "\n" + code;
   }
-  RETURN_IF_ERROR(args_.Merge(std::move(operation->args_), unique_postfix,
-                              {"src_tensor", "dst_tensor"}));
+  ABSL_RETURN_IF_ERROR(args_.Merge(std::move(operation->args_), unique_postfix,
+                                   {"src_tensor", "dst_tensor"}));
   for (size_t i = 1; i < operation->src_objects_names_.size(); ++i) {
     src_objects_names_.push_back(operation->src_objects_names_[i] +
                                  unique_postfix);
@@ -1228,10 +1229,11 @@ absl::Status GPUOperation::AddOperation(const GpuInfo& gpu_info,
 absl::Status GPUOperation::AddReorderOperation(const BHWC& interm_shape,
                                                GPUOperation* operation) {
   TensorDescriptor* src_tensor_desc;
-  RETURN_IF_ERROR(GetTensorDescriptor(src_objects_names_[0], &src_tensor_desc));
+  ABSL_RETURN_IF_ERROR(
+      GetTensorDescriptor(src_objects_names_[0], &src_tensor_desc));
 
   TensorDescriptor* new_src_tensor_desc;
-  RETURN_IF_ERROR(operation->GetTensorDescriptor(
+  ABSL_RETURN_IF_ERROR(operation->GetTensorDescriptor(
       operation->src_objects_names_[0], &new_src_tensor_desc));
 
   reorder_op_count_ += (operation->reorder_op_count_ + 1);
@@ -1286,7 +1288,7 @@ absl::Status GPUOperation::ResolveSecondElementwiseInput(
         "elementwise");
   }
   TensorDescriptor* tensor_desc;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       GetTensorDescriptor(second_elementwise_tensor_name_, &tensor_desc));
   std::string coords = "X_COORD, Y_COORD";
   if (tensor_desc->HasAxis(Axis::DEPTH)) {
@@ -1311,7 +1313,7 @@ absl::Status GPUOperation::ResolveSecondElementwiseInput(
 absl::Status GPUOperation::GetTensorDescriptor(const std::string& tensor_name,
                                                TensorDescriptor* result) const {
   GPUObjectDescriptor* desc_ptr;
-  RETURN_IF_ERROR(args_.GetDescriptor(tensor_name, &desc_ptr));
+  ABSL_RETURN_IF_ERROR(args_.GetDescriptor(tensor_name, &desc_ptr));
   TensorDescriptor* tensor_desc = AsTensorDescriptor(desc_ptr);
   if (tensor_desc != nullptr) {
     *result = *tensor_desc;
@@ -1331,7 +1333,7 @@ absl::Status GPUOperation::GetTensorDescriptor(const std::string& tensor_name,
 absl::Status GPUOperation::GetTensorDescriptor(const std::string& tensor_name,
                                                TensorDescriptor** result) {
   GPUObjectDescriptor* desc_ptr;
-  RETURN_IF_ERROR(args_.GetDescriptor(tensor_name, &desc_ptr));
+  ABSL_RETURN_IF_ERROR(args_.GetDescriptor(tensor_name, &desc_ptr));
   *result = static_cast<TensorDescriptor*>(desc_ptr);
   return absl::OkStatus();
 }
@@ -1367,11 +1369,11 @@ void GPUOperation::AddDstBuffer(const std::string& buffer_name,
 }
 
 absl::Status GPUOperation::AssembleCode(const GpuInfo& gpu_info) {
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       ResolveWaveMemory(gpu_info, &code_, &args_, &compiler_options_));
-  RETURN_IF_ERROR(ResolveWaveMatrix(gpu_info, &code_));
+  ABSL_RETURN_IF_ERROR(ResolveWaveMatrix(gpu_info, &code_));
   if (elementwise_inputs_ == 2) {
-    RETURN_IF_ERROR(ResolveSecondElementwiseInput(gpu_info));
+    ABSL_RETURN_IF_ERROR(ResolveSecondElementwiseInput(gpu_info));
   }
   if (elementwise_) {
     if (dst_objects_names_.empty()) {
@@ -1379,11 +1381,11 @@ absl::Status GPUOperation::AssembleCode(const GpuInfo& gpu_info) {
           "Invalid operation, dst_objects_names_ empty.");
     }
     TensorDescriptor* dst_tensor_desc;
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         GetTensorDescriptor(dst_objects_names_[0], &dst_tensor_desc));
     code_ = GetElementWiseCode(*dst_tensor_desc);
     if (const_expr_resolved_) {
-      RETURN_IF_ERROR(ResolveConstExprPass(gpu_info, args_, &code_));
+      ABSL_RETURN_IF_ERROR(ResolveConstExprPass(gpu_info, args_, &code_));
     }
     elementwise_ = false;
   }
@@ -1393,9 +1395,9 @@ absl::Status GPUOperation::AssembleCode(const GpuInfo& gpu_info) {
           "Invalid operation, src_objects_names_ or dst_objects_names_ empty.");
     }
     TensorDescriptor *src_tensor_desc, *dst_tensor_desc;
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         GetTensorDescriptor(src_objects_names_[0], &src_tensor_desc));
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         GetTensorDescriptor(dst_objects_names_[0], &dst_tensor_desc));
     reorder_code_ = absl::StrReplaceAll(
         reorder_code_, {{"SRC_X", "src_x"},
@@ -1417,7 +1419,7 @@ absl::Status GPUOperation::AssembleCode(const GpuInfo& gpu_info) {
     code_ = absl::Substitute(
         GetReorderBaseCode(*src_tensor_desc, *dst_tensor_desc), reorder_code_);
     if (const_expr_resolved_) {
-      RETURN_IF_ERROR(ResolveConstExprPass(gpu_info, args_, &code_));
+      ABSL_RETURN_IF_ERROR(ResolveConstExprPass(gpu_info, args_, &code_));
     }
     reorder_op_ = false;
   }
@@ -1428,22 +1430,24 @@ absl::Status GPUOperation::AssembleCode(const GpuInfo& gpu_info) {
           "Invalid operation, dst_objects_names_ empty.");
     }
     TensorDescriptor* dst_tensor_desc;
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         GetTensorDescriptor(dst_objects_names_[0], &dst_tensor_desc));
     linkables[dst_objects_names_[0]] = {elementwise_code_, dst_tensor_desc};
   }
   if (!const_expr_resolved_) {
-    RETURN_IF_ERROR(ResolveConstExprPass(gpu_info, args_, &code_));
+    ABSL_RETURN_IF_ERROR(ResolveConstExprPass(gpu_info, args_, &code_));
     const_expr_resolved_ = true;
   }
-  RETURN_IF_ERROR(ResolveSelectorsPass(gpu_info, linkables, args_, &code_));
+  ABSL_RETURN_IF_ERROR(
+      ResolveSelectorsPass(gpu_info, linkables, args_, &code_));
   if (gpu_info.IsAdreno() &&
       gpu_info.adreno_info.IsGlDriverMajor615Minor88_97()) {
     args_.AddInt("one_gl_reserved", 1);
   }
-  RETURN_IF_ERROR(ResolveSystemFunctionsPass(gpu_info, &code_, &code_info_));
+  ABSL_RETURN_IF_ERROR(
+      ResolveSystemFunctionsPass(gpu_info, &code_, &code_info_));
   code_ = GetStringWithoutComments(code_);
-  RETURN_IF_ERROR(args_.Compile(gpu_info, &code_));
+  ABSL_RETURN_IF_ERROR(args_.Compile(gpu_info, &code_));
   CalculateConstArgsSize();
   return absl::OkStatus();
 }
@@ -1660,7 +1664,7 @@ absl::Status FuseElemWithElemInternal(
   elem1.args_.RenameArgs(unique_postfix, &elem1.elementwise_code_);
 
   TensorDescriptor* dst_tensor_desc;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       elem0.GetTensorDescriptor(elem0.dst_objects_names_[0], &dst_tensor_desc));
   const auto link_value_type = dst_tensor_desc->GetDataType();
   const std::string link_value_name = "interm_value" + unique_postfix;
@@ -1700,14 +1704,14 @@ absl::Status FuseElemWithElemInternal(
   result->args_ = std::move(elem0.args_);
   {  // update dst_tensor descriptor
     TensorDescriptor* dst_tensor_desc;
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         result->GetTensorDescriptor("dst_tensor", &dst_tensor_desc));
     TensorDescriptor* new_dst_tensor_desc;
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         elem1.GetTensorDescriptor("dst_tensor", &new_dst_tensor_desc));
     new_dst_tensor_desc->CopyWithoutData(dst_tensor_desc);
   }
-  RETURN_IF_ERROR(result->args_.Merge(
+  ABSL_RETURN_IF_ERROR(result->args_.Merge(
       std::move(elem1.args_), unique_postfix,
       {"src_tensor", "dst_tensor", elem1.second_elementwise_tensor_name_}));
   return absl::OkStatus();
@@ -1758,7 +1762,7 @@ absl::Status Fuse2InputElemWith2SimpleElem(const GpuInfo& gpu_info,
   elem0.linkable_count_ =
       std::max(elem0.linkable_count_, elem_root.linkable_count_);
   GPUOperation elem2;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       FuseElemWithElemInternal(gpu_info, std::move(elem0), std::move(elem_root),
                                {{"in_value", "LINK_VALUE"}}, &elem2));
   return FuseElemWithElemInternal(

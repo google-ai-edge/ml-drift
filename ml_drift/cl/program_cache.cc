@@ -99,9 +99,9 @@ absl::Status ProgramCache::GetOrCreateCLKernel(
     return result->CreateFromProgram(it->second, function_name);
   }
 
-  ASSIGN_OR_RETURN(auto program,
-                   CreateCLProgram(code, compiler_options, context, device));
-  RETURN_IF_ERROR(result->CreateFromProgram(program, function_name));
+  ABSL_ASSIGN_OR_RETURN(
+      auto program, CreateCLProgram(code, compiler_options, context, device));
+  ABSL_RETURN_IF_ERROR(result->CreateFromProgram(program, function_name));
   programs_.insert(std::make_pair(std::move(desc), std::move(program)));
   return absl::OkStatus();
 }
@@ -134,8 +134,8 @@ absl::Status ProgramCache::AddProgramBinary(const CLContext& context,
   ProgramDescriptor desc(fingerprint);
   auto it = programs_.find(desc);
   if (it == programs_.end()) {
-    ASSIGN_OR_RETURN(auto program,
-                     CreateCLProgramFromBinary(context, device, binary));
+    ABSL_ASSIGN_OR_RETURN(auto program,
+                          CreateCLProgramFromBinary(context, device, binary));
     programs_.insert(std::make_pair(std::move(desc), std::move(program)));
   }
   return absl::OkStatus();
@@ -172,7 +172,7 @@ absl::Status ProgramCache::AddSerializedCache(
   for (auto serialized_program : *model->programs()) {
     auto binary_span = absl::MakeSpan(serialized_program->binary()->data(),
                                       serialized_program->binary()->size());
-    RETURN_IF_ERROR(AddProgramBinary(
+    ABSL_RETURN_IF_ERROR(AddProgramBinary(
         context, device, serialized_program->fingerprint(), binary_span));
   }
   return absl::OkStatus();
@@ -184,7 +184,7 @@ absl::Status ProgramCache::GetSerializedCache(
   std::vector<flatbuffers::Offset<data::Program>> serialized_programs;
   for (auto& program : programs_) {
     std::vector<uint8_t> binary;
-    RETURN_IF_ERROR(program.second.GetBinary(&binary));
+    ABSL_RETURN_IF_ERROR(program.second.GetBinary(&binary));
     auto binary_offset = builder.CreateVector(binary);
     data::ProgramBuilder program_builder(builder);
     program_builder.add_fingerprint(program.first.fingerprint);

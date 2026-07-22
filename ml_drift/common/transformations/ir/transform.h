@@ -15,7 +15,7 @@
 #ifndef ML_DRIFT_COMMON_TRANSFORMATIONS_IR_TRANSFORM_H_
 #define ML_DRIFT_COMMON_TRANSFORMATIONS_IR_TRANSFORM_H_
 
-#include "absl/status/status.h"
+#include "ml_drift/common/status.h"
 #include "ml_drift/common/ir_model.h"
 
 namespace ml_drift::ir {

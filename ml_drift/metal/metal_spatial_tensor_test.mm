@@ -88,9 +88,9 @@ absl::Status TensorBHWCTest(const BHWC& shape, const TensorDescriptor& descripto
   ml_drift::metal::MetalSpatialTensor tensor;
   ml_drift::TensorDescriptor descriptor_with_data = descriptor;
   descriptor_with_data.UploadData(tensor_cpu);
-  RETURN_IF_ERROR(tensor.CreateFromDescriptor(descriptor_with_data, device));
+  ABSL_RETURN_IF_ERROR(tensor.CreateFromDescriptor(descriptor_with_data, device));
   ml_drift::TensorDescriptor output_descriptor;
-  RETURN_IF_ERROR(tensor.ToDescriptor(&output_descriptor, device));
+  ABSL_RETURN_IF_ERROR(tensor.ToDescriptor(&output_descriptor, device));
   output_descriptor.DownloadData(&tensor_gpu);
 
   for (int i = 0; i < tensor_gpu.data.size(); ++i) {
@@ -152,9 +152,9 @@ absl::Status TensorBHWDCTest(const BHWDC& shape, const TensorDescriptor& descrip
   ml_drift::metal::MetalSpatialTensor tensor;
   ml_drift::TensorDescriptor descriptor_with_data = descriptor;
   descriptor_with_data.UploadData(tensor_cpu);
-  RETURN_IF_ERROR(tensor.CreateFromDescriptor(descriptor_with_data, device));
+  ABSL_RETURN_IF_ERROR(tensor.CreateFromDescriptor(descriptor_with_data, device));
   ml_drift::TensorDescriptor output_descriptor;
-  RETURN_IF_ERROR(tensor.ToDescriptor(&output_descriptor, device));
+  ABSL_RETURN_IF_ERROR(tensor.ToDescriptor(&output_descriptor, device));
   output_descriptor.DownloadData(&tensor_gpu);
 
   for (int i = 0; i < tensor_gpu.data.size(); ++i) {
@@ -198,39 +198,39 @@ template absl::Status TensorBHWDCTest<DataType::BOOL>(const BHWDC& shape,
 template <DataType T>
 absl::Status TensorTests(DataType data_type, TensorStorageType storage_type) {
   id<MTLDevice> device = MTLCreateSystemDefaultDevice();
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       TensorBHWCTest<T>(BHWC(1, 6, 7, 3), {data_type, storage_type, Layout::HWC}, device));
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       TensorBHWCTest<T>(BHWC(1, 1, 4, 12), {data_type, storage_type, Layout::HWC}, device));
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       TensorBHWCTest<T>(BHWC(1, 6, 1, 7), {data_type, storage_type, Layout::HWC}, device));
 
   // Batch tests
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       TensorBHWCTest<T>(BHWC(2, 6, 7, 3), {data_type, storage_type, Layout::BHWC}, device));
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       TensorBHWCTest<T>(BHWC(4, 1, 4, 12), {data_type, storage_type, Layout::BHWC}, device));
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       TensorBHWCTest<T>(BHWC(7, 6, 1, 7), {data_type, storage_type, Layout::BHWC}, device));
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       TensorBHWCTest<T>(BHWC(13, 7, 3, 3), {data_type, storage_type, Layout::BHWC}, device));
 
   // 5D tests with batch = 1
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       TensorBHWDCTest<T>(BHWDC(1, 6, 7, 4, 3), {data_type, storage_type, Layout::HWDC}, device));
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       TensorBHWDCTest<T>(BHWDC(1, 1, 4, 3, 12), {data_type, storage_type, Layout::HWDC}, device));
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       TensorBHWDCTest<T>(BHWDC(1, 6, 1, 7, 7), {data_type, storage_type, Layout::HWDC}, device));
 
   // 5D tests
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       TensorBHWDCTest<T>(BHWDC(2, 6, 7, 1, 3), {data_type, storage_type, Layout::BHWDC}, device));
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       TensorBHWDCTest<T>(BHWDC(4, 1, 4, 2, 12), {data_type, storage_type, Layout::BHWDC}, device));
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       TensorBHWDCTest<T>(BHWDC(7, 6, 1, 3, 7), {data_type, storage_type, Layout::BHWDC}, device));
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       TensorBHWDCTest<T>(BHWDC(13, 7, 3, 4, 3), {data_type, storage_type, Layout::BHWDC}, device));
   return absl::OkStatus();
 }
@@ -482,30 +482,30 @@ template absl::Status TensorTests<DataType::BOOL>(DataType data_type,
 template <DataType T>
 absl::Status SingleTextureTests(DataType data_type) {
   id<MTLDevice> device = MTLCreateSystemDefaultDevice();
-  RETURN_IF_ERROR(TensorBHWCTest<T>(
+  ABSL_RETURN_IF_ERROR(TensorBHWCTest<T>(
       BHWC(1, 6, 14, 1), {data_type, TensorStorageType::SINGLE_TEXTURE_2D, Layout::HWC}, device));
-  RETURN_IF_ERROR(TensorBHWCTest<T>(
+  ABSL_RETURN_IF_ERROR(TensorBHWCTest<T>(
       BHWC(1, 6, 14, 2), {data_type, TensorStorageType::SINGLE_TEXTURE_2D, Layout::HWC}, device));
 
   // Batch tests
-  RETURN_IF_ERROR(TensorBHWCTest<T>(
+  ABSL_RETURN_IF_ERROR(TensorBHWCTest<T>(
       BHWC(7, 6, 14, 1), {data_type, TensorStorageType::SINGLE_TEXTURE_2D, Layout::BHWC}, device));
-  RETURN_IF_ERROR(TensorBHWCTest<T>(
+  ABSL_RETURN_IF_ERROR(TensorBHWCTest<T>(
       BHWC(3, 6, 14, 2), {data_type, TensorStorageType::SINGLE_TEXTURE_2D, Layout::BHWC}, device));
 
   // 5D tests with batch = 1
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       TensorBHWDCTest<T>(BHWDC(1, 6, 14, 7, 1),
                          {data_type, TensorStorageType::SINGLE_TEXTURE_2D, Layout::HWDC}, device));
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       TensorBHWDCTest<T>(BHWDC(1, 6, 14, 4, 2),
                          {data_type, TensorStorageType::SINGLE_TEXTURE_2D, Layout::HWDC}, device));
 
   // 5D tests
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       TensorBHWDCTest<T>(BHWDC(7, 6, 14, 5, 1),
                          {data_type, TensorStorageType::SINGLE_TEXTURE_2D, Layout::BHWDC}, device));
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       TensorBHWDCTest<T>(BHWDC(3, 6, 14, 3, 2),
                          {data_type, TensorStorageType::SINGLE_TEXTURE_2D, Layout::BHWDC}, device));
   return absl::OkStatus();

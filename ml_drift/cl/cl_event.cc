@@ -123,7 +123,7 @@ void CLEvent::Wait() const { clWaitForEvents(1, &event_); }
 absl::Status CLEvent::ActiveWait(cl_command_queue queue) const {
   cl_int event_status = CL_QUEUED;
   while (event_status != CL_COMPLETE) {
-    ASSIGN_OR_RETURN(event_status, GetState());
+    ABSL_ASSIGN_OR_RETURN(event_status, GetState());
     if (queue) {
       clFlush(queue);
     }

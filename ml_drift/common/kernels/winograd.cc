@@ -232,8 +232,8 @@ absl::Status Winograd4x4To36::BindArguments(ArgumentsBinder* args) {
       src_[0]->Height() + padding_.prepended.h + padding_.appended.h - 2;
   int tiles_x = DivideRoundUp(new_width, 4);
   int tiles_y = DivideRoundUp(new_height, 4);
-  RETURN_IF_ERROR(args->SetInt("tiles_x", tiles_x));
-  RETURN_IF_ERROR(args->SetInt("tiles_y", tiles_y));
+  ABSL_RETURN_IF_ERROR(args->SetInt("tiles_x", tiles_x));
+  ABSL_RETURN_IF_ERROR(args->SetInt("tiles_y", tiles_y));
   return absl::OkStatus();
 }
 
@@ -556,10 +556,10 @@ absl::Status Winograd3x3TiledXForward::BindArguments(ArgumentsBinder* args) {
       src_[0]->Height() + padding_.prepended.h + padding_.appended.h - 2,
       tile_size_inner_);
   const int tiles_total = tiles_x * tiles_y;
-  RETURN_IF_ERROR(args->SetInt("padding_x", -padding_.prepended.w));
-  RETURN_IF_ERROR(args->SetInt("padding_y", -padding_.prepended.h));
-  RETURN_IF_ERROR(args->SetInt("tiles_total", tiles_total));
-  RETURN_IF_ERROR(args->SetInt("tiles_x", tiles_x));
+  ABSL_RETURN_IF_ERROR(args->SetInt("padding_x", -padding_.prepended.w));
+  ABSL_RETURN_IF_ERROR(args->SetInt("padding_y", -padding_.prepended.h));
+  ABSL_RETURN_IF_ERROR(args->SetInt("tiles_total", tiles_total));
+  ABSL_RETURN_IF_ERROR(args->SetInt("tiles_x", tiles_x));
   return absl::OkStatus();
 }
 
@@ -788,7 +788,7 @@ int3 Winograd3x3TiledXBackward::SelectBestWorkGroup(
 
 absl::Status Winograd3x3TiledXBackward::BindArguments(ArgumentsBinder* args) {
   const int tiles_x = DivideRoundUp(dst_[0]->Width(), tile_size_inner_);
-  RETURN_IF_ERROR(args->SetInt("tiles_x", tiles_x));
+  ABSL_RETURN_IF_ERROR(args->SetInt("tiles_x", tiles_x));
   return absl::OkStatus();
 }
 

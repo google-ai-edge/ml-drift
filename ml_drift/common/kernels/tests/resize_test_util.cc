@@ -91,7 +91,7 @@ absl::Status ResizeBilinearAlignedTest(TestExecutionEnvironment& env,
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
   TensorFloat32 dst_tensor;
   Resize operation = CreateResize(op_def, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<Resize>(std::move(operation)),
       BHWC(1, 4, 4, 1), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -120,7 +120,7 @@ absl::Status ResizeBilinearNonAlignedTest(TestExecutionEnvironment& env,
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
   TensorFloat32 dst_tensor;
   Resize operation = CreateResize(op_def, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<Resize>(std::move(operation)),
       BHWC(1, 4, 4, 1), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -149,7 +149,7 @@ absl::Status ResizeBilinearWithoutHalfPixelTest(TestExecutionEnvironment& env,
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
   TensorFloat32 dst_tensor;
   Resize operation = CreateResize(op_def, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<Resize>(std::move(operation)),
       BHWC(1, 3, 3, 1), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -177,7 +177,7 @@ absl::Status ResizeBilinearWithHalfPixelTest(TestExecutionEnvironment& env,
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
   TensorFloat32 dst_tensor;
   Resize operation = CreateResize(op_def, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<Resize>(std::move(operation)),
       BHWC(1, 3, 3, 1), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -204,7 +204,7 @@ absl::Status ResizeNearestTest(TestExecutionEnvironment& env,
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
   TensorFloat32 dst_tensor;
   Resize operation = CreateResize(op_def, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<Resize>(std::move(operation)),
       BHWC(1, 2, 4, 1), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -232,7 +232,7 @@ absl::Status ResizeNearestAlignCornersTest(TestExecutionEnvironment& env,
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
   TensorFloat32 dst_tensor;
   Resize operation = CreateResize(op_def, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<Resize>(std::move(operation)),
       BHWC(1, 3, 3, 1), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -260,7 +260,7 @@ absl::Status ResizeNearestHalfPixelCentersTest(TestExecutionEnvironment& env,
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
   TensorFloat32 dst_tensor;
   Resize operation = CreateResize(op_def, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<Resize>(std::move(operation)),
       BHWC(1, 3, 3, 1), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,

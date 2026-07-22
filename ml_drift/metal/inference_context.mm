@@ -134,18 +134,18 @@ absl::Status InferenceContext::InitFromGpuModel(
   external_tensors.immutable_tensors = create_info.external_immutable_tensors;
   external_tensors.mutable_tensors = create_info.external_mutable_tensors;
   std::vector<std::unique_ptr<MetalSpatialTensor>> external_mutable_tensors_allocated_temporarily;
-  ASSIGN_OR_RETURN(model_id_,
-                   memory_manager_.AllocateMemory(*environment, *gpu_model, external_tensors,
-                                                  external_mutable_tensors_allocated_temporarily));
+  ABSL_ASSIGN_OR_RETURN(
+      model_id_, memory_manager_.AllocateMemory(*environment, *gpu_model, external_tensors,
+                                                external_mutable_tensors_allocated_temporarily));
 
   GetMutableNodes(create_info.external_mutable_tensors);
-  RETURN_IF_ERROR(CompileOperations(environment));
+  ABSL_RETURN_IF_ERROR(CompileOperations(environment));
   BindTensorsToOperations();
-  RETURN_IF_ERROR(UpdateParams(environment->GetInfo()));
-  RETURN_IF_ERROR(Tune(TuningType::kFast, environment));
+  ABSL_RETURN_IF_ERROR(UpdateParams(environment->GetInfo()));
+  ABSL_RETURN_IF_ERROR(Tune(TuningType::kFast, environment));
 
   for (auto& external_tensor : create_info.external_mutable_tensors) {
-    RETURN_IF_ERROR(memory_manager_.SetExternalTensor(GetKey(external_tensor.first), nullptr));
+    ABSL_RETURN_IF_ERROR(memory_manager_.SetExternalTensor(GetKey(external_tensor.first), nullptr));
   }
 
   if (serialized_model) {
@@ -197,7 +197,7 @@ absl::Status InferenceContext::RestoreDeserialized(
   device_ = device_id;
   Environment environment(device_id);
   GpuModel gpu_model;
-  RETURN_IF_ERROR(ml_drift::Decode(decoded_fb->gpu_model(), &gpu_model));
+  ABSL_RETURN_IF_ERROR(ml_drift::Decode(decoded_fb->gpu_model(), &gpu_model));
   const CreateGpuModelInfo& create_info_ref =
       create_info ? *create_info : CreateGpuModelInfo();
   CopyFromGpuModel(&gpu_model,
@@ -207,23 +207,23 @@ absl::Status InferenceContext::RestoreDeserialized(
       create_info_ref.external_immutable_tensors;
   external_tensors.mutable_tensors = create_info_ref.external_mutable_tensors;
   std::vector<std::unique_ptr<MetalSpatialTensor>> external_mutable_tensors_allocated_temporarily;
-  ASSIGN_OR_RETURN(model_id_,
-                   memory_manager_.AllocateMemory(environment, gpu_model, external_tensors,
-                                                  external_mutable_tensors_allocated_temporarily));
+  ABSL_ASSIGN_OR_RETURN(
+      model_id_, memory_manager_.AllocateMemory(environment, gpu_model, external_tensors,
+                                                external_mutable_tensors_allocated_temporarily));
 
-  RETURN_IF_ERROR(DecodeTasks(&environment, decoded_fb));
+  ABSL_RETURN_IF_ERROR(DecodeTasks(&environment, decoded_fb));
 
   GetMutableNodes(create_info_ref.external_mutable_tensors);
 
   for (auto& node : nodes_) {
-    RETURN_IF_ERROR(node.task.RestoreDeserialized(&environment));
+    ABSL_RETURN_IF_ERROR(node.task.RestoreDeserialized(&environment));
   }
 
   BindTensorsToOperations();
 
-  RETURN_IF_ERROR(UpdateParams(environment.GetInfo()));
+  ABSL_RETURN_IF_ERROR(UpdateParams(environment.GetInfo()));
   for (auto& external_tensor : create_info_ref.external_mutable_tensors) {
-    RETURN_IF_ERROR(memory_manager_.SetExternalTensor(GetKey(external_tensor.first), nullptr));
+    ABSL_RETURN_IF_ERROR(memory_manager_.SetExternalTensor(GetKey(external_tensor.first), nullptr));
   }
   return absl::OkStatus();
 }
@@ -261,7 +261,7 @@ absl::Status InferenceContext::DecodeTasks(
     std::string code;
     std::map<std::string, std::string> defines;
     DecodeProgram((*fb_inference->metal_programs())[i], &code, &defines);
-    RETURN_IF_ERROR(nodes_[i].task.Init(env, code, defines));
+    ABSL_RETURN_IF_ERROR(nodes_[i].task.Init(env, code, defines));
 
     int3 wg_size;
     wg_size.x = (*fb_inference->tuned_work_group_sizes_per_node())[i]->x();
@@ -274,7 +274,7 @@ absl::Status InferenceContext::DecodeTasks(
 
 absl::Status InferenceContext::CompileOperations(Environment* env) {
   for (auto& node : nodes_) {
-    RETURN_IF_ERROR(node.task.Compile(env));
+    ABSL_RETURN_IF_ERROR(node.task.Compile(env));
   }
   return absl::OkStatus();
 }
@@ -309,7 +309,7 @@ absl::Status InferenceContext::GetOutputTensor(ValueId id,
   result->data.resize(dst_shape.DimensionsProduct());
 
   TensorDescriptor desc;
-  RETURN_IF_ERROR(gpu_tensor->ToDescriptor(&desc, device_));
+  ABSL_RETURN_IF_ERROR(gpu_tensor->ToDescriptor(&desc, device_));
   desc.DownloadData(result);
   return absl::OkStatus();
 }
@@ -324,7 +324,7 @@ absl::Status InferenceContext::GetOutputTensor(ValueId id,
   result->data.resize(dst_shape.DimensionsProduct());
 
   TensorDescriptor desc;
-  RETURN_IF_ERROR(gpu_tensor->ToDescriptor(&desc, device_));
+  ABSL_RETURN_IF_ERROR(gpu_tensor->ToDescriptor(&desc, device_));
   desc.DownloadData(result);
   return absl::OkStatus();
 }
@@ -344,14 +344,14 @@ void InferenceContext::BindTensorsToOperations() {
 
 absl::Status InferenceContext::UpdateParams(const GpuInfo& gpu_info) {
   for (auto& node : nodes_) {
-    RETURN_IF_ERROR(node.task.UpdateParams());
+    ABSL_RETURN_IF_ERROR(node.task.UpdateParams());
   }
   return absl::OkStatus();
 }
 
 absl::Status InferenceContext::Tune(TuningType tuning_type, Environment* env) {
   for (auto& node : nodes_) {
-    RETURN_IF_ERROR(node.task.Tune(tuning_type, env));
+    ABSL_RETURN_IF_ERROR(node.task.Tune(tuning_type, env));
   }
   return absl::OkStatus();
 }
@@ -612,7 +612,7 @@ void InferenceContext::EncodeWithCommandQueue(id<MTLCommandQueue> command_queue,
 
 absl::Status InferenceContext::SetTensor(const ValueId& tensor_id,
                                          MetalSpatialTensor* tensor_ptr) {
-  RETURN_IF_ERROR(memory_manager_.SetExternalTensor(GetKey(tensor_id), tensor_ptr));
+  ABSL_RETURN_IF_ERROR(memory_manager_.SetExternalTensor(GetKey(tensor_id), tensor_ptr));
   for (int node_index : external_tensor_to_nodes_[tensor_id]) {
     auto& node = nodes_[node_index];
     for (int i = 0; i < node.inputs.size(); ++i) {
@@ -659,8 +659,9 @@ absl::Status IrModelToInferenceContext(const ::ml_drift::ir::IrModel& ir_model,
                                        const ::ml_drift::GpuInfo& gpu_info, id<MTLDevice> device,
                                        InferenceContext* result) {
   GpuModel gpu_model;
-  RETURN_IF_ERROR(::ml_drift::ir::IrModelToGpuModel(ir_model, create_info, gpu_info, &gpu_model));
-  RETURN_IF_ERROR(result->InitFromGpuModel(create_info, &gpu_model, device, nullptr));
+  ABSL_RETURN_IF_ERROR(
+      ::ml_drift::ir::IrModelToGpuModel(ir_model, create_info, gpu_info, &gpu_model));
+  ABSL_RETURN_IF_ERROR(result->InitFromGpuModel(create_info, &gpu_model, device, nullptr));
   return absl::OkStatus();
 }
 

@@ -365,9 +365,9 @@ void Arguments::SetStateValueForAllObjects(const std::string& key,
 }
 
 absl::Status Arguments::Compile(const GpuInfo& gpu_info, std::string* code) {
-  RETURN_IF_ERROR(AddObjectsScalarArgs(gpu_info));
+  ABSL_RETURN_IF_ERROR(AddObjectsScalarArgs(gpu_info));
   GetActiveArguments(*code);
-  RETURN_IF_ERROR(ResolveKernelGlobalSpaceBuffers(gpu_info, code));
+  ABSL_RETURN_IF_ERROR(ResolveKernelGlobalSpaceBuffers(gpu_info, code));
   return absl::OkStatus();
 }
 

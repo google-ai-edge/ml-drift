@@ -44,7 +44,7 @@ absl::Status AutoencoderKLBuilder::BuildDecoder(
   auto src_tensor =
       builder_.AddTensor(BHWC(1, height, width, 4),
                          DeduceDataTypeFromPrecision(create_info.precision));
-  ASSIGN_OR_RETURN(auto t, MakeDecoder(config, src_tensor));
+  ABSL_ASSIGN_OR_RETURN(auto t, MakeDecoder(config, src_tensor));
 
   if (src_ptr) {
     *src_ptr = src_tensor;
@@ -68,7 +68,7 @@ absl::Status AutoencoderKLBuilder::BuildEncoder(
   auto src_tensor =
       builder_.AddTensor(BHWC(1, height, width, 4),
                          DeduceDataTypeFromPrecision(create_info.precision));
-  ASSIGN_OR_RETURN(auto t, MakeEncoder(config, src_tensor));
+  ABSL_ASSIGN_OR_RETURN(auto t, MakeEncoder(config, src_tensor));
 
   if (src_ptr) {
     *src_ptr = src_tensor;
@@ -176,8 +176,8 @@ AutoencoderKLBuilder::MakeAttention(const GpuModelBuilder::TensorHandle& src,
 
   auto v = MakeLinear(x, name + ".v", src_sh.c, false);
 
-  ASSIGN_OR_RETURN(auto att,
-                   builder_.BatchedMatMulSoftmaxBatchedMatMul(q, k, v));
+  ABSL_ASSIGN_OR_RETURN(auto att,
+                        builder_.BatchedMatMulSoftmaxBatchedMatMul(q, k, v));
 
   x = MakeLinear(att, name + ".proj_out", src_sh.c);
   x = builder_.Reshape(x, src_sh);
@@ -193,7 +193,7 @@ absl::StatusOr<GpuModelBuilder::TensorHandle> AutoencoderKLBuilder::MakeDecoder(
   x = MakeConv(x, name + ".conv_in", 512, 3);
 
   x = MakeResnetBlock(x, name + ".mid.block_1", 512);
-  ASSIGN_OR_RETURN(x, MakeAttention(x, name + ".mid.attn_1"));
+  ABSL_ASSIGN_OR_RETURN(x, MakeAttention(x, name + ".mid.attn_1"));
   x = MakeResnetBlock(x, name + ".mid.block_2", 512);
 
   for (int i_level = config.ch_mult.size() - 1; i_level >= 0; --i_level) {
@@ -239,7 +239,7 @@ absl::StatusOr<GpuModelBuilder::TensorHandle> AutoencoderKLBuilder::MakeEncoder(
 
   // middle
   h = MakeResnetBlock(h, name + ".mid.block_1", 512);
-  ASSIGN_OR_RETURN(h, MakeAttention(h, name + ".mid.attn_1"));
+  ABSL_ASSIGN_OR_RETURN(h, MakeAttention(h, name + ".mid.attn_1"));
   h = MakeResnetBlock(h, name + ".mid.block_2", 512);
 
   // end

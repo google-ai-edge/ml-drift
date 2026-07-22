@@ -75,7 +75,7 @@ MAIN_FUNCTION($0) {
 }
 )";
   operation.tensor_to_grid_ = TensorToGrid::kWBToX_HDToY_SToZ;
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_0}, {&dst}, std::make_unique<GPUOperation>(std::move(operation))));
   Tensor<BHWC, DataType::INT32> dst_tensor;
   dst.DownloadData(&dst_tensor);

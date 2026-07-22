@@ -88,7 +88,7 @@ absl::Status ReadDataFromMappableBuffer(const wgpu::Device& device,
           "The timeout was reached while reading back data.");
     }
   }
-  RETURN_IF_ERROR(VerifyWaitStatus(wait_status));
+  ABSL_RETURN_IF_ERROR(VerifyWaitStatus(wait_status));
   if (status != wgpu::MapAsyncStatus::Success) {
     return absl::InternalError(message);
   }
@@ -172,7 +172,7 @@ absl::Status ReadDataFromTexture(const wgpu::Device& device,
   queue.Submit(1, &cb);
 
   std::vector<uint8_t> data_aligned(data_size_aligned, 0);
-  RETURN_IF_ERROR(ReadDataFromMappableBuffer(
+  ABSL_RETURN_IF_ERROR(ReadDataFromMappableBuffer(
       device, queue, temp_buf, data_size_aligned, data_aligned.data()));
 
   for (int r = 0; r < height * depth; ++r) {
@@ -218,12 +218,12 @@ absl::Status WaitUntilCompleted(const wgpu::Queue& queue,
                                 const wgpu::Device& device,
                                 absl::Duration timeout) {
   wgpu::QueueWorkDoneStatus status;
-  RETURN_IF_ERROR(Instance::Wait(
+  ABSL_RETURN_IF_ERROR(Instance::Wait(
       queue.OnSubmittedWorkDone(wgpu::CallbackMode::WaitAnyOnly,
                                 [&status](wgpu::QueueWorkDoneStatus s,
                                           wgpu::StringView) { status = s; }),
       timeout));
-  RETURN_IF_ERROR(VerifyQueueWorkDoneStatus(status));
+  ABSL_RETURN_IF_ERROR(VerifyQueueWorkDoneStatus(status));
   return absl::OkStatus();
 }
 
@@ -355,7 +355,7 @@ absl::StatusOr<wgpu::ComputePipeline> ComputePipelineHolder::Get() const {
   }
 #else
   if (async_create_call_ && thread_data_->pipeline_future.id) {
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         Instance::Wait(thread_data_->pipeline_future, absl::Seconds(30)));
     thread_data_->pipeline_future.id = 0;
   }

@@ -109,7 +109,7 @@ absl::Status CumsumHWCTest(TestExecutionEnvironment& env, DataType data_type,
   Cumsum operation = CreateCumsum(op_def, attr);
   dst.SetBHWCShape(shape);
   src.UploadData(src_tensor);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src}, {&dst}, std::make_unique<Cumsum>(std::move(operation))));
   TensorFloat32 dst_tensor;
   dst.DownloadData(&dst_tensor);
@@ -199,7 +199,7 @@ absl::Status CumsumBHWCTest(TestExecutionEnvironment& env, DataType data_type,
   Cumsum operation = CreateCumsum(op_def, attr);
   dst.SetBHWCShape(src_tensor.shape);
   src.UploadData(src_tensor);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src}, {&dst}, std::make_unique<Cumsum>(std::move(operation))));
   TensorFloat32 dst_tensor;
   dst.DownloadData(&dst_tensor);
@@ -223,7 +223,7 @@ absl::Status CumsumIntTest(TestExecutionEnvironment& env,
   Cumsum operation = CreateCumsum(op_def, attr);
   dst.SetBHWCShape(src_tensor.shape);
   src.UploadData(src_tensor);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src}, {&dst}, std::make_unique<Cumsum>(std::move(operation))));
   Tensor<BHWC, T> dst_tensor;
   dst.DownloadData(&dst_tensor);
@@ -260,7 +260,7 @@ absl::Status Cumsum5DTest(TestExecutionEnvironment& env, DataType data_type,
   op_def.dst_tensors.push_back({data_type, storage, Layout::BHWDC});
   Tensor5DFloat32 dst_tensor;
   Cumsum operation = CreateCumsum(op_def, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<Cumsum>(std::move(operation)),
       BHWDC(2, 3, 1, 2, 1), &dst_tensor));
 

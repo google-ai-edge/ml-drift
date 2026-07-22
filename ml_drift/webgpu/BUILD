@@ -40,7 +40,6 @@ cc_library(
         "//ml_drift/common/task:buffer_desc",
         "//ml_drift/common/task:gpu_object_desc",
         "//ml_drift/common/task:tensor_desc",
-        "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:span",
     ],
@@ -54,10 +53,10 @@ cc_library(
         ":gpu_object",
         ":webgpu_api_util",
         ":webgpu_headers",
+        "//ml_drift/common:status",
         "//ml_drift/common:util",
         "//ml_drift/common/task:buffer_desc",
         "//ml_drift/common/task:gpu_object_desc",
-        "@com_google_absl//absl/status",
         "@com_google_absl//absl/types:span",
     ],
 )
@@ -95,7 +94,6 @@ cc_library(
         "//ml_drift/common/task:gpu_tensor",
         "//ml_drift/common/task:tuning_type",
         "@com_google_absl//absl/container:flat_hash_map",
-        "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/time",
     ],
 )
@@ -340,8 +338,8 @@ cc_library(
     hdrs = ["instance.h"],
     deps = [
         ":webgpu_headers",
+        "//ml_drift/common:status",
         "@com_google_absl//absl/debugging:leak_check",
-        "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/time",
     ],

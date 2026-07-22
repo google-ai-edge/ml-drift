@@ -47,7 +47,7 @@ absl::Status ConcatTest(TestExecutionEnvironment& exec_env,
   TensorFloat32 dst_ref_tensor = ConcatReference(attr, src_tensors);
   GPUOperation operation = CreateConcatXY(op_def, attr);
   TensorFloat32 dst_tensor;
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       src_tensors, std::make_unique<GPUOperation>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -63,7 +63,7 @@ absl::Status ConcatTest(TestExecutionEnvironment& exec_env,
 
   GPUOperation operation = CreateConcatXY(op_def, attr);
   Tensor5DFloat32 dst_tensor;
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       src_tensors, std::make_unique<GPUOperation>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -85,7 +85,7 @@ absl::Status ConcatChannelsTest(TestExecutionEnvironment& exec_env,
   GPUOperation operation =
       CreateConcatZ(op_def, channels, exec_env.GetGpuInfo());
   TensorFloat32 dst_tensor;
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       src_tensors, std::make_unique<GPUOperation>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -108,7 +108,7 @@ absl::Status ConcatChannelsTest(TestExecutionEnvironment& exec_env,
   GPUOperation operation =
       CreateConcatZ(op_def, channels, exec_env.GetGpuInfo());
   Tensor5DFloat32 dst_tensor;
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       src_tensors, std::make_unique<GPUOperation>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -147,7 +147,7 @@ absl::Status ConcatChannelsBoolTest(TestExecutionEnvironment& env,
   dst.SetBHWCShape(BHWC(1, 2, 1, 6));
 
   GPUOperation operation = CreateConcatZ(op_def, {1, 2, 3}, env.GetGpuInfo());
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_0, &src_1, &src_2}, {&dst},
       std::make_unique<GPUOperation>(std::move(operation))));
   std::vector<unsigned char> ref_data = {true,  true, true,  true,  true, false,
@@ -182,7 +182,7 @@ absl::Status ConcatIntTest(TestExecutionEnvironment& env,
   dst.SetBHWCShape(BHWC(1, 2, 3, 2));
 
   GPUOperation operation = CreateConcatXY(op_def, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_0, &src_1}, {&dst},
       std::make_unique<GPUOperation>(std::move(operation))));
   Tensor<BHWC, data_type> dst_tensor;
@@ -223,7 +223,7 @@ absl::Status ConcatWidthTest(TestExecutionEnvironment& env, DataType data_type,
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateConcatXY(op_def, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src0, src1}, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 3, 2), &dst_tensor));
   const float eps = data_type == DataType::FLOAT32 ? 0.0f : 1e-3f;
@@ -251,7 +251,7 @@ absl::Status ConcatHeightTest(TestExecutionEnvironment& env, DataType data_type,
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateConcatXY(op_def, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src0, src1}, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 3, 1, 2), &dst_tensor));
   const float eps = data_type == DataType::FLOAT32 ? 0.0f : 1e-3f;
@@ -280,7 +280,7 @@ absl::Status ConcatChannelsTest(TestExecutionEnvironment& env,
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateConcatZ(op_def, {1, 2, 3}, env.GetGpuInfo());
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src0, src1, src2}, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 1, 6), &dst_tensor));
   const float eps = data_type == DataType::FLOAT32 ? 0.0f : 1e-3f;
@@ -308,7 +308,7 @@ absl::Status ConcatChannelsAlignedx4Test(TestExecutionEnvironment& env,
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateConcatZ(op_def, {4, 4}, env.GetGpuInfo());
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src0, src1}, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 1, 8), &dst_tensor));
   const float eps = data_type == DataType::FLOAT32 ? 0.0f : 1e-3f;

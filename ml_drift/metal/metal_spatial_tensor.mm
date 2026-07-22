@@ -85,7 +85,7 @@ absl::Status AllocateTensorMemory(id<MTLDevice> device,
         return absl::UnknownError("Failed to allocate id<MTLBuffer>");
       }
       if (descriptor.GetStorageType() == TensorStorageType::IMAGE_BUFFER) {
-        RETURN_IF_ERROR(CreateTextureBuffer(*buffer, 0, descriptor, texture));
+        ABSL_RETURN_IF_ERROR(CreateTextureBuffer(*buffer, 0, descriptor, texture));
       }
       return absl::OkStatus();
     }
@@ -291,7 +291,7 @@ absl::Status MetalSpatialTensor::CreateFromDescriptor(
   @autoreleasepool {
     id<MTLBuffer> buffer;
     id<MTLTexture> texture;
-    RETURN_IF_ERROR(AllocateTensorMemory(device, desc, &buffer, &texture));
+    ABSL_RETURN_IF_ERROR(AllocateTensorMemory(device, desc, &buffer, &texture));
     memory_ = buffer;
     texture_mem_ = texture;
   }
@@ -317,7 +317,7 @@ absl::Status MetalSpatialTensor::ToDescriptor(TensorDescriptor* desc,
                                               id<MTLDevice> device) const {
   *desc = descriptor_;
   std::vector<uint8_t> data(GetMemorySizeInBytes());
-  RETURN_IF_ERROR(ReadData(device, data.data()));
+  ABSL_RETURN_IF_ERROR(ReadData(device, data.data()));
   desc->SetData(std::move(data));
   return absl::OkStatus();
 }
@@ -388,8 +388,7 @@ absl::Status MetalSpatialTensor::SetBufferHandle(id<MTLBuffer> buffer) {
   if (descriptor_.GetStorageType() == TensorStorageType::IMAGE_BUFFER) {
     @autoreleasepool {
       id<MTLTexture> texture_buffer = nullptr;
-      RETURN_IF_ERROR(
-          CreateTextureBuffer(memory_, 0, descriptor_, &texture_buffer));
+      ABSL_RETURN_IF_ERROR(CreateTextureBuffer(memory_, 0, descriptor_, &texture_buffer));
       texture_mem_ = texture_buffer;
     }
   }
@@ -402,8 +401,7 @@ absl::Status CreateTensor(id<MTLDevice> device,
   @autoreleasepool {
     id<MTLBuffer> buffer;
     id<MTLTexture> texture;
-    RETURN_IF_ERROR(
-        AllocateTensorMemory(device, descriptor, &buffer, &texture));
+    ABSL_RETURN_IF_ERROR(AllocateTensorMemory(device, descriptor, &buffer, &texture));
     *result = MetalSpatialTensor(buffer, texture, true, true, descriptor);
   }
   return absl::OkStatus();
@@ -417,8 +415,7 @@ absl::Status CreateTensorSharedBuffer(id<MTLBuffer> buffer,
     id<MTLTexture> texture_buffer = nullptr;
     if (buffer &&
         descriptor.GetStorageType() == TensorStorageType::IMAGE_BUFFER) {
-      RETURN_IF_ERROR(CreateTextureBuffer(buffer, buffer_offset, descriptor,
-                                          &texture_buffer));
+      ABSL_RETURN_IF_ERROR(CreateTextureBuffer(buffer, buffer_offset, descriptor, &texture_buffer));
     }
     *result =
         MetalSpatialTensor(buffer, texture_buffer, false, true, descriptor);

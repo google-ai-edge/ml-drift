@@ -194,7 +194,7 @@ void GraphFloat32::SetProducer(NodeId producer, ValueId value) {
 
 absl::Status GraphFloat32::RemoveProducer(ValueId value) {
   ValueDef* v;
-  RETURN_IF_ERROR(LookupValue(value, &v));
+  ABSL_RETURN_IF_ERROR(LookupValue(value, &v));
   Value* value_ptr = v->value.get();
   if (v->producer == nullptr) {
     return absl::InvalidArgumentError("Value does not have a producer");
@@ -224,13 +224,13 @@ void GraphFloat32::AddConsumer(NodeId consumer, ValueId value) {
 absl::Status GraphFloat32::ReplaceInput(NodeId node, ValueId old_value,
                                         ValueId new_value) {
   ValueDef* v_old;
-  RETURN_IF_ERROR(LookupValue(old_value, &v_old));
+  ABSL_RETURN_IF_ERROR(LookupValue(old_value, &v_old));
   Value* value_old_ptr = v_old->value.get();
   ValueDef* v_new;
-  RETURN_IF_ERROR(LookupValue(new_value, &v_new));
+  ABSL_RETURN_IF_ERROR(LookupValue(new_value, &v_new));
   Value* value_new_ptr = v_new->value.get();
   NodeDef* n;
-  RETURN_IF_ERROR(LookupNode(node, &n));
+  ABSL_RETURN_IF_ERROR(LookupNode(node, &n));
   Node* node_ptr = n->node.get();
 
   // Check if the node is a consumer of old_value.
@@ -261,10 +261,10 @@ absl::Status GraphFloat32::ReplaceInput(NodeId node, ValueId old_value,
 
 absl::Status GraphFloat32::RemoveConsumer(NodeId consumer, ValueId value) {
   ValueDef* v;
-  RETURN_IF_ERROR(LookupValue(value, &v));
+  ABSL_RETURN_IF_ERROR(LookupValue(value, &v));
   Value* value_ptr = v->value.get();
   NodeDef* n;
-  RETURN_IF_ERROR(LookupNode(consumer, &n));
+  ABSL_RETURN_IF_ERROR(LookupNode(consumer, &n));
   Node* node_ptr = n->node.get();
   if (!IsInput(consumer, value)) {
     return absl::InvalidArgumentError("Node is not a consumer of the value");
@@ -276,7 +276,7 @@ absl::Status GraphFloat32::RemoveConsumer(NodeId consumer, ValueId value) {
 
 absl::Status GraphFloat32::DeleteNode(NodeId id) {
   NodeDef* n;
-  RETURN_IF_ERROR(LookupNode(id, &n));
+  ABSL_RETURN_IF_ERROR(LookupNode(id, &n));
   Node* node_ptr = n->node.get();
   for (auto value : n->inputs) {
     Erase(&values_[value->id].consumers, node_ptr);
@@ -292,7 +292,7 @@ absl::Status GraphFloat32::DeleteNode(NodeId id) {
 
 absl::Status GraphFloat32::DeleteValue(ValueId id) {
   ValueDef* v;
-  RETURN_IF_ERROR(LookupValue(id, &v));
+  ABSL_RETURN_IF_ERROR(LookupValue(id, &v));
   Value* value_ptr = v->value.get();
   if (v->producer != nullptr) {
     Erase(&nodes_[v->producer->id].outputs, value_ptr);
@@ -402,7 +402,7 @@ absl::Status RemovePrecedingNode(GraphFloat32* graph, const Node* to_remove,
     graph->AddConsumer(to_keep->id, input->id);
   }
   for (auto output : graph->FindOutputs(to_remove->id)) {
-    RETURN_IF_ERROR(graph->DeleteValue(output->id));
+    ABSL_RETURN_IF_ERROR(graph->DeleteValue(output->id));
   }
   return graph->DeleteNode(to_remove->id);
 }
@@ -418,7 +418,7 @@ absl::Status RemoveFollowingNode(GraphFloat32* graph, const Node* to_remove,
   }
 
   for (auto input : graph->FindInputs(to_remove->id)) {
-    RETURN_IF_ERROR(graph->DeleteValue(input->id));
+    ABSL_RETURN_IF_ERROR(graph->DeleteValue(input->id));
   }
   for (auto output : graph->FindOutputs(to_remove->id)) {
     graph->SetProducer(to_keep->id, output->id);
@@ -438,13 +438,14 @@ absl::Status RemoveSimpleNodeKeepInput(GraphFloat32* graph,
   const auto output_id = outputs[0]->id;
   const Node* producer = graph->FindProducer(input_id);
   const auto consumers = graph->FindConsumers(output_id);
-  RETURN_IF_ERROR(graph->DeleteNode(simple_node->id));
+  ABSL_RETURN_IF_ERROR(graph->DeleteNode(simple_node->id));
   for (auto& consumer : consumers) {
-    RETURN_IF_ERROR(graph->ReplaceInput(consumer->id, output_id, input_id));
+    ABSL_RETURN_IF_ERROR(
+        graph->ReplaceInput(consumer->id, output_id, input_id));
   }
-  RETURN_IF_ERROR(graph->DeleteValue(output_id));
+  ABSL_RETURN_IF_ERROR(graph->DeleteValue(output_id));
   if (!producer && consumers.empty()) {
-    RETURN_IF_ERROR(graph->DeleteValue(input_id));
+    ABSL_RETURN_IF_ERROR(graph->DeleteValue(input_id));
   }
   return absl::OkStatus();
 }
@@ -466,17 +467,17 @@ absl::Status RemoveSimpleNodeKeepOutput(GraphFloat32* graph,
         "simple_node should be the only consumer on the node.");
   }
 
-  RETURN_IF_ERROR(graph->DeleteNode(simple_node->id));
+  ABSL_RETURN_IF_ERROR(graph->DeleteNode(simple_node->id));
   if (producer) {
-    RETURN_IF_ERROR(graph->RemoveProducer(input_id));
+    ABSL_RETURN_IF_ERROR(graph->RemoveProducer(input_id));
     graph->SetProducer(producer->id, output_id);
   }
 
-  RETURN_IF_ERROR(graph->DeleteValue(input_id));
+  ABSL_RETURN_IF_ERROR(graph->DeleteValue(input_id));
 
   const auto output_consumers = graph->FindConsumers(output_id);
   if (!producer && output_consumers.empty()) {
-    RETURN_IF_ERROR(graph->DeleteValue(output_id));
+    ABSL_RETURN_IF_ERROR(graph->DeleteValue(output_id));
   }
   return absl::OkStatus();
 }
@@ -503,7 +504,7 @@ absl::Status ConnectTwoNodes(GraphFloat32* graph, const Node* from_node,
   } else {
     // Output is not initialized.
     Value* link;
-    RETURN_IF_ERROR(AddOutput(graph, from_node, &link));
+    ABSL_RETURN_IF_ERROR(AddOutput(graph, from_node, &link));
     graph->AddConsumer(to_node->id, link->id);
     *output = link;
   }

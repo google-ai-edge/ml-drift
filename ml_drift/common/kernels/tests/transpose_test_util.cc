@@ -59,7 +59,7 @@ absl::Status TransposeIntTest(TestExecutionEnvironment& env,
   src_0.UploadData(src);
   dst.SetBHWCShape(BHWC(1, 1, 3, 2));
   GPUOperation operation = CreateTranspose(op_def, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_0}, {&dst}, std::make_unique<GPUOperation>(std::move(operation))));
   Tensor<BHWC, T> dst_tensor;
   dst.DownloadData(&dst_tensor);
@@ -96,7 +96,7 @@ absl::Status TransposeUintTest(TestExecutionEnvironment& env,
   src_0.UploadData(src);
   dst.SetBHWCShape(BHWC(1, 1, 3, 2));
   GPUOperation operation = CreateTranspose(op_def, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_0}, {&dst}, std::make_unique<GPUOperation>(std::move(operation))));
   Tensor<BHWC, T> dst_tensor;
   dst.DownloadData(&dst_tensor);
@@ -125,7 +125,7 @@ absl::Status TransposeTest(TestExecutionEnvironment& env, DataType data_type,
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateTranspose(op_def, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 1, 3, 2), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,

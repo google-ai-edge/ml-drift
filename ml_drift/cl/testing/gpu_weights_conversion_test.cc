@@ -64,11 +64,11 @@ absl::StatusOr<TensorFloat32> GetOutput(
   ABSL_CHECK_EQ(context.GetOutputIds().size(), 1);
   ValueId input_id = context.GetInputIds()[0];
   ValueId output_id = context.GetOutputIds()[0];
-  RETURN_IF_ERROR(context.SetInputTensor(input_id, input_tensor, queue));
-  RETURN_IF_ERROR(context.AddToQueue(queue));
-  RETURN_IF_ERROR(queue->WaitForCompletion());
+  ABSL_RETURN_IF_ERROR(context.SetInputTensor(input_id, input_tensor, queue));
+  ABSL_RETURN_IF_ERROR(context.AddToQueue(queue));
+  ABSL_RETURN_IF_ERROR(queue->WaitForCompletion());
   TensorFloat32 output;
-  RETURN_IF_ERROR(context.GetOutputTensor(output_id, queue, &output));
+  ABSL_RETURN_IF_ERROR(context.GetOutputTensor(output_id, queue, &output));
   return output;
 }
 
@@ -83,18 +83,18 @@ absl::Status InitContexts(cl::Environment* env, const GraphFloat32& graph,
   absl::flat_hash_map<ValueId, ValueId> weights_mapping;
   std::vector<WeightsManager::UploadWeightsInfo> upload_weights_info;
 
-  RETURN_IF_ERROR(GraphToGpuModelWithWeightsConversion(
+  ABSL_RETURN_IF_ERROR(GraphToGpuModelWithWeightsConversion(
       graph, create_info, env->GetDevicePtr()->GetInfo(),
       &gpu_model_with_external_weights, &gpu_weights_conversion_model,
       &weights_mapping, &upload_weights_info));
-  RETURN_IF_ERROR(conversion_context->InitFromGpuModel(
+  ABSL_RETURN_IF_ERROR(conversion_context->InitFromGpuModel(
       create_info, &gpu_weights_conversion_model, env,
       /*serialized_model=*/nullptr,
       /*shared_buffer=*/nullptr));
 
   for (const auto& upload_info : upload_weights_info) {
     auto tensor = conversion_context->GetTensor(upload_info.input_id);
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         tensor->WriteData(upload_info.data, env->queue(), /*async=*/true));
   }
 
@@ -105,7 +105,7 @@ absl::Status InitContexts(cl::Environment* env, const GraphFloat32& graph,
          conversion_context->GetTensor(converted_weight_id)});
   }
 
-  RETURN_IF_ERROR(main_context->InitFromGpuModel(
+  ABSL_RETURN_IF_ERROR(main_context->InitFromGpuModel(
       create_info_main, &gpu_model_with_external_weights, env));
   return absl::OkStatus();
 }
@@ -119,8 +119,9 @@ absl::Status ConvFloatTest(cl::ClExecutionEnvironment& exec_env,
   create_info.storage_type = TensorStorageType::BUFFER;
   create_info.precision = precision;
 
-  ASSIGN_OR_RETURN(GraphFloat32 graph,
-                   CreateConvGraph(input_shape, output_shape, kernel_size));
+  ABSL_ASSIGN_OR_RETURN(
+      GraphFloat32 graph,
+      CreateConvGraph(input_shape, output_shape, kernel_size));
 
   // Initialize input tensor.
   ml_drift::Tensor<BHWC, DataType::FLOAT32> input_tensor;
@@ -134,15 +135,15 @@ absl::Status ConvFloatTest(cl::ClExecutionEnvironment& exec_env,
   cl::InferenceContext reference_context;
   MLD_EXPECT_OK(reference_context.InitFromGpuModel(create_info,
                                                &reference_gpu_model, env));
-  ASSIGN_OR_RETURN(auto reference,
-                   GetOutput(exec_env, reference_context, input_tensor));
+  ABSL_ASSIGN_OR_RETURN(auto reference,
+                        GetOutput(exec_env, reference_context, input_tensor));
 
   cl::InferenceContext conversion_context;
   cl::InferenceContext context_with_external_weights;
   MLD_EXPECT_OK(InitContexts(env, graph, create_info,
                          &context_with_external_weights, &conversion_context));
   MLD_EXPECT_OK(conversion_context.AddToQueue(env->queue()));
-  ASSIGN_OR_RETURN(
+  ABSL_ASSIGN_OR_RETURN(
       auto actual,
       GetOutput(exec_env, context_with_external_weights, input_tensor));
   EXPECT_THAT(reference.data, Pointwise(FloatNear(2e-5), actual.data));
@@ -164,8 +165,8 @@ absl::Status FullyConnectedInt8Test(cl::ClExecutionEnvironment& exec_env,
   InitWithSinValues(input_tensor.data);
 
   FCInt8TestGraph fc_int8_test_graph(input_shape, output_shape);
-  ASSIGN_OR_RETURN(GraphFloat32 graph_int8,
-                   fc_int8_test_graph.CreateFCInt8Graph());
+  ABSL_ASSIGN_OR_RETURN(GraphFloat32 graph_int8,
+                        fc_int8_test_graph.CreateFCInt8Graph());
 
   // Compute the results of Int8 FullyConnected without WeightsManager, as the
   // reference.
@@ -175,15 +176,15 @@ absl::Status FullyConnectedInt8Test(cl::ClExecutionEnvironment& exec_env,
   cl::InferenceContext target_context;
   MLD_EXPECT_OK(target_context.InitFromGpuModel(create_info, &reference_gpu_model,
                                             exec_env.GetEnvironmentPtr()));
-  ASSIGN_OR_RETURN(auto reference,
-                   GetOutput(exec_env, target_context, input_tensor));
+  ABSL_ASSIGN_OR_RETURN(auto reference,
+                        GetOutput(exec_env, target_context, input_tensor));
 
   cl::InferenceContext conversion_context;
   cl::InferenceContext context_with_external_weights;
   MLD_EXPECT_OK(InitContexts(env, graph_int8, create_info,
                          &context_with_external_weights, &conversion_context));
   MLD_EXPECT_OK(conversion_context.AddToQueue(env->queue()));
-  ASSIGN_OR_RETURN(
+  ABSL_ASSIGN_OR_RETURN(
       auto actual,
       GetOutput(exec_env, context_with_external_weights, input_tensor));
   EXPECT_THAT(reference.data, Pointwise(FloatNear(2e-3), actual.data))
@@ -207,28 +208,28 @@ absl::Status FullyConnectedFloat32VSInt8Test(
   InitWithSinValues(input_tensor.data);
 
   // Compute the results of F32 FullyConnected, as the reference.
-  ASSIGN_OR_RETURN(GraphFloat32 graph_f32,
-                   fc_int8_test_graph.CreateFCFloat32Graph());
+  ABSL_ASSIGN_OR_RETURN(GraphFloat32 graph_f32,
+                        fc_int8_test_graph.CreateFCFloat32Graph());
   GpuModel reference_gpu_model;
   MLD_EXPECT_OK(GraphToGpuModel(graph_f32, create_info, exec_env.GetGpuInfo(),
                             &reference_gpu_model));
   cl::InferenceContext reference_context;
   MLD_EXPECT_OK(reference_context.InitFromGpuModel(
       create_info, &reference_gpu_model, exec_env.GetEnvironmentPtr()));
-  ASSIGN_OR_RETURN(auto reference_output,
-                   GetOutput(exec_env, reference_context, input_tensor));
+  ABSL_ASSIGN_OR_RETURN(auto reference_output,
+                        GetOutput(exec_env, reference_context, input_tensor));
 
   // Compute the results of Int8 FullyConnected, as the target.
-  ASSIGN_OR_RETURN(GraphFloat32 graph_int8,
-                   fc_int8_test_graph.CreateFCInt8Graph());
+  ABSL_ASSIGN_OR_RETURN(GraphFloat32 graph_int8,
+                        fc_int8_test_graph.CreateFCInt8Graph());
   GpuModel target_gpu_model;
   MLD_EXPECT_OK(GraphToGpuModel(graph_int8, create_info, exec_env.GetGpuInfo(),
                             &target_gpu_model));
   cl::InferenceContext target_context;
   MLD_EXPECT_OK(target_context.InitFromGpuModel(create_info, &target_gpu_model,
                                             exec_env.GetEnvironmentPtr()));
-  ASSIGN_OR_RETURN(auto actual,
-                   GetOutput(exec_env, target_context, input_tensor));
+  ABSL_ASSIGN_OR_RETURN(auto actual,
+                        GetOutput(exec_env, target_context, input_tensor));
 
   EXPECT_THAT(reference_output.data, Pointwise(FloatNear(2e-3), actual.data))
       << "input_shape: " << input_shape << ", output_shape: " << output_shape;
@@ -245,9 +246,9 @@ absl::Status QuantizedConvTest(cl::ClExecutionEnvironment& exec_env,
   create_info.storage_type = TensorStorageType::BUFFER;
   create_info.precision = precision;
 
-  ASSIGN_OR_RETURN(GraphFloat32 graph,
-                   CreateQuantizedConvGraph<QuantizedT>(
-                       input_shape, output_shape, kernel_size));
+  ABSL_ASSIGN_OR_RETURN(GraphFloat32 graph,
+                        CreateQuantizedConvGraph<QuantizedT>(
+                            input_shape, output_shape, kernel_size));
 
   // Initialize input tensor.
   ml_drift::Tensor<BHWC, DataType::FLOAT32> input_tensor;
@@ -261,15 +262,15 @@ absl::Status QuantizedConvTest(cl::ClExecutionEnvironment& exec_env,
   cl::InferenceContext reference_context;
   MLD_EXPECT_OK(reference_context.InitFromGpuModel(create_info,
                                                &reference_gpu_model, env));
-  ASSIGN_OR_RETURN(auto reference,
-                   GetOutput(exec_env, reference_context, input_tensor));
+  ABSL_ASSIGN_OR_RETURN(auto reference,
+                        GetOutput(exec_env, reference_context, input_tensor));
 
   cl::InferenceContext conversion_context;
   cl::InferenceContext context_with_external_weights;
   MLD_EXPECT_OK(InitContexts(env, graph, create_info,
                          &context_with_external_weights, &conversion_context));
   MLD_EXPECT_OK(conversion_context.AddToQueue(env->queue()));
-  ASSIGN_OR_RETURN(
+  ABSL_ASSIGN_OR_RETURN(
       auto actual,
       GetOutput(exec_env, context_with_external_weights, input_tensor));
   EXPECT_THAT(reference.data, Pointwise(FloatNear(2e-5), actual.data));

@@ -351,7 +351,8 @@ absl::Status Environment::Initialize(const wgpu::Device& device,
 #ifndef __EMSCRIPTEN__
 absl::Status Environment::Initialize(const InitParams& params) {
   wgpu::Adapter adapter;
-  RETURN_IF_ERROR(InitializeInstanceAndAdapter(&adapter, params.use_low_power));
+  ABSL_RETURN_IF_ERROR(
+      InitializeInstanceAndAdapter(&adapter, params.use_low_power));
 
   std::vector<wgpu::FeatureName> features;
   for (const auto& extension : requested_extensions_) {

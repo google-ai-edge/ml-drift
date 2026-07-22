@@ -91,7 +91,7 @@ absl::StatusOr<GraphFloat32> CreateQuantizedConvGraph(const BHWC& input_shape,
   conv_node->operation.attributes = std::move(conv_attr);
   graph.AddConsumer(conv_node->id, input->id);
   Value* conv_output = nullptr;
-  RETURN_IF_ERROR(AddOutput(&graph, conv_node, &conv_output));
+  ABSL_RETURN_IF_ERROR(AddOutput(&graph, conv_node, &conv_output));
   conv_output->tensor.type = DataType::FLOAT32;
   conv_output->tensor.shape = output_shape;
   return graph;

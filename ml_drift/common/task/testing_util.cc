@@ -88,7 +88,7 @@ absl::Status TestExecutionEnvironment::ExecuteGPUOperation(
   for (int i = 0; i < src_cpu.size(); ++i) {
     auto src_shape = src_cpu[i]->GetBHWDCShape();
     TensorDescriptor tensor_desc;
-    RETURN_IF_ERROR(operation->GetTensorDescriptor(
+    ABSL_RETURN_IF_ERROR(operation->GetTensorDescriptor(
         operation->GetSrcTensorsNames()[i], &tensor_desc));
     if (src_shape.b != 1 && !tensor_desc.HasAxis(Axis::BATCH)) {
       return absl::InvalidArgumentError(
@@ -99,7 +99,7 @@ absl::Status TestExecutionEnvironment::ExecuteGPUOperation(
   for (int i = 0; i < dst_cpu.size(); ++i) {
     auto dst_shape = dst_cpu[i]->GetBHWDCShape();
     TensorDescriptor tensor_desc;
-    RETURN_IF_ERROR(operation->GetTensorDescriptor(
+    ABSL_RETURN_IF_ERROR(operation->GetTensorDescriptor(
         operation->GetDstTensorsNames()[i], &tensor_desc));
     if (dst_shape.b != 1 && !tensor_desc.HasAxis(Axis::BATCH)) {
       return absl::InvalidArgumentError(
@@ -110,7 +110,7 @@ absl::Status TestExecutionEnvironment::ExecuteGPUOperation(
     }
     dst_cpu[i]->SetBHWDCShape(dst_shape);
   }
-  RETURN_IF_ERROR(operation->AssembleCode(GetGpuInfo()));
+  ABSL_RETURN_IF_ERROR(operation->AssembleCode(GetGpuInfo()));
   return ExecuteGpuOperationInternal(src_cpu, dst_cpu, std::move(operation));
 }
 
@@ -123,7 +123,7 @@ absl::Status TestExecutionEnvironment::ExecuteGPUOperation(
   std::vector<TensorDescriptor> src_cpu_descs(src_cpu.size());
   std::vector<TensorDescriptor*> src_cpu_desc_ptrs(src_cpu.size());
   for (int i = 0; i < src_cpu.size(); ++i) {
-    RETURN_IF_ERROR(operation->GetTensorDescriptor(
+    ABSL_RETURN_IF_ERROR(operation->GetTensorDescriptor(
         operation->GetSrcTensorsNames()[i], &src_cpu_descs[i]));
     src_cpu_descs[i].UploadData(src_cpu[i]);
     src_cpu_desc_ptrs[i] = &src_cpu_descs[i];
@@ -131,14 +131,14 @@ absl::Status TestExecutionEnvironment::ExecuteGPUOperation(
   std::vector<TensorDescriptor> dst_cpu_descs(dst_cpu.size());
   std::vector<TensorDescriptor*> dst_cpu_desc_ptrs(dst_cpu.size());
   for (int i = 0; i < dst_cpu.size(); ++i) {
-    RETURN_IF_ERROR(operation->GetTensorDescriptor(
+    ABSL_RETURN_IF_ERROR(operation->GetTensorDescriptor(
         operation->GetDstTensorsNames()[i], &dst_cpu_descs[i]));
     dst_cpu_descs[i].SetBHWCShape(dst_sizes[i]);
     dst_cpu_desc_ptrs[i] = &dst_cpu_descs[i];
   }
 
-  RETURN_IF_ERROR(ExecuteGPUOperation(src_cpu_desc_ptrs, dst_cpu_desc_ptrs,
-                                      std::move(operation)));
+  ABSL_RETURN_IF_ERROR(ExecuteGPUOperation(src_cpu_desc_ptrs, dst_cpu_desc_ptrs,
+                                           std::move(operation)));
 
   for (int i = 0; i < dst_cpu.size(); ++i) {
     dst_cpu_descs[i].DownloadData(dst_cpu[i]);
@@ -166,7 +166,7 @@ absl::Status TestExecutionEnvironment::ExecuteGPUOperation(
   std::vector<TensorDescriptor> src_cpu_descs(src_cpu.size());
   std::vector<TensorDescriptor*> src_cpu_desc_ptrs(src_cpu.size());
   for (int i = 0; i < src_cpu.size(); ++i) {
-    RETURN_IF_ERROR(operation->GetTensorDescriptor(
+    ABSL_RETURN_IF_ERROR(operation->GetTensorDescriptor(
         operation->GetSrcTensorsNames()[i], &src_cpu_descs[i]));
     src_cpu_descs[i].UploadData(src_cpu[i]);
     src_cpu_desc_ptrs[i] = &src_cpu_descs[i];
@@ -174,14 +174,14 @@ absl::Status TestExecutionEnvironment::ExecuteGPUOperation(
   std::vector<TensorDescriptor> dst_cpu_descs(dst_cpu.size());
   std::vector<TensorDescriptor*> dst_cpu_desc_ptrs(dst_cpu.size());
   for (int i = 0; i < dst_cpu.size(); ++i) {
-    RETURN_IF_ERROR(operation->GetTensorDescriptor(
+    ABSL_RETURN_IF_ERROR(operation->GetTensorDescriptor(
         operation->GetDstTensorsNames()[i], &dst_cpu_descs[i]));
     dst_cpu_descs[i].SetBHWDCShape(dst_sizes[i]);
     dst_cpu_desc_ptrs[i] = &dst_cpu_descs[i];
   }
 
-  RETURN_IF_ERROR(ExecuteGPUOperation(src_cpu_desc_ptrs, dst_cpu_desc_ptrs,
-                                      std::move(operation)));
+  ABSL_RETURN_IF_ERROR(ExecuteGPUOperation(src_cpu_desc_ptrs, dst_cpu_desc_ptrs,
+                                           std::move(operation)));
 
   for (int i = 0; i < dst_cpu.size(); ++i) {
     dst_cpu_descs[i].DownloadData(dst_cpu[i]);
@@ -237,7 +237,7 @@ absl::Status TestExecutionEnvironment::ExecuteGpuModel(
       dst_descs[i] = &gpu_model->tensors[gpu_node.outputs[i]];
     }
 
-    RETURN_IF_ERROR(ExecuteGpuOperationInternal(
+    ABSL_RETURN_IF_ERROR(ExecuteGpuOperationInternal(
         src_descs, dst_descs, std::move(gpu_model->nodes[k].gpu_operation)));
   }
   for (int i = 0; i < gpu_model->output_ids_and_refs.size(); ++i) {

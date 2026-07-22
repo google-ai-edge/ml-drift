@@ -76,7 +76,7 @@ absl::Status CreateGraph(const BHWC& src_shape,
   conv_node->operation.attributes = conv_attr;
   graph->AddConsumer(conv_node->id, concat_output->id);
   Value* conv_output = nullptr;
-  RETURN_IF_ERROR(AddOutput(graph, conv_node, &conv_output));
+  ABSL_RETURN_IF_ERROR(AddOutput(graph, conv_node, &conv_output));
   conv_output->tensor.shape =
       CalculateOutputShape(concat_output->tensor.shape, conv_attr);
 
@@ -122,7 +122,8 @@ absl::Status ConcatConvTest(TestExecutionEnvironment* exec_env,
   {
     GraphFloat32 graph;
     std::vector<ValueId> values_ids;
-    RETURN_IF_ERROR(CreateGraph(src_shape, conv_attr, &graph, &values_ids));
+    ABSL_RETURN_IF_ERROR(
+        CreateGraph(src_shape, conv_attr, &graph, &values_ids));
 
     std::set<NodeId> consumed_nodes;
     std::set<NodeId> new_consumed_nodes;
@@ -138,17 +139,17 @@ absl::Status ConcatConvTest(TestExecutionEnvironment* exec_env,
                              op_def.dst_tensors[0].GetStorageType()),
         {});
     if (use_thin_local_memory_fuser) {
-      RETURN_IF_ERROR(TryThinLocalMemoryFuser(
+      ABSL_RETURN_IF_ERROR(TryThinLocalMemoryFuser(
           exec_env->GetGpuInfo(), graph, values_ids[0], consumed_nodes,
           &new_consumed_nodes, &model_builder));
     } else {
-      RETURN_IF_ERROR(TryConcatConv(exec_env->GetGpuInfo(), graph,
-                                    values_ids[0], consumed_nodes,
-                                    &new_consumed_nodes, &model_builder));
+      ABSL_RETURN_IF_ERROR(TryConcatConv(exec_env->GetGpuInfo(), graph,
+                                         values_ids[0], consumed_nodes,
+                                         &new_consumed_nodes, &model_builder));
     }
     GpuModel gpu_model;
-    RETURN_IF_ERROR(model_builder.GetGpuModel({values_ids[0], values_ids[2]},
-                                              {values_ids[4]}, &gpu_model));
+    ABSL_RETURN_IF_ERROR(model_builder.GetGpuModel(
+        {values_ids[0], values_ids[2]}, {values_ids[4]}, &gpu_model));
     operation = std::move(gpu_model.nodes[0].gpu_operation);
   }
 
@@ -162,10 +163,10 @@ absl::Status ConcatConvTest(TestExecutionEnvironment* exec_env,
         src0_tensor.shape.c + src1_tensor.shape.c + src2_tensor.shape.c;
     const BHWC dst_shape = CalculateOutputShape(interm_shape, conv_attr);
     const int num_repeats = 5;
-    ASSIGN_OR_RETURN(auto report,
-                     exec_env->GetGpuOperationTimeMs(
-                         {src0_tensor, src1_tensor, src2_tensor},
-                         std::move(operation), {dst_shape}, num_repeats));
+    ABSL_ASSIGN_OR_RETURN(auto report,
+                          exec_env->GetGpuOperationTimeMs(
+                              {src0_tensor, src1_tensor, src2_tensor},
+                              std::move(operation), {dst_shape}, num_repeats));
 
     std::cout << report.GetDetailedReport() << std::endl;
     return absl::OkStatus();

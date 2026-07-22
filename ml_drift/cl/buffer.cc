@@ -34,9 +34,9 @@ absl::Status CreateBuffer(size_t size_in_bytes, bool gpu_read_only,
                           const void* data, CLContext* context,
                           Buffer* result) {
   cl_mem buffer;
-  RETURN_IF_ERROR(CreateCLBuffer(context->context(), size_in_bytes,
-                                 gpu_read_only, const_cast<void*>(data),
-                                 &buffer));
+  ABSL_RETURN_IF_ERROR(CreateCLBuffer(context->context(), size_in_bytes,
+                                      gpu_read_only, const_cast<void*>(data),
+                                      &buffer));
   *result = Buffer(buffer, size_in_bytes);
 
   return absl::OkStatus();
@@ -126,9 +126,10 @@ absl::StatusOr<Buffer> CreateSubBuffer(const Buffer& parent,
     return absl::InvalidArgumentError(
         "Cannot create a sub-buffer from a sub-buffer!");
   }
-  ASSIGN_OR_RETURN(cl_mem buffer,
-                   CreateCLSubBuffer(context->context(), parent.GetMemoryPtr(),
-                                     origin_in_bytes, size_in_bytes));
+  ABSL_ASSIGN_OR_RETURN(
+      cl_mem buffer,
+      CreateCLSubBuffer(context->context(), parent.GetMemoryPtr(),
+                        origin_in_bytes, size_in_bytes));
   return Buffer(buffer, size_in_bytes, /*is_sub_buffer=*/true);
 }
 

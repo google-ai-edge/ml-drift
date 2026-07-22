@@ -80,7 +80,7 @@ absl::Status CreateWebGpuObject(const wgpu::Device& device,
   const TensorDescriptor* tensor_desc = AsTensorDescriptor(desc);
   if (tensor_desc) {
     SpatialTensor gpu_tensor;
-    RETURN_IF_ERROR(gpu_tensor.CreateFromDescriptor(device, *tensor_desc));
+    ABSL_RETURN_IF_ERROR(gpu_tensor.CreateFromDescriptor(device, *tensor_desc));
     *result = std::make_unique<SpatialTensor>(std::move(gpu_tensor));
     return absl::OkStatus();
   }
@@ -260,8 +260,8 @@ absl::Status WebGpuArguments::Init(
         "WebGpuArguments::Init() is called twice.");
   }
 
-  RETURN_IF_ERROR(AllocateObjects(device, *args));
-  RETURN_IF_ERROR(AddObjectArgs(gpu_info, *args));
+  ABSL_RETURN_IF_ERROR(AllocateObjects(device, *args));
+  ABSL_RETURN_IF_ERROR(AddObjectArgs(gpu_info, *args));
   std::map<std::string, GPUObjectDescriptorPtr, std::less<>> object_refs;
   args->MoveObjectRefs(&object_refs);
   for (auto& [name, ref] : object_refs) {
@@ -269,7 +269,7 @@ absl::Status WebGpuArguments::Init(
   }
   std::string struct_desc = ScalarArgumentsToStructWithVec4Fields(
       *args, gpu_info.webgpu_info.supports_fp16, code);
-  RETURN_IF_ERROR(SetObjectsResources(*args));
+  ABSL_RETURN_IF_ERROR(SetObjectsResources(*args));
   args->ResolveArgsPass(code);
   std::string arguments = ToWgslArguments(gpu_info.webgpu_info.supports_fp16);
   if (!const_data_.empty()) {
@@ -283,10 +283,10 @@ absl::Status WebGpuArguments::Init(
       scalars_ =
           CreateBufferUniform(device, const_data_.size(), /*data_ptr=*/nullptr);
     }
-    RETURN_IF_ERROR(UpdateScalars(device));
+    ABSL_RETURN_IF_ERROR(UpdateScalars(device));
   }
   *code = arguments + *code;
-  RETURN_IF_ERROR(AssembleLayout(device));
+  ABSL_RETURN_IF_ERROR(AssembleLayout(device));
   return absl::OkStatus();
 }
 
@@ -298,8 +298,8 @@ absl::Status WebGpuArguments::InitWithoutCodeGeneration(
         "WebGpuArguments::Init() is called twice.");
   }
 
-  RETURN_IF_ERROR(AllocateObjects(device, *args));
-  RETURN_IF_ERROR(AddObjectArgs(gpu_info, *args));
+  ABSL_RETURN_IF_ERROR(AllocateObjects(device, *args));
+  ABSL_RETURN_IF_ERROR(AddObjectArgs(gpu_info, *args));
   std::map<std::string, GPUObjectDescriptorPtr, std::less<>> object_refs;
   args->MoveObjectRefs(&object_refs);
   for (auto& [name, ref] : object_refs) {
@@ -308,7 +308,7 @@ absl::Status WebGpuArguments::InitWithoutCodeGeneration(
   std::string temp_code;
   ScalarArgumentsToStructWithVec4Fields(
       *args, gpu_info.webgpu_info.supports_fp16, &temp_code);
-  RETURN_IF_ERROR(SetObjectsResources(*args));
+  ABSL_RETURN_IF_ERROR(SetObjectsResources(*args));
 
   // Needs to be called to update the pipeline_layout_.
   ToWgslArguments(gpu_info.webgpu_info.supports_fp16);
@@ -321,9 +321,9 @@ absl::Status WebGpuArguments::InitWithoutCodeGeneration(
       scalars_ =
           CreateBufferUniform(device, const_data_.size(), /*data_ptr=*/nullptr);
     }
-    RETURN_IF_ERROR(UpdateScalars(device));
+    ABSL_RETURN_IF_ERROR(UpdateScalars(device));
   }
-  RETURN_IF_ERROR(AssembleLayout(device));
+  ABSL_RETURN_IF_ERROR(AssembleLayout(device));
   return absl::OkStatus();
 }
 
@@ -617,7 +617,7 @@ absl::Status WebGpuArguments::AllocateObjects(const wgpu::Device& device,
   int i = 0;
   for (auto& t : args.GetObjects()) {
     GpuObjectPtr object;
-    RETURN_IF_ERROR(CreateWebGpuObject(device, t.second.get(), &object));
+    ABSL_RETURN_IF_ERROR(CreateWebGpuObject(device, t.second.get(), &object));
     objects_[i] = std::move(object);
     i++;
   }
@@ -727,35 +727,38 @@ absl::Status WebGpuArguments::SetObjectRef(const std::string& name,
         absl::StrCat("No object ref with name - ", name));
   }
   GpuResourcesWithValue resources;
-  RETURN_IF_ERROR(object.GetGPUResources(it->second.get(), &resources));
+  ABSL_RETURN_IF_ERROR(object.GetGPUResources(it->second.get(), &resources));
   return SetGPUResources(name, resources);
 }
 
 absl::Status WebGpuArguments::SetGPUResources(
     const std::string& name, const GpuResourcesWithValue& resources) {
   for (const auto& r : resources.generic.ints) {
-    RETURN_IF_ERROR(SetInt(absl::StrCat(name, "_", r.first), r.second));
+    ABSL_RETURN_IF_ERROR(SetInt(absl::StrCat(name, "_", r.first), r.second));
   }
   for (const auto& r : resources.generic.uints) {
-    RETURN_IF_ERROR(SetUint(absl::StrCat(name, "_", r.first), r.second));
+    ABSL_RETURN_IF_ERROR(SetUint(absl::StrCat(name, "_", r.first), r.second));
   }
   for (const auto& r : resources.generic.floats) {
-    RETURN_IF_ERROR(SetFloat(absl::StrCat(name, "_", r.first), r.second));
+    ABSL_RETURN_IF_ERROR(SetFloat(absl::StrCat(name, "_", r.first), r.second));
   }
   for (const auto& r : resources.buffers) {
-    RETURN_IF_ERROR(SetBuffer(absl::StrCat(name, "_", r.first), r.second.buffer,
-                              r.second.size, r.second.offset));
+    ABSL_RETURN_IF_ERROR(SetBuffer(absl::StrCat(name, "_", r.first),
+                                   r.second.buffer, r.second.size,
+                                   r.second.offset));
   }
 
   for (const auto& r : resources.images2d) {
-    RETURN_IF_ERROR(SetImage2D(absl::StrCat(name, "_", r.first), r.second));
+    ABSL_RETURN_IF_ERROR(
+        SetImage2D(absl::StrCat(name, "_", r.first), r.second));
   }
   for (const auto& r : resources.image2d_arrays) {
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         SetImage2DArray(absl::StrCat(name, "_", r.first), r.second));
   }
   for (const auto& r : resources.images3d) {
-    RETURN_IF_ERROR(SetImage3D(absl::StrCat(name, "_", r.first), r.second));
+    ABSL_RETURN_IF_ERROR(
+        SetImage3D(absl::StrCat(name, "_", r.first), r.second));
   }
   return absl::OkStatus();
 }
@@ -764,8 +767,9 @@ absl::Status WebGpuArguments::SetObjectsResources(const Arguments& args) {
   int i = 0;
   for (const auto& t : args.GetObjects()) {
     GpuResourcesWithValue resources;
-    RETURN_IF_ERROR(objects_[i]->GetGPUResources(t.second.get(), &resources));
-    RETURN_IF_ERROR(SetGPUResources(t.first, resources));
+    ABSL_RETURN_IF_ERROR(
+        objects_[i]->GetGPUResources(t.second.get(), &resources));
+    ABSL_RETURN_IF_ERROR(SetGPUResources(t.first, resources));
     i++;
   }
   return absl::OkStatus();

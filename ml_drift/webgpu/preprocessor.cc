@@ -58,7 +58,7 @@ class Lexer {
     absl::string_view text;
   };
   absl::Status AddMacro(absl::string_view key, absl::string_view value) {
-    RETURN_IF_ERROR(ParseToTokens(value, &macros_[key]));
+    ABSL_RETURN_IF_ERROR(ParseToTokens(value, &macros_[key]));
     return absl::OkStatus();
   }
   absl::Status ParseToken(absl::string_view code, Token* result) {
@@ -186,14 +186,14 @@ class Lexer {
                              std::vector<Token>* tokens) {
     while (!code.empty()) {
       Token token;
-      RETURN_IF_ERROR(ParseToken(code, &token));
+      ABSL_RETURN_IF_ERROR(ParseToken(code, &token));
       code.remove_prefix(token.text.size());
       if (token.type == TokenType::kDefine) {
         // 7 is length of #define
         const absl::string_view macro_code =
             token.text.substr(7, token.text.size() - 7);
         std::vector<Token> macro_tokens;
-        RETURN_IF_ERROR(ParseToTokens(macro_code, &macro_tokens));
+        ABSL_RETURN_IF_ERROR(ParseToTokens(macro_code, &macro_tokens));
         if (macro_tokens[0].type == TokenType::kSpaces) {
           macro_tokens.erase(macro_tokens.begin());
         }
@@ -202,7 +202,7 @@ class Lexer {
           macro_tokens.erase(macro_tokens.begin(), macro_tokens.begin() + 2);
           macros_[define_name] = std::move(macro_tokens);
         } else {
-          RETURN_IF_ERROR(
+          ABSL_RETURN_IF_ERROR(
               macros_with_arguments_[define_name].Init(macro_tokens));
         }
         continue;
@@ -216,17 +216,17 @@ class Lexer {
         auto it_with_arg = macros_with_arguments_.find(token.text);
         if (it_with_arg != macros_with_arguments_.end()) {
           Token arg_token;
-          RETURN_IF_ERROR(ParseToken(code, &arg_token));
+          ABSL_RETURN_IF_ERROR(ParseToken(code, &arg_token));
           code.remove_prefix(arg_token.text.size());
           if (arg_token.type == TokenType::kSpaces) {
-            RETURN_IF_ERROR(ParseToken(code, &arg_token));
+            ABSL_RETURN_IF_ERROR(ParseToken(code, &arg_token));
             code.remove_prefix(arg_token.text.size());
           }
           int opened = 1;
           int closed = 0;
           std::vector<std::vector<Token>> arguments(1);
           while (!code.empty()) {
-            RETURN_IF_ERROR(ParseToken(code, &arg_token));
+            ABSL_RETURN_IF_ERROR(ParseToken(code, &arg_token));
             code.remove_prefix(arg_token.text.size());
             if (arg_token.text == "(") {
               opened++;
@@ -371,7 +371,7 @@ class Lexer {
         std::string insert_code = absl::StrCat("select(", code_false, ", ",
                                                code_true, ", ", code_cond, ")");
         std::vector<Token> insert_tokens;
-        RETURN_IF_ERROR(
+        ABSL_RETURN_IF_ERROR(
             ParseToTokensInternal(std::move(insert_code), &insert_tokens));
         tokens_.insert(tokens_.begin() + op_start + 2, insert_tokens.begin(),
                        insert_tokens.end());
@@ -524,7 +524,7 @@ class Lexer {
         tokens_.erase(tokens_.begin() + i,
                       tokens_.begin() + body_close_bracket_index);
         std::vector<Token> insert_tokens;
-        RETURN_IF_ERROR(
+        ABSL_RETURN_IF_ERROR(
             ParseToTokensInternal(std::move(new_code), &insert_tokens));
         tokens_.insert(tokens_.begin() + i, insert_tokens.begin(),
                        insert_tokens.end());
@@ -673,7 +673,7 @@ class Lexer {
             absl::StrAppend(&new_code, " = ", type);
           }
           std::vector<Token> insert_tokens;
-          RETURN_IF_ERROR(
+          ABSL_RETURN_IF_ERROR(
               ParseToTokensInternal(std::move(new_code), &insert_tokens));
           tokens_.insert(tokens_.begin() + start_index, insert_tokens.begin(),
                          insert_tokens.end());
@@ -698,7 +698,8 @@ class Lexer {
     for (int i = 0; i < tokens_.size(); ++i) {
       if (tokens_[i].text == "MAIN_FUNCTION") {
         std::vector<Token> insert_tokens;
-        RETURN_IF_ERROR(ParseToTokens(local_mem_declarations_, &insert_tokens));
+        ABSL_RETURN_IF_ERROR(
+            ParseToTokens(local_mem_declarations_, &insert_tokens));
         tokens_.insert(tokens_.begin() + i, insert_tokens.begin(),
                        insert_tokens.end());
         return absl::OkStatus();
@@ -796,19 +797,19 @@ class Lexer {
 absl::Status ConvertToWGSL(const WebGpuInfo& webgpu_info, std::string* code,
                            ExtensionsInfo* extensions_info) {
   Lexer lexer;
-  RETURN_IF_ERROR(lexer.AddMacro("fabs", "abs"));
-  RETURN_IF_ERROR(lexer.AddMacro("rsqrt", "inverseSqrt"));
+  ABSL_RETURN_IF_ERROR(lexer.AddMacro("fabs", "abs"));
+  ABSL_RETURN_IF_ERROR(lexer.AddMacro("rsqrt", "inverseSqrt"));
 
-  RETURN_IF_ERROR(lexer.Init(*code));
-  RETURN_IF_ERROR(lexer.ConvertTypes(webgpu_info));
+  ABSL_RETURN_IF_ERROR(lexer.Init(*code));
+  ABSL_RETURN_IF_ERROR(lexer.ConvertTypes(webgpu_info));
   lexer.RemoveFloatPostfix();
-  RETURN_IF_ERROR(lexer.ResolveSingleStatementIf());
-  RETURN_IF_ERROR(lexer.ResolveDoWhileLoop());
-  RETURN_IF_ERROR(lexer.ResolveForLoop());
-  RETURN_IF_ERROR(lexer.ResolveTernaryOperator());
-  RETURN_IF_ERROR(lexer.ResolvePreIncrement());
-  RETURN_IF_ERROR(lexer.MoveLocalMemToGlobalSpace());
-  RETURN_IF_ERROR(lexer.GetExtensionsInfo(extensions_info));
+  ABSL_RETURN_IF_ERROR(lexer.ResolveSingleStatementIf());
+  ABSL_RETURN_IF_ERROR(lexer.ResolveDoWhileLoop());
+  ABSL_RETURN_IF_ERROR(lexer.ResolveForLoop());
+  ABSL_RETURN_IF_ERROR(lexer.ResolveTernaryOperator());
+  ABSL_RETURN_IF_ERROR(lexer.ResolvePreIncrement());
+  ABSL_RETURN_IF_ERROR(lexer.MoveLocalMemToGlobalSpace());
+  ABSL_RETURN_IF_ERROR(lexer.GetExtensionsInfo(extensions_info));
   *code = lexer.GetCode();
   return absl::OkStatus();
 }

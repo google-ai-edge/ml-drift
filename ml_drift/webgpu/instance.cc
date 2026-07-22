@@ -17,7 +17,7 @@
 #include <vector>
 
 #include "absl/debugging/leak_check.h"
-#include "absl/status/status.h"
+#include "ml_drift/common/status.h"
 #include "absl/strings/str_cat.h"
 #include "absl/time/time.h"
 #include "ml_drift/webgpu/webgpu_headers.h"

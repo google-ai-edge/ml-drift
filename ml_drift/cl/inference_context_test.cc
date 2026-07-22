@@ -119,10 +119,10 @@ class InferenceContextTest : public OpenCLTest {
       GpuModelBuilder::TensorHandle sub_in =
           subgraph_builder.AddTensor(BHWC{1, 1, 1, 1}, float_type);
       auto sub_out = subgraph_builder.Add(sub_in, 2);
-      RETURN_IF_ERROR(model_builder.RegisterSubgraph(
+      ABSL_RETURN_IF_ERROR(model_builder.RegisterSubgraph(
           std::move(subgraph_builder), "a", {sub_in}, {sub_out}));
     }
-    ASSIGN_OR_RETURN(auto outs, model_builder.Subgraph("a", {out}));
+    ABSL_ASSIGN_OR_RETURN(auto outs, model_builder.Subgraph("a", {out}));
     out = outs[0];
 
     // Subgraph for multiplying by 5.
@@ -131,10 +131,10 @@ class InferenceContextTest : public OpenCLTest {
       GpuModelBuilder::TensorHandle sub_in =
           subgraph_builder.AddTensor(BHWC{1, 1, 1, 1}, float_type);
       auto sub_out = subgraph_builder.Multiplication(sub_in, 5);
-      RETURN_IF_ERROR(model_builder.RegisterSubgraph(
+      ABSL_RETURN_IF_ERROR(model_builder.RegisterSubgraph(
           std::move(subgraph_builder), "b", {sub_in}, {sub_out}));
     }
-    ASSIGN_OR_RETURN(outs, model_builder.Subgraph("b", {out}));
+    ABSL_ASSIGN_OR_RETURN(outs, model_builder.Subgraph("b", {out}));
     out = outs[0];
 
     GpuModel gpu_model;

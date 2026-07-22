@@ -500,9 +500,9 @@ cc_library(
         ":gpu_object",
         ":opencl_wrapper",
         ":util",
+        "//ml_drift/common:status",
         "//ml_drift/common/task:gpu_object_desc",
         "//ml_drift/common/task:qcom_thin_filter_desc",
-        "@com_google_absl//absl/status",
         "@opencl_headers",
     ],
 )

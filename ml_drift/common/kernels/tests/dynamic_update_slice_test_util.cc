@@ -65,7 +65,7 @@ absl::Status DynamicUpdateSliceBoolTest(TestExecutionEnvironment& env,
   src_2.UploadData(start_indices);
   dst.SetBHWCShape(BHWC(1, 1, 1, 8));
   GPUOperation operation = CreateDynamicUpdateSlice(op_def, env.GetGpuInfo());
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_0, &src_1, &src_2}, {&dst},
       std::make_unique<GPUOperation>(std::move(operation))));
   TensorBool dst_tensor;
@@ -105,7 +105,7 @@ absl::Status DynamicUpdateSliceIntTest(TestExecutionEnvironment& env,
   src_2.UploadData(start_indices);
   dst.SetBHWCShape(BHWC(1, 1, 1, 16));
   GPUOperation operation = CreateDynamicUpdateSlice(op_def, env.GetGpuInfo());
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_0, &src_1, &src_2}, {&dst},
       std::make_unique<GPUOperation>(std::move(operation))));
   Tensor<BHWC, T> dst_tensor;
@@ -155,7 +155,7 @@ absl::Status DynamicUpdateSliceTest(TestExecutionEnvironment& env,
   src_2.UploadData(start_indices);
   dst.SetBHWCShape(BHWC(1, 1, 1, 16));
   GPUOperation operation = CreateDynamicUpdateSlice(op_def, env.GetGpuInfo());
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_0, &src_1, &src_2}, {&dst},
       std::make_unique<GPUOperation>(std::move(operation))));
   TensorFloat32 dst_tensor;
@@ -195,7 +195,7 @@ absl::Status DynamicUpdateSliceTwoDimensionSliceTest(
   src_2.UploadData(start_indices);
   dst.SetBHWCShape(BHWC(1, 4, 1, 5));
   GPUOperation operation = CreateDynamicUpdateSlice(op_def, env.GetGpuInfo());
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_0, &src_1, &src_2}, {&dst},
       std::make_unique<GPUOperation>(std::move(operation))));
   TensorFloat32 dst_tensor;
@@ -236,7 +236,7 @@ absl::Status DynamicUpdateSliceThreeDimensionSliceTest(
   src_2.UploadData(start_indices);
   dst.SetBHWCShape(BHWC(1, 3, 3, 3));
   GPUOperation operation = CreateDynamicUpdateSlice(op_def, env.GetGpuInfo());
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_0, &src_1, &src_2}, {&dst},
       std::make_unique<GPUOperation>(std::move(operation))));
   TensorFloat32 dst_tensor;
@@ -278,7 +278,7 @@ absl::Status DynamicUpdateSliceStartIndicesThreeValuesSliceTest(
   src_2.UploadData(start_indices);
   dst.SetBHWCShape(BHWC(1, 3, 3, 3));
   GPUOperation operation = CreateDynamicUpdateSlice(op_def, env.GetGpuInfo());
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_0, &src_1, &src_2}, {&dst},
       std::make_unique<GPUOperation>(std::move(operation))));
   TensorFloat32 dst_tensor;
@@ -353,7 +353,7 @@ absl::Status DynamicUpdateSliceStartIndicesTwoValuesSliceTest(
   src_2.UploadData(start_indices);
   dst.SetBHWCShape(BHWC(1, 3, 3, 3));
   GPUOperation operation = CreateDynamicUpdateSlice(op_def, env.GetGpuInfo());
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_0, &src_1, &src_2}, {&dst},
       std::make_unique<GPUOperation>(std::move(operation))));
   TensorFloat32 dst_tensor;
@@ -389,7 +389,7 @@ absl::Status DynamicUpdateSliceClampTest(TestExecutionEnvironment& env,
   src_2.UploadData(start_indices);
   dst.SetBHWCShape(BHWC(1, 3, 1, 4));
   GPUOperation operation = CreateDynamicUpdateSlice(op_def, env.GetGpuInfo());
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_0, &src_1, &src_2}, {&dst},
       std::make_unique<GPUOperation>(std::move(operation))));
   TensorFloat32 dst_tensor;
@@ -429,7 +429,7 @@ absl::Status DynamicUpdateSliceConversionTest(TestExecutionEnvironment& env,
   src_2.UploadData(start_indices);
   dst.SetBHWCShape(BHWC(1, 1, 1, 16));
   GPUOperation operation = CreateDynamicUpdateSlice(op_def, env.GetGpuInfo());
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_0, &src_1, &src_2}, {&dst},
       std::make_unique<GPUOperation>(std::move(operation))));
   TensorFloat32 dst_tensor;

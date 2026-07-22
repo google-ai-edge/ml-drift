@@ -121,10 +121,10 @@ absl::Status CLKernel::CreateFromProgram(const CLProgram& program,
   program_ = program.program();
   clRetainProgram(program_);
 
-  RETURN_IF_ERROR(GetKernelPrivateMemorySize(kernel_, program.GetDeviceId(),
-                                             &info_.private_memory_size));
-  RETURN_IF_ERROR(GetKernelMaxWorkGroupSize(kernel_, program.GetDeviceId(),
-                                            &info_.max_work_group_size));
+  ABSL_RETURN_IF_ERROR(GetKernelPrivateMemorySize(
+      kernel_, program.GetDeviceId(), &info_.private_memory_size));
+  ABSL_RETURN_IF_ERROR(GetKernelMaxWorkGroupSize(kernel_, program.GetDeviceId(),
+                                                 &info_.max_work_group_size));
   return absl::OkStatus();
 }
 

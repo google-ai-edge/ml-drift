@@ -51,7 +51,8 @@ class TopKOp : public GPUOperation {
         wg_reduction_ ? dst_[0]->Width()
                       : DivideRoundUp(dst_[0]->Width(), work_group_size_.x);
     const int reduction_per_group = DivideRoundUp(src_[0]->Width(), wg_count);
-    RETURN_IF_ERROR(args->SetInt("reduction_per_group", reduction_per_group));
+    ABSL_RETURN_IF_ERROR(
+        args->SetInt("reduction_per_group", reduction_per_group));
     return absl::OkStatus();
   }
 

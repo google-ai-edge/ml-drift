@@ -24,7 +24,7 @@
 
 #include "absl/log/log.h"
 #include "absl/memory/memory.h"
-#include "absl/status/status.h"
+#include "ml_drift/common/status.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "ml_drift/common/types.h"

@@ -59,7 +59,7 @@ absl::Status GatherWidthIntTest(TestExecutionEnvironment& env,
   src_1.UploadData(src_indices);
   dst.SetBHWDCShape(BHWDC(1, 1, 9, 1, 1));
   GPUOperation operation = CreateGather(op_def, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_0, &src_1}, {&dst},
       std::make_unique<GPUOperation>(std::move(operation))));
   Tensor<BHWC, T> dst_tensor;
@@ -109,7 +109,7 @@ absl::Status GatherTest(TestExecutionEnvironment& env, DataType data_type,
   op_def.dst_tensors.push_back({data_type, storage, dst_layout});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateGather(op_def, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor, src_indices},
       std::make_unique<GPUOperation>(std::move(operation)), dst_shape,
       &dst_tensor));

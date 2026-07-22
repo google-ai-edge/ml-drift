@@ -85,20 +85,20 @@ absl::Status ClarifyWithCommandBuffer(ProfilingCommandQueue* queue,
     for (int node_index = 0; node_index < nodes.size(); ++node_index) {
       const int index = t * nodes.size() + node_index;
       auto& cb = cbs[index];
-      RETURN_IF_ERROR(cb.Init(queue, /*simultaneous_use=*/false));
+      ABSL_RETURN_IF_ERROR(cb.Init(queue, /*simultaneous_use=*/false));
       const int num_kernels_in_cb = get_tasks_count(node_index);
       for (int j = 0; j < num_kernels_in_cb; ++j) {
-        RETURN_IF_ERROR(nodes[node_index]->cl_operation.AddToCommandBuffer(
+        ABSL_RETURN_IF_ERROR(nodes[node_index]->cl_operation.AddToCommandBuffer(
             cb.GetCommandBuffer()));
       }
-      RETURN_IF_ERROR(cb.Finalize());
+      ABSL_RETURN_IF_ERROR(cb.Finalize());
     }
   }
   std::vector<CLEvent> events(nodes.size() * num_tries);
   for (int t = 0; t < num_tries; ++t) {
     for (int node_index = 0; node_index < nodes.size(); ++node_index) {
       const int index = t * nodes.size() + node_index;
-      RETURN_IF_ERROR(cbs[index].Enqueue(queue, &events[index]));
+      ABSL_RETURN_IF_ERROR(cbs[index].Enqueue(queue, &events[index]));
     }
   }
   clFinish(queue->queue());
@@ -224,7 +224,7 @@ absl::Status InferenceContext::InitFromGpuModel(
   }
   std::vector<std::unique_ptr<Tensor>>
       external_mutable_tensors_allocated_temporarily;
-  ASSIGN_OR_RETURN(
+  ABSL_ASSIGN_OR_RETURN(
       model_id_,
       memory_manager_->AllocateMemory(
           *gpu_model, gpu_info_, create_info.external_tensors,
@@ -234,11 +234,11 @@ absl::Status InferenceContext::InitFromGpuModel(
   GetMutableNodes(create_info.external_tensors.mutable_tensors);
   execution_hints_.Init(gpu_info_);
   for (auto& node : nodes_) {
-    RETURN_IF_ERROR(node.cl_operation.Compile(
+    ABSL_RETURN_IF_ERROR(node.cl_operation.Compile(
         env->GetDevicePtr(), &env->context(), env->program_cache()));
   }
-  RETURN_IF_ERROR(BindMemoryToOperations());
-  RETURN_IF_ERROR(UpdateParams());
+  ABSL_RETURN_IF_ERROR(BindMemoryToOperations());
+  ABSL_RETURN_IF_ERROR(UpdateParams());
 
   TuningType tuning_type = create_info.options.tuning_type;
   if (gpu_info_.IsMali()) {
@@ -256,13 +256,13 @@ absl::Status InferenceContext::InitFromGpuModel(
       tuning_type = TuningType::kFast;
     }
   }
-  RETURN_IF_ERROR(Tune(tuning_type, gpu_info_, env->profiling_queue()));
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(Tune(tuning_type, gpu_info_, env->profiling_queue()));
+  ABSL_RETURN_IF_ERROR(
       BuildExecutionPlan(env, create_info.options.allow_cl_khr_command_buffer));
 
   // Reset external tensors to nullptr as they are allocated temporarily.
   for (auto& external_tensor : create_info.external_tensors.mutable_tensors) {
-    RETURN_IF_ERROR(memory_manager_->SetExternalTensor(
+    ABSL_RETURN_IF_ERROR(memory_manager_->SetExternalTensor(
         GetKey(external_tensor.first), nullptr));
   }
 
@@ -279,7 +279,7 @@ absl::Status InferenceContext::InitFromGpuModel(
 
 absl::Status InferenceContext::AddToCommandBuffer(cl_command_buffer_khr cb) {
   for (auto& node : nodes_) {
-    RETURN_IF_ERROR(node.cl_operation.AddToCommandBuffer(cb));
+    ABSL_RETURN_IF_ERROR(node.cl_operation.AddToCommandBuffer(cb));
   }
   return absl::OkStatus();
 }
@@ -301,7 +301,7 @@ absl::Status InferenceContext::RestoreDeserialized(
         "regenerated.");
   }
   GpuModel gpu_model;
-  RETURN_IF_ERROR(ml_drift::Decode(decoded_fb->gpu_model(), &gpu_model));
+  ABSL_RETURN_IF_ERROR(ml_drift::Decode(decoded_fb->gpu_model(), &gpu_model));
   const auto& create_info_copy =
       create_info ? *create_info : CreateGpuModelInfo();
   ExternalTensorsInfo external_tensors;
@@ -310,7 +310,7 @@ absl::Status InferenceContext::RestoreDeserialized(
   external_tensors.mutable_tensors = create_info_copy.external_mutable_tensors;
   std::vector<std::unique_ptr<Tensor>>
       external_mutable_tensors_allocated_temporarily;
-  ASSIGN_OR_RETURN(
+  ABSL_ASSIGN_OR_RETURN(
       model_id_,
       memory_manager_->AllocateMemory(
           gpu_model, env->GetDevicePtr()->GetInfo(), external_tensors,
@@ -319,7 +319,7 @@ absl::Status InferenceContext::RestoreDeserialized(
 
   // deserializing kernels into program_cache
   for (auto binary_program_fb : *decoded_fb->binary_programs()) {
-    RETURN_IF_ERROR(env->program_cache()->AddProgramBinary(
+    ABSL_RETURN_IF_ERROR(env->program_cache()->AddProgramBinary(
         env->context(), *env->GetDevicePtr(), binary_program_fb->fingerprint(),
         absl::MakeSpan(binary_program_fb->binary()->data(),
                        binary_program_fb->binary()->size())));
@@ -334,16 +334,16 @@ absl::Status InferenceContext::RestoreDeserialized(
     wg_size.x = (*decoded_fb->tuned_work_group_sizes_per_node())[i]->x();
     wg_size.y = (*decoded_fb->tuned_work_group_sizes_per_node())[i]->y();
     wg_size.z = (*decoded_fb->tuned_work_group_sizes_per_node())[i]->z();
-    RETURN_IF_ERROR(nodes_[i].cl_operation.RestoreDeserialized(
+    ABSL_RETURN_IF_ERROR(nodes_[i].cl_operation.RestoreDeserialized(
         *env->program_cache(), fingerprint, env->GetDevicePtr()->GetInfo(),
         wg_size, &env->context()));
   }
-  RETURN_IF_ERROR(BindMemoryToOperations());
-  RETURN_IF_ERROR(UpdateParams());
-  RETURN_IF_ERROR(BuildExecutionPlan(
+  ABSL_RETURN_IF_ERROR(BindMemoryToOperations());
+  ABSL_RETURN_IF_ERROR(UpdateParams());
+  ABSL_RETURN_IF_ERROR(BuildExecutionPlan(
       env, create_info_copy.hints.allow_cl_khr_command_buffer));
   for (auto& external_tensor : create_info_copy.external_mutable_tensors) {
-    RETURN_IF_ERROR(memory_manager_->SetExternalTensor(
+    ABSL_RETURN_IF_ERROR(memory_manager_->SetExternalTensor(
         GetKey(external_tensor.first), nullptr));
   }
   return absl::OkStatus();
@@ -412,7 +412,7 @@ absl::Status InferenceContext::BuildExecutionPlan(
 
   auto finalize_current_cb = [&]() -> absl::Status {
     if (current_cb) {
-      RETURN_IF_ERROR(current_cb->Finalize());
+      ABSL_RETURN_IF_ERROR(current_cb->Finalize());
       command_buffers_.push_back(std::move(current_cb));
       execution_tiles_.push_back({ExecutionTile::Type::kCommandBuffer,
                                   (int)command_buffers_.size() - 1,
@@ -427,11 +427,12 @@ absl::Status InferenceContext::BuildExecutionPlan(
   auto start_new_cb =
       [&](const absl::flat_hash_set<int>& tags) -> absl::Status {
     if (IsQcomCommandBufferSupported(env->device())) {
-      ASSIGN_OR_RETURN(current_cb,
-                       CreateQcomCommandBuffer(env->device(), env->context()));
+      ABSL_ASSIGN_OR_RETURN(
+          current_cb, CreateQcomCommandBuffer(env->device(), env->context()));
     } else {
       auto cl_cb = std::make_unique<CLCommandBuffer>();
-      RETURN_IF_ERROR(cl_cb->Init(env->queue(), /*simultaneous_use=*/true));
+      ABSL_RETURN_IF_ERROR(
+          cl_cb->Init(env->queue(), /*simultaneous_use=*/true));
       current_cb = std::move(cl_cb);
     }
     current_cb_tags = tags;
@@ -442,22 +443,22 @@ absl::Status InferenceContext::BuildExecutionPlan(
   for (int i = 0; i < nodes_.size(); ++i) {
     CLNode& node = nodes_[i];
     if (IsMutable(node)) {
-      RETURN_IF_ERROR(finalize_current_cb());
+      ABSL_RETURN_IF_ERROR(finalize_current_cb());
       execution_tiles_.push_back(
           {ExecutionTile::Type::kKernel, i, node.optional_tag});
     } else {
       if (!current_cb || node.optional_tag != current_cb_tags ||
           current_cb_node_count >= max_tasks_per_command_buffer) {
-        RETURN_IF_ERROR(finalize_current_cb());
-        RETURN_IF_ERROR(start_new_cb(node.optional_tag));
+        ABSL_RETURN_IF_ERROR(finalize_current_cb());
+        ABSL_RETURN_IF_ERROR(start_new_cb(node.optional_tag));
       }
       if (current_cb) {  // always true, compiler doesn't know
-        RETURN_IF_ERROR(current_cb->AddOp(&node.cl_operation));
+        ABSL_RETURN_IF_ERROR(current_cb->AddOp(&node.cl_operation));
       }
       current_cb_node_count++;
     }
   }
-  RETURN_IF_ERROR(finalize_current_cb());
+  ABSL_RETURN_IF_ERROR(finalize_current_cb());
   UpdateActiveTiles();
 
   return absl::OkStatus();
@@ -466,11 +467,11 @@ absl::Status InferenceContext::BuildExecutionPlan(
 absl::Status InferenceContext::BindMemoryToOperations() {
   for (auto& node : nodes_) {
     for (int i = 0; i < node.inputs.size(); ++i) {
-      RETURN_IF_ERROR(
+      ABSL_RETURN_IF_ERROR(
           node.cl_operation.SetSrcTensor(i, GetTensor(node.inputs[i])));
     }
     for (int i = 0; i < node.outputs.size(); ++i) {
-      RETURN_IF_ERROR(
+      ABSL_RETURN_IF_ERROR(
           node.cl_operation.SetDstTensor(i, GetTensor(node.outputs[i])));
     }
   }
@@ -503,7 +504,7 @@ absl::Status InferenceContext::Tune(TuningType tuning_type,
     if (found_cached_cl_op) {
       continue;
     }
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         node.cl_operation.Tune(tuning_type, gpu_info, profiling_queue));
     tuned_ops[fingerprint].emplace_back(std::cref(node.cl_operation));
   }
@@ -512,25 +513,25 @@ absl::Status InferenceContext::Tune(TuningType tuning_type,
 
 absl::Status InferenceContext::UpdateParams() {
   for (auto& node : nodes_) {
-    RETURN_IF_ERROR(node.cl_operation.UpdateParams());
+    ABSL_RETURN_IF_ERROR(node.cl_operation.UpdateParams());
   }
   return absl::OkStatus();
 }
 
 absl::Status InferenceContext::SetTensor(const ValueId& tensor_id,
                                          Tensor* tensor_ptr) {
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       memory_manager_->SetExternalTensor(GetKey(tensor_id), tensor_ptr));
   for (int node_index : external_tensor_to_nodes_[tensor_id]) {
     auto& node = nodes_[node_index];
     for (int i = 0; i < node.inputs.size(); ++i) {
       if (node.inputs[i] == tensor_id) {
-        RETURN_IF_ERROR(node.cl_operation.SetSrcTensor(i, tensor_ptr));
+        ABSL_RETURN_IF_ERROR(node.cl_operation.SetSrcTensor(i, tensor_ptr));
       }
     }
     for (int i = 0; i < node.outputs.size(); ++i) {
       if (node.outputs[i] == tensor_id) {
-        RETURN_IF_ERROR(node.cl_operation.SetDstTensor(i, tensor_ptr));
+        ABSL_RETURN_IF_ERROR(node.cl_operation.SetDstTensor(i, tensor_ptr));
       }
     }
   }
@@ -578,14 +579,14 @@ absl::Status InferenceContext::AddToQueue(CLCommandQueue* queue,
     if (execution_hints_.prev_enqueue_start_point.is_valid()) {
       execution_hints_.prev_enqueue_start_point.Wait();
     }
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         queue->EnqueueEvent(&execution_hints_.prev_enqueue_start_point));
   }
   for (int tile_idx = 0; tile_idx < active_tiles_.size(); ++tile_idx) {
     auto& step = execution_tiles_[active_tiles_[tile_idx]];
     CLEvent* current_event =
         (tile_idx == active_tiles_.size() - 1) ? event : nullptr;
-    RETURN_IF_ERROR(AddToQueue(step, queue, current_event));
+    ABSL_RETURN_IF_ERROR(AddToQueue(step, queue, current_event));
     if (execution_hints_.flush_periodically &&
         (tile_idx + 1) % execution_hints_.flush_period == 0) {
       clFlush(queue->queue());
@@ -608,9 +609,9 @@ absl::StatusOr<int> InferenceContext::AddToQueue(CLCommandQueue* queue,
       continue;
     }
     if (i == nodes_.size() - 1 || i == offset + count - 1) {
-      RETURN_IF_ERROR(node.cl_operation.AddToQueue(queue, event));
+      ABSL_RETURN_IF_ERROR(node.cl_operation.AddToQueue(queue, event));
     } else {
-      RETURN_IF_ERROR(node.cl_operation.AddToQueue(queue));
+      ABSL_RETURN_IF_ERROR(node.cl_operation.AddToQueue(queue));
     }
   }
   if (i == nodes_.size()) {
@@ -636,8 +637,8 @@ absl::Status InferenceContext::ClarifyTimeWithCommandBuffer(
       times_ns.push_back(absl::ToDoubleNanoseconds(
           result->dispatches[node_index + i].duration));
     }
-    RETURN_IF_ERROR(ClarifyWithCommandBuffer(queue, num_tries, cb_duration_ms,
-                                             nodes_to_clarify, &times_ns));
+    ABSL_RETURN_IF_ERROR(ClarifyWithCommandBuffer(
+        queue, num_tries, cb_duration_ms, nodes_to_clarify, &times_ns));
     for (int i = 0; i < node_group_count && node_index + i < nodes_.size();
          ++i) {
       result->dispatches[node_index + i].duration =
@@ -657,9 +658,10 @@ absl::Status InferenceContext::ClarifyTimeMultipleEnqueue(
         ops_total_duration_ms /
         absl::ToDoubleMilliseconds(result->dispatches[i].duration);
     const int n = std::min(max_ops, std::max(min_ops, times));
-    RETURN_IF_ERROR(nodes_[i].cl_operation.AddToQueueForProfiling(queue, n));
+    ABSL_RETURN_IF_ERROR(
+        nodes_[i].cl_operation.AddToQueueForProfiling(queue, n));
   }
-  RETURN_IF_ERROR(queue->WaitForCompletion());
+  ABSL_RETURN_IF_ERROR(queue->WaitForCompletion());
   *result = queue->GetProfilingInfo();
   return absl::OkStatus();
 }
@@ -669,9 +671,9 @@ absl::Status InferenceContext::ProfileTime(ProfilingCommandQueue* queue,
   queue->ResetMeasurements();
   for (auto& node : nodes_) {
     queue->SetEventsLabel(node.name);
-    RETURN_IF_ERROR(node.cl_operation.AddToQueueForProfiling(queue));
+    ABSL_RETURN_IF_ERROR(node.cl_operation.AddToQueueForProfiling(queue));
   }
-  RETURN_IF_ERROR(queue->WaitForCompletion());
+  ABSL_RETURN_IF_ERROR(queue->WaitForCompletion());
   *result = queue->GetProfilingInfo();
 
   if (!(gpu_info_.IsMali() ||
@@ -703,12 +705,12 @@ absl::Status InferenceContext::ProfileTime(ProfilingCommandQueue* queue,
 
   if (gpu_info_.IsPowerVR()) {
     if (gpu_info_.SupportsExtension("cl_khr_command_buffer")) {
-      RETURN_IF_ERROR(ClarifyTimeWithCommandBuffer(queue, result));
-      RETURN_IF_ERROR(ClarifyTimeWithCommandBuffer(queue, result));
+      ABSL_RETURN_IF_ERROR(ClarifyTimeWithCommandBuffer(queue, result));
+      ABSL_RETURN_IF_ERROR(ClarifyTimeWithCommandBuffer(queue, result));
     } else {
-      RETURN_IF_ERROR(ClarifyTimeMultipleEnqueue(/*ops_total_duration_ms=*/32.0,
-                                                 /*min_ops=*/4, /*max_ops=*/64,
-                                                 queue, result));
+      ABSL_RETURN_IF_ERROR(ClarifyTimeMultipleEnqueue(
+          /*ops_total_duration_ms=*/32.0,
+          /*min_ops=*/4, /*max_ops=*/64, queue, result));
       return ClarifyTimeMultipleEnqueue(/*ops_total_duration_ms=*/128.0,
                                         /*min_ops=*/4, /*max_ops=*/1024, queue,
                                         result);
@@ -720,7 +722,7 @@ absl::Status InferenceContext::ProfileTime(ProfilingCommandQueue* queue,
 
 absl::Status InferenceContext::Profile(ProfilingCommandQueue* queue,
                                        ProfilingInfo* result) {
-  RETURN_IF_ERROR(ProfileTime(queue, result));
+  ABSL_RETURN_IF_ERROR(ProfileTime(queue, result));
   for (int i = 0; i < nodes_.size(); ++i) {
     auto& gpu_op = nodes_[i].cl_operation;
     auto& dispatch_info = result->dispatches[i];
@@ -837,7 +839,7 @@ absl::Status InferenceContext::GetOutputTensor(ValueId id,
   result->data.resize(dst_shape.DimensionsProduct());
 
   TensorDescriptor desc;
-  RETURN_IF_ERROR(gpu_tensor->ToDescriptor(&desc, queue));
+  ABSL_RETURN_IF_ERROR(gpu_tensor->ToDescriptor(&desc, queue));
   desc.DownloadData(result);
   return absl::OkStatus();
 }
@@ -853,7 +855,7 @@ absl::Status InferenceContext::GetOutputTensor(ValueId id,
   result->data.resize(dst_shape.DimensionsProduct());
 
   TensorDescriptor desc;
-  RETURN_IF_ERROR(gpu_tensor->ToDescriptor(&desc, queue));
+  ABSL_RETURN_IF_ERROR(gpu_tensor->ToDescriptor(&desc, queue));
   desc.DownloadData(result);
   return absl::OkStatus();
 }
@@ -869,7 +871,7 @@ absl::Status InferenceContext::GetOutputTensor(ValueId id,
   result->data.resize(dst_shape.DimensionsProduct());
 
   TensorDescriptor desc;
-  RETURN_IF_ERROR(gpu_tensor->ToDescriptor(&desc, queue));
+  ABSL_RETURN_IF_ERROR(gpu_tensor->ToDescriptor(&desc, queue));
   desc.DownloadData(result);
   return absl::OkStatus();
 }
@@ -953,20 +955,20 @@ absl::Status GraphToInferenceContext(const GpuInfo& gpu_info,
     absl::flat_hash_map<ValueId, ValueId> weights_mapping;
     std::vector<WeightsManager::UploadWeightsInfo> upload_weights_info;
 
-    RETURN_IF_ERROR(GraphToGpuModelWithWeightsConversion(
+    ABSL_RETURN_IF_ERROR(GraphToGpuModelWithWeightsConversion(
         graph, create_info, gpu_info, &main_gpu_model,
         &gpu_weights_preparation_model, &weights_mapping,
         &upload_weights_info));
     if (!gpu_weights_preparation_model.nodes.empty()) {
-      RETURN_IF_ERROR(weights_prep_context->InitFromGpuModel(
+      ABSL_RETURN_IF_ERROR(weights_prep_context->InitFromGpuModel(
           create_info, &gpu_weights_preparation_model, env));
       for (const auto& upload_info : upload_weights_info) {
         auto tensor = weights_prep_context->GetTensor(upload_info.input_id);
-        RETURN_IF_ERROR(
+        ABSL_RETURN_IF_ERROR(
             tensor->WriteData(static_cast<const uint8_t*>(upload_info.data),
                               env->queue(), /*async=*/true));
       }
-      RETURN_IF_ERROR(weights_prep_context->AddToQueue(env->queue()));
+      ABSL_RETURN_IF_ERROR(weights_prep_context->AddToQueue(env->queue()));
       for (const auto& [converted_weight_id, main_model_weight_id] :
            weights_mapping) {
         auto tensor = weights_prep_context->GetTensor(converted_weight_id);
@@ -974,12 +976,14 @@ absl::Status GraphToInferenceContext(const GpuInfo& gpu_info,
             {main_model_weight_id, tensor});
       }
     }
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         context->InitFromGpuModel(create_info, &main_gpu_model, env));
   } else {
     GpuModel gpu_model;
-    RETURN_IF_ERROR(GraphToGpuModel(graph, create_info, gpu_info, &gpu_model));
-    RETURN_IF_ERROR(context->InitFromGpuModel(create_info, &gpu_model, env));
+    ABSL_RETURN_IF_ERROR(
+        GraphToGpuModel(graph, create_info, gpu_info, &gpu_model));
+    ABSL_RETURN_IF_ERROR(
+        context->InitFromGpuModel(create_info, &gpu_model, env));
   }
   return absl::OkStatus();
 }
@@ -996,20 +1000,20 @@ absl::Status IrModelToInferenceContext(const GpuInfo& gpu_info,
     absl::flat_hash_map<ValueId, ValueId> weights_mapping;
     std::vector<WeightsManager::UploadWeightsInfo> upload_weights_info;
 
-    RETURN_IF_ERROR(IrModelToGpuModelWithWeightsConversion(
+    ABSL_RETURN_IF_ERROR(IrModelToGpuModelWithWeightsConversion(
         ir_model, create_info, gpu_info, &main_gpu_model,
         &gpu_weights_preparation_model, &weights_mapping,
         &upload_weights_info));
     if (!gpu_weights_preparation_model.nodes.empty()) {
-      RETURN_IF_ERROR(weights_prep_context->InitFromGpuModel(
+      ABSL_RETURN_IF_ERROR(weights_prep_context->InitFromGpuModel(
           create_info, &gpu_weights_preparation_model, env));
       for (const auto& upload_info : upload_weights_info) {
         auto tensor = weights_prep_context->GetTensor(upload_info.input_id);
-        RETURN_IF_ERROR(
+        ABSL_RETURN_IF_ERROR(
             tensor->WriteData(static_cast<const uint8_t*>(upload_info.data),
                               env->queue(), /*async=*/true));
       }
-      RETURN_IF_ERROR(weights_prep_context->AddToQueue(env->queue()));
+      ABSL_RETURN_IF_ERROR(weights_prep_context->AddToQueue(env->queue()));
       for (const auto& [converted_weight_id, main_model_weight_id] :
            weights_mapping) {
         auto tensor = weights_prep_context->GetTensor(converted_weight_id);
@@ -1017,13 +1021,14 @@ absl::Status IrModelToInferenceContext(const GpuInfo& gpu_info,
             {main_model_weight_id, tensor});
       }
     }
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         context->InitFromGpuModel(create_info, &main_gpu_model, env));
   } else {
     GpuModel gpu_model;
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         IrModelToGpuModel(ir_model, create_info, gpu_info, &gpu_model));
-    RETURN_IF_ERROR(context->InitFromGpuModel(create_info, &gpu_model, env));
+    ABSL_RETURN_IF_ERROR(
+        context->InitFromGpuModel(create_info, &gpu_model, env));
   }
   return absl::OkStatus();
 }

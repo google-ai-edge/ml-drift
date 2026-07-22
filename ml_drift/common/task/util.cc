@@ -54,7 +54,7 @@ absl::Status PerformInitSelector(const GpuInfo& gpu_info,
   }
   int vector_size = 0;
   DataType type;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       DataTypeFromTemplateArg(template_args[0], &type, &vector_size));
   if (args.size() != 1 && args.size() != vector_size) {
     return absl::NotFoundError(absl::StrCat(
@@ -106,7 +106,7 @@ absl::Status PerformConvertSelector(
   }
   int vector_size = 0;
   DataType type;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       DataTypeFromTemplateArg(template_args[0], &type, &vector_size));
   if (gpu_info.IsApiOpenCl()) {
     if (type == DataType::BOOL) {
@@ -167,11 +167,11 @@ absl::Status PerformReinterpretSelector(
   }
   int from_vector_size = 0;
   DataType from_type;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       DataTypeFromTemplateArg(template_args[0], &from_type, &from_vector_size));
   int to_vector_size = 0;
   DataType to_type;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       DataTypeFromTemplateArg(template_args[1], &to_type, &to_vector_size));
   if (gpu_info.IsApiOpenCl()) {
     *result =
@@ -670,7 +670,8 @@ absl::Status PerformU32x2ToU4x16AsVec4x4(
   }
   int type_size = 0;
   DataType type;
-  RETURN_IF_ERROR(DataTypeFromTemplateArg(template_args[0], &type, &type_size));
+  ABSL_RETURN_IF_ERROR(
+      DataTypeFromTemplateArg(template_args[0], &type, &type_size));
   const bool use_float_math_for_unpacking =
       type == DataType::FLOAT16 && gpu_info.IsApple();
   if (use_float_math_for_unpacking) {
@@ -792,7 +793,8 @@ absl::Status PerformU32x1ToU2x16AsVec4x4(
   }
   int type_size = 0;
   DataType type;
-  RETURN_IF_ERROR(DataTypeFromTemplateArg(template_args[0], &type, &type_size));
+  ABSL_RETURN_IF_ERROR(
+      DataTypeFromTemplateArg(template_args[0], &type, &type_size));
   const bool use_float_math_for_unpacking =
       type == DataType::FLOAT16 && gpu_info.IsApple();
   const bool use_reinterpret_unpacking =
@@ -936,7 +938,8 @@ absl::Status PerformU16x4ToU4x16AsVec4x4(
   }
   int type_size = 0;
   DataType type;
-  RETURN_IF_ERROR(DataTypeFromTemplateArg(template_args[0], &type, &type_size));
+  ABSL_RETURN_IF_ERROR(
+      DataTypeFromTemplateArg(template_args[0], &type, &type_size));
   if (gpu_info.IsPowerVR() && gpu_info.IsApiOpenCl() &&
       type == DataType::FLOAT16) {
     *result = R"(
@@ -1042,7 +1045,8 @@ absl::Status PerformU8x4ToU2x16AsVec4x4(
   }
   int type_size = 0;
   DataType type;
-  RETURN_IF_ERROR(DataTypeFromTemplateArg(template_args[0], &type, &type_size));
+  ABSL_RETURN_IF_ERROR(
+      DataTypeFromTemplateArg(template_args[0], &type, &type_size));
   const bool use_float_math_for_unpacking =
       type == DataType::FLOAT16 && (gpu_info.IsApple() || gpu_info.IsPowerVR());
   if (use_float_math_for_unpacking) {
@@ -1106,7 +1110,8 @@ absl::Status PerformI16ToVec4I4(const GpuInfo& gpu_info,
   }
   int type_size = 0;
   DataType type;
-  RETURN_IF_ERROR(DataTypeFromTemplateArg(template_args[0], &type, &type_size));
+  ABSL_RETURN_IF_ERROR(
+      DataTypeFromTemplateArg(template_args[0], &type, &type_size));
   *result = R"(ucl::Init<$04>(
   ucl::Convert<$0>(($1 << 28u) >> 28u),
   ucl::Convert<$0>(ucl::Convert<short>(($1 << 24u) >> 28u)),
@@ -1126,7 +1131,8 @@ absl::Status PerformI8ToVec4I2(const GpuInfo& gpu_info,
   }
   int type_size = 0;
   DataType type;
-  RETURN_IF_ERROR(DataTypeFromTemplateArg(template_args[0], &type, &type_size));
+  ABSL_RETURN_IF_ERROR(
+      DataTypeFromTemplateArg(template_args[0], &type, &type_size));
   *result = R"(ucl::Init<$04>(
   ucl::Convert<$0>(($1 << 30u) >> 30u),
   ucl::Convert<$0>(($1 << 28u) >> 30u),
@@ -1267,7 +1273,7 @@ absl::Status PerformExpSelector(const GpuInfo& gpu_info,
   if (gpu_info.IsApiOpenCl()) {
     int vector_size = 0;
     DataType type;
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         DataTypeFromTemplateArg(template_args[0], &type, &vector_size));
     if (type == DataType::FLOAT16 &&
         (gpu_info.IsAdreno() || gpu_info.IsPowerVR() || gpu_info.IsMali())) {

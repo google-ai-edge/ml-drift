@@ -63,10 +63,10 @@ absl::Status CreateLinearGraph(const BHWC& input_shape,
   conv_node->operation.type = ToString(OperationType::CONVOLUTION_2D);
   conv_node->operation.attributes = conv_attr;
   Value* dw_output = nullptr;
-  RETURN_IF_ERROR(ConnectTwoNodes(graph, dw_node, conv_node, &dw_output));
+  ABSL_RETURN_IF_ERROR(ConnectTwoNodes(graph, dw_node, conv_node, &dw_output));
   dw_output->tensor.shape = CalculateOutputShape(input->tensor.shape, dw_attr);
   Value* conv_output = nullptr;
-  RETURN_IF_ERROR(AddOutput(graph, conv_node, &conv_output));
+  ABSL_RETURN_IF_ERROR(AddOutput(graph, conv_node, &conv_output));
   conv_output->tensor.shape =
       CalculateOutputShape(input->tensor.shape, conv_attr);
 
@@ -93,12 +93,12 @@ absl::Status CreateLinearGraph(const BHWC& input_shape,
   conv1x1_node->operation.type = ToString(OperationType::CONVOLUTION_2D);
   conv1x1_node->operation.attributes = conv1x1_attr;
   Value* conv2d_output = nullptr;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       ConnectTwoNodes(graph, conv2d_node, conv1x1_node, &conv2d_output));
   conv2d_output->tensor.shape =
       CalculateOutputShape(input->tensor.shape, conv2d_attr);
   Value* conv_output = nullptr;
-  RETURN_IF_ERROR(AddOutput(graph, conv1x1_node, &conv_output));
+  ABSL_RETURN_IF_ERROR(AddOutput(graph, conv1x1_node, &conv_output));
   conv_output->tensor.shape =
       CalculateOutputShape(conv2d_output->tensor.shape, conv1x1_attr);
 
@@ -150,7 +150,7 @@ absl::Status DWPlusConv1x1Test(TestExecutionEnvironment* exec_env,
   {
     GraphFloat32 graph;
     std::vector<ValueId> values_ids;
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         CreateLinearGraph(src_shape, dw_attr, conv_attr, &graph, &values_ids));
 
     absl::flat_hash_map<ValueId, TensorDescriptor> tensor_descriptors_copy =
@@ -167,11 +167,11 @@ absl::Status DWPlusConv1x1Test(TestExecutionEnvironment* exec_env,
     GpuModelBuilder model_builder =
         GpuModelBuilder(exec_env->GetGpuInfo(), options,
                         std::move(tensor_descriptors_copy), {});
-    RETURN_IF_ERROR(TryThinPointwiseFuser(exec_env->GetGpuInfo(), graph,
-                                          values_ids[0], consumed_nodes,
-                                          &new_consumed_nodes, &model_builder));
-    RETURN_IF_ERROR(model_builder.GetGpuModel({values_ids[0]}, {values_ids[2]},
-                                              &gpu_model));
+    ABSL_RETURN_IF_ERROR(TryThinPointwiseFuser(
+        exec_env->GetGpuInfo(), graph, values_ids[0], consumed_nodes,
+        &new_consumed_nodes, &model_builder));
+    ABSL_RETURN_IF_ERROR(model_builder.GetGpuModel(
+        {values_ids[0]}, {values_ids[2]}, &gpu_model));
   }
 
   TensorFloat32 dst_0;
@@ -198,7 +198,7 @@ absl::Status DWPlusConv1x1Test(TestExecutionEnvironment* exec_env,
   {
     GraphFloat32 graph;
     std::vector<ValueId> values_ids;
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         CreateLinearGraph(src_shape, dw_attr, conv_attr, &graph, &values_ids));
 
     absl::flat_hash_map<ValueId, TensorDescriptor> tensor_descriptors_copy =
@@ -215,11 +215,11 @@ absl::Status DWPlusConv1x1Test(TestExecutionEnvironment* exec_env,
     GpuModelBuilder model_builder =
         GpuModelBuilder(exec_env->GetGpuInfo(), options,
                         std::move(tensor_descriptors_copy), {});
-    RETURN_IF_ERROR(TryThinPointwiseFuser(exec_env->GetGpuInfo(), graph,
-                                          values_ids[0], consumed_nodes,
-                                          &new_consumed_nodes, &model_builder));
-    RETURN_IF_ERROR(model_builder.GetGpuModel({values_ids[0]}, {values_ids[2]},
-                                              &gpu_model_batched));
+    ABSL_RETURN_IF_ERROR(TryThinPointwiseFuser(
+        exec_env->GetGpuInfo(), graph, values_ids[0], consumed_nodes,
+        &new_consumed_nodes, &model_builder));
+    ABSL_RETURN_IF_ERROR(model_builder.GetGpuModel(
+        {values_ids[0]}, {values_ids[2]}, &gpu_model_batched));
   }
 
   MLD_EXPECT_OK(exec_env->ExecuteGpuModel(
@@ -260,8 +260,8 @@ absl::Status Conv2dConv1x1Test(TestExecutionEnvironment* exec_env, int kernel_x,
   {
     GraphFloat32 graph;
     std::vector<ValueId> values_ids;
-    RETURN_IF_ERROR(CreateLinearGraph(src_shape, conv2d_attr, conv1x1_attr,
-                                      &graph, &values_ids));
+    ABSL_RETURN_IF_ERROR(CreateLinearGraph(src_shape, conv2d_attr, conv1x1_attr,
+                                           &graph, &values_ids));
 
     absl::flat_hash_map<ValueId, TensorDescriptor> tensor_descriptors_copy =
         GetTensorDescriptors(graph, DeduceDataTypeFromPrecision(precision),
@@ -277,11 +277,11 @@ absl::Status Conv2dConv1x1Test(TestExecutionEnvironment* exec_env, int kernel_x,
     GpuModelBuilder model_builder =
         GpuModelBuilder(exec_env->GetGpuInfo(), options,
                         std::move(tensor_descriptors_copy), {});
-    RETURN_IF_ERROR(TryThinPointwiseFuser(exec_env->GetGpuInfo(), graph,
-                                          values_ids[0], consumed_nodes,
-                                          &new_consumed_nodes, &model_builder));
-    RETURN_IF_ERROR(model_builder.GetGpuModel({values_ids[0]}, {values_ids[2]},
-                                              &gpu_model));
+    ABSL_RETURN_IF_ERROR(TryThinPointwiseFuser(
+        exec_env->GetGpuInfo(), graph, values_ids[0], consumed_nodes,
+        &new_consumed_nodes, &model_builder));
+    ABSL_RETURN_IF_ERROR(model_builder.GetGpuModel(
+        {values_ids[0]}, {values_ids[2]}, &gpu_model));
   }
 
   TensorFloat32 dst_0;
@@ -308,8 +308,8 @@ absl::Status Conv2dConv1x1Test(TestExecutionEnvironment* exec_env, int kernel_x,
   {
     GraphFloat32 graph;
     std::vector<ValueId> values_ids;
-    RETURN_IF_ERROR(CreateLinearGraph(src_shape, conv2d_attr, conv1x1_attr,
-                                      &graph, &values_ids));
+    ABSL_RETURN_IF_ERROR(CreateLinearGraph(src_shape, conv2d_attr, conv1x1_attr,
+                                           &graph, &values_ids));
 
     absl::flat_hash_map<ValueId, TensorDescriptor> tensor_descriptors_copy =
         GetTensorDescriptors(graph, DeduceDataTypeFromPrecision(precision),
@@ -325,11 +325,11 @@ absl::Status Conv2dConv1x1Test(TestExecutionEnvironment* exec_env, int kernel_x,
     GpuModelBuilder model_builder =
         GpuModelBuilder(exec_env->GetGpuInfo(), options,
                         std::move(tensor_descriptors_copy), {});
-    RETURN_IF_ERROR(TryThinPointwiseFuser(exec_env->GetGpuInfo(), graph,
-                                          values_ids[0], consumed_nodes,
-                                          &new_consumed_nodes, &model_builder));
-    RETURN_IF_ERROR(model_builder.GetGpuModel({values_ids[0]}, {values_ids[2]},
-                                              &gpu_model_batched));
+    ABSL_RETURN_IF_ERROR(TryThinPointwiseFuser(
+        exec_env->GetGpuInfo(), graph, values_ids[0], consumed_nodes,
+        &new_consumed_nodes, &model_builder));
+    ABSL_RETURN_IF_ERROR(model_builder.GetGpuModel(
+        {values_ids[0]}, {values_ids[2]}, &gpu_model_batched));
   }
 
   MLD_EXPECT_OK(exec_env->ExecuteGpuModel(

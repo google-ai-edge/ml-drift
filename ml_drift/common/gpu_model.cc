@@ -22,7 +22,6 @@
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/log/absl_log.h"
-#include "absl/status/status.h"
 #include "absl/strings/str_format.h"
 #include "flatbuffers/buffer.h"
 #include "flatbuffers/flatbuffer_builder.h"
@@ -87,7 +86,7 @@ flatbuffers::Offset<data::GpuNode> Encode(
 absl::Status Decode(const data::GpuNode* fb_node, GpuNode* node) {
   GPUOperation op;
   if (fb_node->gpu_op()) {
-    RETURN_IF_ERROR(Decode(fb_node->gpu_op(), &op));
+    ABSL_RETURN_IF_ERROR(Decode(fb_node->gpu_op(), &op));
     node->gpu_operation = std::make_unique<GPUOperation>(std::move(op));
   } else if (fb_node->subgraph_id()) {
     node->subgraph_id = std::string(fb_node->subgraph_id()->c_str(),
@@ -177,18 +176,18 @@ absl::Status Decode(const data::GpuModel* fb_gpu_model, GpuModel* gpu_model) {
   gpu_model->nodes.resize(fb_gpu_model->nodes()->size());
   int counter = 0;
   for (auto node_fb : *fb_gpu_model->nodes()) {
-    RETURN_IF_ERROR(Decode(node_fb, &gpu_model->nodes[counter]));
+    ABSL_RETURN_IF_ERROR(Decode(node_fb, &gpu_model->nodes[counter]));
     counter++;
   }
 
   for (const auto tensor_fb : *fb_gpu_model->tensors()) {
     TensorDescriptor desc;
-    RETURN_IF_ERROR(Decode(tensor_fb->desc(), &desc));
+    ABSL_RETURN_IF_ERROR(Decode(tensor_fb->desc(), &desc));
     gpu_model->tensors[tensor_fb->id()] = std::move(desc);
   }
   for (const auto tensor_fb : *fb_gpu_model->const_tensors()) {
     TensorDescriptor desc;
-    RETURN_IF_ERROR(Decode(tensor_fb->desc(), &desc));
+    ABSL_RETURN_IF_ERROR(Decode(tensor_fb->desc(), &desc));
     gpu_model->const_tensors[tensor_fb->id()] = std::move(desc);
   }
   for (int i = 0; i < fb_gpu_model->input_ids()->size(); ++i) {
@@ -213,8 +212,8 @@ absl::Status Decode(const data::GpuModel* fb_gpu_model, GpuModel* gpu_model) {
       const std::string subgraph_id =
           std::string((*fb_gpu_model->subgraph_ids())[i] -> c_str(),
                       (*fb_gpu_model->subgraph_ids())[i] -> size());
-      RETURN_IF_ERROR(Decode((*fb_gpu_model->subgraphs())[i],
-                             &gpu_model -> subgraphs[subgraph_id]));
+      ABSL_RETURN_IF_ERROR(Decode((*fb_gpu_model->subgraphs())[i],
+                                  &gpu_model->subgraphs[subgraph_id]));
       ;
     }
   }

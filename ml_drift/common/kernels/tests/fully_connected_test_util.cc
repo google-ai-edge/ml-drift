@@ -68,7 +68,7 @@ absl::Status FullyConnectedTest(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   FullyConnected operation =
       CreateFullyConnected(env.GetGpuInfo(), op_def, precision, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<FullyConnected>(std::move(operation)),
       BHWC(1, 1, 1, 2), &dst_tensor));
   EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), {14.5f, 37.5f}));
@@ -101,7 +101,7 @@ absl::Status FullyConnectedLargeTest(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   FullyConnected operation =
       CreateFullyConnected(env.GetGpuInfo(), op_def, precision, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<FullyConnected>(std::move(operation)),
       BHWC(1, 1, 1, 12), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -164,7 +164,7 @@ absl::Status FullyConnectedExtraLargeTest(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   FullyConnected operation =
       CreateFullyConnected(env.GetGpuInfo(), op_def, precision, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<FullyConnected>(std::move(operation)),
       BHWC(1, 1, 1, kOutputSize), &dst_tensor));
   EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), expected));
@@ -204,17 +204,17 @@ absl::Status FullyConnectedInt8Test(TestExecutionEnvironment& env,
   external_weights.shape = weights_i8.shape;
   external_weights.scale_zp_shape = OHWI(1, 1, 1, 1);
   external_weights.scalar_scale = 0.5f;
-  ASSIGN_OR_RETURN(auto operation,
-                   CreateFullyConnectedExternalWeights(
-                       env.GetGpuInfo(), precision, op_def.src_tensors[0],
-                       op_def.dst_tensors[0], external_weights, &bias_td,
-                       /*dst_shape_ptr=*/nullptr));
+  ABSL_ASSIGN_OR_RETURN(auto operation,
+                        CreateFullyConnectedExternalWeights(
+                            env.GetGpuInfo(), precision, op_def.src_tensors[0],
+                            op_def.dst_tensors[0], external_weights, &bias_td,
+                            /*dst_shape_ptr=*/nullptr));
 
   TensorDescriptor src_td = op_def.src_tensors[0];
   src_td.UploadData(src_tensor);
   TensorDescriptor dst_td = op_def.dst_tensors[0];
   dst_td.SetBHWCShape(BHWC(1, 1, 1, 2));
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_td, &weights_i8_td, &bias_td}, {&dst_td},
       std::make_unique<FullyConnected>(std::move(operation))));
 
@@ -269,17 +269,17 @@ absl::Status FullyConnectedInt8BlockwiseAttributesTest(
   external_weights.shape = weights_i8.shape;
   external_weights.scale_zp_shape = scale.shape;
   external_weights.scale = &scale_desc;
-  ASSIGN_OR_RETURN(auto operation,
-                   CreateFullyConnectedExternalWeights(
-                       env.GetGpuInfo(), precision, op_def.src_tensors[0],
-                       op_def.dst_tensors[0], external_weights, &bias_td,
-                       /*dst_shape_ptr=*/nullptr));
+  ABSL_ASSIGN_OR_RETURN(auto operation,
+                        CreateFullyConnectedExternalWeights(
+                            env.GetGpuInfo(), precision, op_def.src_tensors[0],
+                            op_def.dst_tensors[0], external_weights, &bias_td,
+                            /*dst_shape_ptr=*/nullptr));
 
   TensorDescriptor src_td = op_def.src_tensors[0];
   src_td.UploadData(src_tensor);
   TensorDescriptor dst_td = op_def.dst_tensors[0];
   dst_td.SetBHWCShape(BHWC(1, 1, 1, 2));
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_td, &weights_i8_td, &scale_desc, &bias_td}, {&dst_td},
       std::make_unique<FullyConnected>(std::move(operation))));
 
@@ -350,17 +350,17 @@ absl::Status FullyConnectedInt8BlockwiseAttributesWithZeroPointsTest(
   external_weights.scale_zp_shape = scale.shape;
   external_weights.scale = &scale_desc;
   external_weights.zero_point = &zero_point_desc;
-  ASSIGN_OR_RETURN(auto operation,
-                   CreateFullyConnectedExternalWeights(
-                       env.GetGpuInfo(), precision, op_def.src_tensors[0],
-                       op_def.dst_tensors[0], external_weights, &bias_td,
-                       /*dst_shape_ptr=*/nullptr));
+  ABSL_ASSIGN_OR_RETURN(auto operation,
+                        CreateFullyConnectedExternalWeights(
+                            env.GetGpuInfo(), precision, op_def.src_tensors[0],
+                            op_def.dst_tensors[0], external_weights, &bias_td,
+                            /*dst_shape_ptr=*/nullptr));
 
   TensorDescriptor src_td = op_def.src_tensors[0];
   src_td.UploadData(src_tensor);
   TensorDescriptor dst_td = op_def.dst_tensors[0];
   dst_td.SetBHWCShape(BHWC(1, 1, 1, 2));
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_td, &weights_i8_td, &scale_desc, &zero_point_desc, &bias_td},
       {&dst_td}, std::make_unique<FullyConnected>(std::move(operation))));
 
@@ -397,11 +397,12 @@ absl::Status FullyConnectedWeightsAsSpatialTensorTest(
   op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
   TensorFloat32 dst_tensor;
-  ASSIGN_OR_RETURN(FullyConnected operation,
-                   CreateFullyConnectedWeightsAreSpatialTensor(
-                       env.GetGpuInfo(), op_def, precision, attr.weights.shape,
-                       /*bias=*/nullptr, &dst_ref_tensor.shape));
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_ASSIGN_OR_RETURN(
+      FullyConnected operation,
+      CreateFullyConnectedWeightsAreSpatialTensor(
+          env.GetGpuInfo(), op_def, precision, attr.weights.shape,
+          /*bias=*/nullptr, &dst_ref_tensor.shape));
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor, weights_tensor},
       std::make_unique<FullyConnected>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
@@ -464,7 +465,7 @@ absl::Status FullyConnectedInt4Sparse2x4Test(
       exec_env.GetGpuInfo(), op_def, precision, weights_i4, weights_indices,
       weights_scale, weights_zero_point, {});
   TensorFloat32 dst_tensor;
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       src_tensor, std::make_unique<FullyConnected>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(0.0f), dst_ref_tensor.data));
@@ -506,7 +507,7 @@ absl::Status FullyConnectedInt4Sparse2x4Test(TestExecutionEnvironment& env,
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  RETURN_IF_ERROR(FullyConnectedInt4Sparse2x4Test(
+  ABSL_RETURN_IF_ERROR(FullyConnectedInt4Sparse2x4Test(
       env, src_tensor, weights_i4, weights_indices, op_def, precision));
   return absl::OkStatus();
 }
@@ -522,7 +523,7 @@ absl::Status FullyConnectedBigTest(TestExecutionEnvironment& exec_env,
                                         precision, attr, &dst_ref_tensor.shape);
   float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr);
   TensorFloat32 dst_tensor;
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       src_tensor, std::make_unique<FullyConnected>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), dst_ref_tensor.data));
@@ -604,13 +605,13 @@ absl::Status FullyConnectedExternalTest(
   ExternalWeights external_weights;
   external_weights.desc = weights_desc;
   external_weights.shape = attr.weights.shape;
-  ASSIGN_OR_RETURN(auto operation,
-                   CreateFullyConnectedExternalWeights(
-                       exec_env.GetGpuInfo(), precision, op_def.src_tensors[0],
-                       op_def.dst_tensors[0], external_weights, &bias_td,
-                       &dst_ref_tensor.shape,
-                       /*src_exp=*/nullptr,
-                       runtime_channels.GenerateConvRuntimeCheckDesc()));
+  ABSL_ASSIGN_OR_RETURN(auto operation,
+                        CreateFullyConnectedExternalWeights(
+                            exec_env.GetGpuInfo(), precision,
+                            op_def.src_tensors[0], op_def.dst_tensors[0],
+                            external_weights, &bias_td, &dst_ref_tensor.shape,
+                            /*src_exp=*/nullptr,
+                            runtime_channels.GenerateConvRuntimeCheckDesc()));
 
   TensorDescriptor src_td = op_def.src_tensors[0];
   src_td.UploadData(src_tensor);
@@ -636,7 +637,7 @@ absl::Status FullyConnectedExternalTest(
 
   float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr) * 2.0f;
 
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       src_cpu, {&dst_td},
       std::make_unique<FullyConnected>(std::move(operation))));
   TensorFloat32 dst_tensor;
@@ -763,17 +764,17 @@ absl::Status FullyConnectedInt8Test(
   external_weights.shape = weights_i8.shape;
   external_weights.scale_zp_shape = weights_scale.shape;
   external_weights.scale = &scale_desc;
-  ASSIGN_OR_RETURN(auto operation,
-                   CreateFullyConnectedExternalWeights(
-                       exec_env.GetGpuInfo(), precision, op_def.src_tensors[0],
-                       op_def.dst_tensors[0], external_weights, &bias_td,
-                       &dst_ref_tensor.shape));
+  ABSL_ASSIGN_OR_RETURN(auto operation,
+                        CreateFullyConnectedExternalWeights(
+                            exec_env.GetGpuInfo(), precision,
+                            op_def.src_tensors[0], op_def.dst_tensors[0],
+                            external_weights, &bias_td, &dst_ref_tensor.shape));
 
   TensorDescriptor src_td = op_def.src_tensors[0];
   src_td.UploadData(src_tensor);
   TensorDescriptor dst_td = op_def.dst_tensors[0];
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       {&src_td, &weights_i8_td, &scale_desc, &bias_td}, {&dst_td},
       std::make_unique<FullyConnected>(std::move(operation))));
   TensorFloat32 dst_tensor;
@@ -924,11 +925,12 @@ absl::Status FullyConnectedInt8ExternalTest(
   external_weights.scale_zp_shape = weights_scale.shape;
   external_weights.scale = &scale_desc;
   external_weights.zero_point = &zp_desc;
-  ASSIGN_OR_RETURN(auto operation,
-                   CreateFullyConnectedExternalWeights(
-                       exec_env.GetGpuInfo(), precision, op_def.src_tensors[0],
-                       op_def.dst_tensors[0], external_weights,
-                       /*bias=*/nullptr, &dst_ref_tensor.shape));
+  ABSL_ASSIGN_OR_RETURN(
+      auto operation,
+      CreateFullyConnectedExternalWeights(
+          exec_env.GetGpuInfo(), precision, op_def.src_tensors[0],
+          op_def.dst_tensors[0], external_weights,
+          /*bias=*/nullptr, &dst_ref_tensor.shape));
 
   TensorDescriptor src_td = op_def.src_tensors[0];
   src_td.UploadData(src_tensor);
@@ -941,7 +943,7 @@ absl::Status FullyConnectedInt8ExternalTest(
 
   float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr) * 2.0f;
 
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       src_cpu, {&dst_td},
       std::make_unique<FullyConnected>(std::move(operation))));
   TensorFloat32 dst_tensor;
@@ -984,7 +986,7 @@ absl::Status FullyConnectedInt8BatchedWeightsIdsTest(
   external_weights.scale_zp_shape = weights_scale.shape;
   external_weights.scale = &scale_desc;
   external_weights.zero_point = &zp_desc;
-  ASSIGN_OR_RETURN(
+  ABSL_ASSIGN_OR_RETURN(
       auto operation,
       CreateFullyConnectedWeightsBatchIds(
           exec_env.GetGpuInfo(), precision, op_def.src_tensors[0],
@@ -1005,7 +1007,7 @@ absl::Status FullyConnectedInt8BatchedWeightsIdsTest(
 
   float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr) * 2.0f;
 
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       src_cpu, {&dst_td},
       std::make_unique<FullyConnected>(std::move(operation))));
   TensorFloat32 dst_tensor;
@@ -1058,13 +1060,13 @@ absl::Status FullyConnectedInt8ExternalTest(
   external_weights.scale_zp_shape = weights_scale.shape;
   external_weights.scale = &scale_desc;
   external_weights.zero_point = &zp_desc;
-  ASSIGN_OR_RETURN(auto operation,
-                   CreateFullyConnectedExternalWeights(
-                       exec_env.GetGpuInfo(), precision, op_def.src_tensors[0],
-                       op_def.dst_tensors[0], external_weights, &bias_td,
-                       &dst_ref_tensor.shape,
-                       /*src_exp=*/nullptr,
-                       runtime_channels.GenerateConvRuntimeCheckDesc()));
+  ABSL_ASSIGN_OR_RETURN(auto operation,
+                        CreateFullyConnectedExternalWeights(
+                            exec_env.GetGpuInfo(), precision,
+                            op_def.src_tensors[0], op_def.dst_tensors[0],
+                            external_weights, &bias_td, &dst_ref_tensor.shape,
+                            /*src_exp=*/nullptr,
+                            runtime_channels.GenerateConvRuntimeCheckDesc()));
 
   TensorDescriptor src_td = op_def.src_tensors[0];
   src_td.UploadData(src_tensor);
@@ -1085,7 +1087,7 @@ absl::Status FullyConnectedInt8ExternalTest(
 
   float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr) * 2.0f;
 
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       src_cpu, {&dst_td},
       std::make_unique<FullyConnected>(std::move(operation))));
   TensorFloat32 dst_tensor;
@@ -1286,18 +1288,18 @@ absl::Status FullyConnectedSi8Wi8Test(
   ExternalWeights external_weights;
   external_weights.desc = weights_desc;
   external_weights.shape = weights_i8.shape;
-  ASSIGN_OR_RETURN(auto operation,
-                   CreateFullyConnectedExternalWeights(
-                       exec_env.GetGpuInfo(), CalculationsPrecision::F32,
-                       op_def.src_tensors[0], op_def.dst_tensors[0],
-                       external_weights, nullptr, nullptr));
+  ABSL_ASSIGN_OR_RETURN(auto operation,
+                        CreateFullyConnectedExternalWeights(
+                            exec_env.GetGpuInfo(), CalculationsPrecision::F32,
+                            op_def.src_tensors[0], op_def.dst_tensors[0],
+                            external_weights, nullptr, nullptr));
 
   TensorDescriptor src_td = op_def.src_tensors[0];
   src_td.UploadData(src_tensor_i8);
 
   TensorDescriptor dst_td = op_def.dst_tensors[0];
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       {&src_td, &weights_i8_td}, {&dst_td},
       std::make_unique<FullyConnected>(std::move(operation))));
   TensorInt32 dst_tensor;
@@ -1374,17 +1376,17 @@ absl::Status FullyConnectedInt4Test(
   external_weights.shape = weights_i4.shape;
   external_weights.scale_zp_shape = weights_scale.shape;
   external_weights.scale = &scale_desc;
-  ASSIGN_OR_RETURN(auto operation,
-                   CreateFullyConnectedExternalWeights(
-                       exec_env.GetGpuInfo(), precision, op_def.src_tensors[0],
-                       op_def.dst_tensors[0], external_weights, &bias_td,
-                       &dst_ref_tensor.shape));
+  ABSL_ASSIGN_OR_RETURN(auto operation,
+                        CreateFullyConnectedExternalWeights(
+                            exec_env.GetGpuInfo(), precision,
+                            op_def.src_tensors[0], op_def.dst_tensors[0],
+                            external_weights, &bias_td, &dst_ref_tensor.shape));
 
   TensorDescriptor src_td = op_def.src_tensors[0];
   src_td.UploadData(src_tensor);
   TensorDescriptor dst_td = op_def.dst_tensors[0];
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       {&src_td, &weights_i4_td, &scale_desc, &bias_td}, {&dst_td},
       std::make_unique<FullyConnected>(std::move(operation))));
   TensorFloat32 dst_tensor;
@@ -1446,17 +1448,17 @@ absl::Status FullyConnectedInt4BlockwiseTest(TestExecutionEnvironment& env,
   external_weights.shape = weights_i4.shape;
   external_weights.scale_zp_shape = weights_scales.shape;
   external_weights.scale = &scale_desc;
-  ASSIGN_OR_RETURN(auto operation,
-                   CreateFullyConnectedExternalWeights(
-                       env.GetGpuInfo(), precision, op_def.src_tensors[0],
-                       op_def.dst_tensors[0], external_weights, &bias_td,
-                       /*dst_shape_ptr=*/nullptr));
+  ABSL_ASSIGN_OR_RETURN(auto operation,
+                        CreateFullyConnectedExternalWeights(
+                            env.GetGpuInfo(), precision, op_def.src_tensors[0],
+                            op_def.dst_tensors[0], external_weights, &bias_td,
+                            /*dst_shape_ptr=*/nullptr));
 
   TensorDescriptor src_td = op_def.src_tensors[0];
   src_td.UploadData(src_tensor);
   TensorDescriptor dst_td = op_def.dst_tensors[0];
   dst_td.SetBHWCShape(BHWC(1, 1, 1, dst_channels));
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_td, &weights_i4_td, &scale_desc, &bias_td}, {&dst_td},
       std::make_unique<FullyConnected>(std::move(operation))));
 
@@ -1553,17 +1555,17 @@ absl::Status FullyConnectedInt2BlockwiseTest(TestExecutionEnvironment& env,
   external_weights.shape = weights_i2.shape;
   external_weights.scale_zp_shape = weights_scales.shape;
   external_weights.scale = &scale_desc;
-  ASSIGN_OR_RETURN(auto operation,
-                   CreateFullyConnectedExternalWeights(
-                       env.GetGpuInfo(), precision, op_def.src_tensors[0],
-                       op_def.dst_tensors[0], external_weights, &bias_td,
-                       /*dst_shape_ptr=*/nullptr));
+  ABSL_ASSIGN_OR_RETURN(auto operation,
+                        CreateFullyConnectedExternalWeights(
+                            env.GetGpuInfo(), precision, op_def.src_tensors[0],
+                            op_def.dst_tensors[0], external_weights, &bias_td,
+                            /*dst_shape_ptr=*/nullptr));
 
   TensorDescriptor src_td = op_def.src_tensors[0];
   src_td.UploadData(src_tensor);
   TensorDescriptor dst_td = op_def.dst_tensors[0];
   dst_td.SetBHWCShape(BHWC(1, 1, 1, dst_channels));
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_td, &weights_i2_td, &scale_desc, &bias_td}, {&dst_td},
       std::make_unique<FullyConnected>(std::move(operation))));
 
@@ -1679,11 +1681,11 @@ absl::Status FullyConnectedInt4ExternalTest(
   external_weights.scale_zp_shape = weights_scale.shape;
   external_weights.scale = &scale_desc;
   external_weights.zero_point = &zp_desc;
-  ASSIGN_OR_RETURN(auto operation,
-                   CreateFullyConnectedExternalWeights(
-                       exec_env.GetGpuInfo(), precision, op_def.src_tensors[0],
-                       op_def.dst_tensors[0], external_weights, &bias_td,
-                       &dst_ref_tensor.shape));
+  ABSL_ASSIGN_OR_RETURN(auto operation,
+                        CreateFullyConnectedExternalWeights(
+                            exec_env.GetGpuInfo(), precision,
+                            op_def.src_tensors[0], op_def.dst_tensors[0],
+                            external_weights, &bias_td, &dst_ref_tensor.shape));
 
   TensorDescriptor src_td = op_def.src_tensors[0];
   src_td.UploadData(src_tensor);
@@ -1693,7 +1695,7 @@ absl::Status FullyConnectedInt4ExternalTest(
 
   float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr) * 2.0f;
 
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       {&src_td, &weights_i4_td, &scale_desc, &zp_desc, &bias_td}, {&dst_td},
       std::make_unique<FullyConnected>(std::move(operation))));
   TensorFloat32 dst_tensor;
@@ -1786,18 +1788,18 @@ absl::Status FullyConnectedSi8Wi4Test(
   ExternalWeights external_weights;
   external_weights.desc = weights_desc;
   external_weights.shape = weights_i4.shape;
-  ASSIGN_OR_RETURN(auto operation,
-                   CreateFullyConnectedExternalWeights(
-                       exec_env.GetGpuInfo(), CalculationsPrecision::F32,
-                       op_def.src_tensors[0], op_def.dst_tensors[0],
-                       external_weights, nullptr, nullptr));
+  ABSL_ASSIGN_OR_RETURN(auto operation,
+                        CreateFullyConnectedExternalWeights(
+                            exec_env.GetGpuInfo(), CalculationsPrecision::F32,
+                            op_def.src_tensors[0], op_def.dst_tensors[0],
+                            external_weights, nullptr, nullptr));
 
   TensorDescriptor src_td = op_def.src_tensors[0];
   src_td.UploadData(src_tensor_i8);
 
   TensorDescriptor dst_td = op_def.dst_tensors[0];
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       {&src_td, &weights_i4_td}, {&dst_td},
       std::make_unique<FullyConnected>(std::move(operation))));
   TensorInt32 dst_tensor;
@@ -1874,11 +1876,11 @@ absl::Status FullyConnectedInt2Test(
   external_weights.shape = weights_i2.shape;
   external_weights.scale_zp_shape = weights_scale.shape;
   external_weights.scale = &scale_desc;
-  ASSIGN_OR_RETURN(auto operation,
-                   CreateFullyConnectedExternalWeights(
-                       exec_env.GetGpuInfo(), precision, op_def.src_tensors[0],
-                       op_def.dst_tensors[0], external_weights, &bias_td,
-                       &dst_ref_tensor.shape));
+  ABSL_ASSIGN_OR_RETURN(auto operation,
+                        CreateFullyConnectedExternalWeights(
+                            exec_env.GetGpuInfo(), precision,
+                            op_def.src_tensors[0], op_def.dst_tensors[0],
+                            external_weights, &bias_td, &dst_ref_tensor.shape));
 
   float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr);
 
@@ -1886,7 +1888,7 @@ absl::Status FullyConnectedInt2Test(
   src_td.UploadData(src_tensor);
   TensorDescriptor dst_td = op_def.dst_tensors[0];
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       {&src_td, &weights_i2_td, &scale_desc, &bias_td}, {&dst_td},
       std::make_unique<FullyConnected>(std::move(operation))));
   TensorFloat32 dst_tensor;
@@ -2032,11 +2034,11 @@ absl::Status FullyConnectedInt2ExternalTest(
   external_weights.scale_zp_shape = weights_scale.shape;
   external_weights.scale = &scale_desc;
   external_weights.zero_point = &zp_desc;
-  ASSIGN_OR_RETURN(auto operation,
-                   CreateFullyConnectedExternalWeights(
-                       exec_env.GetGpuInfo(), precision, op_def.src_tensors[0],
-                       op_def.dst_tensors[0], external_weights, &bias_td,
-                       &dst_ref_tensor.shape));
+  ABSL_ASSIGN_OR_RETURN(auto operation,
+                        CreateFullyConnectedExternalWeights(
+                            exec_env.GetGpuInfo(), precision,
+                            op_def.src_tensors[0], op_def.dst_tensors[0],
+                            external_weights, &bias_td, &dst_ref_tensor.shape));
 
   TensorDescriptor src_td = op_def.src_tensors[0];
   src_td.UploadData(src_tensor);
@@ -2046,7 +2048,7 @@ absl::Status FullyConnectedInt2ExternalTest(
 
   float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr) * 2.0f;
 
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       {&src_td, &weights_i2_td, &scale_desc, &zp_desc, &bias_td}, {&dst_td},
       std::make_unique<FullyConnected>(std::move(operation))));
   TensorFloat32 dst_tensor;
@@ -2139,18 +2141,18 @@ absl::Status FullyConnectedSi8Wi2Test(
   ExternalWeights external_weights;
   external_weights.desc = weights_desc;
   external_weights.shape = weights_i2.shape;
-  ASSIGN_OR_RETURN(auto operation,
-                   CreateFullyConnectedExternalWeights(
-                       exec_env.GetGpuInfo(), CalculationsPrecision::F32,
-                       op_def.src_tensors[0], op_def.dst_tensors[0],
-                       external_weights, nullptr, nullptr));
+  ABSL_ASSIGN_OR_RETURN(auto operation,
+                        CreateFullyConnectedExternalWeights(
+                            exec_env.GetGpuInfo(), CalculationsPrecision::F32,
+                            op_def.src_tensors[0], op_def.dst_tensors[0],
+                            external_weights, nullptr, nullptr));
 
   TensorDescriptor src_td = op_def.src_tensors[0];
   src_td.UploadData(src_tensor_i8);
 
   TensorDescriptor dst_td = op_def.dst_tensors[0];
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       {&src_td, &weights_i2_td}, {&dst_td},
       std::make_unique<FullyConnected>(std::move(operation))));
   TensorInt32 dst_tensor;
@@ -2258,16 +2260,16 @@ absl::Status FullyConnectedPackedGroupsTest(TestExecutionEnvironment& env,
   ExternalWeights external_weights;
   external_weights.desc = weights_desc;
   external_weights.shape = weights.shape;
-  ASSIGN_OR_RETURN(auto conv_fc,
-                   CreateFullyConnectedExternalWeights(
-                       env.GetGpuInfo(), precision, op_def.src_tensors[0],
-                       op_def.dst_tensors[0], external_weights,
-                       /*bias=*/nullptr, &dst_packed_shape,
-                       /*src_exp=*/nullptr, runtime_check));
+  ABSL_ASSIGN_OR_RETURN(auto conv_fc,
+                        CreateFullyConnectedExternalWeights(
+                            env.GetGpuInfo(), precision, op_def.src_tensors[0],
+                            op_def.dst_tensors[0], external_weights,
+                            /*bias=*/nullptr, &dst_packed_shape,
+                            /*src_exp=*/nullptr, runtime_check));
 
   TensorDescriptor dst_desc = TensorDescriptor(data_type, storage, Layout::HWC);
   dst_desc.SetBHWCShape(dst_packed_shape);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc, &weights_gpu[0], &runtime_params_td}, {&dst_desc},
       std::make_unique<FullyConnected>(std::move(conv_fc))));
 

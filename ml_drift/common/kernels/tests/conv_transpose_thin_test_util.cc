@@ -52,7 +52,7 @@ absl::Status ConvolutionTransposedThinTest(
                                                    op_def, precision, attr);
   float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr);
   TensorFloat32 dst_tensor;
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       src_tensor,
       std::make_unique<ConvolutionTransposedThin>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
@@ -72,7 +72,7 @@ absl::Status ConvolutionTransposed3x3ThinTest(
                                                       op_def, precision, attr);
   float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr);
   TensorFloat32 dst_tensor;
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       src_tensor,
       std::make_unique<ConvolutionTransposed3x3Thin>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
@@ -108,7 +108,7 @@ absl::Status ConvolutionTransposed3x3ThinDynamicWeightsTest(
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
 
   float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr);
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       srcs_td, {&dst_td},
       std::make_unique<ConvolutionTransposed3x3Thin>(std::move(operation))));
   TensorFloat32 dst_tensor;
@@ -143,7 +143,7 @@ absl::Status ConvolutionTransposedThinSimpleWeightsTest(
   TensorFloat32 dst_tensor;
   ConvolutionTransposedThin operation = CreateConvolutionTransposedThin(
       env.GetGpuInfo(), op_def, precision, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor,
       std::make_unique<ConvolutionTransposedThin>(std::move(operation)),
       BHWC(1, 4, 4, 2), &dst_tensor));
@@ -180,7 +180,7 @@ absl::Status ConvolutionTransposedThinTest(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   ConvolutionTransposedThin operation = CreateConvolutionTransposedThin(
       env.GetGpuInfo(), op_def, precision, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor,
       std::make_unique<ConvolutionTransposedThin>(std::move(operation)),
       BHWC(1, 4, 4, 1), &dst_tensor));
@@ -269,7 +269,7 @@ absl::Status ConvolutionTransposed3x3ThinSimpleWeightsTest(
   TensorFloat32 dst_tensor;
   ConvolutionTransposed3x3Thin operation = CreateConvolutionTransposed3x3Thin(
       env.GetGpuInfo(), op_def, precision, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor,
       std::make_unique<ConvolutionTransposed3x3Thin>(std::move(operation)),
       BHWC(1, 4, 4, 1), &dst_tensor));
@@ -309,7 +309,7 @@ absl::Status ConvolutionTransposed3x3ThinTest(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   ConvolutionTransposed3x3Thin operation = CreateConvolutionTransposed3x3Thin(
       env.GetGpuInfo(), op_def, precision, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor,
       std::make_unique<ConvolutionTransposed3x3Thin>(std::move(operation)),
       BHWC(1, 4, 4, 1), &dst_tensor));

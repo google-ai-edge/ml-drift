@@ -188,7 +188,7 @@ absl::StatusOr<GraphFloat32> CreateConvGraph(const BHWC& input_shape,
   conv_node->operation.attributes = std::move(conv_attr);
   graph.AddConsumer(conv_node->id, input->id);
   Value* conv_output = nullptr;
-  RETURN_IF_ERROR(AddOutput(&graph, conv_node, &conv_output));
+  ABSL_RETURN_IF_ERROR(AddOutput(&graph, conv_node, &conv_output));
   conv_output->tensor.type = DataType::FLOAT32;
   conv_output->tensor.shape = output_shape;
   return graph;
@@ -214,7 +214,7 @@ absl::StatusOr<GraphFloat32> FCInt8TestGraph::CreateFCFloat32Graph() {
     fc_node->operation.attributes = fc_attr;
     graph.AddConsumer(fc_node->id, input->id);
     Value* fc_output = nullptr;
-    RETURN_IF_ERROR(AddOutput(&graph, fc_node, &fc_output));
+    ABSL_RETURN_IF_ERROR(AddOutput(&graph, fc_node, &fc_output));
     fc_output->tensor.type = DataType::FLOAT32;
     fc_output->tensor.shape = output_shape_;
     return graph;
@@ -241,7 +241,7 @@ absl::StatusOr<GraphFloat32> FCInt8TestGraph::CreateFCFloat32Graph() {
     fc_node->operation.attributes = fc_attr;
     graph.AddConsumer(fc_node->id, input->id);
     Value* fc_output = nullptr;
-    RETURN_IF_ERROR(AddOutput(&graph, fc_node, &fc_output));
+    ABSL_RETURN_IF_ERROR(AddOutput(&graph, fc_node, &fc_output));
     fc_output->tensor.type = DataType::FLOAT32;
     fc_output->tensor.shape = output_shape_;
     return graph;

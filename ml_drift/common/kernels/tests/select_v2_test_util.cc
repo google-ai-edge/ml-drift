@@ -20,7 +20,6 @@
 #include <vector>
 
 #include "gmock/gmock.h"
-#include "absl/status/status.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/kernels/select_v2.h"
 #include "ml_drift/common/shape.h"
@@ -137,7 +136,7 @@ absl::Status RunSelectV2(
   true_descriptor.UploadData(true_tensor);
   else_descriptor.UploadData(false_tensor);
   dst_descriptor.SetBHWCShape(BHWC(batch, height, width, channels));
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&cond_descriptor, &true_descriptor, &else_descriptor}, {&dst_descriptor},
       std::make_unique<GPUOperation>(std::move(operation))));
   dst_descriptor.DownloadData(&dst_tensor);
@@ -197,7 +196,7 @@ absl::Status IfTest(TestExecutionEnvironment& env, DataType data_type,
     else_descriptor.UploadData(false_tensor);
     dst_descriptor.SetBHWCShape(shape);
     return absl::OkStatus();
-    RETURN_IF_ERROR(env.ExecuteGPUOperation(
+    ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
         {&cond_descriptor, &true_descriptor, &else_descriptor},
         {&dst_descriptor},
         std::make_unique<GPUOperation>(std::move(operation))));
@@ -255,7 +254,7 @@ absl::Status SelectV2Test(TestExecutionEnvironment& env, DataType data_type,
                            /*gather_by_rows=*/true);
 
   TensorFloat32 dst_tensor;
-  RETURN_IF_ERROR(RunSelectV2<cond_type>(
+  ABSL_RETURN_IF_ERROR(RunSelectV2<cond_type>(
       env, data_type, cond_storage, storage, data_type, cond_tensor,
       true_tensor, false_tensor, kBatch, kHeight, kWidth, kChannels,
       /*broadcast_true=*/false, /*broadcast_false=*/false, dst_tensor));
@@ -300,7 +299,7 @@ absl::Status SelectV2Scalar4DTest(TestExecutionEnvironment& env,
   std::vector<float> expected_data = {0.f, 1.f, 2.f, 3.f};
 
   TensorFloat32 dst_tensor;
-  RETURN_IF_ERROR(RunSelectV2<cond_type>(
+  ABSL_RETURN_IF_ERROR(RunSelectV2<cond_type>(
       env, data_type, cond_storage, storage, data_type, cond_tensor,
       true_tensor, false_tensor, kBatch, kHeight, kWidth, kChannels,
       /*broadcast_true=*/false, /*broadcast_false=*/true, dst_tensor));
@@ -335,7 +334,7 @@ absl::Status SelectV2TrueValueTest(TestExecutionEnvironment& env,
                            /*gather_by_rows=*/true);
 
   TensorFloat32 dst_tensor;
-  RETURN_IF_ERROR(RunSelectV2<cond_type>(
+  ABSL_RETURN_IF_ERROR(RunSelectV2<cond_type>(
       env, data_type, cond_storage, storage, data_type, cond_tensor,
       true_tensor, false_tensor, kBatch, kHeight, kWidth, kChannels,
       /*broadcast_true=*/true, /*broadcast_false=*/false, dst_tensor));
@@ -370,7 +369,7 @@ absl::Status SelectV2FalseValueTest(TestExecutionEnvironment& env,
                            /*gather_by_rows=*/true);
 
   TensorFloat32 dst_tensor;
-  RETURN_IF_ERROR(RunSelectV2<cond_type>(
+  ABSL_RETURN_IF_ERROR(RunSelectV2<cond_type>(
       env, data_type, cond_storage, storage, data_type, cond_tensor,
       true_tensor, false_tensor, kBatch, kHeight, kWidth, kChannels,
       /*broadcast_true=*/false, /*broadcast_false=*/true, dst_tensor));
@@ -403,7 +402,7 @@ absl::Status SelectV2BatchTest(TestExecutionEnvironment& env,
                            /*gather_by_rows=*/true);
 
   TensorFloat32 dst_tensor;
-  RETURN_IF_ERROR(RunSelectV2<cond_type>(
+  ABSL_RETURN_IF_ERROR(RunSelectV2<cond_type>(
       env, data_type, cond_storage, storage, data_type, cond_tensor,
       true_tensor, false_tensor, kBatch, kHeight, kWidth, kChannels,
       /*broadcast_true=*/false, /*broadcast_false=*/false, dst_tensor));
@@ -438,7 +437,7 @@ absl::Status SelectV2BroadcastFalseTest(TestExecutionEnvironment& env,
       /*gather_by_rows=*/true);
 
   TensorFloat32 dst_tensor;
-  RETURN_IF_ERROR(RunSelectV2<cond_type>(
+  ABSL_RETURN_IF_ERROR(RunSelectV2<cond_type>(
       env, data_type, cond_storage, storage, data_type, cond_tensor,
       true_tensor, false_tensor, kBatch, kHeight, kWidth, kChannels,
       kBroadcastTrue, kBroadcastFalse, dst_tensor));
@@ -474,7 +473,7 @@ absl::Status SelectV2BroadcastTrueTest(TestExecutionEnvironment& env,
       /*gather_by_rows=*/true);
 
   TensorFloat32 dst_tensor;
-  RETURN_IF_ERROR(RunSelectV2<cond_type>(
+  ABSL_RETURN_IF_ERROR(RunSelectV2<cond_type>(
       env, data_type, cond_storage, storage, data_type, cond_tensor,
       true_tensor, false_tensor, kBatch, kHeight, kWidth, kChannels,
       kBroadcastTrue, kBroadcastFalse, dst_tensor));
@@ -510,7 +509,7 @@ absl::Status SelectV2BroadcastBothTest(TestExecutionEnvironment& env,
       /*gather_by_rows=*/true);
 
   TensorFloat32 dst_tensor;
-  RETURN_IF_ERROR(RunSelectV2<cond_type>(
+  ABSL_RETURN_IF_ERROR(RunSelectV2<cond_type>(
       env, data_type, cond_storage, storage, data_type, cond_tensor,
       true_tensor, false_tensor, kBatch, kHeight, kWidth, kChannels,
       kBroadcastTrue, kBroadcastFalse, dst_tensor));
@@ -543,7 +542,7 @@ absl::Status SelectV2ChannelsTest(TestExecutionEnvironment& env,
                            /*gather_by_rows=*/false);
 
   TensorFloat32 dst_tensor;
-  RETURN_IF_ERROR(RunSelectV2<cond_type>(
+  ABSL_RETURN_IF_ERROR(RunSelectV2<cond_type>(
       env, data_type, cond_storage, storage, data_type, cond_tensor,
       true_tensor, false_tensor, kBatch, kHeight, kWidth, kChannels,
       /*broadcast_true=*/false,
@@ -578,7 +577,7 @@ absl::Status SelectV2ChannelsBatchTest(TestExecutionEnvironment& env,
                            /*gather_by_rows=*/false);
 
   TensorFloat32 dst_tensor;
-  RETURN_IF_ERROR(RunSelectV2<cond_type>(
+  ABSL_RETURN_IF_ERROR(RunSelectV2<cond_type>(
       env, data_type, cond_storage, storage, data_type, cond_tensor,
       true_tensor, false_tensor, kBatch, kHeight, kWidth, kChannels,
       /*broadcast_true=*/false,
@@ -613,7 +612,7 @@ absl::Status SelectV2ChannelsBroadcastFalseTest(
                            /*gather_by_rows=*/false);
 
   TensorFloat32 dst_tensor;
-  RETURN_IF_ERROR(RunSelectV2<cond_type>(
+  ABSL_RETURN_IF_ERROR(RunSelectV2<cond_type>(
       env, data_type, cond_storage, storage, data_type, cond_tensor,
       true_tensor, false_tensor, kBatch, kHeight, kWidth, kChannels,
       /*broadcast_true=*/false, kBroadcastFalse, dst_tensor));

@@ -62,7 +62,7 @@ absl::Status QuantAndDequant_Dim2Bits8Test(TestExecutionEnvironment& env,
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateQuantizeAndDequantize(op_def, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 3, 2, 1), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -95,7 +95,7 @@ absl::Status QuantAndDequant_Dim3Bits8_NegativeRangeTest(
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateQuantizeAndDequantize(op_def, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 3, 1, 2), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -128,7 +128,7 @@ absl::Status QuantAndDequant_Dim3Bits16Test(TestExecutionEnvironment& env,
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateQuantizeAndDequantize(op_def, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 3, 1, 2), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -161,7 +161,7 @@ absl::Status QuantAndDequant_Dim2Bits16_NegativeRangeTest(
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateQuantizeAndDequantize(op_def, attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 3, 2, 1), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -232,7 +232,7 @@ absl::Status QuantizationUint8Test(TestExecutionEnvironment& exec_env,
   TensorDescriptor dst_params_td = op_def.dst_tensors[1];
   dst_params_td.SetBHWCShape(params_shape);
 
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       {&src_td}, {&dst_u8_td, &dst_params_td}, std::move(operation)));
   Tensor<BHWC, DataType::UINT8> dst_u8;
   dst_u8_td.DownloadData(&dst_u8);
@@ -336,7 +336,7 @@ absl::Status QuantizationInt8Test(TestExecutionEnvironment& exec_env,
   TensorDescriptor dst_params_td = op_def.dst_tensors[1];
   dst_params_td.SetBHWCShape(params_shape);
 
-  RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       {&src_td}, {&dst_u8_td, &dst_params_td}, std::move(operation)));
   Tensor<BHWC, DataType::INT8> dst_i8;
   dst_u8_td.DownloadData(&dst_i8);

@@ -189,7 +189,7 @@ void CLProgram::Release() {
 
 absl::Status CLProgram::GetBinary(std::vector<uint8_t>* result) const {
   size_t binary_size;
-  RETURN_IF_ERROR(GetBinarySize(program_, &binary_size));
+  ABSL_RETURN_IF_ERROR(GetBinarySize(program_, &binary_size));
   result->resize(result->size() + binary_size);
   uint8_t* binary_ptr = result->data() + result->size() - binary_size;
   cl_int error_code =
@@ -218,7 +218,7 @@ absl::StatusOr<CLProgram> CreateCLProgram(const std::string& code,
   }
 
   CLProgram result = CLProgram(program, device.id());
-  RETURN_IF_ERROR(BuildProgram(program, device.id(), compiler_options));
+  ABSL_RETURN_IF_ERROR(BuildProgram(program, device.id(), compiler_options));
   return result;
 }
 
@@ -226,7 +226,7 @@ absl::StatusOr<CLProgram> CreateCLProgram(
     const std::string& code,
     const std::vector<CompilerOptions>& compiler_options,
     const CLContext& context, const CLDevice& device) {
-  ASSIGN_OR_RETURN(
+  ABSL_ASSIGN_OR_RETURN(
       auto program,
       CreateCLProgram(
           code, CompilerOptionsToString(device.GetInfo(), compiler_options),
@@ -236,7 +236,7 @@ absl::StatusOr<CLProgram> CreateCLProgram(
                 CompilerOptions::kClAdrenoFixBinary) != compiler_options.end();
   if (fix_adreno_binary) {
     std::vector<uint8_t> binary;
-    RETURN_IF_ERROR(program.GetBinary(&binary));
+    ABSL_RETURN_IF_ERROR(program.GetBinary(&binary));
     FixAdrenoBinary(&binary);
     return CreateCLProgramFromBinary(context, device, binary);
   } else {
@@ -265,7 +265,7 @@ absl::StatusOr<CLProgram> CreateCLProgramFromBinary(
                                            CLErrorCodeToString(error_code)));
   }
   CLProgram result = CLProgram(program, device.id());
-  RETURN_IF_ERROR(BuildProgram(program, device.id(), ""));
+  ABSL_RETURN_IF_ERROR(BuildProgram(program, device.id(), ""));
   return result;
 }
 

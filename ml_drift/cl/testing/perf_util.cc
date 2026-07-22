@@ -100,10 +100,12 @@ absl::Status TestConvolutionPerformance(const Convolution2DAttributes& attr,
   Tensor src, dst;
   TensorDescriptor descriptor_with_shape = op_def.src_tensors[0];
   descriptor_with_shape.SetBHWCShape(src_shape);
-  RETURN_IF_ERROR(CreateTensor(env->context(), descriptor_with_shape, &src));
+  ABSL_RETURN_IF_ERROR(
+      CreateTensor(env->context(), descriptor_with_shape, &src));
   descriptor_with_shape = op_def.dst_tensors[0];
   descriptor_with_shape.SetBHWCShape(dst_shape);
-  RETURN_IF_ERROR(CreateTensor(env->context(), descriptor_with_shape, &dst));
+  ABSL_RETURN_IF_ERROR(
+      CreateTensor(env->context(), descriptor_with_shape, &dst));
 
   const auto w_shape =
       std::visit([](const auto& w) { return w.shape; }, attr.weights);
@@ -123,7 +125,7 @@ absl::Status TestConvolutionPerformance(const Convolution2DAttributes& attr,
             << attr.padding.appended.w << "x" << attr.padding.appended.h
             << std::endl;
 
-  RETURN_IF_ERROR(conv->AssembleCode(gpu_info));
+  ABSL_RETURN_IF_ERROR(conv->AssembleCode(gpu_info));
 
   const int float_size = precision == CalculationsPrecision::F32 ? 4 : 2;
   const int64_t flops_count = GetConvolutionFlops(dst_shape, w_shape);
@@ -138,18 +140,19 @@ absl::Status TestConvolutionPerformance(const Convolution2DAttributes& attr,
 
   ClOperation cl_op;
   cl_op.Init(std::move(conv));
-  RETURN_IF_ERROR(cl_op.Compile(env->GetDevicePtr(), &env->context(),
-                                env->program_cache()));
-  RETURN_IF_ERROR(cl_op.SetSrcTensor(0, &src));
-  RETURN_IF_ERROR(cl_op.SetDstTensor(0, &dst));
-  RETURN_IF_ERROR(cl_op.UpdateParams());
-  RETURN_IF_ERROR(cl_op.Tune(TuningType::kExhaustive, env->device().GetInfo(),
-                             env->profiling_queue()));
+  ABSL_RETURN_IF_ERROR(cl_op.Compile(env->GetDevicePtr(), &env->context(),
+                                     env->program_cache()));
+  ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(0, &src));
+  ABSL_RETURN_IF_ERROR(cl_op.SetDstTensor(0, &dst));
+  ABSL_RETURN_IF_ERROR(cl_op.UpdateParams());
+  ABSL_RETURN_IF_ERROR(cl_op.Tune(TuningType::kExhaustive,
+                                  env->device().GetInfo(),
+                                  env->profiling_queue()));
 
   for (int i = 0; i < 5; ++i) {
-    ASSIGN_OR_RETURN(auto duration,
-                     cl_op.GetOpTime(env->device().GetInfo(), env->queue(),
-                                     env->profiling_queue()));
+    ABSL_ASSIGN_OR_RETURN(auto duration,
+                          cl_op.GetOpTime(env->device().GetInfo(), env->queue(),
+                                          env->profiling_queue()));
     const auto time_ms = absl::ToDoubleMilliseconds(duration);
     const double fps = 1000.0 / time_ms;
     const double gflops_real = fps * gflops_count;
@@ -192,10 +195,12 @@ absl::Status TestConvSoftmaxConvPerformance(const BHWC& dst_shape, int src_ch0,
   TensorDescriptor descriptor_with_shape = op_def.src_tensors[0];
   const BHWC src_shape = BHWC(dst_shape.b, dst_shape.h, dst_shape.w, src_ch0);
   descriptor_with_shape.SetBHWCShape(src_shape);
-  RETURN_IF_ERROR(CreateTensor(env->context(), descriptor_with_shape, &src));
+  ABSL_RETURN_IF_ERROR(
+      CreateTensor(env->context(), descriptor_with_shape, &src));
   descriptor_with_shape = op_def.dst_tensors[0];
   descriptor_with_shape.SetBHWCShape(dst_shape);
-  RETURN_IF_ERROR(CreateTensor(env->context(), descriptor_with_shape, &dst));
+  ABSL_RETURN_IF_ERROR(
+      CreateTensor(env->context(), descriptor_with_shape, &dst));
 
   std::cout << "Src size(HWC) - " << src_shape.h << "x" << src_shape.w << "x"
             << src_shape.c << std::endl;
@@ -203,7 +208,7 @@ absl::Status TestConvSoftmaxConvPerformance(const BHWC& dst_shape, int src_ch0,
             << dst_shape.c << std::endl;
   std::cout << "Attention attributes : " << std::endl;
 
-  RETURN_IF_ERROR(conv->AssembleCode(gpu_info));
+  ABSL_RETURN_IF_ERROR(conv->AssembleCode(gpu_info));
 
   const int float_size = precision == CalculationsPrecision::F32 ? 4 : 2;
   const int64_t conv0_flops_per_element = weights0.shape.i * 2;
@@ -232,18 +237,19 @@ absl::Status TestConvSoftmaxConvPerformance(const BHWC& dst_shape, int src_ch0,
 
   ClOperation cl_op;
   cl_op.Init(std::move(conv));
-  RETURN_IF_ERROR(cl_op.Compile(env->GetDevicePtr(), &env->context(),
-                                env->program_cache()));
-  RETURN_IF_ERROR(cl_op.SetSrcTensor(0, &src));
-  RETURN_IF_ERROR(cl_op.SetDstTensor(0, &dst));
-  RETURN_IF_ERROR(cl_op.UpdateParams());
-  RETURN_IF_ERROR(cl_op.Tune(TuningType::kExhaustive, env->device().GetInfo(),
-                             env->profiling_queue()));
+  ABSL_RETURN_IF_ERROR(cl_op.Compile(env->GetDevicePtr(), &env->context(),
+                                     env->program_cache()));
+  ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(0, &src));
+  ABSL_RETURN_IF_ERROR(cl_op.SetDstTensor(0, &dst));
+  ABSL_RETURN_IF_ERROR(cl_op.UpdateParams());
+  ABSL_RETURN_IF_ERROR(cl_op.Tune(TuningType::kExhaustive,
+                                  env->device().GetInfo(),
+                                  env->profiling_queue()));
 
   for (int i = 0; i < 5; ++i) {
-    ASSIGN_OR_RETURN(auto duration,
-                     cl_op.GetOpTime(env->device().GetInfo(), env->queue(),
-                                     env->profiling_queue()));
+    ABSL_ASSIGN_OR_RETURN(auto duration,
+                          cl_op.GetOpTime(env->device().GetInfo(), env->queue(),
+                                          env->profiling_queue()));
     const auto time_ms = absl::ToDoubleMilliseconds(duration);
     const double fps = 1000.0 / time_ms;
     const double gflops_real = fps * gflops_count;
@@ -291,10 +297,12 @@ absl::Status TestDepthwiseConvPerformance(
   Tensor src, dst;
   TensorDescriptor descriptor_with_shape = op_def.src_tensors[0];
   descriptor_with_shape.SetBHWCShape(src_shape);
-  RETURN_IF_ERROR(CreateTensor(env->context(), descriptor_with_shape, &src));
+  ABSL_RETURN_IF_ERROR(
+      CreateTensor(env->context(), descriptor_with_shape, &src));
   descriptor_with_shape = op_def.dst_tensors[0];
   descriptor_with_shape.SetBHWCShape(dst_shape);
-  RETURN_IF_ERROR(CreateTensor(env->context(), descriptor_with_shape, &dst));
+  ABSL_RETURN_IF_ERROR(
+      CreateTensor(env->context(), descriptor_with_shape, &dst));
 
   const auto w_shape =
       std::visit([](const auto& w) { return w.shape; }, attr.weights);
@@ -314,7 +322,7 @@ absl::Status TestDepthwiseConvPerformance(
             << attr.padding.appended.w << "x" << attr.padding.appended.h
             << std::endl;
 
-  RETURN_IF_ERROR(conv->AssembleCode(gpu_info));
+  ABSL_RETURN_IF_ERROR(conv->AssembleCode(gpu_info));
 
   const int64_t flops_count = GetDepthwiseConvolutionFlops(dst_shape, w_shape);
 
@@ -332,18 +340,19 @@ absl::Status TestDepthwiseConvPerformance(
 
   ClOperation cl_op;
   cl_op.Init(std::move(conv));
-  RETURN_IF_ERROR(cl_op.Compile(env->GetDevicePtr(), &env->context(),
-                                env->program_cache()));
-  RETURN_IF_ERROR(cl_op.SetSrcTensor(0, &src));
-  RETURN_IF_ERROR(cl_op.SetDstTensor(0, &dst));
-  RETURN_IF_ERROR(cl_op.UpdateParams());
-  RETURN_IF_ERROR(cl_op.Tune(TuningType::kExhaustive, env->device().GetInfo(),
-                             env->profiling_queue()));
+  ABSL_RETURN_IF_ERROR(cl_op.Compile(env->GetDevicePtr(), &env->context(),
+                                     env->program_cache()));
+  ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(0, &src));
+  ABSL_RETURN_IF_ERROR(cl_op.SetDstTensor(0, &dst));
+  ABSL_RETURN_IF_ERROR(cl_op.UpdateParams());
+  ABSL_RETURN_IF_ERROR(cl_op.Tune(TuningType::kExhaustive,
+                                  env->device().GetInfo(),
+                                  env->profiling_queue()));
 
   for (int i = 0; i < 5; ++i) {
-    ASSIGN_OR_RETURN(auto duration,
-                     cl_op.GetOpTime(env->device().GetInfo(), env->queue(),
-                                     env->profiling_queue()));
+    ABSL_ASSIGN_OR_RETURN(auto duration,
+                          cl_op.GetOpTime(env->device().GetInfo(), env->queue(),
+                                          env->profiling_queue()));
     const auto time_ms = absl::ToDoubleMilliseconds(duration);
     const double fps = 1000.0 / time_ms;
     const double gflops_real = fps * flops_count * 1e-9;
@@ -364,7 +373,7 @@ absl::Status ConvolutionPerfTest(CalculationsPrecision precision,
                                  const HW& kernel_size, const HW& strides,
                                  const HW& dilations) {
   Environment env;
-  RETURN_IF_ERROR(CreateEnvironment(&env));
+  ABSL_RETURN_IF_ERROR(CreateEnvironment(&env));
 
   Convolution2DAttributes attr;
   attr.padding.prepended = HW(kernel_size.h / 2, kernel_size.w / 2);
@@ -385,18 +394,18 @@ absl::Status ConvolutionPerfTest(CalculationsPrecision precision,
   Layout layout = src_shape.b == 1 ? Layout::HWC : Layout::BHWC;
   auto storage_type = GetFastestStorageType(env.device().GetInfo());
   TensorDescriptor src_tensor_desc{data_type, storage_type, layout};
-  RETURN_IF_ERROR(src_tensor_desc.UpdateToSupportedStorageType(
+  ABSL_RETURN_IF_ERROR(src_tensor_desc.UpdateToSupportedStorageType(
       env.device().GetInfo(), src_shape));
 
   const auto dst_shape = CalculateOutputShape(src_shape, attr);
   TensorDescriptor dst_tensor_desc{data_type, storage_type, layout};
-  RETURN_IF_ERROR(dst_tensor_desc.UpdateToSupportedStorageType(
+  ABSL_RETURN_IF_ERROR(dst_tensor_desc.UpdateToSupportedStorageType(
       env.device().GetInfo(), dst_shape));
 
   op_def.src_tensors.push_back(src_tensor_desc);
   op_def.dst_tensors.push_back(dst_tensor_desc);
 
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       TestConvolutionPerformance(attr, src_shape, op_def, precision, &env));
 
   return absl::OkStatus();
@@ -406,7 +415,7 @@ absl::Status ConvolutionWinogradPerfTest(CalculationsPrecision precision,
                                          const BHWC& src_shape,
                                          int dst_channels) {
   Environment env;
-  RETURN_IF_ERROR(CreateEnvironment(&env));
+  ABSL_RETURN_IF_ERROR(CreateEnvironment(&env));
 
   Convolution2DAttributes attr;
   attr.padding.prepended = HW(1, 1);
@@ -425,13 +434,13 @@ absl::Status ConvolutionWinogradPerfTest(CalculationsPrecision precision,
   Layout layout = src_shape.b == 1 ? Layout::HWC : Layout::BHWC;
   auto storage_type = GetFastestStorageType(env.device().GetInfo());
   TensorDescriptor src_tensor_desc{data_type, storage_type, layout};
-  RETURN_IF_ERROR(src_tensor_desc.UpdateToSupportedStorageType(
+  ABSL_RETURN_IF_ERROR(src_tensor_desc.UpdateToSupportedStorageType(
       env.device().GetInfo(), src_shape));
 
   auto dst_shape = src_shape;
   dst_shape.c = dst_channels;
   TensorDescriptor dst_tensor_desc{data_type, storage_type, layout};
-  RETURN_IF_ERROR(dst_tensor_desc.UpdateToSupportedStorageType(
+  ABSL_RETURN_IF_ERROR(dst_tensor_desc.UpdateToSupportedStorageType(
       env.device().GetInfo(), dst_shape));
 
   op_def.src_tensors.push_back(src_tensor_desc);
@@ -477,13 +486,15 @@ absl::Status ConvolutionWinogradPerfTest(CalculationsPrecision precision,
   Tensor src, dst;
   TensorDescriptor descriptor_with_shape = op_def.src_tensors[0];
   descriptor_with_shape.SetBHWCShape(src_shape);
-  RETURN_IF_ERROR(CreateTensor(env.context(), descriptor_with_shape, &src));
+  ABSL_RETURN_IF_ERROR(
+      CreateTensor(env.context(), descriptor_with_shape, &src));
   descriptor_with_shape = op_def.dst_tensors[0];
   descriptor_with_shape.SetBHWCShape(dst_shape);
-  RETURN_IF_ERROR(CreateTensor(env.context(), descriptor_with_shape, &dst));
+  ABSL_RETURN_IF_ERROR(
+      CreateTensor(env.context(), descriptor_with_shape, &dst));
   std::vector<Tensor> weights(weights_gpu_descs.size());
   for (int i = 0; i < weights_gpu_descs.size(); ++i) {
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         CreateTensor(env.context(), weights_gpu_descs[i], &weights[i]));
   }
 
@@ -492,7 +503,7 @@ absl::Status ConvolutionWinogradPerfTest(CalculationsPrecision precision,
   std::cout << "Dst size(BHWC) - " << dst_shape.b << "x" << dst_shape.h << "x"
             << dst_shape.w << "x" << dst_shape.c << std::endl;
 
-  RETURN_IF_ERROR(conv->AssembleCode(gpu_info));
+  ABSL_RETURN_IF_ERROR(conv->AssembleCode(gpu_info));
 
   const int float_size = precision == CalculationsPrecision::F32 ? 4 : 2;
   const int64_t flops_count =
@@ -508,21 +519,21 @@ absl::Status ConvolutionWinogradPerfTest(CalculationsPrecision precision,
 
   ClOperation cl_op;
   cl_op.Init(std::move(conv));
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       cl_op.Compile(env.GetDevicePtr(), &env.context(), env.program_cache()));
-  RETURN_IF_ERROR(cl_op.SetSrcTensor(0, &src));
+  ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(0, &src));
   for (int i = 0; i < weights.size(); ++i) {
-    RETURN_IF_ERROR(cl_op.SetSrcTensor(i + 1, &weights[i]));
+    ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(i + 1, &weights[i]));
   }
-  RETURN_IF_ERROR(cl_op.SetDstTensor(0, &dst));
-  RETURN_IF_ERROR(cl_op.UpdateParams());
-  RETURN_IF_ERROR(cl_op.Tune(TuningType::kExhaustive, env.device().GetInfo(),
-                             env.profiling_queue()));
+  ABSL_RETURN_IF_ERROR(cl_op.SetDstTensor(0, &dst));
+  ABSL_RETURN_IF_ERROR(cl_op.UpdateParams());
+  ABSL_RETURN_IF_ERROR(cl_op.Tune(
+      TuningType::kExhaustive, env.device().GetInfo(), env.profiling_queue()));
 
   for (int i = 0; i < 5; ++i) {
-    ASSIGN_OR_RETURN(auto duration,
-                     cl_op.GetOpTime(env.device().GetInfo(), env.queue(),
-                                     env.profiling_queue()));
+    ABSL_ASSIGN_OR_RETURN(auto duration,
+                          cl_op.GetOpTime(env.device().GetInfo(), env.queue(),
+                                          env.profiling_queue()));
     const auto time_ms = absl::ToDoubleMilliseconds(duration);
     const double fps = 1000.0 / time_ms;
     const double gflops_real = fps * gflops_count;
@@ -554,7 +565,7 @@ TensorDescriptor GetTensorDescriptor(PackedType quantized_type,
 
 absl::Status ConvolutionInt8PerfTest(const BHWC& src_shape, int dst_channels) {
   Environment env;
-  RETURN_IF_ERROR(CreateEnvironment(&env));
+  ABSL_RETURN_IF_ERROR(CreateEnvironment(&env));
 
   BHWC dst_shape;
   {
@@ -581,7 +592,7 @@ absl::Status ConvolutionInt8PerfTest(const BHWC& src_shape, int dst_channels) {
   auto dst_storage_type = src_storage_type;
 
   TensorDescriptor dst_tensor_desc{dst_data_type, dst_storage_type, layout};
-  RETURN_IF_ERROR(dst_tensor_desc.UpdateToSupportedStorageType(
+  ABSL_RETURN_IF_ERROR(dst_tensor_desc.UpdateToSupportedStorageType(
       env.device().GetInfo(), dst_shape));
 
   op_def.dst_tensors.push_back(dst_tensor_desc);
@@ -654,30 +665,32 @@ absl::Status ConvolutionInt8PerfTest(const BHWC& src_shape, int dst_channels) {
         CreateDequantization(weights.shape, gpu_info, op_def.dst_tensors[0],
                              dequant_dst, src_params_td, weights_sum_i_td,
                              weights_scale_td, &weights_zero_point_td);
-    RETURN_IF_ERROR(conv->AddOperation(gpu_info, &dequant_op));
+    ABSL_RETURN_IF_ERROR(conv->AddOperation(gpu_info, &dequant_op));
   }
 
   Tensor src, dst;
   TensorDescriptor descriptor_with_shape = op_def.src_tensors[0];
   descriptor_with_shape.SetBHWCShape(
       GetShapeForPackedType(src_shape, quantized_type));
-  RETURN_IF_ERROR(CreateTensor(env.context(), descriptor_with_shape, &src));
+  ABSL_RETURN_IF_ERROR(
+      CreateTensor(env.context(), descriptor_with_shape, &src));
   descriptor_with_shape = dst_tensor_desc;
   descriptor_with_shape.SetBHWCShape(dst_shape);
-  RETURN_IF_ERROR(CreateTensor(env.context(), descriptor_with_shape, &dst));
+  ABSL_RETURN_IF_ERROR(
+      CreateTensor(env.context(), descriptor_with_shape, &dst));
 
   Tensor src_params_tensor;
   Tensor weights_scale_tensor;
   Tensor weights_zero_point_tensor;
   Tensor weights_sum_i_tensor;
   if (dequantize) {
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         CreateTensor(env.context(), src_params_td, &src_params_tensor));
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         CreateTensor(env.context(), weights_scale_td, &weights_scale_tensor));
-    RETURN_IF_ERROR(CreateTensor(env.context(), weights_zero_point_td,
-                                 &weights_zero_point_tensor));
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(CreateTensor(env.context(), weights_zero_point_td,
+                                      &weights_zero_point_tensor));
+    ABSL_RETURN_IF_ERROR(
         CreateTensor(env.context(), weights_sum_i_td, &weights_sum_i_tensor));
   }
 
@@ -688,7 +701,7 @@ absl::Status ConvolutionInt8PerfTest(const BHWC& src_shape, int dst_channels) {
   std::cout << "Dst size(HWC) - " << dst_shape.h << "x" << dst_shape.w << "x"
             << dst_shape.c << std::endl;
 
-  RETURN_IF_ERROR(conv->AssembleCode(gpu_info));
+  ABSL_RETURN_IF_ERROR(conv->AssembleCode(gpu_info));
 
   const int dst_element_size = SizeOf(dst_tensor_desc.GetDataType());
   const int64_t flops_per_element = w_shape.i * w_shape.h * w_shape.w * 2;
@@ -707,24 +720,24 @@ absl::Status ConvolutionInt8PerfTest(const BHWC& src_shape, int dst_channels) {
 
   ClOperation cl_op;
   cl_op.Init(std::move(conv));
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       cl_op.Compile(env.GetDevicePtr(), &env.context(), env.program_cache()));
-  RETURN_IF_ERROR(cl_op.SetSrcTensor(0, &src));
+  ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(0, &src));
   if (dequantize) {
-    RETURN_IF_ERROR(cl_op.SetSrcTensor(1, &src_params_tensor));
-    RETURN_IF_ERROR(cl_op.SetSrcTensor(2, &weights_sum_i_tensor));
-    RETURN_IF_ERROR(cl_op.SetSrcTensor(3, &weights_scale_tensor));
-    RETURN_IF_ERROR(cl_op.SetSrcTensor(4, &weights_zero_point_tensor));
+    ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(1, &src_params_tensor));
+    ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(2, &weights_sum_i_tensor));
+    ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(3, &weights_scale_tensor));
+    ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(4, &weights_zero_point_tensor));
   }
-  RETURN_IF_ERROR(cl_op.SetDstTensor(0, &dst));
-  RETURN_IF_ERROR(cl_op.UpdateParams());
-  RETURN_IF_ERROR(cl_op.Tune(TuningType::kExhaustive, env.device().GetInfo(),
-                             env.profiling_queue()));
+  ABSL_RETURN_IF_ERROR(cl_op.SetDstTensor(0, &dst));
+  ABSL_RETURN_IF_ERROR(cl_op.UpdateParams());
+  ABSL_RETURN_IF_ERROR(cl_op.Tune(
+      TuningType::kExhaustive, env.device().GetInfo(), env.profiling_queue()));
 
   for (int i = 0; i < 5; ++i) {
-    ASSIGN_OR_RETURN(auto duration,
-                     cl_op.GetOpTime(env.device().GetInfo(), env.queue(),
-                                     env.profiling_queue()));
+    ABSL_ASSIGN_OR_RETURN(auto duration,
+                          cl_op.GetOpTime(env.device().GetInfo(), env.queue(),
+                                          env.profiling_queue()));
     const auto time_ms = absl::ToDoubleMilliseconds(duration);
     const double fps = 1000.0 / time_ms;
     const double gflops_real = fps * gflops_count;
@@ -744,7 +757,7 @@ absl::Status ConvolutionInt8PerfTest(const BHWC& src_shape, int dst_channels) {
 absl::Status ConvolutionInt8GroupedPerfTest(const BHWC& src_shape,
                                             int dst_channels, int group_size) {
   Environment env;
-  RETURN_IF_ERROR(CreateEnvironment(&env));
+  ABSL_RETURN_IF_ERROR(CreateEnvironment(&env));
 
   BHWC dst_shape;
   {
@@ -772,11 +785,11 @@ absl::Status ConvolutionInt8GroupedPerfTest(const BHWC& src_shape,
   TensorDescriptor src_tensor_desc{ToSpatialTensorType(quantized_type),
                                    storage_type, layout};
   BHWC src_packed_shape = GetShapeForPackedType(src_shape, quantized_type);
-  RETURN_IF_ERROR(src_tensor_desc.UpdateToSupportedStorageType(
+  ABSL_RETURN_IF_ERROR(src_tensor_desc.UpdateToSupportedStorageType(
       env.device().GetInfo(), src_packed_shape));
 
   TensorDescriptor dst_tensor_desc{dst_data_type, storage_type, layout};
-  RETURN_IF_ERROR(dst_tensor_desc.UpdateToSupportedStorageType(
+  ABSL_RETURN_IF_ERROR(dst_tensor_desc.UpdateToSupportedStorageType(
       env.device().GetInfo(), dst_shape));
 
   op_def.src_tensors.push_back(src_tensor_desc);
@@ -804,7 +817,7 @@ absl::Status ConvolutionInt8GroupedPerfTest(const BHWC& src_shape,
     const GpuInfo& gpu_info = env.device().GetInfo();
 
     Tensor src_params_tensor;
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         CreateTensor(env.context(), src_params_td, &src_params_tensor));
 
     std::unique_ptr<GPUOperation> conv;
@@ -835,24 +848,26 @@ absl::Status ConvolutionInt8GroupedPerfTest(const BHWC& src_shape,
         CreateDequantization(weights.shape, gpu_info, op_def.dst_tensors[0],
                              dequant_dst, src_params_td, weights_sum_i_td,
                              weights_scale_td, &weights_zero_point_td);
-    RETURN_IF_ERROR(conv->AddOperation(gpu_info, &dequant_op));
+    ABSL_RETURN_IF_ERROR(conv->AddOperation(gpu_info, &dequant_op));
 
     Tensor src, dst;
     TensorDescriptor descriptor_with_shape = op_def.src_tensors[0];
     descriptor_with_shape.SetBHWCShape(src_packed_shape);
-    RETURN_IF_ERROR(CreateTensor(env.context(), descriptor_with_shape, &src));
+    ABSL_RETURN_IF_ERROR(
+        CreateTensor(env.context(), descriptor_with_shape, &src));
     descriptor_with_shape = dequant_dst;
     descriptor_with_shape.SetBHWCShape(dst_shape);
-    RETURN_IF_ERROR(CreateTensor(env.context(), descriptor_with_shape, &dst));
+    ABSL_RETURN_IF_ERROR(
+        CreateTensor(env.context(), descriptor_with_shape, &dst));
 
     Tensor weights_scale_tensor;
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         CreateTensor(env.context(), weights_scale_td, &weights_scale_tensor));
     Tensor weights_zero_point_tensor;
-    RETURN_IF_ERROR(CreateTensor(env.context(), weights_zero_point_td,
-                                 &weights_zero_point_tensor));
+    ABSL_RETURN_IF_ERROR(CreateTensor(env.context(), weights_zero_point_td,
+                                      &weights_zero_point_tensor));
     Tensor weights_sum_i_tensor;
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         CreateTensor(env.context(), weights_sum_i_td, &weights_sum_i_tensor));
 
     const auto w_shape = weights.shape;
@@ -862,7 +877,7 @@ absl::Status ConvolutionInt8GroupedPerfTest(const BHWC& src_shape,
     std::cout << "Dst size(HWC) - " << dst_shape.h << "x" << dst_shape.w << "x"
               << dst_shape.c << std::endl;
 
-    RETURN_IF_ERROR(conv->AssembleCode(gpu_info));
+    ABSL_RETURN_IF_ERROR(conv->AssembleCode(gpu_info));
 
     const int dst_element_size = SizeOf(dequant_dst.GetDataType());
     const int64_t flops_per_element = w_shape.i * w_shape.h * w_shape.w * 2;
@@ -881,23 +896,24 @@ absl::Status ConvolutionInt8GroupedPerfTest(const BHWC& src_shape,
 
     ClOperation cl_op;
     cl_op.Init(std::move(conv));
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         cl_op.Compile(env.GetDevicePtr(), &env.context(), env.program_cache()));
-    RETURN_IF_ERROR(cl_op.SetSrcTensor(0, &src));
-    RETURN_IF_ERROR(cl_op.SetSrcTensor(1, &src_params_tensor));
-    RETURN_IF_ERROR(cl_op.SetSrcTensor(2, &src_params_tensor));
-    RETURN_IF_ERROR(cl_op.SetSrcTensor(3, &weights_sum_i_tensor));
-    RETURN_IF_ERROR(cl_op.SetSrcTensor(4, &weights_scale_tensor));
-    RETURN_IF_ERROR(cl_op.SetSrcTensor(5, &weights_zero_point_tensor));
-    RETURN_IF_ERROR(cl_op.SetDstTensor(0, &dst));
-    RETURN_IF_ERROR(cl_op.UpdateParams());
-    RETURN_IF_ERROR(cl_op.Tune(TuningType::kExhaustive, env.device().GetInfo(),
-                               env.profiling_queue()));
+    ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(0, &src));
+    ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(1, &src_params_tensor));
+    ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(2, &src_params_tensor));
+    ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(3, &weights_sum_i_tensor));
+    ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(4, &weights_scale_tensor));
+    ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(5, &weights_zero_point_tensor));
+    ABSL_RETURN_IF_ERROR(cl_op.SetDstTensor(0, &dst));
+    ABSL_RETURN_IF_ERROR(cl_op.UpdateParams());
+    ABSL_RETURN_IF_ERROR(cl_op.Tune(TuningType::kExhaustive,
+                                    env.device().GetInfo(),
+                                    env.profiling_queue()));
 
     for (int i = 0; i < 5; ++i) {
-      ASSIGN_OR_RETURN(auto duration,
-                       cl_op.GetOpTime(env.device().GetInfo(), env.queue(),
-                                       env.profiling_queue()));
+      ABSL_ASSIGN_OR_RETURN(auto duration,
+                            cl_op.GetOpTime(env.device().GetInfo(), env.queue(),
+                                            env.profiling_queue()));
       const auto time_ms = absl::ToDoubleMilliseconds(duration);
       const double fps = 1000.0 / time_ms;
       const double gflops_real = fps * gflops_count;
@@ -919,7 +935,7 @@ absl::Status ConvolutionSf16Wi4BatchedPerfTest(const BHWC& src_shape,
                                                int dst_channels,
                                                OHWI scale_zp_shape) {
   Environment env;
-  RETURN_IF_ERROR(CreateEnvironment(&env));
+  ABSL_RETURN_IF_ERROR(CreateEnvironment(&env));
   const GpuInfo& gpu_info = env.device().GetInfo();
   const bool use_zero_point = true;
 
@@ -995,22 +1011,24 @@ absl::Status ConvolutionSf16Wi4BatchedPerfTest(const BHWC& src_shape,
   Tensor src, dst;
   TensorDescriptor descriptor_with_shape = src_tensor_desc;
   descriptor_with_shape.SetBHWCShape(src_shape);
-  RETURN_IF_ERROR(CreateTensor(env.context(), descriptor_with_shape, &src));
+  ABSL_RETURN_IF_ERROR(
+      CreateTensor(env.context(), descriptor_with_shape, &src));
 
   descriptor_with_shape = dst_tensor_desc;
   descriptor_with_shape.SetBHWCShape(dst_shape);
-  RETURN_IF_ERROR(CreateTensor(env.context(), descriptor_with_shape, &dst));
+  ABSL_RETURN_IF_ERROR(
+      CreateTensor(env.context(), descriptor_with_shape, &dst));
 
   Tensor weights_i4_tensor;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       CreateTensor(env.context(), weights_i4_td, &weights_i4_tensor));
 
   Tensor weights_scale_tensor;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       CreateTensor(env.context(), scale_desc, &weights_scale_tensor));
 
   Tensor weights_zero_point_tensor;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       CreateTensor(env.context(), zp_desc, &weights_zero_point_tensor));
 
   conv->SetSrc(&src);
@@ -1021,7 +1039,7 @@ absl::Status ConvolutionSf16Wi4BatchedPerfTest(const BHWC& src_shape,
   }
   conv->SetDst(&dst);
 
-  RETURN_IF_ERROR(conv->AssembleCode(gpu_info));
+  ABSL_RETURN_IF_ERROR(conv->AssembleCode(gpu_info));
 
   const int64_t flops_per_element = weights_i4.shape.i * 2;
   const int64_t dst_elements = dst.Width() * dst.Height() * dst.Channels();
@@ -1036,23 +1054,23 @@ absl::Status ConvolutionSf16Wi4BatchedPerfTest(const BHWC& src_shape,
 
   ClOperation cl_op;
   cl_op.Init(std::move(conv));
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       cl_op.Compile(env.GetDevicePtr(), &env.context(), env.program_cache()));
-  RETURN_IF_ERROR(cl_op.SetSrcTensor(0, &src));
-  RETURN_IF_ERROR(cl_op.SetSrcTensor(1, &weights_i4_tensor));
-  RETURN_IF_ERROR(cl_op.SetSrcTensor(2, &weights_scale_tensor));
+  ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(0, &src));
+  ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(1, &weights_i4_tensor));
+  ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(2, &weights_scale_tensor));
   if (use_zero_point) {
-    RETURN_IF_ERROR(cl_op.SetSrcTensor(3, &weights_zero_point_tensor));
+    ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(3, &weights_zero_point_tensor));
   }
-  RETURN_IF_ERROR(cl_op.SetDstTensor(0, &dst));
-  RETURN_IF_ERROR(cl_op.UpdateParams());
-  RETURN_IF_ERROR(cl_op.Tune(TuningType::kExhaustive, env.device().GetInfo(),
-                             env.profiling_queue()));
+  ABSL_RETURN_IF_ERROR(cl_op.SetDstTensor(0, &dst));
+  ABSL_RETURN_IF_ERROR(cl_op.UpdateParams());
+  ABSL_RETURN_IF_ERROR(cl_op.Tune(
+      TuningType::kExhaustive, env.device().GetInfo(), env.profiling_queue()));
 
   for (int i = 0; i < 5; ++i) {
-    ASSIGN_OR_RETURN(auto duration,
-                     cl_op.GetOpTime(env.device().GetInfo(), env.queue(),
-                                     env.profiling_queue()));
+    ABSL_ASSIGN_OR_RETURN(auto duration,
+                          cl_op.GetOpTime(env.device().GetInfo(), env.queue(),
+                                          env.profiling_queue()));
     const auto time_ms = absl::ToDoubleMilliseconds(duration);
     const double fps = 1000.0 / time_ms;
     const double gflops_real = fps * gflops_count;
@@ -1070,7 +1088,7 @@ absl::Status ConvolutionSf16Wi4BatchedPerfTest(const BHWC& src_shape,
 
 absl::Status ConvolutionInt4PerfTest(const BHWC& src_shape, int dst_channels) {
   Environment env;
-  RETURN_IF_ERROR(CreateEnvironment(&env));
+  ABSL_RETURN_IF_ERROR(CreateEnvironment(&env));
   const GpuInfo& gpu_info = env.device().GetInfo();
 
   BHWC dst_shape;
@@ -1096,11 +1114,11 @@ absl::Status ConvolutionInt4PerfTest(const BHWC& src_shape, int dst_channels) {
   TensorDescriptor src_tensor_desc{ToSpatialTensorType(quantized_type),
                                    storage_type, layout};
   BHWC src_packed_shape = GetShapeForPackedType(src_shape, quantized_type);
-  RETURN_IF_ERROR(src_tensor_desc.UpdateToSupportedStorageType(
+  ABSL_RETURN_IF_ERROR(src_tensor_desc.UpdateToSupportedStorageType(
       env.device().GetInfo(), src_packed_shape));
 
   TensorDescriptor dst_tensor_desc{DataType::INT32, storage_type, layout};
-  RETURN_IF_ERROR(dst_tensor_desc.UpdateToSupportedStorageType(
+  ABSL_RETURN_IF_ERROR(dst_tensor_desc.UpdateToSupportedStorageType(
       env.device().GetInfo(), dst_shape));
 
   op_def.src_tensors.push_back(src_tensor_desc);
@@ -1149,27 +1167,29 @@ absl::Status ConvolutionInt4PerfTest(const BHWC& src_shape, int dst_channels) {
       CreateDequantization(weights.shape, gpu_info, op_def.dst_tensors[0],
                            dequant_dst, src_params_td, weights_sum_i_td,
                            weights_scale_td, &weights_zero_point_td);
-  RETURN_IF_ERROR(conv->AddOperation(gpu_info, &dequant_op));
+  ABSL_RETURN_IF_ERROR(conv->AddOperation(gpu_info, &dequant_op));
 
   Tensor src, dst;
   TensorDescriptor descriptor_with_shape = op_def.src_tensors[0];
   descriptor_with_shape.SetBHWCShape(src_packed_shape);
-  RETURN_IF_ERROR(CreateTensor(env.context(), descriptor_with_shape, &src));
+  ABSL_RETURN_IF_ERROR(
+      CreateTensor(env.context(), descriptor_with_shape, &src));
   descriptor_with_shape = dequant_dst;
   descriptor_with_shape.SetBHWCShape(dst_shape);
-  RETURN_IF_ERROR(CreateTensor(env.context(), descriptor_with_shape, &dst));
+  ABSL_RETURN_IF_ERROR(
+      CreateTensor(env.context(), descriptor_with_shape, &dst));
 
   Tensor src_params_tensor;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       CreateTensor(env.context(), src_params_td, &src_params_tensor));
   Tensor weights_scale_tensor;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       CreateTensor(env.context(), weights_scale_td, &weights_scale_tensor));
   Tensor weights_zero_point_tensor;
-  RETURN_IF_ERROR(CreateTensor(env.context(), weights_zero_point_td,
-                               &weights_zero_point_tensor));
+  ABSL_RETURN_IF_ERROR(CreateTensor(env.context(), weights_zero_point_td,
+                                    &weights_zero_point_tensor));
   Tensor weights_sum_i_tensor;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       CreateTensor(env.context(), weights_sum_i_td, &weights_sum_i_tensor));
 
   const auto w_shape = weights.shape;
@@ -1179,7 +1199,7 @@ absl::Status ConvolutionInt4PerfTest(const BHWC& src_shape, int dst_channels) {
   std::cout << "Dst size(HWC) - " << dst_shape.h << "x" << dst_shape.w << "x"
             << dst_shape.c << std::endl;
 
-  RETURN_IF_ERROR(conv->AssembleCode(gpu_info));
+  ABSL_RETURN_IF_ERROR(conv->AssembleCode(gpu_info));
 
   const int dst_element_size = SizeOf(dequant_dst.GetDataType());
   const int64_t flops_per_element = w_shape.i * w_shape.h * w_shape.w * 2;
@@ -1198,22 +1218,22 @@ absl::Status ConvolutionInt4PerfTest(const BHWC& src_shape, int dst_channels) {
 
   ClOperation cl_op;
   cl_op.Init(std::move(conv));
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       cl_op.Compile(env.GetDevicePtr(), &env.context(), env.program_cache()));
-  RETURN_IF_ERROR(cl_op.SetSrcTensor(0, &src));
-  RETURN_IF_ERROR(cl_op.SetSrcTensor(1, &src_params_tensor));
-  RETURN_IF_ERROR(cl_op.SetSrcTensor(2, &weights_sum_i_tensor));
-  RETURN_IF_ERROR(cl_op.SetSrcTensor(3, &weights_scale_tensor));
-  RETURN_IF_ERROR(cl_op.SetSrcTensor(4, &weights_zero_point_tensor));
-  RETURN_IF_ERROR(cl_op.SetDstTensor(0, &dst));
-  RETURN_IF_ERROR(cl_op.UpdateParams());
-  RETURN_IF_ERROR(cl_op.Tune(TuningType::kExhaustive, env.device().GetInfo(),
-                             env.profiling_queue()));
+  ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(0, &src));
+  ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(1, &src_params_tensor));
+  ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(2, &weights_sum_i_tensor));
+  ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(3, &weights_scale_tensor));
+  ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(4, &weights_zero_point_tensor));
+  ABSL_RETURN_IF_ERROR(cl_op.SetDstTensor(0, &dst));
+  ABSL_RETURN_IF_ERROR(cl_op.UpdateParams());
+  ABSL_RETURN_IF_ERROR(cl_op.Tune(
+      TuningType::kExhaustive, env.device().GetInfo(), env.profiling_queue()));
 
   for (int i = 0; i < 5; ++i) {
-    ASSIGN_OR_RETURN(auto duration,
-                     cl_op.GetOpTime(env.device().GetInfo(), env.queue(),
-                                     env.profiling_queue()));
+    ABSL_ASSIGN_OR_RETURN(auto duration,
+                          cl_op.GetOpTime(env.device().GetInfo(), env.queue(),
+                                          env.profiling_queue()));
     const auto time_ms = absl::ToDoubleMilliseconds(duration);
     const double fps = 1000.0 / time_ms;
     const double gflops_real = fps * gflops_count;
@@ -1234,7 +1254,7 @@ absl::Status ConvMoEPerfTest(int seq_size, int src_channels, int dst_channels,
                              int num_experts, int num_active_experts,
                              DataType weights_type) {
   Environment env;
-  RETURN_IF_ERROR(CreateEnvironment(&env));
+  ABSL_RETURN_IF_ERROR(CreateEnvironment(&env));
   const auto& gpu_info = env.device().GetInfo();
 
   const BHWC src_shape =
@@ -1244,13 +1264,13 @@ absl::Status ConvMoEPerfTest(int seq_size, int src_channels, int dst_channels,
   Layout layout = Layout::HWC;
   auto storage_type = GetFastestStorageType(env.device().GetInfo());
   TensorDescriptor src_tensor_desc{data_type, storage_type, layout};
-  RETURN_IF_ERROR(src_tensor_desc.UpdateToSupportedStorageType(
+  ABSL_RETURN_IF_ERROR(src_tensor_desc.UpdateToSupportedStorageType(
       env.device().GetInfo(), src_shape));
 
   auto dst_shape = src_shape;
   dst_shape.c = dst_channels;
   TensorDescriptor dst_tensor_desc{data_type, storage_type, layout};
-  RETURN_IF_ERROR(dst_tensor_desc.UpdateToSupportedStorageType(
+  ABSL_RETURN_IF_ERROR(dst_tensor_desc.UpdateToSupportedStorageType(
       env.device().GetInfo(), dst_shape));
 
   op_def.src_tensors.push_back(src_tensor_desc);
@@ -1296,8 +1316,9 @@ absl::Status ConvMoEPerfTest(int seq_size, int src_channels, int dst_channels,
   Tensor scale_tensor;
   Tensor zp_tensor;
   if (is_quantized) {
-    RETURN_IF_ERROR(CreateTensor(env.context(), scale_desc, &scale_tensor));
-    RETURN_IF_ERROR(CreateTensor(env.context(), zp_desc, &zp_tensor));
+    ABSL_RETURN_IF_ERROR(
+        CreateTensor(env.context(), scale_desc, &scale_tensor));
+    ABSL_RETURN_IF_ERROR(CreateTensor(env.context(), zp_desc, &zp_tensor));
   }
 
   ExternalWeights external_weights;
@@ -1343,7 +1364,7 @@ absl::Status ConvMoEPerfTest(int seq_size, int src_channels, int dst_channels,
     weights_desc = conv_wave_memory.GetWeightsDescription();
     conv = std::make_unique<ConvWaveMemory>(std::move(conv_wave_memory));
   } else {
-    ASSIGN_OR_RETURN(
+    ABSL_ASSIGN_OR_RETURN(
         auto conv_fc,
         CreateFullyConnectedExternalWeights(
             gpu_info, CalculationsPrecision::F16, op_def.src_tensors[0],
@@ -1355,10 +1376,12 @@ absl::Status ConvMoEPerfTest(int seq_size, int src_channels, int dst_channels,
   Tensor src, dst;
   TensorDescriptor descriptor_with_shape = op_def.src_tensors[0];
   descriptor_with_shape.SetBHWCShape(src_shape);
-  RETURN_IF_ERROR(CreateTensor(env.context(), descriptor_with_shape, &src));
+  ABSL_RETURN_IF_ERROR(
+      CreateTensor(env.context(), descriptor_with_shape, &src));
   descriptor_with_shape = op_def.dst_tensors[0];
   descriptor_with_shape.SetBHWCShape(dst_shape);
-  RETURN_IF_ERROR(CreateTensor(env.context(), descriptor_with_shape, &dst));
+  ABSL_RETURN_IF_ERROR(
+      CreateTensor(env.context(), descriptor_with_shape, &dst));
 
   std::vector<TensorDescriptor> weights_gpu;
   if (!is_quantized) {
@@ -1371,7 +1394,7 @@ absl::Status ConvMoEPerfTest(int seq_size, int src_channels, int dst_channels,
 
   std::vector<Tensor> weights_tensors(weights_gpu.size());
   for (int i = 0; i < weights_gpu.size(); ++i) {
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         CreateTensor(env.context(), weights_gpu[i], &weights_tensors[i]));
   }
 
@@ -1393,7 +1416,7 @@ absl::Status ConvMoEPerfTest(int seq_size, int src_channels, int dst_channels,
                                      Layout::LINEAR);
   runtime_params_td.SetBHWCShape(BHWC(1, 1, 1, num_experts * 2));
   runtime_params_td.UploadData(runtime_params_cpu.data());
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       CreateTensor(env.context(), runtime_params_td, &runtime_params));
 
   std::cout << "Src size(BHWC) - " << src_shape.b << "x" << src_shape.h << "x"
@@ -1401,7 +1424,7 @@ absl::Status ConvMoEPerfTest(int seq_size, int src_channels, int dst_channels,
   std::cout << "Dst size(BHWC) - " << dst_shape.b << "x" << dst_shape.h << "x"
             << dst_shape.w << "x" << dst_shape.c << std::endl;
 
-  RETURN_IF_ERROR(conv->AssembleCode(gpu_info));
+  ABSL_RETURN_IF_ERROR(conv->AssembleCode(gpu_info));
 
   const int64_t flops_count =
       2.0 * dst_shape.DimensionsProduct() * weights_f32.shape.i;
@@ -1417,27 +1440,27 @@ absl::Status ConvMoEPerfTest(int seq_size, int src_channels, int dst_channels,
 
   ClOperation cl_op;
   cl_op.Init(std::move(conv));
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       cl_op.Compile(env.GetDevicePtr(), &env.context(), env.program_cache()));
   int index = 0;
-  RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &src));
+  ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &src));
   for (int i = 0; i < weights_tensors.size(); ++i) {
-    RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &weights_tensors[i]));
+    ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &weights_tensors[i]));
   }
   if (is_quantized) {
-    RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &scale_tensor));
-    RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &zp_tensor));
+    ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &scale_tensor));
+    ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &zp_tensor));
   }
-  RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &runtime_params));
-  RETURN_IF_ERROR(cl_op.SetDstTensor(0, &dst));
-  RETURN_IF_ERROR(cl_op.UpdateParams());
-  RETURN_IF_ERROR(cl_op.Tune(TuningType::kExhaustive, env.device().GetInfo(),
-                             env.profiling_queue()));
+  ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &runtime_params));
+  ABSL_RETURN_IF_ERROR(cl_op.SetDstTensor(0, &dst));
+  ABSL_RETURN_IF_ERROR(cl_op.UpdateParams());
+  ABSL_RETURN_IF_ERROR(cl_op.Tune(
+      TuningType::kExhaustive, env.device().GetInfo(), env.profiling_queue()));
 
   for (int i = 0; i < 5; ++i) {
-    ASSIGN_OR_RETURN(auto duration,
-                     cl_op.GetOpTime(env.device().GetInfo(), env.queue(),
-                                     env.profiling_queue()));
+    ABSL_ASSIGN_OR_RETURN(auto duration,
+                          cl_op.GetOpTime(env.device().GetInfo(), env.queue(),
+                                          env.profiling_queue()));
     const auto time_ms = absl::ToDoubleMilliseconds(duration);
     const double fps = 1000.0 / time_ms;
     const double gflops_real = fps * gflops_count;
@@ -1459,14 +1482,14 @@ absl::Status ConvMoEPerfTest(int seq_size, int src_channels, int dst_channels,
 
 absl::Status SoftmaxPerfTest(const BHWC& shape, bool reduce_only) {
   Environment env;
-  RETURN_IF_ERROR(CreateEnvironment(&env));
+  ABSL_RETURN_IF_ERROR(CreateEnvironment(&env));
   const auto precision = CalculationsPrecision::F16;
   OperationDef op_def;
   auto data_type = DeduceDataTypeFromPrecision(precision);
   auto storage_type = GetFastestStorageType(env.device().GetInfo());
   Layout layout = shape.b == 1 ? Layout::HWC : Layout::BHWC;
   TensorDescriptor tensor_desc{data_type, storage_type, layout};
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       tensor_desc.UpdateToSupportedStorageType(env.device().GetInfo(), shape));
   op_def.src_tensors.push_back(tensor_desc);
   op_def.dst_tensors.push_back(tensor_desc);
@@ -1490,19 +1513,21 @@ absl::Status SoftmaxPerfTest(const BHWC& shape, bool reduce_only) {
   Tensor src, dst;
   TensorDescriptor descriptor_with_shape = op_def.src_tensors[0];
   descriptor_with_shape.SetBHWCShape(shape);
-  RETURN_IF_ERROR(CreateTensor(env.context(), descriptor_with_shape, &src));
+  ABSL_RETURN_IF_ERROR(
+      CreateTensor(env.context(), descriptor_with_shape, &src));
   descriptor_with_shape = op_def.dst_tensors[0];
   BHWC dst_shape = shape;
   if (reduce_only) {
     dst_shape.c = 2;
   }
   descriptor_with_shape.SetBHWCShape(dst_shape);
-  RETURN_IF_ERROR(CreateTensor(env.context(), descriptor_with_shape, &dst));
+  ABSL_RETURN_IF_ERROR(
+      CreateTensor(env.context(), descriptor_with_shape, &dst));
 
   std::cout << "Src shape - " << ToString(shape) << std::endl;
   std::cout << "Dst shape - " << ToString(dst_shape) << std::endl;
 
-  RETURN_IF_ERROR(softmax->AssembleCode(gpu_info));
+  ABSL_RETURN_IF_ERROR(softmax->AssembleCode(gpu_info));
 
   const double kGByte = 1024.0 * 1024.0 * 1024.0;
   const double src_gbytes = src.GetMemorySizeInBytes() / kGByte;
@@ -1510,18 +1535,18 @@ absl::Status SoftmaxPerfTest(const BHWC& shape, bool reduce_only) {
 
   ClOperation cl_op;
   cl_op.Init(std::move(softmax));
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       cl_op.Compile(env.GetDevicePtr(), &env.context(), env.program_cache()));
-  RETURN_IF_ERROR(cl_op.SetSrcTensor(0, &src));
-  RETURN_IF_ERROR(cl_op.SetDstTensor(0, &dst));
-  RETURN_IF_ERROR(cl_op.UpdateParams());
-  RETURN_IF_ERROR(cl_op.Tune(TuningType::kExhaustive, env.device().GetInfo(),
-                             env.profiling_queue()));
+  ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(0, &src));
+  ABSL_RETURN_IF_ERROR(cl_op.SetDstTensor(0, &dst));
+  ABSL_RETURN_IF_ERROR(cl_op.UpdateParams());
+  ABSL_RETURN_IF_ERROR(cl_op.Tune(
+      TuningType::kExhaustive, env.device().GetInfo(), env.profiling_queue()));
 
   for (int i = 0; i < 5; ++i) {
-    ASSIGN_OR_RETURN(auto duration,
-                     cl_op.GetOpTime(env.device().GetInfo(), env.queue(),
-                                     env.profiling_queue()));
+    ABSL_ASSIGN_OR_RETURN(auto duration,
+                          cl_op.GetOpTime(env.device().GetInfo(), env.queue(),
+                                          env.profiling_queue()));
     const auto time_ms = absl::ToDoubleMilliseconds(duration);
     const double fps = 1000.0 / time_ms;
     const double gbyte_read = fps * (src_gbytes);
@@ -1537,7 +1562,7 @@ absl::Status SoftmaxPerfTest(const BHWC& shape, bool reduce_only) {
 
 absl::Status ConvSoftmaxConvPerfTest() {
   Environment env;
-  RETURN_IF_ERROR(CreateEnvironment(&env));
+  ABSL_RETURN_IF_ERROR(CreateEnvironment(&env));
 
   const auto precision = CalculationsPrecision::F16;
   OperationDef op_def;
@@ -1547,7 +1572,7 @@ absl::Status ConvSoftmaxConvPerfTest() {
   op_def.dst_tensors.push_back(
       {data_type, TensorStorageType::TEXTURE_2D, Layout::HWC});
 
-  RETURN_IF_ERROR(TestConvSoftmaxConvPerformance(
+  ABSL_RETURN_IF_ERROR(TestConvSoftmaxConvPerformance(
       BHWC(1, 16, 4096, 40), 40, 4096, op_def, precision, &env));
 
   return absl::OkStatus();
@@ -1576,7 +1601,7 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision,
   weights_zp.data.resize(weights_zp.shape.DimensionsProduct(), 0.0f);
 
   Environment env;
-  RETURN_IF_ERROR(CreateEnvironment(&env));
+  ABSL_RETURN_IF_ERROR(CreateEnvironment(&env));
   const GpuInfo& gpu_info = env.GetDevicePtr()->GetInfo();
 
   OperationDef op_def;
@@ -1584,21 +1609,23 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision,
   Layout layout = src_shape.b == 1 ? Layout::HWC : Layout::BHWC;
   auto storage_type = GetFastestStorageType(env.device().GetInfo());
   op_def.src_tensors.push_back({data_type, storage_type, layout});
-  RETURN_IF_ERROR(op_def.src_tensors[0].UpdateToSupportedStorageType(
+  ABSL_RETURN_IF_ERROR(op_def.src_tensors[0].UpdateToSupportedStorageType(
       env.device().GetInfo(), src_shape));
   op_def.dst_tensors.push_back({data_type, storage_type, layout});
   auto dst_shape = src_shape;
   dst_shape.c = dst_channels;
-  RETURN_IF_ERROR(op_def.dst_tensors[0].UpdateToSupportedStorageType(
+  ABSL_RETURN_IF_ERROR(op_def.dst_tensors[0].UpdateToSupportedStorageType(
       env.device().GetInfo(), dst_shape));
 
   Tensor src, dst;
   TensorDescriptor descriptor_with_shape = op_def.src_tensors[0];
   descriptor_with_shape.SetBHWCShape(src_shape);
-  RETURN_IF_ERROR(CreateTensor(env.context(), descriptor_with_shape, &src));
+  ABSL_RETURN_IF_ERROR(
+      CreateTensor(env.context(), descriptor_with_shape, &src));
   descriptor_with_shape = op_def.dst_tensors[0];
   descriptor_with_shape.SetBHWCShape(dst_shape);
-  RETURN_IF_ERROR(CreateTensor(env.context(), descriptor_with_shape, &dst));
+  ABSL_RETURN_IF_ERROR(
+      CreateTensor(env.context(), descriptor_with_shape, &dst));
 
   const auto w_shape = weights.shape;
 
@@ -1665,7 +1692,7 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision,
 
   std::vector<Tensor> weights_tensors(weights_gpu.size());
   for (int i = 0; i < weights_gpu.size(); ++i) {
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         CreateTensor(env.context(), weights_gpu[i], &weights_tensors[i]));
   }
 
@@ -1680,8 +1707,9 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision,
   Tensor scale_tensor;
   Tensor zp_tensor;
   if (is_quantized) {
-    RETURN_IF_ERROR(CreateTensor(env.context(), scale_desc, &scale_tensor));
-    RETURN_IF_ERROR(CreateTensor(env.context(), zp_desc, &zp_tensor));
+    ABSL_RETURN_IF_ERROR(
+        CreateTensor(env.context(), scale_desc, &scale_tensor));
+    ABSL_RETURN_IF_ERROR(CreateTensor(env.context(), zp_desc, &zp_tensor));
   }
 
   ExternalWeights external_weights;
@@ -1694,7 +1722,7 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision,
   }
 
   for (int i = 0; i < wg_sizes.size(); ++i) {
-    ASSIGN_OR_RETURN(
+    ABSL_ASSIGN_OR_RETURN(
         auto operation,
         CreateFullyConnectedExternalWeights(
             gpu_info, precision, op_def.src_tensors[0], op_def.dst_tensors[0],
@@ -1702,29 +1730,30 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision,
             /*runtime_check=*/{}, &wg_sizes[i]));
     std::unique_ptr<GPUOperation> conv =
         std::make_unique<FullyConnected>(std::move(operation));
-    RETURN_IF_ERROR(conv->AssembleCode(gpu_info));
+    ABSL_RETURN_IF_ERROR(conv->AssembleCode(gpu_info));
 
     ClOperation cl_op;
     cl_op.Init(std::move(conv));
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         cl_op.Compile(env.GetDevicePtr(), &env.context(), env.program_cache()));
     int index = 0;
-    RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &src));
+    ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &src));
     for (int i = 0; i < weights_tensors.size(); ++i) {
-      RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &weights_tensors[i]));
+      ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &weights_tensors[i]));
     }
     if (is_quantized) {
-      RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &scale_tensor));
-      RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &zp_tensor));
+      ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &scale_tensor));
+      ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &zp_tensor));
     }
-    RETURN_IF_ERROR(cl_op.SetDstTensor(0, &dst));
-    RETURN_IF_ERROR(cl_op.UpdateParams());
-    RETURN_IF_ERROR(cl_op.Tune(TuningType::kExhaustive, env.device().GetInfo(),
-                               env.profiling_queue()));
+    ABSL_RETURN_IF_ERROR(cl_op.SetDstTensor(0, &dst));
+    ABSL_RETURN_IF_ERROR(cl_op.UpdateParams());
+    ABSL_RETURN_IF_ERROR(cl_op.Tune(TuningType::kExhaustive,
+                                    env.device().GetInfo(),
+                                    env.profiling_queue()));
 
-    ASSIGN_OR_RETURN(auto duration,
-                     cl_op.GetOpTime(env.device().GetInfo(), env.queue(),
-                                     env.profiling_queue()));
+    ABSL_ASSIGN_OR_RETURN(auto duration,
+                          cl_op.GetOpTime(env.device().GetInfo(), env.queue(),
+                                          env.profiling_queue()));
     time_ms[i] = absl::ToDoubleMilliseconds(duration);
     std::cout << "WG size: " << wg_sizes[i].x << "x" << wg_sizes[i].y
               << " - time: " << time_ms[i] << std::endl;
@@ -1796,7 +1825,7 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision,
   weights_zp.data.resize(weights_zp.shape.DimensionsProduct(), 0.0f);
 
   Environment env;
-  RETURN_IF_ERROR(CreateEnvironment(&env));
+  ABSL_RETURN_IF_ERROR(CreateEnvironment(&env));
   const GpuInfo& gpu_info = env.GetDevicePtr()->GetInfo();
 
   OperationDef op_def;
@@ -1804,21 +1833,23 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision,
   Layout layout = src_shape.b == 1 ? Layout::HWC : Layout::BHWC;
   auto storage_type = GetFastestStorageType(env.device().GetInfo());
   op_def.src_tensors.push_back({data_type, storage_type, layout});
-  RETURN_IF_ERROR(op_def.src_tensors[0].UpdateToSupportedStorageType(
+  ABSL_RETURN_IF_ERROR(op_def.src_tensors[0].UpdateToSupportedStorageType(
       env.device().GetInfo(), src_shape));
   op_def.dst_tensors.push_back({data_type, storage_type, layout});
   auto dst_shape = src_shape;
   dst_shape.c = dst_channels;
-  RETURN_IF_ERROR(op_def.dst_tensors[0].UpdateToSupportedStorageType(
+  ABSL_RETURN_IF_ERROR(op_def.dst_tensors[0].UpdateToSupportedStorageType(
       env.device().GetInfo(), dst_shape));
 
   Tensor src, dst;
   TensorDescriptor descriptor_with_shape = op_def.src_tensors[0];
   descriptor_with_shape.SetBHWCShape(src_shape);
-  RETURN_IF_ERROR(CreateTensor(env.context(), descriptor_with_shape, &src));
+  ABSL_RETURN_IF_ERROR(
+      CreateTensor(env.context(), descriptor_with_shape, &src));
   descriptor_with_shape = op_def.dst_tensors[0];
   descriptor_with_shape.SetBHWCShape(dst_shape);
-  RETURN_IF_ERROR(CreateTensor(env.context(), descriptor_with_shape, &dst));
+  ABSL_RETURN_IF_ERROR(
+      CreateTensor(env.context(), descriptor_with_shape, &dst));
 
   const auto w_shape = weights.shape;
 
@@ -1876,7 +1907,7 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision,
 
   std::vector<Tensor> weights_tensors(weights_gpu.size());
   for (int i = 0; i < weights_gpu.size(); ++i) {
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         CreateTensor(env.context(), weights_gpu[i], &weights_tensors[i]));
   }
 
@@ -1891,8 +1922,9 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision,
   Tensor scale_tensor;
   Tensor zp_tensor;
   if (is_quantized) {
-    RETURN_IF_ERROR(CreateTensor(env.context(), scale_desc, &scale_tensor));
-    RETURN_IF_ERROR(CreateTensor(env.context(), zp_desc, &zp_tensor));
+    ABSL_RETURN_IF_ERROR(
+        CreateTensor(env.context(), scale_desc, &scale_tensor));
+    ABSL_RETURN_IF_ERROR(CreateTensor(env.context(), zp_desc, &zp_tensor));
   }
 
   ExternalWeights external_weights;
@@ -1906,34 +1938,34 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision,
     }
   }
 
-  ASSIGN_OR_RETURN(
+  ABSL_ASSIGN_OR_RETURN(
       auto operation,
       CreateFullyConnectedExternalWeights(
           gpu_info, precision, op_def.src_tensors[0], op_def.dst_tensors[0],
           external_weights, /*bias=*/nullptr, &dst_shape));
   std::unique_ptr<GPUOperation> conv =
       std::make_unique<FullyConnected>(std::move(operation));
-  RETURN_IF_ERROR(conv->AssembleCode(gpu_info));
+  ABSL_RETURN_IF_ERROR(conv->AssembleCode(gpu_info));
 
   ClOperation cl_op;
   cl_op.Init(std::move(conv));
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       cl_op.Compile(env.GetDevicePtr(), &env.context(), env.program_cache()));
   int index = 0;
-  RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &src));
+  ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &src));
   for (int i = 0; i < weights_tensors.size(); ++i) {
-    RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &weights_tensors[i]));
+    ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &weights_tensors[i]));
   }
   if (is_quantized) {
-    RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &scale_tensor));
+    ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &scale_tensor));
     if (use_zero_point) {
-      RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &zp_tensor));
+      ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &zp_tensor));
     }
   }
-  RETURN_IF_ERROR(cl_op.SetDstTensor(0, &dst));
-  RETURN_IF_ERROR(cl_op.UpdateParams());
-  RETURN_IF_ERROR(cl_op.Tune(TuningType::kExhaustive, env.device().GetInfo(),
-                             env.profiling_queue()));
+  ABSL_RETURN_IF_ERROR(cl_op.SetDstTensor(0, &dst));
+  ABSL_RETURN_IF_ERROR(cl_op.UpdateParams());
+  ABSL_RETURN_IF_ERROR(cl_op.Tune(
+      TuningType::kExhaustive, env.device().GetInfo(), env.profiling_queue()));
 
   double gbytes_read = src_gbytes + weight_gbytes;
   if (is_quantized) {
@@ -1945,9 +1977,9 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision,
 
   absl::Duration min_duration = absl::InfiniteDuration();
   for (int i = 0; i < 10; ++i) {
-    ASSIGN_OR_RETURN(auto duration,
-                     cl_op.GetOpTime(env.device().GetInfo(), env.queue(),
-                                     env.profiling_queue()));
+    ABSL_ASSIGN_OR_RETURN(auto duration,
+                          cl_op.GetOpTime(env.device().GetInfo(), env.queue(),
+                                          env.profiling_queue()));
     double time_ms = absl::ToDoubleMilliseconds(duration);
     const double fps = 1000.0 / time_ms;
     const double gflops_real = fps * gflops_count;
@@ -1975,15 +2007,15 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision,
     std::vector<Tensor> zp_tensors_multiple(kMultiplier);
     for (int k = 0; k < kMultiplier; ++k) {
       for (int i = 0; i < weights_gpu.size(); ++i) {
-        RETURN_IF_ERROR(CreateTensor(
+        ABSL_RETURN_IF_ERROR(CreateTensor(
             env.context(), weights_gpu[i],
             &weights_tensors_multiple[k * weights_gpu.size() + i]));
       }
       if (is_quantized) {
-        RETURN_IF_ERROR(CreateTensor(env.context(), scale_desc,
-                                     &scale_tensors_multiple[k]));
+        ABSL_RETURN_IF_ERROR(CreateTensor(env.context(), scale_desc,
+                                          &scale_tensors_multiple[k]));
         if (use_zero_point) {
-          RETURN_IF_ERROR(
+          ABSL_RETURN_IF_ERROR(
               CreateTensor(env.context(), zp_desc, &zp_tensors_multiple[k]));
         }
       }
@@ -1996,22 +2028,22 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision,
         int w_id = j % kMultiplier;
         int index = 1;
         for (int k = 0; k < weights_gpu.size(); ++k) {
-          RETURN_IF_ERROR(cl_op.SetSrcTensor(
+          ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(
               index++,
               &weights_tensors_multiple[w_id * weights_gpu.size() + k]));
         }
         if (is_quantized) {
-          RETURN_IF_ERROR(
+          ABSL_RETURN_IF_ERROR(
               cl_op.SetSrcTensor(index++, &scale_tensors_multiple[w_id]));
           if (use_zero_point) {
-            RETURN_IF_ERROR(
+            ABSL_RETURN_IF_ERROR(
                 cl_op.SetSrcTensor(index++, &zp_tensors_multiple[w_id]));
           }
         }
-        RETURN_IF_ERROR(cl_op.UpdateParams());
-        RETURN_IF_ERROR(cl_op.AddToQueue(env.queue()));
+        ABSL_RETURN_IF_ERROR(cl_op.UpdateParams());
+        ABSL_RETURN_IF_ERROR(cl_op.AddToQueue(env.queue()));
       }
-      RETURN_IF_ERROR(env.queue()->WaitForCompletion());
+      ABSL_RETURN_IF_ERROR(env.queue()->WaitForCompletion());
       const auto end = absl::Now();
       double time_ms =
           static_cast<double>((end - start) / absl::Nanoseconds(1)) /
@@ -2053,7 +2085,7 @@ absl::Status FullyConnectedWeightsBatchIdsPerfTest(
   weights_zp.data.resize(weights_zp.shape.DimensionsProduct(), 0.0f);
 
   Environment env;
-  RETURN_IF_ERROR(CreateEnvironment(&env));
+  ABSL_RETURN_IF_ERROR(CreateEnvironment(&env));
   const GpuInfo& gpu_info = env.GetDevicePtr()->GetInfo();
 
   OperationDef op_def;
@@ -2070,10 +2102,12 @@ absl::Status FullyConnectedWeightsBatchIdsPerfTest(
   Tensor src, dst;
   TensorDescriptor descriptor_with_shape = op_def.src_tensors[0];
   descriptor_with_shape.SetBHWCShape(src_shape);
-  RETURN_IF_ERROR(CreateTensor(env.context(), descriptor_with_shape, &src));
+  ABSL_RETURN_IF_ERROR(
+      CreateTensor(env.context(), descriptor_with_shape, &src));
   descriptor_with_shape = op_def.dst_tensors[0];
   descriptor_with_shape.SetBHWCShape(dst_shape);
-  RETURN_IF_ERROR(CreateTensor(env.context(), descriptor_with_shape, &dst));
+  ABSL_RETURN_IF_ERROR(
+      CreateTensor(env.context(), descriptor_with_shape, &dst));
 
   ml_drift::Tensor<BHWC, DataType::INT32> ids_data;
   ids_data.shape = BHWC(1, 1, 1, active_ids_size);
@@ -2087,7 +2121,7 @@ absl::Status FullyConnectedWeightsBatchIdsPerfTest(
   ids_desc_with_data.SetBHWCShape(ids_data.shape);
   ids_desc_with_data.UploadData(ids_data);
   Tensor ids;
-  RETURN_IF_ERROR(CreateTensor(env.context(), ids_desc_with_data, &ids));
+  ABSL_RETURN_IF_ERROR(CreateTensor(env.context(), ids_desc_with_data, &ids));
 
   const auto w_shape = weights.shape;
 
@@ -2141,7 +2175,7 @@ absl::Status FullyConnectedWeightsBatchIdsPerfTest(
 
   std::vector<Tensor> weights_tensors(weights_gpu.size());
   for (int i = 0; i < weights_gpu.size(); ++i) {
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         CreateTensor(env.context(), weights_gpu[i], &weights_tensors[i]));
   }
 
@@ -2156,8 +2190,9 @@ absl::Status FullyConnectedWeightsBatchIdsPerfTest(
   Tensor scale_tensor;
   Tensor zp_tensor;
   if (is_quantized) {
-    RETURN_IF_ERROR(CreateTensor(env.context(), scale_desc, &scale_tensor));
-    RETURN_IF_ERROR(CreateTensor(env.context(), zp_desc, &zp_tensor));
+    ABSL_RETURN_IF_ERROR(
+        CreateTensor(env.context(), scale_desc, &scale_tensor));
+    ABSL_RETURN_IF_ERROR(CreateTensor(env.context(), zp_desc, &zp_tensor));
   }
 
   ExternalWeights external_weights;
@@ -2171,35 +2206,35 @@ absl::Status FullyConnectedWeightsBatchIdsPerfTest(
     }
   }
 
-  ASSIGN_OR_RETURN(
+  ABSL_ASSIGN_OR_RETURN(
       auto operation,
       CreateFullyConnectedWeightsBatchIds(
           gpu_info, precision, op_def.src_tensors[0], ids_desc,
           op_def.dst_tensors[0], external_weights, nullptr, &dst_shape));
   std::unique_ptr<GPUOperation> conv =
       std::make_unique<FullyConnected>(std::move(operation));
-  RETURN_IF_ERROR(conv->AssembleCode(gpu_info));
+  ABSL_RETURN_IF_ERROR(conv->AssembleCode(gpu_info));
 
   ClOperation cl_op;
   cl_op.Init(std::move(conv));
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       cl_op.Compile(env.GetDevicePtr(), &env.context(), env.program_cache()));
   int index = 0;
-  RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &src));
-  RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &ids));
+  ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &src));
+  ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &ids));
   for (int i = 0; i < weights_tensors.size(); ++i) {
-    RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &weights_tensors[i]));
+    ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &weights_tensors[i]));
   }
   if (is_quantized) {
-    RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &scale_tensor));
+    ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &scale_tensor));
     if (use_zero_point) {
-      RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &zp_tensor));
+      ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(index++, &zp_tensor));
     }
   }
-  RETURN_IF_ERROR(cl_op.SetDstTensor(0, &dst));
-  RETURN_IF_ERROR(cl_op.UpdateParams());
-  RETURN_IF_ERROR(cl_op.Tune(TuningType::kExhaustive, env.device().GetInfo(),
-                             env.profiling_queue()));
+  ABSL_RETURN_IF_ERROR(cl_op.SetDstTensor(0, &dst));
+  ABSL_RETURN_IF_ERROR(cl_op.UpdateParams());
+  ABSL_RETURN_IF_ERROR(cl_op.Tune(
+      TuningType::kExhaustive, env.device().GetInfo(), env.profiling_queue()));
 
   double gbytes_read = src_gbytes + weight_gbytes;
   if (is_quantized) {
@@ -2210,9 +2245,9 @@ absl::Status FullyConnectedWeightsBatchIdsPerfTest(
   }
 
   for (int i = 0; i < 10; ++i) {
-    ASSIGN_OR_RETURN(auto duration,
-                     cl_op.GetOpTime(env.device().GetInfo(), env.queue(),
-                                     env.profiling_queue()));
+    ABSL_ASSIGN_OR_RETURN(auto duration,
+                          cl_op.GetOpTime(env.device().GetInfo(), env.queue(),
+                                          env.profiling_queue()));
     double time_ms = absl::ToDoubleMilliseconds(duration);
     const double fps = 1000.0 / time_ms;
     const double gflops_real = fps * gflops_count;
@@ -2250,7 +2285,7 @@ absl::Status FullyConnectedInt4Sparse2x4PerfTest(
   weights_indices.data.resize(weights_indices.shape.DimensionsProduct());
 
   Environment env;
-  RETURN_IF_ERROR(CreateEnvironment(&env));
+  ABSL_RETURN_IF_ERROR(CreateEnvironment(&env));
   const GpuInfo& gpu_info = env.GetDevicePtr()->GetInfo();
 
   OperationDef op_def;
@@ -2266,10 +2301,12 @@ absl::Status FullyConnectedInt4Sparse2x4PerfTest(
   Tensor src, dst;
   TensorDescriptor descriptor_with_shape = op_def.src_tensors[0];
   descriptor_with_shape.SetBHWCShape(src_shape);
-  RETURN_IF_ERROR(CreateTensor(env.context(), descriptor_with_shape, &src));
+  ABSL_RETURN_IF_ERROR(
+      CreateTensor(env.context(), descriptor_with_shape, &src));
   descriptor_with_shape = op_def.dst_tensors[0];
   descriptor_with_shape.SetBHWCShape(dst_shape);
-  RETURN_IF_ERROR(CreateTensor(env.context(), descriptor_with_shape, &dst));
+  ABSL_RETURN_IF_ERROR(
+      CreateTensor(env.context(), descriptor_with_shape, &dst));
 
   std::cout << "Src size(HWC) - " << src_shape.h << "x" << src_shape.w << "x"
             << src_shape.c << std::endl;
@@ -2300,22 +2337,22 @@ absl::Status FullyConnectedInt4Sparse2x4PerfTest(
       std::make_unique<FullyConnected>(CreateFullyConnectedInt4Sparse2x4(
           gpu_info, op_def, precision, weights, weights_indices, weights_scale,
           weights_zp, bias, &dst_shape));
-  RETURN_IF_ERROR(conv->AssembleCode(gpu_info));
+  ABSL_RETURN_IF_ERROR(conv->AssembleCode(gpu_info));
 
   ClOperation cl_op;
   cl_op.Init(std::move(conv));
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       cl_op.Compile(env.GetDevicePtr(), &env.context(), env.program_cache()));
-  RETURN_IF_ERROR(cl_op.SetSrcTensor(0, &src));
-  RETURN_IF_ERROR(cl_op.SetDstTensor(0, &dst));
-  RETURN_IF_ERROR(cl_op.UpdateParams());
-  RETURN_IF_ERROR(cl_op.Tune(TuningType::kExhaustive, env.device().GetInfo(),
-                             env.profiling_queue()));
+  ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(0, &src));
+  ABSL_RETURN_IF_ERROR(cl_op.SetDstTensor(0, &dst));
+  ABSL_RETURN_IF_ERROR(cl_op.UpdateParams());
+  ABSL_RETURN_IF_ERROR(cl_op.Tune(
+      TuningType::kExhaustive, env.device().GetInfo(), env.profiling_queue()));
 
   for (int i = 0; i < 10; ++i) {
-    ASSIGN_OR_RETURN(auto duration,
-                     cl_op.GetOpTime(env.device().GetInfo(), env.queue(),
-                                     env.profiling_queue()));
+    ABSL_ASSIGN_OR_RETURN(auto duration,
+                          cl_op.GetOpTime(env.device().GetInfo(), env.queue(),
+                                          env.profiling_queue()));
     double time_ms = absl::ToDoubleMilliseconds(duration);
     const double fps = 1000.0 / time_ms;
     const double gflops_real = fps * gflops_count;
@@ -2335,7 +2372,7 @@ absl::Status FullyConnectedInt4Sparse2x4PerfTest(
 absl::Status DepthwiseConvPerfTest(const BHWC& src_shape, const HW& kernel_size,
                                    const HW& strides, const HW& dilation) {
   Environment env;
-  RETURN_IF_ERROR(CreateEnvironment(&env));
+  ABSL_RETURN_IF_ERROR(CreateEnvironment(&env));
 
   DepthwiseConvolution2DAttributes attr;
   attr.padding.prepended = HW(kernel_size.h / 2, kernel_size.w / 2);
@@ -2355,18 +2392,18 @@ absl::Status DepthwiseConvPerfTest(const BHWC& src_shape, const HW& kernel_size,
   Layout layout = src_shape.b == 1 ? Layout::HWC : Layout::BHWC;
   auto storage_type = GetFastestStorageType(env.device().GetInfo());
   TensorDescriptor src_tensor_desc{data_type, storage_type, layout};
-  RETURN_IF_ERROR(src_tensor_desc.UpdateToSupportedStorageType(
+  ABSL_RETURN_IF_ERROR(src_tensor_desc.UpdateToSupportedStorageType(
       env.device().GetInfo(), src_shape));
 
   const auto dst_shape = CalculateOutputShape(src_shape, attr);
   TensorDescriptor dst_tensor_desc{data_type, storage_type, layout};
-  RETURN_IF_ERROR(dst_tensor_desc.UpdateToSupportedStorageType(
+  ABSL_RETURN_IF_ERROR(dst_tensor_desc.UpdateToSupportedStorageType(
       env.device().GetInfo(), dst_shape));
 
   op_def.src_tensors.push_back(src_tensor_desc);
   op_def.dst_tensors.push_back(dst_tensor_desc);
 
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       TestDepthwiseConvPerformance(attr, src_shape, op_def, precision, &env));
 
   return absl::OkStatus();
@@ -2375,7 +2412,7 @@ absl::Status DepthwiseConvPerfTest(const BHWC& src_shape, const HW& kernel_size,
 absl::Status QuantizationPerfTest(const BHWC& src_shape, DataType src_type,
                                   PackedType dst_type, bool calculate_sum) {
   Environment env;
-  RETURN_IF_ERROR(CreateEnvironment(&env));
+  ABSL_RETURN_IF_ERROR(CreateEnvironment(&env));
 
   auto storage_type = GetFastestStorageType(env.device().GetInfo());
   Layout layout = src_shape.b == 1 ? Layout::HWC : Layout::BHWC;
@@ -2398,20 +2435,23 @@ absl::Status QuantizationPerfTest(const BHWC& src_shape, DataType src_type,
   Tensor src, dst, params;
   TensorDescriptor descriptor_with_shape = op_def.src_tensors[0];
   descriptor_with_shape.SetBHWCShape(src_shape);
-  RETURN_IF_ERROR(CreateTensor(env.context(), descriptor_with_shape, &src));
+  ABSL_RETURN_IF_ERROR(
+      CreateTensor(env.context(), descriptor_with_shape, &src));
   descriptor_with_shape = op_def.dst_tensors[0];
   descriptor_with_shape.SetBHWCShape(dst_shape);
-  RETURN_IF_ERROR(CreateTensor(env.context(), descriptor_with_shape, &dst));
+  ABSL_RETURN_IF_ERROR(
+      CreateTensor(env.context(), descriptor_with_shape, &dst));
   descriptor_with_shape = op_def.dst_tensors[1];
   descriptor_with_shape.SetBHWCShape(params_shape);
-  RETURN_IF_ERROR(CreateTensor(env.context(), descriptor_with_shape, &params));
+  ABSL_RETURN_IF_ERROR(
+      CreateTensor(env.context(), descriptor_with_shape, &params));
 
   std::cout << "Src size(HWC) - " << src_shape.h << "x" << src_shape.w << "x"
             << src_shape.c << std::endl;
   std::cout << "Dst size(HWC) - " << dst_shape.h << "x" << dst_shape.w << "x"
             << dst_shape.c << std::endl;
 
-  RETURN_IF_ERROR(quant_op->AssembleCode(env.GetDevicePtr()->GetInfo()));
+  ABSL_RETURN_IF_ERROR(quant_op->AssembleCode(env.GetDevicePtr()->GetInfo()));
 
   const double kGByte = 1024.0 * 1024.0 * 1024.0;
   const double dst_gbytes =
@@ -2420,19 +2460,19 @@ absl::Status QuantizationPerfTest(const BHWC& src_shape, DataType src_type,
 
   ClOperation cl_op;
   cl_op.Init(std::move(quant_op));
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       cl_op.Compile(env.GetDevicePtr(), &env.context(), env.program_cache()));
-  RETURN_IF_ERROR(cl_op.SetSrcTensor(0, &src));
-  RETURN_IF_ERROR(cl_op.SetDstTensor(0, &dst));
-  RETURN_IF_ERROR(cl_op.SetDstTensor(1, &params));
-  RETURN_IF_ERROR(cl_op.UpdateParams());
-  RETURN_IF_ERROR(cl_op.Tune(TuningType::kExhaustive, env.device().GetInfo(),
-                             env.profiling_queue()));
+  ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(0, &src));
+  ABSL_RETURN_IF_ERROR(cl_op.SetDstTensor(0, &dst));
+  ABSL_RETURN_IF_ERROR(cl_op.SetDstTensor(1, &params));
+  ABSL_RETURN_IF_ERROR(cl_op.UpdateParams());
+  ABSL_RETURN_IF_ERROR(cl_op.Tune(
+      TuningType::kExhaustive, env.device().GetInfo(), env.profiling_queue()));
 
   for (int i = 0; i < 5; ++i) {
-    ASSIGN_OR_RETURN(auto duration,
-                     cl_op.GetOpTime(env.device().GetInfo(), env.queue(),
-                                     env.profiling_queue()));
+    ABSL_ASSIGN_OR_RETURN(auto duration,
+                          cl_op.GetOpTime(env.device().GetInfo(), env.queue(),
+                                          env.profiling_queue()));
     const auto time_ms = absl::ToDoubleMilliseconds(duration);
     const double fps = 1000.0 / time_ms;
     const double gbyte_read = fps * src_gbytes;

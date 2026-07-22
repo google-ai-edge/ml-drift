@@ -53,7 +53,7 @@ absl::Status ResolveWaveMemoryToWaveBroadcast(int wave_size,
     mem_name = std::string(GetNextWord(*code, pos));
     pos += mem_name.size() + 1;
     array_size = std::stoi(std::string(GetNextWord(*code, pos)));
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         DataTypeFromTemplateArg(mem_type, &data_type, &vector_size));
     glsl_broadcast_half4_as_uint2 = gpu_info.IsGlsl() &&
                                     !gpu_info.IsGlslSupportsExplicitFp16() &&
@@ -147,7 +147,7 @@ absl::Status ResolveWaveMemoryToWaveBroadcast(int wave_size,
     size_t pos = upload_pos + upload_func_name.size();
     std::vector<std::string> args;
     size_t close_bracket_pos;
-    RETURN_IF_ERROR(ParseArguments(*code, pos, &close_bracket_pos, &args));
+    ABSL_RETURN_IF_ERROR(ParseArguments(*code, pos, &close_bracket_pos, &args));
     const int upload_count = std::stoi(args[3]);
     std::string patch;
     for (int i = 0; i * wave_size < upload_count; ++i) {
@@ -225,7 +225,8 @@ absl::Status ResolveWaveMemoryToWaveBroadcast(
       size_t pos = attribute_pos + attribute_wave_sizes.size();
       std::vector<std::string> args;
       size_t close_bracket_pos;
-      RETURN_IF_ERROR(ParseArguments(*code, pos, &close_bracket_pos, &args));
+      ABSL_RETURN_IF_ERROR(
+          ParseArguments(*code, pos, &close_bracket_pos, &args));
       code->erase(attribute_pos, close_bracket_pos + 2 - attribute_pos + 1);
       for (int i = 0; i < args.size(); ++i) {
         wave_sizes.push_back(std::stoi(args[i]));
@@ -253,8 +254,8 @@ absl::Status ResolveWaveMemoryToWaveBroadcast(
     std::string patch;
     for (int i = 0; i < wave_sizes.size(); ++i) {
       std::string main_body_copy = main_body;
-      RETURN_IF_ERROR(ResolveWaveMemoryToWaveBroadcast(wave_sizes[i], gpu_info,
-                                                       &main_body_copy));
+      ABSL_RETURN_IF_ERROR(ResolveWaveMemoryToWaveBroadcast(
+          wave_sizes[i], gpu_info, &main_body_copy));
       if (i == wave_sizes.size() - 1) {
         patch +=
             "  if (ucl::GetSubGroupSize() >= " + std::to_string(wave_sizes[i]) +
@@ -302,7 +303,7 @@ absl::Status ResolveWaveMemoryToWaveBroadcast(
             "enable\n");
       }
     }
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         ResolveWaveMemoryToWaveBroadcast(wave_size, gpu_info, code));
   }
   compiler_options->push_back(CompilerOptions::kCl20);
@@ -332,7 +333,7 @@ absl::Status ResolveWaveMemoryToWorkGroupMemory(const GpuInfo& gpu_info,
     std::string mem_name = std::string(GetNextWord(*code, pos));
     pos += mem_name.size() + 1;
     int array_size = std::stoi(std::string(GetNextWord(*code, pos)));
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         DataTypeFromTemplateArg(mem_type, &data_type, &vector_size));
     std::string patch = "  __local " + mem_type + " " + mem_name + "[" +
                         std::to_string(array_size) + "];";
@@ -357,7 +358,7 @@ absl::Status ResolveWaveMemoryToWorkGroupMemory(const GpuInfo& gpu_info,
     size_t pos = upload_pos + upload_func_name.size();
     std::vector<std::string> args;
     size_t close_bracket_pos;
-    RETURN_IF_ERROR(ParseArguments(*code, pos, &close_bracket_pos, &args));
+    ABSL_RETURN_IF_ERROR(ParseArguments(*code, pos, &close_bracket_pos, &args));
     std::string patch;
     if (async_work_group_copy) {
       // async_work_group_copy(wave_mem, buffer + offset, count, 0);

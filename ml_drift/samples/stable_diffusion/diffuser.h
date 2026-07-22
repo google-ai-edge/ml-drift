@@ -45,8 +45,8 @@ namespace stable_diffusion {
 // config.seed = 0;
 // config.image_height = 512;
 // config.image_width = 512;
-// ASSIGN_OR_RETURN(auto diffuser, Diffuser::Create(config));
-// ASSIGN_OR_RETURN(auto result_image,
+// ABSL_ASSIGN_OR_RETURN(auto diffuser, Diffuser::Create(config));
+// ABSL_ASSIGN_OR_RETURN(auto result_image,
 //                  diffuser->Diffuse("a cat and a dog", 20, 1337);
 class Diffuser {
  public:
@@ -161,10 +161,10 @@ class Diffuser {
 
     absl::Status GetOutput(Environment* env, TensorFloat32* dst,
                            TensorFloat32* text_proj = nullptr) {
-      RETURN_IF_ERROR(
+      ABSL_RETURN_IF_ERROR(
           inference_context_.GetOutputTensor(dst_.id, env->queue(), dst));
       if (text_proj) {
-        RETURN_IF_ERROR(inference_context_.GetOutputTensor(
+        ABSL_RETURN_IF_ERROR(inference_context_.GetOutputTensor(
             text_proj_.id, env->queue(), text_proj));
       }
       return absl::OkStatus();

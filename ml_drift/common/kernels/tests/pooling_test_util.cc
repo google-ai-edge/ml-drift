@@ -56,7 +56,7 @@ absl::Status AveragePoolingTest(TestExecutionEnvironment& env,
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreatePooling(op_def, env.GetGpuInfo(), attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 1, 1, 2), &dst_tensor));
   EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), {3.0f, 4.0f}));
@@ -83,7 +83,7 @@ absl::Status AveragePoolingNonEmptyPaddingTest(TestExecutionEnvironment& env,
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreatePooling(op_def, env.GetGpuInfo(), attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 2, 1), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -110,7 +110,7 @@ absl::Status MaxPoolingTest(TestExecutionEnvironment& env, DataType data_type,
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreatePooling(op_def, env.GetGpuInfo(), attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 1, 1, 2), &dst_tensor));
   EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), {8.0f, 7.0f}));
@@ -141,7 +141,7 @@ absl::Status MaxPoolingIndicesTest(TestExecutionEnvironment& env,
     TensorFloat32 dst_tensor;
     TensorFloat32 dst_tensor_ind;
     GPUOperation operation = CreatePooling(op_def, env.GetGpuInfo(), attr);
-    RETURN_IF_ERROR(env.ExecuteGPUOperation(
+    ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
         {src_tensor}, std::make_unique<GPUOperation>(std::move(operation)),
         {BHWC(1, 1, 1, 2), BHWC(1, 1, 1, 2)}, {&dst_tensor, &dst_tensor_ind}));
     EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), {8.0f, 7.0f}));
@@ -165,7 +165,7 @@ absl::Status MaxPoolingIndicesTest(TestExecutionEnvironment& env,
     dst_1.SetBHWCShape(BHWC(1, 1, 1, 2));
 
     GPUOperation operation = CreatePooling(op_def, env.GetGpuInfo(), attr);
-    RETURN_IF_ERROR(env.ExecuteGPUOperation(
+    ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
         {&src_0}, {&dst_0, &dst_1},
         std::make_unique<GPUOperation>(std::move(operation))));
 

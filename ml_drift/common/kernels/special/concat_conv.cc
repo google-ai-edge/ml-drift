@@ -210,12 +210,12 @@ absl::Status TryConcatConv(const GpuInfo& gpu_info, const GraphFloat32& graph,
       concat_inputs[2]->tensor.shape.c != 1) {
     return absl::NotFoundError("ConcatConv not suitable.");
   }
-  ASSIGN_OR_RETURN(auto src0_handle,
-                   model_builder->GetTensor(concat_inputs[0]->id));
-  ASSIGN_OR_RETURN(auto src1_handle,
-                   model_builder->GetTensor(concat_inputs[1]->id));
-  ASSIGN_OR_RETURN(auto src2_handle,
-                   model_builder->GetTensor(concat_inputs[2]->id));
+  ABSL_ASSIGN_OR_RETURN(auto src0_handle,
+                        model_builder->GetTensor(concat_inputs[0]->id));
+  ABSL_ASSIGN_OR_RETURN(auto src1_handle,
+                        model_builder->GetTensor(concat_inputs[1]->id));
+  ABSL_ASSIGN_OR_RETURN(auto src2_handle,
+                        model_builder->GetTensor(concat_inputs[2]->id));
   const auto& src0_td = src0_handle.tensor_desc;
   const auto& src1_td = src1_handle.tensor_desc;
   const auto& src2_td = src2_handle.tensor_desc;
@@ -247,7 +247,8 @@ absl::Status TryConcatConv(const GpuInfo& gpu_info, const GraphFloat32& graph,
   op_def.src_tensors.push_back(src0_td);
   op_def.src_tensors.push_back(src1_td);
   op_def.src_tensors.push_back(src2_td);
-  ASSIGN_OR_RETURN(auto dst_handle, model_builder->GetTensor(conv_output->id));
+  ABSL_ASSIGN_OR_RETURN(auto dst_handle,
+                        model_builder->GetTensor(conv_output->id));
   op_def.dst_tensors.push_back(dst_handle.tensor_desc);
 
   auto concat_attr =
@@ -335,12 +336,12 @@ absl::Status TryConcatConv(const GpuInfo& gpu_info, const ir::IrModel& ir_model,
       ir_model.tensor(concat_inputs[2])->desc.GetBHWCShape().c != 1) {
     return absl::NotFoundError("ConcatConv not suitable.");
   }
-  ASSIGN_OR_RETURN(auto src0_handle,
-                   model_builder->GetTensor(concat_inputs[0]));
-  ASSIGN_OR_RETURN(auto src1_handle,
-                   model_builder->GetTensor(concat_inputs[1]));
-  ASSIGN_OR_RETURN(auto src2_handle,
-                   model_builder->GetTensor(concat_inputs[2]));
+  ABSL_ASSIGN_OR_RETURN(auto src0_handle,
+                        model_builder->GetTensor(concat_inputs[0]));
+  ABSL_ASSIGN_OR_RETURN(auto src1_handle,
+                        model_builder->GetTensor(concat_inputs[1]));
+  ABSL_ASSIGN_OR_RETURN(auto src2_handle,
+                        model_builder->GetTensor(concat_inputs[2]));
   const auto& src0_td = src0_handle.tensor_desc;
   const auto& src1_td = src1_handle.tensor_desc;
   const auto& src2_td = src2_handle.tensor_desc;
@@ -370,7 +371,7 @@ absl::Status TryConcatConv(const GpuInfo& gpu_info, const ir::IrModel& ir_model,
   op_def.src_tensors.push_back(src0_td);
   op_def.src_tensors.push_back(src1_td);
   op_def.src_tensors.push_back(src2_td);
-  ASSIGN_OR_RETURN(auto dst_handle, model_builder->GetTensor(conv_output));
+  ABSL_ASSIGN_OR_RETURN(auto dst_handle, model_builder->GetTensor(conv_output));
   op_def.dst_tensors.push_back(dst_handle.tensor_desc);
 
   auto concat_attr = std::any_cast<ConcatAttributes>(concat_op->attr);

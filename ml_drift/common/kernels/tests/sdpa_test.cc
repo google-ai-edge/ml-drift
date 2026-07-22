@@ -57,14 +57,14 @@ absl::StatusOr<TensorFloat32> RunModel(
   create_info.hints.Add(ModelHints::kAllowSpecialKernels);
   create_info.hints.Add(ml_drift::ModelHints::kFastTuning);
   GpuModel gpu_model;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       GraphToGpuModel(model, create_info, exec_env.GetGpuInfo(), &gpu_model));
   std::vector<TensorFloat32> src_cpu_tensors = {input_tensor_q, input_tensor_k,
                                                 input_tensor_v};
   if (input_tensor_mask.has_value()) {
     src_cpu_tensors.push_back(input_tensor_mask.value());
   }
-  RETURN_IF_ERROR(exec_env.ExecuteGpuModel(
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGpuModel(
       src_cpu_tensors, std::vector<TensorFloat32*>{&inference_result},
       &gpu_model));
   return inference_result;

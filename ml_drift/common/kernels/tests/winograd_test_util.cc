@@ -70,7 +70,7 @@ absl::Status Winograd3x3ForwardTiledTest(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   Winograd3x3TiledXForward operation = CreateWinograd3x3TiledXForward(
       env.GetGpuInfo(), op_def, padding, tile_size);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor,
       std::make_unique<Winograd3x3TiledXForward>(std::move(operation)),
       dst_ref.shape, &dst_tensor));
@@ -120,7 +120,7 @@ absl::Status Winograd3x3BackwardTiledTest(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   Winograd3x3TiledXBackward operation = CreateWinograd3x3TiledXBackward(
       env.GetGpuInfo(), op_def, biases, tile_size);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor,
       std::make_unique<Winograd3x3TiledXBackward>(std::move(operation)),
       dst_ref.shape, &dst_tensor));
@@ -155,7 +155,7 @@ absl::Status Winograd4x4To36Test(TestExecutionEnvironment& env,
 
   Winograd4x4To36 operation =
       CreateWinograd4x4To36(op_def, padding, env.GetGpuInfo());
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<Winograd4x4To36>(std::move(operation)),
       dst_ref.shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), dst_ref.data));
@@ -190,7 +190,7 @@ absl::Status Winograd4x4To36BatchTest(TestExecutionEnvironment& env,
 
   Winograd4x4To36 operation =
       CreateWinograd4x4To36(op_def, padding, env.GetGpuInfo());
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<Winograd4x4To36>(std::move(operation)),
       dst_ref.shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), dst_ref.data));
@@ -229,7 +229,7 @@ absl::Status Winograd36To4x4Test(TestExecutionEnvironment& env,
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
   TensorFloat32 dst_tensor;
   Winograd36To4x4 operation = CreateWinograd36To4x4(op_def, biases);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<Winograd36To4x4>(std::move(operation)),
       dst_ref.shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), dst_ref.data));
@@ -257,7 +257,7 @@ absl::Status Winograd3x3To36Test(TestExecutionEnvironment& env) {
                             Layout::BHWC);
   dst_desc.SetBHWCShape(wino_weights_gpu.shape);
   Winograd3x3To36 operation = Winograd3x3To36(src_desc, dst_desc);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc}, {&dst_desc},
       std::make_unique<Winograd3x3To36>(std::move(operation))));
   dst_desc.DownloadData(&wino_weights_gpu);

@@ -53,9 +53,9 @@ absl::Status MakeScaledDotProductAttention(
     const std::vector<ValueId>& inputs, const std::vector<ValueId>& outputs,
     const ScaledDotProductAttentionAttributes& sdpa_attr,
     GpuModelBuilder* model_builder) {
-  ASSIGN_OR_RETURN(auto q, model_builder->GetTensor(inputs[0]));
-  ASSIGN_OR_RETURN(auto k, model_builder->GetTensor(inputs[1]));
-  ASSIGN_OR_RETURN(auto v, model_builder->GetTensor(inputs[2]));
+  ABSL_ASSIGN_OR_RETURN(auto q, model_builder->GetTensor(inputs[0]));
+  ABSL_ASSIGN_OR_RETURN(auto k, model_builder->GetTensor(inputs[1]));
+  ABSL_ASSIGN_OR_RETURN(auto v, model_builder->GetTensor(inputs[2]));
   auto q_transposed = model_builder->Transpose(q, BHWC(0, 2, 1, 3));
   auto k_transposed = model_builder->Transpose(k, BHWC(0, 2, 3, 1));
   auto v_transposed = model_builder->Transpose(v, BHWC(0, 2, 1, 3));
@@ -82,10 +82,10 @@ absl::Status MakeScaledDotProductAttention(
 
   GpuModelBuilder::TensorHandle out;
   if (inputs.size() == 3) {
-    ASSIGN_OR_RETURN(out, model_builder->BatchedMatMulSoftmaxBatchedMatMul(
-                              q_scaled, k_transposed, v_transposed));
+    ABSL_ASSIGN_OR_RETURN(out, model_builder->BatchedMatMulSoftmaxBatchedMatMul(
+                                   q_scaled, k_transposed, v_transposed));
   } else {
-    ASSIGN_OR_RETURN(auto mask, model_builder->GetTensor(inputs[3]));
+    ABSL_ASSIGN_OR_RETURN(auto mask, model_builder->GetTensor(inputs[3]));
     // Note that transpose is not necessary for mask since it should already be
     // shaped accordingly.
     if (n > 1) {
@@ -94,7 +94,8 @@ absl::Status MakeScaledDotProductAttention(
                      mask.tensor_desc.GetBHWCShape().w,
                      mask.tensor_desc.GetBHWCShape().c});
     }
-    ASSIGN_OR_RETURN(out, model_builder->BatchedMatMulSoftmaxBatchedMatMul(
+    ABSL_ASSIGN_OR_RETURN(out,
+                          model_builder->BatchedMatMulSoftmaxBatchedMatMul(
                               q_scaled, k_transposed, v_transposed, &mask));
   }
   out =
@@ -115,7 +116,7 @@ absl::Status MakeRmsNorm(const GpuInfo& gpu_info,
     return absl::InvalidArgumentError(
         "RmsNorm operation expects a single input and a single output.");
   }
-  ASSIGN_OR_RETURN(auto src_tensor, model_builder->GetTensor(inputs[0]));
+  ABSL_ASSIGN_OR_RETURN(auto src_tensor, model_builder->GetTensor(inputs[0]));
   Tensor<Linear, DataType::FLOAT32> gamma, beta;
   Tensor<Linear, DataType::FLOAT32>* gamma_ptr = nullptr;
   Tensor<Linear, DataType::FLOAT32>* beta_ptr = nullptr;
@@ -146,8 +147,8 @@ absl::Status MakePositionalEmbedding(const GpuInfo& gpu_info,
         "PositionalEmbedding operation expects 2 inputs and a single "
         "output.");
   }
-  ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
-  ASSIGN_OR_RETURN(auto position, model_builder->GetTensor(inputs[1]->id));
+  ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
+  ABSL_ASSIGN_OR_RETURN(auto position, model_builder->GetTensor(inputs[1]->id));
 
   return model_builder->UpdateOutputTensor(
       model_builder->PositionalEmbedding(src, position), outputs[0]->id);
@@ -161,8 +162,8 @@ absl::Status MakeFullyConnectedExternalWeights(
         "Expected 2, 3, 4, or 5 inputs for FullyConnectedExternalWeights.");
   }
 
-  ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]));
-  ASSIGN_OR_RETURN(auto weights, model_builder->GetTensor(inputs[1]));
+  ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]));
+  ABSL_ASSIGN_OR_RETURN(auto weights, model_builder->GetTensor(inputs[1]));
   GpuModelBuilder::TensorHandle bias;
   GpuModelBuilder::TensorHandle* bias_ptr = nullptr;
   GpuModelBuilder::TensorHandle src_exp;
@@ -176,26 +177,26 @@ absl::Status MakeFullyConnectedExternalWeights(
       return absl::InvalidArgumentError("Missing runtime check tensor.");
     }
     if (inputs.size() > 3) {
-      ASSIGN_OR_RETURN(bias, model_builder->GetTensor(inputs[2]));
+      ABSL_ASSIGN_OR_RETURN(bias, model_builder->GetTensor(inputs[2]));
       bias_ptr = &bias;
     }
     if (inputs.size() > 4) {
-      ASSIGN_OR_RETURN(src_exp, model_builder->GetTensor(inputs[3]));
+      ABSL_ASSIGN_OR_RETURN(src_exp, model_builder->GetTensor(inputs[3]));
       src_exp_ptr = &src_exp;
     }
-    ASSIGN_OR_RETURN(runtime_check_tensor,
-                     model_builder->GetTensor(inputs[inputs.size() - 1]));
+    ABSL_ASSIGN_OR_RETURN(runtime_check_tensor,
+                          model_builder->GetTensor(inputs[inputs.size() - 1]));
     runtime_check_tensor_ptr = &runtime_check_tensor;
   } else {
     if (inputs.size() > 4) {
       return absl::InvalidArgumentError("Unexpected runtime check tensor.");
     }
     if (inputs.size() > 2) {
-      ASSIGN_OR_RETURN(bias, model_builder->GetTensor(inputs[2]));
+      ABSL_ASSIGN_OR_RETURN(bias, model_builder->GetTensor(inputs[2]));
       bias_ptr = &bias;
     }
     if (inputs.size() > 3) {
-      ASSIGN_OR_RETURN(src_exp, model_builder->GetTensor(inputs[3]));
+      ABSL_ASSIGN_OR_RETURN(src_exp, model_builder->GetTensor(inputs[3]));
       src_exp_ptr = &src_exp;
     }
   }
@@ -209,10 +210,10 @@ absl::Status MakeFullyConnectedExternalWeights(
 
   const GpuModelBuilder::Weights external_weights =
       CreateExternalWeights(weights, weights_desc, weights_shape);
-  ASSIGN_OR_RETURN(auto output,
-                   model_builder->FullyConnectedExternalWeights(
-                       src, external_weights, bias_ptr, src_exp_ptr,
-                       runtime_check, runtime_check_tensor_ptr));
+  ABSL_ASSIGN_OR_RETURN(auto output,
+                        model_builder->FullyConnectedExternalWeights(
+                            src, external_weights, bias_ptr, src_exp_ptr,
+                            runtime_check, runtime_check_tensor_ptr));
   return model_builder->UpdateOutputTensor(output, outputs[0]);
 }
 
@@ -229,10 +230,10 @@ absl::Status MakeQuantizedFullyConnectedExternalWeights(
         "Expected only int2, int4, or int8 Fully Connected.");
   }
 
-  ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]));
-  ASSIGN_OR_RETURN(auto weights, model_builder->GetTensor(inputs[1]));
-  ASSIGN_OR_RETURN(auto scale, model_builder->GetTensor(inputs[2]));
-  ASSIGN_OR_RETURN(auto zero_point, model_builder->GetTensor(inputs[3]));
+  ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]));
+  ABSL_ASSIGN_OR_RETURN(auto weights, model_builder->GetTensor(inputs[1]));
+  ABSL_ASSIGN_OR_RETURN(auto scale, model_builder->GetTensor(inputs[2]));
+  ABSL_ASSIGN_OR_RETURN(auto zero_point, model_builder->GetTensor(inputs[3]));
 
   GpuModelBuilder::TensorHandle weights_sum_i;
   GpuModelBuilder::TensorHandle* weights_sum_i_ptr = nullptr;
@@ -240,23 +241,24 @@ absl::Status MakeQuantizedFullyConnectedExternalWeights(
   GpuModelBuilder::TensorHandle* bias_th_ptr = nullptr;
   if (inputs.size() == 5) {
     // weight_sum_i is expected to be int32 (zero_point expected to be float).
-    ASSIGN_OR_RETURN(auto fifth_tensor, model_builder->GetTensor(inputs[4]));
+    ABSL_ASSIGN_OR_RETURN(auto fifth_tensor,
+                          model_builder->GetTensor(inputs[4]));
     const bool has_weight_sum_i =
         fifth_tensor.tensor_desc.GetDataType() == DataType::INT32;
     if (has_weight_sum_i) {
       weights_sum_i = fifth_tensor;
       weights_sum_i_ptr = &weights_sum_i;
     } else {
-      ASSIGN_OR_RETURN(bias, model_builder->GetTensor(inputs[2]));
-      ASSIGN_OR_RETURN(scale, model_builder->GetTensor(inputs[3]));
+      ABSL_ASSIGN_OR_RETURN(bias, model_builder->GetTensor(inputs[2]));
+      ABSL_ASSIGN_OR_RETURN(scale, model_builder->GetTensor(inputs[3]));
       zero_point = fifth_tensor;
       bias_th_ptr = &bias;
     }
   } else if (inputs.size() == 6) {
-    ASSIGN_OR_RETURN(bias, model_builder->GetTensor(inputs[2]));
-    ASSIGN_OR_RETURN(scale, model_builder->GetTensor(inputs[3]));
-    ASSIGN_OR_RETURN(zero_point, model_builder->GetTensor(inputs[4]));
-    ASSIGN_OR_RETURN(weights_sum_i, model_builder->GetTensor(inputs[5]));
+    ABSL_ASSIGN_OR_RETURN(bias, model_builder->GetTensor(inputs[2]));
+    ABSL_ASSIGN_OR_RETURN(scale, model_builder->GetTensor(inputs[3]));
+    ABSL_ASSIGN_OR_RETURN(zero_point, model_builder->GetTensor(inputs[4]));
+    ABSL_ASSIGN_OR_RETURN(weights_sum_i, model_builder->GetTensor(inputs[5]));
     bias_th_ptr = &bias;
     weights_sum_i_ptr = &weights_sum_i;
   }
@@ -316,7 +318,7 @@ absl::Status MakeLayerNorm(const GpuInfo& gpu_info,
     return absl::InvalidArgumentError(
         "LayerNorm operation expects a single input and a single output.");
   }
-  ASSIGN_OR_RETURN(auto src_tensor, model_builder->GetTensor(inputs[0]));
+  ABSL_ASSIGN_OR_RETURN(auto src_tensor, model_builder->GetTensor(inputs[0]));
   auto input_shape = src_tensor.tensor_desc.GetBHWCShape();
 
   Tensor<Linear, DataType::FLOAT32> gamma, beta;
@@ -354,7 +356,7 @@ absl::Status MakeGroupNorm(const GpuInfo& gpu_info,
     return absl::InvalidArgumentError(
         "GroupNorm operation expects a single input and a single output.");
   }
-  ASSIGN_OR_RETURN(auto src_tensor, model_builder->GetTensor(inputs[0]));
+  ABSL_ASSIGN_OR_RETURN(auto src_tensor, model_builder->GetTensor(inputs[0]));
   auto input_shape = src_tensor.tensor_desc.GetBHWCShape();
   Tensor<Linear, DataType::FLOAT32> gamma, beta;
   if (attr.gamma.has_value()) {
@@ -407,8 +409,8 @@ absl::Status MakeQuantizedEmbeddingLookup(const GpuInfo& gpu_info,
         "EmbeddingLookup operation expects 3 or 4 inputs and 1 output. Got: ",
         inputs.size(), " inputs and ", outputs.size(), " outputs."));
   }
-  ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
-  ASSIGN_OR_RETURN(auto weights, model_builder->GetTensor(inputs[1]->id));
+  ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
+  ABSL_ASSIGN_OR_RETURN(auto weights, model_builder->GetTensor(inputs[1]->id));
 
   WeightsDescription weights_desc;
   if (weights_type == EmbeddingLookupAttributes::WeightsType::kInt2) {
@@ -426,11 +428,11 @@ absl::Status MakeQuantizedEmbeddingLookup(const GpuInfo& gpu_info,
   }
 
   const DataType dst_type = DeduceDataTypeFromPrecision(create_info.precision);
-  ASSIGN_OR_RETURN(auto scale, model_builder->GetTensor(inputs[2]->id));
+  ABSL_ASSIGN_OR_RETURN(auto scale, model_builder->GetTensor(inputs[2]->id));
   GpuModelBuilder::TensorHandle* zero_point_ptr = nullptr;
   GpuModelBuilder::TensorHandle zero_point;
   if (inputs.size() > 3) {
-    ASSIGN_OR_RETURN(zero_point, model_builder->GetTensor(inputs[3]->id));
+    ABSL_ASSIGN_OR_RETURN(zero_point, model_builder->GetTensor(inputs[3]->id));
     zero_point_ptr = &zero_point;
   }
 
@@ -462,15 +464,15 @@ absl::Status MakeRoPE(const GpuInfo& gpu_info,
   GpuModel gpu_model;
   const bool with_split_concat = inputs.size() == 2;
   if (with_split_concat) {
-    ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]));
-    ASSIGN_OR_RETURN(auto position, model_builder->GetTensor(inputs[1]));
+    ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]));
+    ABSL_ASSIGN_OR_RETURN(auto position, model_builder->GetTensor(inputs[1]));
 
     return model_builder->UpdateOutputTensor(
         model_builder->SplitRoPEConcat(src, position), outputs[0]);
   } else {
-    ASSIGN_OR_RETURN(auto src_l, model_builder->GetTensor(inputs[0]));
-    ASSIGN_OR_RETURN(auto src_r, model_builder->GetTensor(inputs[1]));
-    ASSIGN_OR_RETURN(auto position, model_builder->GetTensor(inputs[2]));
+    ABSL_ASSIGN_OR_RETURN(auto src_l, model_builder->GetTensor(inputs[0]));
+    ABSL_ASSIGN_OR_RETURN(auto src_r, model_builder->GetTensor(inputs[1]));
+    ABSL_ASSIGN_OR_RETURN(auto position, model_builder->GetTensor(inputs[2]));
 
     return model_builder->UpdateOutputTensors(
         model_builder->RoPE(src_l, src_r, position), {outputs[0], outputs[1]});
@@ -494,9 +496,9 @@ absl::Status MakeRuntimeBatchedMatMul(
       .dst_end_ch_index = attr.runtime_check.dst_end_ch_index,
   };
 
-  ASSIGN_OR_RETURN(auto output, model_builder->BatchedMatMul(
-                                    left, right, attr, nullptr, runtime_check,
-                                    &runtime_check_tensor));
+  ABSL_ASSIGN_OR_RETURN(auto output, model_builder->BatchedMatMul(
+                                         left, right, attr, nullptr,
+                                         runtime_check, &runtime_check_tensor));
   return model_builder->UpdateOutputTensor(output, output_id);
 }
 }  // namespace
@@ -648,7 +650,7 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
     case OperationType::REDUCE_SUM: {
       const auto& attr =
           std::any_cast<const ReduceAttributes&>(node.operation.attributes);
-      ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
+      ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       return model_builder->UpdateOutputTensor(
           model_builder->Reduce(src, op_type, attr.dims), outputs[0]->id);
     }
@@ -656,27 +658,29 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
       const auto& batched_mat_mul_attr =
           std::any_cast<const BatchedMatMulAttributes&>(
               node.operation.attributes);
-      ASSIGN_OR_RETURN(auto left, model_builder->GetTensor(inputs[0]->id));
-      ASSIGN_OR_RETURN(auto right, model_builder->GetTensor(inputs[1]->id));
+      ABSL_ASSIGN_OR_RETURN(auto left, model_builder->GetTensor(inputs[0]->id));
+      ABSL_ASSIGN_OR_RETURN(auto right,
+                            model_builder->GetTensor(inputs[1]->id));
       if (inputs.size() == 3) {
-        ASSIGN_OR_RETURN(auto runtime_check_tensor,
-                         model_builder->GetTensor(inputs[2]->id));
+        ABSL_ASSIGN_OR_RETURN(auto runtime_check_tensor,
+                              model_builder->GetTensor(inputs[2]->id));
         return MakeRuntimeBatchedMatMul(left, right, runtime_check_tensor,
                                         outputs[0]->id, batched_mat_mul_attr,
                                         model_builder);
       }
-      ASSIGN_OR_RETURN(auto output, model_builder->BatchedMatMul(
-                                        left, right, batched_mat_mul_attr));
+      ABSL_ASSIGN_OR_RETURN(
+          auto output,
+          model_builder->BatchedMatMul(left, right, batched_mat_mul_attr));
       return model_builder->UpdateOutputTensor(output, outputs[0]->id);
     }
     case OperationType::BITCAST: {
-      ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
+      ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       return model_builder->UpdateOutputTensor(
           model_builder->BitCast(src, op_def.dst_tensors[0].GetDataType()),
           outputs[0]->id);
     }
     case OperationType::CAST: {
-      ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
+      ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       return model_builder->UpdateOutputTensor(
           model_builder->Cast(src, op_def.dst_tensors[0].GetDataType()),
           outputs[0]->id);
@@ -686,8 +690,8 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
           std::any_cast<const ConcatAttributes&>(node.operation.attributes);
       std::vector<GpuModelBuilder::TensorHandle> src_handles(inputs.size());
       for (int i = 0; i < inputs.size(); ++i) {
-        ASSIGN_OR_RETURN(src_handles[i],
-                         model_builder->GetTensor(inputs[i]->id));
+        ABSL_ASSIGN_OR_RETURN(src_handles[i],
+                              model_builder->GetTensor(inputs[i]->id));
       }
       return model_builder->UpdateOutputTensor(
           model_builder->Concat(src_handles, attr.axis), outputs[0]->id);
@@ -696,7 +700,8 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
       const auto& attr = std::any_cast<const Convolution2DAttributes&>(
           node.operation.attributes);
       if (inputs.size() == 1) {
-        ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
+        ABSL_ASSIGN_OR_RETURN(auto src,
+                              model_builder->GetTensor(inputs[0]->id));
         if (gpu_info.IsApiWebGpu() &&
             op_def.src_tensors[0].GetDataType() == DataType::FLOAT32 &&
             op_def.dst_tensors[0].GetDataType() == DataType::FLOAT16) {
@@ -708,8 +713,10 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
             model_builder->Convolution(src, attr), outputs[0]->id);
       } else {
         // CONVOLUTION_2D with runtime weights
-        ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
-        ASSIGN_OR_RETURN(auto weights, model_builder->GetTensor(inputs[1]->id));
+        ABSL_ASSIGN_OR_RETURN(auto src,
+                              model_builder->GetTensor(inputs[0]->id));
+        ABSL_ASSIGN_OR_RETURN(auto weights,
+                              model_builder->GetTensor(inputs[1]->id));
         GpuModelBuilder::TensorHandle bias;
         GpuModelBuilder::TensorHandle* bias_ptr = nullptr;
         if (!attr.bias.data.empty()) {
@@ -717,15 +724,15 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
           bias = model_builder->AddConstantTensor(attr.bias, bias_type);
           bias_ptr = &bias;
         }
-        ASSIGN_OR_RETURN(auto output, model_builder->Convolution(
-                                          src, weights, bias_ptr, attr));
+        ABSL_ASSIGN_OR_RETURN(auto output, model_builder->Convolution(
+                                               src, weights, bias_ptr, attr));
         return model_builder->UpdateOutputTensor(output, outputs[0]->id);
       }
     }
     case OperationType::CONVOLUTION_TRANSPOSED: {
       const auto& attr = std::any_cast<const ConvolutionTransposedAttributes&>(
           node.operation.attributes);
-      ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
+      ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       if (inputs.size() == 1) {
         return model_builder->UpdateOutputTensor(
             model_builder->ConvolutionTransposed(src, attr), outputs[0]->id);
@@ -741,7 +748,8 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
           attr_copy.bias.shape = Linear(weights_shape.o);
           attr_copy.bias.data.resize(weights_shape.o, 0.0f);
         }
-        ASSIGN_OR_RETURN(auto weights, model_builder->GetTensor(inputs[1]->id));
+        ABSL_ASSIGN_OR_RETURN(auto weights,
+                              model_builder->GetTensor(inputs[1]->id));
         return model_builder->UpdateOutputTensor(
             model_builder->ConvolutionTransposed(src, weights, attr_copy),
             outputs[0]->id);
@@ -759,13 +767,14 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
     case OperationType::DEPTHWISE_CONVOLUTION: {
       const auto& attr = std::any_cast<const DepthwiseConvolution2DAttributes&>(
           node.operation.attributes);
-      ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
+      ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       GpuModelBuilder::TensorHandle output;
       if (inputs.size() == 1) {
         output = model_builder->DepthwiseConvolution(src, attr);
       } else if (inputs.size() == 2) {
-        ASSIGN_OR_RETURN(auto weights, model_builder->GetTensor(inputs[1]->id));
-        ASSIGN_OR_RETURN(
+        ABSL_ASSIGN_OR_RETURN(auto weights,
+                              model_builder->GetTensor(inputs[1]->id));
+        ABSL_ASSIGN_OR_RETURN(
             output, model_builder->DepthwiseConvolution(src, weights, attr));
       } else {
         return absl::InternalError(
@@ -805,16 +814,17 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
     case OperationType::FULLY_CONNECTED: {
       const auto& attr = std::any_cast<const FullyConnectedAttributes&>(
           node.operation.attributes);
-      ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
+      ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       if (attr.external_weights.has_value()) {
         return MakeFullyConnectedExternalWeights(src_ids, dst_ids, attr,
                                                  model_builder);
       } else if (inputs.size() >= 2) {
-        ASSIGN_OR_RETURN(auto weights, model_builder->GetTensor(inputs[1]->id));
+        ABSL_ASSIGN_OR_RETURN(auto weights,
+                              model_builder->GetTensor(inputs[1]->id));
         GpuModelBuilder::TensorHandle bias;
         GpuModelBuilder::TensorHandle* bias_ptr = nullptr;
         if (inputs.size() == 3) {
-          ASSIGN_OR_RETURN(bias, model_builder->GetTensor(inputs[2]->id));
+          ABSL_ASSIGN_OR_RETURN(bias, model_builder->GetTensor(inputs[2]->id));
           bias_ptr = &bias;
         }
         Convolution2DAttributes conv_attr;
@@ -827,8 +837,9 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
         auto weights_shape = inputs[1]->tensor.shape;
         conv_weights.shape = OHWI(weights_shape.b, weights_shape.h,
                                   weights_shape.w, weights_shape.c);
-        ASSIGN_OR_RETURN(auto output, model_builder->Convolution(
-                                          src, weights, bias_ptr, conv_attr));
+        ABSL_ASSIGN_OR_RETURN(
+            auto output,
+            model_builder->Convolution(src, weights, bias_ptr, conv_attr));
         return model_builder->UpdateOutputTensor(output, outputs[0]->id);
       } else {
         return model_builder->UpdateOutputTensor(
@@ -845,7 +856,7 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
             std::visit([](const auto& w) { return w.shape; }, attr.weights),
             attr.scale.shape);
       }
-      ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
+      ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       auto output = model_builder->FullyConnected(src, attr);
       return model_builder->UpdateOutputTensor(output, outputs[0]->id);
     }
@@ -859,7 +870,7 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
             std::visit([](const auto& w) { return w.shape; }, attr.weights),
             attr.scale.shape);
       }
-      ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
+      ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       auto output = model_builder->FullyConnected(src, attr);
       return model_builder->UpdateOutputTensor(output, outputs[0]->id);
     }
@@ -872,15 +883,16 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
             src_ids, dst_ids, model_builder, attr.weights.shape,
             attr.scale.shape);
       }
-      ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
+      ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       auto output = model_builder->FullyConnected(src, attr);
       return model_builder->UpdateOutputTensor(output, outputs[0]->id);
     }
     case OperationType::GATHER: {
       const auto& attr =
           std::any_cast<const GatherAttributes&>(node.operation.attributes);
-      ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
-      ASSIGN_OR_RETURN(auto indices, model_builder->GetTensor(inputs[1]->id));
+      ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
+      ABSL_ASSIGN_OR_RETURN(auto indices,
+                            model_builder->GetTensor(inputs[1]->id));
       auto output = model_builder->Gather(src, indices, attr.axis);
       return model_builder->UpdateOutputTensor(output, outputs[0]->id);
     }
@@ -968,7 +980,7 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
     case OperationType::QUANTIZE_AND_DEQUANTIZE: {
       const auto& attr = std::any_cast<const QuantizeAndDequantizeAttributes&>(
           node.operation.attributes);
-      ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
+      ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       auto output = model_builder->QuantizeAndDequantize(src, attr);
       return model_builder->UpdateOutputTensor(output, outputs[0]->id);
     }
@@ -989,7 +1001,7 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
     case OperationType::RESHAPE: {
       const auto& attr =
           std::any_cast<const ReshapeAttributes&>(node.operation.attributes);
-      ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
+      ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       auto output = model_builder->Reshape(src, attr.new_shape);
       return model_builder->UpdateOutputTensor(output, outputs[0]->id);
     }
@@ -997,7 +1009,7 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
       const auto& attr =
           std::any_cast<const Resize2DAttributes&>(node.operation.attributes);
       std::unique_ptr<GPUOperation> gpu_op;
-      RETURN_IF_ERROR(SelectResize(attr, op_def, &gpu_op));
+      ABSL_RETURN_IF_ERROR(SelectResize(attr, op_def, &gpu_op));
       model_builder->AddGpuOperation(src_ids, dst_ids, std::move(gpu_op),
                                      node.operation.type);
       return absl::OkStatus();
@@ -1037,12 +1049,12 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
     case OperationType::SLICE: {
       const auto& attr =
           std::any_cast<const SliceAttributes&>(node.operation.attributes);
-      ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
+      ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       return model_builder->UpdateOutputTensor(
           model_builder->StridedSlice(src, attr), outputs[0]->id);
     }
     case OperationType::SOFTMAX: {
-      ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
+      ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       return model_builder->UpdateOutputTensor(model_builder->Softmax(src),
                                                outputs[0]->id);
     }
@@ -1064,31 +1076,31 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
         sizes[i] = outputs[i]->tensor.shape.get(attr.axis);
         output_ids[i] = outputs[i]->id;
       }
-      ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
+      ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       return model_builder->UpdateOutputTensors(
           model_builder->Split(src, attr.axis, sizes), output_ids);
     }
     case OperationType::TILE: {
-      ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
+      ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       return model_builder->UpdateOutputTensor(
           model_builder->Tile(src, outputs[0]->tensor.shape), outputs[0]->id);
     }
     case OperationType::TOP_K: {
       const auto& attr =
           std::any_cast<const TopKAttributes&>(node.operation.attributes);
-      ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
+      ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       return model_builder->UpdateOutputTensors(
           model_builder->TopK(src, attr.k), {outputs[0]->id, outputs[1]->id});
     }
     case OperationType::TRANSPOSE: {
       const auto& attr =
           std::any_cast<const TransposeAttributes&>(node.operation.attributes);
-      ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
+      ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       return model_builder->UpdateOutputTensor(
           model_builder->Transpose(src, attr.perm), outputs[0]->id);
     }
     default:
-      ASSIGN_OR_RETURN(auto gpu_op, SelectDefault(gpu_info, op_def, node));
+      ABSL_ASSIGN_OR_RETURN(auto gpu_op, SelectDefault(gpu_info, op_def, node));
       model_builder->AddGpuOperation(src_ids, dst_ids, std::move(gpu_op),
                                      node.operation.type);
       return absl::OkStatus();
@@ -1220,34 +1232,36 @@ absl::Status GPUOperationFromNode(
     case OperationType::REDUCE_PRODUCT:
     case OperationType::REDUCE_SUM: {
       const auto& attr = std::any_cast<const ReduceAttributes&>(node.attr);
-      ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
+      ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       return model_builder->UpdateOutputTensor(
           model_builder->Reduce(src, op_type, attr.dims), outputs[0]->id);
     }
     case OperationType::BATCHED_MATMUL: {
       const auto& batched_mat_mul_attr =
           std::any_cast<const BatchedMatMulAttributes&>(node.attr);
-      ASSIGN_OR_RETURN(auto left, model_builder->GetTensor(inputs[0]->id));
-      ASSIGN_OR_RETURN(auto right, model_builder->GetTensor(inputs[1]->id));
+      ABSL_ASSIGN_OR_RETURN(auto left, model_builder->GetTensor(inputs[0]->id));
+      ABSL_ASSIGN_OR_RETURN(auto right,
+                            model_builder->GetTensor(inputs[1]->id));
       if (inputs.size() == 3) {
-        ASSIGN_OR_RETURN(auto runtime_check_tensor,
-                         model_builder->GetTensor(inputs[2]->id));
+        ABSL_ASSIGN_OR_RETURN(auto runtime_check_tensor,
+                              model_builder->GetTensor(inputs[2]->id));
         return MakeRuntimeBatchedMatMul(left, right, runtime_check_tensor,
                                         outputs[0]->id, batched_mat_mul_attr,
                                         model_builder);
       }
-      ASSIGN_OR_RETURN(auto output, model_builder->BatchedMatMul(
-                                        left, right, batched_mat_mul_attr));
+      ABSL_ASSIGN_OR_RETURN(
+          auto output,
+          model_builder->BatchedMatMul(left, right, batched_mat_mul_attr));
       return model_builder->UpdateOutputTensor(output, outputs[0]->id);
     }
     case OperationType::BITCAST: {
-      ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
+      ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       return model_builder->UpdateOutputTensor(
           model_builder->BitCast(src, op_def.dst_tensors[0].GetDataType()),
           outputs[0]->id);
     }
     case OperationType::CAST: {
-      ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
+      ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       return model_builder->UpdateOutputTensor(
           model_builder->Cast(src, op_def.dst_tensors[0].GetDataType()),
           outputs[0]->id);
@@ -1256,8 +1270,8 @@ absl::Status GPUOperationFromNode(
       const auto& attr = std::any_cast<const ConcatAttributes&>(node.attr);
       std::vector<GpuModelBuilder::TensorHandle> src_handles(inputs.size());
       for (int i = 0; i < inputs.size(); ++i) {
-        ASSIGN_OR_RETURN(src_handles[i],
-                         model_builder->GetTensor(inputs[i]->id));
+        ABSL_ASSIGN_OR_RETURN(src_handles[i],
+                              model_builder->GetTensor(inputs[i]->id));
       }
       return model_builder->UpdateOutputTensor(
           model_builder->Concat(src_handles, attr.axis), outputs[0]->id);
@@ -1266,7 +1280,8 @@ absl::Status GPUOperationFromNode(
       const auto& attr =
           std::any_cast<const Convolution2DAttributes&>(node.attr);
       if (inputs.size() == 1) {
-        ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
+        ABSL_ASSIGN_OR_RETURN(auto src,
+                              model_builder->GetTensor(inputs[0]->id));
         if (gpu_info.IsApiWebGpu() &&
             op_def.src_tensors[0].GetDataType() == DataType::FLOAT32 &&
             op_def.dst_tensors[0].GetDataType() == DataType::FLOAT16) {
@@ -1278,8 +1293,10 @@ absl::Status GPUOperationFromNode(
             model_builder->Convolution(src, attr), outputs[0]->id);
       } else {
         // CONVOLUTION_2D with runtime weights
-        ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
-        ASSIGN_OR_RETURN(auto weights, model_builder->GetTensor(inputs[1]->id));
+        ABSL_ASSIGN_OR_RETURN(auto src,
+                              model_builder->GetTensor(inputs[0]->id));
+        ABSL_ASSIGN_OR_RETURN(auto weights,
+                              model_builder->GetTensor(inputs[1]->id));
         GpuModelBuilder::TensorHandle bias;
         GpuModelBuilder::TensorHandle* bias_ptr = nullptr;
         if (!attr.bias.data.empty()) {
@@ -1287,15 +1304,15 @@ absl::Status GPUOperationFromNode(
           bias = model_builder->AddConstantTensor(attr.bias, bias_type);
           bias_ptr = &bias;
         }
-        ASSIGN_OR_RETURN(auto output, model_builder->Convolution(
-                                          src, weights, bias_ptr, attr));
+        ABSL_ASSIGN_OR_RETURN(auto output, model_builder->Convolution(
+                                               src, weights, bias_ptr, attr));
         return model_builder->UpdateOutputTensor(output, outputs[0]->id);
       }
     }
     case OperationType::CONVOLUTION_TRANSPOSED: {
       const auto& attr =
           std::any_cast<const ConvolutionTransposedAttributes&>(node.attr);
-      ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
+      ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       if (inputs.size() == 1) {
         return model_builder->UpdateOutputTensor(
             model_builder->ConvolutionTransposed(src, attr), outputs[0]->id);
@@ -1312,7 +1329,8 @@ absl::Status GPUOperationFromNode(
           attr_copy.bias.shape = Linear(weights_shape.o);
           attr_copy.bias.data.resize(weights_shape.o, 0.0f);
         }
-        ASSIGN_OR_RETURN(auto weights, model_builder->GetTensor(inputs[1]->id));
+        ABSL_ASSIGN_OR_RETURN(auto weights,
+                              model_builder->GetTensor(inputs[1]->id));
         return model_builder->UpdateOutputTensor(
             model_builder->ConvolutionTransposed(src, weights, attr_copy),
             outputs[0]->id);
@@ -1329,13 +1347,14 @@ absl::Status GPUOperationFromNode(
     case OperationType::DEPTHWISE_CONVOLUTION: {
       const auto& attr =
           std::any_cast<const DepthwiseConvolution2DAttributes&>(node.attr);
-      ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
+      ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       GpuModelBuilder::TensorHandle output;
       if (inputs.size() == 1) {
         output = model_builder->DepthwiseConvolution(src, attr);
       } else if (inputs.size() == 2) {
-        ASSIGN_OR_RETURN(auto weights, model_builder->GetTensor(inputs[1]->id));
-        ASSIGN_OR_RETURN(
+        ABSL_ASSIGN_OR_RETURN(auto weights,
+                              model_builder->GetTensor(inputs[1]->id));
+        ABSL_ASSIGN_OR_RETURN(
             output, model_builder->DepthwiseConvolution(src, weights, attr));
       } else {
         return absl::InternalError(
@@ -1375,16 +1394,17 @@ absl::Status GPUOperationFromNode(
     case OperationType::FULLY_CONNECTED: {
       const auto& attr =
           std::any_cast<const FullyConnectedAttributes&>(node.attr);
-      ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
+      ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       if (attr.external_weights.has_value()) {
         return MakeFullyConnectedExternalWeights(src_ids, dst_ids, attr,
                                                  model_builder);
       } else if (inputs.size() >= 2) {
-        ASSIGN_OR_RETURN(auto weights, model_builder->GetTensor(inputs[1]->id));
+        ABSL_ASSIGN_OR_RETURN(auto weights,
+                              model_builder->GetTensor(inputs[1]->id));
         GpuModelBuilder::TensorHandle bias;
         GpuModelBuilder::TensorHandle* bias_ptr = nullptr;
         if (inputs.size() == 3) {
-          ASSIGN_OR_RETURN(bias, model_builder->GetTensor(inputs[2]->id));
+          ABSL_ASSIGN_OR_RETURN(bias, model_builder->GetTensor(inputs[2]->id));
           bias_ptr = &bias;
         }
         Convolution2DAttributes conv_attr;
@@ -1397,8 +1417,9 @@ absl::Status GPUOperationFromNode(
         auto weights_shape = inputs[1]->desc.GetBHWCShape();
         conv_weights.shape = OHWI(weights_shape.b, weights_shape.h,
                                   weights_shape.w, weights_shape.c);
-        ASSIGN_OR_RETURN(auto output, model_builder->Convolution(
-                                          src, weights, bias_ptr, conv_attr));
+        ABSL_ASSIGN_OR_RETURN(
+            auto output,
+            model_builder->Convolution(src, weights, bias_ptr, conv_attr));
         return model_builder->UpdateOutputTensor(output, outputs[0]->id);
       } else {
         return model_builder->UpdateOutputTensor(
@@ -1415,7 +1436,7 @@ absl::Status GPUOperationFromNode(
             std::visit([](const auto& w) { return w.shape; }, attr.weights),
             attr.scale.shape);
       }
-      ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
+      ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       auto output = model_builder->FullyConnected(src, attr);
       return model_builder->UpdateOutputTensor(output, outputs[0]->id);
     }
@@ -1429,7 +1450,7 @@ absl::Status GPUOperationFromNode(
             std::visit([](const auto& w) { return w.shape; }, attr.weights),
             attr.scale.shape);
       }
-      ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
+      ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       auto output = model_builder->FullyConnected(src, attr);
       return model_builder->UpdateOutputTensor(output, outputs[0]->id);
     }
@@ -1442,7 +1463,7 @@ absl::Status GPUOperationFromNode(
             src_ids, dst_ids, model_builder, attr.weights.shape,
             attr.scale.shape);
       }
-      ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
+      ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       auto output = model_builder->FullyConnected(src, attr);
       return model_builder->UpdateOutputTensor(output, outputs[0]->id);
     }
@@ -1453,8 +1474,9 @@ absl::Status GPUOperationFromNode(
     }
     case OperationType::GATHER: {
       const auto& attr = std::any_cast<const GatherAttributes&>(node.attr);
-      ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
-      ASSIGN_OR_RETURN(auto indices, model_builder->GetTensor(inputs[1]->id));
+      ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
+      ABSL_ASSIGN_OR_RETURN(auto indices,
+                            model_builder->GetTensor(inputs[1]->id));
       auto output = model_builder->Gather(src, indices, attr.axis);
       return model_builder->UpdateOutputTensor(output, outputs[0]->id);
     }
@@ -1517,8 +1539,9 @@ absl::Status GPUOperationFromNode(
             "PositionalEmbedding operation expects 2 inputs and a single "
             "output.");
       }
-      ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
-      ASSIGN_OR_RETURN(auto position, model_builder->GetTensor(inputs[1]->id));
+      ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
+      ABSL_ASSIGN_OR_RETURN(auto position,
+                            model_builder->GetTensor(inputs[1]->id));
       return model_builder->UpdateOutputTensor(
           model_builder->PositionalEmbedding(src, position), outputs[0]->id);
     }
@@ -1532,7 +1555,7 @@ absl::Status GPUOperationFromNode(
     case OperationType::QUANTIZE_AND_DEQUANTIZE: {
       const auto& attr =
           std::any_cast<const QuantizeAndDequantizeAttributes&>(node.attr);
-      ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
+      ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       auto output = model_builder->QuantizeAndDequantize(src, attr);
       return model_builder->UpdateOutputTensor(output, outputs[0]->id);
     }
@@ -1550,7 +1573,7 @@ absl::Status GPUOperationFromNode(
       return absl::OkStatus();
     }
     case OperationType::RESHAPE: {
-      ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
+      ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       if (const auto* attr3d = std::any_cast<Reshape3DAttributes>(&node.attr)) {
         auto output = model_builder->Reshape(src, attr3d->new_shape);
         return model_builder->UpdateOutputTensor(output, outputs[0]->id);
@@ -1563,7 +1586,7 @@ absl::Status GPUOperationFromNode(
     case OperationType::RESIZE: {
       const auto& attr = std::any_cast<const Resize2DAttributes&>(node.attr);
       std::unique_ptr<GPUOperation> gpu_op;
-      RETURN_IF_ERROR(SelectResize(attr, op_def, &gpu_op));
+      ABSL_RETURN_IF_ERROR(SelectResize(attr, op_def, &gpu_op));
       model_builder->AddGpuOperation(src_ids, dst_ids, std::move(gpu_op),
                                      node.name);
       return absl::OkStatus();
@@ -1598,7 +1621,7 @@ absl::Status GPUOperationFromNode(
       return absl::OkStatus();
     }
     case OperationType::SLICE: {
-      ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
+      ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       if (const auto* attr3d = std::any_cast<Slice3DAttributes>(&node.attr)) {
         return model_builder->UpdateOutputTensor(
             model_builder->StridedSlice(src, *attr3d), outputs[0]->id);
@@ -1609,8 +1632,8 @@ absl::Status GPUOperationFromNode(
       }
     }
     case OperationType::SOFTMAX: {
-      ASSIGN_OR_RETURN(GpuModelBuilder::TensorHandle src,
-                       model_builder->GetTensor(inputs[0]->id));
+      ABSL_ASSIGN_OR_RETURN(GpuModelBuilder::TensorHandle src,
+                            model_builder->GetTensor(inputs[0]->id));
       return model_builder->UpdateOutputTensor(model_builder->Softmax(src),
                                                outputs[0]->id);
     }
@@ -1631,26 +1654,26 @@ absl::Status GPUOperationFromNode(
         sizes[i] = outputs[i]->desc.GetBHWCShape().get(attr.axis);
         output_ids[i] = outputs[i]->id;
       }
-      ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
+      ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       return model_builder->UpdateOutputTensors(
           model_builder->Split(src, attr.axis, sizes), output_ids);
     }
     case OperationType::TILE: {
-      ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
+      ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       return model_builder->UpdateOutputTensor(
           model_builder->Tile(src, outputs[0]->desc.GetBHWDCShape()),
           outputs[0]->id);
     }
     case OperationType::TOP_K: {
       const auto& attr = std::any_cast<const TopKAttributes&>(node.attr);
-      ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
+      ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       return model_builder->UpdateOutputTensors(
           model_builder->TopK(src, attr.k),
           {static_cast<ValueId>(outputs[0]->id),
            static_cast<ValueId>(outputs[1]->id)});
     }
     case OperationType::TRANSPOSE: {
-      ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
+      ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       if (const auto* attr3d =
               std::any_cast<Transpose3DAttributes>(&node.attr)) {
         return model_builder->UpdateOutputTensor(

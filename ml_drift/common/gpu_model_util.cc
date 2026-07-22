@@ -178,8 +178,8 @@ absl::StatusOr<TensorDescriptor> GetExternallyProvidedTensorDesc(
       return absl::InvalidArgumentError(
           "Currently external can be used only for graph inputs/outputs");
     }
-    RETURN_IF_ERROR(CheckExternalTensorDescription(gpu_info, tensor_desc,
-                                                   value->tensor.shape));
+    ABSL_RETURN_IF_ERROR(CheckExternalTensorDescription(gpu_info, tensor_desc,
+                                                        value->tensor.shape));
   }
   return tensor_desc;
 }
@@ -229,7 +229,8 @@ absl::StatusOr<TensorDescriptor> GetTensorDescForValue(
     }
   }
   auto tensor_desc = TensorDescriptor{data_type, storage_type, layout};
-  RETURN_IF_ERROR(tensor_desc.UpdateToSupportedStorageType(gpu_info, shape));
+  ABSL_RETURN_IF_ERROR(
+      tensor_desc.UpdateToSupportedStorageType(gpu_info, shape));
 
   if (gpu_info.IsApiMetal() && storage_type == TensorStorageType::TEXTURE_2D &&
       !gpu_info.apple_info.IsFamilyApple1()) {
@@ -264,9 +265,9 @@ absl::Status ReserveGraphTensors(const CreateGpuModelInfo& create_info,
   }
   ValueId max_id = 0;
   for (Value* value : graph.values()) {
-    ASSIGN_OR_RETURN(auto tensor_desc,
-                     GetTensorDescForValue(create_info, gpu_info, graph,
-                                           cast_graph_outputs, value));
+    ABSL_ASSIGN_OR_RETURN(auto tensor_desc,
+                          GetTensorDescForValue(create_info, gpu_info, graph,
+                                                cast_graph_outputs, value));
     tensor_desc.SetBHWCShape(value->tensor.shape);
     tensor_reserver->Add(value->id, tensor_desc);
     max_id = std::max(max_id, value->id);
@@ -282,18 +283,18 @@ absl::Status ReserveGraphTensors(const CreateGpuModelInfo& create_info,
       auto outputs = graph.FindOutputs(node.id);
       auto tensor_desc = tensor_reserver->Get(outputs[0]->id);
       if (auto tensor_f32 = std::get_if<TensorFloat32>(&attr.tensor)) {
-        RETURN_IF_ERROR(CheckShapes(tensor_desc, tensor_f32->shape));
+        ABSL_RETURN_IF_ERROR(CheckShapes(tensor_desc, tensor_f32->shape));
         tensor_desc.UploadData(*tensor_f32);
       } else if (auto* tensor_float16 =
                      std::get_if<TensorFloat16>(&attr.tensor);
                  tensor_float16 != nullptr) {
-        RETURN_IF_ERROR(CheckShapes(tensor_desc, tensor_float16->shape));
+        ABSL_RETURN_IF_ERROR(CheckShapes(tensor_desc, tensor_float16->shape));
         tensor_desc.UploadData(*tensor_float16);
       } else if (auto tensor_bool = std::get_if<TensorBool>(&attr.tensor)) {
-        RETURN_IF_ERROR(CheckShapes(tensor_desc, tensor_bool->shape));
+        ABSL_RETURN_IF_ERROR(CheckShapes(tensor_desc, tensor_bool->shape));
         tensor_desc.UploadData(*tensor_bool);
       } else if (auto tensor_int32 = std::get_if<TensorInt32>(&attr.tensor)) {
-        RETURN_IF_ERROR(CheckShapes(tensor_desc, tensor_int32->shape));
+        ABSL_RETURN_IF_ERROR(CheckShapes(tensor_desc, tensor_int32->shape));
         tensor_desc.UploadData(*tensor_int32);
       } else {
         return absl::InvalidArgumentError(
@@ -310,11 +311,13 @@ absl::StatusOr<OperationDef> GetOperationDef(const std::vector<Value*>& inputs,
                                              GpuModelBuilder* model_builder) {
   OperationDef op_def;
   for (int j = 0; j < inputs.size(); ++j) {
-    ASSIGN_OR_RETURN(const auto& th, model_builder->GetTensor(inputs[j]->id));
+    ABSL_ASSIGN_OR_RETURN(const auto& th,
+                          model_builder->GetTensor(inputs[j]->id));
     op_def.src_tensors.push_back(th.tensor_desc);
   }
   for (int j = 0; j < outputs.size(); ++j) {
-    ASSIGN_OR_RETURN(const auto& th, model_builder->GetTensor(outputs[j]->id));
+    ABSL_ASSIGN_OR_RETURN(const auto& th,
+                          model_builder->GetTensor(outputs[j]->id));
     op_def.dst_tensors.push_back(th.tensor_desc);
   }
   return op_def;
@@ -366,10 +369,10 @@ absl::Status ConvertOperations(const GraphFloat32& graph,
         std::swap(inputs[0], inputs[latest_written_tensor_index]);
       }
       new_consumed_nodes = {node.id};
-      ASSIGN_OR_RETURN(const auto& op_def,
-                       GetOperationDef(inputs, outputs, model_builder));
-      RETURN_IF_ERROR(op_selector.GPUOperationFromNode(op_def, inputs, outputs,
-                                                       node, model_builder));
+      ABSL_ASSIGN_OR_RETURN(const auto& op_def,
+                            GetOperationDef(inputs, outputs, model_builder));
+      ABSL_RETURN_IF_ERROR(op_selector.GPUOperationFromNode(
+          op_def, inputs, outputs, node, model_builder));
     }
     for (const auto& consumed_node_id : new_consumed_nodes) {
       auto outputs = graph.FindOutputs(consumed_node_id);
@@ -428,7 +431,7 @@ absl::Status GraphToGpuModel(const GraphFloat32& graph,
         "fp16 support).");
   }
   TensorReserver tensor_reserver;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       ReserveGraphTensors(create_info, gpu_info, graph, &tensor_reserver));
   GpuModelBuilderOptions options = {
       .hints = create_info.hints,
@@ -439,7 +442,7 @@ absl::Status GraphToGpuModel(const GraphFloat32& graph,
   GpuModelBuilder model_builder(
       gpu_info, options, std::move(tensor_reserver.tensors_),
       std::move(tensor_reserver.const_tensors_), weights_manager);
-  RETURN_IF_ERROR(ConvertOperations(graph, op_selector, &model_builder));
+  ABSL_RETURN_IF_ERROR(ConvertOperations(graph, op_selector, &model_builder));
   std::vector<std::pair<ValueId, ValueId>> input_ids_and_refs(
       graph.inputs().size());
   for (int i = 0; i < graph.inputs().size(); ++i) {
@@ -486,8 +489,8 @@ absl::Status GraphToGpuModelWithWeightsConversion(
     std::vector<WeightsManager::UploadWeightsInfo>* upload_weights_info) {
   auto weights_manager = std::make_shared<WeightsManager>();
   DefaultOpSelector op_selector(create_info, gpu_info);
-  RETURN_IF_ERROR(GraphToGpuModel(graph, create_info, gpu_info, op_selector,
-                                  weights_manager, gpu_model));
+  ABSL_RETURN_IF_ERROR(GraphToGpuModel(
+      graph, create_info, gpu_info, op_selector, weights_manager, gpu_model));
   return weights_manager->CreateConversionGpuModel(
       gpu_info, gpu_weights_conversion_model, weights_mapping,
       upload_weights_info);
@@ -501,8 +504,8 @@ absl::Status GraphToGpuModelWithWeightsConversion(
     std::vector<WeightsManager::UploadWeightsInfo>* upload_weights_info,
     OpSelector* op_selector) {
   auto weights_manager = std::make_shared<WeightsManager>();
-  RETURN_IF_ERROR(GraphToGpuModel(graph, create_info, gpu_info, *op_selector,
-                                  weights_manager, gpu_model));
+  ABSL_RETURN_IF_ERROR(GraphToGpuModel(
+      graph, create_info, gpu_info, *op_selector, weights_manager, gpu_model));
   return weights_manager->CreateConversionGpuModel(
       gpu_info, gpu_weights_conversion_model, weights_mapping,
       upload_weights_info);

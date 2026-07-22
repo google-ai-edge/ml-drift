@@ -298,7 +298,8 @@ absl::Status BufferDescriptor::PerformReadAsU16Selector(
   const std::string index = gpu_info.IsGlsl()
                                 ? "ucl::Convert<uint>(" + args[0] + ") >> 1u"
                                 : "(" + args[0] + ") >> 1";
-  RETURN_IF_ERROR(PerformReadSelector(gpu_info, {index}, {}, &read_expression));
+  ABSL_RETURN_IF_ERROR(
+      PerformReadSelector(gpu_info, {index}, {}, &read_expression));
   *result = absl::StrCat("((", read_expression, " >> ((ucl::Convert<uint>(",
                          args[0], ") & 1u) * 16u)) & 65535u)");
   return absl::OkStatus();
@@ -320,7 +321,8 @@ absl::Status BufferDescriptor::PerformReadAsI16Selector(
   const std::string index = gpu_info.IsGlsl()
                                 ? "ucl::Convert<uint>(" + args[0] + ") >> 1u"
                                 : "(" + args[0] + ") >> 1";
-  RETURN_IF_ERROR(PerformReadSelector(gpu_info, {index}, {}, &read_expression));
+  ABSL_RETURN_IF_ERROR(
+      PerformReadSelector(gpu_info, {index}, {}, &read_expression));
   *result = absl::StrCat("((", read_expression, " << ((ucl::Convert<uint>(",
                          args[0], ") ^ 1u) * 16u)) >> 16u)");
   return absl::OkStatus();
@@ -344,7 +346,8 @@ absl::Status BufferDescriptor::PerformReadAsU8Selector(
   const std::string index = gpu_info.IsGlsl()
                                 ? "ucl::Convert<uint>(" + args[0] + ") >> 2u"
                                 : "(" + args[0] + ") >> 2";
-  RETURN_IF_ERROR(PerformReadSelector(gpu_info, {index}, {}, &read_expression));
+  ABSL_RETURN_IF_ERROR(
+      PerformReadSelector(gpu_info, {index}, {}, &read_expression));
   *result = absl::StrCat("((", read_expression, " >> ((ucl::Convert<uint>(",
                          args[0], ") & 3u) * 8u)) & 255u)");
   return absl::OkStatus();
@@ -368,7 +371,8 @@ absl::Status BufferDescriptor::PerformReadAsI8Selector(
   const std::string index = gpu_info.IsGlsl()
                                 ? "ucl::Convert<uint>(" + args[0] + ") >> 2u"
                                 : "(" + args[0] + ") >> 2";
-  RETURN_IF_ERROR(PerformReadSelector(gpu_info, {index}, {}, &read_expression));
+  ABSL_RETURN_IF_ERROR(
+      PerformReadSelector(gpu_info, {index}, {}, &read_expression));
   // bitfieldExtract-like logic for sign extension
   *result = absl::StrCat("((ucl::Convert<int>(", read_expression,
                          ") << ((3u - (ucl::Convert<uint>(", args[0],

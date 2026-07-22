@@ -703,7 +703,7 @@ absl::Status TensorDescriptor::PerformReadSelector(
     return absl::InvalidArgumentError("Expected not empty arguments.");
   }
   DataType read_as_type = data_type_;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       MaybeGetDataTypeFromTemplateArgs(template_args, &read_as_type));
   if (!(gpu_info.IsApiMetal() &&
         gpu_info.metal_info.IsNativeBfloatSupported())) {
@@ -739,7 +739,7 @@ absl::Status TensorDescriptor::PerformReadSelector(
     }
   }
   std::string xc, yc, zc, sc, bc;
-  RETURN_IF_ERROR(ParseCoordsFromArgs(args, 0, &xc, &yc, &zc, &sc, &bc));
+  ABSL_RETURN_IF_ERROR(ParseCoordsFromArgs(args, 0, &xc, &yc, &zc, &sc, &bc));
   *result = Read(gpu_info, read_as_type, GetPhysicalCoords(xc, yc, zc, sc, bc));
   return absl::OkStatus();
 }
@@ -770,7 +770,8 @@ absl::Status TensorDescriptor::PerformReadNearestSelector(
     coord_args[2] = "coord_z_TMP";
   }
   std::string src_value;
-  RETURN_IF_ERROR(PerformReadSelector(gpu_info, coord_args, {}, &src_value));
+  ABSL_RETURN_IF_ERROR(
+      PerformReadSelector(gpu_info, coord_args, {}, &src_value));
   c += "  " + args[0] + " = " + src_value + ";\n";
   c += "  }";
   *result = c;
@@ -817,7 +818,7 @@ absl::Status TensorDescriptor::PerformReadBilinearSelector(
           coord_args[1] = src_y;
           coord_args[2] = src_z;
           std::string src_value;
-          RETURN_IF_ERROR(
+          ABSL_RETURN_IF_ERROR(
               PerformReadSelector(gpu_info, coord_args, {}, &src_value));
           c += "  Type src" + std::to_string(index) + "_TMP = " + src_value +
                ";\n";
@@ -841,7 +842,7 @@ absl::Status TensorDescriptor::PerformReadBilinearSelector(
         coord_args[0] = src_x;
         coord_args[1] = src_y;
         std::string src_value;
-        RETURN_IF_ERROR(
+        ABSL_RETURN_IF_ERROR(
             PerformReadSelector(gpu_info, coord_args, {}, &src_value));
         c += "  Type src" + std::to_string(index) + "_TMP = " + src_value +
              ";\n";
@@ -891,11 +892,12 @@ absl::Status TensorDescriptor::PerformReadPerChannelSelector(
   c += "  int sub_ch_coord_TMP = (" + coord_args[channels_index] + ") % 4;\n";
   coord_args[channels_index] = "slice_coord_TMP";
   std::string src_value;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       PerformReadSelector(gpu_info, coord_args, template_args, &src_value));
   DataType dst_type = data_type_;
   dst_type = dst_type == DataType::BFLOAT16 ? DataType::FLOAT32 : dst_type;
-  RETURN_IF_ERROR(MaybeGetDataTypeFromTemplateArgs(template_args, &dst_type));
+  ABSL_RETURN_IF_ERROR(
+      MaybeGetDataTypeFromTemplateArgs(template_args, &dst_type));
   if (gpu_info.IsApiOpenCl()) {
     c += "  " + ToUclDataType(dst_type, 4) + " src_TMP = " + src_value + ";\n";
     c +=
@@ -939,7 +941,7 @@ absl::Status TensorDescriptor::GetLinkingContextFromWriteSelector(
   std::string zc;
   std::string sc;
   std::string bc;
-  RETURN_IF_ERROR(ParseCoordsFromArgs(args, 1, &xc, &yc, &zc, &sc, &bc));
+  ABSL_RETURN_IF_ERROR(ParseCoordsFromArgs(args, 1, &xc, &yc, &zc, &sc, &bc));
   *value_name = args[0];
   *b_coord = absl::StrCat("(", bc, ")");
   *x_coord = absl::StrCat("(", xc, ")");
@@ -962,7 +964,7 @@ absl::Status TensorDescriptor::PerformWriteSelector(
   std::string zc;
   std::string sc;
   std::string bc;
-  RETURN_IF_ERROR(ParseCoordsFromArgs(args, 1, &xc, &yc, &zc, &sc, &bc));
+  ABSL_RETURN_IF_ERROR(ParseCoordsFromArgs(args, 1, &xc, &yc, &zc, &sc, &bc));
   *result = Write(gpu_info, args[0], GetPhysicalCoords(xc, yc, zc, sc, bc));
   return absl::OkStatus();
 }
@@ -1399,7 +1401,7 @@ std::string TensorDescriptor::Write(
 absl::Status TensorDescriptor::PerformGetAddressSelector(
     const std::vector<std::string>& args, std::string* result) const {
   std::string xc, yc, zc, sc, bc;
-  RETURN_IF_ERROR(ParseCoordsFromArgs(args, 0, &xc, &yc, &zc, &sc, &bc));
+  ABSL_RETURN_IF_ERROR(ParseCoordsFromArgs(args, 0, &xc, &yc, &zc, &sc, &bc));
 
   *result = GetGlobalAddressNoDeclaration(xc, yc, zc, sc, bc);
   return absl::OkStatus();

@@ -92,7 +92,7 @@ absl::Status LstmTest(TestExecutionEnvironment& env,
   TensorFloat32 new_state;
   TensorFloat32 new_activ;
   GPUOperation operation = CreateLSTM(op_def, env.GetGpuInfo());
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor, prev_state},
       std::make_unique<GPUOperation>(std::move(operation)),
       {BHWC(1, 1, 1, 4), BHWC(1, 1, 1, 4)}, {&new_state, &new_activ}));

@@ -60,7 +60,7 @@ absl::Status GetNextSingleNode(const GraphFloat32& graph, const Node& node,
   if (consumers.size() != 1) {
     return absl::NotFoundError("Not a single consumer.");
   }
-  RETURN_IF_ERROR(CheckIfValidNodeOfType(consumers[0], next_type));
+  ABSL_RETURN_IF_ERROR(CheckIfValidNodeOfType(consumers[0], next_type));
   *next_node = consumers[0];
   return absl::OkStatus();
 }
@@ -73,7 +73,7 @@ absl::Status TryMish(const GpuInfo& gpu_info, const GraphFloat32& graph,
                      std::set<NodeId>* new_consumed_nodes,
                      GpuModelBuilder* model_builder) {
   Node* exp_node = graph.GetNode(first_node_id);
-  RETURN_IF_ERROR(CheckIfValidNodeOfType(exp_node, OperationType::EXP));
+  ABSL_RETURN_IF_ERROR(CheckIfValidNodeOfType(exp_node, OperationType::EXP));
   ValueId input = 0;
   if (std::vector<Value*> exp_inputs = graph.FindInputs(exp_node->id);
       exp_inputs.size() == 1) {
@@ -83,7 +83,7 @@ absl::Status TryMish(const GpuInfo& gpu_info, const GraphFloat32& graph,
   }
 
   Node* increment_node = nullptr;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       GetNextSingleNode(graph, *exp_node, OperationType::ADD, &increment_node));
   if (std::vector<Value*> increment_inputs =
           graph.FindInputs(increment_node->id);
@@ -93,19 +93,19 @@ absl::Status TryMish(const GpuInfo& gpu_info, const GraphFloat32& graph,
   } else {
     // Check that this is an increment by 1.
     float value = 0.f;
-    RETURN_IF_ERROR(GetElementwiseScalarValue(increment_node, &value));
+    ABSL_RETURN_IF_ERROR(GetElementwiseScalarValue(increment_node, &value));
     if (value != 1.f) {
       return absl::NotFoundError("Mish not suitable.");
     }
   }
   Node* log_node = nullptr;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       GetNextSingleNode(graph, *increment_node, OperationType::LOG, &log_node));
   Node* tanh_node = nullptr;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       GetNextSingleNode(graph, *log_node, OperationType::TANH, &tanh_node));
   Node* mul_node = nullptr;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       GetNextSingleNode(graph, *tanh_node, OperationType::MUL, &mul_node));
   // Make sure that the other input to mul is the original input.
   if (std::vector<Value*> mul_inputs = graph.FindInputs(mul_node->id);
@@ -119,8 +119,8 @@ absl::Status TryMish(const GpuInfo& gpu_info, const GraphFloat32& graph,
 
   ValueId input_id = graph.FindInputs(exp_node->id)[0]->id;
   ValueId output_id = graph.FindOutputs(mul_node->id)[0]->id;
-  ASSIGN_OR_RETURN(auto src_handle, model_builder->GetTensor(input_id));
-  ASSIGN_OR_RETURN(auto dst_handle, model_builder->GetTensor(output_id));
+  ABSL_ASSIGN_OR_RETURN(auto src_handle, model_builder->GetTensor(input_id));
+  ABSL_ASSIGN_OR_RETURN(auto dst_handle, model_builder->GetTensor(output_id));
   OperationDef op_def;
   op_def.src_tensors.push_back(src_handle.tensor_desc);
   op_def.dst_tensors.push_back(dst_handle.tensor_desc);
@@ -172,7 +172,7 @@ absl::Status GetNextSingleOp(const ir::IrModel& ir_model, const ir::IrOp& op,
     return absl::NotFoundError("Not a single consumer.");
   }
   const ir::IrOp* consumer_op = consumers[0];
-  RETURN_IF_ERROR(CheckIfValidOpOfType(consumer_op, next_type));
+  ABSL_RETURN_IF_ERROR(CheckIfValidOpOfType(consumer_op, next_type));
   *next_op = consumer_op;
   return absl::OkStatus();
 }
@@ -185,7 +185,7 @@ absl::Status TryMish(const GpuInfo& gpu_info, const ir::IrModel& ir_model,
                      absl::flat_hash_set<ir::IrOpId>* new_consumed_ops,
                      GpuModelBuilder* model_builder) {
   const ir::IrOp* exp_op = ir_model.op(first_op_id);
-  RETURN_IF_ERROR(CheckIfValidOpOfType(exp_op, OperationType::EXP));
+  ABSL_RETURN_IF_ERROR(CheckIfValidOpOfType(exp_op, OperationType::EXP));
   GpuModelBuilder::ValueId input = 0;
   if (const auto& exp_inputs = exp_op->inputs; exp_inputs.size() == 1) {
     input = static_cast<GpuModelBuilder::ValueId>(exp_inputs[0]);
@@ -194,7 +194,7 @@ absl::Status TryMish(const GpuInfo& gpu_info, const ir::IrModel& ir_model,
   }
 
   const ir::IrOp* increment_op = nullptr;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       GetNextSingleOp(ir_model, *exp_op, OperationType::ADD, &increment_op));
   if (const auto& increment_inputs = increment_op->inputs;
       increment_inputs.size() != 1) {
@@ -203,19 +203,19 @@ absl::Status TryMish(const GpuInfo& gpu_info, const ir::IrModel& ir_model,
   } else {
     // Check that this is an increment by 1.
     float value = 0.f;
-    RETURN_IF_ERROR(GetElementwiseScalarValue(increment_op, &value));
+    ABSL_RETURN_IF_ERROR(GetElementwiseScalarValue(increment_op, &value));
     if (value != 1.f) {
       return absl::NotFoundError("Mish not suitable.");
     }
   }
   const ir::IrOp* log_op = nullptr;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       GetNextSingleOp(ir_model, *increment_op, OperationType::LOG, &log_op));
   const ir::IrOp* tanh_op = nullptr;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       GetNextSingleOp(ir_model, *log_op, OperationType::TANH, &tanh_op));
   const ir::IrOp* mul_op = nullptr;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       GetNextSingleOp(ir_model, *tanh_op, OperationType::MUL, &mul_op));
   // Make sure that the other input to mul is the original input.
   if (const auto& mul_inputs = mul_op->inputs; mul_inputs.size() != 2) {
@@ -230,8 +230,8 @@ absl::Status TryMish(const GpuInfo& gpu_info, const ir::IrModel& ir_model,
       static_cast<GpuModelBuilder::ValueId>(exp_op->inputs[0]);
   GpuModelBuilder::ValueId output_id =
       static_cast<GpuModelBuilder::ValueId>(mul_op->outputs[0]);
-  ASSIGN_OR_RETURN(auto src_handle, model_builder->GetTensor(input_id));
-  ASSIGN_OR_RETURN(auto dst_handle, model_builder->GetTensor(output_id));
+  ABSL_ASSIGN_OR_RETURN(auto src_handle, model_builder->GetTensor(input_id));
+  ABSL_ASSIGN_OR_RETURN(auto dst_handle, model_builder->GetTensor(output_id));
   OperationDef op_def;
   op_def.src_tensors.push_back(src_handle.tensor_desc);
   op_def.dst_tensors.push_back(dst_handle.tensor_desc);

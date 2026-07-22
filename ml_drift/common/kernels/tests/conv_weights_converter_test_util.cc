@@ -133,7 +133,7 @@ absl::Status ConvolutionWeightsConverterTest(
   auto converter_from_ohwi =
       ConverterToConvWeights(gpu_info, op_def, weights.shape, dst_weights_desc,
                              /*input layout*/ Layout::OHWI);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor_as_ohwi},
       std::make_unique<ConverterToConvWeights>(std::move(converter_from_ohwi)),
       dst_shapes, dst_ptrs));
@@ -145,7 +145,7 @@ absl::Status ConvolutionWeightsConverterTest(
   auto converter_from_hwio =
       ConverterToConvWeights(gpu_info, op_def, weights.shape, dst_weights_desc,
                              /*input layout*/ Layout::HWIO);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor_as_hwio},
       std::make_unique<ConverterToConvWeights>(std::move(converter_from_hwio)),
       dst_shapes, dst_ptrs));
@@ -188,7 +188,7 @@ absl::Status ConvolutionWeightsConverterRawInputTest(
   std::vector<TensorDescriptor*> src_cpu_desc_ptrs{&op_def.src_tensors.at(0)};
   std::vector<TensorDescriptor*> dst_cpu_desc_ptrs{&dst_cpu_desc};
 
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_cpu_desc_ptrs, dst_cpu_desc_ptrs,
       std::make_unique<ConverterToConvWeights>(gpu_info, op_def, weights.shape,
                                                weight_desc, Layout::OHWI)));
@@ -223,7 +223,7 @@ absl::Status ConverterToConvWeights1x1OutX4Test(TestExecutionEnvironment& env,
   op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
   op_def.dst_tensors.push_back(
       {data_type, TensorStorageType::BUFFER, Layout::UNKNOWN});
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       ConvolutionWeightsConverterTest(weights, conv_weight_desc, env, op_def));
   return absl::OkStatus();
 }
@@ -250,7 +250,7 @@ absl::Status ConverterToConvWeights1x1OutX4UnalignedTest(
   op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
   op_def.dst_tensors.push_back(
       {data_type, TensorStorageType::BUFFER, Layout::UNKNOWN});
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       ConvolutionWeightsConverterTest(weights, conv_weight_desc, env, op_def));
   return absl::OkStatus();
 }
@@ -278,7 +278,7 @@ absl::Status ConverterToConvWeights1x1OutX2Test(TestExecutionEnvironment& env,
   op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
   op_def.dst_tensors.push_back(
       {data_type, TensorStorageType::BUFFER, Layout::UNKNOWN});
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       ConvolutionWeightsConverterTest(weights, conv_weight_desc, env, op_def));
   return absl::OkStatus();
 }
@@ -306,7 +306,7 @@ absl::Status ConverterToConvWeightsOutX2Test(TestExecutionEnvironment& env,
   op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
   op_def.dst_tensors.push_back(
       {data_type, TensorStorageType::BUFFER, Layout::UNKNOWN});
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       ConvolutionWeightsConverterTest(weights, conv_weight_desc, env, op_def));
   return absl::OkStatus();
 }
@@ -334,7 +334,7 @@ absl::Status ConverterToConvTransposedWeights4x4Test(
   op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
   op_def.dst_tensors.push_back(
       {data_type, TensorStorageType::BUFFER, Layout::UNKNOWN});
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       ConvolutionWeightsConverterTest(weights, weight_desc, env, op_def));
   return absl::OkStatus();
 }
@@ -367,7 +367,7 @@ absl::Status ConverterToConvWeights4xTexturesTest(
       {data_type, TensorStorageType::TEXTURE_2D, Layout::HWC});
   op_def.dst_tensors.push_back(
       {data_type, TensorStorageType::TEXTURE_2D, Layout::HWC});
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       ConvolutionWeightsConverterTest(weights, conv_weight_desc, env, op_def));
   return absl::OkStatus();
 }
@@ -402,7 +402,7 @@ absl::Status ConverterToConvWeightsFloat32OHWItoFloat32Test(
   OperationDef op_def;
   op_def.src_tensors.push_back(src_raw_ohwi);
   op_def.dst_tensors.push_back(dst_descriptor);
-  RETURN_IF_ERROR(ConvolutionWeightsConverterRawInputTest(
+  ABSL_RETURN_IF_ERROR(ConvolutionWeightsConverterRawInputTest(
       weights, conv_weight_desc, env, data_type, op_def));
   return absl::OkStatus();
 }
@@ -458,7 +458,7 @@ absl::Status ConverterToConvWeightsInt8OHWIToUint8Test(
   TensorDescriptor& dst_cpu_desc = op_def.dst_tensors.at(0);
   std::vector<TensorDescriptor*> src_cpu_desc_ptrs{&op_def.src_tensors.at(0)};
   std::vector<TensorDescriptor*> dst_cpu_desc_ptrs{&dst_cpu_desc};
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_cpu_desc_ptrs, dst_cpu_desc_ptrs,
       std::make_unique<ConverterToConvWeights>(
           gpu_info, op_def, weights.shape, conv_weight_desc, Layout::OHWI)));
@@ -535,7 +535,7 @@ absl::Status ConverterToConvWeightsInt4OHWIToUint4Test(
   TensorDescriptor& dst_cpu_desc = op_def.dst_tensors.at(0);
   std::vector<TensorDescriptor*> src_cpu_desc_ptrs{&op_def.src_tensors.at(0)};
   std::vector<TensorDescriptor*> dst_cpu_desc_ptrs{&dst_cpu_desc};
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       env.ExecuteGPUOperation(src_cpu_desc_ptrs, dst_cpu_desc_ptrs,
                               std::make_unique<ConverterToConvWeights>(
                                   gpu_info, op_def, src_int4_weights.shape,
@@ -616,7 +616,7 @@ absl::Status ConverterToConvWeightsInt2OHWIToUint2Test(
   TensorDescriptor& dst_cpu_desc = op_def.dst_tensors.at(0);
   std::vector<TensorDescriptor*> src_cpu_desc_ptrs{&op_def.src_tensors.at(0)};
   std::vector<TensorDescriptor*> dst_cpu_desc_ptrs{&dst_cpu_desc};
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       env.ExecuteGPUOperation(src_cpu_desc_ptrs, dst_cpu_desc_ptrs,
                               std::make_unique<ConverterToConvWeights>(
                                   gpu_info, op_def, src_int2_weights.shape,
@@ -708,7 +708,7 @@ absl::Status ConverterToConvWeightsInt2OHWIToFloatTest(
   auto zp_desc = ScaleOrZeroPointToTensorDesc(
       env.GetGpuInfo(), weights_zero_point_f32, DataType::FLOAT32);
 
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_raw_ohwi, &scale_desc, &zp_desc}, {&dst_desc},
       std::make_unique<ConverterToConvWeights>(
           gpu_info, op_def, src_int2_weights.shape, conv_weight_desc,
@@ -787,7 +787,7 @@ absl::Status ConverterToConvWeightsInt4OHWIToFloatTest(
   auto zp_desc = ScaleOrZeroPointToTensorDesc(
       env.GetGpuInfo(), weights_zero_point_f32, DataType::FLOAT32);
 
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_raw_ohwi, &scale_desc, &zp_desc}, {&dst_desc},
       std::make_unique<ConverterToConvWeights>(
           gpu_info, op_def, src_int4_weights.shape, conv_weight_desc,
@@ -859,7 +859,7 @@ absl::Status ConverterToConvWeightsInt8OHWIToFloatTest(
   auto zp_desc = ScaleOrZeroPointToTensorDesc(
       env.GetGpuInfo(), weights_zero_point_f32, DataType::FLOAT32);
 
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_raw_ohwi, &scale_desc, &zp_desc}, {&dst_desc},
       std::make_unique<ConverterToConvWeights>(
           gpu_info, op_def, src_int8_weights.shape, conv_weight_desc,
@@ -887,7 +887,7 @@ absl::Status ConverterToOSpatialIOGroupITileOTileIXTest(
       {DataType::FLOAT32, TensorStorageType::BUFFER, Layout::BHWC});
   op_def.dst_tensors.push_back(
       {DataType::FLOAT32, TensorStorageType::BUFFER, Layout::UNKNOWN});
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       ConvolutionWeightsConverterTest(weights, weight_desc, env, op_def));
   return absl::OkStatus();
 }
@@ -967,7 +967,7 @@ absl::Status ConverterToISpatialOI4O4UnalignedIOTest(
   auto converter_from_ohwi =
       ConverterToConvWeights(gpu_info, op_def, weights.shape, weight_desc,
                              /*input layout*/ Layout::OHWI);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor_as_ohwi},
       std::make_unique<ConverterToConvWeights>(std::move(converter_from_ohwi)),
       {dst_tensor.shape}, std::vector<TensorFloat32*>{&dst_tensor_gpu}));
@@ -976,7 +976,7 @@ absl::Status ConverterToISpatialOI4O4UnalignedIOTest(
   auto converter_from_hwio =
       ConverterToConvWeights(gpu_info, op_def, weights.shape, weight_desc,
                              /*input layout*/ Layout::HWIO);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor_as_hwio},
       std::make_unique<ConverterToConvWeights>(std::move(converter_from_hwio)),
       {dst_tensor.shape}, std::vector<TensorFloat32*>{&dst_tensor_gpu}));
@@ -1056,7 +1056,7 @@ absl::Status ConverterToCustomGroupsTest(
   auto converter_from_ohwi =
       ConverterToConvWeights(gpu_info, op_def, weights.shape, weights_desc,
                              /*input layout*/ Layout::OHWI);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor_as_ohwi},
       std::make_unique<ConverterToConvWeights>(std::move(converter_from_ohwi)),
       {dst_tensor.shape}, std::vector<TensorFloat32*>{&dst_tensor_gpu}));
@@ -1065,7 +1065,7 @@ absl::Status ConverterToCustomGroupsTest(
   auto converter_from_hwio =
       ConverterToConvWeights(gpu_info, op_def, weights.shape, weights_desc,
                              /*input layout*/ Layout::HWIO);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor_as_hwio},
       std::make_unique<ConverterToConvWeights>(std::move(converter_from_hwio)),
       {dst_tensor.shape}, std::vector<TensorFloat32*>{&dst_tensor_gpu}));
@@ -1164,7 +1164,7 @@ absl::Status Int8ToFloatWeightsConverterTest(
   for (int i = 0; i < dst_ptrs.size(); ++i) {
     dst_ptrs[i] = &weights_f32_td[i];
   }
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&weights_i8_td, &scale_desc, &zp_desc}, dst_ptrs,
       std::make_unique<WeightsConverter>(std::move(int8_to_float_converter))));
   for (int i = 0; i < weights_f32_refs.size(); ++i) {
@@ -1271,7 +1271,7 @@ absl::Status Int4ToFloatWeightsConverterTest(
   for (int i = 0; i < dst_ptrs.size(); ++i) {
     dst_ptrs[i] = &weights_f32_td[i];
   }
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&weights_i4_td, &scale_desc, &zp_desc}, dst_ptrs,
       std::make_unique<WeightsConverter>(std::move(int4_to_float_converter))));
   for (int i = 0; i < weights_f32_refs.size(); ++i) {
@@ -1378,7 +1378,7 @@ absl::Status Int2ToFloatWeightsConverterTest(
   for (int i = 0; i < dst_ptrs.size(); ++i) {
     dst_ptrs[i] = &weights_f32_td[i];
   }
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&weights_i2_td, &scale_desc, &zp_desc}, dst_ptrs,
       std::make_unique<WeightsConverter>(std::move(int2_to_float_converter))));
   for (int i = 0; i < weights_f32_refs.size(); ++i) {
@@ -1476,7 +1476,7 @@ absl::Status Int8ToFloatWeightsWithRuntimeInputTest(
   TensorFloat32 zero_tensor =
       MakeZeroTensor(weights_f32_refs[0].GetBHWCShape());
   weights_f32_td.UploadData(zero_tensor);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&weights_i8_td, &scale_desc, &zp_desc, &params_td}, {&weights_f32_td},
       std::make_unique<WeightsConverter>(std::move(int8_to_float_converter))));
   int i_slices = DivideRoundUp(i_channels, 4);
@@ -1592,7 +1592,7 @@ absl::Status Int8ToFloatWeightsWithRuntimeOutputTest(
   TensorFloat32 zero_tensor =
       MakeZeroTensor(weights_f32_refs[0].GetBHWCShape());
   weights_f32_td.UploadData(zero_tensor);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&weights_i8_td, &scale_desc, &zp_desc, &params_td}, {&weights_f32_td},
       std::make_unique<WeightsConverter>(std::move(int8_to_float_converter))));
   int i_slices = DivideRoundUp(i_channels, 4);
@@ -1689,7 +1689,7 @@ absl::Status Int8ToUint8WeightsConverterTest(
   WeightsConverter int8_to_uint8_converter(env.GetGpuInfo(), op_def,
                                            weights_i8.shape, src_weights_desc,
                                            dst_weights_desc);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_weights_i8_td}, {&dst_weights_ui8_td},
       std::make_unique<WeightsConverter>(std::move(int8_to_uint8_converter))));
   auto data = dst_weights_ui8_td.GetData();
@@ -1754,7 +1754,7 @@ absl::Status FloatToFloatWeightsConverterTest(
   for (int i = 0; i < dst_ptrs.size(); ++i) {
     dst_ptrs[i] = &weights_f32_td[i];
   }
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&weights_src_td}, dst_ptrs,
       std::make_unique<WeightsConverter>(std::move(converter))));
   for (int i = 0; i < weights_f32_refs.size(); ++i) {
@@ -1825,7 +1825,7 @@ absl::Status Uint8ToInt8WeightsConverterTest(
   WeightsConverter uint8_to_int8_converter(env.GetGpuInfo(), op_def,
                                            weights_i8.shape, src_weights_desc,
                                            dst_weights_desc);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&weights_ui8_td}, {&weights_dst_i8_td},
       std::make_unique<WeightsConverter>(std::move(uint8_to_int8_converter))));
   auto data = weights_dst_i8_td.GetData();
@@ -1888,7 +1888,7 @@ absl::Status Uint4ToInt8WeightsConverterTest(
   WeightsConverter uint4_to_int8_converter(env.GetGpuInfo(), op_def,
                                            weights_i4.shape, src_weights_desc,
                                            dst_weights_desc);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&weights_ui4_td}, {&weights_dst_i8_td},
       std::make_unique<WeightsConverter>(std::move(uint4_to_int8_converter))));
   auto data = weights_dst_i8_td.GetData();
@@ -1951,7 +1951,7 @@ absl::Status Uint2ToInt8WeightsConverterTest(
   WeightsConverter uint2_to_int8_converter(env.GetGpuInfo(), op_def,
                                            weights_i2.shape, src_weights_desc,
                                            dst_weights_desc);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&weights_ui2_td}, {&weights_dst_i8_td},
       std::make_unique<WeightsConverter>(std::move(uint2_to_int8_converter))));
   auto data = weights_dst_i8_td.GetData();
@@ -2014,7 +2014,7 @@ absl::Status Uint8ToUint8WeightsConverterTest(
   WeightsConverter uint8_to_uint8_converter(env.GetGpuInfo(), op_def,
                                             weights_i8.shape, src_weights_desc,
                                             dst_weights_desc);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&weights_ui8_td}, {&weights_dst_ui8_td},
       std::make_unique<WeightsConverter>(std::move(uint8_to_uint8_converter))));
   auto data = weights_dst_ui8_td.GetData();
@@ -2078,7 +2078,7 @@ absl::Status Uint4ToUint8WeightsConverterTest(
   WeightsConverter uint4_to_uint8_converter(env.GetGpuInfo(), op_def,
                                             weights_i4.shape, src_weights_desc,
                                             dst_weights_desc);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&weights_ui4_td}, {&weights_dst_ui8_td},
       std::make_unique<WeightsConverter>(std::move(uint4_to_uint8_converter))));
   auto data = weights_dst_ui8_td.GetData();
@@ -2142,7 +2142,7 @@ absl::Status Uint2ToUint8WeightsConverterTest(
   WeightsConverter uint2_to_int8_converter(env.GetGpuInfo(), op_def,
                                            weights_i2.shape, src_weights_desc,
                                            dst_weights_desc);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&weights_ui2_td}, {&weights_dst_ui8_td},
       std::make_unique<WeightsConverter>(std::move(uint2_to_int8_converter))));
   auto data = weights_dst_ui8_td.GetData();
@@ -2206,7 +2206,7 @@ absl::Status Uint4ToInt4WeightsConverterTest(
   WeightsConverter uint4_to_int4_converter(env.GetGpuInfo(), op_def,
                                            weights_i4.shape, src_weights_desc,
                                            dst_weights_desc);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&weights_ui4_td}, {&weights_dst_i4_td},
       std::make_unique<WeightsConverter>(std::move(uint4_to_int4_converter))));
   auto data = weights_dst_i4_td.GetData();
@@ -2270,7 +2270,7 @@ absl::Status Uint2ToInt4WeightsConverterTest(
   WeightsConverter uint2_to_int4_converter(env.GetGpuInfo(), op_def,
                                            weights_i2.shape, src_weights_desc,
                                            dst_weights_desc);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&weights_ui2_td}, {&weights_dst_i4_td},
       std::make_unique<WeightsConverter>(std::move(uint2_to_int4_converter))));
   auto data = weights_dst_i4_td.GetData();

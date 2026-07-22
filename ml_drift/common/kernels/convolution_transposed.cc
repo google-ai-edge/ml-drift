@@ -565,7 +565,7 @@ std::string ConvolutionTransposed::GenerateConvolutionTransposedCode(
 
 absl::Status ConvolutionTransposed::BindArguments(ArgumentsBinder* args) {
   const int aligned_h = AlignByN(dst_[0]->Height(), stride_.y * block_size_.y);
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       args->SetInt("grid_size_y", DivideRoundUp(aligned_h, block_size_.y)));
   return absl::OkStatus();
 }

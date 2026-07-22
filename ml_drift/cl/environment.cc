@@ -260,23 +260,24 @@ bool CanUseSubBufferForImage2d(const GpuInfo& gpu_info) {
 absl::Status CreateEnvironment(Environment* result,
                                const EnvironmentOptions& options) {
   CLDevice gpu;
-  RETURN_IF_ERROR(CreateDefaultGPUDevice(&gpu));
+  ABSL_RETURN_IF_ERROR(CreateDefaultGPUDevice(&gpu));
 
   CLContextOptions context_options;
   context_options.performance = options.performance;
   context_options.priority = options.priority;
 
   CLContext context;
-  RETURN_IF_ERROR(CreateCLContext(gpu, &context, context_options));
+  ABSL_RETURN_IF_ERROR(CreateCLContext(gpu, &context, context_options));
 
   CLCommandQueueOptions queue_options;
   queue_options.priority = options.priority;
 
   CLCommandQueue queue;
-  RETURN_IF_ERROR(CreateCLCommandQueue(gpu, context, &queue, queue_options));
+  ABSL_RETURN_IF_ERROR(
+      CreateCLCommandQueue(gpu, context, &queue, queue_options));
   ProfilingCommandQueue profiling_queue;
-  RETURN_IF_ERROR(CreateProfilingCommandQueue(gpu, context, &profiling_queue,
-                                              queue_options));
+  ABSL_RETURN_IF_ERROR(CreateProfilingCommandQueue(
+      gpu, context, &profiling_queue, queue_options));
 
   *result = Environment(std::move(gpu), std::move(context), std::move(queue),
                         std::move(profiling_queue));

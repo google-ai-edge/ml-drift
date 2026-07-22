@@ -29,8 +29,6 @@ cc_library(
         "//ml_drift/common:tensor",
         "//ml_drift/common/transformations:fuse_add_to_conv",
         "//ml_drift/common/transformations:fuse_mul_to_conv",
-        "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:statusor",
     ],
 )
 

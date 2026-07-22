@@ -300,7 +300,7 @@ class MetricsCollectorImpl : public InternalMetricsCollector {
 #else
     std::vector<int64_t> querry_buffer_data(
         query_buffer_.GetMemorySizeInBytes() / 8);
-    RETURN_IF_ERROR(ReadDataFromBuffer(
+    ABSL_RETURN_IF_ERROR(ReadDataFromBuffer(
         environment_->device(), environment_->queue(),
         dst_buffer_.GetMemoryHandle(), query_buffer_.GetMemorySizeInBytes(),
         querry_buffer_data.data()));

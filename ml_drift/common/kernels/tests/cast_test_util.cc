@@ -51,7 +51,7 @@ absl::Status CastBaseTest(TestExecutionEnvironment& env,
   src_desc.UploadData(src);
   dst_desc.SetBHWCShape(BHWC(1, 2, 1, 2));
   GPUOperation operation = CreateCast(op_def, env.GetGpuInfo());
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
@@ -80,7 +80,7 @@ absl::Status CastToBoolTest(TestExecutionEnvironment& env,
   src_desc.UploadData(src);
   dst_desc.SetBHWCShape(BHWC(1, 2, 1, 2));
   GPUOperation operation = CreateCast(op_def, env.GetGpuInfo());
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
@@ -109,7 +109,7 @@ absl::Status CastFromBoolTest(TestExecutionEnvironment& env,
   src_desc.UploadData(src);
   dst_desc.SetBHWCShape(BHWC(1, 2, 1, 2));
   GPUOperation operation = CreateCast(op_def, env.GetGpuInfo());
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
@@ -138,7 +138,7 @@ absl::Status CastToBfloatTest(TestExecutionEnvironment& env,
   src_desc.UploadData(src);
   dst_desc.SetBHWCShape(BHWC(1, 2, 1, 2));
   GPUOperation operation = CreateCast(op_def, env.GetGpuInfo());
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
@@ -167,7 +167,7 @@ absl::Status CastFromBfloatTest(TestExecutionEnvironment& env,
   src_desc.UploadData(src);
   dst_desc.SetBHWCShape(BHWC(1, 2, 1, 2));
   GPUOperation operation = CreateCast(op_def, env.GetGpuInfo());
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 

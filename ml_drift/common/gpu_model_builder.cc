@@ -87,36 +87,6 @@ namespace {
 
 const size_t kDefaultBatchSize = 32;
 
-TensorDescriptor ZeroPoint2DToFCTensorDesc(
-    const GpuInfo& gpu_info, const Tensor<OHWI, DataType::INT32>& src,
-    DataType dst_data_type) {
-  const int width = DivideRoundUp(src.shape.o, 4);
-  const int height = src.shape.i;
-  // OIToIOO4<float>
-  std::vector<float> data(width * height * 4);
-  for (int y = 0; y < height; ++y) {
-    for (int x = 0; x < width; ++x) {
-      for (int ch = 0; ch < 4; ++ch) {
-        const int dst_ch = x * 4 + ch;
-        data[(y * width + x) * 4 + ch] =
-            dst_ch < src.shape.o
-                ? src.data[src.shape.LinearIndex({dst_ch, 0, 0, y})]
-                : 0;
-      }
-    }
-  }
-  const auto storage_type =
-      TensorDescriptor(DataType::INT32, TensorStorageType::TEXTURE_2D,
-                       Layout::HW)
-              .CanCreateTensorWithShape(gpu_info, BHWC(1, height, width, 4))
-              .ok()
-          ? TensorStorageType::TEXTURE_2D
-          : TensorStorageType::BUFFER;
-  return CreateConstantHWVec4TensorDescriptor(
-      dst_data_type, storage_type, width, height,
-      reinterpret_cast<uint8_t*>(data.data()));
-}
-
 int GetMaxSrcImages(const GpuInfo& gpu_info) {
   // only in webgpu we bind src images as storage textures vs sampled textures
   // in other apis.
@@ -874,7 +844,7 @@ GpuModelBuilder::FullyConnectedExternalWeights(
     ExternalWeights external_weights;
     external_weights.desc = weights.desc;
     external_weights.shape = weights.shape;
-    ASSIGN_OR_RETURN(
+    ABSL_ASSIGN_OR_RETURN(
         auto fc_op,
         CreateFullyConnectedExternalWeights(
             gpu_info_, GetConvPrecision(src.tensor_desc.GetDataType()),
@@ -943,7 +913,7 @@ GpuModelBuilder::FullyConnectedExternalSpatialWeights(
   op_def.dst_tensors.push_back(dst.tensor_desc);
 
   const TensorDescriptor* bias_desc = biases ? &biases->tensor_desc : nullptr;
-  ASSIGN_OR_RETURN(
+  ABSL_ASSIGN_OR_RETURN(
       auto fc_op,
       CreateFullyConnectedWeightsAreSpatialTensor(
           gpu_info_, op_def, GetConvPrecision(src.tensor_desc.GetDataType()),
@@ -3287,7 +3257,7 @@ absl::StatusOr<GpuModelBuilder::TensorHandle> GpuModelBuilder::BatchedMatMul(
     op_def.src_tensors.push_back(mat_left.tensor_desc);
     op_def.src_tensors.push_back(weights.tensor_desc);
     op_def.dst_tensors.push_back(dst_handle.tensor_desc);
-    ASSIGN_OR_RETURN(
+    ABSL_ASSIGN_OR_RETURN(
         auto fc_op,
         CreateFullyConnectedWeightsAreSpatialTensor(
             gpu_info_, op_def, GetConvPrecision(left.tensor_desc.GetDataType()),
@@ -3704,16 +3674,17 @@ GpuModelBuilder::BatchedMatMulSoftmaxBatchedMatMulSeparateKernels(
     std::vector<GpuModelBuilder::TensorHandle> dsts(q_tensors.size());
 
     for (int i = 0; i < q_tensors.size(); ++i) {
-      ASSIGN_OR_RETURN(auto tmp, BatchedMatMul(q_tensors[i], k_tensors[i]));
+      ABSL_ASSIGN_OR_RETURN(auto tmp,
+                            BatchedMatMul(q_tensors[i], k_tensors[i]));
       tmp = Mask(tmp, mask_tensor);
-      ASSIGN_OR_RETURN(dsts[i], SoftmaxBatchedMatMul(tmp, v_tensors[i]));
+      ABSL_ASSIGN_OR_RETURN(dsts[i], SoftmaxBatchedMatMul(tmp, v_tensors[i]));
     }
 
     att = Concat(dsts, Axis::HEIGHT);
   } else {
-    ASSIGN_OR_RETURN(att, BatchedMatMul(a_tensor, b_tensor));
+    ABSL_ASSIGN_OR_RETURN(att, BatchedMatMul(a_tensor, b_tensor));
     att = Mask(att, mask_tensor);
-    ASSIGN_OR_RETURN(att, SoftmaxBatchedMatMul(att, c_tensor));
+    ABSL_ASSIGN_OR_RETURN(att, SoftmaxBatchedMatMul(att, c_tensor));
   }
   return att;
 }
@@ -3808,11 +3779,12 @@ absl::Status GpuModelBuilder::UpdateOutputTensors(
   for (int i = 0; i < outputs.size(); ++i) {
     ValueId out_id = outputs[i].id;
     ValueId new_out_id = new_ids[i];
-    ASSIGN_OR_RETURN(auto node_and_index, GetNodeAndIndexByOutputId(out_id));
+    ABSL_ASSIGN_OR_RETURN(auto node_and_index,
+                          GetNodeAndIndexByOutputId(out_id));
     auto& node = gpu_model_.nodes[node_and_index.first];
     int out_index = node_and_index.second;
     node.outputs[out_index] = new_out_id;
-    ASSIGN_OR_RETURN(auto new_tensor, GetTensor(new_out_id));
+    ABSL_ASSIGN_OR_RETURN(auto new_tensor, GetTensor(new_out_id));
     if (new_tensor.tensor_desc.GetBHWDCShape() !=
         outputs[i].tensor_desc.GetBHWDCShape()) {
       // Shapes from GraphFloat32 can be calculated differently from
@@ -3824,7 +3796,7 @@ absl::Status GpuModelBuilder::UpdateOutputTensors(
           << " vs reference shape: "
           << ToString(outputs[i].tensor_desc.GetBHWDCShape());
     }
-    RETURN_IF_ERROR(node.gpu_operation->SetOutputDescriptor(
+    ABSL_RETURN_IF_ERROR(node.gpu_operation->SetOutputDescriptor(
         out_index, new_tensor.tensor_desc));
   }
   return absl::OkStatus();
@@ -3867,9 +3839,9 @@ absl::Status GpuModelBuilder::GetGpuModel(
     GpuModel* gpu_model) {
   gpu_model_.input_ids_and_refs = input_ids_and_refs;
   gpu_model_.output_ids_and_refs = output_ids_and_refs;
-  RETURN_IF_ERROR(MergeNodes(gpu_info_, &gpu_model_));
-  RETURN_IF_ERROR(AssembleCode(gpu_info_, &gpu_model_));
-  RETURN_IF_ERROR(ResolveArgs(&gpu_model_));
+  ABSL_RETURN_IF_ERROR(MergeNodes(gpu_info_, &gpu_model_));
+  ABSL_RETURN_IF_ERROR(AssembleCode(gpu_info_, &gpu_model_));
+  ABSL_RETURN_IF_ERROR(ResolveArgs(&gpu_model_));
   ExpandSubgraphs(&gpu_model_);
   *gpu_model = std::move(gpu_model_);
   return absl::OkStatus();
@@ -4204,7 +4176,7 @@ absl::Status GpuModelBuilder::RegisterSubgraph(
     for (auto id : output_ids) {
       subgraph_model.output_ids_and_refs.push_back({id, id});
     }
-    RETURN_IF_ERROR(MergeNodes(gpu_info_, &subgraph_model));
+    ABSL_RETURN_IF_ERROR(MergeNodes(gpu_info_, &subgraph_model));
   }
 
   gpu_model_.subgraphs[subgraph_id] = std::move(subgraph_model);

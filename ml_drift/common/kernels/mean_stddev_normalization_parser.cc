@@ -75,7 +75,7 @@ absl::Status GetNextSingleNode(const GraphFloat32& graph, const Node& node,
   if (consumers.size() != 1) {
     return absl::NotFoundError("Not a single consumer.");
   }
-  RETURN_IF_ERROR(CheckIfValidNodeOfType(consumers[0], next_type));
+  ABSL_RETURN_IF_ERROR(CheckIfValidNodeOfType(consumers[0], next_type));
   *next_node = consumers[0];
   return absl::OkStatus();
 }
@@ -104,15 +104,16 @@ absl::Status TryMeanStdDevNormalizationV0(
     const std::set<NodeId>& consumed_nodes,
     std::set<NodeId>* new_consumed_nodes, GpuModelBuilder* model_builder) {
   Node* first_mean_node = graph.GetNode(first_node_id);
-  RETURN_IF_ERROR(CheckIfValidNodeOfType(first_mean_node, OperationType::MEAN));
+  ABSL_RETURN_IF_ERROR(
+      CheckIfValidNodeOfType(first_mean_node, OperationType::MEAN));
   auto first_mean_attr =
       std::any_cast<ReduceAttributes>(first_mean_node->operation.attributes);
   if (first_mean_attr.dims != std::set<Axis>{Axis::CHANNELS}) {
     return absl::NotFoundError("MeanStdDevNormalization not suitable.");
   }
   Node* sub_node;
-  RETURN_IF_ERROR(GetNextSingleNode(graph, *first_mean_node, OperationType::SUB,
-                                    &sub_node));
+  ABSL_RETURN_IF_ERROR(GetNextSingleNode(graph, *first_mean_node,
+                                         OperationType::SUB, &sub_node));
   auto sub_inputs = graph.FindInputs(sub_node->id);
   if (sub_inputs.size() != 2) {
     return absl::NotFoundError("MeanStdDevNormalization not suitable.");
@@ -145,27 +146,28 @@ absl::Status TryMeanStdDevNormalizationV0(
     square_node = consumers[1];
     sub_child_mul_node = consumers[0];
   }
-  RETURN_IF_ERROR(CheckIfValidNodeOfType(square_node, OperationType::SQUARE));
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
+      CheckIfValidNodeOfType(square_node, OperationType::SQUARE));
+  ABSL_RETURN_IF_ERROR(
       CheckIfValidNodeOfType(sub_child_mul_node, OperationType::MUL));
   Node* second_mean_node;
-  RETURN_IF_ERROR(GetNextSingleNode(graph, *square_node, OperationType::MEAN,
-                                    &second_mean_node));
+  ABSL_RETURN_IF_ERROR(GetNextSingleNode(
+      graph, *square_node, OperationType::MEAN, &second_mean_node));
   auto second_mean_attr =
       std::any_cast<ReduceAttributes>(second_mean_node->operation.attributes);
   if (second_mean_attr.dims != std::set<Axis>{Axis::CHANNELS}) {
     return absl::NotFoundError("MeanStdDevNormalization not suitable.");
   }
   Node* add_node;
-  RETURN_IF_ERROR(GetNextSingleNode(graph, *second_mean_node,
-                                    OperationType::ADD, &add_node));
+  ABSL_RETURN_IF_ERROR(GetNextSingleNode(graph, *second_mean_node,
+                                         OperationType::ADD, &add_node));
   float add_value;
-  RETURN_IF_ERROR(GetElementwiseScalarValue(add_node, &add_value));
+  ABSL_RETURN_IF_ERROR(GetElementwiseScalarValue(add_node, &add_value));
   Node* rsqrt_node;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       GetNextSingleNode(graph, *add_node, OperationType::RSQRT, &rsqrt_node));
   Node* mul_node;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       GetNextSingleNode(graph, *rsqrt_node, OperationType::MUL, &mul_node));
   if (sub_child_mul_node != mul_node) {
     return absl::NotFoundError("MeanStdDevNormalization not suitable.");
@@ -173,8 +175,8 @@ absl::Status TryMeanStdDevNormalizationV0(
 
   auto input = graph.FindInputs(first_mean_node->id)[0];
   auto output_id = graph.FindOutputs(mul_node->id)[0]->id;
-  ASSIGN_OR_RETURN(auto src_handle, model_builder->GetTensor(input->id));
-  ASSIGN_OR_RETURN(auto dst_handle, model_builder->GetTensor(output_id));
+  ABSL_ASSIGN_OR_RETURN(auto src_handle, model_builder->GetTensor(input->id));
+  ABSL_ASSIGN_OR_RETURN(auto dst_handle, model_builder->GetTensor(output_id));
 
   OperationDef op_def;
   op_def.src_tensors.push_back(src_handle.tensor_desc);
@@ -303,11 +305,11 @@ absl::Status TryMeanStdDevNormalizationV1(
   }
 
   Node* mean1_node;
-  RETURN_IF_ERROR(GetNextSingleNode(graph, *square0_node, OperationType::MEAN,
-                                    &mean1_node));
+  ABSL_RETURN_IF_ERROR(GetNextSingleNode(graph, *square0_node,
+                                         OperationType::MEAN, &mean1_node));
 
   Node* sub1_node;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       GetNextSingleNode(graph, *mean1_node, OperationType::SUB, &sub1_node));
 
   {
@@ -316,32 +318,33 @@ absl::Status TryMeanStdDevNormalizationV1(
     //      \   /
     //       sub1
     Node* sub1_copy_node;
-    RETURN_IF_ERROR(GetNextSingleNode(graph, *square1_node, OperationType::SUB,
-                                      &sub1_copy_node));
+    ABSL_RETURN_IF_ERROR(GetNextSingleNode(
+        graph, *square1_node, OperationType::SUB, &sub1_copy_node));
     if (sub1_copy_node != sub1_node) {
       return absl::NotFoundError("MeanStdDevNormalization not suitable.");
     }
   }
 
   Node* multiplication_node;
-  RETURN_IF_ERROR(GetNextSingleNode(graph, *sub0_node, OperationType::MUL,
-                                    &multiplication_node));
+  ABSL_RETURN_IF_ERROR(GetNextSingleNode(graph, *sub0_node, OperationType::MUL,
+                                         &multiplication_node));
 
   Node* add_node;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       GetNextSingleNode(graph, *sub1_node, OperationType::ADD, &add_node));
   float add_value;
-  RETURN_IF_ERROR(GetElementwiseScalarValue(add_node, &add_value));
+  ABSL_RETURN_IF_ERROR(GetElementwiseScalarValue(add_node, &add_value));
 
   Node* rsqrt_node;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       GetNextSingleNode(graph, *add_node, OperationType::RSQRT, &rsqrt_node));
 
   Node* mul_ones_node;
-  RETURN_IF_ERROR(GetNextSingleNode(graph, *rsqrt_node, OperationType::MUL,
-                                    &mul_ones_node));
+  ABSL_RETURN_IF_ERROR(GetNextSingleNode(graph, *rsqrt_node, OperationType::MUL,
+                                         &mul_ones_node));
   Tensor<Linear, DataType::FLOAT32> mul_linear_value;
-  RETURN_IF_ERROR(GetElementwiseLinearValue(mul_ones_node, &mul_linear_value));
+  ABSL_RETURN_IF_ERROR(
+      GetElementwiseLinearValue(mul_ones_node, &mul_linear_value));
   for (int i = 0; i < mul_linear_value.data.size(); ++i) {
     if (mul_linear_value.data[i] != 1.0f) {
       return absl::NotFoundError("MeanStdDevNormalization not suitable.");
@@ -354,8 +357,8 @@ absl::Status TryMeanStdDevNormalizationV1(
     //      \      /
     //    multiplication
     Node* multiplication_copy_node;
-    RETURN_IF_ERROR(GetNextSingleNode(graph, *mul_ones_node, OperationType::MUL,
-                                      &multiplication_copy_node));
+    ABSL_RETURN_IF_ERROR(GetNextSingleNode(
+        graph, *mul_ones_node, OperationType::MUL, &multiplication_copy_node));
     if (multiplication_copy_node != multiplication_node) {
       return absl::NotFoundError("MeanStdDevNormalization not suitable.");
     }
@@ -363,8 +366,8 @@ absl::Status TryMeanStdDevNormalizationV1(
 
   auto input = graph.FindInputs(mean0_node->id)[0];
   auto output_id = graph.FindOutputs(multiplication_node->id)[0]->id;
-  ASSIGN_OR_RETURN(auto src_handle, model_builder->GetTensor(input->id));
-  ASSIGN_OR_RETURN(auto dst_handle, model_builder->GetTensor(output_id));
+  ABSL_ASSIGN_OR_RETURN(auto src_handle, model_builder->GetTensor(input->id));
+  ABSL_ASSIGN_OR_RETURN(auto dst_handle, model_builder->GetTensor(output_id));
 
   OperationDef op_def;
   op_def.src_tensors.push_back(src_handle.tensor_desc);
@@ -439,7 +442,7 @@ absl::Status TryLayerNormalization(const GpuInfo& gpu_info,
                                    std::set<NodeId>* new_consumed_nodes,
                                    GpuModelBuilder* model_builder) {
   Node* mean0_node = graph.GetNode(first_node_id);
-  RETURN_IF_ERROR(CheckIfValidNodeOfType(mean0_node, OperationType::MEAN));
+  ABSL_RETURN_IF_ERROR(CheckIfValidNodeOfType(mean0_node, OperationType::MEAN));
   auto mean0_attr =
       std::any_cast<ReduceAttributes>(mean0_node->operation.attributes);
   if (mean0_attr.dims != std::set<Axis>{Axis::CHANNELS}) {
@@ -455,9 +458,9 @@ absl::Status TryLayerNormalization(const GpuInfo& gpu_info,
   if (!CheckIfValidNodeOfType(sq_diff_node, OperationType::SQUARED_DIFF).ok()) {
     std::swap(sq_diff_node, mul2_node);
   }
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       CheckIfValidNodeOfType(sq_diff_node, OperationType::SQUARED_DIFF));
-  RETURN_IF_ERROR(CheckIfValidNodeOfType(mul2_node, OperationType::MUL));
+  ABSL_RETURN_IF_ERROR(CheckIfValidNodeOfType(mul2_node, OperationType::MUL));
 
   auto sq_diff_inputs = graph.FindInputs(sq_diff_node->id);
   if (sq_diff_inputs.size() != 2) {
@@ -481,26 +484,26 @@ absl::Status TryLayerNormalization(const GpuInfo& gpu_info,
     }
   }
   Node* mean1_node;
-  RETURN_IF_ERROR(GetNextSingleNode(graph, *sq_diff_node, OperationType::MEAN,
-                                    &mean1_node));
+  ABSL_RETURN_IF_ERROR(GetNextSingleNode(graph, *sq_diff_node,
+                                         OperationType::MEAN, &mean1_node));
   auto mean1_attr =
       std::any_cast<ReduceAttributes>(mean1_node->operation.attributes);
   if (mean1_attr.dims != std::set<Axis>{Axis::CHANNELS}) {
     return absl::NotFoundError("LayerNormalization not suitable.");
   }
   Node* add0_node;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       GetNextSingleNode(graph, *mean1_node, OperationType::ADD, &add0_node));
   float add_value;
-  RETURN_IF_ERROR(GetElementwiseScalarValue(add0_node, &add_value));
+  ABSL_RETURN_IF_ERROR(GetElementwiseScalarValue(add0_node, &add_value));
   Node* rsqrt_node;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       GetNextSingleNode(graph, *add0_node, OperationType::RSQRT, &rsqrt_node));
   Node* mul0_node;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       GetNextSingleNode(graph, *rsqrt_node, OperationType::MUL, &mul0_node));
   Tensor<Linear, DataType::FLOAT32> mul_linear_value;
-  RETURN_IF_ERROR(GetElementwiseLinearValue(mul0_node, &mul_linear_value));
+  ABSL_RETURN_IF_ERROR(GetElementwiseLinearValue(mul0_node, &mul_linear_value));
   auto mul0_output = graph.FindOutputs(mul0_node->id)[0]->id;
   consumers = graph.FindConsumers(mul0_output);
   if (consumers.size() != 2) {
@@ -530,18 +533,18 @@ absl::Status TryLayerNormalization(const GpuInfo& gpu_info,
     }
   }
   Node* sub_node;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       GetNextSingleNode(graph, *mul2_node, OperationType::SUB, &sub_node));
   Tensor<Linear, DataType::FLOAT32> sub_linear_value;
-  RETURN_IF_ERROR(GetElementwiseLinearValue(sub_node, &sub_linear_value));
+  ABSL_RETURN_IF_ERROR(GetElementwiseLinearValue(sub_node, &sub_linear_value));
 
   Node* add1_node;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       GetNextSingleNode(graph, *sub_node, OperationType::ADD, &add1_node));
   {
     Node* add1_copy_node;
-    RETURN_IF_ERROR(GetNextSingleNode(graph, *mul1_node, OperationType::ADD,
-                                      &add1_copy_node));
+    ABSL_RETURN_IF_ERROR(GetNextSingleNode(
+        graph, *mul1_node, OperationType::ADD, &add1_copy_node));
     if (add1_copy_node != add1_node) {
       return absl::NotFoundError("LayerNormalization not suitable.");
     }
@@ -549,8 +552,8 @@ absl::Status TryLayerNormalization(const GpuInfo& gpu_info,
 
   auto input = graph.FindInputs(mean0_node->id)[0];
   auto output_id = graph.FindOutputs(add1_node->id)[0]->id;
-  ASSIGN_OR_RETURN(auto src_handle, model_builder->GetTensor(input->id));
-  ASSIGN_OR_RETURN(auto dst_handle, model_builder->GetTensor(output_id));
+  ABSL_ASSIGN_OR_RETURN(auto src_handle, model_builder->GetTensor(input->id));
+  ABSL_ASSIGN_OR_RETURN(auto dst_handle, model_builder->GetTensor(output_id));
 
   OperationDef op_def;
   op_def.src_tensors.push_back(src_handle.tensor_desc);
@@ -622,7 +625,7 @@ absl::Status GetNextSingleOp(const ir::IrModel& ir_model, const ir::IrOp& op,
     return absl::NotFoundError("Not a single consumer.");
   }
   const ir::IrOp* consumer = consumers[0];
-  RETURN_IF_ERROR(CheckIfValidOpOfType(consumer, next_type));
+  ABSL_RETURN_IF_ERROR(CheckIfValidOpOfType(consumer, next_type));
   *next_op = consumer;
   return absl::OkStatus();
 }
@@ -652,13 +655,14 @@ absl::Status TryMeanStdDevNormalizationV0(
     absl::flat_hash_set<ir::IrOpId>* new_consumed_ops,
     GpuModelBuilder* model_builder) {
   const ir::IrOp* first_mean_op = ir_model.op(first_op_id);
-  RETURN_IF_ERROR(CheckIfValidOpOfType(first_mean_op, OperationType::MEAN));
+  ABSL_RETURN_IF_ERROR(
+      CheckIfValidOpOfType(first_mean_op, OperationType::MEAN));
   auto first_mean_attr = std::any_cast<ReduceAttributes>(first_mean_op->attr);
   if (first_mean_attr.dims != std::set<Axis>{Axis::CHANNELS}) {
     return absl::NotFoundError("MeanStdDevNormalization not suitable.");
   }
   const ir::IrOp* sub_op;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       GetNextSingleOp(ir_model, *first_mean_op, OperationType::SUB, &sub_op));
   auto sub_inputs = sub_op->inputs;
   if (sub_inputs.size() != 2) {
@@ -693,25 +697,26 @@ absl::Status TryMeanStdDevNormalizationV0(
   if (!CheckIfValidOpOfType(square_op, OperationType::SQUARE).ok()) {
     std::swap(square_op, sub_child_mul_op);
   }
-  RETURN_IF_ERROR(CheckIfValidOpOfType(square_op, OperationType::SQUARE));
-  RETURN_IF_ERROR(CheckIfValidOpOfType(sub_child_mul_op, OperationType::MUL));
+  ABSL_RETURN_IF_ERROR(CheckIfValidOpOfType(square_op, OperationType::SQUARE));
+  ABSL_RETURN_IF_ERROR(
+      CheckIfValidOpOfType(sub_child_mul_op, OperationType::MUL));
   const ir::IrOp* second_mean_op;
-  RETURN_IF_ERROR(GetNextSingleOp(ir_model, *square_op, OperationType::MEAN,
-                                  &second_mean_op));
+  ABSL_RETURN_IF_ERROR(GetNextSingleOp(ir_model, *square_op,
+                                       OperationType::MEAN, &second_mean_op));
   auto second_mean_attr = std::any_cast<ReduceAttributes>(second_mean_op->attr);
   if (second_mean_attr.dims != std::set<Axis>{Axis::CHANNELS}) {
     return absl::NotFoundError("MeanStdDevNormalization not suitable.");
   }
   const ir::IrOp* add_op;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       GetNextSingleOp(ir_model, *second_mean_op, OperationType::ADD, &add_op));
   float add_value;
-  RETURN_IF_ERROR(GetElementwiseScalarValue(add_op, &add_value));
+  ABSL_RETURN_IF_ERROR(GetElementwiseScalarValue(add_op, &add_value));
   const ir::IrOp* rsqrt_op;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       GetNextSingleOp(ir_model, *add_op, OperationType::RSQRT, &rsqrt_op));
   const ir::IrOp* mul_op;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       GetNextSingleOp(ir_model, *rsqrt_op, OperationType::MUL, &mul_op));
   if (sub_child_mul_op != mul_op) {
     return absl::NotFoundError("MeanStdDevNormalization not suitable.");
@@ -719,8 +724,8 @@ absl::Status TryMeanStdDevNormalizationV0(
 
   auto input = first_mean_op->inputs[0];
   auto output_id = mul_op->outputs[0];
-  ASSIGN_OR_RETURN(auto src_handle, model_builder->GetTensor(input));
-  ASSIGN_OR_RETURN(auto dst_handle, model_builder->GetTensor(output_id));
+  ABSL_ASSIGN_OR_RETURN(auto src_handle, model_builder->GetTensor(input));
+  ABSL_ASSIGN_OR_RETURN(auto dst_handle, model_builder->GetTensor(output_id));
 
   OperationDef op_def;
   op_def.src_tensors.push_back(src_handle.tensor_desc);
@@ -853,11 +858,11 @@ absl::Status TryMeanStdDevNormalizationV1(
   }
 
   const ir::IrOp* mean1_op;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       GetNextSingleOp(ir_model, *square0_op, OperationType::MEAN, &mean1_op));
 
   const ir::IrOp* sub1_op;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       GetNextSingleOp(ir_model, *mean1_op, OperationType::SUB, &sub1_op));
 
   {
@@ -866,32 +871,33 @@ absl::Status TryMeanStdDevNormalizationV1(
     //      \   /
     //       sub1
     const ir::IrOp* sub1_copy_op;
-    RETURN_IF_ERROR(GetNextSingleOp(ir_model, *square1_op, OperationType::SUB,
-                                    &sub1_copy_op));
+    ABSL_RETURN_IF_ERROR(GetNextSingleOp(ir_model, *square1_op,
+                                         OperationType::SUB, &sub1_copy_op));
     if (sub1_copy_op != sub1_op) {
       return absl::NotFoundError("MeanStdDevNormalization not suitable.");
     }
   }
 
   const ir::IrOp* multiplication_op;
-  RETURN_IF_ERROR(GetNextSingleOp(ir_model, *sub0_op, OperationType::MUL,
-                                  &multiplication_op));
+  ABSL_RETURN_IF_ERROR(GetNextSingleOp(ir_model, *sub0_op, OperationType::MUL,
+                                       &multiplication_op));
 
   const ir::IrOp* add_op;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       GetNextSingleOp(ir_model, *sub1_op, OperationType::ADD, &add_op));
   float add_value;
-  RETURN_IF_ERROR(GetElementwiseScalarValue(add_op, &add_value));
+  ABSL_RETURN_IF_ERROR(GetElementwiseScalarValue(add_op, &add_value));
 
   const ir::IrOp* rsqrt_op;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       GetNextSingleOp(ir_model, *add_op, OperationType::RSQRT, &rsqrt_op));
 
   const ir::IrOp* mul_ones_op;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       GetNextSingleOp(ir_model, *rsqrt_op, OperationType::MUL, &mul_ones_op));
   Tensor<Linear, DataType::FLOAT32> mul_linear_value;
-  RETURN_IF_ERROR(GetElementwiseLinearValue(mul_ones_op, &mul_linear_value));
+  ABSL_RETURN_IF_ERROR(
+      GetElementwiseLinearValue(mul_ones_op, &mul_linear_value));
   for (int i = 0; i < mul_linear_value.data.size(); ++i) {
     if (mul_linear_value.data[i] != 1.0f) {
       return absl::NotFoundError("MeanStdDevNormalization not suitable.");
@@ -904,8 +910,8 @@ absl::Status TryMeanStdDevNormalizationV1(
     //      \      /
     //    multiplication
     const ir::IrOp* multiplication_copy_op;
-    RETURN_IF_ERROR(GetNextSingleOp(ir_model, *mul_ones_op, OperationType::MUL,
-                                    &multiplication_copy_op));
+    ABSL_RETURN_IF_ERROR(GetNextSingleOp(
+        ir_model, *mul_ones_op, OperationType::MUL, &multiplication_copy_op));
     if (multiplication_copy_op != multiplication_op) {
       return absl::NotFoundError("MeanStdDevNormalization not suitable.");
     }
@@ -913,8 +919,8 @@ absl::Status TryMeanStdDevNormalizationV1(
 
   auto input = mean0_op->inputs[0];
   auto output_id = multiplication_op->outputs[0];
-  ASSIGN_OR_RETURN(auto src_handle, model_builder->GetTensor(input));
-  ASSIGN_OR_RETURN(auto dst_handle, model_builder->GetTensor(output_id));
+  ABSL_ASSIGN_OR_RETURN(auto src_handle, model_builder->GetTensor(input));
+  ABSL_ASSIGN_OR_RETURN(auto dst_handle, model_builder->GetTensor(output_id));
 
   OperationDef op_def;
   op_def.src_tensors.push_back(src_handle.tensor_desc);
@@ -991,7 +997,7 @@ absl::Status TryLayerNormalization(
     absl::flat_hash_set<ir::IrOpId>* new_consumed_ops,
     GpuModelBuilder* model_builder) {
   const ir::IrOp* mean0_op = ir_model.op(first_op_id);
-  RETURN_IF_ERROR(CheckIfValidOpOfType(mean0_op, OperationType::MEAN));
+  ABSL_RETURN_IF_ERROR(CheckIfValidOpOfType(mean0_op, OperationType::MEAN));
   auto mean0_attr = std::any_cast<ReduceAttributes>(mean0_op->attr);
   if (mean0_attr.dims != std::set<Axis>{Axis::CHANNELS}) {
     return absl::NotFoundError("LayerNormalization not suitable.");
@@ -1006,9 +1012,9 @@ absl::Status TryLayerNormalization(
   if (!CheckIfValidOpOfType(sq_diff_op, OperationType::SQUARED_DIFF).ok()) {
     std::swap(sq_diff_op, mul2_op);
   }
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       CheckIfValidOpOfType(sq_diff_op, OperationType::SQUARED_DIFF));
-  RETURN_IF_ERROR(CheckIfValidOpOfType(mul2_op, OperationType::MUL));
+  ABSL_RETURN_IF_ERROR(CheckIfValidOpOfType(mul2_op, OperationType::MUL));
 
   auto sq_diff_inputs = sq_diff_op->inputs;
   if (sq_diff_inputs.size() != 2) {
@@ -1036,25 +1042,25 @@ absl::Status TryLayerNormalization(
     }
   }
   const ir::IrOp* mean1_op;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       GetNextSingleOp(ir_model, *sq_diff_op, OperationType::MEAN, &mean1_op));
   auto mean1_attr = std::any_cast<ReduceAttributes>(mean1_op->attr);
   if (mean1_attr.dims != std::set<Axis>{Axis::CHANNELS}) {
     return absl::NotFoundError("LayerNormalization not suitable.");
   }
   const ir::IrOp* add0_op;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       GetNextSingleOp(ir_model, *mean1_op, OperationType::ADD, &add0_op));
   float add_value;
-  RETURN_IF_ERROR(GetElementwiseScalarValue(add0_op, &add_value));
+  ABSL_RETURN_IF_ERROR(GetElementwiseScalarValue(add0_op, &add_value));
   const ir::IrOp* rsqrt_op;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       GetNextSingleOp(ir_model, *add0_op, OperationType::RSQRT, &rsqrt_op));
   const ir::IrOp* mul0_op;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       GetNextSingleOp(ir_model, *rsqrt_op, OperationType::MUL, &mul0_op));
   Tensor<Linear, DataType::FLOAT32> mul_linear_value;
-  RETURN_IF_ERROR(GetElementwiseLinearValue(mul0_op, &mul_linear_value));
+  ABSL_RETURN_IF_ERROR(GetElementwiseLinearValue(mul0_op, &mul_linear_value));
   auto mul0_output = mul0_op->outputs[0];
   auto mul0_consumers = ir_model.FindConsumers(mul0_output);
   if (mul0_consumers.size() != 2) {
@@ -1085,17 +1091,17 @@ absl::Status TryLayerNormalization(
     }
   }
   const ir::IrOp* sub_op;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       GetNextSingleOp(ir_model, *mul2_op, OperationType::SUB, &sub_op));
   Tensor<Linear, DataType::FLOAT32> sub_linear_value;
-  RETURN_IF_ERROR(GetElementwiseLinearValue(sub_op, &sub_linear_value));
+  ABSL_RETURN_IF_ERROR(GetElementwiseLinearValue(sub_op, &sub_linear_value));
 
   const ir::IrOp* add1_op;
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       GetNextSingleOp(ir_model, *sub_op, OperationType::ADD, &add1_op));
   {
     const ir::IrOp* add1_copy_op;
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         GetNextSingleOp(ir_model, *mul1_op, OperationType::ADD, &add1_copy_op));
     if (add1_copy_op != add1_op) {
       return absl::NotFoundError("LayerNormalization not suitable.");
@@ -1104,8 +1110,8 @@ absl::Status TryLayerNormalization(
 
   auto input = mean0_op->inputs[0];
   auto output_id = add1_op->outputs[0];
-  ASSIGN_OR_RETURN(auto src_handle, model_builder->GetTensor(input));
-  ASSIGN_OR_RETURN(auto dst_handle, model_builder->GetTensor(output_id));
+  ABSL_ASSIGN_OR_RETURN(auto src_handle, model_builder->GetTensor(input));
+  ABSL_ASSIGN_OR_RETURN(auto dst_handle, model_builder->GetTensor(output_id));
 
   OperationDef op_def;
   op_def.src_tensors.push_back(src_handle.tensor_desc);

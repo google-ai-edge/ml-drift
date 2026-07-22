@@ -79,7 +79,6 @@ cc_library(
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/container:flat_hash_set",
         "@com_google_absl//absl/log:absl_log",
-        "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings:str_format",
         "@flatbuffers//:runtime_cc",
     ],
@@ -219,7 +218,6 @@ cc_library(
         "//ml_drift/common/task:testing_util",
         "//ml_drift/common/transformations:model_transformations",
         "@XNNPACK",
-        "@com_google_absl//absl/status",
         "@com_google_googletest//:gtest",
     ],
 )
@@ -309,12 +307,12 @@ cc_library(
     deps = [
         ":data_type",
         ":shape",
+        ":status",
         "//ml_drift/common/task:tensor_desc",
         "@com_google_absl//absl/algorithm:container",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/container:flat_hash_set",
         "@com_google_absl//absl/log:absl_check",
-        "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
     ],
 )
@@ -504,8 +502,6 @@ cc_library(
         ":types",
         "//ml_drift/common/task:gpu_operation",
         "@com_google_absl//absl/container:flat_hash_map",
-        "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
     ],
 )

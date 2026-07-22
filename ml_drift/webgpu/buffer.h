@@ -19,7 +19,7 @@
 #include <cstdint>
 #include <vector>
 
-#include "absl/status/status.h"
+#include "ml_drift/common/status.h"
 #include "absl/types/span.h"
 #include "ml_drift/common/task/buffer_desc.h"
 #include "ml_drift/common/task/gpu_object_desc.h"

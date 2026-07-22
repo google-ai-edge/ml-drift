@@ -15,7 +15,7 @@
 #ifndef ML_DRIFT_CL_QCOM_THIN_FILTER_H_
 #define ML_DRIFT_CL_QCOM_THIN_FILTER_H_
 
-#include "absl/status/status.h"
+#include "ml_drift/common/status.h"
 #include "ml_drift/cl/cl_context.h"
 #include "ml_drift/cl/gpu_object.h"
 #include "ml_drift/common/task/gpu_object_desc.h"

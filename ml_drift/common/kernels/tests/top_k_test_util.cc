@@ -52,7 +52,7 @@ absl::Status TopKTest(TestExecutionEnvironment& env, DataType data_type,
   dst_max.SetBHWCShape(BHWC(1, 1, 1, 4));
   dst_ind.SetBHWCShape(BHWC(1, 1, 1, 4));
   TopKOp operation = CreateTopK(env.GetGpuInfo(), op_def);
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       env.ExecuteGPUOperation({&src}, {&dst_max, &dst_ind},
                               std::make_unique<TopKOp>(std::move(operation))));
   Tensor<BHWC, DataType::FLOAT32> dst_max_tensor;
@@ -84,7 +84,7 @@ absl::Status TopKPartialReductionTest(TestExecutionEnvironment& env,
   dst_max.SetBHWCShape(BHWC(1, 1, 2, 4));
   dst_ind.SetBHWCShape(BHWC(1, 1, 2, 4));
   TopKOp operation = CreateTopK(env.GetGpuInfo(), op_def);
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       env.ExecuteGPUOperation({&src}, {&dst_max, &dst_ind},
                               std::make_unique<TopKOp>(std::move(operation))));
   Tensor<BHWC, DataType::FLOAT32> dst_max_tensor;
@@ -139,7 +139,7 @@ absl::Status TopKBigTest(TestExecutionEnvironment& env, DataType data_type,
   dst_max.SetBHWCShape(BHWC(1, 1, 1, kTopKSize));
   dst_ind.SetBHWCShape(BHWC(1, 1, 1, kTopKSize));
   TopKOp operation = CreateTopK(env.GetGpuInfo(), op_def);
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       env.ExecuteGPUOperation({&src}, {&dst_max, &dst_ind},
                               std::make_unique<TopKOp>(std::move(operation))));
   Tensor<BHWC, DataType::FLOAT32> dst_max_tensor;
@@ -192,7 +192,7 @@ absl::Status TopKBig2StepTest(TestExecutionEnvironment& env, DataType data_type,
   interm_max.SetBHWCShape(BHWC(1, 1, 1024, 4));
   interm_ind.SetBHWCShape(BHWC(1, 1, 1024, 4));
   TopKOp op_first = CreateTopK(env.GetGpuInfo(), op_def_first);
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       env.ExecuteGPUOperation({&src}, {&interm_max, &interm_ind},
                               std::make_unique<TopKOp>(std::move(op_first))));
   OperationDef op_def_second;
@@ -205,7 +205,7 @@ absl::Status TopKBig2StepTest(TestExecutionEnvironment& env, DataType data_type,
   src.UploadData(src_tensor);
   dst_max.SetBHWCShape(BHWC(1, 1, 1, kTopKSize));
   dst_ind.SetBHWCShape(BHWC(1, 1, 1, kTopKSize));
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       env.ExecuteGPUOperation({&interm_max, &interm_ind}, {&dst_max, &dst_ind},
                               std::make_unique<TopKOp>(std::move(op_second))));
   Tensor<BHWC, DataType::FLOAT32> dst_max_tensor;
@@ -260,7 +260,7 @@ absl::Status TopKBig2StepFirstStepNoWgReductionTest(
   interm_ind.SetBHWCShape(BHWC(1, 1, 1024, 4));
   TopKOp op_first = CreateTopK(env.GetGpuInfo(), op_def_first,
                                /*use_wg_reduction*/ false);
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       env.ExecuteGPUOperation({&src}, {&interm_max, &interm_ind},
                               std::make_unique<TopKOp>(std::move(op_first))));
   OperationDef op_def_second;
@@ -273,7 +273,7 @@ absl::Status TopKBig2StepFirstStepNoWgReductionTest(
   src.UploadData(src_tensor);
   dst_max.SetBHWCShape(BHWC(1, 1, 1, kTopKSize));
   dst_ind.SetBHWCShape(BHWC(1, 1, 1, kTopKSize));
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       env.ExecuteGPUOperation({&interm_max, &interm_ind}, {&dst_max, &dst_ind},
                               std::make_unique<TopKOp>(std::move(op_second))));
   Tensor<BHWC, DataType::FLOAT32> dst_max_tensor;
@@ -318,7 +318,7 @@ absl::Status TopKIterativeTest(TestExecutionEnvironment& env,
       src_cpu.push_back(&prev_max);
       src_cpu.push_back(&prev_ind);
     }
-    RETURN_IF_ERROR(env.ExecuteGPUOperation(
+    ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
         src_cpu, dst_cpu, std::make_unique<TopKOp>(std::move(operation))));
     prev_max = dst_max;
     prev_ind = dst_ind;
@@ -396,7 +396,7 @@ absl::Status TopKIterativeBigTest(TestExecutionEnvironment& env,
       src_cpu.push_back(&prev_max);
       src_cpu.push_back(&prev_ind);
     }
-    RETURN_IF_ERROR(env.ExecuteGPUOperation(
+    ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
         src_cpu, dst_cpu, std::make_unique<TopKOp>(std::move(operation))));
     prev_max = dst_max;
     prev_ind = dst_ind;
@@ -479,12 +479,12 @@ absl::Status TopKIterative2StepBigTest(TestExecutionEnvironment& env,
       src_cpu.push_back(&prev_max);
       src_cpu.push_back(&prev_ind);
     }
-    RETURN_IF_ERROR(env.ExecuteGPUOperation(
+    ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
         src_cpu, dst_cpu, std::make_unique<TopKOp>(std::move(op_first))));
 
     TopKOp op_second = CreateTopK(env.GetGpuInfo(), op_def_second,
                                   /*use_wg_reduction*/ true, k_offset);
-    RETURN_IF_ERROR(env.ExecuteGPUOperation(
+    ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
         {&interm_max, &interm_ind}, {&dst_max, &dst_ind},
         std::make_unique<TopKOp>(std::move(op_second))));
 

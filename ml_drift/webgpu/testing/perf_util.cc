@@ -97,10 +97,12 @@ absl::Status TestConvolutionPerformance(const Convolution2DAttributes& attr,
   SpatialTensor src, dst;
   TensorDescriptor descriptor_with_shape = op_def.src_tensors[0];
   descriptor_with_shape.SetBHWCShape(src_shape);
-  RETURN_IF_ERROR(CreateTensor(env->device(), descriptor_with_shape, &src));
+  ABSL_RETURN_IF_ERROR(
+      CreateTensor(env->device(), descriptor_with_shape, &src));
   descriptor_with_shape = op_def.dst_tensors[0];
   descriptor_with_shape.SetBHWCShape(dst_shape);
-  RETURN_IF_ERROR(CreateTensor(env->device(), descriptor_with_shape, &dst));
+  ABSL_RETURN_IF_ERROR(
+      CreateTensor(env->device(), descriptor_with_shape, &dst));
 
   const auto w_shape =
       std::visit([](const auto& w) { return w.shape; }, attr.weights);
@@ -120,7 +122,7 @@ absl::Status TestConvolutionPerformance(const Convolution2DAttributes& attr,
             << attr.padding.appended.w << "x" << attr.padding.appended.h
             << std::endl;
 
-  RETURN_IF_ERROR(conv->AssembleCode(gpu_info));
+  ABSL_RETURN_IF_ERROR(conv->AssembleCode(gpu_info));
 
   const int float_size = precision == CalculationsPrecision::F32 ? 4 : 2;
   const int64_t flops_per_element = w_shape.i * w_shape.h * w_shape.w * 2;
@@ -140,12 +142,12 @@ absl::Status TestConvolutionPerformance(const Convolution2DAttributes& attr,
   const double bias_gbytes = w_shape.o * float_size / kGByte;
 
   ComputeTask webgpu_op;
-  RETURN_IF_ERROR(webgpu_op.Init(*env, std::move(conv)));
-  RETURN_IF_ERROR(webgpu_op.SetSrcTensor(0, &src));
-  RETURN_IF_ERROR(webgpu_op.SetDstTensor(0, &dst));
-  RETURN_IF_ERROR(webgpu_op.Update(env->device()));
+  ABSL_RETURN_IF_ERROR(webgpu_op.Init(*env, std::move(conv)));
+  ABSL_RETURN_IF_ERROR(webgpu_op.SetSrcTensor(0, &src));
+  ABSL_RETURN_IF_ERROR(webgpu_op.SetDstTensor(0, &dst));
+  ABSL_RETURN_IF_ERROR(webgpu_op.Update(env->device()));
   webgpu_op.UpdateGpuObjectBindings(env->device());
-  RETURN_IF_ERROR(webgpu_op.Compile(*env));
+  ABSL_RETURN_IF_ERROR(webgpu_op.Compile(*env));
 
   for (int i = 0; i < 5; ++i) {
     auto duration = webgpu_op.GetOperationTime(*env);
@@ -168,7 +170,7 @@ absl::Status ConvolutionPerfTest(CalculationsPrecision precision,
                                  const BHWC& src_shape, int dst_channels,
                                  const HW& kernel_size) {
   ExecutionEnvironment env(GetBackendType());
-  RETURN_IF_ERROR(env.Initialize());
+  ABSL_RETURN_IF_ERROR(env.Initialize());
   const GpuInfo& gpu_info = env.GetInfo();
   Convolution2DAttributes attr;
   attr.padding.prepended = HW(kernel_size.h / 2, kernel_size.w / 2);
@@ -188,18 +190,18 @@ absl::Status ConvolutionPerfTest(CalculationsPrecision precision,
   Layout layout = src_shape.b == 1 ? Layout::HWC : Layout::BHWC;
   auto storage_type = TensorStorageType::BUFFER;
   TensorDescriptor src_tensor_desc{data_type, storage_type, layout};
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       src_tensor_desc.UpdateToSupportedStorageType(gpu_info, src_shape));
 
   const auto dst_shape = CalculateOutputShape(src_shape, attr);
   TensorDescriptor dst_tensor_desc{data_type, storage_type, layout};
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       dst_tensor_desc.UpdateToSupportedStorageType(gpu_info, dst_shape));
 
   op_def.src_tensors.push_back(src_tensor_desc);
   op_def.dst_tensors.push_back(dst_tensor_desc);
 
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       TestConvolutionPerformance(attr, src_shape, op_def, precision, &env));
 
   return absl::OkStatus();
@@ -221,7 +223,7 @@ TensorDescriptor GetTensorDescriptor(PackedType quantized_type,
 
 absl::Status ConvolutionInt8PerfTest(const BHWC& src_shape, int dst_channels) {
   ExecutionEnvironment env(GetBackendType());
-  RETURN_IF_ERROR(env.Initialize());
+  ABSL_RETURN_IF_ERROR(env.Initialize());
   const GpuInfo& gpu_info = env.GetInfo();
 
   BHWC dst_shape;
@@ -248,7 +250,7 @@ absl::Status ConvolutionInt8PerfTest(const BHWC& src_shape, int dst_channels) {
   auto dst_storage_type = src_storage_type;
 
   TensorDescriptor dst_tensor_desc{dst_data_type, dst_storage_type, layout};
-  RETURN_IF_ERROR(
+  ABSL_RETURN_IF_ERROR(
       dst_tensor_desc.UpdateToSupportedStorageType(gpu_info, dst_shape));
 
   op_def.dst_tensors.push_back(dst_tensor_desc);
@@ -319,7 +321,7 @@ absl::Status ConvolutionInt8PerfTest(const BHWC& src_shape, int dst_channels) {
         CreateDequantization(weights.shape, gpu_info, op_def.dst_tensors[0],
                              dequant_dst, src_params_td, weights_sum_i_td,
                              weights_scale_td, &weights_zero_point_td);
-    RETURN_IF_ERROR(conv->AddOperation(gpu_info, &dequant_op));
+    ABSL_RETURN_IF_ERROR(conv->AddOperation(gpu_info, &dequant_op));
     dst_tensor_desc = dequant_dst;
   }
 
@@ -327,23 +329,23 @@ absl::Status ConvolutionInt8PerfTest(const BHWC& src_shape, int dst_channels) {
   TensorDescriptor descriptor_with_shape = op_def.src_tensors[0];
   descriptor_with_shape.SetBHWCShape(
       GetShapeForPackedType(src_shape, quantized_type));
-  RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &src));
+  ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &src));
   descriptor_with_shape = dst_tensor_desc;
   descriptor_with_shape.SetBHWCShape(dst_shape);
-  RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &dst));
+  ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &dst));
 
   SpatialTensor src_params_tensor;
   SpatialTensor weights_scale_tensor;
   SpatialTensor weights_zero_point_tensor;
   SpatialTensor weights_sum_i_tensor;
   if (dequantize) {
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         CreateTensor(env.device(), src_params_td, &src_params_tensor));
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         CreateTensor(env.device(), weights_scale_td, &weights_scale_tensor));
-    RETURN_IF_ERROR(CreateTensor(env.device(), weights_zero_point_td,
-                                 &weights_zero_point_tensor));
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), weights_zero_point_td,
+                                      &weights_zero_point_tensor));
+    ABSL_RETURN_IF_ERROR(
         CreateTensor(env.device(), weights_sum_i_td, &weights_sum_i_tensor));
   }
 
@@ -354,7 +356,7 @@ absl::Status ConvolutionInt8PerfTest(const BHWC& src_shape, int dst_channels) {
   std::cout << "Dst size(HWC) - " << dst_shape.h << "x" << dst_shape.w << "x"
             << dst_shape.c << std::endl;
 
-  RETURN_IF_ERROR(conv->AssembleCode(gpu_info));
+  ABSL_RETURN_IF_ERROR(conv->AssembleCode(gpu_info));
 
   const int dst_element_size = SizeOf(dst_tensor_desc.GetDataType());
   const int64_t flops_per_element = w_shape.i * w_shape.h * w_shape.w * 2;
@@ -372,18 +374,18 @@ absl::Status ConvolutionInt8PerfTest(const BHWC& src_shape, int dst_channels) {
       weights_scale.shape.DimensionsProduct() * dst_element_size / kGByte;
 
   ComputeTask webgpu_op;
-  RETURN_IF_ERROR(webgpu_op.Init(env, std::move(conv)));
-  RETURN_IF_ERROR(webgpu_op.SetSrcTensor(0, &src));
+  ABSL_RETURN_IF_ERROR(webgpu_op.Init(env, std::move(conv)));
+  ABSL_RETURN_IF_ERROR(webgpu_op.SetSrcTensor(0, &src));
   if (dequantize) {
-    RETURN_IF_ERROR(webgpu_op.SetSrcTensor(1, &src_params_tensor));
-    RETURN_IF_ERROR(webgpu_op.SetSrcTensor(2, &weights_sum_i_tensor));
-    RETURN_IF_ERROR(webgpu_op.SetSrcTensor(3, &weights_scale_tensor));
-    RETURN_IF_ERROR(webgpu_op.SetSrcTensor(4, &weights_zero_point_tensor));
+    ABSL_RETURN_IF_ERROR(webgpu_op.SetSrcTensor(1, &src_params_tensor));
+    ABSL_RETURN_IF_ERROR(webgpu_op.SetSrcTensor(2, &weights_sum_i_tensor));
+    ABSL_RETURN_IF_ERROR(webgpu_op.SetSrcTensor(3, &weights_scale_tensor));
+    ABSL_RETURN_IF_ERROR(webgpu_op.SetSrcTensor(4, &weights_zero_point_tensor));
   }
-  RETURN_IF_ERROR(webgpu_op.SetDstTensor(0, &dst));
-  RETURN_IF_ERROR(webgpu_op.Update(env.device()));
+  ABSL_RETURN_IF_ERROR(webgpu_op.SetDstTensor(0, &dst));
+  ABSL_RETURN_IF_ERROR(webgpu_op.Update(env.device()));
   webgpu_op.UpdateGpuObjectBindings(env.device());
-  RETURN_IF_ERROR(webgpu_op.Compile(env));
+  ABSL_RETURN_IF_ERROR(webgpu_op.Compile(env));
 
   for (int i = 0; i < 5; ++i) {
     auto duration = webgpu_op.GetOperationTime(env);
@@ -425,7 +427,7 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision,
   weights_zp.data.resize(weights_zp.shape.DimensionsProduct(), 0.0f);
 
   ExecutionEnvironment env(GetBackendType());
-  RETURN_IF_ERROR(env.Initialize());
+  ABSL_RETURN_IF_ERROR(env.Initialize());
   const GpuInfo& gpu_info = env.GetInfo();
 
   OperationDef op_def;
@@ -441,10 +443,10 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision,
   SpatialTensor src, dst;
   TensorDescriptor descriptor_with_shape = op_def.src_tensors[0];
   descriptor_with_shape.SetBHWCShape(src_shape);
-  RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &src));
+  ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &src));
   descriptor_with_shape = op_def.dst_tensors[0];
   descriptor_with_shape.SetBHWCShape(dst_shape);
-  RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &dst));
+  ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &dst));
 
   const auto w_shape = weights.shape;
 
@@ -504,7 +506,7 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision,
 
   std::vector<SpatialTensor> weights_tensors(weights_gpu.size());
   for (int i = 0; i < weights_gpu.size(); ++i) {
-    RETURN_IF_ERROR(
+    ABSL_RETURN_IF_ERROR(
         CreateTensor(env.device(), weights_gpu[i], &weights_tensors[i]));
   }
 
@@ -519,8 +521,8 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision,
   SpatialTensor scale_tensor;
   SpatialTensor zp_tensor;
   if (is_qunatized) {
-    RETURN_IF_ERROR(CreateTensor(env.device(), scale_desc, &scale_tensor));
-    RETURN_IF_ERROR(CreateTensor(env.device(), zp_desc, &zp_tensor));
+    ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), scale_desc, &scale_tensor));
+    ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), zp_desc, &zp_tensor));
   }
 
   ExternalWeights external_weights;
@@ -532,7 +534,7 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision,
     external_weights.zero_point = &zp_desc;
   }
 
-  ASSIGN_OR_RETURN(
+  ABSL_ASSIGN_OR_RETURN(
       auto operation,
       CreateFullyConnectedExternalWeights(
           gpu_info, precision, op_def.src_tensors[0], op_def.dst_tensors[0],
@@ -540,23 +542,23 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision,
 
   std::unique_ptr<GPUOperation> conv =
       std::make_unique<FullyConnected>(std::move(operation));
-  RETURN_IF_ERROR(conv->AssembleCode(gpu_info));
+  ABSL_RETURN_IF_ERROR(conv->AssembleCode(gpu_info));
 
   ComputeTask webgpu_op;
-  RETURN_IF_ERROR(webgpu_op.Init(env, std::move(conv)));
-  RETURN_IF_ERROR(webgpu_op.SetSrcTensor(0, &src));
+  ABSL_RETURN_IF_ERROR(webgpu_op.Init(env, std::move(conv)));
+  ABSL_RETURN_IF_ERROR(webgpu_op.SetSrcTensor(0, &src));
   int index = 1;
   for (int i = 0; i < weights_tensors.size(); ++i) {
-    RETURN_IF_ERROR(webgpu_op.SetSrcTensor(index++, &weights_tensors[i]));
+    ABSL_RETURN_IF_ERROR(webgpu_op.SetSrcTensor(index++, &weights_tensors[i]));
   }
   if (is_qunatized) {
-    RETURN_IF_ERROR(webgpu_op.SetSrcTensor(index++, &scale_tensor));
-    RETURN_IF_ERROR(webgpu_op.SetSrcTensor(index++, &zp_tensor));
+    ABSL_RETURN_IF_ERROR(webgpu_op.SetSrcTensor(index++, &scale_tensor));
+    ABSL_RETURN_IF_ERROR(webgpu_op.SetSrcTensor(index++, &zp_tensor));
   }
-  RETURN_IF_ERROR(webgpu_op.SetDstTensor(0, &dst));
-  RETURN_IF_ERROR(webgpu_op.Update(env.device()));
+  ABSL_RETURN_IF_ERROR(webgpu_op.SetDstTensor(0, &dst));
+  ABSL_RETURN_IF_ERROR(webgpu_op.Update(env.device()));
   webgpu_op.UpdateGpuObjectBindings(env.device());
-  RETURN_IF_ERROR(webgpu_op.Compile(env));
+  ABSL_RETURN_IF_ERROR(webgpu_op.Compile(env));
 
   for (int i = 0; i < 10; ++i) {
     auto duration = webgpu_op.GetOperationTime(env);

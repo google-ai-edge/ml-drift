@@ -73,7 +73,7 @@ absl::Status EmbeddingLookupTest(TestExecutionEnvironment& env,
   dst.SetBHWCShape(BHWC(1, 1, 1, 4));
   GPUOperation operation =
       CreateEmbeddingLookup(op_def, env.GetGpuInfo(), attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_0}, {&dst}, std::make_unique<GPUOperation>(std::move(operation))));
   TensorFloat32 dst_tensor;
   dst.DownloadData(&dst_tensor);
@@ -119,7 +119,7 @@ absl::Status EmbeddingLookupSeqLen2Test(TestExecutionEnvironment& env,
   dst.SetBHWCShape(BHWC(1, 1, 2, 4));
   GPUOperation operation =
       CreateEmbeddingLookup(op_def, env.GetGpuInfo(), attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src}, {&dst}, std::make_unique<GPUOperation>(std::move(operation))));
   TensorFloat32 dst_tensor;
   dst.DownloadData(&dst_tensor);
@@ -175,7 +175,7 @@ absl::Status EmbeddingLookupInt8Test(TestExecutionEnvironment& env,
   dst.SetBHWCShape(BHWC(1, 1, 1, 4));
   GPUOperation operation =
       CreateEmbeddingLookup(op_def, env.GetGpuInfo(), attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_0}, {&dst}, std::make_unique<GPUOperation>(std::move(operation))));
   TensorFloat32 dst_tensor;
   dst.DownloadData(&dst_tensor);
@@ -237,7 +237,7 @@ absl::Status EmbeddingLookupInt4Test(TestExecutionEnvironment& env,
   dst.SetBHWCShape(BHWC(1, 1, 1, 4));
   GPUOperation operation =
       CreateEmbeddingLookup(op_def, env.GetGpuInfo(), attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_0}, {&dst}, std::make_unique<GPUOperation>(std::move(operation))));
   TensorFloat32 dst_tensor;
   dst.DownloadData(&dst_tensor);
@@ -298,7 +298,7 @@ absl::Status EmbeddingLookupInt4NegativeTest(TestExecutionEnvironment& env,
   dst.SetBHWCShape(BHWC(1, 1, 1, 4));
   GPUOperation operation =
       CreateEmbeddingLookup(op_def, env.GetGpuInfo(), attr);
-  RETURN_IF_ERROR(env.ExecuteGPUOperation(
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_0}, {&dst}, std::make_unique<GPUOperation>(std::move(operation))));
   TensorFloat32 dst_tensor;
   dst.DownloadData(&dst_tensor);

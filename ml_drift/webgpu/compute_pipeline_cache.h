@@ -48,10 +48,10 @@ class ComputePipelineCache {
     if (it != cached_data_.end()) {
       return it->second.get();
     } else {
-      ASSIGN_OR_RETURN(auto pipeline,
-                       CreateComputePipeline(
-                           device, code, pipeline_constants, entry_point_name,
-                           layout, executor_.get(), use_async_create_call));
+      ABSL_ASSIGN_OR_RETURN(
+          auto pipeline, CreateComputePipeline(
+                             device, code, pipeline_constants, entry_point_name,
+                             layout, executor_.get(), use_async_create_call));
       return cached_data_.insert({fingerprint, std::move(pipeline)})
           .first->second.get();
     }
@@ -65,7 +65,7 @@ class ComputePipelineCache {
       *code = it->second.code;
       *extensions_info = it->second.extensions_info;
     } else {
-      RETURN_IF_ERROR(
+      ABSL_RETURN_IF_ERROR(
           ml_drift::webgpu::ConvertToWGSL(webgpu_info, code, extensions_info));
       cached_code_[hash].code = *code;
       cached_code_[hash].extensions_info = *extensions_info;
