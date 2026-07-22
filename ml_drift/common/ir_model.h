@@ -57,6 +57,24 @@ struct IrQuantParams {
   float scale = 0.f;
 };
 
+// Describes the origin of a tensor's backing bytes. Used for shared constants,
+// whose bytes are shared with the caller rather than owned by the graph.
+struct BufferSource {
+  // True if the tensor is a shared constant.
+  bool is_shared = false;
+  // Global buffer id identifying the shared buffer in the shared-memory
+  // manager. Only meaningful when is_shared is true.
+  int global_id = -1;
+  // If true, the shared constant must be dequantized to float before being
+  // shared. Set by op converters for ops that cannot consume quantized shared
+  // weights (e.g. Convolution2D). Only meaningful when is_shared is true.
+  bool dequant_forced = false;
+  // If true, the shared constant must be materialized with LINEAR layout by the
+  // shared-memory manager. Set by op converters for shared bias tensors (parity
+  // with GraphFloat32). Only meaningful when is_shared is true.
+  bool force_linear_layout = false;
+};
+
 // Represents a tensor of data that flows along the graph's edges.
 struct IrTensor {
   explicit IrTensor(IrTensorId id) : id(id) {}
@@ -64,6 +82,7 @@ struct IrTensor {
 
   IrTensorId id;
   TensorDescriptor desc;  // shape, layout, dtype
+  BufferSource buffer_source;
   std::optional<IrQuantParams> quant_params;
   std::optional<IrOpId> producer;
   absl::flat_hash_set<IrOpId> consumers;
@@ -135,6 +154,14 @@ class IrModel {
   // Returns the IrTensor with the given ID, or nullptr if the ID is out of
   // bounds or is a tombstone.
   const IrTensor* tensor(IrTensorId id) const {
+    return id < tensors_.size() ? tensors_.at(id).get() : nullptr;
+  }
+
+  // Mutable accessor for op converters that enrich tensor metadata in place
+  // (e.g. shape, buffer_source), mirroring GraphFloat32::GetValue. Prefer the
+  // const `tensor()` for reads; topology changes must go through
+  // SetProducer/AddConsumer/ReplaceInput rather than mutating here.
+  IrTensor* GetMutableTensor(IrTensorId id) {
     return id < tensors_.size() ? tensors_.at(id).get() : nullptr;
   }
 
