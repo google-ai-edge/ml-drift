@@ -507,6 +507,20 @@ cc_library(
 )
 
 cc_library(
+    name = "op_registry",
+    srcs = ["op_registry.cc"],
+    hdrs = ["op_registry.h"],
+    deps = [
+        ":op_base",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:string_view",
+    ],
+)
+
+cc_library(
     name = "operations",
     srcs = ["operations.cc"],
     hdrs = ["operations.h"],
