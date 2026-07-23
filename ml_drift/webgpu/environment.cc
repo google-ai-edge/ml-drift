@@ -260,7 +260,9 @@ std::string ToString(const wgpu::AdapterInfo& adapter_info) {
 
 std::string ToString(const wgpu::Adapter& adapter) {
   wgpu::AdapterInfo adapter_info;
-  return adapter.GetInfo(&adapter_info) ? ToString(adapter_info) : "Unknown";
+  return adapter.GetInfo(&adapter_info) == wgpu::Status::Success
+             ? ToString(adapter_info)
+             : "Unknown";
 }
 #endif  // !__EMSCRIPTEN__
 
