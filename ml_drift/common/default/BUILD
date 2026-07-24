@@ -22,12 +22,12 @@ package(
 cc_library(
     name = "custom_parsers",
     srcs = ["custom_parsers.cc"],
-    hdrs = ["//third_party/odml/litert/ml_drift/tflite:custom_parsers.h"],
+    hdrs = ["@//ml_drift_delegate/tflite:custom_parsers.h"],
     deps = [
         "//ml_drift/common:shape",
         "//ml_drift/common:status",
-        "//third_party/odml/litert/ml_drift/tflite:operation_parser",
-        "//third_party/odml/litert/ml_drift/tflite:unimplemented_operation_parser",
+        "@//ml_drift_delegate/tflite:operation_parser",
+        "@//ml_drift_delegate/tflite:unimplemented_operation_parser",
         "@com_google_absl//absl/strings",
     ],
 )

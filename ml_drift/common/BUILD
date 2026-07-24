@@ -152,7 +152,10 @@ flatbuffer_cc_library(
         "--scoped-enums",
         "-I .",
     ],
-    include_paths = ["ml_drift/common/task"],
+    include_paths = [
+        "external/ml_drift",
+        "ml_drift/common/task",
+    ],
     includes = [
         "//ml_drift/common/task:serialization_base_cc_fbs_includes",
     ],
@@ -739,5 +742,47 @@ cc_test(
         ":memory_management",
         "//ml_drift/common/default:status_matchers",
         "@com_google_googletest//:gtest_main",
+    ],
+)
+
+config_setting(
+    name = "opencl_delegate_no_gl",
+    values = {"copt": "-DCL_DELEGATE_NO_GL"},
+)
+
+cc_library(
+    name = "api_common",
+    srcs = ["api_common.cc"],
+    hdrs = ["api_common.h"],
+    deps = [
+        ":util",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+cc_library(
+    name = "api_cl_gl_vk",
+    srcs = ["api_cl_gl_vk.cc"],
+    hdrs = ["api_cl_gl_vk.h"],
+    defines = ["CL_DELEGATE_NO_GL"],
+    deps = [
+        ":api_common",
+        ":data_type",
+        ":status",
+        ":util",
+        "@com_google_absl//absl/types:span",
+        "@com_google_absl//absl/types:variant",
+        "@opencl_headers",
+        "@vulkan_headers//:vulkan_headers_no_prototypes",
+    ],
+)
+
+cc_library(
+    name = "spi",
+    hdrs = ["spi.h"],
+    deps = [
+        ":access_type",
+        ":api_cl_gl_vk",
+        ":status",
     ],
 )

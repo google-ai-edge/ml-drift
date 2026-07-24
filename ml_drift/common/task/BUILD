@@ -379,7 +379,7 @@ exports_files(
         "weights_layout.h",
     ],
     visibility = [
-        "//third_party/odml/litert/ml_drift/delegate/serialization_weight_cache:__pkg__",
+        "@//ml_drift_delegate/delegate/serialization_weight_cache:__pkg__",
     ],
 )
 

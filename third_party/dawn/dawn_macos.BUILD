@@ -15,3 +15,15 @@ cc_library(
     ],
     visibility = ["//visibility:public"],
 )
+
+alias(
+    name = "webgpu_dawn",
+    actual = ":libdawn",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "webgpu_headers",
+    actual = ":libdawn",
+    visibility = ["//visibility:public"],
+)

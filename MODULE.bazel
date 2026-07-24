@@ -1,6 +1,6 @@
 module(
     name = "ml_drift",
-    bazel_compatibility = [">=8.4.0"],
+    bazel_compatibility = [">=7.7.0"],
 )
 
 bazel_dep(name = "rules_python", version = "0.40.0")
@@ -116,6 +116,18 @@ http_archive(
     sha256 = "ecef9210de067ed5ca0fa420d482110faefae7365450e87175cb0097431429d7",
     strip_prefix = "XNNPACK-7884caf6c38333ce058527499a68c8e71f044bc9",
     url = "https://github.com/google/XNNPACK/archive/7884caf6c38333ce058527499a68c8e71f044bc9.zip",
+)
+
+VULKAN_HEADERS_COMMIT = "32c07c0c5334aea069e518206d75e002ccd85389"
+
+VULKAN_HEADERS_SHA256 = "602aedcc4c6057473d0f7fee1bcc3aa01bf191371b2b5bbca949cebc03cf393a"
+
+http_archive(
+    name = "vulkan_headers",
+    build_file = "//third_party/vulkan_headers:vulkan_headers.BUILD",
+    sha256 = VULKAN_HEADERS_SHA256,
+    strip_prefix = "Vulkan-Headers-{commit}".format(commit = VULKAN_HEADERS_COMMIT),
+    urls = ["https://github.com/KhronosGroup/Vulkan-Headers/archive/{commit}.tar.gz".format(commit = VULKAN_HEADERS_COMMIT)],
 )
 
 http_archive(

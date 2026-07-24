@@ -12,24 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-include "ml_drift/common/gpu_model.fbs";
-include "ml_drift/common/task/serialization_base.fbs";
+#ifndef ML_DRIFT_CL_TENSOR_TYPE_UTIL_H_
+#define ML_DRIFT_CL_TENSOR_TYPE_UTIL_H_
 
-namespace ml_drift.cl.data;
+#include "ml_drift/common/api_cl_gl_vk.h"
+#include "ml_drift/common/api_common.h"
+#include "ml_drift/common/task/tensor_desc.h"
 
-table BinaryProgram {
-  fingerprint:uint64;
-  binary:[ubyte];
-}
+namespace ml_drift {
+namespace cl {
 
-table InferenceContext {
-  gpu_model:ml_drift.data.GpuModel;
-  driver_version:string;
-  binary_programs:[BinaryProgram];
-  // Must be serialized after actual OpenCL objects created
-  // Separated from nodes in GpuModel
-  tuned_work_group_sizes_per_node:[ml_drift.data.Int3];
-  fingerprints_per_node:[uint64];
-}
+ObjectType ToObjectType(TensorStorageType type);
 
-root_type InferenceContext;
+DataLayout ToDataLayout(TensorStorageType type);
+
+TensorStorageType ToTensorStorageType(ObjectType object_type,
+                                      DataLayout data_layout);
+
+}  // namespace cl
+}  // namespace ml_drift
+
+#endif  // ML_DRIFT_CL_TENSOR_TYPE_UTIL_H_

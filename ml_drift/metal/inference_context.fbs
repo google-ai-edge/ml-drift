@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-include "common/gpu_model.fbs";
-include "common/task/serialization_base.fbs";
+include "ml_drift/common/gpu_model.fbs";
+include "ml_drift/common/task/serialization_base.fbs";
 
 namespace ml_drift.metal.data;
 

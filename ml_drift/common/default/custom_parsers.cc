@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "third_party/odml/litert/ml_drift/tflite/custom_parsers.h"
+#include "ml_drift_delegate/tflite/custom_parsers.h"
 
 #include <memory>
 
 #include "absl/strings/string_view.h"
-#include "third_party/odml/litert/ml_drift/tflite/operation_parser.h"
-#include "third_party/odml/litert/ml_drift/tflite/unimplemented_operation_parser.h"
+#include "ml_drift_delegate/tflite/operation_parser.h"
+#include "ml_drift_delegate/tflite/unimplemented_operation_parser.h"
 
 namespace litert::ml_drift {
 

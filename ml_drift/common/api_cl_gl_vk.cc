@@ -21,11 +21,6 @@
 #include "ml_drift/common/util.h"
 
 #ifndef CL_DELEGATE_NO_GL
-#define GL_NO_PROTOTYPES
-#define EGL_NO_PROTOTYPES
-#include "ml_drift/pelong/portable_gl31.h"
-#undef GL_NO_PROTOTYPES
-#undef EGL_NO_PROTOTYPES
 #endif
 
 namespace ml_drift {

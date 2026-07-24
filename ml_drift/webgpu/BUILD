@@ -220,7 +220,7 @@ cc_library(
         "@com_google_absl//absl/log:absl_log",
         "@com_google_absl//absl/memory",
         "@com_google_absl//absl/strings",
-        "@dawn//:libdawn",
+        "@dawn//:webgpu_dawn",
     ],
 )
 
@@ -233,7 +233,6 @@ cc_library(
     ],
     deps = [
         ":environment",
-        "@dawn//:libdawn",
     ],
 )
 
@@ -255,6 +254,7 @@ flatbuffer_cc_library(
         "-I .",
     ],
     include_paths = [
+        "external/ml_drift",
         "ml_drift",
         "ml_drift/common",
         "ml_drift/common/task",
@@ -499,5 +499,8 @@ cc_library(
 cc_library(
     name = "webgpu_headers",
     hdrs = ["webgpu_headers.h"],
-    deps = ["@dawn//:libdawn"],
+    deps = [
+        "@dawn//:webgpu_dawn",
+        "@dawn//:webgpu_headers",
+    ],
 )

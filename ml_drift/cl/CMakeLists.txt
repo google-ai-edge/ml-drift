@@ -118,7 +118,7 @@ mld_generate_flatbuffers_cpp(mld_cl_serialization_cc_fbs
   "${CMAKE_CURRENT_SOURCE_DIR}/serialization.fbs"
   OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/ml_drift/cl"
   INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}"
-  INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/../"
+  INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/../../"
   DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/../common/gpu_model.fbs"
     flatc_host_tool

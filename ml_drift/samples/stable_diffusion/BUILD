@@ -281,8 +281,8 @@ cc_library(
     hdrs = ["model_data_loader.h"],
     visibility = [
         "//research/aimatter/diffusion/klgan:__subpackages__",
-        "//third_party/odml/litert/ml_drift/tflite:__subpackages__",
         "//wireless/android/camera/diffusion/inference:__subpackages__",
+        "@//ml_drift_delegate/tflite:__subpackages__",
     ],
     deps = [
         ":util",

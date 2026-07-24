@@ -318,6 +318,40 @@ flatbuffer_cc_library(
 )
 
 cc_library(
+    name = "converter",
+    srcs = ["converter.cc"],
+    hdrs = ["converter.h"],
+    deps = [
+        ":buffer",
+        ":cl_command_queue",
+        ":cl_context",
+        ":cl_device",
+        ":cl_errors",
+        ":cl_event",
+        ":cl_operation",
+        ":environment",
+        ":opencl_wrapper",
+        ":program_cache",
+        ":tensor",
+        ":tensor_type_util",
+        "//ml_drift/common:api_cl_gl_vk",
+        "//ml_drift/common:api_common",
+        "//ml_drift/common:data_type",
+        "//ml_drift/common:gpu_info",
+        "//ml_drift/common:shape",
+        "//ml_drift/common:spi",
+        "//ml_drift/common:status",
+        "//ml_drift/common:types",
+        "//ml_drift/common:util",
+        "//ml_drift/common/kernels:conversion",
+        "//ml_drift/common/task:buffer_desc",
+        "//ml_drift/common/task:gpu_object_desc",
+        "//ml_drift/common/task:gpu_operation",
+        "//ml_drift/common/task:tensor_desc",
+    ],
+)
+
+cc_library(
     name = "environment",
     srcs = ["environment.cc"],
     hdrs = ["environment.h"],
@@ -515,6 +549,7 @@ flatbuffer_cc_library(
         "-I .",
     ],
     include_paths = [
+        "external/ml_drift",
         "ml_drift",
         "ml_drift/common",
         "ml_drift/common/task",
@@ -573,6 +608,17 @@ cc_test(
         "@com_google_absl//absl/log:absl_check",
         "@com_google_absl//absl/log:absl_log",
         "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "tensor_type_util",
+    srcs = ["tensor_type_util.cc"],
+    hdrs = ["tensor_type_util.h"],
+    deps = [
+        "//ml_drift/common:api_cl_gl_vk",
+        "//ml_drift/common:api_common",
+        "//ml_drift/common/task:tensor_desc",
     ],
 )
 
