@@ -499,10 +499,16 @@ struct PReLUAttributes {
       alpha;
 };
 
+enum RoPEKernelType {
+  PLANAR_1D = 0,       // 1D RoPE along Width
+  INTERLEAVED_2D = 1,  // 2D RoPE along Width and Height, interleaved channels
+};
+
 struct RoPEAttributes {
   float min_timescale = 1.0f;
   float max_timescale = 10000.0f;
   float proportion = 1.0f;  // p-RoPE proportion
+  RoPEKernelType kernel_type = RoPEKernelType::PLANAR_1D;
 };
 
 struct ReduceAttributes {

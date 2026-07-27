@@ -108,6 +108,7 @@ GPUOperation CreateSplitRoPEConcat(const GpuInfo& gpu_info,
   op.args_.AddFloat("min_timescale", attr.min_timescale);
   op.args_.AddFloat("max_timescale", attr.max_timescale);
   op.args_.AddFloat("proportion", attr.proportion);
+  op.args_.AddInt("kernel_type", static_cast<int>(attr.kernel_type));
 
   std::string pow_func_name = "pow";
   std::string sin_func_name = "sin";
@@ -129,31 +130,65 @@ GPUOperation CreateSplitRoPEConcat(const GpuInfo& gpu_info,
   } else {
     code += "  int X = ucl::GetGlobalId<0>();\n";
   }
-  code += absl::Substitute(R"(
+  // kernel_type 0=PLANAR_1D, 1=INTERLEAVED_2D.
+  code += absl::Substitute(
+      R"(
   int Y = ucl::GetGlobalId<1>();
   int S = ucl::GetGlobalId<2>();
-  int half_slices_count = args.dst_tensor.Slices() / 2;
-  if (X >= args.dst_tensor.Width() || Y >= args.dst_tensor.Height() || S >= half_slices_count) {
+  int slice_count = args.dst_tensor.Slices();
+  int half_slices_count = slice_count / 2;
+  if (X >= args.dst_tensor.Width() || Y >= args.dst_tensor.Height()) {
     return;
   }
-  int slice0 = S;
-  int slice1 = S + half_slices_count;
-  float4 fraction;
+  if (args.kernel_type == 0 && S >= half_slices_count) {
+    return;
+  }
+  if (args.kernel_type == 1 && (S % 2 == 1 || S >= slice_count)) {
+    return;
+  }
   float inv_dst_ch = 1.0f / ucl::Convert<float>(args.dst_tensor.Channels());
-  fraction.x = 2.0f * ucl::Convert<float>(S * 4 + 0) * inv_dst_ch;
-  fraction.y = 2.0f * ucl::Convert<float>(S * 4 + 1) * inv_dst_ch;
-  fraction.z = 2.0f * ucl::Convert<float>(S * 4 + 2) * inv_dst_ch;
-  fraction.w = 2.0f * ucl::Convert<float>(S * 4 + 3) * inv_dst_ch;
+  float4 pos_val = ucl::Init<float4>(args.position.Read<float>(X % args.position.Width(), 0, 0).x);
+  int s_mult = args.kernel_type == 1 ? 2 : 4;
+  int4 p = S * s_mult + ucl::Init<int4>(0, 1, 2, 3);
+  if (args.kernel_type == 1) {)"
+      // INTERLEAVED_2D: Y % Width() is correct. args.position is 1D and it is
+      // assumed that args.src_tensor.Width() == args.src_tensor.Height().
+      // Note: channels is a multiple of 8, so slice_count is even and p.xy and
+      // p.zw are each guaranteed to be in the same interval [0, slice_count) or
+      // [slice_count, 2*slice_count). Hence, only 2 ifs instead of 4.
+      R"(
+    float4 pos_y = ucl::Init<float4>(args.position.Read<float>(Y % args.position.Width(), 0, 0).x);
+    if (p.x >= slice_count) { p.xy -= slice_count; pos_val.xy = pos_y.xy; }
+    if (p.z >= slice_count) { p.zw -= slice_count; pos_val.zw = pos_y.zw; }
+  }
+  float fraction_mult = args.kernel_type == 1 ? 4.0f : 2.0f;
+  float4 fraction;
+  fraction.x = fraction_mult * ucl::Convert<float>(p.x) * inv_dst_ch;
+  fraction.y = fraction_mult * ucl::Convert<float>(p.y) * inv_dst_ch;
+  fraction.z = fraction_mult * ucl::Convert<float>(p.z) * inv_dst_ch;
+  fraction.w = fraction_mult * ucl::Convert<float>(p.w) * inv_dst_ch;
+
   float4 min_timescale = ucl::Init<float4>(args.min_timescale);
   float4 max_timescale = ucl::Init<float4>(args.max_timescale);
   float4 timescale = min_timescale * $0(max_timescale / min_timescale, fraction);
-  int pos_x = X % args.position.Width();
-  float4 pos_val = ucl::Init<float4>(args.position.Read<float>(pos_x, 0, 0).x);
   float4 sinusoid_inp = pos_val / timescale;
   Type sin_val = ucl::Convert<Type>($1(sinusoid_inp));
   Type cos_val = ucl::Convert<Type>($2(sinusoid_inp));
+
+  int slice0 = S;
+  int slice1 = S + half_slices_count;
+  if (args.kernel_type == 1) {
+    slice0 = S;
+    slice1 = S + 1;
+  }
   Type val0 = args.src_tensor.Read(X, Y, slice0);
   Type val1 = args.src_tensor.Read(X, Y, slice1);
+  if (args.kernel_type == 1) {
+    Type t0 = ucl::Init<Type>(val0.x, val0.z, val1.x, val1.z);
+    Type t1 = ucl::Init<Type>(val0.y, val0.w, val1.y, val1.w);
+    val0 = t0;
+    val1 = t1;
+  }
   Type out0;
   Type out1;
   if (fraction.w < ucl::Init<float>(args.proportion)) {
@@ -163,10 +198,16 @@ GPUOperation CreateSplitRoPEConcat(const GpuInfo& gpu_info,
     out0 = val0;
     out1 = val1;
   }
+  if (args.kernel_type == 1) {
+    Type t0 = ucl::Init<Type>(out0.x, out1.x, out0.y, out1.y);
+    Type t1 = ucl::Init<Type>(out0.z, out1.z, out0.w, out1.w);
+    out0 = t0;
+    out1 = t1;
+  }
   args.dst_tensor.Write(out0, X, Y, slice0);
   args.dst_tensor.Write(out1, X, Y, slice1);
 })",
-                           pow_func_name, sin_func_name, cos_func_name);
+      pow_func_name, sin_func_name, cos_func_name);
   absl::StrReplaceAll(
       {{"Type", ToUclDataType(definition.dst_tensors[0].GetDataType(), 4)}},
       &code);

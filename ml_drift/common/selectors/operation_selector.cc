@@ -448,14 +448,36 @@ absl::Status MakeRoPE(const GpuInfo& gpu_info,
                       const CreateGpuModelInfo& create_info,
                       const std::vector<ValueId>& inputs,
                       const std::vector<ValueId>& outputs,
+                      const RoPEAttributes& attr,
                       GpuModelBuilder* model_builder) {
   if (inputs.size() == 2) {
     if (outputs.size() != 1) {
-      return absl::InvalidArgumentError("RoPE expects 2 inputs and 1 output.");
+      return absl::InvalidArgumentError("RoPE expects 1 output for 2 inputs.");
+    }
+    if (attr.kernel_type == RoPEKernelType::INTERLEAVED_2D) {
+      ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]));
+      auto shape = src.tensor_desc.GetBHWCShape();
+      if (shape.c % 8 != 0) {
+        // SplitRoPEConcat falls back to RoPE for c % 8 != 0, and RoPE only
+        // supports PLANAR_1D.
+        return absl::InvalidArgumentError(
+            "RoPE with INTERLEAVED_2D requires channels divisible by 8.");
+      }
+      if (shape.w != shape.h) {
+        // The pos tensor is assumed to be a 1D tensor with length W. The Y
+        // coord is read from that as well, so we must have W == H.
+        return absl::InvalidArgumentError(
+            "RoPE with INTERLEAVED_2D requires square input.");
+      }
     }
   } else if (inputs.size() == 3) {
     if (outputs.size() != 2) {
-      return absl::InvalidArgumentError("RoPE expects 3 inputs and 2 outputs.");
+      return absl::InvalidArgumentError("RoPE expects 2 outputs for 3 inputs.");
+    }
+    if (attr.kernel_type == RoPEKernelType::INTERLEAVED_2D) {
+      // RoPE (3 inputs case) only supports PLANAR_1D so far.
+      return absl::InvalidArgumentError(
+          "RoPE does not support INTERLEAVED_2D for 3 inputs.");
     }
   } else {
     return absl::InvalidArgumentError("RoPE expects 2 or 3 inputs.");
@@ -468,14 +490,15 @@ absl::Status MakeRoPE(const GpuInfo& gpu_info,
     ABSL_ASSIGN_OR_RETURN(auto position, model_builder->GetTensor(inputs[1]));
 
     return model_builder->UpdateOutputTensor(
-        model_builder->SplitRoPEConcat(src, position), outputs[0]);
+        model_builder->SplitRoPEConcat(src, position, attr), outputs[0]);
   } else {
     ABSL_ASSIGN_OR_RETURN(auto src_l, model_builder->GetTensor(inputs[0]));
     ABSL_ASSIGN_OR_RETURN(auto src_r, model_builder->GetTensor(inputs[1]));
     ABSL_ASSIGN_OR_RETURN(auto position, model_builder->GetTensor(inputs[2]));
 
     return model_builder->UpdateOutputTensors(
-        model_builder->RoPE(src_l, src_r, position), {outputs[0], outputs[1]});
+        model_builder->RoPE(src_l, src_r, position, attr),
+        {outputs[0], outputs[1]});
   }
 }
 
@@ -1028,8 +1051,14 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
       return MakeRmsNorm(gpu_info, create_info, src_ids, dst_ids, attr,
                          model_builder);
     }
-    case OperationType::ROPE:
-      return MakeRoPE(gpu_info, create_info, src_ids, dst_ids, model_builder);
+    case OperationType::ROPE: {
+      RoPEAttributes attr;
+      if (node.operation.attributes.has_value()) {
+        attr = std::any_cast<const RoPEAttributes&>(node.operation.attributes);
+      }
+      return MakeRoPE(gpu_info, create_info, src_ids, dst_ids, attr,
+                      model_builder);
+    }
     case OperationType::SELECT_V2: {
       const auto& attr =
           std::any_cast<const SelectV2Attributes&>(node.operation.attributes);
@@ -1604,7 +1633,12 @@ absl::Status GPUOperationFromNode(
                          model_builder);
     }
     case OperationType::ROPE: {
-      return MakeRoPE(gpu_info, create_info, src_ids, dst_ids, model_builder);
+      RoPEAttributes attr;
+      if (node.attr.has_value()) {
+        attr = std::any_cast<const RoPEAttributes&>(node.attr);
+      }
+      return MakeRoPE(gpu_info, create_info, src_ids, dst_ids, attr,
+                      model_builder);
     }
     case OperationType::SCALED_DOT_PRODUCT_ATTENTION: {
       const auto& attr =

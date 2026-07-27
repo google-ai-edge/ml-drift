@@ -28,6 +28,10 @@ absl::Status RoPETest(TestExecutionEnvironment& env, DataType data_type,
 absl::Status SplitRoPEConcatTest(TestExecutionEnvironment& env,
                                  DataType data_type, TensorStorageType storage);
 
+absl::Status SplitRoPEConcatInterleavedAxialTest(TestExecutionEnvironment& env,
+                                                 DataType data_type,
+                                                 TensorStorageType storage);
+
 }  // namespace ml_drift
 
 #endif  // ML_DRIFT_COMMON_KERNELS_TESTS_ROPE_TEST_UTIL_H_
