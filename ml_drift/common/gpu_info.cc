@@ -779,6 +779,11 @@ bool AppleInfo::IsLocalMemoryPreferredOverGlobal() const {
   return IsFamilyOrLower(AppleInfo::Family::kApple2);
 }
 
+bool AppleInfo::IsMSeries() const {
+  return IsM1Series() || IsM2Series() || IsM3Series() || IsM4Series() ||
+         IsM5Series();
+}
+
 bool AppleInfo::IsM1Series() const {
   return gpu_type == AppleGpu::kM1 || gpu_type == AppleGpu::kM1Pro ||
          gpu_type == AppleGpu::kM1Max || gpu_type == AppleGpu::kM1Ultra;

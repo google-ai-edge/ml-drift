@@ -294,6 +294,7 @@ struct AppleInfo {
   bool IsLocalMemoryPreferredOverGlobal() const;
 
   bool IsBionic() const;
+  bool IsMSeries() const;
   bool IsM1Series() const;
   bool IsM2Series() const;
   bool IsM3Series() const;
