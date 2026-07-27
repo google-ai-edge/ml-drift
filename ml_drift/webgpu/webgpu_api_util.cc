@@ -82,6 +82,7 @@ absl::Status ReadDataFromMappableBuffer(const wgpu::Device& device,
   absl::Time start = absl::Now();
   while (wait_status == wgpu::WaitStatus::TimedOut) {
     Instance::ProcessEvents();
+    Instance::MaybeRunFlushCallback();
     wait_status = Instance::Get().WaitAny(1u, &wait_info, 0);
     if ((absl::Now() - start) > absl::Seconds(20)) {
       return absl::AbortedError(

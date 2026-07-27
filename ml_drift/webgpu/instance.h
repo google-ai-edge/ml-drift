@@ -38,12 +38,48 @@ class Instance {
   // Sets the instance to be returned by Get(). When ML-Drift is duplicated in
   // multiple shared libraries, a singleton instance must be set for each shared
   // library to use it.
-  // Note that it is not thread-safe on purpose assuming it must be called
-  // before any call to Get() in each shared library.
+  //
+  // Ownership & Ref-Counting:
+  // Storing `instance` increments Dawn's reference count (+1). Callers do NOT
+  // need to keep their original handle alive after calling Set(); ML-Drift
+  // retains its own reference for process/module duration.
+  //
+  // WARNING: Overwriting a global singleton introduces risks of data races and
+  // undefined behavior. This function is NOT thread-safe and should NOT be used
+  // by new clients before refactoring the singleton initialization. It must
+  // only be called sequentially during initialization before any concurrent
+  // threads invoke Get(), when there is no race condition.
+  // TODO(crbug.com/524317888) - Remove this pattern and refactor singleton
+  // initialization.
   static absl::Status Set(const wgpu::Instance& instance);
 
   static absl::Status Wait(wgpu::Future future, absl::Duration timeout);
   static void ProcessEvents();
+
+  using WebGpuFlushCallback = void (*)();
+  // Sets an optional callback (`void (*)()`) to be invoked during synchronous
+  // WebGPU buffer readback.
+  //
+  // When to set this callback:
+  // - Required when ML-Drift runs over an inter-process or client-server WebGPU
+  //   transport layer, such as Chromium's Renderer process
+  //   (`WebNNLiteRTInRenderer`) using Dawn Wire over Mojo IPC.
+  // - When running directly on native GPU drivers (e.g., inside Chrome's GPU
+  //   process or standalone benchmark tools), this callback is not needed and
+  //   should remain `nullptr`.
+  //
+  // When it is used:
+  // - Invoked by `MaybeRunFlushCallback()` inside `ReadDataFromMappableBuffer`
+  //   while polling a `wgpu::Future` in a synchronous wait loop.
+  // - In out-of-process architectures, the callback flushes outbound wire
+  //   commands across the IPC channel (`dawn_control_client_->Flush()`) and
+  //   pumps inbound IPC messages on the thread message loop (`base::RunLoop`)
+  //   so that the GPU process's readback response is delivered to Dawn.
+  static void SetFlushCallback(WebGpuFlushCallback callback);
+  // Invokes the flush callback registered via `SetFlushCallback()`. This is
+  // called during synchronous CPU readback loops (`ReadDataFromMappableBuffer`)
+  // before calling `WaitAny()` to prevent deadlocks over IPC channels.
+  static void MaybeRunFlushCallback();
 };
 
 }  // namespace webgpu

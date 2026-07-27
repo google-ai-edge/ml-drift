@@ -27,6 +27,7 @@ namespace webgpu {
 namespace {
 
 const wgpu::Instance* g_instance = nullptr;
+Instance::WebGpuFlushCallback g_flush_cb = nullptr;
 
 wgpu::Instance CreateInstance() {
   wgpu::InstanceDescriptor instance_desc = {};
@@ -73,10 +74,11 @@ const wgpu::Instance& Instance::Get() {
 }
 
 absl::Status Instance::Set(const wgpu::Instance& instance) {
-  if (g_instance) {
-    return absl::AlreadyExistsError("wgpu::Instance already set");
+  if (!g_instance) {
+    g_instance = absl::IgnoreLeak(new wgpu::Instance(instance));
+  } else {
+    *const_cast<wgpu::Instance*>(g_instance) = instance;
   }
-  g_instance = &instance;
   return absl::OkStatus();
 }
 
@@ -93,6 +95,16 @@ absl::Status Instance::Wait(wgpu::Future future, absl::Duration timeout) {
 }
 
 void Instance::ProcessEvents() { Get().ProcessEvents(); }
+
+void Instance::SetFlushCallback(WebGpuFlushCallback callback) {
+  g_flush_cb = callback;
+}
+
+void Instance::MaybeRunFlushCallback() {
+  if (g_flush_cb) {
+    g_flush_cb();
+  }
+}
 
 }  // namespace webgpu
 }  // namespace ml_drift

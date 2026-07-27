@@ -496,11 +496,19 @@ cc_library(
         ],
 )
 
+config_setting(
+    name = "ml_drift_use_dawn_proc",
+    values = {"define": "ml_drift_use_dawn_proc=true"},
+)
+
 cc_library(
     name = "webgpu_headers",
     hdrs = ["webgpu_headers.h"],
-    deps = [
-        "@dawn//:webgpu_dawn",
-        "@dawn//:webgpu_headers",
-    ],
+    deps = ["@dawn//:webgpu_headers"] + select({
+        ":ml_drift_use_dawn_proc": [
+            "@dawn//:dawn_headers",
+            "@dawn//:libdawn_proc",
+        ],
+        "//conditions:default": ["@dawn//:webgpu_dawn"],
+    }),
 )
