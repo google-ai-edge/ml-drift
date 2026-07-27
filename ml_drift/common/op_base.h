@@ -141,27 +141,7 @@ inline absl::Status ValidateAndNormalizeAttrs(
 }
 
 // Base interface for operations. Inherit from this class to register an
-// operation in ML Drift (see op_registry.h).
-//
-// Example usage:
-// class MyCustomOp : public OpBase {
-//  public:
-//   MLD_DECLARE_OP_ATTRS(
-//       MLD_OP_ATTR(int, int_arg, 3),
-//       MLD_OP_ATTR(float, float_arg, 1.0f)
-//   );
-//
-//   absl::Status Build(
-//       GpuModelBuilder& graph,
-//       const std::vector<GpuModelBuilder::TensorHandle>& inputs,
-//       const Attrs& attrs,
-//       std::vector<GpuModelBuilder::TensorHandle>& outputs) const override {
-//     // Implementation goes here...
-//     return absl::OkStatus();
-//   }
-// };
-//
-// MLD_REGISTER_OP(MyCustomOp);
+// operation in ML Drift (see op_api.h).
 class OpBase {
  public:
   virtual ~OpBase() = default;

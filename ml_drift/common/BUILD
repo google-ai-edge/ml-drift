@@ -510,6 +510,15 @@ cc_library(
 )
 
 cc_library(
+    name = "op_api",
+    hdrs = ["op_api.h"],
+    deps = [
+        ":op_base",
+        ":op_registry",
+    ],
+)
+
+cc_library(
     name = "op_registry",
     srcs = ["op_registry.cc"],
     hdrs = ["op_registry.h"],
