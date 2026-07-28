@@ -148,6 +148,10 @@ absl::Status ClOperation::Compile(const CLDevice* device, CLContext* context,
   }
   if (gpu_info.opencl_info.IsCLVK()) {
     operation_->compiler_options_.push_back(CompilerOptions::kClVkNativeMath);
+    if (gpu_info.IsIntel()) {
+      operation_->compiler_options_.push_back(
+          CompilerOptions::kClVkDenormPreserve);
+    }
   }
   if (gpu_info.IsPowerVR()) {
     operation_->compiler_options_.push_back(

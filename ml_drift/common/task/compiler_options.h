@@ -21,26 +21,29 @@ namespace ml_drift {
 
 enum class CompilerOptions {
   kUnknown,
+  // go/keep-sorted start
   kAdrenoFullSimd,
   kAdrenoMoreWaves,
-  kClFastRelaxedMath,
-  kClDisableOptimizations,
   kCl20,
   kCl30,
-  kClVkNativeMath,
+  kClAdrenoFixBinary,
+  kClAmdSaveTempsAndroid,
+  kClDisableOptimizations,
+  kClFastRelaxedMath,
+  kClIntel256GRFPerThread,
+  kClPixelDisableKernelBlobCache,
+  kClPixelDisableRecompile,
+  kClPixelEnableImmediateRecompile,
   kClRegisterAllocation64,
   kClUniformWorkGroupSize,
-  kClPixelDisableRecompile,
-  kClPixelDisableKernelBlobCache,
-  kClPixelEnableImmediateRecompile,
-  kClIntel256GRFPerThread,
-  kClAmdSaveTempsAndroid,
-  kClAdrenoFixBinary,
-  kWaveSize8,
+  kClVkDenormPreserve,
+  kClVkNativeMath,
+  kWaveSize128,
   kWaveSize16,
   kWaveSize32,
   kWaveSize64,
-  kWaveSize128,
+  kWaveSize8,
+  // go/keep-sorted end
 };
 
 // Converts a wave size to a CompilerOptions enum value.

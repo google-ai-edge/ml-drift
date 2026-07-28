@@ -132,6 +132,8 @@ std::string CompilerOptionToString(const GpuInfo& gpu_info,
       return "-cl-std=CL3.0";
     case CompilerOptions::kClVkNativeMath:
       return "-cl-native-math";
+    case CompilerOptions::kClVkDenormPreserve:
+      return "-denorm-preserve=16,32,64";
     case CompilerOptions::kClUniformWorkGroupSize:
       return "-cl-uniform-work-group-size";
     case CompilerOptions::kClPixelDisableRecompile:
