@@ -64,7 +64,7 @@ struct BufferSource {
   bool is_shared = false;
   // Global buffer id identifying the shared buffer in the shared-memory
   // manager. Only meaningful when is_shared is true.
-  int global_id = -1;
+  int64_t global_id = -1;
   // If true, the shared constant must be dequantized to float before being
   // shared. Set by op converters for ops that cannot consume quantized shared
   // weights (e.g. Convolution2D). Only meaningful when is_shared is true.
