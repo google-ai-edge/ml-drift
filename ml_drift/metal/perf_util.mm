@@ -921,20 +921,35 @@ absl::Status ConvSoftmaxConvPerfTest() {
 absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision, DataType weights_type,
                                          const BHWC& src_shape, int dst_channels,
                                          OHWI scale_zp_shape) {
+  const bool use_zero_point = false;
   ml_drift::Tensor<OHWI, DataType::FLOAT32> weights;
   weights.shape = OHWI(dst_channels, scale_zp_shape.h, 1, src_shape.c);
   weights.data.resize(weights.shape.DimensionsProduct() + XNN_EXTRA_BYTES / sizeof(float));
+  // Initialize weights with non uniform values. Uniform values can be optimized in textures and
+  // show too good performance???
+  for (int i = 0; i < weights.data.size(); ++i) {
+    weights.data[i] = i;
+  }
 
   ml_drift::Tensor<OHWI, DataType::INT8> weights_i8;
   weights_i8.shape = OHWI(dst_channels, scale_zp_shape.h, 1, src_shape.c);
   weights_i8.data.resize(weights_i8.shape.DimensionsProduct() + XNN_EXTRA_BYTES / sizeof(uint8_t));
+  for (int i = 0; i < weights_i8.data.size(); ++i) {
+    weights_i8.data[i] = (i % 256) - 128;
+  }
 
   ml_drift::Tensor<OHWI, DataType::FLOAT32> weights_scale;
   weights_scale.shape = scale_zp_shape;
   weights_scale.data.resize(weights_scale.shape.DimensionsProduct(), 1.0f);
+  for (int i = 0; i < weights_scale.data.size(); ++i) {
+    weights_scale.data[i] = sin(i);
+  }
   ml_drift::Tensor<OHWI, DataType::FLOAT32> weights_zp;
   weights_zp.shape = scale_zp_shape;
   weights_zp.data.resize(weights_zp.shape.DimensionsProduct(), 0.0f);
+  for (int i = 0; i < weights_zp.data.size(); ++i) {
+    weights_zp.data[i] = cos(i);
+  }
 
   Environment env;
   const GpuInfo& gpu_info = env.GetInfo();
@@ -1016,7 +1031,9 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision, DataTy
   MetalSpatialTensor zp_tensor;
   if (is_quantized) {
     ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), scale_desc, &scale_tensor));
-    ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), zp_desc, &zp_tensor));
+    if (use_zero_point) {
+      ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), zp_desc, &zp_tensor));
+    }
   }
 
   ExternalWeights external_weights;
@@ -1025,7 +1042,9 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision, DataTy
   if (is_quantized) {
     external_weights.scale_zp_shape = scale_zp_shape;
     external_weights.scale = &scale_desc;
-    external_weights.zero_point = &zp_desc;
+    if (use_zero_point) {
+      external_weights.zero_point = &zp_desc;
+    }
   }
 
   std::vector<int3> wg_sizes;
@@ -1037,6 +1056,14 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision, DataTy
     }
   }
   std::vector<double> time_ms(wg_sizes.size());
+
+  double gbytes_read = src_gbytes + weight_gbytes + bias_gbytes;
+  if (is_quantized) {
+    gbytes_read += scale_gbytes;
+    if (use_zero_point) {
+      gbytes_read += scale_gbytes;
+    }
+  }
 
   for (int i = 0; i < wg_sizes.size(); ++i) {
     ABSL_ASSIGN_OR_RETURN(auto operation, CreateFullyConnectedExternalWeights(
@@ -1057,14 +1084,23 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision, DataTy
     }
     if (is_quantized) {
       gpu_kernel.SetSrcTensor(&scale_tensor, index++);
-      gpu_kernel.SetSrcTensor(&zp_tensor, index++);
+      if (use_zero_point) {
+        gpu_kernel.SetSrcTensor(&zp_tensor, index++);
+      }
     }
     gpu_kernel.SetDstTensor(&dst, 0);
     ABSL_RETURN_IF_ERROR(gpu_kernel.UpdateParams());
 
     time_ms[i] = absl::ToDoubleMilliseconds(gpu_kernel.GetTaskTime(command_queue));
-    std::cout << "WG size: " << wg_sizes[i].x << "x" << wg_sizes[i].y << " - time: " << time_ms[i]
-              << std::endl;
+
+    const double fps = 1000.0 / time_ms[i];
+    const double gflops_real = fps * gflops_count;
+    const double gbs_read = fps * gbytes_read;
+    const double gbs_write = fps * dst_gbytes;
+    std::cout << std::fixed << std::setprecision(4) << "WG size: " << wg_sizes[i].x << "x"
+              << wg_sizes[i].y << " time - " << time_ms[i] << "(ms), GFlops - " << gflops_real
+              << ", Bandwidth - " << gbs_read + gbs_write << "(GB/s), Read - " << gbs_read
+              << "(GB/s), Write - " << gbs_write << "(GB/s)" << std::endl;
   }
 
   double min_time_ms = 10000.0;
@@ -1078,12 +1114,9 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision, DataTy
 
   const double fps = 1000.0 / min_time_ms;
   const double gflops_real = fps * gflops_count;
-  double gbytes_read = src_gbytes + weight_gbytes + bias_gbytes;
-  if (is_quantized) {
-    gbytes_read += scale_gbytes * 2.0;
-  }
-  double gbs_read = fps * gbytes_read;
+  const double gbs_read = fps * gbytes_read;
   const double gbs_write = fps * dst_gbytes;
+
   std::cout << std::endl
             << "Optimal WG size: " << optimal_wg_size.x << "x" << optimal_wg_size.y << std::fixed
             << std::setprecision(4) << " Time - " << min_time_ms << "(ms), GFlops - " << gflops_real
@@ -1112,17 +1145,31 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision, DataType we
   ml_drift::Tensor<OHWI, DataType::FLOAT32> weights;
   weights.shape = OHWI(dst_channels, scale_zp_shape.h, 1, src_shape.c);
   weights.data.resize(weights.shape.DimensionsProduct() + XNN_EXTRA_BYTES / sizeof(float));
+  // Initialize weights with non uniform values. Uniform values can be optimized in textures and
+  // show too good performance???
+  for (int i = 0; i < weights.data.size(); ++i) {
+    weights.data[i] = i;
+  }
 
   ml_drift::Tensor<OHWI, DataType::INT8> weights_i8;
   weights_i8.shape = OHWI(dst_channels, scale_zp_shape.h, 1, src_shape.c);
   weights_i8.data.resize(weights_i8.shape.DimensionsProduct() + XNN_EXTRA_BYTES / sizeof(uint8_t));
+  for (int i = 0; i < weights_i8.data.size(); ++i) {
+    weights_i8.data[i] = (i % 256) - 128;
+  }
 
   ml_drift::Tensor<OHWI, DataType::FLOAT32> weights_scale;
   weights_scale.shape = scale_zp_shape;
   weights_scale.data.resize(weights_scale.shape.DimensionsProduct(), 1.0f);
+  for (int i = 0; i < weights_scale.data.size(); ++i) {
+    weights_scale.data[i] = sin(i);
+  }
   ml_drift::Tensor<OHWI, DataType::FLOAT32> weights_zp;
   weights_zp.shape = scale_zp_shape;
   weights_zp.data.resize(weights_zp.shape.DimensionsProduct(), 0.0f);
+  for (int i = 0; i < weights_zp.data.size(); ++i) {
+    weights_zp.data[i] = cos(i);
+  }
 
   Environment env;
   const GpuInfo& gpu_info = env.GetInfo();
