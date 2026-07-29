@@ -1093,6 +1093,55 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision, DataTy
 
     time_ms[i] = absl::ToDoubleMilliseconds(gpu_kernel.GetTaskTime(command_queue));
 
+    const bool kUseMultipleWeights = false;
+    if (kUseMultipleWeights) {
+      const int kMultiplier = 32;
+      int inferences = 200.0 / time_ms[i];
+      inferences = AlignByN(inferences, kMultiplier);
+      std::vector<MetalSpatialTensor> weights_tensors_multiple(weights_gpu.size() * kMultiplier);
+      std::vector<MetalSpatialTensor> scale_tensors_multiple(kMultiplier);
+      std::vector<MetalSpatialTensor> zp_tensors_multiple(kMultiplier);
+      for (int k = 0; k < kMultiplier; ++k) {
+        for (int i = 0; i < weights_gpu.size(); ++i) {
+          ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), weights_gpu[i],
+                                            &weights_tensors_multiple[k * weights_gpu.size() + i]));
+        }
+        if (is_quantized) {
+          ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), scale_desc, &scale_tensors_multiple[k]));
+          if (use_zero_point) {
+            ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), zp_desc, &zp_tensors_multiple[k]));
+          }
+        }
+      }
+      @autoreleasepool {
+        id<MTLCommandBuffer> command_buffer = [command_queue commandBuffer];
+        id<MTLComputeCommandEncoder> encoder = [command_buffer computeCommandEncoder];
+        for (int j = 0; j < inferences; ++j) {
+          int w_id = j % kMultiplier;
+          int index = 1;
+          for (int k = 0; k < weights_gpu.size(); ++k) {
+            gpu_kernel.SetSrcTensor(&weights_tensors_multiple[w_id * weights_gpu.size() + k],
+                                    index++);
+          }
+          if (is_quantized) {
+            gpu_kernel.SetSrcTensor(&scale_tensors_multiple[w_id], index++);
+            if (use_zero_point) {
+              gpu_kernel.SetSrcTensor(&zp_tensors_multiple[w_id], index++);
+            }
+          }
+          ABSL_RETURN_IF_ERROR(gpu_kernel.UpdateParams());
+          gpu_kernel.Encode(encoder);
+        }
+        [encoder endEncoding];
+        auto start = absl::Now();
+        [command_buffer commit];
+        [command_buffer waitUntilCompleted];
+        auto end = absl::Now();
+        double time_ms_local =
+            static_cast<double>((end - start) / absl::Nanoseconds(1)) / inferences * 1e-6;
+        time_ms[i] = time_ms_local;
+      }
+    }
     const double fps = 1000.0 / time_ms[i];
     const double gflops_real = fps * gflops_count;
     const double gbs_read = fps * gbytes_read;
