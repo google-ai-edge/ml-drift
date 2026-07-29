@@ -62,7 +62,7 @@ class OpRegistry {
 // Add this macro to the .cc file where the operation is implemented.
 #define MLD_REGISTER_OP(OpType)                               \
   [[maybe_unused]] static bool reg_##OpType = []() {          \
-    OpRegistry::Global().Register(                            \
+    ::ml_drift::OpRegistry::Global().Register(                \
         #OpType, []() { return std::make_unique<OpType>(); }, \
         OpType().GetAttrSpecs());                             \
     return true;                                              \
