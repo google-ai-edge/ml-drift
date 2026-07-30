@@ -158,8 +158,8 @@ GPUOperation CreateSplitRoPEConcat(const GpuInfo& gpu_info,
       // [slice_count, 2*slice_count). Hence, only 2 ifs instead of 4.
       R"(
     float4 pos_y = ucl::Init<float4>(args.position.Read<float>(Y % args.position.Width(), 0, 0).x);
-    if (p.x >= slice_count) { p.xy -= slice_count; pos_val.xy = pos_y.xy; }
-    if (p.z >= slice_count) { p.zw -= slice_count; pos_val.zw = pos_y.zw; }
+    if (p.x >= slice_count) { p.x -= slice_count; p.y -= slice_count; pos_val.x = pos_y.x; pos_val.y = pos_y.y; }
+    if (p.z >= slice_count) { p.z -= slice_count; p.w -= slice_count; pos_val.z = pos_y.z; pos_val.w = pos_y.w; }
   }
   float fraction_mult = args.kernel_type == 1 ? 4.0f : 2.0f;
   float4 fraction;
