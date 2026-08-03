@@ -3852,6 +3852,11 @@ GpuModelBuilder::TensorHandle GpuModelBuilder::MakeGelu(
   return Elementwise(src, OperationType::GELU);
 }
 
+GpuModelBuilder::TensorHandle GpuModelBuilder::MakeGeluTanh(
+    const GpuModelBuilder::TensorHandle& src) {
+  return Elementwise(src, OperationType::GELU_TANH_APPROX);
+}
+
 GPUOperation GpuModelBuilder::CreateNormalize(
     const GpuModelBuilder::TensorHandle& src,
     const GpuModelBuilder::TensorHandle& mean,

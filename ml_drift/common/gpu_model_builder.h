@@ -437,6 +437,7 @@ class GpuModelBuilder {
                                   int tile_size);
 
   TensorHandle MakeGelu(const TensorHandle& src);
+  TensorHandle MakeGeluTanh(const TensorHandle& src);
 
   GPUOperation CreateNormalize(const TensorHandle& src,
                                const TensorHandle& mean,
