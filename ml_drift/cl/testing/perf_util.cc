@@ -1676,9 +1676,10 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision,
       scale_zp_shape.DimensionsProduct() * element_size / kGByte;
 
   std::vector<int3> wg_sizes;
-  for (int y = 1; y <= 256; y *= 2) {
-    for (int x = 256; x >= 1; x /= 2) {
-      if (x * y >= 16 && x * y <= 256) {
+  const int max_wg_size = 256;
+  for (int y = 1; y <= max_wg_size; y *= 2) {
+    for (int x = max_wg_size; x >= 1; x /= 2) {
+      if (x * y >= 16 && x * y <= max_wg_size) {
         wg_sizes.push_back({x, y, 1});
       }
     }
@@ -1749,6 +1750,31 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision,
     }
   }
 
+  const bool kUseMultipleWeights = false;
+  const int kMultiplier = 32;
+  std::vector<Tensor> weights_tensors_multiple(weights_gpu.size() *
+                                               kMultiplier);
+  std::vector<Tensor> scale_tensors_multiple(kMultiplier);
+  std::vector<Tensor> zp_tensors_multiple(kMultiplier);
+  if (kUseMultipleWeights) {
+    std::cout << "Weights total size: " << weight_gbytes * kMultiplier * 1024.0
+              << " MB" << std::endl;
+    for (int k = 0; k < kMultiplier; ++k) {
+      for (int i = 0; i < weights_gpu.size(); ++i) {
+        ABSL_RETURN_IF_ERROR(CreateTensor(
+            env.context(), weights_gpu[i],
+            &weights_tensors_multiple[k * weights_gpu.size() + i]));
+      }
+      if (is_quantized) {
+        ABSL_RETURN_IF_ERROR(CreateTensor(env.context(), scale_desc,
+                                          &scale_tensors_multiple[k]));
+        if (use_zero_point) {
+          ABSL_RETURN_IF_ERROR(
+              CreateTensor(env.context(), zp_desc, &zp_tensors_multiple[k]));
+        }
+      }
+    }
+  }
   for (int i = 0; i < wg_sizes.size(); ++i) {
     ABSL_ASSIGN_OR_RETURN(
         auto operation,
@@ -1785,6 +1811,38 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision,
                           cl_op.GetOpTime(env.device().GetInfo(), env.queue(),
                                           env.profiling_queue()));
     time_ms[i] = absl::ToDoubleMilliseconds(duration);
+
+    if (kUseMultipleWeights) {
+      int inferences = 200.0 / time_ms[i];
+      inferences = AlignByN(inferences, kMultiplier);
+
+      const auto start = absl::Now();
+      for (int j = 0; j < inferences; ++j) {
+        int w_id = j % kMultiplier;
+        int index = 1;
+        for (int k = 0; k < weights_gpu.size(); ++k) {
+          ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(
+              index++,
+              &weights_tensors_multiple[w_id * weights_gpu.size() + k]));
+        }
+        if (is_quantized) {
+          ABSL_RETURN_IF_ERROR(
+              cl_op.SetSrcTensor(index++, &scale_tensors_multiple[w_id]));
+          if (use_zero_point) {
+            ABSL_RETURN_IF_ERROR(
+                cl_op.SetSrcTensor(index++, &zp_tensors_multiple[w_id]));
+          }
+        }
+        ABSL_RETURN_IF_ERROR(cl_op.UpdateParams());
+        ABSL_RETURN_IF_ERROR(cl_op.AddToQueue(env.queue()));
+      }
+      ABSL_RETURN_IF_ERROR(env.queue()->WaitForCompletion());
+      const auto end = absl::Now();
+      double time_ms_local =
+          static_cast<double>((end - start) / absl::Nanoseconds(1)) /
+          inferences * 1e-6;
+      time_ms[i] = time_ms_local;
+    }
 
     const double fps = 1000.0 / time_ms[i];
     const double gflops_real = fps * gflops_count;
