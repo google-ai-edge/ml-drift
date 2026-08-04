@@ -280,7 +280,7 @@ Tensor<HWC, DataType::FLOAT32> OHIToHOIO4(
           const int dst_ch = o_slice * 4 + ch;
           float value = 0.0f;
           if (dst_ch < tensor.shape.o) {
-            value = tensor.data[tensor.shape.LinearIndex({dst_ch, b, 0, i})];
+            value = tensor.Data()[tensor.shape.LinearIndex({dst_ch, b, 0, i})];
           }
           dst.data[dst.shape.LinearIndex({b, o_slice, i * 4 + ch})] = value;
         }
@@ -2224,6 +2224,7 @@ TensorDescriptor ScaleOrZeroPointToTensorDesc(
     Tensor<Linear, DataType::FLOAT32> src_linear;
     src_linear.shape = Linear(src.shape.o);
     src_linear.data = src.data;
+    src_linear.spanned_data = src.spanned_data;
     return CreateConstantLinearTensorDescriptor(gpu_info, dst_data_type,
                                                 src_linear);
   }

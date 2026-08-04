@@ -97,10 +97,6 @@ class FullyConnected : public GPUOperation {
       const TensorDescriptor& src, const TensorDescriptor& batch_ids,
       const TensorDescriptor& dst, const ExternalWeights& weights,
       const TensorDescriptor* bias, const BHWC* dst_shape_ptr);
-  friend FullyConnected CreateFullyConnected(
-      const GpuInfo& gpu_info, const OperationDef& definition,
-      CalculationsPrecision precision, const FullyConnectedInt8Attributes& attr,
-      const BHWC* dst_shape_ptr, const int3* wg_size);
 
   friend FullyConnected CreateFullyConnectedInt4Sparse2x4(
       const GpuInfo& gpu_info, const OperationDef& definition,
@@ -227,14 +223,6 @@ absl::StatusOr<FullyConnected> CreateFullyConnectedWeightsBatchIds(
     const TensorDescriptor& src, const TensorDescriptor& batch_ids,
     const TensorDescriptor& dst, const ExternalWeights& weights,
     const TensorDescriptor* bias, const BHWC* dst_shape_ptr);
-
-// Creates a fully connected operation with INT8 attributes.
-FullyConnected CreateFullyConnected(const GpuInfo& gpu_info,
-                                    const OperationDef& definition,
-                                    CalculationsPrecision precision,
-                                    const FullyConnectedInt8Attributes& attr,
-                                    const BHWC* dst_shape_ptr = nullptr,
-                                    const int3* wg_size = nullptr);
 
 // Checks if UINT8 math is supported for fully connected operations on the given
 // GPU.

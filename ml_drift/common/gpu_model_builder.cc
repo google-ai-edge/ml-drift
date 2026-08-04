@@ -2088,14 +2088,59 @@ GpuModelBuilder::TensorHandle GpuModelBuilder::FullyConnected(
     gpu_node.op_name = absl::StrCat(attr.op_name, "_fully_connected_int8");
     gpu_node.inputs = {src.id};
     gpu_node.outputs = {dst.id};
-    OperationDef op_def;
-    op_def.src_tensors.push_back(src.tensor_desc);
-    op_def.dst_tensors.push_back(dst.tensor_desc);
-    ml_drift::FullyConnected fc = CreateFullyConnected(
-        gpu_info_, op_def, GetConvPrecision(src.tensor_desc.GetDataType()),
-        attr, &dst_shape);
-    gpu_node.gpu_operation =
-        std::make_unique<ml_drift::FullyConnected>(std::move(fc));
+
+    WeightsDescription weights_desc =
+        ml_drift::GetFullyConnectedInt8WeightsDesc(gpu_info_,
+                                                   attr.weights.shape);
+    TensorDescriptor weights_i8_td =
+        GetTensorDescriptorForWeightsLayout(attr.weights, weights_desc);
+    auto weights_th = AddConstantTensor(std::move(weights_i8_td));
+    gpu_node.inputs.push_back(weights_th.id);
+
+    ExternalWeights external_weights;
+    external_weights.desc = weights_desc;
+    external_weights.shape = attr.weights.shape;
+    if (!attr.scale.empty()) {
+      external_weights.scale_zp_shape = attr.scale.shape;
+    }
+    GpuModelBuilder::TensorHandle scale_th;
+    if (attr.scale.shape.DimensionsProduct() == 1) {
+      external_weights.scalar_scale = attr.scale.Data()[0];
+    } else if (!attr.scale.empty()) {
+      scale_th = GetWeightsScale(attr.scale, float_type);
+      external_weights.scale = &scale_th.tensor_desc;
+      gpu_node.inputs.push_back(scale_th.id);
+    }
+
+    GpuModelBuilder::TensorHandle zero_point_th;
+    if (attr.zero_point.shape.DimensionsProduct() == 1) {
+      external_weights.scalar_zero_point = attr.zero_point.Data()[0];
+    } else if (!attr.zero_point.empty()) {
+      zero_point_th = GetWeightsZeroPoint(attr.zero_point, float_type);
+      external_weights.zero_point = &zero_point_th.tensor_desc;
+      gpu_node.inputs.push_back(zero_point_th.id);
+    }
+
+    GpuModelBuilder::TensorHandle bias_th;
+    GpuModelBuilder::TensorHandle* bias_th_ptr = nullptr;
+    TensorDescriptor* bias_td_ptr = nullptr;
+    if (!attr.bias.data.empty()) {
+      bias_th = AddConstantTensor(attr.bias, float_type);
+      bias_th_ptr = &bias_th;
+      bias_td_ptr = &bias_th.tensor_desc;
+      gpu_node.inputs.push_back(bias_th.id);
+    }
+
+    auto fc = CreateFullyConnectedExternalWeights(
+        gpu_info_, GetConvPrecision(src.tensor_desc.GetDataType()),
+        src.tensor_desc, dst.tensor_desc, external_weights, bias_td_ptr,
+        &dst_shape);
+    if (!fc.ok()) {
+      ABSL_LOG(ERROR) << fc.status().message();
+    } else {
+      gpu_node.gpu_operation =
+          std::make_unique<ml_drift::FullyConnected>(std::move(fc.value()));
+    }
     gpu_node.gpu_operation->flops_ =
         GetConvolutionFlops(dst_shape, attr.weights.shape);
     return dst;
