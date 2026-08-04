@@ -42,6 +42,7 @@
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/task/weights_layout.h"
 #include "ml_drift/common/tensor.h"
+#include "ml_drift/common/tensor_handle.h"
 
 namespace ml_drift {
 
@@ -56,17 +57,7 @@ struct GpuModelBuilderOptions {
 class GpuModelBuilder {
  public:
   using ValueId = uint32_t;
-  struct TensorHandle {
-    TensorDescriptor tensor_desc;
-    ValueId id;
-
-    std::string ShapeToString() const {
-      return std::to_string(tensor_desc.GetBHWCShape().b) + "x" +
-             std::to_string(tensor_desc.GetBHWCShape().h) + "x" +
-             std::to_string(tensor_desc.GetBHWCShape().w) + "x" +
-             std::to_string(tensor_desc.GetBHWCShape().c);
-    }
-  };
+  using TensorHandle = ::ml_drift::TensorHandle;
 
   struct Weights {
     TensorHandle weights;

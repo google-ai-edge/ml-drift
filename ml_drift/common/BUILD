@@ -101,6 +101,7 @@ cc_library(
         ":shape",
         ":status",
         ":tensor",
+        ":tensor_handle",
         ":types",
         ":util",
         ":winograd_util",
@@ -497,11 +498,20 @@ cc_library(
 # TODO(impjdi): Add unit test for model_transformer.
 
 cc_library(
+    name = "tensor_handle",
+    hdrs = ["tensor_handle.h"],
+    deps = [
+        "//ml_drift/common/task:tensor_desc",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_library(
     name = "op_base",
     hdrs = ["op_base.h"],
     deps = [
-        ":gpu_model_builder",
         ":status",
+        ":tensor_handle",
         ":types",
         "//ml_drift/common/task:gpu_operation",
         "@com_google_absl//absl/container:flat_hash_map",

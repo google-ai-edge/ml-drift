@@ -25,9 +25,9 @@
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/strings/str_cat.h"
-#include "ml_drift/common/gpu_model_builder.h"
 #include "ml_drift/common/status.h"
 #include "ml_drift/common/task/gpu_operation.h"
+#include "ml_drift/common/tensor_handle.h"
 #include "ml_drift/common/types.h"
 
 namespace ml_drift {
@@ -160,11 +160,10 @@ class OpBase {
   //          the attributes are validated and normalized.
   // outputs: The output tensor handles and shapes, to be populated by the
   //          operation.
-  virtual absl::Status Build(
-      GpuModelBuilder& graph,
-      const std::vector<GpuModelBuilder::TensorHandle>& inputs,
-      const Attrs& attrs,
-      std::vector<GpuModelBuilder::TensorHandle>& outputs) const = 0;
+  virtual absl::Status Build(GpuModelBuilder& graph,
+                             const std::vector<TensorHandle>& inputs,
+                             const Attrs& attrs,
+                             std::vector<TensorHandle>& outputs) const = 0;
 };
 
 }  // namespace ml_drift
