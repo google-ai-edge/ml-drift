@@ -28,6 +28,10 @@ absl::Status RoPETest(TestExecutionEnvironment& env, DataType data_type,
 absl::Status SplitRoPEConcatTest(TestExecutionEnvironment& env,
                                  DataType data_type, TensorStorageType storage);
 
+absl::Status SplitRoPEConcatIntPositionTest(TestExecutionEnvironment& env,
+                                            DataType data_type,
+                                            TensorStorageType storage);
+
 absl::Status SplitRoPEConcatInterleavedAxialTest(TestExecutionEnvironment& env,
                                                  DataType data_type,
                                                  TensorStorageType storage);

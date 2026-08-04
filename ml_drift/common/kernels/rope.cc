@@ -70,8 +70,13 @@ GPUOperation CreateRoPE(const GpuInfo& gpu_info, const OperationDef& definition,
   float4 min_timescale = ucl::Init<float4>(args.min_timescale);
   float4 max_timescale = ucl::Init<float4>(args.max_timescale);
   float4 timescale = min_timescale * $0(max_timescale / min_timescale, fraction);
-  int pos_x = X % args.position.Width();
-  float4 pos_val = ucl::Init<float4>(args.position.Read<float>(pos_x, 0, 0).x);
+  float pos_scalar;
+  if (args.position.Width() > 1) {
+    pos_scalar = args.position.Read<float>(X % args.position.Width(), 0, 0).x;
+  } else {
+    args.position.ReadPerChannel<float>(pos_scalar, 0, 0, X);
+  }
+  float4 pos_val = ucl::Init<float4>(pos_scalar);
   float4 sinusoid_inp = pos_val / timescale;
   Type sin_val = ucl::Convert<Type>($1(sinusoid_inp));
   Type cos_val = ucl::Convert<Type>($2(sinusoid_inp));
@@ -147,7 +152,13 @@ GPUOperation CreateSplitRoPEConcat(const GpuInfo& gpu_info,
     return;
   }
   float inv_dst_ch = 1.0f / ucl::Convert<float>(args.dst_tensor.Channels());
-  float4 pos_val = ucl::Init<float4>(args.position.Read<float>(X % args.position.Width(), 0, 0).x);
+  float pos_scalar;
+  if (args.position.Width() > 1) {
+    pos_scalar = args.position.Read<float>(X % args.position.Width(), 0, 0).x;
+  } else {
+    args.position.ReadPerChannel<float>(pos_scalar, 0, 0, X);
+  }
+  float4 pos_val = ucl::Init<float4>(pos_scalar);
   int s_mult = args.kernel_type == 1 ? 2 : 4;
   int4 p = S * s_mult + ucl::Init<int4>(0, 1, 2, 3);
   if (args.kernel_type == 1) {)"
@@ -157,7 +168,13 @@ GPUOperation CreateSplitRoPEConcat(const GpuInfo& gpu_info,
       // p.zw are each guaranteed to be in the same interval [0, slice_count) or
       // [slice_count, 2*slice_count). Hence, only 2 ifs instead of 4.
       R"(
-    float4 pos_y = ucl::Init<float4>(args.position.Read<float>(Y % args.position.Width(), 0, 0).x);
+    float pos_y_scalar;
+    if (args.position.Width() > 1) {
+      pos_y_scalar = args.position.Read<float>(Y % args.position.Width(), 0, 0).x;
+    } else {
+      args.position.ReadPerChannel<float>(pos_y_scalar, 0, 0, Y);
+    }
+    float4 pos_y = ucl::Init<float4>(pos_y_scalar);
     if (p.x >= slice_count) { p.x -= slice_count; p.y -= slice_count; pos_val.x = pos_y.x; pos_val.y = pos_y.y; }
     if (p.z >= slice_count) { p.z -= slice_count; p.w -= slice_count; pos_val.z = pos_y.z; pos_val.w = pos_y.w; }
   }

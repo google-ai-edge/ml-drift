@@ -45,6 +45,14 @@ TEST_P(RopeFloatTest, SplitRoPEConcatTest) {
   MLD_ASSERT_OK(SplitRoPEConcatTest(*exec_env, data_type(), storage()));
 }
 
+TEST_P(RopeFloatTest, SplitRoPEConcatIntPositionTest) {
+  if (!exec_env->IsStorageSupported(storage(), data_type())) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
+                 << " storage type: " << ToString(storage());
+  }
+  MLD_ASSERT_OK(SplitRoPEConcatIntPositionTest(*exec_env, data_type(), storage()));
+}
+
 TEST_P(RopeFloatTest, SplitRoPEConcatInterleavedAxialTest) {
   if (!exec_env->IsStorageSupported(storage(), data_type())) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
