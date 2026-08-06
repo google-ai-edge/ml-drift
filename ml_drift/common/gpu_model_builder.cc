@@ -22,6 +22,7 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <string_view>
 #include <tuple>
 #include <utility>
 #include <variant>
@@ -64,6 +65,9 @@
 #include "ml_drift/common/merge_nodes.h"
 #include "ml_drift/common/model.h"
 #include "ml_drift/common/model_hints.h"
+#include "ml_drift/common/op_attrs.h"
+#include "ml_drift/common/op_base.h"
+#include "ml_drift/common/op_registry.h"
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/precision.h"
 #include "ml_drift/common/selectors/convolution_selector.h"
@@ -4627,6 +4631,67 @@ WeightsManager::BatchGpuOperations(
                       << static_cast<int>(schedule_strategy);
   }
   return batches;
+}
+
+absl::StatusOr<std::vector<GpuModelBuilder::TensorHandle>>
+GpuModelBuilder::AppendOp(std::string_view op_name,
+                          const std::vector<TensorHandle>& inputs,
+                          const OpAttrs& attrs) {
+  auto op = OpRegistry::Global().Create(op_name);
+  if (!op) {
+    return absl::NotFoundError(
+        absl::StrCat("Operation not found in registry: ", op_name));
+  }
+
+  ABSL_ASSIGN_OR_RETURN(std::vector<AttrSpec> specs,
+                        OpRegistry::Global().GetAttrSpecs(op_name));
+
+  OpAttrs mutable_attrs = attrs;
+  ABSL_RETURN_IF_ERROR(ValidateAndNormalizeAttrs(specs, mutable_attrs));
+
+  std::vector<TensorHandle> outputs;
+  size_t initial_nodes = this->gpu_model_.nodes.size();
+  uint64_t initial_tensors = this->id_counter_;
+
+  absl::Status status = op->Build(*this, inputs, mutable_attrs, outputs);
+  if (!status.ok()) {
+    this->gpu_model_.nodes.resize(initial_nodes);
+    for (uint64_t i = initial_tensors; i < id_counter_; ++i) {
+      this->gpu_model_.tensors.erase(i);
+      this->gpu_model_.const_tensors.erase(i);
+    }
+    this->id_counter_ = initial_tensors;
+    return status;
+  }
+
+  for (size_t i = initial_nodes; i < this->gpu_model_.nodes.size(); ++i) {
+    this->gpu_model_.nodes[i].name =
+        absl::StrCat(op_name, "/", this->gpu_model_.nodes[i].name);
+  }
+
+  return outputs;
+}
+
+void GpuModelBuilder::AddSrcTensor(GPUOperation* op, const std::string& name,
+                                   const TensorHandle& handle) {
+  op->AddSrcTensor(name, handle.tensor_desc);
+  for (int idx = gpu_model_.nodes.size() - 1; idx >= 0; --idx) {
+    if (gpu_model_.nodes[idx].gpu_operation.get() == op) {
+      gpu_model_.nodes[idx].inputs.push_back(handle.id);
+      break;
+    }
+  }
+}
+
+void GpuModelBuilder::AddDstTensor(GPUOperation* op, const std::string& name,
+                                   const TensorHandle& handle) {
+  op->AddDstTensor(name, handle.tensor_desc);
+  for (int idx = gpu_model_.nodes.size() - 1; idx >= 0; --idx) {
+    if (gpu_model_.nodes[idx].gpu_operation.get() == op) {
+      gpu_model_.nodes[idx].outputs.push_back(handle.id);
+      break;
+    }
+  }
 }
 
 }  // namespace ml_drift
