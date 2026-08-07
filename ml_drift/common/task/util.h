@@ -58,6 +58,7 @@ std::string GetZeroValue(DataType data_type);
 std::string GetOneValue(DataType data_type);
 
 absl::string_view GetNextWord(absl::string_view code, size_t first_position);
+std::string GetNextWordStr(absl::string_view code, size_t first_position);
 
 size_t FindEnclosingBracket(const std::string& text, size_t first_pos,
                             char bracket);
