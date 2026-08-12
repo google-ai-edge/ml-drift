@@ -2140,6 +2140,8 @@ absl::Status TestReshapeTranspose(TestExecutionEnvironment* env) {
       op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
 
       Reshapex4 reshape_operation = CreateReshapex4(op_def);
+      reshape_operation.ResolveReorderFinalShape(
+          interm_tensor_ptr->tensor.shape);
       TensorFloat32 intermediate;
       ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           src_tensor, std::make_unique<Reshapex4>(std::move(reshape_operation)),
@@ -2248,6 +2250,8 @@ absl::Status TestReshapeTransposeReshape(TestExecutionEnvironment* env) {
       op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
 
       Reshapex4 reshape0_operation = CreateReshapex4(op_def);
+      reshape0_operation.ResolveReorderFinalShape(
+          interm0_tensor_ptr->tensor.shape);
       TensorFloat32 intermediate0;
       ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           src_tensor,
@@ -2263,6 +2267,8 @@ absl::Status TestReshapeTransposeReshape(TestExecutionEnvironment* env) {
           interm1_tensor_ptr->tensor.shape, &intermediate1));
 
       Reshapex4 reshape1_operation = CreateReshapex4(op_def);
+      reshape1_operation.ResolveReorderFinalShape(
+          output_tensor_ptr->tensor.shape);
       TensorFloat32 dst_tensor_v0;
       ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           intermediate1,
@@ -2392,6 +2398,7 @@ absl::Status TestTwoInputTwise(TestExecutionEnvironment* env) {
   op_def_sub.dst_tensors.push_back({data_type, storage_type, Layout::HWC});
 
   Reshapex4 reshape_operation = CreateReshapex4(op_def);
+  reshape_operation.ResolveReorderFinalShape(reshape_output->tensor.shape);
   TensorFloat32 input_reshaped;
   ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
       src_tensor, std::make_unique<Reshapex4>(std::move(reshape_operation)),

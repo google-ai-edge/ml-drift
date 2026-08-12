@@ -68,10 +68,13 @@ absl::Status Reshapex4Test(TestExecutionEnvironment& env, DataType data_type,
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
   TensorFloat32 dst_tensor;
+  const BHWC dst_shape = BHWC(1, 1, 2, 4);
   Reshapex4 operation = CreateReshapex4(op_def);
+  operation.ResolveReorderFinalShape(dst_shape);
+
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
-      src_tensor, std::make_unique<Reshapex4>(std::move(operation)),
-      BHWC(1, 1, 2, 4), &dst_tensor));
+      src_tensor, std::make_unique<Reshapex4>(std::move(operation)), dst_shape,
+      &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
               Pointwise(FloatNear(kEps),
                         {0.5f, -1.1f, -2.2f, 3.1f, 1.2f, 2.9f, 4.2f, -1.9f}));
@@ -143,6 +146,8 @@ absl::Status Reshapex4Test(TestExecutionEnvironment& env, DataType data_type,
   op_def.src_tensors.push_back({data_type, storage, src_layout});
   op_def.dst_tensors.push_back({data_type, storage, dst_layout});
   Reshapex4 operation = CreateReshapex4(op_def);
+  operation.ResolveReorderFinalShape(dst_ref_tensor.shape);
+
   TensorFloat32 dst_tensor;
   MLD_EXPECT_OK(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<Reshapex4>(std::move(operation)),

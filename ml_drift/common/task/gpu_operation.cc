@@ -904,11 +904,7 @@ absl::Status ResolveSelectorsPass(
                                   {"DST_X", x_coord},
                                   {"DST_Y", y_coord},
                                   {"DST_S", s_coord},
-                                  {"DST_B", "B"},
-                                  {"DST_WIDTH", "args.dst_tensor.Width()"},
-                                  {"DST_HEIGHT", "args.dst_tensor.Height()"},
-                                  {"DST_SLICES", "args.dst_tensor.Slices()"},
-                                  {"DST_BATCH", "args.dst_tensor.Batch()"}});
+                                  {"DST_B", "B"}});
             ABSL_RETURN_IF_ERROR(
                 ResolveConstExprPass(gpu_info, args, &reorder_patch));
             ABSL_RETURN_IF_ERROR(
@@ -1278,20 +1274,29 @@ absl::Status GPUOperation::AddReorderOperation(const BHWC& interm_shape,
                {"SRC_BATCH", std::to_string(interm_shape.b)}}) +
           "  }\n";
 
-  code += absl::StrReplaceAll(
-      operation->reorder_code_,
-      {{"DST_X", interm_xc},
-       {"DST_Y", interm_yc},
-       {"DST_S", interm_sc},
-       {"DST_B", interm_bc},
-       {"DST_WIDTH", std::to_string(interm_shape.w)},
-       {"DST_HEIGHT", std::to_string(interm_shape.h)},
-       {"DST_SLICES", std::to_string(DivideRoundUp(interm_shape.c, 4))},
-       {"DST_BATCH", std::to_string(interm_shape.b)}});
+  code += absl::StrReplaceAll(operation->reorder_code_, {{"DST_X", interm_xc},
+                                                         {"DST_Y", interm_yc},
+                                                         {"DST_S", interm_sc},
+                                                         {"DST_B", interm_bc}});
 
   new_src_tensor_desc->CopyWithoutData(src_tensor_desc);
   reorder_code_ = code;
   return absl::OkStatus();
+}
+
+void GPUOperation::ResolveReorderFinalShape(const BHWC& final_shape) {
+  return ResolveReorderFinalShape(
+      BHWDC(final_shape.b, final_shape.h, final_shape.w, 1, final_shape.c));
+}
+
+void GPUOperation::ResolveReorderFinalShape(const BHWDC& final_shape) {
+  reorder_code_ = absl::StrReplaceAll(
+      reorder_code_,
+      {{"DST_WIDTH", std::to_string(final_shape.w)},
+       {"DST_HEIGHT", std::to_string(final_shape.h)},
+       {"DST_DEPTH", std::to_string(final_shape.d)},
+       {"DST_SLICES", std::to_string(DivideRoundUp(final_shape.c, 4))},
+       {"DST_BATCH", std::to_string(final_shape.b)}});
 }
 
 absl::Status GPUOperation::ResolveSecondElementwiseInput(

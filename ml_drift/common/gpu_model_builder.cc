@@ -2473,6 +2473,7 @@ GpuModelBuilder::TensorHandle GpuModelBuilder::Reshape(
   attr.new_shape = dst.tensor_desc.GetBHWCShape();
   SelectReshape(src.tensor_desc.GetBHWCShape().c, attr.new_shape.c, op_def,
                 &gpu_node.gpu_operation);
+  gpu_node.gpu_operation->ResolveReorderFinalShape(attr.new_shape);
   return dst;
 }
 
@@ -2494,6 +2495,7 @@ GpuModelBuilder::TensorHandle GpuModelBuilder::Reshape(
   attr.new_shape = dst.tensor_desc.GetBHWDCShape();
   SelectReshape(src.tensor_desc.GetBHWDCShape().c, attr.new_shape.c, op_def,
                 &gpu_node.gpu_operation);
+  gpu_node.gpu_operation->ResolveReorderFinalShape(attr.new_shape);
   return dst;
 }
 
