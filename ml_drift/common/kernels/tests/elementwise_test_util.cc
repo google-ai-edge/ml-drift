@@ -945,6 +945,64 @@ absl::Status PowTest(TestExecutionEnvironment& env,
   return absl::OkStatus();
 }
 
+absl::Status PowNegativeBaseTest(TestExecutionEnvironment& env,
+                                 DataType data_type,
+                                 TensorStorageType storage) {
+  // pow(x, y) is undefined for x < 0 in WGSL, GLSL and MSL, so a bare pow()
+  // call returns NaN for a negative base. The result is real whenever y is an
+  // integer, and negative exactly when y is odd.
+  TensorFloat32 src_tensor_0, src_tensor_1;
+  src_tensor_0.shape = BHWC(1, 2, 1, 2);
+  src_tensor_1.shape = BHWC(1, 2, 1, 2);
+  src_tensor_0.data = {-2.0f, -2.0f, -3.0f, 2.0f};
+  src_tensor_1.data = {2.0f, 3.0f, 2.0f, 3.0f};
+  BHWC dst_shape = BHWC(1, 2, 1, 2);
+
+  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-2f;
+  OperationDef op_def;
+  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  TensorFloat32 dst_tensor;
+  GPUOperation operation =
+      CreateElementwiseTwoInput(env.GetGpuInfo(), op_def, OperationType::POW,
+                                src_tensor_1.shape, dst_shape);
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
+      {src_tensor_0, src_tensor_1},
+      std::make_unique<GPUOperation>(std::move(operation)), dst_shape,
+      &dst_tensor));
+  EXPECT_THAT(dst_tensor.data,
+              Pointwise(FloatNear(eps), {4.0f, -8.0f, 9.0f, 8.0f}));
+  return absl::OkStatus();
+}
+
+absl::Status PowNegativeBaseScalarTest(TestExecutionEnvironment& env,
+                                       DataType data_type,
+                                       TensorStorageType storage) {
+  // Same, for a compile-time constant exponent, which reaches the same code
+  // through CreateElementwiseOneRuntimeOneScalar().
+  TensorFloat32 src_tensor;
+  src_tensor.shape = BHWC(1, 2, 1, 2);
+  src_tensor.data = {-2.0f, -3.0f, 2.0f, 0.0f};
+  BHWC dst_shape = BHWC(1, 2, 1, 2);
+
+  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-2f;
+  OperationDef op_def;
+  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  TensorFloat32 dst_tensor;
+  ElementwiseAttributes attr;
+  attr.param = 2.0f;
+  GPUOperation operation =
+      CreateElementwise(env.GetGpuInfo(), op_def, OperationType::POW, attr);
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
+      {src_tensor}, std::make_unique<GPUOperation>(std::move(operation)),
+      dst_shape, &dst_tensor));
+  EXPECT_THAT(dst_tensor.data,
+              Pointwise(FloatNear(eps), {4.0f, 9.0f, 4.0f, 0.0f}));
+  return absl::OkStatus();
+}
+
 absl::Status AddTest(TestExecutionEnvironment& env,
                      DataType data_type,
                      TensorStorageType storage) {

@@ -421,7 +421,25 @@ std::string GetTwoInputCode(const GpuInfo& gpu_info,
         result += "$0 = ucl::Convert<" + ToUclDataType(data_type, 4) +
                   ">(out_f32);\n";
       } else {
-        result += "$0 = pow($1, $2);";
+        // pow(A, B) is undefined for A < 0, e.g. in WGSL. Apply the
+        // same correction PowUsingNativePowr() applies above for
+        // OpenCL.
+        const std::string init =
+            "ucl::Init<" + ToUclDataType(data_type, 1) + ">";
+        const std::string postfixes[4] = {".x", ".y", ".z", ".w"};
+        for (int i = 0; i < 4; ++i) {
+          std::string code = R"(
+    if (A >= INIT(0.0f)) { C = pow(A, B); }
+    else if (B * INIT(0.5f) - floor(B * INIT(0.5f)) < INIT(0.25f)) {
+      C = pow(-A, B);
+    } else {
+      C = -pow(-A, B);
+    })";
+          result += absl::StrReplaceAll(code, {{"A", "$1" + postfixes[i]},
+                                               {"B", "$2" + postfixes[i]},
+                                               {"C", "$0" + postfixes[i]},
+                                               {"INIT", init}});
+        }
       }
       break;
     case OperationType::SQUARED_DIFF:

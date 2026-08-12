@@ -111,6 +111,12 @@ absl::Status ModUint5Test(TestExecutionEnvironment& env,
 absl::Status PowTest(TestExecutionEnvironment& env,
                      DataType data_type,
                      TensorStorageType storage);
+absl::Status PowNegativeBaseTest(TestExecutionEnvironment& env,
+                                 DataType data_type,
+                                 TensorStorageType storage);
+absl::Status PowNegativeBaseScalarTest(TestExecutionEnvironment& env,
+                                       DataType data_type,
+                                       TensorStorageType storage);
 absl::Status AddTest(TestExecutionEnvironment& env,
                      DataType data_type,
                      TensorStorageType storage);
