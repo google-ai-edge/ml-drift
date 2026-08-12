@@ -80,10 +80,11 @@ absl::Status ReadDataFromMappableBuffer(const wgpu::Device& device,
   wait_info.future = future;
   wgpu::WaitStatus wait_status = wgpu::WaitStatus::TimedOut;
   absl::Time start = absl::Now();
+  wgpu::Instance instance = Instance::Get(device);
   while (wait_status == wgpu::WaitStatus::TimedOut) {
-    Instance::ProcessEvents();
-    Instance::MaybeRunFlushCallback();
-    wait_status = Instance::Get().WaitAny(1u, &wait_info, 0);
+    instance.ProcessEvents();
+    Instance::MaybeRunFlushCallback(device.Get());
+    wait_status = instance.WaitAny(1u, &wait_info, 0);
     if ((absl::Now() - start) > absl::Seconds(20)) {
       return absl::AbortedError(
           "The timeout was reached while reading back data.");
@@ -220,6 +221,7 @@ absl::Status WaitUntilCompleted(const wgpu::Queue& queue,
                                 absl::Duration timeout) {
   wgpu::QueueWorkDoneStatus status;
   ABSL_RETURN_IF_ERROR(Instance::Wait(
+      device,
       queue.OnSubmittedWorkDone(wgpu::CallbackMode::WaitAnyOnly,
                                 [&status](wgpu::QueueWorkDoneStatus s,
                                           wgpu::StringView) { status = s; }),

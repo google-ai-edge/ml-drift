@@ -25,6 +25,7 @@
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/webgpu/buffer.h"
 #include "ml_drift/webgpu/compute_pipeline_cache.h"
+#include "ml_drift/webgpu/instance.h"
 #include "ml_drift/webgpu/webgpu_headers.h"
 
 namespace ml_drift {
@@ -69,6 +70,7 @@ class Environment {
 
   const wgpu::Device& device() const { return device_; }
   const wgpu::Queue& queue() const { return queue_; }
+  wgpu::Instance instance() const { return Instance::Get(device_); }
   bool use_async_create_calls() const { return use_async_create_calls_; }
   const GpuInfo& GetInfo() const { return gpu_info_; }
 

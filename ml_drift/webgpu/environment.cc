@@ -527,7 +527,7 @@ absl::Status Environment::InitializeInstanceAndAdapter(wgpu::Adapter* adapter,
 }
 #endif  // __EMSCRIPTEN__
 
-void Environment::Tick() const { Instance::Get().ProcessEvents(); }
+void Environment::Tick() const { Instance::Get(device_).ProcessEvents(); }
 
 }  // namespace webgpu
 }  // namespace ml_drift
