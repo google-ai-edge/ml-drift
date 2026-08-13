@@ -1328,7 +1328,10 @@ absl::Status GPUOperationFromNode(
                               model_builder->GetTensor(inputs[1]->id));
         GpuModelBuilder::TensorHandle bias;
         GpuModelBuilder::TensorHandle* bias_ptr = nullptr;
-        if (!attr.bias.data.empty()) {
+        if (inputs.size() == 3) {
+          ABSL_ASSIGN_OR_RETURN(bias, model_builder->GetTensor(inputs[2]->id));
+          bias_ptr = &bias;
+        } else if (!attr.bias.data.empty()) {
           DataType bias_type = src.tensor_desc.GetDataType();
           bias = model_builder->AddConstantTensor(attr.bias, bias_type);
           bias_ptr = &bias;

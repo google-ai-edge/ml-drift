@@ -124,7 +124,9 @@ absl::StatusOr<bool> TryFusePad(IrModel* ir_model, const IrOp* op) {
     return true;
   }
 
-  if (consumer_op->inputs.size() != 1) return false;
+  if (consumer_op->inputs.empty() || consumer_op->inputs[0] != op->outputs[0]) {
+    return false;
+  }
 
   if (pad_attr.appended.c != 0 || pad_attr.prepended.c != 0 ||
       pad_attr.appended.b != 0 || pad_attr.prepended.b != 0) {

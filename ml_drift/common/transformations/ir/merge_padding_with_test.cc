@@ -189,6 +189,56 @@ TEST_P(MergePaddingSpatialParamTest, DoNotTrigger_ChannelPadding) {
   EXPECT_NE(model.tensor(temp->id), nullptr);
 }
 
+TEST_P(MergePaddingSpatialParamTest, MergeWithMultipleInputs) {
+  // Topology: input -> PAD -> padded
+  //           [padded, weights] -> SpatialOp (multiple inputs) -> output
+  IrModel model;
+  IrTensor* input = model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 8));
+  IrTensor* padded = model.add_tensor(DataType::FLOAT32, BHWC(1, 7, 7, 8));
+  IrTensor* weights = model.add_tensor(DataType::FLOAT32, BHWC(16, 1, 1, 8));
+  IrTensor* output = model.add_tensor(DataType::FLOAT32, BHWC(1, 7, 7, 16));
+
+  model.add_input(input->id);
+  model.add_input(weights->id);
+  model.add_output(output->id);
+
+  IrOp* pad_node = model.add_op();
+  pad_node->name = ToString(OperationType::PAD);
+  PadAttributes attr;
+  attr.prepended = BHWC(0, 1, 1, 0);
+  attr.appended = BHWC(0, 2, 2, 0);
+  attr.type = PaddingContentType::ZEROS;
+  pad_node->attr = attr;
+  model.AddConsumer(input->id, pad_node->id);
+  model.SetProducer(padded->id, pad_node->id);
+
+  IrOp* spatial_node = model.add_op();
+  spatial_node->name = ToString(GetParam());
+  spatial_node->attr = GetSpatialAttr(GetParam());
+  model.AddConsumer(padded->id, spatial_node->id);
+  model.AddConsumer(weights->id, spatial_node->id);
+  model.SetProducer(output->id, spatial_node->id);
+
+  IrOpId pad_node_id = pad_node->id;
+  IrTensorId padded_id = padded->id;
+  EXPECT_TRUE(TransformIrModel(&model).ok());
+
+  // PAD op and intermediate padded tensor should be removed (fused into spatial
+  // op)
+  EXPECT_EQ(model.op(pad_node_id), nullptr);
+  EXPECT_EQ(model.tensor(padded_id), nullptr);
+
+  const IrOp* remaining_op = model.op(spatial_node->id);
+  ASSERT_NE(remaining_op, nullptr);
+  EXPECT_EQ(remaining_op->name, ToString(GetParam()));
+  ASSERT_EQ(remaining_op->inputs.size(), 2);
+  EXPECT_EQ(remaining_op->inputs[0], input->id);
+  EXPECT_EQ(remaining_op->inputs[1], weights->id);
+
+  EXPECT_EQ(HW(1, 1), GetPadding(GetParam(), remaining_op->attr).prepended);
+  EXPECT_EQ(HW(2, 2), GetPadding(GetParam(), remaining_op->attr).appended);
+}
+
 INSTANTIATE_TEST_SUITE_P(MergePaddingWithSpatial, MergePaddingSpatialParamTest,
                          ::testing::Values(OperationType::CONVOLUTION_2D,
                                            OperationType::DEPTHWISE_CONVOLUTION,
