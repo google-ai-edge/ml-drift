@@ -34,6 +34,12 @@ namespace {
 
 // Returns true if op was removed, and ~absl::OkStatus() if model is invalid
 absl::StatusOr<bool> TryRemoveNoop(IrModel* ir_model, const IrOp* op) {
+  if (op->inputs.size() == 1 && op->outputs.size() == 1 &&
+      ir_model->IsGraphInput(op->inputs[0]) &&
+      ir_model->IsGraphOutput(op->outputs[0])) {
+    return false;
+  }
+
   if (op->name == ToString(::ml_drift::OperationType::CONCAT) &&
       op->inputs.size() == 1) {
     ABSL_RETURN_IF_ERROR(ir_model->RemoveSimpleOp(op->id));
