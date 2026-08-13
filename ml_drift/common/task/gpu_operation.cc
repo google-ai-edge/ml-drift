@@ -749,6 +749,9 @@ void ReplaceAllWords(const std::string& old_word, const std::string& new_word,
 struct LinkableContext {
   std::string code;
   TensorDescriptor* tensor_desc;
+
+  // for reorder
+  TensorDescriptor* final_tensor_desc;
 };
 
 absl::Status ResolveLinking(const GpuInfo& gpu_info,
@@ -889,7 +892,7 @@ absl::Status ResolveSelectorsPass(
           if (it != linkables.end()) {
             std::string x_coord, y_coord, z_coord, s_coord, b_coord;
             ABSL_RETURN_IF_ERROR(
-                it->second.tensor_desc->GetLinkingContextFromReadSelector(
+                it->second.final_tensor_desc->GetLinkingContextFromReadSelector(
                     function_args, &x_coord, &y_coord, &z_coord, &s_coord,
                     &b_coord));
             std::string reorder_patch = absl::StrReplaceAll(
@@ -904,7 +907,7 @@ absl::Status ResolveSelectorsPass(
                                   {"DST_X", x_coord},
                                   {"DST_Y", y_coord},
                                   {"DST_S", s_coord},
-                                  {"DST_B", "B"}});
+                                  {"DST_B", b_coord}});
             ABSL_RETURN_IF_ERROR(
                 ResolveConstExprPass(gpu_info, args, &reorder_patch));
             ABSL_RETURN_IF_ERROR(
@@ -1423,10 +1426,14 @@ absl::Status GPUOperation::AssembleCode(const GpuInfo& gpu_info) {
     TensorDescriptor* src_tensor_desc;
     ABSL_RETURN_IF_ERROR(
         GetTensorDescriptor(src_objects_names_[0], &src_tensor_desc));
-    if (src_tensor_desc->HasAxis(Axis::BATCH)) {
-      src_tensor_desc->SetStateVar("batch_id", "B");
-    }
-    linkables[src_objects_names_[0]] = {reorder_code_, src_tensor_desc};
+    TensorDescriptor* dst_tensor_desc;
+    ABSL_RETURN_IF_ERROR(
+        GetTensorDescriptor(dst_objects_names_[0], &dst_tensor_desc));
+    LinkableContext link_context;
+    link_context.code = reorder_code_;
+    link_context.tensor_desc = src_tensor_desc;
+    link_context.final_tensor_desc = dst_tensor_desc;
+    linkables[src_objects_names_[0]] = link_context;
   }
   if (!elementwise_code_.empty()) {
     if (dst_objects_names_.empty()) {
@@ -1436,7 +1443,10 @@ absl::Status GPUOperation::AssembleCode(const GpuInfo& gpu_info) {
     TensorDescriptor* dst_tensor_desc;
     ABSL_RETURN_IF_ERROR(
         GetTensorDescriptor(dst_objects_names_[0], &dst_tensor_desc));
-    linkables[dst_objects_names_[0]] = {elementwise_code_, dst_tensor_desc};
+    LinkableContext link_context;
+    link_context.code = elementwise_code_;
+    link_context.tensor_desc = dst_tensor_desc;
+    linkables[dst_objects_names_[0]] = link_context;
   }
   if (!const_expr_resolved_) {
     ABSL_RETURN_IF_ERROR(ResolveConstExprPass(gpu_info, args_, &code_));
