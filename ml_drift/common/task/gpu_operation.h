@@ -149,6 +149,8 @@ class GPUOperation {
     reorder_op_ = true;
   }
   bool IsReorderOp() const { return reorder_op_; }
+  void ResolveReorderFinalShape(const BHWC& final_shape);
+  void ResolveReorderFinalShape(const BHWDC& final_shape);
 
   virtual absl::Status BindArguments(ArgumentsBinder* args) {
     return absl::OkStatus();

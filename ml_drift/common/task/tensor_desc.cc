@@ -927,6 +927,29 @@ absl::Status TensorDescriptor::PerformReadPerChannelSelector(
   return absl::OkStatus();
 }
 
+absl::Status TensorDescriptor::GetLinkingContextFromReadSelector(
+    const std::vector<std::string>& args, std::string* x_coord,
+    std::string* y_coord, std::string* z_coord, std::string* s_coord,
+    std::string* b_coord) const {
+  if (args.empty()) {
+    return absl::InvalidArgumentError(absl::StrCat(
+        "Expected to get at least one argument, but got ", args.size(),
+        ". Actual arguments are: ", absl::StrJoin(args, ", "), "."));
+  }
+  std::string xc;
+  std::string yc;
+  std::string zc;
+  std::string sc;
+  std::string bc;
+  ABSL_RETURN_IF_ERROR(ParseCoordsFromArgs(args, 0, &xc, &yc, &zc, &sc, &bc));
+  *b_coord = absl::StrCat("(", bc, ")");
+  *x_coord = absl::StrCat("(", xc, ")");
+  *y_coord = absl::StrCat("(", yc, ")");
+  *z_coord = absl::StrCat("(", zc, ")");
+  *s_coord = absl::StrCat("(", sc, ")");
+  return absl::OkStatus();
+}
+
 absl::Status TensorDescriptor::GetLinkingContextFromWriteSelector(
     const std::vector<std::string>& args, std::string* value_name,
     std::string* x_coord, std::string* y_coord, std::string* z_coord,

@@ -22,6 +22,7 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -34,6 +35,7 @@
 #include "ml_drift/common/kernels/reduce.h"
 #include "ml_drift/common/model.h"
 #include "ml_drift/common/model_hints.h"
+#include "ml_drift/common/op_attrs.h"
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/precision.h"
 #include "ml_drift/common/shape.h"
@@ -45,6 +47,8 @@
 #include "ml_drift/common/tensor_handle.h"
 
 namespace ml_drift {
+
+class OpBase;
 
 class WeightsManager;
 
@@ -538,7 +542,37 @@ class GpuModelBuilder {
     default_storage_ = default_storage;
   }
 
+  // Instantiates and appends a dynamically resolved operation to the graph
+  // context via the global OpRegistry.
+  //
+  // op_name: The string name of the registered operation.
+  // inputs:  Input tensor handles.
+  // attrs:   Attributes for the operation. This method will validate and
+  //          normalize them against the defined schema.
+  // returns: Output tensor handles.
+  absl::StatusOr<std::vector<TensorHandle>> AppendOp(
+      std::string_view op_name, const std::vector<TensorHandle>& inputs,
+      const OpAttrs& attrs = OpAttrs());
+  // GetLastGpuOperation is intended for use by the operation extension
+  // framework; avoid using directly in standard graph construction.
+  // TODO(dlho): Remove this after killing stable diffusion OpHolder.
+  std::unique_ptr<GPUOperation>& GetLastGpuOperation() {
+    return gpu_model_.nodes.back().gpu_operation;
+  }
+
  private:
+  friend class OpBase;
+
+  // Adds a source tensor to the GPUOperation and registers the tensor
+  // dependency inside the GpuModel graph.
+  void AddSrcTensor(GPUOperation* op, const std::string& name,
+                    const TensorHandle& handle);
+
+  // Adds a destination tensor to the GPUOperation and registers the tensor
+  // output mapping inside the GpuModel graph.
+  void AddDstTensor(GPUOperation* op, const std::string& name,
+                    const TensorHandle& handle);
+
   TensorHandle BatchedMatMulSoftmaxBatchedMatMulSingleKernel(
       const TensorHandle& a_tensor, const TensorHandle& b_tensor,
       const TensorHandle& c_tensor);

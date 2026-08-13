@@ -125,6 +125,11 @@ class TensorDescriptor : public GPUObjectDescriptor {
 
   bool HasAxis(Axis axis) const;
 
+  absl::Status GetLinkingContextFromReadSelector(
+      const std::vector<std::string>& args, std::string* x_coord,
+      std::string* y_coord, std::string* z_coord, std::string* s_coord,
+      std::string* b_coord) const;
+
   absl::Status GetLinkingContextFromWriteSelector(
       const std::vector<std::string>& args, std::string* value_name,
       std::string* x_coord, std::string* y_coord, std::string* z_coord,

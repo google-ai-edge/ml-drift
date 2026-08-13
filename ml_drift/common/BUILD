@@ -16,6 +16,11 @@ load("@flatbuffers//:build_defs.bzl", "flatbuffer_cc_library")
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 load("//ml_drift/common:build_config.bzl", "mld_platform_alias")
 
+cc_library(
+    name = "demangle",
+    hdrs = ["demangle.h"],
+)
+
 package(
     default_visibility = ["//visibility:public"],
     licenses = ["notice"],
@@ -96,6 +101,9 @@ cc_library(
         ":merge_nodes",
         ":model",
         ":model_hints",
+        ":op_attrs",
+        ":op_base",
+        ":op_registry",
         ":operations",
         ":precision",
         ":shape",
@@ -120,6 +128,8 @@ cc_library(
         "//ml_drift/common/kernels:positional_embedding",
         "//ml_drift/common/kernels:quantize_and_dequantize",
         "//ml_drift/common/kernels:reduce",
+        "//ml_drift/common/kernels:reshape",
+        "//ml_drift/common/kernels:reshapex4",
         "//ml_drift/common/kernels:rope",
         "//ml_drift/common/kernels:select_v2",
         "//ml_drift/common/kernels:softmax",
@@ -510,6 +520,8 @@ cc_library(
     name = "op_base",
     hdrs = ["op_base.h"],
     deps = [
+        ":demangle",
+        ":op_attrs",
         ":status",
         ":tensor_handle",
         ":types",
@@ -523,6 +535,7 @@ cc_library(
     name = "op_api",
     hdrs = ["op_api.h"],
     deps = [
+        ":op_attrs",
         ":op_base",
         ":op_registry",
     ],
@@ -538,7 +551,6 @@ cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
-        "@com_google_absl//absl/strings:string_view",
     ],
 )
 
@@ -803,5 +815,16 @@ cc_library(
         ":access_type",
         ":api_cl_gl_vk",
         ":status",
+    ],
+)
+
+cc_library(
+    name = "op_attrs",
+    hdrs = ["op_attrs.h"],
+    deps = [
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
     ],
 )

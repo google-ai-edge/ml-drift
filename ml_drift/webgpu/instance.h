@@ -30,10 +30,18 @@ absl::Status VerifyWaitStatus(wgpu::WaitStatus status);
 // want to create this once per process.
 class Instance {
  public:
+  struct WebGpuFlushCallback {
+    // A custom callback function invoked during synchronous buffer readback.
+    void (*callback)(void* user_data) = nullptr;
+    // An optional opaque pointer passed directly into `callback` when invoked.
+    void* user_data = nullptr;
+  };
+
   // Returns a cached global instance. The instance object caches the adapter
   // list and can be very expensive to recreate. We only want to create this
   // once per process.
   static const wgpu::Instance& Get();
+  static wgpu::Instance Get(const wgpu::Device& device);
 
   // Sets the instance to be returned by Get(). When ML-Drift is duplicated in
   // multiple shared libraries, a singleton instance must be set for each shared
@@ -54,11 +62,12 @@ class Instance {
   static absl::Status Set(const wgpu::Instance& instance);
 
   static absl::Status Wait(wgpu::Future future, absl::Duration timeout);
+  static absl::Status Wait(const wgpu::Device& device, wgpu::Future future,
+                           absl::Duration timeout);
   static void ProcessEvents();
 
-  using WebGpuFlushCallback = void (*)();
-  // Sets an optional callback (`void (*)()`) to be invoked during synchronous
-  // WebGPU buffer readback.
+  // Sets an optional callback (`WebGpuFlushCallback`) to be invoked during
+  // synchronous WebGPU buffer readback for a specific WebGPU device.
   //
   // When to set this callback:
   // - Required when ML-Drift runs over an inter-process or client-server WebGPU
@@ -75,11 +84,16 @@ class Instance {
   //   commands across the IPC channel (`dawn_control_client_->Flush()`) and
   //   pumps inbound IPC messages on the thread message loop (`base::RunLoop`)
   //   so that the GPU process's readback response is delivered to Dawn.
-  static void SetFlushCallback(WebGpuFlushCallback callback);
-  // Invokes the flush callback registered via `SetFlushCallback()`. This is
-  // called during synchronous CPU readback loops (`ReadDataFromMappableBuffer`)
-  // before calling `WaitAny()` to prevent deadlocks over IPC channels.
-  static void MaybeRunFlushCallback();
+  static void SetFlushCallback(WGPUDevice device,
+                               const WebGpuFlushCallback* callback);
+  // Releases any flush callback registered for `device` from the global
+  // registry. This should be called when the WebGPU environment or device is
+  // being destroyed.
+  static void ReleaseFlushCallback(WGPUDevice device);
+  // Invokes the flush callback associated with `device`. This is called
+  // during synchronous CPU readback loops (`ReadDataFromMappableBuffer`) before
+  // calling `WaitAny()` to prevent deadlocks over IPC channels.
+  static void MaybeRunFlushCallback(WGPUDevice device);
 };
 
 }  // namespace webgpu

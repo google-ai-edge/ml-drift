@@ -175,7 +175,8 @@ absl::StatusOr<TensorDescriptor> GetExternallyProvidedTensorDesc(
   }
   if (external_categories_count == 1) {
     if (!(ir_model.IsGraphInput(tensor->id) ||
-          ir_model.IsGraphOutput(tensor->id))) {
+          ir_model.IsGraphOutput(tensor->id) ||
+          ir_model.FindProducer(tensor->id) == nullptr)) {
       return absl::InvalidArgumentError(
           "Currently external can be used only for graph inputs/outputs");
     }
@@ -265,6 +266,9 @@ absl::Status ReserveGraphTensors(const CreateGpuModelInfo& create_info,
   }
   IrTensorId max_id = 0;
   for (const auto& tensor : ir_model.tensors()) {
+    if (tensor == nullptr) {
+      continue;
+    }
     // Checking if tensor is provided externally, otherwise return ir model td.
     ABSL_ASSIGN_OR_RETURN(
         auto tensor_desc,
@@ -278,6 +282,9 @@ absl::Status ReserveGraphTensors(const CreateGpuModelInfo& create_info,
   auto& model_ops = ir_model.ops();
   // Upload constant tensors data.
   for (int i = 0; i < model_ops.size(); ++i) {
+    if (model_ops[i] == nullptr) {
+      continue;
+    }
     const IrOp& node = *model_ops[i];
     auto op_type = OperationTypeFromString(node.name);
     if (op_type == OperationType::CONSTANT) {
@@ -368,6 +375,9 @@ absl::Status ConvertOperations(const IrModel& ir_model,
   }
   for (int node_index = 0; node_index < model_ops.size(); ++node_index) {
     const IrOp* node = ir_model.op(node_index);
+    if (node == nullptr) {
+      continue;
+    }
     if (consumed_nodes.find(node->id) != consumed_nodes.end()) {
       continue;
     }

@@ -17,7 +17,7 @@
 
 #include <any>
 #include <cstdint>
-#include <initializer_list>
+#include <memory>
 #include <string>
 #include <typeinfo>
 #include <utility>
@@ -25,6 +25,8 @@
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/strings/str_cat.h"
+#include "ml_drift/common/demangle.h"
+#include "ml_drift/common/op_attrs.h"
 #include "ml_drift/common/status.h"
 #include "ml_drift/common/task/gpu_operation.h"
 #include "ml_drift/common/tensor_handle.h"
@@ -34,48 +36,6 @@ namespace ml_drift {
 
 class Arguments;
 class GpuModelBuilder;
-
-// Map-based attributes system for operation parameters.
-// This container holds uniforms and configuration for ops at graph
-// construction time.
-class Attrs {
- public:
-  Attrs() = default;
-  Attrs(std::initializer_list<std::pair<std::string, std::any>> init)
-      : map_(init) {}
-
-  auto find(const std::string& key) const { return map_.find(key); }
-
-  template <typename T>
-  absl::StatusOr<T> Get(const std::string& key) const {
-    auto it = map_.find(key);
-    if (it == map_.end()) {
-      return absl::InvalidArgumentError(
-          absl::StrCat("Missing required attribute: ", key));
-    }
-
-    const T* val_ptr = std::any_cast<T>(&it->second);
-    if (val_ptr == nullptr) {
-      return absl::InvalidArgumentError(
-          absl::StrCat("Type mismatch for attribute: ", key));
-    }
-    return *val_ptr;
-  }
-
-  bool contains(const std::string& key) const { return map_.contains(key); }
-
-  const std::any& at(const std::string& key) const { return map_.at(key); }
-
-  std::any& operator[](const std::string& key) { return map_[key]; }
-
-  void insert(const std::pair<std::string, std::any>& val) { map_.insert(val); }
-
-  auto begin() const { return map_.begin(); }
-  auto end() const { return map_.end(); }
-
- private:
-  absl::flat_hash_map<std::string, std::any> map_;
-};
 
 // Schema definition for a single attribute, defining its required type
 // and fallback default value if omitted.
@@ -101,7 +61,7 @@ struct AttrSpec {
 
 // [Internal] Binds attributes matching standard primitive types to the given
 // GPUOperation argument list, making them accessible to the shader.
-inline void BindAutoAttrs(GPUOperation* op, const Attrs& attrs,
+inline void BindAutoAttrs(GPUOperation* op, const OpAttrs& attrs,
                           const std::vector<AttrSpec>& specs) {
   for (const auto& spec : specs) {
     if (!spec.name.empty() && spec.name[0] != '_') {
@@ -126,7 +86,7 @@ inline void BindAutoAttrs(GPUOperation* op, const Attrs& attrs,
 // Populates missing attributes with their default values and checks for
 // type mismatch errors.
 inline absl::Status ValidateAndNormalizeAttrs(
-    const std::vector<AttrSpec>& specs, Attrs& attrs) {
+    const std::vector<AttrSpec>& specs, OpAttrs& attrs) {
   for (const auto& spec : specs) {
     if (!attrs.contains(spec.name)) {
       attrs.insert({spec.name, spec.default_value});
@@ -154,6 +114,7 @@ class OpBase {
   virtual std::vector<AttrSpec> GetAttrSpecs() const { return {}; }
 
   // Constructs the operation in the provided GpuModelBuilder graph.
+  //
   // inputs:  The tensor handles and shapes for the operation inputs, to be
   //          validated by the operation.
   // attrs:   The attributes for the operation. At the time of calling Build,
@@ -162,8 +123,45 @@ class OpBase {
   //          operation.
   virtual absl::Status Build(GpuModelBuilder& graph,
                              const std::vector<TensorHandle>& inputs,
-                             const Attrs& attrs,
+                             const OpAttrs& attrs,
                              std::vector<TensorHandle>& outputs) const = 0;
+
+ protected:
+  // Appends a new operation to the provided GpuModelBuilder graph. This helper:
+  // - Instantiates the underlying GPUOperation
+  // - Infers the operation name
+  // - Binds standard typed attributes
+  // - Stages it in the graph's pending execution context
+  //
+  // graph: Model builder graph to append the new operation to.
+  // attrs: Map containing configuration attributes for the operation.
+  // returns: Pointer to the newly allocated and staged GPUOperation.
+  template <typename BuilderType>
+  GPUOperation* AppendNewOp(BuilderType& graph, const OpAttrs& attrs) const {
+    auto op_ptr = std::make_unique<GPUOperation>();
+    auto* raw_op = op_ptr.get();
+
+    std::string op_name;
+    op_name = ml_drift::Demangle(typeid(*this).name());
+
+    BindAutoAttrs(raw_op, attrs, this->GetAttrSpecs());
+
+    graph.AddGpuOperation(std::vector<ValueId>{}, std::vector<ValueId>{},
+                          std::move(op_ptr), op_name);
+
+    return raw_op;
+  }
+  template <typename BuilderType>
+  void AddSrcTensor(BuilderType& graph, GPUOperation* op,
+                    const std::string& name, const TensorHandle& handle) const {
+    graph.AddSrcTensor(op, name, handle);
+  }
+
+  template <typename BuilderType>
+  void AddDstTensor(BuilderType& graph, GPUOperation* op,
+                    const std::string& name, const TensorHandle& handle) const {
+    graph.AddDstTensor(op, name, handle);
+  }
 };
 
 }  // namespace ml_drift

@@ -165,6 +165,88 @@ absl::Status SplitRoPEConcatIntPositionTest(TestExecutionEnvironment& env,
   return absl::OkStatus();
 }
 
+absl::Status SplitRoPEConcatIntChannelPositionTest(
+    TestExecutionEnvironment& env, DataType data_type,
+    TensorStorageType storage) {
+  TensorFloat32 src;
+  src.shape = BHWC(1, 1, 4, 8);
+  src.data = {0.0f,  1.0f,  2.0f,  3.0f,  0.0f,  1.0f,  2.0f,  3.0f,
+              4.0f,  5.0f,  6.0f,  7.0f,  4.0f,  5.0f,  6.0f,  7.0f,
+              -1.0f, -2.0f, -3.0f, -4.0f, -1.0f, -2.0f, -3.0f, -4.0f,
+              -5.0f, -6.0f, -7.0f, -8.0f, -5.0f, -6.0f, -7.0f, -8.0f};
+
+  TensorInt32 pos_tensor;
+  pos_tensor.shape = BHWC(1, 1, 1, 4);
+  pos_tensor.data = {1, 2, 3, 4};
+
+  const float eps = data_type == DataType::FLOAT32 ? 5e-6f : 1e-2f;
+  OperationDef op_def;
+  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({DataType::INT32, storage, Layout::HWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  TensorDescriptor src_td = op_def.src_tensors[0];
+  src_td.UploadData(src);
+  TensorDescriptor pos_td = op_def.src_tensors[1];
+  pos_td.UploadData(pos_tensor);
+  TensorDescriptor dst_td = op_def.dst_tensors[0];
+  dst_td.SetBHWCShape(BHWC(1, 1, 4, 8));
+  RoPEAttributes attr;
+  GPUOperation operation =
+      CreateSplitRoPEConcat(env.GetGpuInfo(), op_def, attr);
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
+      {&src_td, &pos_td}, {&dst_td},
+      std::make_unique<GPUOperation>(std::move(operation))));
+  TensorFloat32 dst;
+  dst_td.DownloadData(&dst);
+  EXPECT_THAT(
+      dst.data,
+      Pointwise(FloatNear(eps),
+                {0.0f,       0.895171f,  1.979900f,  2.996999f,  0.0f,
+                 1.094838f,  2.019900f,  3.002999f,  -5.301777f, 3.906986f,
+                 5.878808f,  6.985986f,  1.972603f,  5.893680f,  6.118792f,
+                 7.013986f,  1.131112f,  -1.319633f, -2.908664f, -3.987982f,
+                 0.848872f,  -2.501714f, -3.088637f, -4.011982f, -0.515794f,
+                 -3.189856f, -6.714476f, -7.967936f, 7.052231f,  -7.862876f,
+                 -7.274326f, -8.031936f}));
+  return absl::OkStatus();
+}
+
+absl::Status SplitRoPEConcatIntSinglePositionTest(TestExecutionEnvironment& env,
+                                                  DataType data_type,
+                                                  TensorStorageType storage) {
+  TensorFloat32 src;
+  src.shape = BHWC(1, 1, 1, 8);
+  src.data = {0.0f, 1.0f, 2.0f, 3.0f, 0.0f, 1.0f, 2.0f, 3.0f};
+
+  TensorInt32 pos_tensor;
+  pos_tensor.shape = BHWC(1, 1, 1, 1);
+  pos_tensor.data = {1};
+
+  const float eps = data_type == DataType::FLOAT32 ? 5e-6f : 1e-2f;
+  OperationDef op_def;
+  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({DataType::INT32, storage, Layout::HWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  TensorDescriptor src_td = op_def.src_tensors[0];
+  src_td.UploadData(src);
+  TensorDescriptor pos_td = op_def.src_tensors[1];
+  pos_td.UploadData(pos_tensor);
+  TensorDescriptor dst_td = op_def.dst_tensors[0];
+  dst_td.SetBHWCShape(BHWC(1, 1, 1, 8));
+  RoPEAttributes attr;
+  GPUOperation operation =
+      CreateSplitRoPEConcat(env.GetGpuInfo(), op_def, attr);
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
+      {&src_td, &pos_td}, {&dst_td},
+      std::make_unique<GPUOperation>(std::move(operation))));
+  TensorFloat32 dst;
+  dst_td.DownloadData(&dst);
+  EXPECT_THAT(dst.data, Pointwise(FloatNear(eps),
+                                  {0.0f, 0.895171f, 1.979900f, 2.996999f, 0.0f,
+                                   1.094838f, 2.019900f, 3.002999f}));
+  return absl::OkStatus();
+}
+
 absl::Status SplitRoPEConcatInterleavedAxialTest(TestExecutionEnvironment& env,
                                                  DataType data_type,
                                                  TensorStorageType storage) {

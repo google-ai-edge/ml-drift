@@ -283,5 +283,42 @@ TEST(IrModelUtilTest, TryResizeAddConvLocalMemoryFuser) {
   EXPECT_EQ(gpu_model.nodes.size(), 1);
 }
 
+TEST(IrModelUtilTest, HandlesTombstonedOpsAndTensors) {
+  IrModel ir_model;
+  IrTensor* input1 = ir_model.add_tensor(DataType::FLOAT32, BHWC(1, 2, 2, 4));
+  ir_model.add_input(input1->id);
+
+  // Intermediate identity op to be tombstoned
+  IrOp* relu_op = ir_model.add_op();
+  relu_op->name = ToString(OperationType::RELU);
+  relu_op->attr = ReLUAttributes{};
+  ir_model.AddConsumer(input1->id, relu_op->id);
+
+  IrTensor* relu_out = ir_model.add_tensor(DataType::FLOAT32, BHWC(1, 2, 2, 4));
+  ir_model.SetProducer(relu_out->id, relu_op->id);
+
+  IrOp* add_op = ir_model.add_op();
+  add_op->name = ToString(OperationType::ADD);
+  add_op->attr = ElementwiseAttributes{};
+  ir_model.AddConsumer(relu_out->id, add_op->id);
+  ir_model.AddConsumer(input1->id, add_op->id);
+
+  IrTensor* add_out = ir_model.add_tensor(DataType::FLOAT32, BHWC(1, 2, 2, 4));
+  ir_model.SetProducer(add_out->id, add_op->id);
+  ir_model.add_output(add_out->id);
+
+  // RemoveSimpleOp tombstones relu_op (null op entry in model_ops).
+  MLD_ASSERT_OK(ir_model.RemoveSimpleOp(relu_op->id));
+
+  CreateGpuModelInfo create_info;
+  create_info.precision = CalculationsPrecision::F32;
+  create_info.storage_type = TensorStorageType::BUFFER;
+  GpuInfo gpu_info = GetTestGpuInfo();
+
+  GpuModel gpu_model;
+  MLD_ASSERT_OK(IrModelToGpuModel(ir_model, create_info, gpu_info, &gpu_model));
+  EXPECT_EQ(gpu_model.nodes.size(), 1);
+}
+
 }  // namespace
 }  // namespace ml_drift::ir

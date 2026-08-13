@@ -403,5 +403,31 @@ TEST(IrRemoveNoopTest,
   EXPECT_THAT(remaining_second->inputs, ElementsAre(value2->id));
 }
 
+TEST(IrRemoveNoopTest,
+     DoNotRemoveNoopWhenBothInputAndOutputAreGraphBoundaries) {
+  IrModel model;
+  IrOp* reshape_op = model.add_op();
+  reshape_op->name = ToString(OperationType::RESHAPE);
+  ReshapeAttributes attr;
+  attr.new_shape = ::ml_drift::BHWC(1, 1, 2, 4);
+  reshape_op->attr = attr;
+
+  IrTensor* input = model.add_tensor(::ml_drift::DataType::FLOAT32,
+                                     ::ml_drift::BHWC(1, 1, 2, 4));
+  IrTensor* output = model.add_tensor(::ml_drift::DataType::FLOAT32,
+                                      ::ml_drift::BHWC(1, 1, 2, 4));
+
+  model.add_input(input->id);
+  model.add_output(output->id);
+
+  model.AddConsumer(input->id, reshape_op->id);
+  model.SetProducer(output->id, reshape_op->id);
+
+  EXPECT_TRUE(TransformIrModel(&model).ok());
+  EXPECT_NE(model.op(reshape_op->id), nullptr);
+  EXPECT_NE(model.tensor(input->id), nullptr);
+  EXPECT_NE(model.tensor(output->id), nullptr);
+}
+
 }  // namespace
 }  // namespace ml_drift::ir

@@ -113,38 +113,6 @@ std::string GetElementWiseCode(const TensorDescriptor& dst_desc) {
   return c;
 }
 
-std::string GetReorderBaseCode(const TensorDescriptor& src_desc,
-                               const TensorDescriptor& dst_desc) {
-  std::string c;
-  c += "MAIN_FUNCTION($$0) {\n";
-  if (dst_desc.HasAxis(Axis::BATCH)) {
-    c += "  int linear_id = ucl::GetGlobalId<0>();\n";
-    c += "  int X = linear_id / args.dst_tensor.Batch();\n";
-    c += "  int B = linear_id % args.dst_tensor.Batch();\n";
-    c += "  args.dst_tensor.SetBatchRef(B);\n";
-  } else {
-    c += "  int X = ucl::GetGlobalId<0>();\n";
-  }
-  c += "  int Y = ucl::GetGlobalId<1>();\n";
-  c += "  int S = ucl::GetGlobalId<2>();\n";
-  c += "  if (X >= args.dst_tensor.Width() || Y >= args.dst_tensor.Height() || "
-       "S >= args.dst_tensor.Slices()) return; \n";
-  c += "  args.src_tensor::type value;\n";
-  c += "  int src_x, src_y, src_s;\n";
-  if (src_desc.HasAxis(Axis::BATCH)) {
-    c += "  int src_b;\n";
-  }
-  c += "$0";
-  if (src_desc.HasAxis(Axis::BATCH)) {
-    c += "  value = args.src_tensor.Read(src_x, src_y, src_s, src_b);\n";
-  } else {
-    c += "  value = args.src_tensor.Read(src_x, src_y, src_s);\n";
-  }
-  c += "  args.dst_tensor.Write(value, X, Y, S);\n";
-  c += "} \n";
-  return c;
-}
-
 bool NeedsBroadcast(const TensorDescriptor& src_desc, const BHWDC& src_shape,
                     const BHWDC& dst_shape) {
   bool needs_broadcast = src_shape.w < dst_shape.w ||
@@ -781,6 +749,9 @@ void ReplaceAllWords(const std::string& old_word, const std::string& new_word,
 struct LinkableContext {
   std::string code;
   TensorDescriptor* tensor_desc;
+
+  // for reorder
+  TensorDescriptor* final_tensor_desc;
 };
 
 absl::Status ResolveLinking(const GpuInfo& gpu_info,
@@ -872,11 +843,11 @@ absl::Status ResolveSelectorsPass(
   while (next_position != std::string::npos) {
     size_t arg_pos = next_position;
     next_position += strlen(kArgsPrefix);
-    absl::string_view object_name = GetNextWord(*code, next_position);
+    std::string object_name = GetNextWordStr(*code, next_position);
     char next = (*code)[next_position + object_name.size()];
     if (next == '.') {
       next_position += object_name.size() + 1;
-      absl::string_view selector_name = GetNextWord(*code, next_position);
+      std::string selector_name = GetNextWordStr(*code, next_position);
       next_position += selector_name.size();
       next = (*code)[next_position];
       template_args.clear();
@@ -915,6 +886,48 @@ absl::Status ResolveSelectorsPass(
                 ResolveConstExprPass(gpu_info, args, &linkable_patch));
             ABSL_RETURN_IF_ERROR(
                 ResolveSelectorsPass(gpu_info, {}, args, &linkable_patch));
+          }
+        } else if (selector_name == "Read") {
+          auto it = linkables.find(object_name);
+          if (it != linkables.end()) {
+            std::string x_coord, y_coord, z_coord, s_coord, b_coord;
+            ABSL_RETURN_IF_ERROR(
+                it->second.final_tensor_desc->GetLinkingContextFromReadSelector(
+                    function_args, &x_coord, &y_coord, &z_coord, &s_coord,
+                    &b_coord));
+            std::string reorder_patch = absl::StrReplaceAll(
+                it->second.code, {{"SRC_X", "r_s_x"},
+                                  {"SRC_Y", "r_s_y"},
+                                  {"SRC_S", "r_s_s"},
+                                  {"SRC_B", "r_s_b"},
+                                  {"SRC_WIDTH", "args.src_tensor.Width()"},
+                                  {"SRC_HEIGHT", "args.src_tensor.Height()"},
+                                  {"SRC_SLICES", "args.src_tensor.Slices()"},
+                                  {"SRC_BATCH", "args.src_tensor.Batch()"},
+                                  {"DST_X", x_coord},
+                                  {"DST_Y", y_coord},
+                                  {"DST_S", s_coord},
+                                  {"DST_B", b_coord}});
+            ABSL_RETURN_IF_ERROR(
+                ResolveConstExprPass(gpu_info, args, &reorder_patch));
+            ABSL_RETURN_IF_ERROR(
+                ResolveSelectorsPass(gpu_info, {}, args, &reorder_patch));
+            reorder_patch = absl::StrCat("{\n", reorder_patch, "\n}");
+
+            // find previous first ';' or '}'
+            size_t prev_pos = arg_pos;
+            while (prev_pos > 0 && (*code)[prev_pos] != ';' &&
+                   (*code)[prev_pos] != '}') {
+              prev_pos--;
+            }
+            code->insert(prev_pos + 1, reorder_patch);
+            arg_pos += reorder_patch.size();
+            close_bracket_pos += reorder_patch.size();
+            function_args.clear();
+            function_args = {"r_s_x", "r_s_y", "r_s_s"};
+            if (it->second.tensor_desc->HasAxis(Axis::BATCH)) {
+              function_args.push_back("r_s_b");
+            }
           }
         }
       }
@@ -1264,20 +1277,29 @@ absl::Status GPUOperation::AddReorderOperation(const BHWC& interm_shape,
                {"SRC_BATCH", std::to_string(interm_shape.b)}}) +
           "  }\n";
 
-  code += absl::StrReplaceAll(
-      operation->reorder_code_,
-      {{"DST_X", interm_xc},
-       {"DST_Y", interm_yc},
-       {"DST_S", interm_sc},
-       {"DST_B", interm_bc},
-       {"DST_WIDTH", std::to_string(interm_shape.w)},
-       {"DST_HEIGHT", std::to_string(interm_shape.h)},
-       {"DST_SLICES", std::to_string(DivideRoundUp(interm_shape.c, 4))},
-       {"DST_BATCH", std::to_string(interm_shape.b)}});
+  code += absl::StrReplaceAll(operation->reorder_code_, {{"DST_X", interm_xc},
+                                                         {"DST_Y", interm_yc},
+                                                         {"DST_S", interm_sc},
+                                                         {"DST_B", interm_bc}});
 
   new_src_tensor_desc->CopyWithoutData(src_tensor_desc);
   reorder_code_ = code;
   return absl::OkStatus();
+}
+
+void GPUOperation::ResolveReorderFinalShape(const BHWC& final_shape) {
+  return ResolveReorderFinalShape(
+      BHWDC(final_shape.b, final_shape.h, final_shape.w, 1, final_shape.c));
+}
+
+void GPUOperation::ResolveReorderFinalShape(const BHWDC& final_shape) {
+  reorder_code_ = absl::StrReplaceAll(
+      reorder_code_,
+      {{"DST_WIDTH", std::to_string(final_shape.w)},
+       {"DST_HEIGHT", std::to_string(final_shape.h)},
+       {"DST_DEPTH", std::to_string(final_shape.d)},
+       {"DST_SLICES", std::to_string(DivideRoundUp(final_shape.c, 4))},
+       {"DST_BATCH", std::to_string(final_shape.b)}});
 }
 
 absl::Status GPUOperation::ResolveSecondElementwiseInput(
@@ -1375,7 +1397,7 @@ absl::Status GPUOperation::AssembleCode(const GpuInfo& gpu_info) {
   if (elementwise_inputs_ == 2) {
     ABSL_RETURN_IF_ERROR(ResolveSecondElementwiseInput(gpu_info));
   }
-  if (elementwise_) {
+  if (elementwise_ || reorder_op_) {
     if (dst_objects_names_.empty()) {
       return absl::InvalidArgumentError(
           "Invalid operation, dst_objects_names_ empty.");
@@ -1384,46 +1406,35 @@ absl::Status GPUOperation::AssembleCode(const GpuInfo& gpu_info) {
     ABSL_RETURN_IF_ERROR(
         GetTensorDescriptor(dst_objects_names_[0], &dst_tensor_desc));
     code_ = GetElementWiseCode(*dst_tensor_desc);
+    if (reorder_op_) {
+      const std::string patch = "  int r_s_x, r_s_y, r_s_s, r_s_b;\n";
+      code_ = absl::StrReplaceAll(
+          code_, {{"MAIN_FUNCTION($0) {", "MAIN_FUNCTION($0) {\n" + patch}});
+    }
     if (const_expr_resolved_) {
       ABSL_RETURN_IF_ERROR(ResolveConstExprPass(gpu_info, args_, &code_));
     }
     elementwise_ = false;
+    reorder_op_ = false;
   }
-  if (reorder_op_) {
+  std::map<std::string, LinkableContext, std::less<>> linkables;
+  if (!reorder_code_.empty()) {
     if (src_objects_names_.empty() || dst_objects_names_.empty()) {
       return absl::InvalidArgumentError(
           "Invalid operation, src_objects_names_ or dst_objects_names_ empty.");
     }
-    TensorDescriptor *src_tensor_desc, *dst_tensor_desc;
+    TensorDescriptor* src_tensor_desc;
     ABSL_RETURN_IF_ERROR(
         GetTensorDescriptor(src_objects_names_[0], &src_tensor_desc));
+    TensorDescriptor* dst_tensor_desc;
     ABSL_RETURN_IF_ERROR(
         GetTensorDescriptor(dst_objects_names_[0], &dst_tensor_desc));
-    reorder_code_ = absl::StrReplaceAll(
-        reorder_code_, {{"SRC_X", "src_x"},
-                        {"SRC_Y", "src_y"},
-                        {"SRC_S", "src_s"},
-                        {"SRC_B", "src_b"},
-                        {"SRC_WIDTH", "args.src_tensor.Width()"},
-                        {"SRC_HEIGHT", "args.src_tensor.Height()"},
-                        {"SRC_SLICES", "args.src_tensor.Slices()"},
-                        {"SRC_BATCH", "args.src_tensor.Batch()"},
-                        {"DST_X", "X"},
-                        {"DST_Y", "Y"},
-                        {"DST_S", "S"},
-                        {"DST_B", "B"},
-                        {"DST_WIDTH", "args.dst_tensor.Width()"},
-                        {"DST_HEIGHT", "args.dst_tensor.Height()"},
-                        {"DST_SLICES", "args.dst_tensor.Slices()"},
-                        {"DST_BATCH", "args.dst_tensor.Batch()"}});
-    code_ = absl::Substitute(
-        GetReorderBaseCode(*src_tensor_desc, *dst_tensor_desc), reorder_code_);
-    if (const_expr_resolved_) {
-      ABSL_RETURN_IF_ERROR(ResolveConstExprPass(gpu_info, args_, &code_));
-    }
-    reorder_op_ = false;
+    LinkableContext link_context;
+    link_context.code = reorder_code_;
+    link_context.tensor_desc = src_tensor_desc;
+    link_context.final_tensor_desc = dst_tensor_desc;
+    linkables[src_objects_names_[0]] = link_context;
   }
-  std::map<std::string, LinkableContext, std::less<>> linkables;
   if (!elementwise_code_.empty()) {
     if (dst_objects_names_.empty()) {
       return absl::InvalidArgumentError(
@@ -1432,7 +1443,10 @@ absl::Status GPUOperation::AssembleCode(const GpuInfo& gpu_info) {
     TensorDescriptor* dst_tensor_desc;
     ABSL_RETURN_IF_ERROR(
         GetTensorDescriptor(dst_objects_names_[0], &dst_tensor_desc));
-    linkables[dst_objects_names_[0]] = {elementwise_code_, dst_tensor_desc};
+    LinkableContext link_context;
+    link_context.code = elementwise_code_;
+    link_context.tensor_desc = dst_tensor_desc;
+    linkables[dst_objects_names_[0]] = link_context;
   }
   if (!const_expr_resolved_) {
     ABSL_RETURN_IF_ERROR(ResolveConstExprPass(gpu_info, args_, &code_));

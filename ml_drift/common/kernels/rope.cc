@@ -71,10 +71,10 @@ GPUOperation CreateRoPE(const GpuInfo& gpu_info, const OperationDef& definition,
   float4 max_timescale = ucl::Init<float4>(args.max_timescale);
   float4 timescale = min_timescale * $0(max_timescale / min_timescale, fraction);
   float pos_scalar;
-  if (args.position.Width() > 1) {
-    pos_scalar = args.position.Read<float>(X % args.position.Width(), 0, 0).x;
+  if (args.position.Channels() > 1) {
+    args.position.ReadPerChannel<float>(pos_scalar, 0, 0, X % args.position.Channels());
   } else {
-    args.position.ReadPerChannel<float>(pos_scalar, 0, 0, X);
+    pos_scalar = args.position.Read<float>(X % args.position.Width(), 0, 0).x;
   }
   float4 pos_val = ucl::Init<float4>(pos_scalar);
   float4 sinusoid_inp = pos_val / timescale;
@@ -153,10 +153,10 @@ GPUOperation CreateSplitRoPEConcat(const GpuInfo& gpu_info,
   }
   float inv_dst_ch = 1.0f / ucl::Convert<float>(args.dst_tensor.Channels());
   float pos_scalar;
-  if (args.position.Width() > 1) {
-    pos_scalar = args.position.Read<float>(X % args.position.Width(), 0, 0).x;
+  if (args.position.Channels() > 1) {
+    args.position.ReadPerChannel<float>(pos_scalar, 0, 0, X % args.position.Channels());
   } else {
-    args.position.ReadPerChannel<float>(pos_scalar, 0, 0, X);
+    pos_scalar = args.position.Read<float>(X % args.position.Width(), 0, 0).x;
   }
   float4 pos_val = ucl::Init<float4>(pos_scalar);
   int s_mult = args.kernel_type == 1 ? 2 : 4;
@@ -169,10 +169,10 @@ GPUOperation CreateSplitRoPEConcat(const GpuInfo& gpu_info,
       // [slice_count, 2*slice_count). Hence, only 2 ifs instead of 4.
       R"(
     float pos_y_scalar;
-    if (args.position.Width() > 1) {
-      pos_y_scalar = args.position.Read<float>(Y % args.position.Width(), 0, 0).x;
+    if (args.position.Channels() > 1) {
+      args.position.ReadPerChannel<float>(pos_y_scalar, 0, 0, Y % args.position.Channels());
     } else {
-      args.position.ReadPerChannel<float>(pos_y_scalar, 0, 0, Y);
+      pos_y_scalar = args.position.Read<float>(Y % args.position.Width(), 0, 0).x;
     }
     float4 pos_y = ucl::Init<float4>(pos_y_scalar);
     if (p.x >= slice_count) { p.x -= slice_count; p.y -= slice_count; pos_val.x = pos_y.x; pos_val.y = pos_y.y; }

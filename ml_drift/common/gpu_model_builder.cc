@@ -22,6 +22,7 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <string_view>
 #include <tuple>
 #include <utility>
 #include <variant>
@@ -52,6 +53,8 @@
 #include "ml_drift/common/kernels/positional_embedding.h"
 #include "ml_drift/common/kernels/quantize_and_dequantize.h"
 #include "ml_drift/common/kernels/reduce.h"
+#include "ml_drift/common/kernels/reshape.h"
+#include "ml_drift/common/kernels/reshapex4.h"
 #include "ml_drift/common/kernels/rope.h"
 #include "ml_drift/common/kernels/select_v2.h"
 #include "ml_drift/common/kernels/softmax.h"
@@ -64,6 +67,9 @@
 #include "ml_drift/common/merge_nodes.h"
 #include "ml_drift/common/model.h"
 #include "ml_drift/common/model_hints.h"
+#include "ml_drift/common/op_attrs.h"
+#include "ml_drift/common/op_base.h"
+#include "ml_drift/common/op_registry.h"
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/precision.h"
 #include "ml_drift/common/selectors/convolution_selector.h"
@@ -2454,22 +2460,8 @@ GpuModelBuilder::TensorHandle GpuModelBuilder::SoftmaxElementwise(
 
 GpuModelBuilder::TensorHandle GpuModelBuilder::Reshape(
     const GpuModelBuilder::TensorHandle& src, const BHWC& new_shape) {
-  GpuModelBuilder::TensorHandle dst =
-      AddTensor(new_shape, src.tensor_desc.GetDataType());
-
-  gpu_model_.nodes.push_back({});
-  auto& gpu_node = gpu_model_.nodes.back();
-  gpu_node.name = "reshape";
-  gpu_node.inputs = {src.id};
-  gpu_node.outputs = {dst.id};
-  OperationDef op_def;
-  op_def.src_tensors.push_back(src.tensor_desc);
-  op_def.dst_tensors.push_back(dst.tensor_desc);
-  ReshapeAttributes attr;
-  attr.new_shape = dst.tensor_desc.GetBHWCShape();
-  SelectReshape(src.tensor_desc.GetBHWCShape().c, attr.new_shape.c, op_def,
-                &gpu_node.gpu_operation);
-  return dst;
+  return Reshape(src,
+                 BHWDC(new_shape.b, new_shape.h, new_shape.w, 1, new_shape.c));
 }
 
 GpuModelBuilder::TensorHandle GpuModelBuilder::Reshape(
@@ -2488,8 +2480,19 @@ GpuModelBuilder::TensorHandle GpuModelBuilder::Reshape(
   op_def.dst_tensors.push_back(dst.tensor_desc);
   Reshape3DAttributes attr;
   attr.new_shape = dst.tensor_desc.GetBHWDCShape();
-  SelectReshape(src.tensor_desc.GetBHWDCShape().c, attr.new_shape.c, op_def,
-                &gpu_node.gpu_operation);
+  const int src_channels = src.tensor_desc.GetBHWDCShape().c;
+  const int dst_channels = dst.tensor_desc.GetBHWDCShape().c;
+  if (src_channels % 4 == 0 && dst_channels % 4 == 0 &&
+      !op_def.src_tensors[0].HasAxis(Axis::DEPTH) &&
+      !op_def.dst_tensors[0].HasAxis(Axis::DEPTH)) {
+    Reshapex4 operation = CreateReshapex4(op_def);
+    gpu_node.gpu_operation = std::make_unique<Reshapex4>(std::move(operation));
+    gpu_node.gpu_operation->ResolveReorderFinalShape(attr.new_shape);
+  } else {
+    GPUOperation operation = CreateReshape(op_def);
+    gpu_node.gpu_operation =
+        std::make_unique<GPUOperation>(std::move(operation));
+  }
   return dst;
 }
 
@@ -4627,6 +4630,67 @@ WeightsManager::BatchGpuOperations(
                       << static_cast<int>(schedule_strategy);
   }
   return batches;
+}
+
+absl::StatusOr<std::vector<GpuModelBuilder::TensorHandle>>
+GpuModelBuilder::AppendOp(std::string_view op_name,
+                          const std::vector<TensorHandle>& inputs,
+                          const OpAttrs& attrs) {
+  auto op = OpRegistry::Global().Create(op_name);
+  if (!op) {
+    return absl::NotFoundError(
+        absl::StrCat("Operation not found in registry: ", op_name));
+  }
+
+  ABSL_ASSIGN_OR_RETURN(std::vector<AttrSpec> specs,
+                        OpRegistry::Global().GetAttrSpecs(op_name));
+
+  OpAttrs mutable_attrs = attrs;
+  ABSL_RETURN_IF_ERROR(ValidateAndNormalizeAttrs(specs, mutable_attrs));
+
+  std::vector<TensorHandle> outputs;
+  size_t initial_nodes = this->gpu_model_.nodes.size();
+  uint64_t initial_tensors = this->id_counter_;
+
+  absl::Status status = op->Build(*this, inputs, mutable_attrs, outputs);
+  if (!status.ok()) {
+    this->gpu_model_.nodes.resize(initial_nodes);
+    for (uint64_t i = initial_tensors; i < id_counter_; ++i) {
+      this->gpu_model_.tensors.erase(i);
+      this->gpu_model_.const_tensors.erase(i);
+    }
+    this->id_counter_ = initial_tensors;
+    return status;
+  }
+
+  for (size_t i = initial_nodes; i < this->gpu_model_.nodes.size(); ++i) {
+    this->gpu_model_.nodes[i].name =
+        absl::StrCat(op_name, "/", this->gpu_model_.nodes[i].name);
+  }
+
+  return outputs;
+}
+
+void GpuModelBuilder::AddSrcTensor(GPUOperation* op, const std::string& name,
+                                   const TensorHandle& handle) {
+  op->AddSrcTensor(name, handle.tensor_desc);
+  for (int idx = gpu_model_.nodes.size() - 1; idx >= 0; --idx) {
+    if (gpu_model_.nodes[idx].gpu_operation.get() == op) {
+      gpu_model_.nodes[idx].inputs.push_back(handle.id);
+      break;
+    }
+  }
+}
+
+void GpuModelBuilder::AddDstTensor(GPUOperation* op, const std::string& name,
+                                   const TensorHandle& handle) {
+  op->AddDstTensor(name, handle.tensor_desc);
+  for (int idx = gpu_model_.nodes.size() - 1; idx >= 0; --idx) {
+    if (gpu_model_.nodes[idx].gpu_operation.get() == op) {
+      gpu_model_.nodes[idx].outputs.push_back(handle.id);
+      break;
+    }
+  }
 }
 
 }  // namespace ml_drift

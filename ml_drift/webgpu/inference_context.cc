@@ -310,11 +310,21 @@ absl::Status InferenceContext::BindGpuMemory(const Environment& environment) {
     for (int i = 0; i < node.inputs.size(); ++i) {
       SpatialTensor* tensor =
           memory_manager_.GetSpatialTensor(GetKey(node.inputs[i]));
+      if (tensor == nullptr) {
+        return absl::InternalError(absl::StrCat(
+            "SpatialTensor is null for node ", node_index, " (op ", node.name,
+            "), input index ", i, ", input value id ", node.inputs[i]));
+      }
       ABSL_RETURN_IF_ERROR(node.webgpu_operation.SetSrcTensor(i, tensor));
     }
     for (int i = 0; i < node.outputs.size(); ++i) {
       SpatialTensor* tensor =
           memory_manager_.GetSpatialTensor(GetKey(node.outputs[i]));
+      if (tensor == nullptr) {
+        return absl::InternalError(absl::StrCat(
+            "SpatialTensor is null for node ", node_index, " (op ", node.name,
+            "), output index ", i, ", output value id ", node.outputs[i]));
+      }
       ABSL_RETURN_IF_ERROR(node.webgpu_operation.SetDstTensor(i, tensor));
     }
     ABSL_RETURN_IF_ERROR(node.webgpu_operation.Update(environment.device()));

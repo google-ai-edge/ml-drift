@@ -151,8 +151,6 @@ cc_library(
         "//ml_drift/common/kernels:reduce",
         "//ml_drift/common/kernels:relu",
         "//ml_drift/common/kernels:resampler",
-        "//ml_drift/common/kernels:reshape",
-        "//ml_drift/common/kernels:reshapex4",
         "//ml_drift/common/kernels:resize",
         "//ml_drift/common/kernels:reverse",
         "//ml_drift/common/kernels:select_v2",

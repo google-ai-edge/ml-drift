@@ -1513,6 +1513,10 @@ absl::string_view GetNextWord(absl::string_view code, size_t first_position) {
   return code.substr(first_position, pos - first_position);
 }
 
+std::string GetNextWordStr(absl::string_view code, size_t first_position) {
+  return std::string(GetNextWord(code, first_position));
+}
+
 size_t FindEnclosingBracket(const std::string& text, size_t first_pos,
                             char bracket) {
   const std::map<char, char> brackets = {

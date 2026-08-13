@@ -17,13 +17,13 @@
 #include <algorithm>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
-#include "absl/strings/string_view.h"
 #include "ml_drift/common/op_base.h"
 
 namespace ml_drift {
@@ -33,13 +33,13 @@ OpRegistry& OpRegistry::Global() {
   return *instance;
 }
 
-void OpRegistry::Register(absl::string_view name, OpFactory factory,
+void OpRegistry::Register(std::string_view name, OpFactory factory,
                           const std::vector<AttrSpec>& attr_specs) {
   registry_[name] = {std::move(factory), attr_specs};
 }
 
 absl::StatusOr<std::vector<AttrSpec>> OpRegistry::GetAttrSpecs(
-    absl::string_view name) const {
+    std::string_view name) const {
   auto it = registry_.find(name);
   if (it == registry_.end()) {
     return absl::NotFoundError(
@@ -48,7 +48,7 @@ absl::StatusOr<std::vector<AttrSpec>> OpRegistry::GetAttrSpecs(
   return it->second.attr_specs;
 }
 
-std::unique_ptr<OpBase> OpRegistry::Create(absl::string_view name) const {
+std::unique_ptr<OpBase> OpRegistry::Create(std::string_view name) const {
   auto it = registry_.find(name);
   return it != registry_.end() ? it->second.factory() : nullptr;
 }

@@ -27,9 +27,15 @@
 // Operations can be registered in the file they are defined via the
 // MLD_REGISTER_OP macro.
 //
-// Attrs: A data container for operation parameters (e.g., scalars, booleans)
+// GpuModelBuilder::AppendOp: The primary entry point for clients to add
+// operations onto the graph. It instantiates the target operation via
+// OpRegistry, validates its attributes, and executes the operation's Build()
+// method.
+//
+// OpAttrs: A data container for operation parameters (e.g., scalars, booleans)
 // configured at initialization time. Attributes defined for an operation are
 // validated before OpBase::Build is called.
+//
 //
 // Example usage:
 // namespace custom_ns {
@@ -43,7 +49,7 @@
 //   absl::Status Build(
 //       ::ml_drift::GpuModelBuilder& graph,
 //       const std::vector<::ml_drift::GpuModelBuilder::TensorHandle>& inputs,
-//       const ::ml_drift::Attrs& attrs,
+//       const ::ml_drift::OpAttrs& attrs,
 //       std::vector<::ml_drift::GpuModelBuilder::TensorHandle>& outputs)
 //       const override {
 //     // Implementation here...
@@ -56,6 +62,7 @@
 // MLD_REGISTER_OP(MyCustomOp);
 // }  // namespace custom_ns
 
+#include "ml_drift/common/op_attrs.h"     // IWYU pragma: export
 #include "ml_drift/common/op_base.h"      // IWYU pragma: export
 #include "ml_drift/common/op_registry.h"  // IWYU pragma: export
 

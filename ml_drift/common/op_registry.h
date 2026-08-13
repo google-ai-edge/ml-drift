@@ -18,11 +18,11 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/statusor.h"
-#include "absl/strings/string_view.h"
 #include "ml_drift/common/op_base.h"
 
 namespace ml_drift {
@@ -35,15 +35,15 @@ class OpRegistry {
   static OpRegistry& Global();
 
   // Registers an operation factory and its attribute specifications.
-  void Register(absl::string_view name, OpFactory factory,
+  void Register(std::string_view name, OpFactory factory,
                 const std::vector<AttrSpec>& attr_specs);
 
   // Creates an instance of an operation by name. Returns nullptr if not found.
-  std::unique_ptr<OpBase> Create(absl::string_view name) const;
+  std::unique_ptr<OpBase> Create(std::string_view name) const;
 
   // Retrieves the expected attributes for a registered operation.
   absl::StatusOr<std::vector<AttrSpec>> GetAttrSpecs(
-      absl::string_view name) const;
+      std::string_view name) const;
 
   std::vector<std::string> GetRegisteredNames() const;
 
