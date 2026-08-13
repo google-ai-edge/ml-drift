@@ -128,6 +128,8 @@ cc_library(
         "//ml_drift/common/kernels:positional_embedding",
         "//ml_drift/common/kernels:quantize_and_dequantize",
         "//ml_drift/common/kernels:reduce",
+        "//ml_drift/common/kernels:reshape",
+        "//ml_drift/common/kernels:reshapex4",
         "//ml_drift/common/kernels:rope",
         "//ml_drift/common/kernels:select_v2",
         "//ml_drift/common/kernels:softmax",

@@ -68,10 +68,6 @@ absl::Status SelectConcat(const ConcatAttributes& attr,
                           const OperationDef& op_def, const GpuInfo& gpu_info,
                           std::unique_ptr<GPUOperation>* ptr);
 
-void SelectReshape(int src_channels, int dst_channels,
-                   const OperationDef& op_def,
-                   std::unique_ptr<GPUOperation>* ptr);
-
 std::unique_ptr<GPUOperation> SelectPadding(const GpuInfo& gpu_info,
                                             const PadAttributes& attr,
                                             const OperationDef& op_def);

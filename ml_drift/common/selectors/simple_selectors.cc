@@ -38,8 +38,6 @@
 #include "ml_drift/common/kernels/reduce.h"
 #include "ml_drift/common/kernels/relu.h"
 #include "ml_drift/common/kernels/resampler.h"
-#include "ml_drift/common/kernels/reshape.h"
-#include "ml_drift/common/kernels/reshapex4.h"
 #include "ml_drift/common/kernels/resize.h"
 #include "ml_drift/common/kernels/reverse.h"
 #include "ml_drift/common/kernels/select_v2.h"
@@ -142,20 +140,6 @@ absl::Status SelectConcat(const ConcatAttributes& attr,
     }
     default:
       return absl::UnimplementedError("No concat for this axis.");
-  }
-}
-
-void SelectReshape(int src_channels, int dst_channels,
-                   const OperationDef& op_def,
-                   std::unique_ptr<GPUOperation>* ptr) {
-  if (src_channels % 4 == 0 && dst_channels % 4 == 0 &&
-      !op_def.src_tensors[0].HasAxis(Axis::DEPTH) &&
-      !op_def.dst_tensors[0].HasAxis(Axis::DEPTH)) {
-    Reshapex4 operation = CreateReshapex4(op_def);
-    *ptr = std::make_unique<Reshapex4>(std::move(operation));
-  } else {
-    GPUOperation operation = CreateReshape(op_def);
-    *ptr = std::make_unique<GPUOperation>(std::move(operation));
   }
 }
 

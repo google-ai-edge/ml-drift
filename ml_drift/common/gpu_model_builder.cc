@@ -53,6 +53,8 @@
 #include "ml_drift/common/kernels/positional_embedding.h"
 #include "ml_drift/common/kernels/quantize_and_dequantize.h"
 #include "ml_drift/common/kernels/reduce.h"
+#include "ml_drift/common/kernels/reshape.h"
+#include "ml_drift/common/kernels/reshapex4.h"
 #include "ml_drift/common/kernels/rope.h"
 #include "ml_drift/common/kernels/select_v2.h"
 #include "ml_drift/common/kernels/softmax.h"
@@ -2458,23 +2460,8 @@ GpuModelBuilder::TensorHandle GpuModelBuilder::SoftmaxElementwise(
 
 GpuModelBuilder::TensorHandle GpuModelBuilder::Reshape(
     const GpuModelBuilder::TensorHandle& src, const BHWC& new_shape) {
-  GpuModelBuilder::TensorHandle dst =
-      AddTensor(new_shape, src.tensor_desc.GetDataType());
-
-  gpu_model_.nodes.push_back({});
-  auto& gpu_node = gpu_model_.nodes.back();
-  gpu_node.name = "reshape";
-  gpu_node.inputs = {src.id};
-  gpu_node.outputs = {dst.id};
-  OperationDef op_def;
-  op_def.src_tensors.push_back(src.tensor_desc);
-  op_def.dst_tensors.push_back(dst.tensor_desc);
-  ReshapeAttributes attr;
-  attr.new_shape = dst.tensor_desc.GetBHWCShape();
-  SelectReshape(src.tensor_desc.GetBHWCShape().c, attr.new_shape.c, op_def,
-                &gpu_node.gpu_operation);
-  gpu_node.gpu_operation->ResolveReorderFinalShape(attr.new_shape);
-  return dst;
+  return Reshape(src,
+                 BHWDC(new_shape.b, new_shape.h, new_shape.w, 1, new_shape.c));
 }
 
 GpuModelBuilder::TensorHandle GpuModelBuilder::Reshape(
@@ -2493,9 +2480,19 @@ GpuModelBuilder::TensorHandle GpuModelBuilder::Reshape(
   op_def.dst_tensors.push_back(dst.tensor_desc);
   Reshape3DAttributes attr;
   attr.new_shape = dst.tensor_desc.GetBHWDCShape();
-  SelectReshape(src.tensor_desc.GetBHWDCShape().c, attr.new_shape.c, op_def,
-                &gpu_node.gpu_operation);
-  gpu_node.gpu_operation->ResolveReorderFinalShape(attr.new_shape);
+  const int src_channels = src.tensor_desc.GetBHWDCShape().c;
+  const int dst_channels = dst.tensor_desc.GetBHWDCShape().c;
+  if (src_channels % 4 == 0 && dst_channels % 4 == 0 &&
+      !op_def.src_tensors[0].HasAxis(Axis::DEPTH) &&
+      !op_def.dst_tensors[0].HasAxis(Axis::DEPTH)) {
+    Reshapex4 operation = CreateReshapex4(op_def);
+    gpu_node.gpu_operation = std::make_unique<Reshapex4>(std::move(operation));
+    gpu_node.gpu_operation->ResolveReorderFinalShape(attr.new_shape);
+  } else {
+    GPUOperation operation = CreateReshape(op_def);
+    gpu_node.gpu_operation =
+        std::make_unique<GPUOperation>(std::move(operation));
+  }
   return dst;
 }
 
