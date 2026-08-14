@@ -409,6 +409,14 @@ TEST_P(ElementwiseFloatTest, PowTest) {
   MLD_ASSERT_OK(PowTest(*exec_env, data_type(), storage()));
 }
 
+TEST_P(ElementwiseFloatTest, PowWithScalarTest) {
+  if (!exec_env->IsStorageSupported(storage(), data_type())) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
+                 << " storage type: " << ToString(storage());
+  }
+  MLD_ASSERT_OK(PowWithScalarTest(*exec_env, data_type(), storage()));
+}
+
 TEST_P(ElementwiseFloatTest, AddTest) {
   if (!exec_env->IsStorageSupported(storage(), data_type())) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())

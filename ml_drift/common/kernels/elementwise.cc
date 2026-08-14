@@ -542,6 +542,10 @@ ElementwiseDescriptor CreateElementwiseOneRuntimeOneScalar(
   if (std::holds_alternative<float>(scalar)) {
     scalar_type = DataType::FLOAT32;
     const float* value = std::get_if<float>(&scalar);
+    if (op_type == OperationType::POW && *value == 2.0f) {
+      op_desc.code = "out_value = in_value * in_value;";
+      return op_desc;
+    }
     if (op_type == OperationType::POW && *value == 3.0f) {
       op_desc.code = "out_value = in_value * in_value * in_value;";
       return op_desc;
