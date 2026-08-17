@@ -352,47 +352,6 @@ int3 GetWorkGroupSize(const FullyConnected::ConvParams& params,
   return int3(x_size, y_size, 1);
 }
 
-void ConvertQuantizedInt8Weights(WeightsDescription weights_desc,
-                                 const Tensor<OHWI, DataType::INT8>& weights,
-                                 Arguments* args) {
-  const int elements_count =
-      GetTotalElementsCountForLayout(weights_desc, weights.shape);
-
-  std::vector<uint8_t> weights_data(elements_count * SizeOf(weights_desc.type));
-  RearrangeWeightsInt8AsUint8(weights, weights_desc,
-                              absl::MakeSpan(weights_data), 128, 128u);
-
-  if (weights_desc.IsLinearLayout()) {
-    BufferDescriptor desc;
-    desc.element_type = DataType::UINT32;
-    desc.element_size = 4;
-    desc.size = elements_count;
-    desc.data = std::move(weights_data);
-    args->AddObject("weights",
-                    std::make_unique<BufferDescriptor>(std::move(desc)));
-  } else if (weights_desc.layout ==
-             WeightsLayout::k2DX4I4YIsSpatialIAndXIsOOGroupO4) {
-    uint2 tex_size = Get2dResourceSize(weights_desc, weights.shape);
-    int sub_size = SizeOf(weights_desc.type) * 4 * tex_size.x * tex_size.y;
-    for (int i = 0; i < 4; ++i) {
-      TensorDescriptor desc = CreateConstantHWVec4TensorDescriptor(
-          weights_desc.type, TensorStorageType::TEXTURE_2D, tex_size.x,
-          tex_size.y, weights_data.data() + sub_size * i);
-      args->AddObject("weights" + std::to_string(i),
-                      std::make_unique<TensorDescriptor>(std::move(desc)));
-    }
-  } else if (weights_desc.layout ==
-             WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
-    uint2 tex_size = Get2dResourceSize(weights_desc, weights.shape);
-    tex_size.x /= 4;  // because we store 4 uint8 as one uint32
-    TensorDescriptor desc = CreateConstantHWVec4TensorDescriptor(
-        DataType::UINT32, TensorStorageType::TEXTURE_2D, tex_size.x, tex_size.y,
-        weights_data.data());
-    args->AddObject("weights",
-                    std::make_unique<TensorDescriptor>(std::move(desc)));
-  }
-}
-
 int3 GetBlockSpatialCoords(int linear_spatial, const BHWC& shape) {
   int b_coord = linear_spatial % shape.b;
   linear_spatial /= shape.b;
