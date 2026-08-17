@@ -167,6 +167,15 @@ TEST_P(FullyConnectedFloatTest, FullyConnectedBatchedWeightsBigTest) {
       FullyConnectedBatchedWeightsBigTest(*exec_env, precision(), storage()));
 }
 
+TEST_P(FullyConnectedFloatTest, FullyConnectedRingedOTest) {
+  const DataType data_type = DeduceDataTypeFromPrecision(precision());
+  if (!exec_env->IsStorageSupported(storage(), data_type)) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
+                 << " storage type: " << ToString(storage());
+  }
+  MLD_ASSERT_OK(FullyConnectedRingedOTest(*exec_env, precision(), storage()));
+}
+
 TEST_P(FullyConnectedFloatTest, FullyConnectedInt8BigTest) {
   const DataType data_type = DeduceDataTypeFromPrecision(precision());
   if (!exec_env->IsStorageSupported(storage(), data_type)) {

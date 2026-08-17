@@ -485,7 +485,17 @@ std::string ReadWeightsAsFloat(const FullyConnected::ConvParams& conv_params,
                                const WeightsDescription& weights_desc,
                                bool split_dst_slices, int dst_sub_s = 0) {
   std::string c;
-  if (weights_desc.layout == WeightsLayout::kUnknown) {
+  if (conv_params.runtime_check.ring_o_offset_index.has_value()) {
+    // kOSpatialIOGroupO4I4 -> kIOI4
+    c += "    int o0 = (dst_s * 4 + ring_o_offset) % ring_size;\n";
+    c += "    int o1 = (dst_s * 4 + 1 + ring_o_offset) % ring_size;\n";
+    c += "    int o2 = (dst_s * 4 + 2 + ring_o_offset) % ring_size;\n";
+    c += "    int o3 = (dst_s * 4 + 3 + ring_o_offset) % ring_size;\n";
+    c += "    w0 = args.weights.Read(src_s * ring_size + o0);\n";
+    c += "    w1 = args.weights.Read(src_s * ring_size + o1);\n";
+    c += "    w2 = args.weights.Read(src_s * ring_size + o2);\n";
+    c += "    w3 = args.weights.Read(src_s * ring_size + o3);\n";
+  } else if (weights_desc.layout == WeightsLayout::kUnknown) {
     const std::string h_coord =
         conv_params.batched_weights ? "weights_batch_id" : "0";
     c += "    w0 = args.weights.Read<SType>(0, " + h_coord +
@@ -765,6 +775,14 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
          ";\n";
   } else {
     c += "  int dst_end_slice = args.dst_tensor.Slices();\n";
+  }
+  if (conv_params_.runtime_check.ring_o_offset_index.has_value()) {
+    c +=
+        "  int ring_o_offset = args.params.Read(" +
+        std::to_string(conv_params_.runtime_check.ring_o_offset_index.value()) +
+        ");\n";
+    c += "  int ring_size = " +
+         std::to_string(conv_params_.runtime_check.ring_size.value()) + ";\n";
   }
   if (wg_reduction_) {
     // We require uniform execution for the entire workgroup since we use a
@@ -1159,7 +1177,8 @@ void FullyConnected::AddWeightsArguments(const ExternalWeights& weights) {
     if (weights.desc.IsLinearLayout()) {
       BufferDescriptor desc;
       desc.element_type = weights.desc.type;
-      desc.element_size = 16;
+      desc.element_size =
+          conv_params_.runtime_check.ring_o_offset_index.has_value() ? 4 : 16;
       AddSrcBuffer("weights", desc);
     } else {
       // k2DX4I4YIsSpatialIAndXIsOOGroupO4
@@ -1249,6 +1268,11 @@ void AddRuntimeParam(const ConvRuntimeCheckDesc& runtime_check,
   if (runtime_check.packed_groups.has_value()) {
     result.args_.AddInt("packed_params_offset",
                         runtime_check.packed_groups->params_offset);
+    has_runtime_check = true;
+  }
+  if (runtime_check.ring_o_offset_index.has_value()) {
+    result.args_.AddInt("ring_o_offset_index",
+                        *runtime_check.ring_o_offset_index);
     has_runtime_check = true;
   }
   if (has_runtime_check) {

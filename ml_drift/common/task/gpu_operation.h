@@ -373,6 +373,10 @@ struct ConvRuntimeCheckDesc {
     int max_group_size;
   };
   std::optional<PackedGroups> packed_groups;
+
+  // Experimental feature.
+  std::optional<int> ring_o_offset_index = std::nullopt;
+  std::optional<int> ring_size = std::nullopt;
 };
 
 // A struct to allow runtime-configurable channel bounds with softmax ops.
