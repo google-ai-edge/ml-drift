@@ -421,10 +421,23 @@ absl::Status FullyConnectedInt4Sparse2x4Test(
   dst_ref_tensor.shape = src_tensor.shape;
   dst_ref_tensor.shape.c = weights_i4.shape.o;
   dst_ref_tensor.data.resize(dst_ref_tensor.shape.DimensionsProduct(), 0.0f);
+
+  ml_drift::Tensor<OHWI, DataType::FLOAT32> weights_scale;
+  weights_scale.shape = OHWI(weights_i4.shape.o, 1, 1, 1);
+  weights_scale.data.resize(weights_scale.shape.DimensionsProduct(),
+                            1.0f / 16.0f);
+  ml_drift::Tensor<OHWI, DataType::FLOAT32> weights_zero_point;
+  weights_zero_point.shape = OHWI(weights_i4.shape.o, 1, 1, 1);
+  weights_zero_point.data.resize(weights_zero_point.shape.DimensionsProduct(),
+                                 0.0f);
+
   for (int y = 0; y < src_tensor.shape.h; ++y) {
     for (int x = 0; x < src_tensor.shape.w; ++x) {
       for (int dst_ch = 0; dst_ch < weights_i4.shape.o; ++dst_ch) {
         float dst_val = 0.0f;
+        float scale =
+            weights_scale
+                .data[weights_scale.shape.LinearIndex({dst_ch, 0, 0, 0})];
         for (int src_t0 = 0; src_t0 < src_tensor.shape.c / 4; ++src_t0) {
           float src_vals[4];
           src_vals[0] = src_tensor.data[src_tensor.shape.LinearIndex(
@@ -443,8 +456,8 @@ absl::Status FullyConnectedInt4Sparse2x4Test(
               {dst_ch, 0, 0, src_t0 * 2 + 0})];
           int ind1 = weights_indices.data[weights_indices.shape.LinearIndex(
               {dst_ch, 0, 0, src_t0 * 2 + 1})];
-          dst_val +=
-              src_vals[ind0] * weights_v0_i32 + src_vals[ind1] * weights_v1_i32;
+          dst_val += src_vals[ind0] * weights_v0_i32 * scale +
+                     src_vals[ind1] * weights_v1_i32 * scale;
         }
         dst_ref_tensor
             .data[dst_ref_tensor.shape.LinearIndex({0, y, x, dst_ch})] =
@@ -453,14 +466,6 @@ absl::Status FullyConnectedInt4Sparse2x4Test(
     }
   }
 
-  ml_drift::Tensor<OHWI, DataType::FLOAT32> weights_scale;
-  weights_scale.shape = OHWI(weights_i4.shape.o, 1, 1, 1);
-  weights_scale.data.resize(weights_scale.shape.DimensionsProduct(), 1.0f);
-  ml_drift::Tensor<OHWI, DataType::FLOAT32> weights_zero_point;
-  weights_zero_point.shape = OHWI(weights_i4.shape.o, 1, 1, 1);
-  weights_zero_point.data.resize(weights_zero_point.shape.DimensionsProduct(),
-                                 0.0f);
-
   auto operation = CreateFullyConnectedInt4Sparse2x4(
       exec_env.GetGpuInfo(), op_def, precision, weights_i4, weights_indices,
       weights_scale, weights_zero_point, {});
@@ -468,7 +473,9 @@ absl::Status FullyConnectedInt4Sparse2x4Test(
   ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       src_tensor, std::make_unique<FullyConnected>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
-  EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(0.0f), dst_ref_tensor.data));
+  const float eps =
+      GetEpsilon(precision, exec_env.GetGpuInfo()) * weights_i4.shape.i;
+  EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), dst_ref_tensor.data));
   return absl::OkStatus();
 }
 }  // namespace
@@ -499,9 +506,6 @@ absl::Status FullyConnectedInt4Sparse2x4Test(TestExecutionEnvironment& env,
   }
 
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
-  for (int i = 0; i < src_tensor.data.size(); ++i) {
-    src_tensor.data[i] = static_cast<int>(src_tensor.data[i] * 16.0f);
-  }
 
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);

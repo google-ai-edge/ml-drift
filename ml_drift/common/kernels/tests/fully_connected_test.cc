@@ -124,10 +124,6 @@ TEST_P(FullyConnectedFloatTest, FullyConnectedInt4Sparse2x4) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  if (precision() != CalculationsPrecision::F32) {
-    // operation is ok with fp16, test specific skip.
-    GTEST_SKIP() << "Unsupported precision.";
-  }
   MLD_ASSERT_OK(FullyConnectedInt4Sparse2x4Test(*exec_env, precision(), storage(),
                                             BHWC(1, 1, 1, 256), 256));
 }
