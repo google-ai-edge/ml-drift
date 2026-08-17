@@ -848,6 +848,13 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
         GpuModelBuilder::TensorHandle* bias_ptr = nullptr;
         if (inputs.size() == 3) {
           ABSL_ASSIGN_OR_RETURN(bias, model_builder->GetTensor(inputs[2]->id));
+          // The convolution/FC shader accesses `biases` via a single-arg
+          // Read selector, which requires the descriptor to use a LINEAR/HW
+          // layout or a BUFFER-family storage. The bias fetched from the
+          // graph is initialized with the default HWC/BHWC + TEXTURE_2D
+          // descriptor, so we materialize a shader-compatible copy here
+          // before wiring it into the kernel.
+          bias = model_builder->MakeBiasLinear(bias);
           bias_ptr = &bias;
         }
         Convolution2DAttributes conv_attr;
@@ -1437,6 +1444,8 @@ absl::Status GPUOperationFromNode(
         GpuModelBuilder::TensorHandle* bias_ptr = nullptr;
         if (inputs.size() == 3) {
           ABSL_ASSIGN_OR_RETURN(bias, model_builder->GetTensor(inputs[2]->id));
+          // See MakeBiasLinear rationale in the FULLY_CONNECTED v1 handler.
+          bias = model_builder->MakeBiasLinear(bias);
           bias_ptr = &bias;
         }
         Convolution2DAttributes conv_attr;

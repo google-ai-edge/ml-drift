@@ -239,6 +239,32 @@ GpuModelBuilder::TensorHandle GpuModelBuilder::AddLinearTensor(
   return AddTensor(tensor_desc);
 }
 
+GpuModelBuilder::TensorHandle GpuModelBuilder::MakeBiasLinear(
+    const GpuModelBuilder::TensorHandle& src) {
+  // ConvGeneric shaders access `biases` via a single-argument Read selector
+  // (`args.biases.Read(DST_S + sind)`). `PerformReadSelector` accepts this
+  // only when the descriptor is either LINEAR/HW-layout, or when its storage
+  // is BUFFER / IMAGE_BUFFER. For a bias tensor initialized with the default
+  // HWC/BHWC + TEXTURE_2D descriptor (as `GetTensorDescForValue` does), the
+  // check fails. Materialize a copy in BUFFER storage while preserving the
+  // source layout, so the shader's coord generation on both sides of the
+  // Copy op stays consistent (LINEAR layout is not usable as an elementwise
+  // Write target).
+  const Layout src_layout = src.tensor_desc.GetLayout();
+  const TensorStorageType src_storage = src.tensor_desc.GetStorageType();
+  if (src_layout == Layout::LINEAR || src_layout == Layout::HW ||
+      src_storage == TensorStorageType::BUFFER ||
+      src_storage == TensorStorageType::IMAGE_BUFFER) {
+    return src;
+  }
+  TensorDescriptor dst_desc(src.tensor_desc.GetDataType(),
+                            TensorStorageType::BUFFER, src_layout);
+  dst_desc.SetBHWCShape(src.tensor_desc.GetBHWCShape());
+  GpuModelBuilder::TensorHandle dst = AddTensor(dst_desc);
+  Copy(src, dst);
+  return dst;
+}
+
 GpuModelBuilder::TensorHandle GpuModelBuilder::AddConstantTensor(
     TensorDescriptor&& tensor_desc) {
   gpu_model_.const_tensors[id_counter_] = std::move(tensor_desc);
