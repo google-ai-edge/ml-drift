@@ -133,6 +133,7 @@ cc_library(
         "//ml_drift/common/kernels:rope",
         "//ml_drift/common/kernels:select_v2",
         "//ml_drift/common/kernels:softmax",
+        "//ml_drift/common/kernels:softmax1x1",
         "//ml_drift/common/kernels:space_to_depth",
         "//ml_drift/common/kernels:strided_slice",
         "//ml_drift/common/kernels:top_k",

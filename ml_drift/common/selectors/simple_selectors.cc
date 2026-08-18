@@ -41,8 +41,6 @@
 #include "ml_drift/common/kernels/resize.h"
 #include "ml_drift/common/kernels/reverse.h"
 #include "ml_drift/common/kernels/select_v2.h"
-#include "ml_drift/common/kernels/softmax.h"
-#include "ml_drift/common/kernels/softmax1x1.h"
 #include "ml_drift/common/kernels/space_to_depth.h"
 #include "ml_drift/common/kernels/split.h"
 #include "ml_drift/common/kernels/tile.h"
@@ -55,7 +53,6 @@
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/task/weights_layout.h"
 #include "ml_drift/common/tensor.h"
-#include "ml_drift/common/util.h"
 
 namespace ml_drift {
 
@@ -184,22 +181,6 @@ std::unique_ptr<GPUOperation> SelectReduce(const std::set<Axis>& axis_to_reduce,
                                            const GpuInfo& gpu_info) {
   return std::make_unique<Reduce>(
       CreateReduce(axis_to_reduce, src_shape, op_type, op_def, gpu_info));
-}
-
-std::unique_ptr<GPUOperation> SelectSoftmax(
-    const GpuInfo& gpu_info, const BHWC& shape, const OperationDef& op_def,
-    const SoftmaxRuntimeCheckDesc& runtime_check) {
-  const int spatial_size = shape.b * shape.w * shape.h;
-  const int spatial_size_per_cu =
-      DivideRoundUp(spatial_size, gpu_info.GetComputeUnitsCount());
-  if (spatial_size_per_cu >= 4 || (spatial_size >= 8 && shape.c >= 1024 * 8)) {
-    Softmax operation = CreateSoftmax(op_def, gpu_info, shape, runtime_check);
-    return std::make_unique<Softmax>(std::move(operation));
-  } else {
-    Softmax1x1 operation =
-        CreateSoftmax1x1(op_def, gpu_info, shape, runtime_check);
-    return std::make_unique<Softmax1x1>(std::move(operation));
-  }
 }
 
 std::unique_ptr<GPUOperation> SelectTile(const OperationDef& op_def) {

@@ -58,6 +58,7 @@
 #include "ml_drift/common/kernels/rope.h"
 #include "ml_drift/common/kernels/select_v2.h"
 #include "ml_drift/common/kernels/softmax.h"
+#include "ml_drift/common/kernels/softmax1x1.h"
 #include "ml_drift/common/kernels/space_to_depth.h"
 #include "ml_drift/common/kernels/special/conv_softmax_conv.h"
 #include "ml_drift/common/kernels/strided_slice.h"
@@ -2392,8 +2393,21 @@ GpuModelBuilder::TensorHandle GpuModelBuilder::Softmax(
   OperationDef op_def;
   op_def.src_tensors.push_back(src.tensor_desc);
   op_def.dst_tensors.push_back(dst.tensor_desc);
-  gpu_node.gpu_operation =
-      SelectSoftmax(gpu_info_, dst_shape, op_def, runtime_check);
+
+  const int spatial_size = dst_shape.b * dst_shape.w * dst_shape.h;
+  const int spatial_size_per_cu =
+      DivideRoundUp(spatial_size, gpu_info_.GetComputeUnitsCount());
+  if (spatial_size_per_cu >= 4 ||
+      (spatial_size >= 8 && dst_shape.c >= 1024 * 8)) {
+    ml_drift::Softmax operation =
+        CreateSoftmax(op_def, gpu_info_, dst_shape, runtime_check);
+    gpu_node.gpu_operation =
+        std::make_unique<ml_drift::Softmax>(std::move(operation));
+  } else {
+    Softmax1x1 operation =
+        CreateSoftmax1x1(op_def, gpu_info_, dst_shape, runtime_check);
+    gpu_node.gpu_operation = std::make_unique<Softmax1x1>(std::move(operation));
+  }
 
   if (runtime_check_tensor && runtime_check.end_ch_index.has_value()) {
     gpu_node.inputs.push_back(runtime_check_tensor->id);
@@ -2406,6 +2420,7 @@ GpuModelBuilder::TensorHandle GpuModelBuilder::SoftmaxReduce(
     const SoftmaxRuntimeCheckDesc& runtime_check,
     const GpuModelBuilder::TensorHandle* runtime_check_tensor) {
   GpuModelBuilder::TensorHandle reduced_exp_tensor;
+  const BHWC src_shape = src.tensor_desc.GetBHWCShape();
   if (src.tensor_desc.HasAxis(Axis::DEPTH)) {
     BHWDC reduced_exp_shape = src.tensor_desc.GetBHWDCShape();
     reduced_exp_shape.c = 4;
@@ -2427,13 +2442,24 @@ GpuModelBuilder::TensorHandle GpuModelBuilder::SoftmaxReduce(
   OperationDef softmax_def;
   softmax_def.src_tensors.push_back(src.tensor_desc);
   softmax_def.dst_tensors.push_back(reduced_exp_tensor.tensor_desc);
-  ml_drift::Softmax operation = CreateSoftmaxReduce(
-      softmax_def, gpu_info_, src.tensor_desc.GetBHWCShape(), runtime_check);
+
+  const int spatial_size = src_shape.b * src_shape.w * src_shape.h;
+  const int spatial_size_per_cu =
+      DivideRoundUp(spatial_size, gpu_info_.GetComputeUnitsCount());
+  if (spatial_size_per_cu >= 4) {
+    ml_drift::Softmax operation =
+        CreateSoftmaxReduce(softmax_def, gpu_info_, src_shape, runtime_check);
+    softmax_node.gpu_operation =
+        std::make_unique<ml_drift::Softmax>(std::move(operation));
+  } else {
+    Softmax1x1 operation = CreateSoftmax1x1Reduce(softmax_def, gpu_info_,
+                                                  src_shape, runtime_check);
+    softmax_node.gpu_operation =
+        std::make_unique<Softmax1x1>(std::move(operation));
+  }
   if (runtime_check_tensor && runtime_check.end_ch_index.has_value()) {
     softmax_node.inputs.push_back(runtime_check_tensor->id);
   }
-  softmax_node.gpu_operation =
-      std::make_unique<ml_drift::Softmax>(std::move(operation));
   return reduced_exp_tensor;
 }
 

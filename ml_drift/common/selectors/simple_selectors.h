@@ -78,10 +78,6 @@ std::unique_ptr<GPUOperation> SelectReduce(const std::set<Axis>& axis_to_reduce,
                                            const OperationDef& op_def,
                                            const GpuInfo& gpu_info);
 
-std::unique_ptr<GPUOperation> SelectSoftmax(
-    const GpuInfo& gpu_info, const BHWC& shape, const OperationDef& op_def,
-    const SoftmaxRuntimeCheckDesc& runtime_check = {});
-
 void SelectSpaceToDepth(const SpaceToDepthAttributes& attr,
                         const OperationDef& op_def,
                         std::unique_ptr<GPUOperation>* ptr);
