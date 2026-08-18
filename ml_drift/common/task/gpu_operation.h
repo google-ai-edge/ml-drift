@@ -376,6 +376,7 @@ struct ConvRuntimeCheckDesc {
 
   // Experimental feature.
   std::optional<int> ring_o_offset_index = std::nullopt;
+  std::optional<int> ring_i_offset_index = std::nullopt;
   std::optional<int> ring_size = std::nullopt;
 };
 

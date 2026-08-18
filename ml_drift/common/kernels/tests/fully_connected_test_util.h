@@ -67,6 +67,9 @@ absl::Status FullyConnectedBatchedWeightsBigTest(
 absl::Status FullyConnectedRingedOTest(TestExecutionEnvironment& env,
                                        CalculationsPrecision precision,
                                        TensorStorageType storage);
+absl::Status FullyConnectedRingedITest(TestExecutionEnvironment& env,
+                                       CalculationsPrecision precision,
+                                       TensorStorageType storage);
 
 absl::Status FullyConnectedInt8BigTest(TestExecutionEnvironment& env,
                                        CalculationsPrecision precision,

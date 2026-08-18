@@ -487,14 +487,32 @@ std::string ReadWeightsAsFloat(const FullyConnected::ConvParams& conv_params,
   std::string c;
   if (conv_params.runtime_check.ring_o_offset_index.has_value()) {
     // kOSpatialIOGroupO4I4 -> kIOI4
-    c += "    int o0 = (dst_s * 4 + ring_o_offset) % ring_size;\n";
-    c += "    int o1 = (dst_s * 4 + 1 + ring_o_offset) % ring_size;\n";
-    c += "    int o2 = (dst_s * 4 + 2 + ring_o_offset) % ring_size;\n";
-    c += "    int o3 = (dst_s * 4 + 3 + ring_o_offset) % ring_size;\n";
-    c += "    w0 = args.weights.Read(src_s * ring_size + o0);\n";
-    c += "    w1 = args.weights.Read(src_s * ring_size + o1);\n";
-    c += "    w2 = args.weights.Read(src_s * ring_size + o2);\n";
-    c += "    w3 = args.weights.Read(src_s * ring_size + o3);\n";
+    c += R"(
+    int o0 = (dst_s * 4 + ring_o_offset) % ring_size;
+    int o1 = (dst_s * 4 + 1 + ring_o_offset) % ring_size;
+    int o2 = (dst_s * 4 + 2 + ring_o_offset) % ring_size;
+    int o3 = (dst_s * 4 + 3 + ring_o_offset) % ring_size;
+    w0 = args.weights.Read(src_s * ring_size + o0);
+    w1 = args.weights.Read(src_s * ring_size + o1);
+    w2 = args.weights.Read(src_s * ring_size + o2);
+    w3 = args.weights.Read(src_s * ring_size + o3);
+)";
+  } else if (conv_params.runtime_check.ring_i_offset_index.has_value()) {
+    // kOSpatialIOGroupI4O4 -> kIOI4O4
+    c += R"(
+    int i0 = (src_s * 4 + ring_i_offset) % ring_size;
+    int i1 = (src_s * 4 + 1 + ring_i_offset) % ring_size;
+    int i2 = (src_s * 4 + 2 + ring_i_offset) % ring_size;
+    int i3 = (src_s * 4 + 3 + ring_i_offset) % ring_size;
+    int a0 = ((i0 / 4) * args.dst_tensor.Slices() + dst_s) * 4 + i0 % 4;
+    int a1 = ((i1 / 4) * args.dst_tensor.Slices() + dst_s) * 4 + i1 % 4;
+    int a2 = ((i2 / 4) * args.dst_tensor.Slices() + dst_s) * 4 + i2 % 4;
+    int a3 = ((i3 / 4) * args.dst_tensor.Slices() + dst_s) * 4 + i3 % 4;
+    w0 = args.weights.Read(a0);
+    w1 = args.weights.Read(a1);
+    w2 = args.weights.Read(a2);
+    w3 = args.weights.Read(a3);
+)";
   } else if (weights_desc.layout == WeightsLayout::kUnknown) {
     const std::string h_coord =
         conv_params.batched_weights ? "weights_batch_id" : "0";
@@ -780,6 +798,14 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
     c +=
         "  int ring_o_offset = args.params.Read(" +
         std::to_string(conv_params_.runtime_check.ring_o_offset_index.value()) +
+        ");\n";
+    c += "  int ring_size = " +
+         std::to_string(conv_params_.runtime_check.ring_size.value()) + ";\n";
+  }
+  if (conv_params_.runtime_check.ring_i_offset_index.has_value()) {
+    c +=
+        "  int ring_i_offset = args.params.Read(" +
+        std::to_string(conv_params_.runtime_check.ring_i_offset_index.value()) +
         ");\n";
     c += "  int ring_size = " +
          std::to_string(conv_params_.runtime_check.ring_size.value()) + ";\n";
@@ -1178,7 +1204,10 @@ void FullyConnected::AddWeightsArguments(const ExternalWeights& weights) {
       BufferDescriptor desc;
       desc.element_type = weights.desc.type;
       desc.element_size =
-          conv_params_.runtime_check.ring_o_offset_index.has_value() ? 4 : 16;
+          conv_params_.runtime_check.ring_o_offset_index.has_value() ||
+                  conv_params_.runtime_check.ring_i_offset_index.has_value()
+              ? 4
+              : 16;
       AddSrcBuffer("weights", desc);
     } else {
       // k2DX4I4YIsSpatialIAndXIsOOGroupO4
@@ -1273,6 +1302,11 @@ void AddRuntimeParam(const ConvRuntimeCheckDesc& runtime_check,
   if (runtime_check.ring_o_offset_index.has_value()) {
     result.args_.AddInt("ring_o_offset_index",
                         *runtime_check.ring_o_offset_index);
+    has_runtime_check = true;
+  }
+  if (runtime_check.ring_i_offset_index.has_value()) {
+    result.args_.AddInt("ring_i_offset_index",
+                        *runtime_check.ring_i_offset_index);
     has_runtime_check = true;
   }
   if (has_runtime_check) {
