@@ -23,11 +23,21 @@
 #include <utility>
 #include <vector>
 
+#include "absl/container/flat_hash_map.h"
+#include "ml_drift/cl/cl_command_queue.h"
+#include "ml_drift/cl/cl_operation.h"
 #include "ml_drift/cl/environment.h"
 #include "ml_drift/cl/inference_context.h"
 #include "ml_drift/cl/tensor.h"
+#include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_model_builder.h"
+#include "ml_drift/common/operations.h"
+#include "ml_drift/common/shape.h"
 #include "ml_drift/common/status.h"
+#include "ml_drift/common/task/gpu_operation.h"
+#include "ml_drift/common/task/tensor_desc.h"
+#include "ml_drift/common/tensor.h"
+#include "ml_drift/common/types.h"
 #include "ml_drift/samples/stable_diffusion/bpe_tokenizer.h"
 
 namespace ml_drift {
@@ -53,16 +63,6 @@ class Diffuser {
   enum class ModelType {
     // Stable diffusion v1 models, including SD 1.4 and 1.5.
     kSd1 = 0,
-    // Google Latent Diffusion Model.
-    kGldm = 1,
-    // Distilled Google Latent Diffusion Model.
-    kDistilledGldm = 2,
-    // Stable diffusion v2 base models, including SD 2.0 base and 2.1 base.
-    kSd2Base = 3,
-    // Text-to-Image Generation On-device models.
-    kTigo = 4,
-    // One step Text-to-Image Generation On-device UFO models.
-    kTigoUfo = 5,
   };
 
   struct Config {
@@ -97,7 +97,8 @@ class Diffuser {
   absl::StatusOr<TensorFloat32> Diffuse(
       const std::string& prompt, int total_steps, std::optional<uint> rand_seed,
       std::optional<float> plugins_strength,
-      const std::vector<TensorFloat32>& plugin_tensors = {});
+      const std::vector<TensorFloat32>& plugin_tensors = {},
+      bool show_progress = false);
 
   // The init step to run text embedding and prepare the input tensors for the
   // first reverse diffusion iteration.
@@ -148,10 +149,6 @@ class Diffuser {
       return inference_context_.GetTensor(dst_.id);
     }
 
-    Tensor* GetTextProjectionTensor() {
-      return inference_context_.GetTensor(text_proj_.id);
-    }
-
     absl::Status SetInput(Environment* env,
                           const ml_drift::Tensor<BHWC, DataType::INT32>& src);
 
@@ -159,20 +156,14 @@ class Diffuser {
       return inference_context_.AddToQueue(queue);
     }
 
-    absl::Status GetOutput(Environment* env, TensorFloat32* dst,
-                           TensorFloat32* text_proj = nullptr) {
+    absl::Status GetOutput(Environment* env, TensorFloat32* dst) {
       ABSL_RETURN_IF_ERROR(
           inference_context_.GetOutputTensor(dst_.id, env->queue(), dst));
-      if (text_proj) {
-        ABSL_RETURN_IF_ERROR(inference_context_.GetOutputTensor(
-            text_proj_.id, env->queue(), text_proj));
-      }
       return absl::OkStatus();
     }
 
    private:
-    bool openclip_;
-    GpuModelBuilder::TensorHandle src_, mask_, dst_, text_proj_;
+    GpuModelBuilder::TensorHandle src_, mask_, dst_;
     InferenceContext inference_context_;
   };
 
@@ -199,9 +190,6 @@ class Diffuser {
     Tensor* GetPluginsStrengthTensor() {
       return inference_context_.GetTensor(plugins_strength_.id);
     }
-    Tensor* GetTextProjectionTensor() {
-      return inference_context_.GetTensor(text_proj_.id);
-    }
 
     std::vector<Tensor*> GetPluginTensors() {
       return {
@@ -217,8 +205,8 @@ class Diffuser {
     absl::Status LogDebugTensor(CLCommandQueue* queue);
 
    private:
-    GpuModelBuilder::TensorHandle src_, temb_, guidance_, text_proj_, eta0_,
-        eta1_, dbg_, plugins_strength_, masked_image_;
+    GpuModelBuilder::TensorHandle src_, temb_, guidance_, eta0_, eta1_, dbg_,
+        plugins_strength_, masked_image_;
     std::vector<GpuModelBuilder::TensorHandle> plugin_tensors_;
     InferenceContext inference_context_;
     OpHolder temb_generation_op_;
@@ -264,17 +252,6 @@ class Diffuser {
     bool run_lcm_stepper_ = false;
     std::vector<half> alphas_;
     std::vector<half> alphas_prev_;
-
-    GPUOperation CreateVPredictionStepOp(const TensorDescriptor& xIn,
-                                         const TensorDescriptor& etaUncondIn,
-                                         const TensorDescriptor& etaCondIn,
-                                         const TensorDescriptor& dst);
-
-    GPUOperation CreateLcmVPredictionStepOp(const TensorDescriptor& xIn,
-                                            const TensorDescriptor& etaUncondIn,
-                                            const TensorDescriptor& etaCondIn,
-                                            const TensorDescriptor& noise,
-                                            const TensorDescriptor& dst);
   };
 
   Config config_;

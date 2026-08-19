@@ -267,6 +267,7 @@ cc_library(
         "//ml_drift/common/kernels:random_philox",
         "//ml_drift/common/task:gpu_operation",
         "//ml_drift/common/task:tensor_desc",
+        "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/log:absl_log",
         "@com_google_absl//absl/memory",

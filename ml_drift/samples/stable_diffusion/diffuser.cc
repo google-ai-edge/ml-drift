@@ -15,7 +15,7 @@
 #include "ml_drift/samples/stable_diffusion/diffuser.h"
 
 #include <algorithm>
-#include <array>
+#include <chrono>  // NOLINT(build/c++11)
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
@@ -23,6 +23,7 @@
 #include <memory>
 #include <optional>
 #include <random>
+#include <ratio>  // NOLINT(build/c++11)
 #include <string>
 #include <utility>
 #include <vector>
@@ -31,7 +32,6 @@
 #include "absl/log/log.h"
 #include "absl/memory/memory.h"
 #include "absl/strings/str_cat.h"
-#include "absl/strings/str_replace.h"
 #include "ml_drift/cl/cl_command_queue.h"
 #include "ml_drift/cl/cl_operation.h"
 #include "ml_drift/cl/environment.h"
@@ -61,12 +61,6 @@ namespace cl {
 namespace stable_diffusion {
 namespace {
 
-constexpr std::array<int, 9> kDistilledModelTimesteps = {
-    999, 871, 743, 615, 487, 359, 231, 103, 0,
-};
-
-constexpr std::array<int, 5> kTigoFourTimesteps = {999, 925, 800, 650, 450};
-
 absl::Status SanityCheck(const Diffuser::Config& config) {
   if (config.image_width != config.image_height ||
       config.image_width % 8 != 0 || config.image_height % 8 != 0 ||
@@ -87,18 +81,6 @@ absl::Status SanityCheck(const Diffuser::Config& config) {
         "be set.");
   }
   return absl::OkStatus();
-}
-
-bool IsGldmOrTigo(Diffuser::ModelType model_type) {
-  return model_type == Diffuser::ModelType::kGldm ||
-         model_type == Diffuser::ModelType::kDistilledGldm ||
-         model_type == Diffuser::ModelType::kTigo ||
-         model_type == Diffuser::ModelType::kTigoUfo;
-}
-
-bool IsTigo(Diffuser::ModelType model_type) {
-  return model_type == Diffuser::ModelType::kTigo ||
-         model_type == Diffuser::ModelType::kTigoUfo;
 }
 
 int GetRandomInt(uint32_t size, uint32_t seed) {
@@ -136,6 +118,12 @@ absl::StatusOr<std::unique_ptr<Diffuser>> Diffuser::Create(
 
   int latent_image_width = config.image_width / 8;
   int latent_image_height = config.image_height / 8;
+
+  auto decoder = std::make_unique<Decoder>();
+  ABSL_RETURN_IF_ERROR(decoder->Init(config, latent_image_width,
+                                     latent_image_height, env.get()));
+  ABSL_LOG(INFO) << "Decoder is created";
+
   auto unet = std::make_unique<UNet>();
   ABSL_RETURN_IF_ERROR(
       unet->Init(config, latent_image_width, latent_image_height, env.get()));
@@ -144,11 +132,6 @@ absl::StatusOr<std::unique_ptr<Diffuser>> Diffuser::Create(
   auto diffusion = std::make_unique<DiffusionStepper>();
   ABSL_RETURN_IF_ERROR(diffusion->Init(config, env.get()));
   ABSL_LOG(INFO) << "DiffusionStepper is created";
-
-  auto decoder = std::make_unique<Decoder>();
-  ABSL_RETURN_IF_ERROR(decoder->Init(config, latent_image_width,
-                                     latent_image_height, env.get()));
-  ABSL_LOG(INFO) << "Decoder is created";
 
   Tensor latent_copy;
   {
@@ -186,18 +169,7 @@ Diffuser::Diffuser(const Diffuser::Config& config,
   latent_copy_ = std::move(latent_copy);
 
   bpe_tokenizer_ = std::make_unique<BPETokenizer>();
-  switch (config.model_type) {
-    case ModelType::kGldm:
-    case ModelType::kDistilledGldm:
-    case ModelType::kSd2Base:
-      bpe_tokenizer_->Init(config.model_dir, /*padding_token=*/0);
-      break;
-    case ModelType::kTigo:
-    case ModelType::kTigoUfo:
-    case ModelType::kSd1:
-    default:
-      bpe_tokenizer_->Init(config.model_dir, /*padding_token=*/49407);
-  }
+  bpe_tokenizer_->Init(config.model_dir, /*padding_token=*/49407);
 
   tokens_.shape = BHWC(1, 1, 2, 77);
   tokens_.data.resize(tokens_.shape.DimensionsProduct());
@@ -206,13 +178,35 @@ Diffuser::Diffuser(const Diffuser::Config& config,
 absl::StatusOr<TensorFloat32> Diffuser::Diffuse(
     const std::string& prompt, int total_steps, std::optional<uint> rand_seed,
     std::optional<float> plugins_strength,
-    const std::vector<TensorFloat32>& plugin_tensors) {
+    const std::vector<TensorFloat32>& plugin_tensors, bool show_progress) {
+  const auto p0 = std::chrono::high_resolution_clock::now();
   ABSL_RETURN_IF_ERROR(RunInitStep(prompt, total_steps, rand_seed,
                                    plugins_strength, plugin_tensors));
+  const auto p1 = std::chrono::high_resolution_clock::now();
   for (int i = 0; i < total_steps; ++i) {
     ABSL_RETURN_IF_ERROR(RunIterationStep(total_steps, i));
+    if (show_progress) {
+      std::cout << "step " << (i + 1) << "/" << total_steps << std::endl;
+    }
   }
-  return RunDecodeStep();
+  const auto p2 = std::chrono::high_resolution_clock::now();
+  auto result = RunDecodeStep();
+  const auto p3 = std::chrono::high_resolution_clock::now();
+
+  std::cout << "Init time: "
+            << std::chrono::duration<float, std::milli>(p1 - p0).count()
+            << " ms." << std::endl;
+  std::cout << "Loop time: "
+            << std::chrono::duration<float, std::milli>(p2 - p1).count()
+            << " ms." << std::endl;
+  std::cout << "Decode time: "
+            << std::chrono::duration<float, std::milli>(p3 - p2).count()
+            << " ms." << std::endl;
+  std::cout << "Total diffuser time: "
+            << std::chrono::duration<float, std::milli>(p3 - p0).count()
+            << " ms." << std::endl;
+
+  return result;
 }
 
 absl::Status Diffuser::RunInitStep(
@@ -271,29 +265,14 @@ absl::Status Diffuser::RunInitStep(
   ABSL_RETURN_IF_ERROR(
       copier_->Execute(env_->queue(), text_guidance_graph_->GetGuidanceTensor(),
                        unet_->GetGuidanceTensor()));
-  if (IsTigo(config_.model_type)) {
-    ABSL_RETURN_IF_ERROR(copier_->Execute(
-        env_->queue(), text_guidance_graph_->GetTextProjectionTensor(),
-        unet_->GetTextProjectionTensor()));
-  }
+
   plugins_strength_ = plugins_strength.value_or(0.0f);
   return absl::OkStatus();
 }
 
 absl::Status Diffuser::RunIterationStep(int total_steps, int curr_iteration) {
   int ts, ts_prev;
-  if (total_steps == 8) {
-    // The distilled models are usually run with 8 steps, and the timestep
-    // indices are carefully selected to match its progressive distillation.
-    ts = kDistilledModelTimesteps[curr_iteration];
-    ts_prev = kDistilledModelTimesteps[curr_iteration + 1];
-  } else if (total_steps == 1 && config_.model_type == ModelType::kTigoUfo) {
-    ts = 999;
-    ts_prev = -1;
-  } else if (total_steps == 4 && config_.model_type == ModelType::kTigo) {
-    ts = kTigoFourTimesteps[curr_iteration];
-    ts_prev = kTigoFourTimesteps[curr_iteration + 1];
-  } else {
+  {
     const int stride = 1000 / total_steps;
     int t = total_steps - curr_iteration - 1;
     if (t < 0) {
@@ -322,13 +301,6 @@ absl::Status Diffuser::RunIterationStep(int total_steps, int curr_iteration) {
   ABSL_RETURN_IF_ERROR(unet_->Execute(env_->queue(), ts));
 
   float guidance_scale = 7.5f;
-  if (config_.model_type == ModelType::kDistilledGldm ||
-      config_.model_type == ModelType::kTigoUfo) {
-    guidance_scale = 1.0f;
-  } else if (config_.model_type == ModelType::kTigo &&
-             config_.run_unet_with_masked_image) {
-    guidance_scale = 1.75f;
-  }
   ABSL_RETURN_IF_ERROR(diffusion_stepper_->StepCustomOp(
       env_->queue(), &latent_copy_, unet_->GetEtaUncondTensor(),
       unet_->GetEtaCondTensor(), unet_->GetLatentTensor(), ts, ts_prev,
@@ -357,20 +329,9 @@ absl::Status Diffuser::TextGuidance::Init(const Diffuser::Config& runner_config,
   create_info.hints.Add(ModelHints::kFastTuning);
   GpuModel gpu_model;
   TextGuidanceBuilder builder;
-  openclip_ = runner_config.model_type != ModelType::kSd1 &&
-              !IsTigo(runner_config.model_type);
+
   const auto start_init = std::chrono::high_resolution_clock::now();
-  if (openclip_) {
-    TextGuidanceBuilder::Config config;
-    config.embedding_size = 1024;
-    config.num_layers =
-        runner_config.model_type == ModelType::kSd2Base ? 23 : 24;
-    config.num_heads = 16;
-    config.file_folder = runner_config.model_dir;
-    TextGuidanceBuilder builder;
-    ABSL_RETURN_IF_ERROR(builder.Build(config, gpu_info, create_info,
-                                       &gpu_model, &src_, &mask_, &dst_));
-  } else {
+  {
     TextGuidanceBuilder::Config config;
     config.embedding_size = 768;
     config.num_layers = 12;
@@ -378,31 +339,24 @@ absl::Status Diffuser::TextGuidance::Init(const Diffuser::Config& runner_config,
     config.skip_final_layer_norm = false;
     config.file_folder = runner_config.model_dir;
     TextGuidanceBuilder builder;
-    if (IsTigo(runner_config.model_type)) {
-      ABSL_RETURN_IF_ERROR(
-          builder.Build(config, gpu_info, create_info, &gpu_model, &src_,
-                        /*mask_ptr=*/nullptr, &dst_, &text_proj_));
-    } else {
+
       ABSL_RETURN_IF_ERROR(builder.Build(config, gpu_info, create_info,
                                          &gpu_model, &src_,
                                          /*mask_ptr=*/nullptr, &dst_));
-    }
   }
   ABSL_RETURN_IF_ERROR(inference_context_.InitFromGpuModel(
       create_info, &gpu_model, env, nullptr));
   const auto end_init = std::chrono::high_resolution_clock::now();
-  std::cout << "TextGuidance initialization time: "
-            << (end_init - start_init).count() * 1e-6f << " ms." << std::endl;
+  std::cout
+      << "TextGuidance initialization time: "
+      << std::chrono::duration<float, std::milli>(end_init - start_init).count()
+      << " ms." << std::endl;
+
   return absl::OkStatus();
 }
 
 absl::Status Diffuser::TextGuidance::SetInput(
     Environment* env, const ml_drift::Tensor<BHWC, DataType::INT32>& src) {
-  if (openclip_) {
-    ABSL_ASSIGN_OR_RETURN(auto mask_tensor, GenerateOpenClipMaskTensor(src));
-    ABSL_RETURN_IF_ERROR(
-        inference_context_.SetInputTensor(mask_.id, mask_tensor, env->queue()));
-  }
   return inference_context_.SetInputTensor(src_.id, src, env->queue());
 }
 
@@ -419,65 +373,16 @@ absl::Status Diffuser::UNet::Init(const Diffuser::Config& runner_config,
   UnetBuilder::Config config;
   config.use_spatial_transformer = true;
   config.transformer_depth = 1;
-  if (IsTigo(runner_config.model_type)) {
-    config.num_res_blocks = {1, 1, 2};
-    config.model_channels = 32;
-    config.channel_mult = {10, 20, 32};  // {320, 640, 1024}
-    config.num_transformer_blocks = {{}, {1}, {3, 3}, {3, 3, 3}, {1, 1}, {}};
-    config.use_self_attn = {false, false, true};
-    config.use_convnext = {false, false, true};
-    config.self_attn_share_kv_proj = true;
-    config.ff_multiplier = 6;
-    config.skip_middle_blocks = true;
-    config.activation_function =
-        UnetBuilder::Config::ActivationFunction::kGatedSiLU;
-  } else {
-    config.model_channels = 320;
-    config.num_res_blocks = {2, 2, 2, 2};
-    config.channel_mult = {1, 2, 4, 4};
-    config.num_transformer_blocks = {{1, 1}, {1, 1},    {1, 1},    {},
-                                     {},     {1, 1, 1}, {1, 1, 1}, {1, 1, 1}};
-  }
-  switch (runner_config.model_type) {
-    case ModelType::kSd2Base:
-      config.num_attn_heads = {5, 10, 20, 20};
-      break;
-    case ModelType::kTigo:
-    case ModelType::kTigoUfo:
-      config.num_attn_heads = {5, 10, 16};
-      break;
-    case ModelType::kGldm:
-    case ModelType::kDistilledGldm:
-    case ModelType::kSd1:
-    default:
-      config.num_attn_heads = {8, 8, 8, 8};
-  }
-  switch (runner_config.model_type) {
-    case ModelType::kGldm:
-    case ModelType::kTigo:
-    case ModelType::kTigoUfo:
-      config.in_channels = 8;
-      config.out_channels = 8;
-      break;
-    case ModelType::kSd1:
-    case ModelType::kSd2Base:
-    case ModelType::kDistilledGldm:
-    default:
-      config.in_channels = 4;
-      config.out_channels = 4;
-  }
-  switch (runner_config.model_type) {
-    case ModelType::kGldm:
-    case ModelType::kDistilledGldm:
-    case ModelType::kSd2Base:
-      config.context_dim = 1024;
-      break;
-    case ModelType::kSd1:
-    case ModelType::kTigo:
-    case ModelType::kTigoUfo:
-    default:
-      config.context_dim = 768;
-  }
+
+  config.model_channels = 320;
+  config.num_res_blocks = {2, 2, 2, 2};
+  config.channel_mult = {1, 2, 4, 4};
+  config.num_transformer_blocks = {{1, 1}, {1, 1},    {1, 1},    {},
+                                   {},     {1, 1, 1}, {1, 1, 1}, {1, 1, 1}};
+  config.num_attn_heads = {8, 8, 8, 8};
+  config.in_channels = 4;
+  config.out_channels = 4;
+  config.context_dim = 768;
   config.unet_file_dir = runner_config.model_dir;
   config.lora_file_dir = runner_config.lora_dir;
   config.lora_weights_layer_mapping = runner_config.lora_weights_layer_mapping;
@@ -499,19 +404,19 @@ absl::Status Diffuser::UNet::Init(const Diffuser::Config& runner_config,
   } else if (runner_config.run_unet_with_masked_image) {
     ABSL_RETURN_IF_ERROR(builder.Build(
         config, gpu_info, create_info, width, height, &gpu_model, &src_, &temb_,
-        &guidance_, IsTigo(runner_config.model_type) ? &text_proj_ : nullptr,
-        &masked_image_, &eta0_, &eta1_, &dbg_));
+        &guidance_, nullptr, &masked_image_, &eta0_, &eta1_, &dbg_));
   } else {
     ABSL_RETURN_IF_ERROR(builder.Build(
         config, gpu_info, create_info, width, height, &gpu_model, &src_, &temb_,
-        &guidance_, IsTigo(runner_config.model_type) ? &text_proj_ : nullptr,
-        nullptr, &eta0_, &eta1_, &dbg_));
+        &guidance_, nullptr, nullptr, &eta0_, &eta1_, &dbg_));
   }
   ABSL_RETURN_IF_ERROR(inference_context_.InitFromGpuModel(
       create_info, &gpu_model, env, nullptr));
   const auto end_init = std::chrono::high_resolution_clock::now();
-  std::cout << "UNet initialization time: "
-            << (end_init - start_init).count() * 1e-6f << " ms." << std::endl;
+  std::cout
+      << "UNet initialization time: "
+      << std::chrono::duration<float, std::milli>(end_init - start_init).count()
+      << " ms." << std::endl;
 
   TensorDescriptor default_desc(DataType::FLOAT16,
                                 GetFastestStorageType(gpu_info), Layout::HWC);
@@ -576,8 +481,7 @@ absl::Status Diffuser::Decoder::Init(const Diffuser::Config& runner_config,
   create_info.storage_type = GetFastestStorageType(gpu_info);
   create_info.hints.Add(ModelHints::kFastTuning);
   GpuModel gpu_model;
-  if (IsGldmOrTigo(runner_config.model_type)) {
-  } else {
+
     AutoencoderKLBuilder builder;
     AutoencoderKLBuilder::Config config;
     config.double_z = true;
@@ -597,10 +501,11 @@ absl::Status Diffuser::Decoder::Init(const Diffuser::Config& runner_config,
         create_info, &gpu_model, env, nullptr));
     const auto end_init = std::chrono::high_resolution_clock::now();
     std::cout << "SD decoder initialization time: "
-              << (end_init - start_init).count() * 1e-6f << " ms." << std::endl;
-  }
+              << std::chrono::duration<float, std::milli>(end_init - start_init)
+                     .count()
+              << " ms." << std::endl;
 
-  return absl::OkStatus();
+    return absl::OkStatus();
 }
 
 absl::Status Diffuser::DiffusionStepper::Init(
@@ -614,27 +519,8 @@ absl::Status Diffuser::DiffusionStepper::Init(
       DataType::FLOAT16,
       GetFastestStorageType(env->device().GetInfo()), Layout::HWC);
 
-  if (IsGldmOrTigo(runner_config.model_type)) {
-    if (runner_config.run_unet_with_masked_image) {
-      OperationDef op_def;
-      op_def.dst_tensors.push_back(desc);
-      ABSL_RETURN_IF_ERROR(noise_op_.Init(
-          env,
-          CreateRandomNormalPhilox(env->GetDevicePtr()->GetInfo(), op_def)));
-      run_lcm_stepper_ = true;
-      desc.SetBHWCShape(BHWC(1, runner_config.image_width / 8,
-                             runner_config.image_height / 8, 8));
-      ABSL_RETURN_IF_ERROR(CreateTensor(env->context(), desc, &noise_));
-      ABSL_RETURN_IF_ERROR(custom_op_.Init(
-          env, CreateLcmVPredictionStepOp(desc, desc, desc, desc, desc)));
-    } else {
-      ABSL_RETURN_IF_ERROR(custom_op_.Init(
-          env, CreateVPredictionStepOp(desc, desc, desc, desc)));
-    }
-  } else {
-    ABSL_RETURN_IF_ERROR(
-        custom_op_.Init(env, CreateDiffusionStepOp(desc, desc, desc, desc)));
-  }
+  ABSL_RETURN_IF_ERROR(
+      custom_op_.Init(env, CreateDiffusionStepOp(desc, desc, desc, desc)));
   return absl::OkStatus();
 }
 
@@ -681,101 +567,6 @@ absl::Status Diffuser::DiffusionStepper::StepCustomOp(
   return custom_op_.Execute(queue, exec_params);
 }
 
-GPUOperation Diffuser::DiffusionStepper::CreateVPredictionStepOp(
-    const TensorDescriptor& xIn, const TensorDescriptor& etaUncondIn,
-    const TensorDescriptor& etaCondIn, const TensorDescriptor& dst) {
-  GPUOperation op;
-  op.AddSrcTensor("xIn", xIn);
-  op.AddSrcTensor("etaUncondIn", etaUncondIn);
-  op.AddSrcTensor("etaCondIn", etaCondIn);
-  op.AddDstTensor("dst", dst);
-  op.args_.AddHalf("guidance_scale", half(1.0f));
-  op.args_.AddHalf("sqrt_alpha", half(1.0f));
-  op.args_.AddHalf("sqrt_alpha_prev", half(1.0f));
-  op.args_.AddHalf("sqrt_one_minus_alpha", half(1.0f));
-  op.args_.AddHalf("sqrt_one_minus_alpha_prev", half(1.0f));
-  op.tensor_to_grid_ = TensorToGrid::kWBToX_HDToY_SToZ;
-
-  std::string c;
-  c += R"(MAIN_FUNCTION($0) {
-  int X = ucl::GetGlobalId<0>();
-  int Y = ucl::GetGlobalId<1>();
-  int S = ucl::GetGlobalId<2>();
-  if (X >= args.dst.Width() || Y >= args.dst.Height() || S >= args.dst.Slices()) return;
-  Type eta_cond = args.etaCondIn.Read(X, Y, S);
-  Type eta_uncond = args.etaUncondIn.Read(X, Y, S);
-  Type x_in = args.xIn.Read(X, Y, S);
-
-  Type delta_cond = (eta_cond - eta_uncond) * args.guidance_scale;
-  Type eta = eta_uncond + delta_cond;
-
-  Type predX0Scaled = args.sqrt_alpha * x_in;
-  Type deltaX0 = args.sqrt_one_minus_alpha * eta;
-  Type predX0 = predX0Scaled - deltaX0;
-  Type etaScaled = args.sqrt_alpha * eta;
-  Type etaDelta = args.sqrt_one_minus_alpha * x_in;
-  eta = etaScaled + etaDelta;
-
-  Type dirX = eta * args.sqrt_one_minus_alpha_prev;
-  Type xPrevBase = predX0 * args.sqrt_alpha_prev;
-  Type result = xPrevBase + dirX;
-  args.dst.Write(result, X, Y, S);
-})";
-  absl::StrReplaceAll({{"Type", ToUclDataType(dst.GetDataType(), 4)}}, &c);
-  op.code_ = std::move(c);
-  return op;
-}
-
-GPUOperation Diffuser::DiffusionStepper::CreateLcmVPredictionStepOp(
-    const TensorDescriptor& xIn, const TensorDescriptor& etaUncondIn,
-    const TensorDescriptor& etaCondIn, const TensorDescriptor& noise,
-    const TensorDescriptor& dst) {
-  GPUOperation op;
-  op.AddSrcTensor("xIn", xIn);
-  op.AddSrcTensor("etaUncondIn", etaUncondIn);
-  op.AddSrcTensor("etaCondIn", etaCondIn);
-  op.AddSrcTensor("noise", noise);
-  op.AddDstTensor("dst", dst);
-  op.args_.AddHalf("guidance_scale", half(1.0f));
-  op.args_.AddHalf("sqrt_alpha", half(1.0f));
-  op.args_.AddHalf("sqrt_alpha_prev", half(1.0f));
-  op.args_.AddHalf("sqrt_one_minus_alpha", half(1.0f));
-  op.args_.AddHalf("sqrt_one_minus_alpha_prev", half(1.0f));
-  op.args_.AddInt("step_idx", 1);
-  op.args_.AddHalf("c_out", half(1.0f));
-  op.args_.AddHalf("c_skip", half(0.0f));
-  op.tensor_to_grid_ = TensorToGrid::kWBToX_HDToY_SToZ;
-
-  std::string c;
-  c += R"(MAIN_FUNCTION($0) {
-  int X = ucl::GetGlobalId<0>();
-  int Y = ucl::GetGlobalId<1>();
-  int S = ucl::GetGlobalId<2>();
-  if (X >= args.dst.Width() || Y >= args.dst.Height() || S >= args.dst.Slices()) return;
-  Type eta_cond = args.etaCondIn.Read(X, Y, S);
-  Type eta_uncond = args.etaUncondIn.Read(X, Y, S);
-  Type x_in = args.xIn.Read(X, Y, S);
-
-  Type eta = eta_cond * args.guidance_scale + (1 - args.guidance_scale) * eta_uncond;
-
-  Type predX0Scaled = args.sqrt_alpha * x_in;
-  Type deltaX0 = args.sqrt_one_minus_alpha * eta;
-  Type predX0 = predX0Scaled - deltaX0;
-
-  Type denoised = args.c_out * predX0 + args.c_skip * x_in;
-  if (args.step_idx == 650) {
-    args.dst.Write(denoised, X, Y, S);
-    return;
-  }
-
-  Type noise = args.noise.Read(X, Y, S);
-  Type prev_sample_compute = args.sqrt_alpha_prev * denoised + args.sqrt_one_minus_alpha_prev * noise;
-  args.dst.Write(prev_sample_compute, X, Y, S);
-})";
-  absl::StrReplaceAll({{"Type", ToUclDataType(dst.GetDataType(), 4)}}, &c);
-  op.code_ = std::move(c);
-  return op;
-}
 
 absl::Status Diffuser::OpHolder::InitElementwiseOneInput(
     OperationType op_type, const TensorDescriptor& src_desc,
