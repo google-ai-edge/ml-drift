@@ -320,5 +320,46 @@ TEST(IrModelUtilTest, HandlesTombstonedOpsAndTensors) {
   EXPECT_EQ(gpu_model.nodes.size(), 1);
 }
 
+TEST(IrModelUtilTest, SwapsInputIdsWhenLatestWrittenTensorIsNotFirstInput) {
+  // Verifies that when ConvertOperations swaps the inputs vector to put the
+  // latest written tensor at index 0, input_ids is also swapped so that op
+  // input IDs stay in sync with inputs.
+  IrModel ir_model;
+  IrTensor* input1 = ir_model.add_tensor(DataType::FLOAT32, BHWC(1, 2, 2, 4));
+  ir_model.add_input(input1->id);
+
+  IrOp* relu_op = ir_model.add_op();
+  relu_op->name = ToString(OperationType::RELU);
+  ReLUAttributes relu_attr;
+  relu_op->attr = relu_attr;
+  ir_model.AddConsumer(input1->id, relu_op->id);
+
+  IrTensor* relu_out = ir_model.add_tensor(DataType::FLOAT32, BHWC(1, 2, 2, 4));
+  ir_model.SetProducer(relu_out->id, relu_op->id);
+
+  // An op that consumes [input1, relu_out] where relu_out was the latest
+  // written tensor and is at index 1.
+  IrOp* add_op = ir_model.add_op();
+  add_op->name = ToString(OperationType::ADD);
+  ElementwiseAttributes add_attr;
+  add_op->attr = add_attr;
+  ir_model.AddConsumer(input1->id, add_op->id);
+  ir_model.AddConsumer(relu_out->id, add_op->id);
+
+  IrTensor* add_out = ir_model.add_tensor(DataType::FLOAT32, BHWC(1, 2, 2, 4));
+  ir_model.SetProducer(add_out->id, add_op->id);
+  ir_model.add_output(add_out->id);
+
+  CreateGpuModelInfo create_info;
+  create_info.precision = CalculationsPrecision::F16;
+  create_info.storage_type = TensorStorageType::BUFFER;
+  GpuInfo gpu_info = GetTestGpuInfo();
+
+  GpuModel gpu_model;
+  MLD_ASSERT_OK(IrModelToGpuModel(ir_model, create_info, gpu_info, &gpu_model));
+  ASSERT_EQ(gpu_model.nodes.size(), 1);
+  EXPECT_FALSE(gpu_model.nodes[0].gpu_operation->code_.empty());
+}
+
 }  // namespace
 }  // namespace ml_drift::ir

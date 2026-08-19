@@ -419,6 +419,7 @@ absl::Status ConvertOperations(const IrModel& ir_model,
           }
         }
         std::swap(inputs[0], inputs[latest_written_tensor_index]);
+        std::swap(input_ids[0], input_ids[latest_written_tensor_index]);
       }
       new_consumed_nodes = {node->id};
       ABSL_ASSIGN_OR_RETURN(
