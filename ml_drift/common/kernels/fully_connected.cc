@@ -139,8 +139,8 @@ int3 GetWorkGroupSize(const FullyConnected::ConvParams& params,
                       const GpuInfo& gpu_info, DataType acc_type,
                       const OHWI& weights_shape) {
   const int dst_slices = DivideRoundUp(weights_shape.o, 4);
-  if (gpu_info.IsApple() && gpu_info.IsApiMetal()
-      && gpu_info.apple_info.IsMSeries()) {
+  if (gpu_info.IsApple() && gpu_info.IsApiMetal() &&
+      gpu_info.apple_info.IsMSeries()) {
     int total_task_size = dst_slices / params.block_size.c;
     if (params.batched_weights) {
       if (params.runtime_batch_ids) {
@@ -361,7 +361,6 @@ int3 GetBlockSpatialCoords(int linear_spatial, const BHWC& shape) {
   return int3(b_coord, y_coord, x_coord);
 }
 
-
 void AddWeightsParams(const GpuInfo& gpu_info,
                       const Tensor<OHWI, DataType::FLOAT32>& weights_scale,
                       const Tensor<OHWI, DataType::FLOAT32>& weights_zero_point,
@@ -455,6 +454,9 @@ FullyConnected::FullyConnected(const OperationDef& definition,
        {"LOCAL_MEM_BARRIER", "ucl::SyncThreads<" + scope + ", Local>()"}},
       &code_);
   if (gpu_info.IsMali()) {
+    compiler_options_.push_back(CompilerOptions::kClFastRelaxedMath);
+  }
+  if (gpu_info.IsAdreno()) {
     compiler_options_.push_back(CompilerOptions::kClFastRelaxedMath);
   }
   if (precision == CalculationsPrecision::F16 && gpu_info.IsIntel()) {
@@ -887,6 +889,7 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
   }
   if (IsQuantized(conv_params_) && !int8_math) {
     // quantized weights, float output, read dequantization parameters
+    const int range_shift = GetRangeShift(conv_params_.weights_type);
     if (conv_params_.scale_zp_shape.i != 1) {
       // block-wise quantization handled separately
     } else if (IsLinearPerOutputQuantized(conv_params_)) {
@@ -900,27 +903,33 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
         if (conv_params_.has_zero_point) {
           c += "  Type w_zp_s" + std::to_string(s_id) +
                " = args.weights_zero_point.Read(" + coords + ");\n";
+          c += "  Type w_bias_s" + std::to_string(s_id) + " = -w_scale_s" +
+               std::to_string(s_id) + " * (ucl::Init<Type>(" +
+               std::to_string(range_shift) + ") + w_zp_s" +
+               std::to_string(s_id) + ");\n";
         } else {
-          c += "  Type w_zp_s" + std::to_string(s_id) +
-               " = ucl::Init<Type>(0.0f);\n";
+          c += "  Type w_bias_s" + std::to_string(s_id) + " = -w_scale_s" +
+               std::to_string(s_id) + " * (ucl::Init<Type>(" +
+               std::to_string(range_shift) + ".0f));\n";
         }
-        c += "  Type w_bias_s" + std::to_string(s_id) + " = -w_scale_s" +
-             std::to_string(s_id) + " * (ucl::Init<Type>(" +
-             std::to_string(GetRangeShift(conv_params_.weights_type)) +
-             ") + w_zp_s" + std::to_string(s_id) + ");\n";
       }
     } else if (IsScalarQuantized(conv_params_)) {
-      c += "  Type w_scale_s0 = "
-           "ucl::Convert<Type>(ucl::Init<float4>(args.scale));\n";
-      if (conv_params_.has_zero_point) {
-        c += "  Type w_zp_s0 = "
-             "ucl::Convert<Type>(ucl::Init<float4>(args.zero_point));\n";
-      } else {
-        c += "  Type w_zp_s0 = ucl::Init<Type>(0.0f);\n";
+      for (int s_id = 0; s_id < block_s; ++s_id) {
+        const std::string s_id_str = std::to_string(s_id);
+        c += "  Type w_scale_s" + s_id_str +
+             " = ucl::Convert<Type>(ucl::Init<float4>(args.scale));\n";
+        if (conv_params_.has_zero_point) {
+          c += "  Type w_zp_s" + s_id_str +
+               " = ucl::Convert<Type>(ucl::Init<float4>(args.zero_point));\n";
+          c += "  Type w_bias_s" + s_id_str + " = -w_scale_s" + s_id_str +
+               " * (ucl::Init<Type>(" + std::to_string(range_shift) +
+               ") + w_zp_s" + s_id_str + ");\n";
+        } else {
+          c += "  Type w_bias_s" + s_id_str + " = -w_scale_s" + s_id_str +
+               " * (ucl::Init<Type>(" + std::to_string(range_shift) +
+               ".0f));\n";
+        }
       }
-      c += "  Type w_bias_s0 = -w_scale_s0 * (ucl::Init<Type>(" +
-           std::to_string(GetRangeShift(conv_params_.weights_type)) +
-           ") + w_zp_s0);\n";
     }
   }
   const std::string start_slice = wg_reduction_ ? "tid.y" : "0";
@@ -929,19 +938,28 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
     c += "  for (int src_group = " + start_slice +
          "; src_group < args.src_groups; src_group += " + slice_stride +
          ") {\n";
-    std::string coords = "dst_s, 0, src_group";
-    if (conv_params_.scale_zp_shape.h != 1) {
-      coords = "dst_s, weights_batch_id, src_group";
+    for (int s_id = 0; s_id < block_s; ++s_id) {
+      std::string coords = "dst_s + " + std::to_string(s_id) + ", 0, src_group";
+      if (conv_params_.scale_zp_shape.h != 1) {
+        coords =
+            "dst_s + " + std::to_string(s_id) + ", weights_batch_id, src_group";
+      }
+      c += "    Type w_scale_s" + std::to_string(s_id) +
+           " = args.weights_scale.Read(" + coords + ");\n";
+      if (conv_params_.has_zero_point) {
+        c += "    Type w_zp_s" + std::to_string(s_id) +
+             " = args.weights_zero_point.Read(" + coords + ");\n";
+        c += "    Type w_bias_s" + std::to_string(s_id) + " = -w_scale_s" +
+             std::to_string(s_id) + " * (ucl::Init<Type>(" +
+             std::to_string(GetRangeShift(conv_params_.weights_type)) +
+             ") + w_zp_s" + std::to_string(s_id) + ");\n";
+      } else {
+        c += "    Type w_bias_s" + std::to_string(s_id) + " = -w_scale_s" +
+             std::to_string(s_id) + " * ucl::Init<Type>(" +
+             std::to_string(GetRangeShift(conv_params_.weights_type)) +
+             ".0f);\n";
+      }
     }
-    c += "    Type w_scale_s0 = args.weights_scale.Read(" + coords + ");\n";
-    if (conv_params_.has_zero_point) {
-      c += "    Type w_zp_s0 = args.weights_zero_point.Read(" + coords + ");\n";
-    } else {
-      c += "    Type w_zp_s0 = ucl::Init<Type>(0.0f);\n";
-    }
-    c += "    Type w_bias_s0 = -w_scale_s0 * (ucl::Init<Type>(" +
-         std::to_string(GetRangeShift(conv_params_.weights_type)) +
-         ") + w_zp_s0);\n";
     c += "  for (int src_sub_id = 0; src_sub_id < args.src_group_size; "
          "src_sub_id += 1) {\n";
     c += "    int src_s = src_group * args.src_group_size + src_sub_id;\n";
@@ -1281,7 +1299,6 @@ int GetRecommendedMaxTotalSpatialSize(const GpuInfo& gpu_info,
   base_max_size = std::min(base_max_size, 16);
   return base_max_size;
 }
-
 
 void AddRuntimeParam(const ConvRuntimeCheckDesc& runtime_check,
                      FullyConnected& result) {
