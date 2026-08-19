@@ -156,6 +156,10 @@ class GPUOperation {
     return absl::OkStatus();
   }
   void RecalculateGridSize() { grid_size_ = GetGridSize(); }
+  void SetGridSize(const int3& grid_size) {
+    grid_size_ = grid_size;
+    tensor_to_grid_ = TensorToGrid::kCustom;
+  }
   void RecalculateWorkGroupsCount();
 
   virtual std::string_view GetDebugName() const { return ""; }

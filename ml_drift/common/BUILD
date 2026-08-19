@@ -536,9 +536,13 @@ cc_library(
     name = "op_api",
     hdrs = ["op_api.h"],
     deps = [
+        ":data_type",
+        ":gpu_model_builder",
         ":op_attrs",
         ":op_base",
         ":op_registry",
+        ":types",
+        "//ml_drift/common/task:gpu_operation",
     ],
 )
 

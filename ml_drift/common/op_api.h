@@ -52,7 +52,18 @@
 //       const ::ml_drift::OpAttrs& attrs,
 //       std::vector<::ml_drift::GpuModelBuilder::TensorHandle>& outputs)
 //       const override {
-//     // Implementation here...
+//     auto* op = this->AppendNewOp(graph, attrs);
+//
+//     this->AddSrcTensor(graph, op, "src", inputs[0]);
+//     outputs = graph.AddTensors({inputs[0].tensor_desc});
+//     this->AddDstTensor(graph, op, "dst", outputs[0]);
+//
+//     // Configure operation parameters
+//     const auto& dst_shape = outputs[0].tensor_desc.GetBHWCShape();
+//     op->SetGridSize(
+//         int3(dst_shape.w * dst_shape.b, dst_shape.h, dst_shape.c));
+//     op->code_ = "void main() { ... }";
+//
 //     return absl::OkStatus();
 //   }
 // };
@@ -62,8 +73,12 @@
 // MLD_REGISTER_OP(MyCustomOp);
 // }  // namespace custom_ns
 
+#include "ml_drift/common/data_type.h"  // IWYU pragma: export
+#include "ml_drift/common/gpu_model_builder.h"  // IWYU pragma: export
 #include "ml_drift/common/op_attrs.h"     // IWYU pragma: export
 #include "ml_drift/common/op_base.h"      // IWYU pragma: export
 #include "ml_drift/common/op_registry.h"  // IWYU pragma: export
+#include "ml_drift/common/task/gpu_operation.h"  // IWYU pragma: export
+#include "ml_drift/common/types.h"  // IWYU pragma: export
 
 #endif  // ML_DRIFT_COMMON_OP_API_H_
