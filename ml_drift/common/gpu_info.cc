@@ -682,6 +682,7 @@ AppleInfo::AppleInfo(const std::string& gpu_description) {
       {"apple m3", AppleGpu::kM3},
       {"apple m3 pro", AppleGpu::kM3Pro},
       {"apple m3 max", AppleGpu::kM3Max},
+      {"apple m3 ultra", AppleGpu::kM3Ultra},
       {"apple m4", AppleGpu::kM4},
       {"apple m4 pro", AppleGpu::kM4Pro},
       {"apple m4 max", AppleGpu::kM4Max},
@@ -796,7 +797,7 @@ bool AppleInfo::IsM2Series() const {
 
 bool AppleInfo::IsM3Series() const {
   return gpu_type == AppleGpu::kM3 || gpu_type == AppleGpu::kM3Pro ||
-         gpu_type == AppleGpu::kM3Max;
+         gpu_type == AppleGpu::kM3Max || gpu_type == AppleGpu::kM3Ultra;
 }
 
 bool AppleInfo::IsM4Series() const {
@@ -903,6 +904,9 @@ int AppleInfo::GetComputeUnitsCount() const {
     case AppleGpu::kM3Max:
       // approximate
       return 40;
+    case AppleGpu::kM3Ultra:
+      // approximate
+      return 80;
     case AppleGpu::kM4:
       // approximate
       return 10;

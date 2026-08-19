@@ -251,6 +251,7 @@ enum class AppleGpu {
   kM3,
   kM3Pro,
   kM3Max,
+  kM3Ultra,
   kM4,
   kM4Pro,
   kM4Max,
