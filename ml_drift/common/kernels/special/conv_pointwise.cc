@@ -405,8 +405,8 @@ absl::Status IsSliceOp(const ir::IrModel& ir_model, const ir::IrOp* op,
                        IrOpContext* op_context) {
   ABSL_RETURN_IF_ERROR(
       IsOp(ir_model, OperationType::SLICE, 1, 1, op, op_context));
-  auto slice_attr = std::any_cast<SliceAttributes>(op_context->op->attr);
-  if (slice_attr.strides != BHWC(1, 1, 1, 1)) {
+  auto* slice_attr = std::any_cast<SliceAttributes>(&op_context->op->attr);
+  if (!slice_attr || slice_attr->strides != BHWC(1, 1, 1, 1)) {
     return absl::InternalError("Not valid attributes in slice node.");
   }
   return absl::OkStatus();
