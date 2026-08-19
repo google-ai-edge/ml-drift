@@ -91,6 +91,48 @@ cc_library(
 )
 
 cc_binary(
+    name = "sd_gpu_metal_bin",
+    deps = [
+        ":sd_gpu_metal",
+        "//third_party/apple_frameworks:Metal",
+        "//third_party/apple_frameworks:QuartzCore",
+    ],
+)
+
+objc_library(
+    name = "sd_gpu_metal",
+    srcs = ["sd_gpu_metal.mm"],
+    deps = [
+        ":autoencoder_kl_builder",
+        ":bpe_tokenizer",
+        ":text_guidance_builder",
+        ":unet_builder",
+        ":util",
+        "//ml_drift/common:flops_util",
+        "//ml_drift/common:gpu_info",
+        "//ml_drift/common:gpu_model_builder",
+        "//ml_drift/common:model",
+        "//ml_drift/common:model_transformer",
+        "//ml_drift/common:operations",
+        "//ml_drift/common:precision",
+        "//ml_drift/common:shape",
+        "//ml_drift/common:util",
+        "//ml_drift/common:winograd_util",
+        "//ml_drift/common/kernels:elementwise",
+        "//ml_drift/common/kernels:mean_stddev_normalization",
+        "//ml_drift/common/kernels:random_philox",
+        "//ml_drift/common/selectors:convolution_selector",
+        "//ml_drift/common/selectors:simple_selectors",
+        "//ml_drift/common/task:weights_conversion",
+        "//ml_drift/common/task:weights_layout",
+        "//ml_drift/common/transformations:model_transformations",
+        "//ml_drift/metal:inference_context",
+        "//ml_drift/metal:metal_device",
+        "//third_party/apple_frameworks:Metal",
+    ],
+)
+
+cc_binary(
     name = "sd_gpu_webgpu",
     srcs = ["sd_gpu_webgpu.cc"],
     deps = [
