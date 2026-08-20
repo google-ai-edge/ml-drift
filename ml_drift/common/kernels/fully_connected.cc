@@ -488,19 +488,33 @@ std::string ReadWeightsAsFloat(const FullyConnected::ConvParams& conv_params,
                                bool split_dst_slices, int dst_sub_s = 0) {
   std::string c;
   if (conv_params.runtime_check.ring_o_offset_index.has_value()) {
-    // kOSpatialIOGroupO4I4 -> kIOI4
+    // kOSpatialIOGroupO4I4 -> kBIOI4
     c += R"(
     int o0 = (dst_s * 4 + ring_o_offset) % ring_size;
     int o1 = (dst_s * 4 + 1 + ring_o_offset) % ring_size;
     int o2 = (dst_s * 4 + 2 + ring_o_offset) % ring_size;
     int o3 = (dst_s * 4 + 3 + ring_o_offset) % ring_size;
-    w0 = args.weights.Read(src_s * ring_size + o0);
-    w1 = args.weights.Read(src_s * ring_size + o1);
-    w2 = args.weights.Read(src_s * ring_size + o2);
-    w3 = args.weights.Read(src_s * ring_size + o3);
+    int a0 = src_s * ring_size + o0;
+    int a1 = src_s * ring_size + o1;
+    int a2 = src_s * ring_size + o2;
+    int a3 = src_s * ring_size + o3;
+)";
+    if (conv_params.batched_weights) {
+      c += R"(
+    a0 += weights_batch_id * ring_size * args.src_tensor.Slices();
+    a1 += weights_batch_id * ring_size * args.src_tensor.Slices();
+    a2 += weights_batch_id * ring_size * args.src_tensor.Slices();
+    a3 += weights_batch_id * ring_size * args.src_tensor.Slices();
+)";
+    }
+    c += R"(
+    w0 = args.weights.Read(a0);
+    w1 = args.weights.Read(a1);
+    w2 = args.weights.Read(a2);
+    w3 = args.weights.Read(a3);
 )";
   } else if (conv_params.runtime_check.ring_i_offset_index.has_value()) {
-    // kOSpatialIOGroupI4O4 -> kIOI4O4
+    // kOSpatialIOGroupI4O4 -> kBIOI4O4
     c += R"(
     int i0 = (src_s * 4 + ring_i_offset) % ring_size;
     int i1 = (src_s * 4 + 1 + ring_i_offset) % ring_size;
@@ -510,6 +524,16 @@ std::string ReadWeightsAsFloat(const FullyConnected::ConvParams& conv_params,
     int a1 = ((i1 / 4) * args.dst_tensor.Slices() + dst_s) * 4 + i1 % 4;
     int a2 = ((i2 / 4) * args.dst_tensor.Slices() + dst_s) * 4 + i2 % 4;
     int a3 = ((i3 / 4) * args.dst_tensor.Slices() + dst_s) * 4 + i3 % 4;
+)";
+    if (conv_params.batched_weights) {
+      c += R"(
+    a0 += weights_batch_id * ring_size * args.dst_tensor.Slices();
+    a1 += weights_batch_id * ring_size * args.dst_tensor.Slices();
+    a2 += weights_batch_id * ring_size * args.dst_tensor.Slices();
+    a3 += weights_batch_id * ring_size * args.dst_tensor.Slices();
+)";
+    }
+    c += R"(
     w0 = args.weights.Read(a0);
     w1 = args.weights.Read(a1);
     w2 = args.weights.Read(a2);
