@@ -49,6 +49,17 @@ objc_library(
 )
 
 objc_library(
+    name = "metal_debugger_util",
+    srcs = ["metal_debugger_util.mm"],
+    hdrs = ["metal_debugger_util.h"],
+    deps = [
+        "//ml_drift/common:status",
+        "//third_party/apple_frameworks:Foundation",
+        "//third_party/apple_frameworks:Metal",
+    ],
+)
+
+objc_library(
     name = "common_test_lib",
     testonly = 1,
     srcs = ["common_test.mm"],
