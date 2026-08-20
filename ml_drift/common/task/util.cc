@@ -79,9 +79,19 @@ absl::Status PerformInitSelector(const GpuInfo& gpu_info,
               "(" + args_str + ")";
     return absl::OkStatus();
   } else if (gpu_info.IsApiWebGpu()) {
+    std::string webgpu_args = args[0];
+    if (args.size() == 1 && vector_size > 1) {
+      for (int i = 1; i < vector_size; ++i) {
+        webgpu_args += ", " + args[0];
+      }
+    } else if (args.size() != 1) {
+      for (int i = 1; i < args.size(); ++i) {
+        webgpu_args += ", " + args[i];
+      }
+    }
     *result =
         ToWebGpuType(type, vector_size, gpu_info.webgpu_info.supports_fp16) +
-        "(" + args_str + ")";
+        "(" + webgpu_args + ")";
     return absl::OkStatus();
   } else if (gpu_info.IsApiCuda()) {
     *result = "make_" + ToUclDataType(type, vector_size) + "(" + args_str + ")";
