@@ -2480,7 +2480,7 @@ GpuModelBuilder::TensorHandle GpuModelBuilder::SoftmaxElementwise(
   gpu_node.inputs = {src.id, reduced_exp.id};
   gpu_node.outputs = {dst.id};
   gpu_node.gpu_operation =
-      std::make_unique<GPUOperation>(CreateSoftmaxFinal(op_def));
+      std::make_unique<GPUOperation>(CreateSoftmaxFinal(op_def, dst_shape.c));
   return dst;
 }
 

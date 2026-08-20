@@ -64,7 +64,8 @@ Softmax CreateSoftmaxReduce(const OperationDef& definition,
 // Creates a Softmax final operation.
 // Elementwise operation that uses src tensor and exp/max tensor from
 // SoftmaxReduce
-GPUOperation CreateSoftmaxFinal(const OperationDef& definition);
+GPUOperation CreateSoftmaxFinal(const OperationDef& definition,
+                                int channels = 0);
 
 }  // namespace ml_drift
 
