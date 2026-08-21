@@ -294,7 +294,7 @@ absl::Status CreateComputeProgramWithArgumentBuffer(
     id<MTLArgumentEncoder>* arguments_encoder) {
   if (@available(macOS 10.13, iOS 11.0, tvOS 11.0, *)) {
     id<MTLFunction> function;
-    ABSL_RETURN_IF_ERROR(CreateFunction(device, code, "ComputeFunction", macros, &function));
+    ABSL_RETURN_IF_ERROR(CreateFunction(device, code, function_name, macros, &function));
     *arguments_encoder = [function newArgumentEncoderWithBufferIndex:0];
     if (!*arguments_encoder) {
       return absl::InternalError("Failed to get MTLArgumentEncoder.");
@@ -326,7 +326,7 @@ absl::Status CreateComputeProgramWithICBSupport(id<MTLDevice> device, const std:
                                                 id<MTLArgumentEncoder>* arguments_encoder) {
   if (@available(macOS 11.00, iOS 13.0, tvOS 13.0, *)) {
     id<MTLFunction> function;
-    ABSL_RETURN_IF_ERROR(CreateFunction(device, code, "ComputeFunction", macros, &function));
+    ABSL_RETURN_IF_ERROR(CreateFunction(device, code, function_name, macros, &function));
     *arguments_encoder = [function newArgumentEncoderWithBufferIndex:0];
     if (!*arguments_encoder) {
       return absl::InternalError("Failed to get MTLArgumentEncoder.");

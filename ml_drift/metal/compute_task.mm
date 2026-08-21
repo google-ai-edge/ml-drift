@@ -57,8 +57,9 @@ int ReplaceAllWords(const std::string& old_word, const std::string& new_word,
   return count;
 }
 
-std::map<std::string, std::string> GetMetalDefines(Environment* device) {
-  return {{"MAIN_FUNCTION", "kernel void ComputeFunction"},
+std::map<std::string, std::string> GetMetalDefines(Environment* device,
+                                                   const std::string& function_name) {
+  return {{"MAIN_FUNCTION", "kernel void " + function_name},
           {"__local", "threadgroup"},
           {"__global", "device"},
           {"__constant", "constant"}};
@@ -139,7 +140,7 @@ absl::Status ComputeTask::InitArgsDeserialized(Environment* env) {
   return absl::OkStatus();
 }
 
-absl::Status ComputeTask::Compile(Environment* env) {
+absl::Status ComputeTask::Compile(Environment* env, const std::string& name) {
   ABSL_RETURN_IF_ERROR(InitArgs(env));
 
   // manually resolving Metal reserved types(float16, half8, etc)
@@ -156,24 +157,35 @@ absl::Status ComputeTask::Compile(Environment* env) {
       }
     }
   }
+  std::string function_name = name;
+  if (function_name.empty()) {
+    function_name = "ComputeFunction";
+  } else {
+    for (char& c : function_name) {
+      if (!absl::ascii_isalnum(c)) {
+        c = '_';
+      }
+    }
+  }
   operation_->code_ = struct_definitions + operation_->code_;
-  defines_ = GetMetalDefines(env);
-  return CompileProgram(env, operation_->code_, defines_);
+  defines_ = GetMetalDefines(env, function_name);
+  return CompileProgram(env, operation_->code_, defines_, function_name);
 }
 
 absl::Status ComputeTask::CompileProgram(
     Environment* env, const std::string& code,
-    const std::map<std::string, std::string>& defines) {
+    const std::map<std::string, std::string>& defines,
+    const std::string& function_name) {
   @autoreleasepool {
     id<MTLComputePipelineState> program;
     if (use_arguments_buffer_) {
       id<MTLArgumentEncoder> arguments_encoder;
       if (need_icb_support_) {
         ABSL_RETURN_IF_ERROR(CreateComputeProgramWithICBSupport(
-            env->device(), code, "ComputeFunction", defines, &program, &arguments_encoder));
+            env->device(), code, function_name, defines, &program, &arguments_encoder));
       } else {
         ABSL_RETURN_IF_ERROR(CreateComputeProgramWithArgumentBuffer(
-            env->device(), code, "ComputeFunction", defines, &program, &arguments_encoder));
+            env->device(), code, function_name, defines, &program, &arguments_encoder));
       }
       arguments_encoder_ = arguments_encoder;
       arg_buffer_ =
@@ -184,7 +196,7 @@ absl::Status ComputeTask::CompileProgram(
       }
     } else {
       ABSL_RETURN_IF_ERROR(
-          CreateComputeProgram(env->device(), code, "ComputeFunction", defines, &program));
+          CreateComputeProgram(env->device(), code, function_name, defines, &program));
     }
     program_ = program;
   }
@@ -193,8 +205,9 @@ absl::Status ComputeTask::CompileProgram(
 
 absl::Status ComputeTask::Init(
     Environment* env, const std::string& code,
-    const std::map<std::string, std::string>& defines) {
-  return CompileProgram(env, code, defines);
+    const std::map<std::string, std::string>& defines,
+    const std::string& function_name) {
+  return CompileProgram(env, code, defines, function_name);
 }
 
 absl::Status ComputeTask::RestoreDeserialized(Environment* env) {
