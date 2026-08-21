@@ -352,31 +352,23 @@ GPUOperation CreateSoftmaxFinal(const OperationDef& definition, int channels) {
   if (definition.src_tensors[1].HasAxis(Axis::BATCH)) {
     coords += ", B_COORD";
   }
-  op_desc.code = absl::Substitute(
-      R"(
-  float4 exp_val = ucl::Convert<float4>(args.src_tensor_1.Read($0));
-  float4 src_f32 = ucl::Convert<float4>(in_value);
-)",
-      coords);
+  op_desc.code = "  args.src_tensor_1::type exp_val = args.src_tensor_1.Read(" +
+                 coords + ");\n";
   if (channels > 0 && channels % 4 != 0) {
     op_desc.args.AddInt("ch_count", channels);
     op_desc.code += R"(
   if (S_COORD * 4 + 1 >= args.ch_count) {
-    src_f32.y = exp_val.y;
+    in_value.y = exp_val.y;
   }
   if (S_COORD * 4 + 2 >= args.ch_count) {
-    src_f32.z = exp_val.y;
+    in_value.z = exp_val.y;
   }
   if (S_COORD * 4 + 3 >= args.ch_count) {
-    src_f32.w = exp_val.y;
+    in_value.w = exp_val.y;
   }
 )";
   }
-  op_desc.code += absl::Substitute(
-      R"(
-  out_value = ucl::Convert<$0>(exp(src_f32 - exp_val.y) * exp_val.x);
-)",
-      ToUclDataType(definition.dst_tensors[0].GetDataType(), 4));
+  op_desc.code += "  out_value = exp(in_value - exp_val.y) * exp_val.x;\n";
   return CreateGpuOperation(definition, std::move(op_desc));
 }
 
