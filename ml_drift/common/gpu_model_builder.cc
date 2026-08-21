@@ -42,6 +42,7 @@
 #include "ml_drift/common/kernels/bitcast.h"
 #include "ml_drift/common/kernels/cast.h"
 #include "ml_drift/common/kernels/conv_apple_mpp.h"
+#include "ml_drift/common/kernels/conv_generic.h"
 #include "ml_drift/common/kernels/conv_wave_matrix.h"
 #include "ml_drift/common/kernels/conv_weights_converter.h"
 #include "ml_drift/common/kernels/cumsum.h"
@@ -1052,15 +1053,23 @@ GpuModelBuilder::FullyConnectedSrcFloatExternalWeightsWithConversion(
   const uint64_t dst_weights_size =
       weights.shape.DimensionsProduct() *
       SizeInBitsOf(src.tensor_desc.GetDataType()) / 8;
-  // const double device_bandwidth_gbs = 120;  // in MLDrift conversion
-  // const double device_compute_gflops = 13000;  // in MLDrift convolution
-  // const double flops_per_byte = device_compute_gflops / device_bandwidth_gbs;
-  // // ~110 for M5/A19, GPUs with NA
-  // const double device_bandwidth_gbs = 75;  // in MLDrift conversion
-  // const double device_compute_gflops = 2500;  // in MLDrift convolution
-  // const double flops_per_byte =
-  //     device_compute_gflops /
-  //     device_bandwidth_gbs;  // ~32 for M4/A18 and below, GPUs without NA
+  double flops_per_byte = 32;
+  // const double flops_per_byte = device_compute_gflops/device_bandwidth_gbs;
+  if (gpu_info_.IsApple()) {
+    // const double device_bandwidth_gbs = 120;  // in MLDrift conversion
+    // const double device_compute_gflops = 13000;  // in MLDrift convolution
+    // flops_per_byte ~110 for M5/A19, GPUs with NA
+    // const double device_bandwidth_gbs = 75;  // in MLDrift conversion
+    // const double device_compute_gflops = 2500;  // in MLDrift convolution
+    // flops_per_byte ~32 for M4/A18 and below, GPUs without NA
+    flops_per_byte = use_apple_mpp ? 110 : 32;
+  } else if (gpu_info_.IsIntel()) {
+    // TODO: sorokin MLDrift conversion has bad results for Intel GPUs.
+    // Intel LNL:
+    // const double device_bandwidth_gbs = 40;  // in some cases
+    // const double device_compute_gflops = 10000;  // in MLDrift convolution
+    flops_per_byte = 250;
+  }
   // const double conv_gflops = flops * 1e-9;
   // const double conv_time_s = conv_gflops / device_compute_gflops;
   // const double weights_bytes = src_weights_size + dst_weights_size;
@@ -1071,7 +1080,7 @@ GpuModelBuilder::FullyConnectedSrcFloatExternalWeightsWithConversion(
   //    (conv_gflops / device_compute_gflops);
   //  weights_gbytes * 100 / conv_gflops *
   //  (device_compute_gflops / device_bandwidth_gbs);
-  const double flops_per_byte = use_apple_mpp ? 110 : 32;
+  //  weights_gbytes * 100 / conv_gflops * flops_per_byte;
   const double conversion_cost =
       100.0 * (src_weights_size + dst_weights_size) / flops * flops_per_byte;
   // if conversion cost is more than 20% of the convolution cost, it is
@@ -1128,6 +1137,15 @@ GpuModelBuilder::FullyConnectedSrcFloatExternalWeightsWithConversion(
           bias_td, src_exp_td, different_weights_for_height, runtime_check);
       conv_weights_desc = weights.desc;
       conv_op = std::make_unique<ConvWaveMatrix>(std::move(conv_wave_matrix));
+      conv_need_scale_zp = true;
+    } else if (recommended_single_conv &&
+               SupportsConvGeneric(gpu_info_, conv_precision,
+                                   external_weights)) {
+      auto conv_generic = CreateConvGenericExternalWeights(
+          gpu_info_, op_def, conv_precision, external_weights, bias_td,
+          &dst_shape, src_exp_td, different_weights_for_height, runtime_check);
+      conv_weights_desc = weights.desc;
+      conv_op = std::make_unique<ConvGeneric>(std::move(conv_generic));
       conv_need_scale_zp = true;
     } else if (use_apple_mpp) {
       ConvAppleMPP conv_mpp = CreateConvAppleMPPExternalWeights(

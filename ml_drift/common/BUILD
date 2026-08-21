@@ -117,6 +117,7 @@ cc_library(
         "//ml_drift/common/kernels:bitcast",
         "//ml_drift/common/kernels:cast",
         "//ml_drift/common/kernels:conv_apple_mpp",
+        "//ml_drift/common/kernels:conv_generic",
         "//ml_drift/common/kernels:conv_wave_matrix",
         "//ml_drift/common/kernels:conv_weights_converter",
         "//ml_drift/common/kernels:cumsum",
