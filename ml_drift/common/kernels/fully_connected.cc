@@ -1101,6 +1101,9 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
   }
   if (gpu_info.IsApple() && gpu_info.IsApiMetal() &&
       IsQuantized(conv_params_) && conv_params_.scale_zp_shape.o >= 1024 * 64) {
+    // In some cases, on Metal with Apple GPUs, kernel with big dst channels
+    // size shows unexpected slowdown. This workaround helps to restore
+    // performance.
     c += "    ucl::SyncThreads<WorkGroup, None>();\n";
   }
   if (IsQuantized(conv_params_) && conv_params_.scale_zp_shape.i != 1) {
