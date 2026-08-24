@@ -1099,6 +1099,10 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
       c += AccumulateUint(acc_name, src_name, gpu_info);
     }
   }
+  if (gpu_info.IsApple() && gpu_info.IsApiMetal() &&
+      IsQuantized(conv_params_) && conv_params_.scale_zp_shape.o >= 1024 * 64) {
+    c += "    ucl::SyncThreads<WorkGroup, None>();\n";
+  }
   if (IsQuantized(conv_params_) && conv_params_.scale_zp_shape.i != 1) {
     c += "  }} // end for loop\n";
   } else {
