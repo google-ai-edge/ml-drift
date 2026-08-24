@@ -18,8 +18,8 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "absl/status/status.h"
 #include "ml_drift/common/data_type.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/gpu_object_desc.h"
 #include "ml_drift/common/task/gpu_tensor.h"
 #include "ml_drift/common/task/tensor_desc.h"

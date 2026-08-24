@@ -23,6 +23,9 @@
 #include <vector>
 
 #include "absl/log/log.h"
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
+#include "absl/status/statusor.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/gpu_model.h"
@@ -31,7 +34,6 @@
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/precision.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/tensor.h"
 #include "ml_drift/common/types.h"
 #include "ml_drift/samples/stable_diffusion/model_data_loader.h"

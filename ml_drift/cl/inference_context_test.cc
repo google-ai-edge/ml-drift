@@ -21,6 +21,8 @@
 #include "gtest/gtest.h"
 #include "ml_drift/common/default/status_matchers.h"
 #include "absl/log/absl_check.h"
+#include "absl/status/status_macros.h"
+#include "absl/status/statusor.h"
 #include "ml_drift/cl/cl_test.h"
 #include "ml_drift/cl/tensor.h"
 #include "ml_drift/common/data_type.h"
@@ -29,7 +31,6 @@
 #include "ml_drift/common/model.h"
 #include "ml_drift/common/precision.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/tensor.h"
 

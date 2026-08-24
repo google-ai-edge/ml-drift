@@ -21,6 +21,9 @@
 #include <vector>
 
 #include "absl/log/log.h"
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/types/span.h"
 #include "ml_drift/common/data_type.h"
@@ -31,7 +34,6 @@
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/precision.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/types.h"
 #include "ml_drift/samples/stable_diffusion/util.h"
 

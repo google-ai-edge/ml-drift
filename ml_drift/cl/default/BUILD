@@ -26,7 +26,8 @@ cc_library(
         "//ml_drift/cl:cl_context",
         "//ml_drift/cl:cl_device",
         "//ml_drift/cl:command_buffer",
-        "//ml_drift/common:status",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
     ],
 )
 
@@ -42,6 +43,6 @@ cc_library(
         "//ml_drift/cl:opencl_wrapper",
         "//ml_drift/cl:util_types",
         "//ml_drift/common:gpu_info",
-        "//ml_drift/common:status",
+        "@com_google_absl//absl/status",
     ],
 )

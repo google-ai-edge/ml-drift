@@ -22,6 +22,9 @@
 #include <vector>
 
 #include "absl/debugging/leak_check.h"
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/types/span.h"
 #include "ml_drift/cl/cl_context.h"
@@ -29,7 +32,6 @@
 #include "ml_drift/cl/opencl_wrapper.h"
 #include "ml_drift/cl/util.h"
 #include "ml_drift/common/gpu_info.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/compiler_options.h"
 #include <CL/cl.h>
 #include <CL/cl_platform.h>

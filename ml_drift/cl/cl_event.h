@@ -18,8 +18,9 @@
 #include <cstdint>
 #include <string>
 
+#include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "ml_drift/cl/opencl_wrapper.h"
-#include "ml_drift/common/status.h"
 
 namespace ml_drift {
 namespace cl {

@@ -14,10 +14,10 @@
 
 #include "gtest/gtest.h"
 #include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status.h"
 #include "ml_drift/cl/testing/cl_test.h"
 #include "ml_drift/common/gpu_model_external_weights_test_util.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 
 namespace ml_drift {
 namespace cl {

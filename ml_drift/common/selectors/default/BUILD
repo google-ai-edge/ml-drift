@@ -25,8 +25,9 @@ cc_library(
     deps = [
         "//ml_drift/common:gpu_info",
         "//ml_drift/common:model",
-        "//ml_drift/common:status",
         "//ml_drift/common/task:gpu_operation",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
     ],
 )

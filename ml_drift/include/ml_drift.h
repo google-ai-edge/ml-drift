@@ -17,6 +17,8 @@
 
 // Common headers for all APIs.
 
+#include "absl/status/status.h"              // IWYU pragma: export
+#include "absl/status/statusor.h"            // IWYU pragma: export
 #include "ml_drift/common/gpu_info.h"        // IWYU pragma: export
 #include "ml_drift/common/gpu_model.h"       // IWYU pragma: export
 #include "ml_drift/common/gpu_model_util.h"  // IWYU pragma: export
@@ -24,7 +26,6 @@
 #include "ml_drift/common/model_hints.h"     // IWYU pragma: export
 #include "ml_drift/common/precision.h"       // IWYU pragma: export
 #include "ml_drift/common/shape.h"           // IWYU pragma: export
-#include "ml_drift/common/status.h"          // IWYU pragma: export
 #include "ml_drift/common/task/tensor_desc.h"  // IWYU pragma: export
 #include "ml_drift/common/tensor.h"  // IWYU pragma: export
 

@@ -19,6 +19,8 @@
 #include <vector>
 
 #include "absl/algorithm/container.h"
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
 #include "absl/time/time.h"
 #include "absl/types/span.h"
 #include "flatbuffers/buffer.h"
@@ -33,7 +35,6 @@
 #include "ml_drift/common/ir_model_util.h"
 #include "ml_drift/common/model.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/profiling_info.h"
 #include "ml_drift/common/task/serialization_base.h"
 #include "ml_drift/common/task/tensor_desc.h"

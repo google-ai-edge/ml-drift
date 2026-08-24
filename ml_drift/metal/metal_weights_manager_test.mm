@@ -23,7 +23,7 @@
 #import <Metal/Metal.h>
 
 #include "absl/container/flat_hash_map.h"
-#include "ml_drift/common/status.h"
+#include "absl/status/status.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/gpu_model.h"

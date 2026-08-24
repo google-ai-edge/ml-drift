@@ -28,8 +28,8 @@ cc_library(
         "//ml_drift/common:model",
         "//ml_drift/common:model_transformer",
         "//ml_drift/common:operations",
-        "//ml_drift/common:status",
         "//ml_drift/common:tensor",
+        "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
     ],
 )
@@ -45,9 +45,9 @@ cc_test(
         "//ml_drift/common:model_transformer",
         "//ml_drift/common:operations",
         "//ml_drift/common:shape",
-        "//ml_drift/common:status",
         "//ml_drift/common:tensor",
         "//ml_drift/common/default:status_matchers",
+        "@com_google_absl//absl/status",
         "@com_google_absl//absl/types:optional",
         "@com_google_googletest//:gtest_main",
     ],
@@ -63,8 +63,8 @@ cc_library(
         "//ml_drift/common:model_transformer",
         "//ml_drift/common:operations",
         "//ml_drift/common:shape",
-        "//ml_drift/common:status",
         "//ml_drift/common:tensor",
+        "@com_google_absl//absl/status",
     ],
 )
 
@@ -79,9 +79,9 @@ cc_test(
         "//ml_drift/common:model_transformer",
         "//ml_drift/common:operations",
         "//ml_drift/common:shape",
-        "//ml_drift/common:status",
         "//ml_drift/common:tensor",
         "//ml_drift/common/default:status_matchers",
+        "@com_google_absl//absl/status",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -96,8 +96,8 @@ cc_library(
         "//ml_drift/common:model_transformer",
         "//ml_drift/common:operations",
         "//ml_drift/common:shape",
-        "//ml_drift/common:status",
         "//ml_drift/common:tensor",
+        "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
     ],
 )
@@ -113,9 +113,9 @@ cc_test(
         "//ml_drift/common:model_transformer",
         "//ml_drift/common:operations",
         "//ml_drift/common:shape",
-        "//ml_drift/common:status",
         "//ml_drift/common:tensor",
         "//ml_drift/common/default:status_matchers",
+        "@com_google_absl//absl/status",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -143,9 +143,9 @@ cc_test(
         "//ml_drift/common:model_transformer",
         "//ml_drift/common:operations",
         "//ml_drift/common:shape",
-        "//ml_drift/common:status",
         "//ml_drift/common:tensor",
         "//ml_drift/common/default:status_matchers",
+        "@com_google_absl//absl/status",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -155,7 +155,6 @@ cc_library(
     srcs = ["make_fully_connected.cc"],
     hdrs = ["make_fully_connected.h"],
     deps = [
-        "//ml_drift/common:data_type",
         "//ml_drift/common:model",
         "//ml_drift/common:model_transformer",
         "//ml_drift/common:operations",
@@ -175,9 +174,9 @@ cc_test(
         "//ml_drift/common:model_transformer",
         "//ml_drift/common:operations",
         "//ml_drift/common:shape",
-        "//ml_drift/common:status",
         "//ml_drift/common:tensor",
         "//ml_drift/common/default:status_matchers",
+        "@com_google_absl//absl/status",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -191,8 +190,8 @@ cc_library(
         "//ml_drift/common:model_transformer",
         "//ml_drift/common:operations",
         "//ml_drift/common:shape",
-        "//ml_drift/common:status",
         "//ml_drift/common:tensor",
+        "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
     ],
 )
@@ -207,9 +206,9 @@ cc_test(
         "//ml_drift/common:model_transformer",
         "//ml_drift/common:operations",
         "//ml_drift/common:shape",
-        "//ml_drift/common:status",
         "//ml_drift/common:tensor",
         "//ml_drift/common/default:status_matchers",
+        "@com_google_absl//absl/status",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -230,8 +229,8 @@ cc_library(
         "//ml_drift/common:model_transformer",
         "//ml_drift/common:operations",
         "//ml_drift/common:shape",
-        "//ml_drift/common:status",
         "//ml_drift/common:tensor",
+        "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
     ],
 )
@@ -247,9 +246,9 @@ cc_test(
         "//ml_drift/common:model_transformer",
         "//ml_drift/common:operations",
         "//ml_drift/common:shape",
-        "//ml_drift/common:status",
         "//ml_drift/common:tensor",
         "//ml_drift/common/default:status_matchers",
+        "@com_google_absl//absl/status",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -269,7 +268,7 @@ cc_library(
         ":remove_noop",
         "//ml_drift/common:model",
         "//ml_drift/common:model_transformer",
-        "//ml_drift/common:status",
+        "@com_google_absl//absl/status",
     ] + mld_platform_alias("custom_transformations", "//ml_drift/common/"),
 )
 
@@ -283,8 +282,8 @@ cc_library(
         "//ml_drift/common:model_transformer",
         "//ml_drift/common:operations",
         "//ml_drift/common:shape",
-        "//ml_drift/common:status",
         "//ml_drift/common:tensor",
+        "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
     ],
 )
@@ -300,9 +299,9 @@ cc_test(
         "//ml_drift/common:model_transformer",
         "//ml_drift/common:operations",
         "//ml_drift/common:shape",
-        "//ml_drift/common:status",
         "//ml_drift/common:tensor",
         "//ml_drift/common/default:status_matchers",
+        "@com_google_absl//absl/status",
         "@com_google_googletest//:gtest_main",
     ],
 )

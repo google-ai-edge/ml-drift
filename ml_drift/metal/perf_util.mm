@@ -23,6 +23,8 @@
 
 #include "xnnpack.h"  // from @XNNPACK
 #include "absl/random/random.h"
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/flops_util.h"
 #include "ml_drift/common/kernels/conv_apple_mpp.h"

@@ -18,7 +18,8 @@
 #import <Metal/Metal.h>
 
 #include <string>
-#include "ml_drift/common/status.h"
+
+#include "absl/status/status.h"
 
 namespace ml_drift {
 namespace metal {

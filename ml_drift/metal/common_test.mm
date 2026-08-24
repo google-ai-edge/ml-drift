@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "ml_drift/metal/common.h"
+#include "absl/status/status.h"
 
 #import <XCTest/XCTest.h>
 

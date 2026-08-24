@@ -25,6 +25,8 @@
 #include <vector>
 
 #include "absl/container/flat_hash_set.h"
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
 #include "absl/strings/ascii.h"
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
@@ -33,7 +35,6 @@
 #include "ml_drift/common/access_type.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/buffer_desc.h"
 #include "ml_drift/common/task/gpu_object_desc.h"
 #include "ml_drift/common/task/util.h"

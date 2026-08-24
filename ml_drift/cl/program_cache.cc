@@ -21,6 +21,8 @@
 #include <utility>
 #include <vector>
 
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
 #include "absl/types/span.h"
 #include "flatbuffers/buffer.h"
 #include "flatbuffers/flatbuffer_builder.h"
@@ -30,7 +32,6 @@
 #include "ml_drift/cl/cl_kernel.h"
 #include "ml_drift/cl/cl_program.h"
 #include "ml_drift/cl/compiled_program_cache_generated.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/compiler_options.h"
 #include <farmhash.h>
 

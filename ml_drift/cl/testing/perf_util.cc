@@ -27,6 +27,8 @@
 
 #include "xnnpack.h"  // from @XNNPACK
 #include "absl/random/random.h"
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "ml_drift/cl/cl_operation.h"
@@ -51,7 +53,6 @@
 #include "ml_drift/common/precision.h"
 #include "ml_drift/common/selectors/convolution_selector.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/gpu_operation.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/task/testing_ref_ops.h"

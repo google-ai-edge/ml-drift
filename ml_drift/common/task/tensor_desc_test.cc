@@ -22,11 +22,11 @@
 #include "gtest/gtest.h"
 #include "ml_drift/common/default/status_matchers.h"
 #include "absl/hash/hash_testing.h"
+#include "absl/status/status.h"
 #include "absl/types/span.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/tensor.h"
 #include "ml_drift/common/types.h"
 

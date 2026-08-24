@@ -20,10 +20,10 @@
 #include "absl/base/thread_annotations.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/debugging/leak_check.h"
+#include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "absl/synchronization/mutex.h"
 #include "absl/time/time.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/webgpu/webgpu_headers.h"
 
 namespace ml_drift {

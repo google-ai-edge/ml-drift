@@ -22,8 +22,8 @@
 
 #import <Metal/Metal.h>
 
+#include "absl/status/status.h"
 #include "absl/types/span.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/buffer_desc.h"
 #include "ml_drift/metal/common.h"
 #include "ml_drift/metal/gpu_object.h"

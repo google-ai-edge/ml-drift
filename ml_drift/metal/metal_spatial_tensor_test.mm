@@ -13,6 +13,8 @@
 // limitations under the License.
 
 #include "ml_drift/metal/metal_spatial_tensor.h"
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
 
 #include <cmath>
 

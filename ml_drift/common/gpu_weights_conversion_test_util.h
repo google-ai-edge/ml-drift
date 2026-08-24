@@ -15,7 +15,6 @@
 #ifndef ML_DRIFT_COMMON_GPU_WEIGHTS_CONVERSION_TEST_UTIL_H_
 #define ML_DRIFT_COMMON_GPU_WEIGHTS_CONVERSION_TEST_UTIL_H_
 
-
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -24,11 +23,12 @@
 #include <vector>
 
 #include "absl/base/nullability.h"
+#include "absl/status/status_macros.h"
+#include "absl/status/statusor.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/model.h"
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/tensor.h"
 
 namespace ml_drift {

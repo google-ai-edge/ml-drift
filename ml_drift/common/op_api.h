@@ -73,6 +73,7 @@
 // MLD_REGISTER_OP(MyCustomOp);
 // }  // namespace custom_ns
 
+#include "absl/status/status.h"
 #include "ml_drift/common/data_type.h"  // IWYU pragma: export
 #include "ml_drift/common/gpu_model_builder.h"  // IWYU pragma: export
 #include "ml_drift/common/op_attrs.h"     // IWYU pragma: export

@@ -17,10 +17,10 @@
 
 #include <string>
 
+#include "absl/status/status.h"
 #include "ml_drift/cl/cl_program.h"
 #include "ml_drift/cl/opencl_wrapper.h"
 #include "ml_drift/common/kernel_info.h"
-#include "ml_drift/common/status.h"
 
 namespace ml_drift {
 namespace cl {

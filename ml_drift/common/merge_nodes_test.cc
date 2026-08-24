@@ -21,6 +21,8 @@
 #include "ml_drift/common/default/status_matchers.h"
 #include "xnnpack.h"  // from @XNNPACK
 #include "absl/container/flat_hash_set.h"
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
 #include "absl/strings/match.h"
 #include "absl/strings/str_split.h"
 #include "ml_drift/common/data_type.h"
@@ -31,7 +33,6 @@
 #include "ml_drift/common/model.h"
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/tensor.h"
 

@@ -24,10 +24,10 @@
 #include <string>
 #include <vector>
 
+#include "absl/status/status.h"
 #include "absl/time/time.h"
 #include "ml_drift/common/precision.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/gpu_operation.h"
 #include "ml_drift/common/task/tuning_type.h"
 #include "ml_drift/common/types.h"

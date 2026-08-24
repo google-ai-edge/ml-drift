@@ -25,6 +25,8 @@
 #include <utility>
 #include <vector>
 
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
 #include "ml_drift/cl/cl_command_queue.h"
 #include "ml_drift/cl/cl_operation.h"
 #include "ml_drift/cl/environment.h"
@@ -40,7 +42,6 @@
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/precision.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/gpu_operation.h"
 #include "ml_drift/common/task/profiling_info.h"
 #include "ml_drift/common/task/tensor_desc.h"

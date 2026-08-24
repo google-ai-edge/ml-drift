@@ -23,13 +23,14 @@
 #include <utility>
 #include <vector>
 
+#include "absl/status/status.h"         // IWYU pragma: keep
+#include "absl/status/status_macros.h"  // IWYU pragma: keep
 #include "absl/strings/ascii.h"
 #include "absl/strings/str_cat.h"
 #include "absl/types/span.h"
 #include "ml_drift/common/access_type.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
-#include "ml_drift/common/status.h"  // IWYU pragma: keep
 #include "ml_drift/common/task/arguments.h"
 #include "ml_drift/common/task/buffer_desc.h"
 #include "ml_drift/common/task/gpu_object_desc.h"

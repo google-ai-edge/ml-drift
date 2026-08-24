@@ -15,7 +15,8 @@
 #ifndef ML_DRIFT_COMMON_STATUS_H_
 #define ML_DRIFT_COMMON_STATUS_H_
 
-#include "absl/status/status.h"    // IWYU pragma: export
-#include "absl/status/statusor.h"  // IWYU pragma: export
-#include "ml_drift/common/default/status_macros.h" // IWYU pragma: export
+#include "absl/log/absl_log.h"          // IWYU pragma: export
+#include "absl/status/status.h"         // IWYU pragma: export
+#include "absl/status/status_macros.h"  // IWYU pragma: export
+#include "absl/status/statusor.h"       // IWYU pragma: export
 #endif  // ML_DRIFT_COMMON_STATUS_H_

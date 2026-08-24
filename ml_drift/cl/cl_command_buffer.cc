@@ -17,13 +17,13 @@
 #include <utility>
 #include <vector>
 
+#include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "ml_drift/cl/cl_command_queue.h"
 #include "ml_drift/cl/cl_event.h"
 #include "ml_drift/cl/cl_operation.h"
 #include "ml_drift/cl/opencl_wrapper.h"
 #include "ml_drift/cl/util.h"
-#include "ml_drift/common/status.h"
 
 namespace ml_drift {
 namespace cl {

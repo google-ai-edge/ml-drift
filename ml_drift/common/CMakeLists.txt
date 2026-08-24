@@ -18,7 +18,7 @@ add_library(mld_common_status INTERFACE
     status.h
 )
 target_include_directories(mld_common_status INTERFACE $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
-target_link_libraries(mld_common_status INTERFACE absl::status absl::statusor)
+target_link_libraries(mld_common_status INTERFACE absl::status absl::status_macros absl::statusor)
 
 add_library(mld_common_access_type INTERFACE
     access_type.h

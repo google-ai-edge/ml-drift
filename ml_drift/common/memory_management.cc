@@ -19,6 +19,8 @@
 #include <utility>
 #include <vector>
 
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
 #include "ml_drift/common/memory_management/equality_assignment.h"
 #include "ml_drift/common/memory_management/greedy_by_breadth_assignment.h"
 #include "ml_drift/common/memory_management/greedy_by_size_assignment.h"
@@ -27,7 +29,6 @@
 #include "ml_drift/common/memory_management/naive_assignment.h"
 #include "ml_drift/common/memory_management/types.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/types.h"
 
 namespace ml_drift {

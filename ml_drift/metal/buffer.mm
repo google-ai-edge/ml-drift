@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "ml_drift/metal/buffer.h"
+#include "absl/status/status.h"
 
 #include <utility>
 

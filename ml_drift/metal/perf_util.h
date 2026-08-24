@@ -15,10 +15,10 @@
 #ifndef ML_DRIFT_METAL_PERF_UTIL_H_
 #define ML_DRIFT_METAL_PERF_UTIL_H_
 
+#include "absl/status/status.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/precision.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 
 namespace ml_drift {
 namespace metal {

@@ -22,11 +22,12 @@
 #include "xnnpack.h"  // from @XNNPACK
 #include "absl/base/attributes.h"
 #include "absl/log/absl_log.h"
+#include "absl/status/status.h"         // IWYU pragma: keep
+#include "absl/status/status_macros.h"  // IWYU pragma: keep
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
-#include "ml_drift/common/status.h"  // IWYU pragma: keep
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/webgpu/instance.h"
 #include "ml_drift/webgpu/webgpu_headers.h"  // IWYU pragma: keep

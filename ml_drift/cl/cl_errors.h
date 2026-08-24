@@ -15,9 +15,8 @@
 #ifndef ML_DRIFT_CL_CL_ERRORS_H_
 #define ML_DRIFT_CL_CL_ERRORS_H_
 
-
+#include "absl/status/status.h"
 #include "ml_drift/cl/util.h"
-#include "ml_drift/common/status.h"
 #include <CL/cl.h>
 #include <CL/cl_platform.h>
 

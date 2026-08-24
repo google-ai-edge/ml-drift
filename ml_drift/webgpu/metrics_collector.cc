@@ -18,8 +18,9 @@
 #include <string>
 #include <vector>
 
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
 #include "absl/time/time.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/webgpu/buffer.h"
 #include "ml_drift/webgpu/environment.h"
 #include "ml_drift/webgpu/metrics_collector_internal.h"

@@ -22,12 +22,12 @@
 #include <vector>
 
 #include "absl/container/flat_hash_map.h"
+#include "absl/status/status.h"
 #include "absl/types/span.h"
 #include "ml_drift/cl/cl_context.h"
 #include "ml_drift/cl/cl_device.h"
 #include "ml_drift/cl/cl_kernel.h"
 #include "ml_drift/cl/cl_program.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/compiler_options.h"
 
 namespace ml_drift {

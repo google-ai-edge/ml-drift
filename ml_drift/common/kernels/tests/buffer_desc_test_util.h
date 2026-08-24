@@ -15,7 +15,7 @@
 #ifndef ML_DRIFT_COMMON_KERNELS_TESTS_BUFFER_DESC_TEST_UTIL_H_
 #define ML_DRIFT_COMMON_KERNELS_TESTS_BUFFER_DESC_TEST_UTIL_H_
 
-#include "ml_drift/common/status.h"
+#include "absl/status/status.h"
 #include "ml_drift/common/task/testing_util.h"
 
 namespace ml_drift {

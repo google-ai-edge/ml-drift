@@ -19,11 +19,11 @@
 #include <string>
 #include <vector>
 
+#include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "ml_drift/common/model.h"
 #include "ml_drift/common/model_transformer.h"
 #include "ml_drift/common/operations.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/tensor.h"
 
 namespace ml_drift {

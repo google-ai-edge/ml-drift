@@ -15,8 +15,8 @@
 #ifndef ML_DRIFT_CL_CL_API_UTIL_H_
 #define ML_DRIFT_CL_CL_API_UTIL_H_
 
+#include "absl/status/status.h"
 #include "ml_drift/cl/cl_command_queue.h"
-#include "ml_drift/common/status.h"
 
 namespace ml_drift {
 namespace cl {

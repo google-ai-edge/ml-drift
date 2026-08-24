@@ -19,11 +19,11 @@
 
 #include <vector>
 
+#include "absl/status/status.h"
 #include "ml_drift/common/memory_management/equality_assignment.h"
 #include "ml_drift/common/memory_management/naive_assignment.h"
 #include "ml_drift/common/memory_management/types.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/types.h"
 
 namespace ml_drift {

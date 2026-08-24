@@ -16,6 +16,7 @@
 
 #include <utility>
 
+#include "absl/status/status.h"
 #include "ml_drift/webgpu/gpu_object.h"
 #include "ml_drift/webgpu/webgpu_api_util.h"
 

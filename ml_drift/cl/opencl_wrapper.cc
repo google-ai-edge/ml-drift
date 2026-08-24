@@ -28,8 +28,8 @@
 
 #include <string>
 
+#include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
-#include "ml_drift/common/status.h"
 
 namespace ml_drift {
 namespace cl {

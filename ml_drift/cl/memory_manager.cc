@@ -24,6 +24,9 @@
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/hash/hash.h"
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
+#include "absl/status/statusor.h"
 #include "ml_drift/cl/buffer.h"
 #include "ml_drift/cl/cl_context.h"
 #include "ml_drift/cl/environment.h"
@@ -35,7 +38,6 @@
 #include "ml_drift/common/memory_management/types.h"
 #include "ml_drift/common/model.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/types.h"
 #include "ml_drift/common/util.h"

@@ -21,7 +21,7 @@
 
 #include "absl/algorithm/container.h"
 #include "absl/log/absl_check.h"
-#include "ml_drift/common/status.h"
+#include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "ml_drift/common/shape.h"
 #include "ml_drift/common/task/tensor_desc.h"

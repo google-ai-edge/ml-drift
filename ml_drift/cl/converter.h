@@ -17,6 +17,7 @@
 
 #include <memory>
 
+#include "absl/status/status.h"
 #include "ml_drift/cl/buffer.h"
 #include "ml_drift/cl/cl_command_queue.h"
 #include "ml_drift/cl/cl_context.h"
@@ -29,7 +30,6 @@
 #include "ml_drift/common/api_cl_gl_vk.h"
 #include "ml_drift/common/shape.h"
 #include "ml_drift/common/spi.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/buffer_desc.h"
 #include "ml_drift/common/task/tensor_desc.h"
 

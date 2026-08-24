@@ -16,9 +16,9 @@ objc_library(
     deps = [
         ":common",
         ":gpu_object",
-        "//ml_drift/common:status",
         "//ml_drift/common/task:buffer_desc",
         "//third_party/apple_frameworks:Metal",
+        "@com_google_absl//absl/status",
         "@com_google_absl//absl/types:span",
     ],
 )
@@ -42,8 +42,9 @@ objc_library(
     deps = [
         "//ml_drift/common:data_type",
         "//ml_drift/common:gpu_info",
-        "//ml_drift/common:status",
         "//third_party/apple_frameworks:Metal",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
         "@com_google_absl//absl/strings",
     ],
 )
@@ -53,9 +54,9 @@ objc_library(
     srcs = ["metal_debugger_util.mm"],
     hdrs = ["metal_debugger_util.h"],
     deps = [
-        "//ml_drift/common:status",
         "//third_party/apple_frameworks:Foundation",
         "//third_party/apple_frameworks:Metal",
+        "@com_google_absl//absl/status",
     ],
 )
 
@@ -66,6 +67,7 @@ objc_library(
     deps = [
         ":common",
         "//third_party/apple_frameworks:XCTest",
+        "@com_google_absl//absl/status",
     ],
 )
 
@@ -82,12 +84,13 @@ objc_library(
         "//ml_drift/common:kernel_info",
         "//ml_drift/common:precision",
         "//ml_drift/common:shape",
-        "//ml_drift/common:status",
         "//ml_drift/common:types",
         "//ml_drift/common:util",
         "//ml_drift/common/task:gpu_operation",
         "//ml_drift/common/task:tuning_type",
         "//third_party/apple_frameworks:Metal",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/time",
     ],
@@ -104,10 +107,11 @@ objc_library(
         ":metal_spatial_tensor",
         "//ml_drift/common:data_type",
         "//ml_drift/common:gpu_info",
-        "//ml_drift/common:status",
         "//ml_drift/common/kernels:conversion",
         "//ml_drift/common/task:tensor_desc",
         "//third_party/apple_frameworks:Metal",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
     ],
 )
 
@@ -145,9 +149,9 @@ objc_library(
     deps = [
         "//ml_drift/common:access_type",
         "//ml_drift/common:data_type",
-        "//ml_drift/common:status",
         "//ml_drift/common/task:gpu_object_desc",
         "//third_party/apple_frameworks:Metal",
+        "@com_google_absl//absl/status",
     ],
 )
 
@@ -172,7 +176,6 @@ objc_library(
         "//ml_drift/common:ir_model_util",
         "//ml_drift/common:model",
         "//ml_drift/common:shape",
-        "//ml_drift/common:status",
         "//ml_drift/common:tensor",
         "//ml_drift/common:types",
         "//ml_drift/common/task:profiling_info",
@@ -183,6 +186,8 @@ objc_library(
         "@com_google_absl//absl/algorithm:container",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
         "@com_google_absl//absl/time",
         "@com_google_absl//absl/types:span",
         "@flatbuffers",
@@ -216,7 +221,6 @@ objc_library(
         "//ml_drift/common:gpu_model",
         "//ml_drift/common:memory_management",
         "//ml_drift/common:model",
-        "//ml_drift/common:status",
         "//ml_drift/common:types",
         "//ml_drift/common:util",
         "//ml_drift/common/task:gpu_tensor",
@@ -224,6 +228,9 @@ objc_library(
         "//third_party/apple_frameworks:Metal",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/hash",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
+        "@com_google_absl//absl/status:statusor",
     ],
 )
 
@@ -245,13 +252,14 @@ objc_library(
         ":environment",
         ":gpu_object",
         ":metal_spatial_tensor",
-        "//ml_drift/common:status",
         "//ml_drift/common:util",
         "//ml_drift/common/task:arguments",
         "//ml_drift/common/task:gpu_object_desc",
         "//ml_drift/common/task:gpu_operation",
         "//ml_drift/common/task:util",
         "//third_party/apple_frameworks:Metal",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
         "@com_google_absl//absl/strings",
     ],
 )
@@ -274,12 +282,13 @@ objc_library(
         "//ml_drift/common:access_type",
         "//ml_drift/common:data_type",
         "//ml_drift/common:gpu_info",
-        "//ml_drift/common:status",
         "//ml_drift/common/task:buffer_desc",
         "//ml_drift/common/task:gpu_object_desc",
         "//ml_drift/common/task:gpu_tensor",
         "//ml_drift/common/task:tensor_desc",
         "//third_party/apple_frameworks:Metal",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
     ],
 )
 
@@ -292,6 +301,8 @@ objc_library(
         "//ml_drift/common:types",
         "//third_party/apple_frameworks:Metal",
         "//third_party/apple_frameworks:XCTest",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
     ],
 )
 
@@ -307,11 +318,13 @@ objc_library(
         "//ml_drift/common:gpu_info",
         "//ml_drift/common:gpu_model_builder",
         "//ml_drift/common:model",
-        "//ml_drift/common:status",
         "//ml_drift/common/task:gpu_operation",
         "//ml_drift/common/task:gpu_tensor",
         "//third_party/apple_frameworks:Metal",
         "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
+        "@com_google_absl//absl/status:statusor",
     ],
 )
 
@@ -344,7 +357,6 @@ objc_library(
         "//ml_drift/common:model",
         "//ml_drift/common:precision",
         "//ml_drift/common:shape",
-        "//ml_drift/common:status",
         "//ml_drift/common:tensor",
         "//ml_drift/common:types",
         "//ml_drift/common/task:tensor_desc",
@@ -353,6 +365,8 @@ objc_library(
         "//third_party/apple_frameworks:Metal",
         "//third_party/apple_frameworks:XCTest",
         "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
     ],
 )
 
@@ -369,7 +383,6 @@ objc_library(
         "//ml_drift/common:flops_util",
         "//ml_drift/common:precision",
         "//ml_drift/common:shape",
-        "//ml_drift/common:status",
         "//ml_drift/common/kernels:conv_apple_mpp",
         "//ml_drift/common/kernels:conv_generic",
         "//ml_drift/common/kernels:conv_wave_matrix",
@@ -386,5 +399,7 @@ objc_library(
         "//third_party/apple_frameworks:Metal",
         "@XNNPACK",
         "@com_google_absl//absl/random",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
     ],
 )

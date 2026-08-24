@@ -23,13 +23,15 @@
 
 #include "absl/debugging/leak_check.h"
 #include "absl/log/absl_log.h"
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/synchronization/mutex.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/executor.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/util.h"
 #include "ml_drift/webgpu/instance.h"
 #include "ml_drift/webgpu/webgpu_headers.h"  // IWYU pragma: keep

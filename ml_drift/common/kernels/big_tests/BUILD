@@ -38,7 +38,6 @@ cc_test(
         "//ml_drift/common:operations",
         "//ml_drift/common:precision",
         "//ml_drift/common:shape",
-        "//ml_drift/common:status",
         "//ml_drift/common:tensor",
         "//ml_drift/common:util",
         "//ml_drift/common:winograd_util",
@@ -51,6 +50,8 @@ cc_test(
         "//ml_drift/common/task:testing_util",
         "//ml_drift/common/task:weights_conversion",
         "@XNNPACK",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
         "@com_google_googletest//:gtest",
     ],
 )

@@ -23,6 +23,8 @@
 #include "ml_drift/common/default/status_matchers.h"
 #include "xnnpack.h"  // from @XNNPACK
 #include "absl/log/absl_check.h"
+#include "absl/status/status_macros.h"
+#include "absl/status/statusor.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_model.h"
 #include "ml_drift/common/gpu_model_builder.h"
@@ -31,7 +33,6 @@
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/precision.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/tensor.h"
 #include "ml_drift/webgpu/environment.h"

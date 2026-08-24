@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "absl/log/absl_log.h"
+#include "absl/status/status.h"
 #include "absl/strings/ascii.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
@@ -28,7 +29,6 @@
 #include "ml_drift/cl/opencl_wrapper.h"
 #include "ml_drift/cl/util.h"
 #include "ml_drift/common/gpu_info.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/types.h"
 
 namespace ml_drift {

@@ -14,7 +14,6 @@
 
 load("@flatbuffers//:build_defs.bzl", "flatbuffer_cc_library")
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
-load("//ml_drift/common:build_config.bzl", "mld_platform_alias")
 
 cc_library(
     name = "demangle",
@@ -33,10 +32,11 @@ cc_library(
     deps = [
         ":data_type",
         ":shape",
-        ":status",
         ":tensor",
         ":types",
         ":util",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:span",
     ],
@@ -75,7 +75,6 @@ cc_library(
         ":model",
         ":model_hints",
         ":precision",
-        ":status",
         "//ml_drift/common/task:gpu_operation",
         "//ml_drift/common/task:gpu_tensor",
         "//ml_drift/common/task:serialization_base",
@@ -84,6 +83,8 @@ cc_library(
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/container:flat_hash_set",
         "@com_google_absl//absl/log:absl_log",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
         "@com_google_absl//absl/strings:str_format",
         "@flatbuffers//:runtime_cc",
     ],
@@ -107,7 +108,6 @@ cc_library(
         ":operations",
         ":precision",
         ":shape",
-        ":status",
         ":tensor",
         ":tensor_handle",
         ":types",
@@ -153,6 +153,9 @@ cc_library(
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/log:absl_check",
         "@com_google_absl//absl/log:absl_log",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
+        "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:span",
     ],
@@ -188,7 +191,6 @@ cc_library(
         ":operations",
         ":precision",
         ":shape",
-        ":status",
         ":tensor",
         "//ml_drift/common/default:status_matchers",
         "//ml_drift/common/task:tensor_desc",
@@ -197,6 +199,8 @@ cc_library(
         "//ml_drift/common/task:weights_conversion",
         "//ml_drift/common/task:weights_layout",
         "@XNNPACK",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
         "@com_google_absl//absl/types:span",
         "@com_google_googletest//:gtest",
     ],
@@ -216,7 +220,6 @@ cc_library(
         ":operations",
         ":precision",
         ":shape",
-        ":status",
         ":tensor",
         "//ml_drift/common/default:status_matchers",
         "//ml_drift/common/kernels:cast",
@@ -234,6 +237,8 @@ cc_library(
         "//ml_drift/common/task:testing_util",
         "//ml_drift/common/transformations:model_transformations",
         "@XNNPACK",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
         "@com_google_googletest//:gtest",
     ],
 )
@@ -251,7 +256,6 @@ cc_library(
         ":operations",
         ":precision",
         ":shape",
-        ":status",
         ":tensor",
         "//ml_drift/common/selectors:operation_selector",
         "//ml_drift/common/selectors:special_selector",
@@ -260,6 +264,9 @@ cc_library(
         "//ml_drift/common/task:tensor_desc",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
+        "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
     ],
 )
@@ -273,12 +280,13 @@ cc_library(
         ":model",
         ":operations",
         ":shape",
-        ":status",
         ":tensor",
         "@XNNPACK",
         "@com_google_absl//absl/base:nullability",
         "@com_google_absl//absl/log:absl_check",
         "@com_google_absl//absl/log:absl_log",
+        "@com_google_absl//absl/status:status_macros",
+        "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:span",
     ],
@@ -323,12 +331,12 @@ cc_library(
     deps = [
         ":data_type",
         ":shape",
-        ":status",
         "//ml_drift/common/task:tensor_desc",
         "@com_google_absl//absl/algorithm:container",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/container:flat_hash_set",
         "@com_google_absl//absl/log:absl_check",
+        "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
     ],
 )
@@ -379,7 +387,6 @@ cc_library(
         ":operations",
         ":precision",
         ":shape",
-        ":status",
         ":tensor",
         "//ml_drift/common/selectors:operation_selector",
         "//ml_drift/common/selectors:special_selector",
@@ -388,6 +395,9 @@ cc_library(
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/container:flat_hash_set",
         "@com_google_absl//absl/log:absl_check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
+        "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
     ],
 )
@@ -415,11 +425,12 @@ cc_library(
     ],
     deps = [
         ":shape",
-        ":status",
         ":types",
         ":util",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
     ],
 )
 
@@ -432,13 +443,14 @@ cc_library(
         ":gpu_model",
         ":model",
         ":shape",
-        ":status",
         ":util",
         "//ml_drift/common/task:gpu_operation",
         "//ml_drift/common/task:gpu_tensor",
         "//ml_drift/common/task:tensor_desc",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
     ],
 )
 
@@ -454,13 +466,14 @@ cc_test(
         ":model",
         ":operations",
         ":shape",
-        ":status",
         ":tensor",
         "//ml_drift/common/default:status_matchers",
         "//ml_drift/common/kernels:reduce",
         "//ml_drift/common/task:tensor_desc",
         "@XNNPACK",
         "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
         "@com_google_absl//absl/strings",
         "@com_google_googletest//:gtest_main",
     ],
@@ -472,9 +485,10 @@ cc_library(
     hdrs = ["model.h"],
     deps = [
         ":shape",
-        ":status",
         ":tensor",
         "@com_google_absl//absl/log:absl_check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
         "@com_google_absl//absl/strings",
     ],
 )
@@ -486,8 +500,8 @@ cc_test(
     deps = [
         ":model",
         ":shape",
-        ":status",
         "//ml_drift/common/default:status_matchers",
+        "@com_google_absl//absl/status",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -524,11 +538,11 @@ cc_library(
     deps = [
         ":demangle",
         ":op_attrs",
-        ":status",
         ":tensor_handle",
         ":types",
         "//ml_drift/common/task:gpu_operation",
         "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
     ],
 )
@@ -544,6 +558,7 @@ cc_library(
         ":op_registry",
         ":types",
         "//ml_drift/common/task:gpu_operation",
+        "@com_google_absl//absl/status",
     ],
 )
 
@@ -567,7 +582,6 @@ cc_library(
     deps = [
         ":data_type",
         ":shape",
-        ":status",
         ":tensor",
         ":util",
         "//ml_drift/common/task:weights_layout",
@@ -575,6 +589,7 @@ cc_library(
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/log:absl_check",
         "@com_google_absl//absl/log:absl_log",
+        "@com_google_absl//absl/status",
     ],
 )
 
@@ -622,9 +637,11 @@ cc_library(
     name = "status",
     hdrs = ["status.h"],
     deps = [
+        "@com_google_absl//absl/log:absl_log",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
         "@com_google_absl//absl/status:statusor",
-    ] + mld_platform_alias("status_macros", "//ml_drift/common/"),
+    ],
 )
 
 cc_library(
@@ -691,9 +708,9 @@ cc_test(
     deps = [
         ":memory_management",
         ":shape",
-        ":status",
         ":types",
         "//ml_drift/common/default:status_matchers",
+        "@com_google_absl//absl/status",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -805,10 +822,10 @@ cc_library(
     deps = [
         ":api_common",
         ":data_type",
-        ":status",
         ":util",
-        "@com_google_absl//absl/types:span",
-        "@com_google_absl//absl/types:variant",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
+        "@com_google_absl//absl/status:statusor",
         "@opencl_headers",
         "@vulkan_headers//:vulkan_headers_no_prototypes",
     ],
@@ -820,7 +837,7 @@ cc_library(
     deps = [
         ":access_type",
         ":api_cl_gl_vk",
-        ":status",
+        "@com_google_absl//absl/status",
     ],
 )
 

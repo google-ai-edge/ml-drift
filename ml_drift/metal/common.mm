@@ -23,8 +23,9 @@
 #include <utility>
 #include <vector>
 
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
 #include "ml_drift/common/gpu_info.h"
-#include "ml_drift/common/status.h"
 
 // Compile-time message: print define name and value.
 #define VALUE_TO_STRING(x) #x

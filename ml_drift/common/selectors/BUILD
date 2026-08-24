@@ -69,9 +69,9 @@ cc_library(
     deps = [
         "//ml_drift/common:gpu_info",
         "//ml_drift/common:model",
-        "//ml_drift/common:status",
         "//ml_drift/common/task:gpu_operation",
         "//ml_drift/common/task:tensor_desc",
+        "@com_google_absl//absl/status:statusor",
     ] + mld_platform_alias("default_selector", "//ml_drift/common/selectors/"),
 )
 
@@ -108,7 +108,6 @@ cc_library(
         "//ml_drift/common:operations",
         "//ml_drift/common:precision",
         "//ml_drift/common:shape",
-        "//ml_drift/common:status",
         "//ml_drift/common:tensor",
         "//ml_drift/common/kernels:elementwise",
         "//ml_drift/common/kernels:fully_connected",
@@ -117,6 +116,8 @@ cc_library(
         "//ml_drift/common/task:gpu_operation",
         "//ml_drift/common/task:tensor_desc",
         "//ml_drift/common/task:weights_layout",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
         "@com_google_absl//absl/strings",
     ],
 )
@@ -131,7 +132,6 @@ cc_library(
         "//ml_drift/common:model_hints",
         "//ml_drift/common:operations",
         "//ml_drift/common:shape",
-        "//ml_drift/common:status",
         "//ml_drift/common:tensor",
         "//ml_drift/common/kernels:add",
         "//ml_drift/common/kernels:concat_xy",
@@ -160,6 +160,7 @@ cc_library(
         "//ml_drift/common/task:gpu_operation",
         "//ml_drift/common/task:tensor_desc",
         "//ml_drift/common/task:weights_layout",
+        "@com_google_absl//absl/status",
     ],
 )
 
@@ -173,7 +174,6 @@ cc_library(
         "//ml_drift/common:ir_model",
         "//ml_drift/common:model",
         "//ml_drift/common:model_hints",
-        "//ml_drift/common:status",
         "//ml_drift/common/kernels:mean_stddev_normalization_parser",
         "//ml_drift/common/kernels:mish",
         "//ml_drift/common/kernels:reduce_parser",
@@ -183,5 +183,6 @@ cc_library(
         "//ml_drift/common/kernels/special:thin_local_memory_fuser",
         "//ml_drift/common/kernels/special:thin_pointwise_fuser",
         "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/status",
     ],
 )

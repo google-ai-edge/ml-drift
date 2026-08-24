@@ -18,7 +18,7 @@
 #include <memory>
 
 #include "absl/container/flat_hash_map.h"
-#include "ml_drift/common/status.h"
+#include "absl/status/statusor.h"
 #include "ml_drift/common/gpu_model_builder.h"
 #include "ml_drift/common/model.h"
 #include "ml_drift/common/task/gpu_tensor.h"

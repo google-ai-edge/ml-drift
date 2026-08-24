@@ -24,9 +24,11 @@
 #include <vector>
 
 #include "absl/container/flat_hash_map.h"
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
+#include "absl/status/statusor.h"
 #include "ml_drift/common/executor.h"
 #include "ml_drift/common/gpu_info.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/webgpu/preprocessor.h"
 #include "ml_drift/webgpu/webgpu_api_util.h"
 #include "ml_drift/webgpu/webgpu_headers.h"

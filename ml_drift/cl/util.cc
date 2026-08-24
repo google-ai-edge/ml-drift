@@ -18,11 +18,13 @@
 #include <string>
 
 #include "absl/debugging/leak_check.h"
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/ascii.h"
 #include "absl/strings/str_cat.h"
 #include "ml_drift/cl/opencl_wrapper.h"
 #include "ml_drift/common/gpu_info.h"
-#include "ml_drift/common/status.h"
 #include <CL/cl.h>
 #include <CL/cl_ext.h>
 #include <CL/cl_gl.h>

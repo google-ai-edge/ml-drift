@@ -15,10 +15,10 @@
 #ifndef ML_DRIFT_COMMON_KERNELS_TESTS_STRIDED_SLICE_TEST_UTIL_H_
 #define ML_DRIFT_COMMON_KERNELS_TESTS_STRIDED_SLICE_TEST_UTIL_H_
 
+#include "absl/status/status.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/task/testing_util.h"
 

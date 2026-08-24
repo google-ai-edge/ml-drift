@@ -22,9 +22,9 @@
 #include <string>
 #include <vector>
 
+#include "absl/status/status.h"
 #include "ml_drift/common/access_type.h"
 #include "ml_drift/common/data_type.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/gpu_object_desc.h"
 
 namespace ml_drift {

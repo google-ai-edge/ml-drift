@@ -20,6 +20,8 @@
 #include <memory>
 #include <string>
 
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
 #include "ml_drift/common/flops_util.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/gpu_model_builder.h"

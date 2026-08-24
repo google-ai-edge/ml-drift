@@ -24,8 +24,6 @@ cc_library(
     srcs = ["custom_parsers.cc"],
     hdrs = ["@//ml_drift_delegate/tflite:custom_parsers.h"],
     deps = [
-        "//ml_drift/common:shape",
-        "//ml_drift/common:status",
         "@//ml_drift_delegate/tflite:operation_parser",
         "@//ml_drift_delegate/tflite:unimplemented_operation_parser",
         "@com_google_absl//absl/strings",
@@ -42,20 +40,13 @@ cc_library(
 )
 
 cc_library(
-    name = "status_macros",
-    srcs = ["status_macros.h"],
-    deps = [
-        "@com_google_absl//absl/status",
-    ],
-)
-
-cc_library(
     name = "status_matchers",
     testonly = True,
     srcs = ["status_matchers.h"],
     deps = [
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:status_matchers",
+        "@com_google_absl//absl/status:statusor",
         "@com_google_googletest//:gtest",
     ],
 )
