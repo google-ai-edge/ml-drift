@@ -183,6 +183,9 @@ void LoadOpenCLFunctionExtensions(cl_platform_id platform_id) {
   LoadFunctionExtension(platform_id, clCreateSemaphoreWithPropertiesKHR);
   LoadFunctionExtension(platform_id, clEnqueueWaitSemaphoresKHR);
   LoadFunctionExtension(platform_id, clEnqueueSignalSemaphoresKHR);
+
+  // cl_arm_import_memory extension
+  LoadFunctionExtension(platform_id, clImportMemoryARM);
 }
 
 #ifdef __WINDOWS__
@@ -457,6 +460,9 @@ PFN_clCreateImageWithProperties clCreateImageWithProperties;
 PFN_clCreateSemaphoreWithPropertiesKHR clCreateSemaphoreWithPropertiesKHR;
 PFN_clEnqueueWaitSemaphoresKHR clEnqueueWaitSemaphoresKHR;
 PFN_clEnqueueSignalSemaphoresKHR clEnqueueSignalSemaphoresKHR;
+
+// cl_arm_import_memory extension
+PFN_clImportMemoryARM clImportMemoryARM;
 
 DEFINE_QCOM_FUNCTION_PTRS
 
