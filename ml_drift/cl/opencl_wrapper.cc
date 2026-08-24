@@ -150,7 +150,7 @@ absl::Status LoadPixelOpenCL(const char* lib_name) {
 }
 #endif
 
-absl::Status LoadOpenCL() {
+absl::Status LoadOpenCLOnce() {
 #ifdef __WINDOWS__
   static const char* kClLibName = "OpenCL.dll";
 #elif defined(__APPLE__)
@@ -167,6 +167,11 @@ absl::Status LoadOpenCL() {
   if (LoadPixelOpenCL("libOpenCL-car.so").ok()) return absl::OkStatus();
 #endif
   return absl::UnknownError("Can not find OpenCL library on this device");
+}
+
+absl::Status LoadOpenCL() {
+  static const absl::Status* status = new absl::Status(LoadOpenCLOnce());
+  return *status;
 }
 
 void LoadOpenCLFunctionExtensions(cl_platform_id platform_id) {
