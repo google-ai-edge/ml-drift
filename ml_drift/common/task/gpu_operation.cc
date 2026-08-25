@@ -789,6 +789,36 @@ absl::StatusOr<std::string> ResolveLinking(
   return result;
 }
 
+absl::StatusOr<std::string> ResolveReorderLinking(
+    const std::string& object_name, const LinkableContext& linkable_context,
+    std::vector<std::string>* function_args) {
+  std::string x_coord, y_coord, z_coord, s_coord, b_coord;
+  ABSL_RETURN_IF_ERROR(
+      linkable_context.final_tensor_desc->GetLinkingContextFromReadSelector(
+          *function_args, &x_coord, &y_coord, &z_coord, &s_coord, &b_coord));
+  const std::string src_prefix = absl::StrCat("args.", object_name);
+  std::string reorder_patch = absl::StrReplaceAll(
+      linkable_context.code, {{"SRC_X", "r_s_x"},
+                              {"SRC_Y", "r_s_y"},
+                              {"SRC_S", "r_s_s"},
+                              {"SRC_B", "r_s_b"},
+                              {"SRC_WIDTH", src_prefix + ".Width()"},
+                              {"SRC_HEIGHT", src_prefix + ".Height()"},
+                              {"SRC_SLICES", src_prefix + ".Slices()"},
+                              {"SRC_BATCH", src_prefix + ".Batch()"},
+                              {"DST_X", x_coord},
+                              {"DST_Y", y_coord},
+                              {"DST_S", s_coord},
+                              {"DST_B", b_coord}});
+  reorder_patch = absl::StrCat("{\n", reorder_patch, "\n}");
+
+  function_args->clear();
+  *function_args = {"r_s_x", "r_s_y", "r_s_s"};
+  if (linkable_context.tensor_desc->HasAxis(Axis::BATCH)) {
+    function_args->push_back("r_s_b");
+  }
+  return reorder_patch;
+}
 // resolve constructions of type: args.object_name::const_expr_name
 // Example: 'args.dst_tensor::type' can be replaced with 'float4'
 absl::Status ResolveConstExprPass(const GpuInfo& gpu_info,
@@ -887,45 +917,23 @@ absl::Status ResolveSelectorsPass(
           ABSL_RETURN_IF_ERROR(
               ResolveSelectorsPass(gpu_info, {}, args, &linkable_patch));
         } else if (selector_name == "Read") {
-            std::string x_coord, y_coord, z_coord, s_coord, b_coord;
-            ABSL_RETURN_IF_ERROR(it_link->second.final_tensor_desc
-                                     ->GetLinkingContextFromReadSelector(
-                                         function_args, &x_coord, &y_coord,
-                                         &z_coord, &s_coord, &b_coord));
-            std::string reorder_patch =
-                absl::StrReplaceAll(it_link->second.code,
-                                    {{"SRC_X", "r_s_x"},
-                                     {"SRC_Y", "r_s_y"},
-                                     {"SRC_S", "r_s_s"},
-                                     {"SRC_B", "r_s_b"},
-                                     {"SRC_WIDTH", "args.src_tensor.Width()"},
-                                     {"SRC_HEIGHT", "args.src_tensor.Height()"},
-                                     {"SRC_SLICES", "args.src_tensor.Slices()"},
-                                     {"SRC_BATCH", "args.src_tensor.Batch()"},
-                                     {"DST_X", x_coord},
-                                     {"DST_Y", y_coord},
-                                     {"DST_S", s_coord},
-                                     {"DST_B", b_coord}});
-            ABSL_RETURN_IF_ERROR(
-                ResolveConstExprPass(gpu_info, args, &reorder_patch));
-            ABSL_RETURN_IF_ERROR(
-                ResolveSelectorsPass(gpu_info, {}, args, &reorder_patch));
-            reorder_patch = absl::StrCat("{\n", reorder_patch, "\n}");
-
-            // find previous first ';' or '}'
-            size_t prev_pos = arg_pos;
-            while (prev_pos > 0 && (*code)[prev_pos] != ';' &&
-                   (*code)[prev_pos] != '}') {
-              prev_pos--;
-            }
-            code->insert(prev_pos + 1, reorder_patch);
-            arg_pos += reorder_patch.size();
-            close_bracket_pos += reorder_patch.size();
-            function_args.clear();
-            function_args = {"r_s_x", "r_s_y", "r_s_s"};
-            if (it_link->second.tensor_desc->HasAxis(Axis::BATCH)) {
-              function_args.push_back("r_s_b");
-            }
+          ABSL_ASSIGN_OR_RETURN(
+              std::string reorder_patch,
+              ResolveReorderLinking(object_name, it_link->second,
+                                    &function_args));
+          ABSL_RETURN_IF_ERROR(
+              ResolveConstExprPass(gpu_info, args, &reorder_patch));
+          ABSL_RETURN_IF_ERROR(
+              ResolveSelectorsPass(gpu_info, {}, args, &reorder_patch));
+          // find previous first ';', '}', or '{'
+          size_t prev_pos = arg_pos;
+          while (prev_pos > 0 && (*code)[prev_pos] != ';' &&
+                 (*code)[prev_pos] != '}' && (*code)[prev_pos] != '{') {
+            prev_pos--;
+          }
+          code->insert(prev_pos + 1, reorder_patch);
+          arg_pos += reorder_patch.size();
+          close_bracket_pos += reorder_patch.size();
         }
       }
       // Check if we need to add quantized write function
@@ -1403,11 +1411,6 @@ absl::Status GPUOperation::AssembleCode(const GpuInfo& gpu_info) {
     ABSL_RETURN_IF_ERROR(
         GetTensorDescriptor(dst_objects_names_[0], &dst_tensor_desc));
     code_ = GetElementWiseCode(*dst_tensor_desc);
-    if (reorder_op_) {
-      const std::string patch = "  int r_s_x, r_s_y, r_s_s, r_s_b;\n";
-      code_ = absl::StrReplaceAll(
-          code_, {{"MAIN_FUNCTION($0) {", "MAIN_FUNCTION($0) {\n" + patch}});
-    }
     if (const_expr_resolved_) {
       ABSL_RETURN_IF_ERROR(ResolveConstExprPass(gpu_info, args_, &code_));
     }
@@ -1416,6 +1419,11 @@ absl::Status GPUOperation::AssembleCode(const GpuInfo& gpu_info) {
   }
   std::map<std::string, LinkableContext, std::less<>> linkables;
   if (!reorder_code_.empty()) {
+    // declaring src coords for reorder operation
+    const std::string patch = "  int r_s_x, r_s_y, r_s_s, r_s_b;\n";
+    code_ = absl::StrReplaceAll(
+        code_, {{"MAIN_FUNCTION($0) {", "MAIN_FUNCTION($0) {\n" + patch}});
+
     if (src_objects_names_.empty() || dst_objects_names_.empty()) {
       return absl::InvalidArgumentError(
           "Invalid operation, src_objects_names_ or dst_objects_names_ empty.");
