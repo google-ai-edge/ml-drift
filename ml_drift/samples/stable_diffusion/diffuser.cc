@@ -42,8 +42,10 @@
 #include "ml_drift/cl/tensor.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_model.h"
+#include "ml_drift/common/gpu_model_builder.h"
 #include "ml_drift/common/kernels/elementwise.h"
 #include "ml_drift/common/kernels/random_philox.h"
+#include "ml_drift/common/model.h"
 #include "ml_drift/common/model_hints.h"
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/precision.h"
@@ -398,20 +400,44 @@ absl::Status Diffuser::UNet::Init(const Diffuser::Config& runner_config,
         "the size of num_transformer_blocks must be twice as the size of "
         "num_res_blocks.");
   }
+  GpuModelBuilderOptions options;
+  options.hints = create_info.hints;
+  options.storage = create_info.storage_type;
+  options.use_f32_accum_for_f16_convolutions =
+      (create_info.precision == CalculationsPrecision::F32_F16);
+  ml_drift::GpuModelBuilder step_builder(gpu_info, options);
+
   if (runner_config.run_unet_with_plugins) {
     ABSL_RETURN_IF_ERROR(builder.BuildUNetWithPlugins(
-        config, gpu_info, create_info, width, height, &gpu_model, &src_,
+        config, gpu_info, create_info, width, height, &step_builder, &src_,
         &plugin_tensors_, &temb_, &guidance_, &eta0_, &eta1_,
         &plugins_strength_, &dbg_));
   } else if (runner_config.run_unet_with_masked_image) {
     ABSL_RETURN_IF_ERROR(builder.Build(
-        config, gpu_info, create_info, width, height, &gpu_model, &src_, &temb_,
-        &guidance_, nullptr, &masked_image_, &eta0_, &eta1_, &dbg_));
+        config, gpu_info, create_info, width, height, &step_builder, &src_,
+        &temb_, &guidance_, nullptr, &masked_image_, &eta0_, &eta1_, &dbg_));
   } else {
     ABSL_RETURN_IF_ERROR(builder.Build(
-        config, gpu_info, create_info, width, height, &gpu_model, &src_, &temb_,
-        &guidance_, nullptr, nullptr, &eta0_, &eta1_, &dbg_));
+        config, gpu_info, create_info, width, height, &step_builder, &src_,
+        &temb_, &guidance_, nullptr, nullptr, &eta0_, &eta1_, &dbg_));
   }
+
+  std::vector<ValueId> inputs = {src_.id, temb_.id, guidance_.id};
+  if (runner_config.run_unet_with_masked_image) {
+    inputs.push_back(masked_image_.id);
+  }
+  if (runner_config.run_unet_with_plugins) {
+    for (const auto& tensor : plugin_tensors_) {
+      inputs.push_back(tensor.id);
+    }
+    inputs.push_back(plugins_strength_.id);
+  }
+
+  std::vector<ValueId> outputs = {eta0_.id, eta1_.id};
+  outputs.insert(outputs.end(), inputs.begin(), inputs.end());
+
+  ABSL_RETURN_IF_ERROR(step_builder.GetGpuModel(inputs, outputs, &gpu_model));
+
   ABSL_RETURN_IF_ERROR(inference_context_.InitFromGpuModel(
       create_info, &gpu_model, env, nullptr));
   const auto end_init = std::chrono::high_resolution_clock::now();
@@ -422,9 +448,19 @@ absl::Status Diffuser::UNet::Init(const Diffuser::Config& runner_config,
 
   TensorDescriptor default_desc(DataType::FLOAT16,
                                 GetFastestStorageType(gpu_info), Layout::HWC);
-  ABSL_RETURN_IF_ERROR(temb_generation_op_.Init(
-      env,
-      CreateTembGenerationOp(gpu_info, default_desc, runner_config.model_dir)));
+  ABSL_RETURN_IF_ERROR(temb_generation_op_.Init(env, [&]() {
+    GpuModelBuilderOptions options;
+    options.storage = default_desc.GetDataType() == DataType::FLOAT16
+                          ? TensorStorageType::TEXTURE_2D
+                          : TensorStorageType::BUFFER;
+    ml_drift::GpuModelBuilder tmp_builder(gpu_info, options);
+    auto _ = tmp_builder.AppendOp(
+        "TembGeneration", {},
+        {{"channels", 320},
+         {"index_val", 1.0f},
+         {"storage_type", static_cast<int>(GetFastestStorageType(gpu_info))}});
+    return std::move(*tmp_builder.GetLastGpuOperation());
+  }()));
 
   {
     OperationDef op_def;
@@ -517,12 +553,25 @@ absl::Status Diffuser::DiffusionStepper::Init(
   alphas_prev_ = alphas_;
   alphas_prev_.insert(alphas_prev_.begin(), half(1.0f));
 
-  TensorDescriptor desc(
-      DataType::FLOAT16,
-      GetFastestStorageType(env->device().GetInfo()), Layout::HWC);
+  const auto& gpu_info = env->GetDevicePtr()->GetInfo();
+  TensorDescriptor desc(DataType::FLOAT16, GetFastestStorageType(gpu_info),
+                        Layout::HWC);
 
-  ABSL_RETURN_IF_ERROR(
-      custom_op_.Init(env, CreateDiffusionStepOp(desc, desc, desc, desc)));
+  ABSL_RETURN_IF_ERROR(custom_op_.Init(env, [&]() {
+    GpuModelBuilderOptions options;
+    options.storage = desc.GetStorageType();
+    ml_drift::GpuModelBuilder tmp_builder(gpu_info, options);
+    int width = runner_config.image_width;
+    int height = runner_config.image_height;
+    int in_channels = 4;
+    BHWC shape = BHWC(1, height / 8, width / 8, in_channels);
+    auto d1 = tmp_builder.AddTensor(shape, desc.GetDataType());
+    auto d2 = tmp_builder.AddTensor(shape, desc.GetDataType());
+    auto d3 = tmp_builder.AddTensor(shape, desc.GetDataType());
+    auto _ = tmp_builder.AppendOp("DiffusionStep", {d1, d2, d3});
+    return std::move(*tmp_builder.GetLastGpuOperation());
+  }()));
+
   return absl::OkStatus();
 }
 

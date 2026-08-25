@@ -20,7 +20,7 @@
 #include <utility>
 #include <vector>
 
-#include "absl/log/log.h"
+#include "absl/base/nullability.h"
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
 #include "absl/status/statusor.h"
@@ -42,7 +42,8 @@ namespace ml_drift {
 absl::Status UnetBuilder::Build(
     const Config& config, const GpuInfo& gpu_info,
     const CreateGpuModelInfo& create_info, int width, int height,
-    GpuModel* gpu_model, GpuModelBuilder::TensorHandle* latent_ptr,
+    GpuModelBuilder* absl_nonnull builder_ptr,
+    GpuModelBuilder::TensorHandle* latent_ptr,
     GpuModelBuilder::TensorHandle* temb_ptr,
     GpuModelBuilder::TensorHandle* guidance_ptr,
     // TODO(dlho): Delete text_proj_ptr after all binaries updated.
@@ -58,43 +59,42 @@ absl::Status UnetBuilder::Build(
         "Only one of lora_file_dir and lora_weights_layer_mapping should "
         "be set.");
   }
-  builder_ = GpuModelBuilder(gpu_info, create_info.hints, create_info.precision,
-                             create_info.storage_type);
+  builder_ptr_ = builder_ptr;
   gpu_info_ = gpu_info;
   const DataType float_type =
       DeduceDataTypeFromPrecision(create_info.precision);
 
-  auto src_tensor = builder_.AddTensor(
+  auto src_tensor = builder_ptr_->AddTensor(
       BHWC(1, height, width, config.in_channels), float_type);
   auto input_tensor = src_tensor;
   auto masked_image_latent_tensor =
-      builder_.AddTensor(BHWC(1, height, width, 9), float_type);
+      builder_ptr_->AddTensor(BHWC(1, height, width, 9), float_type);
   if (masked_image_latent_ptr) {
-    input_tensor =
-        builder_.Concat(src_tensor, masked_image_latent_tensor, Axis::CHANNELS);
+    input_tensor = builder_ptr_->Concat(src_tensor, masked_image_latent_tensor,
+                                        Axis::CHANNELS);
   }
-  auto temb_tensor = builder_.AddTensor(
+  auto temb_tensor = builder_ptr_->AddTensor(
       BHWC(1, 1, 1, config.model_channels * config.channel_mult[0]),
       float_type);
   auto guidance_tensor =
-      builder_.AddTensor(BHWC(1, 2, 77, config.context_dim), float_type);
+      builder_ptr_->AddTensor(BHWC(1, 2, 77, config.context_dim), float_type);
   auto text_proj_tensor =
-      builder_.AddTensor(BHWC(2, 1, 1, config.context_dim), float_type);
+      builder_ptr_->AddTensor(BHWC(2, 1, 1, config.context_dim), float_type);
   auto emb = MakeTimeEmbed(temb_tensor, "model.diffusion_model.time_embed");
   if (text_proj_ptr) {
     auto pooled_text_proj_tensor = MakePooledTextProjection(
         text_proj_tensor, "model.diffusion_model.pooled_text_embedding.linear",
         emb.tensor_desc.GetBHWCShape().c);
-    emb = builder_.Tile(emb, Axis::BATCH);
-    emb = builder_.Add(emb, pooled_text_proj_tensor);
+    emb = builder_ptr_->Tile(emb, Axis::BATCH);
+    emb = builder_ptr_->Add(emb, pooled_text_proj_tensor);
   }
-  emb = builder_.SiLU(emb);
+  emb = builder_ptr_->SiLU(emb);
   ABSL_ASSIGN_OR_RETURN(
       auto t, MakeUNet(config, input_tensor, emb, guidance_tensor,
                        "model.diffusion_model", /*plugins=*/{},
                        /*plugins_strength=*/nullptr, /*control=*/nullptr,
                        /*only_mid_control=*/false, debug_tensor_ptr));
-  auto etas = builder_.Split(t, Axis::BATCH, 1);
+  auto etas = builder_ptr_->Split(t, Axis::BATCH, 1);
 
   if (latent_ptr) {
     *latent_ptr = src_tensor;
@@ -129,13 +129,14 @@ absl::Status UnetBuilder::Build(
     input_ids.push_back(masked_image_latent_tensor.id);
     output_ids.push_back(masked_image_latent_tensor.id);
   }
-  return builder_.GetGpuModel(input_ids, output_ids, gpu_model);
+  return absl::OkStatus();
 }
 
 absl::Status UnetBuilder::BuildControlNet(
     const Config& config, const GpuInfo& gpu_info,
     const CreateGpuModelInfo& create_info, int width, int height,
-    GpuModel* gpu_model, GpuModelBuilder::TensorHandle* latent_ptr,
+    GpuModelBuilder* absl_nonnull builder_ptr,
+    GpuModelBuilder::TensorHandle* latent_ptr,
     GpuModelBuilder::TensorHandle* condition_ptr,
     GpuModelBuilder::TensorHandle* temb_ptr,
     GpuModelBuilder::TensorHandle* guidance_ptr,
@@ -143,21 +144,20 @@ absl::Status UnetBuilder::BuildControlNet(
     GpuModelBuilder::TensorHandle* eta1_ptr,
     GpuModelBuilder::TensorHandle* debug_tensor_ptr) {
   config_ = config;
-  builder_ = GpuModelBuilder(gpu_info, create_info.hints, create_info.precision,
-                             create_info.storage_type);
+  builder_ptr_ = builder_ptr;
   const DataType float_type =
       DeduceDataTypeFromPrecision(create_info.precision);
   gpu_info_ = gpu_info;
 
-  auto src_tensor = builder_.AddTensor(
+  auto src_tensor = builder_ptr_->AddTensor(
       BHWC(1, height, width, config.in_channels), float_type);
   auto condition_tensor =
-      builder_.AddTensor(BHWC(1, height * 8, width * 8, 3), float_type);
-  auto temb_tensor = builder_.AddTensor(
+      builder_ptr_->AddTensor(BHWC(1, height * 8, width * 8, 3), float_type);
+  auto temb_tensor = builder_ptr_->AddTensor(
       BHWC(1, 1, 1, config.model_channels * config.channel_mult[0]),
       float_type);
   auto guidance_tensor =
-      builder_.AddTensor(BHWC(1, 2, 77, config.context_dim), float_type);
+      builder_ptr_->AddTensor(BHWC(1, 2, 77, config.context_dim), float_type);
 
   auto emb_control = MakeTimeEmbed(temb_tensor, "control_model.time_embed");
   ABSL_ASSIGN_OR_RETURN(
@@ -172,7 +172,7 @@ absl::Status UnetBuilder::BuildControlNet(
                        /*plugins=*/{}, /*plugins_strength=*/nullptr,
                        /*control=*/&control_tensors, /*only_mid_control=*/false,
                        debug_tensor_ptr));
-  auto etas = builder_.Split(t, Axis::BATCH, 1);
+  auto etas = builder_ptr_->Split(t, Axis::BATCH, 1);
 
   if (latent_ptr) {
     *latent_ptr = src_tensor;
@@ -192,17 +192,14 @@ absl::Status UnetBuilder::BuildControlNet(
   if (eta1_ptr) {
     *eta1_ptr = etas[1];
   }
-  return builder_.GetGpuModel(
-      {src_tensor.id, condition_tensor.id, temb_tensor.id, guidance_tensor.id},
-      {etas[0].id, etas[1].id, src_tensor.id, condition_tensor.id,
-       guidance_tensor.id},
-      gpu_model);
+  return absl::OkStatus();
 }
 
 absl::Status UnetBuilder::BuildUNetWithPlugins(
     const Config& config, const GpuInfo& gpu_info,
     const CreateGpuModelInfo& create_info, int width, int height,
-    GpuModel* gpu_model, GpuModelBuilder::TensorHandle* latent_ptr,
+    GpuModelBuilder* absl_nonnull builder_ptr,
+    GpuModelBuilder::TensorHandle* latent_ptr,
     std::vector<GpuModelBuilder::TensorHandle>* plugin_tensors,
     GpuModelBuilder::TensorHandle* temb_ptr,
     GpuModelBuilder::TensorHandle* guidance_ptr,
@@ -211,31 +208,30 @@ absl::Status UnetBuilder::BuildUNetWithPlugins(
     GpuModelBuilder::TensorHandle* plugins_strength_ptr,
     GpuModelBuilder::TensorHandle* debug_tensor_ptr) {
   config_ = config;
-  builder_ = GpuModelBuilder(gpu_info, create_info.hints, create_info.precision,
-                             create_info.storage_type);
+  builder_ptr_ = builder_ptr;
   gpu_info_ = gpu_info;
   const DataType float_type =
       DeduceDataTypeFromPrecision(create_info.precision);
 
-  auto src_tensor = builder_.AddTensor(
+  auto src_tensor = builder_ptr_->AddTensor(
       BHWC(1, height, width, config.in_channels), float_type);
-  auto temb_tensor = builder_.AddTensor(
+  auto temb_tensor = builder_ptr_->AddTensor(
       BHWC(1, 1, 1, config.model_channels * config.channel_mult[0]),
       float_type);
   auto guidance_tensor =
-      builder_.AddTensor(BHWC(1, 2, 77, config.context_dim), float_type);
+      builder_ptr_->AddTensor(BHWC(1, 2, 77, config.context_dim), float_type);
   plugin_tensors->emplace_back(
-      builder_.AddTensor(BHWC(1, 64, 64, 320), float_type));
+      builder_ptr_->AddTensor(BHWC(1, 64, 64, 320), float_type));
   plugin_tensors->emplace_back(
-      builder_.AddTensor(BHWC(1, 32, 32, 320), float_type));
+      builder_ptr_->AddTensor(BHWC(1, 32, 32, 320), float_type));
   plugin_tensors->emplace_back(
-      builder_.AddTensor(BHWC(1, 16, 16, 640), float_type));
+      builder_ptr_->AddTensor(BHWC(1, 16, 16, 640), float_type));
   plugin_tensors->emplace_back(
-      builder_.AddTensor(BHWC(1, 8, 8, 1280), float_type));
+      builder_ptr_->AddTensor(BHWC(1, 8, 8, 1280), float_type));
   plugin_tensors->emplace_back(
-      builder_.AddTensor(BHWC(1, 8, 8, 1280), float_type));
+      builder_ptr_->AddTensor(BHWC(1, 8, 8, 1280), float_type));
   auto plugins_strength_tensor =
-      builder_.AddTensor(BHWC(1, 1, 1, 1), float_type);
+      builder_ptr_->AddTensor(BHWC(1, 1, 1, 1), float_type);
   auto emb = MakeTimeEmbed(temb_tensor, "model.diffusion_model.time_embed");
   ABSL_ASSIGN_OR_RETURN(
       auto t, MakeUNet(config, src_tensor, emb, guidance_tensor,
@@ -243,7 +239,7 @@ absl::Status UnetBuilder::BuildUNetWithPlugins(
                        /*plugins_strength=*/&plugins_strength_tensor,
                        /*control=*/nullptr, /*only_mid_control=*/false,
                        debug_tensor_ptr));
-  auto etas = builder_.Split(t, Axis::BATCH, 1);
+  auto etas = builder_ptr_->Split(t, Axis::BATCH, 1);
 
   if (latent_ptr) {
     *latent_ptr = src_tensor;
@@ -263,30 +259,7 @@ absl::Status UnetBuilder::BuildUNetWithPlugins(
   if (plugins_strength_ptr) {
     *plugins_strength_ptr = plugins_strength_tensor;
   }
-  return builder_.GetGpuModel(
-      {
-          src_tensor.id,
-          temb_tensor.id,
-          guidance_tensor.id,
-          (*plugin_tensors)[0].id,
-          (*plugin_tensors)[1].id,
-          (*plugin_tensors)[2].id,
-          (*plugin_tensors)[3].id,
-          (*plugin_tensors)[4].id,
-          plugins_strength_tensor.id,
-      },
-      {
-          etas[0].id,
-          etas[1].id,
-          src_tensor.id,
-          guidance_tensor.id,
-          (*plugin_tensors)[0].id,
-          (*plugin_tensors)[1].id,
-          (*plugin_tensors)[2].id,
-          (*plugin_tensors)[3].id,
-          (*plugin_tensors)[4].id,
-      },
-      gpu_model);
+  return absl::OkStatus();
 }
 
 GpuModelBuilder::TensorHandle UnetBuilder::MakeConv(
@@ -302,7 +275,7 @@ GpuModelBuilder::TensorHandle UnetBuilder::MakeConv(
                            weights_size, weight_buffer.get());
   auto bias2 = LoadF16Ex(config_.unet_file_dir + name + ".bias.bin", bias_size,
                          bias_buffer.get());
-  return builder_.Convolution(
+  return builder_ptr_->Convolution(
       src, MakeConvAttributes(weights, bias2, weights_shape,
                               HW(stride_hw, stride_hw), name));
 }
@@ -320,7 +293,7 @@ GpuModelBuilder::TensorHandle UnetBuilder::MakeDwConv(
                            weights_size, weight_buffer.get());
   auto bias2 = LoadF16Ex(config_.unet_file_dir + name + ".bias.bin", bias_size,
                          bias_buffer.get());
-  return builder_.DepthwiseConvolution(
+  return builder_ptr_->DepthwiseConvolution(
       src, MakeDwConvAttributes(weights, bias2, weights_shape,
                                 HW(stride_hw, stride_hw), name));
 }
@@ -368,7 +341,7 @@ GpuModelBuilder::TensorHandle UnetBuilder::MakeLinear(
       OHWI(out_channels, 1, 1, src.tensor_desc.GetBHWCShape().c);
   Convolution2DAttributes attributes =
       ReadConvAttributes(weights_shape, name, bias, lora);
-  return builder_.Convolution(src, attributes);
+  return builder_ptr_->Convolution(src, attributes);
 }
 
 GpuModelBuilder::TensorHandle UnetBuilder::MakeLoraInjectedLinear(
@@ -378,7 +351,7 @@ GpuModelBuilder::TensorHandle UnetBuilder::MakeLoraInjectedLinear(
                               /*bias=*/false, /*lora=*/true);
   auto lora_up = MakeLinear(lora_down, name + ".up", out_channels,
                             /*bias=*/false, /*lora=*/true);
-  return builder_.Multiplication(lora_up, config_.lora_scale);
+  return builder_ptr_->Multiplication(lora_up, config_.lora_scale);
 }
 
 GpuModelBuilder::TensorHandle UnetBuilder::MakeGroupNorm(
@@ -392,8 +365,8 @@ GpuModelBuilder::TensorHandle UnetBuilder::MakeGroupNorm(
   auto beta = LoadF16Ex(config_.unet_file_dir + name + ".bias.bin", size,
                         bias_buffer.get());
   auto beta2 = CreateLinearTensor(beta);
-  return builder_.HWCGroupNorm(src, /*groups=*/32, /*epsilon=*/1e-5f, gamma2,
-                               beta2);
+  return builder_ptr_->HWCGroupNorm(src, /*groups=*/32, /*epsilon=*/1e-5f,
+                                    gamma2, beta2);
 }
 
 GpuModelBuilder::TensorHandle UnetBuilder::MakeLayerNorm(
@@ -408,14 +381,14 @@ GpuModelBuilder::TensorHandle UnetBuilder::MakeLayerNorm(
   auto beta = LoadF16Ex(config_.unet_file_dir + name + ".bias.bin", size,
                         bias_buffer.get());
   auto beta2 = CreateLinearTensor(beta);
-  return builder_.LayerNormalization(src, gamma2, beta2, epsilon);
+  return builder_ptr_->LayerNormalization(src, gamma2, beta2, epsilon);
 }
 
 GpuModelBuilder::TensorHandle UnetBuilder::MakeTimeEmbed(
     const GpuModelBuilder::TensorHandle& src, const std::string& name) {
   auto x = src;
   x = MakeLinear(x, name + ".0", src.tensor_desc.GetBHWCShape().c * 4);
-  x = builder_.SiLU(x);
+  x = builder_ptr_->SiLU(x);
   x = MakeLinear(x, name + ".2", src.tensor_desc.GetBHWCShape().c * 4);
   return x;
 }
@@ -425,7 +398,7 @@ GpuModelBuilder::TensorHandle UnetBuilder::MakePooledTextProjection(
     int out_dim_size) {
   auto x = src;
   x = MakeLinear(x, name + ".1", out_dim_size);
-  x = builder_.SiLU(x);
+  x = builder_ptr_->SiLU(x);
   x = MakeLinear(x, name + ".2", out_dim_size);
   return x;
 }
@@ -448,13 +421,13 @@ absl::StatusOr<GpuModelBuilder::TensorHandle> UnetBuilder::MakeCrossAttention(
                     !config_.lora_weights_layer_mapping.empty();
   if (apply_lora) {
     auto lora_q = MakeLoraInjectedLinear(src, name + ".to_q_lora", c);
-    q = builder_.Add(q, lora_q);
+    q = builder_ptr_->Add(q, lora_q);
     auto lora_k = MakeLoraInjectedLinear(context, name + ".to_k_lora", c);
-    k = builder_.Add(k, lora_k);
+    k = builder_ptr_->Add(k, lora_k);
     auto lora_v = MakeLoraInjectedLinear(context, name + ".to_v_lora", c);
-    v = builder_.Add(v, lora_v);
+    v = builder_ptr_->Add(v, lora_v);
   }
-  k = builder_.Multiplication(
+  k = builder_ptr_->Multiplication(
       k, 1.0f / std::sqrt(static_cast<float>(attn_head_dim)));
   const int n = src.tensor_desc.GetBHWCShape().b;
   const int hw =
@@ -463,35 +436,36 @@ absl::StatusOr<GpuModelBuilder::TensorHandle> UnetBuilder::MakeCrossAttention(
   if (!context_ptr) {
     t *= context.tensor_desc.GetBHWCShape().h;
   }
-  q = builder_.Reshape(q, BHWC{n, hw, num_attn_heads, attn_head_dim});
-  k = builder_.Reshape(k, BHWC{n, t, num_attn_heads, attn_head_dim});
-  v = builder_.Reshape(v, BHWC{n, t, num_attn_heads, attn_head_dim});
+  q = builder_ptr_->Reshape(q, BHWC{n, hw, num_attn_heads, attn_head_dim});
+  k = builder_ptr_->Reshape(k, BHWC{n, t, num_attn_heads, attn_head_dim});
+  v = builder_ptr_->Reshape(v, BHWC{n, t, num_attn_heads, attn_head_dim});
 
-  q = builder_.Transpose(q, BHWC(0, 2, 1, 3));
-  k = builder_.Transpose(k, BHWC(0, 2, 3, 1));
-  v = builder_.Transpose(v, BHWC(0, 2, 1, 3));
+  q = builder_ptr_->Transpose(q, BHWC(0, 2, 1, 3));
+  k = builder_ptr_->Transpose(k, BHWC(0, 2, 3, 1));
+  v = builder_ptr_->Transpose(v, BHWC(0, 2, 1, 3));
 
-  q = builder_.Reshape(
+  q = builder_ptr_->Reshape(
       q, BHWC{1, q.tensor_desc.GetBHWCShape().h * n,
               q.tensor_desc.GetBHWCShape().w, q.tensor_desc.GetBHWCShape().c});
-  k = builder_.Reshape(
+  k = builder_ptr_->Reshape(
       k, BHWC{1, k.tensor_desc.GetBHWCShape().h * n,
               k.tensor_desc.GetBHWCShape().w, k.tensor_desc.GetBHWCShape().c});
-  v = builder_.Reshape(
+  v = builder_ptr_->Reshape(
       v, BHWC{1, v.tensor_desc.GetBHWCShape().h * n,
               v.tensor_desc.GetBHWCShape().w, v.tensor_desc.GetBHWCShape().c});
 
-  ABSL_ASSIGN_OR_RETURN(GpuModelBuilder::TensorHandle att,
-                        builder_.BatchedMatMulSoftmaxBatchedMatMul(q, k, v));
-  att = builder_.Reshape(att, BHWC{n, att.tensor_desc.GetBHWCShape().h / n,
-                                   att.tensor_desc.GetBHWCShape().w,
-                                   att.tensor_desc.GetBHWCShape().c});
-  att = builder_.Transpose(att, BHWC(0, 2, 1, 3));
-  att = builder_.Reshape(att, src.tensor_desc.GetBHWCShape());
+  ABSL_ASSIGN_OR_RETURN(
+      GpuModelBuilder::TensorHandle att,
+      builder_ptr_->BatchedMatMulSoftmaxBatchedMatMul(q, k, v));
+  att = builder_ptr_->Reshape(att, BHWC{n, att.tensor_desc.GetBHWCShape().h / n,
+                                        att.tensor_desc.GetBHWCShape().w,
+                                        att.tensor_desc.GetBHWCShape().c});
+  att = builder_ptr_->Transpose(att, BHWC(0, 2, 1, 3));
+  att = builder_ptr_->Reshape(att, src.tensor_desc.GetBHWCShape());
   auto out = MakeLinear(att, name + ".to_out.0", c);
   if (apply_lora) {
     auto lora_out = MakeLoraInjectedLinear(att, name + ".to_out_lora", c);
-    out = builder_.Add(out, lora_out);
+    out = builder_ptr_->Add(out, lora_out);
   }
   return out;
 }
@@ -503,16 +477,16 @@ GpuModelBuilder::TensorHandle UnetBuilder::MakeFeedForward(
   const OHWI weights_shape = OHWI(dim_proj, 1, 1, dim);
   const auto attributes = ReadConvAttributes(weights_shape, name + ".0.proj");
   auto attrs = SplitAttributes(attributes);
-  auto proj0 = builder_.Convolution(src, attrs.first);
-  auto proj1 = builder_.Convolution(src, attrs.second);
+  auto proj0 = builder_ptr_->Convolution(src, attrs.first);
+  auto proj1 = builder_ptr_->Convolution(src, attrs.second);
   GpuModelBuilder::TensorHandle x;
   if (config_.activation_function == Config::ActivationFunction::kGatedSiLU) {
-    auto gated_val = builder_.Elementwise(proj1, OperationType::SIGMOID);
-    gated_val = builder_.Multiplication(gated_val, proj1);
-    x = builder_.Multiplication(gated_val, proj0);
+    auto gated_val = builder_ptr_->Elementwise(proj1, OperationType::SIGMOID);
+    gated_val = builder_ptr_->Multiplication(gated_val, proj1);
+    x = builder_ptr_->Multiplication(gated_val, proj0);
   } else {
-    auto gated_val = builder_.Elementwise(proj1, OperationType::GELU);
-    x = builder_.Multiplication(gated_val, proj0);
+    auto gated_val = builder_ptr_->Elementwise(proj1, OperationType::GELU);
+    x = builder_ptr_->Multiplication(gated_val, proj0);
   }
   return MakeLinear(x, name + ".2", dim);
 }
@@ -527,15 +501,15 @@ UnetBuilder::MakeBasicTransformerBlock(
     auto attn1 = MakeLayerNorm(x, name + ".norm1", /*epsilon=*/1e-5f);
     ABSL_ASSIGN_OR_RETURN(attn1, MakeCrossAttention(attn1, name + ".attn1",
                                                     nullptr, num_attn_heads));
-    x = builder_.Add(attn1, x);
+    x = builder_ptr_->Add(attn1, x);
   }
   auto attn2 = MakeLayerNorm(x, name + ".norm2", /*epsilon=*/1e-5f);
   ABSL_ASSIGN_OR_RETURN(attn2, MakeCrossAttention(attn2, name + ".attn2",
                                                   &context, num_attn_heads));
-  x = builder_.Add(attn2, x);
+  x = builder_ptr_->Add(attn2, x);
   auto ff = MakeLayerNorm(x, name + ".norm3", /*epsilon=*/1e-5f);
   ff = MakeFeedForward(ff, name + ".ff.net");
-  return builder_.Add(ff, x);
+  return builder_ptr_->Add(ff, x);
 }
 
 absl::StatusOr<GpuModelBuilder::TensorHandle>
@@ -555,7 +529,7 @@ UnetBuilder::MakeSpatialTransformerBlock(
                num_attn_heads, use_self_attn));
   }
   x = MakeConv(x, name + ".proj_out", src_shape.c, 1);
-  return builder_.Add(x, src);
+  return builder_ptr_->Add(x, src);
 }
 
 GpuModelBuilder::TensorHandle UnetBuilder::MakeUNetResBlock(
@@ -568,25 +542,25 @@ GpuModelBuilder::TensorHandle UnetBuilder::MakeUNetResBlock(
   }
   auto x = src;
   x = MakeGroupNorm(x, name + ".in_layers.0");
-  x = builder_.SiLU(x);
+  x = builder_ptr_->SiLU(x);
   if (use_convnext) {
     auto emb = MakeLinear(emb_in, name + ".emb_layers.1", in_channels);
     x = MakeDwConv(x, name + ".dw_conv", 3);
     x = MakeLayerNorm(x, name + ".out_layers.0", /*epsilon=*/1e-6f);
-    x = builder_.Add(x, emb);
+    x = builder_ptr_->Add(x, emb);
     x = MakeGroupNorm(x, name + ".norm3");
     x = MakeLinear(x, name + ".pw_in_layers.2", out_channels * 4);
-    x = builder_.SiLU(x);
+    x = builder_ptr_->SiLU(x);
     x = MakeLinear(x, name + ".pw_out_layers.3", out_channels);
   } else {
     auto emb = MakeLinear(emb_in, name + ".emb_layers.1", out_channels);
     x = MakeConv(x, name + ".in_layers.2", out_channels, 3);
-    x = builder_.Add(x, emb);
+    x = builder_ptr_->Add(x, emb);
     x = MakeGroupNorm(x, name + ".out_layers.0");
-    x = builder_.SiLU(x);
+    x = builder_ptr_->SiLU(x);
     x = MakeConv(x, name + ".out_layers.3", out_channels, 3);
   }
-  return builder_.Add(x, skip);
+  return builder_ptr_->Add(x, skip);
 }
 
 absl::StatusOr<GpuModelBuilder::TensorHandle> UnetBuilder::MakeUNet(
@@ -602,13 +576,13 @@ absl::StatusOr<GpuModelBuilder::TensorHandle> UnetBuilder::MakeUNet(
 
   bool resblock_updown = false;
 
-  x = builder_.Tile(x, Axis::BATCH);
+  x = builder_ptr_->Tile(x, Axis::BATCH);
 
   std::vector<GpuModelBuilder::TensorHandle> tiled_plugins;
   bool use_plugins = !plugins.empty();
   if (use_plugins) {
     for (const auto& elem : plugins) {
-      tiled_plugins.push_back(builder_.Tile(elem, Axis::BATCH));
+      tiled_plugins.push_back(builder_ptr_->Tile(elem, Axis::BATCH));
     }
   }
   int ch = config.model_channels * config.channel_mult[0];
@@ -619,8 +593,8 @@ absl::StatusOr<GpuModelBuilder::TensorHandle> UnetBuilder::MakeUNet(
 
   if (!tiled_plugins.empty()) {
     auto scaled_plugin =
-        builder_.Multiplication(tiled_plugins[0], *plugins_strength);
-    x = builder_.Add(x, scaled_plugin);
+        builder_ptr_->Multiplication(tiled_plugins[0], *plugins_strength);
+    x = builder_ptr_->Add(x, scaled_plugin);
   }
   saved_inputs.push_back(x);
 
@@ -659,17 +633,17 @@ absl::StatusOr<GpuModelBuilder::TensorHandle> UnetBuilder::MakeUNet(
       } else {
         x = MakeConv(x, name_block + ".0.op", ch, 3, 2, true);
         if (use_plugins) {
-          auto scaled_plugin = builder_.Multiplication(tiled_plugins[level + 1],
-                                                       *plugins_strength);
-          x = builder_.Add(x, scaled_plugin);
+          auto scaled_plugin = builder_ptr_->Multiplication(
+              tiled_plugins[level + 1], *plugins_strength);
+          x = builder_ptr_->Add(x, scaled_plugin);
         }
         saved_inputs.push_back(x);
       }
     } else if (use_plugins) {
-      auto scaled_plugin =
-          builder_.Multiplication(tiled_plugins[level + 1], *plugins_strength);
+      auto scaled_plugin = builder_ptr_->Multiplication(
+          tiled_plugins[level + 1], *plugins_strength);
       // Add the last plugin tensor to the output of the last encoding layer.
-      x = builder_.Add(x, scaled_plugin);
+      x = builder_ptr_->Add(x, scaled_plugin);
     }
   }
 
@@ -688,7 +662,7 @@ absl::StatusOr<GpuModelBuilder::TensorHandle> UnetBuilder::MakeUNet(
   }
 
   if (control) {
-    x = builder_.Add(x, control->back());
+    x = builder_ptr_->Add(x, control->back());
     control->pop_back();
   }
 
@@ -705,12 +679,12 @@ absl::StatusOr<GpuModelBuilder::TensorHandle> UnetBuilder::MakeUNet(
       GpuModelBuilder::TensorHandle tensor_to_concat = saved_inputs.back();
       saved_inputs.pop_back();
       if (!only_mid_control && control) {
-        tensor_to_concat = builder_.Add(tensor_to_concat, control->back());
+        tensor_to_concat = builder_ptr_->Add(tensor_to_concat, control->back());
         control->pop_back();
       }
       if (!config_.skip_middle_blocks ||
           level != config.channel_mult.size() - 1) {
-        x = builder_.Concat(x, tensor_to_concat, Axis::CHANNELS);
+        x = builder_ptr_->Concat(x, tensor_to_concat, Axis::CHANNELS);
       }
       x = MakeUNetResBlock(x, emb,
                            name_block + "." + std::to_string(sub_block_id++),
@@ -738,7 +712,7 @@ absl::StatusOr<GpuModelBuilder::TensorHandle> UnetBuilder::MakeUNet(
         if (resblock_updown) {
           // ResBlock
         } else {
-          x = builder_.ResizeNearest(x, 2, false, true);
+          x = builder_ptr_->ResizeNearest(x, 2, false, true);
           x = MakeConv(
               x, name_block + "." + std::to_string(sub_block_id++) + ".conv",
               ch, 3);
@@ -748,7 +722,7 @@ absl::StatusOr<GpuModelBuilder::TensorHandle> UnetBuilder::MakeUNet(
   }
 
   x = MakeGroupNorm(x, "model.diffusion_model.out.0");
-  x = builder_.SiLU(x);
+  x = builder_ptr_->SiLU(x);
   x = MakeConv(x, "model.diffusion_model.out.2", config.out_channels, 3);
   // Points the debug tensor to the unet output tensor.
   // To check an intermediate tensor, move the debug_tensor_ptr to point to the
@@ -772,25 +746,25 @@ UnetBuilder::MakeControlNet(const Config& config,
   // input_hint_block
   {
     hint = MakeConv(hint, name + ".input_hint_block.0", 16, 3);
-    hint = builder_.SiLU(hint);
+    hint = builder_ptr_->SiLU(hint);
     hint = MakeConv(hint, name + ".input_hint_block.2", 16, 3);
-    hint = builder_.SiLU(hint);
+    hint = builder_ptr_->SiLU(hint);
     hint = MakeConv(hint, name + ".input_hint_block.4", 32, 3, 2);
-    hint = builder_.SiLU(hint);
+    hint = builder_ptr_->SiLU(hint);
     hint = MakeConv(hint, name + ".input_hint_block.6", 32, 3);
-    hint = builder_.SiLU(hint);
+    hint = builder_ptr_->SiLU(hint);
     hint = MakeConv(hint, name + ".input_hint_block.8", 96, 3, 2);
-    hint = builder_.SiLU(hint);
+    hint = builder_ptr_->SiLU(hint);
     hint = MakeConv(hint, name + ".input_hint_block.10", 96, 3);
-    hint = builder_.SiLU(hint);
+    hint = builder_ptr_->SiLU(hint);
     hint = MakeConv(hint, name + ".input_hint_block.12", 256, 3, 2);
-    hint = builder_.SiLU(hint);
+    hint = builder_ptr_->SiLU(hint);
     hint = MakeConv(hint, name + ".input_hint_block.14", 320, 3);
   }
-  hint = builder_.Tile(hint, Axis::BATCH);
+  hint = builder_ptr_->Tile(hint, Axis::BATCH);
 
   auto x = src;
-  x = builder_.Tile(x, Axis::BATCH);
+  x = builder_ptr_->Tile(x, Axis::BATCH);
   std::vector<GpuModelBuilder::TensorHandle> outs;
 
   // input blocks
@@ -800,7 +774,7 @@ UnetBuilder::MakeControlNet(const Config& config,
     const std::string name_block =
         name + ".input_blocks." + std::to_string(input_block_counter++);
     x = MakeConv(x, name_block + ".0", 320, 3);
-    x = builder_.Add(x, hint);
+    x = builder_ptr_->Add(x, hint);
     // "zero conv"
     const std::string name_conv =
         name + ".zero_convs." + std::to_string(zero_convs_counter++);

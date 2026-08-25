@@ -248,10 +248,17 @@ class UNet {
     config.transformer_depth = 1;
     config.context_dim = 768;
     config.unet_file_dir = file_folder;
-    ABSL_RETURN_IF_ERROR(builder.Build(config, gpu_info, create_info, width, height, &gpu_model,
+    GpuModelBuilder gpu_builder(gpu_info, create_info.hints, create_info.precision,
+                                create_info.storage_type);
+
+    ABSL_RETURN_IF_ERROR(builder.Build(config, gpu_info, create_info, width, height, &gpu_builder,
                                        &src_, &temb_, &guidance_, /*text_proj_ptr=*/nullptr,
                                        /*masked_image_latent_ptr=*/nullptr, &eta0_, &eta1_,
                                        nullptr));
+
+    std::vector<GpuModelBuilder::ValueId> input_ids = {src_.id, temb_.id, guidance_.id};
+    std::vector<GpuModelBuilder::ValueId> output_ids = {eta0_.id, eta1_.id, src_.id, guidance_.id};
+    ABSL_RETURN_IF_ERROR(gpu_builder.GetGpuModel(input_ids, output_ids, &gpu_model));
 
     const auto start_init = std::chrono::high_resolution_clock::now();
     ABSL_RETURN_IF_ERROR(
