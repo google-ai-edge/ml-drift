@@ -875,40 +875,37 @@ absl::Status ResolveSelectorsPass(
       GPUObjectDescriptor* desc_ptr;
       ABSL_RETURN_IF_ERROR(args.GetDescriptor(object_name, &desc_ptr));
       auto names = desc_ptr->GetGPUResources(gpu_info).GetNames();
-      if (desc_ptr && !linkables.empty()) {
+      auto it_link = linkables.find(object_name);
+      if (it_link != linkables.end()) {
         if (selector_name == "WriteLinear") {
           return absl::InternalError("Can not link with WriteLinear.");
         } else if (selector_name == "Write") {
-          auto it = linkables.find(object_name);
-          if (it != linkables.end()) {
-            ABSL_RETURN_IF_ERROR(ResolveLinking(
-                gpu_info, it->second, &function_args, &linkable_patch));
-            ABSL_RETURN_IF_ERROR(
-                ResolveConstExprPass(gpu_info, args, &linkable_patch));
-            ABSL_RETURN_IF_ERROR(
-                ResolveSelectorsPass(gpu_info, {}, args, &linkable_patch));
-          }
+          ABSL_RETURN_IF_ERROR(ResolveLinking(gpu_info, it_link->second,
+                                              &function_args, &linkable_patch));
+          ABSL_RETURN_IF_ERROR(
+              ResolveConstExprPass(gpu_info, args, &linkable_patch));
+          ABSL_RETURN_IF_ERROR(
+              ResolveSelectorsPass(gpu_info, {}, args, &linkable_patch));
         } else if (selector_name == "Read") {
-          auto it = linkables.find(object_name);
-          if (it != linkables.end()) {
             std::string x_coord, y_coord, z_coord, s_coord, b_coord;
-            ABSL_RETURN_IF_ERROR(
-                it->second.final_tensor_desc->GetLinkingContextFromReadSelector(
-                    function_args, &x_coord, &y_coord, &z_coord, &s_coord,
-                    &b_coord));
-            std::string reorder_patch = absl::StrReplaceAll(
-                it->second.code, {{"SRC_X", "r_s_x"},
-                                  {"SRC_Y", "r_s_y"},
-                                  {"SRC_S", "r_s_s"},
-                                  {"SRC_B", "r_s_b"},
-                                  {"SRC_WIDTH", "args.src_tensor.Width()"},
-                                  {"SRC_HEIGHT", "args.src_tensor.Height()"},
-                                  {"SRC_SLICES", "args.src_tensor.Slices()"},
-                                  {"SRC_BATCH", "args.src_tensor.Batch()"},
-                                  {"DST_X", x_coord},
-                                  {"DST_Y", y_coord},
-                                  {"DST_S", s_coord},
-                                  {"DST_B", b_coord}});
+            ABSL_RETURN_IF_ERROR(it_link->second.final_tensor_desc
+                                     ->GetLinkingContextFromReadSelector(
+                                         function_args, &x_coord, &y_coord,
+                                         &z_coord, &s_coord, &b_coord));
+            std::string reorder_patch =
+                absl::StrReplaceAll(it_link->second.code,
+                                    {{"SRC_X", "r_s_x"},
+                                     {"SRC_Y", "r_s_y"},
+                                     {"SRC_S", "r_s_s"},
+                                     {"SRC_B", "r_s_b"},
+                                     {"SRC_WIDTH", "args.src_tensor.Width()"},
+                                     {"SRC_HEIGHT", "args.src_tensor.Height()"},
+                                     {"SRC_SLICES", "args.src_tensor.Slices()"},
+                                     {"SRC_BATCH", "args.src_tensor.Batch()"},
+                                     {"DST_X", x_coord},
+                                     {"DST_Y", y_coord},
+                                     {"DST_S", s_coord},
+                                     {"DST_B", b_coord}});
             ABSL_RETURN_IF_ERROR(
                 ResolveConstExprPass(gpu_info, args, &reorder_patch));
             ABSL_RETURN_IF_ERROR(
@@ -926,10 +923,9 @@ absl::Status ResolveSelectorsPass(
             close_bracket_pos += reorder_patch.size();
             function_args.clear();
             function_args = {"r_s_x", "r_s_y", "r_s_s"};
-            if (it->second.tensor_desc->HasAxis(Axis::BATCH)) {
+            if (it_link->second.tensor_desc->HasAxis(Axis::BATCH)) {
               function_args.push_back("r_s_b");
             }
-          }
         }
       }
       // Check if we need to add quantized write function
