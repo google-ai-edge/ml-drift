@@ -36,24 +36,6 @@ using ::ml_drift::cl::PerformanceHint;
 using ::ml_drift::cl::PriorityHint;
 using ::ml_drift::cl::stable_diffusion::Diffuser;
 
-Diffuser::ModelType ToModelType(DiffuserModelType model_type) {
-  switch (model_type) {
-    case kDiffuserModelTypeSd1:
-      return Diffuser::ModelType::kSd1;
-    case kDiffuserModelTypeGldm:
-      return Diffuser::ModelType::kGldm;
-    case kDiffuserModelTypeDistilledGldm:
-      return Diffuser::ModelType::kDistilledGldm;
-    case kDiffuserModelTypeSd2Base:
-      return Diffuser::ModelType::kSd2Base;
-    case kDiffuserModelTypeTigo:
-      return Diffuser::ModelType::kTigo;
-    case kDiffuserModelTypeTigoUfo:
-      return Diffuser::ModelType::kTigoUfo;
-  }
-  return Diffuser::ModelType::kSd1;
-}
-
 PriorityHint ToPriorityHint(DiffuserPriorityHint priority_hint) {
   switch (priority_hint) {
     case kDiffuserPriorityHintHigh:
@@ -82,7 +64,7 @@ PerformanceHint ToPerformanceHint(DiffuserPerformanceHint priority_hint) {
 
 DiffuserContext* DiffuserCreate(const DiffuserConfig* config) {
   Diffuser::Config config2;
-  config2.model_type = ToModelType(config->model_type);
+  config2.model_type = Diffuser::ModelType::kSd1;
   config2.model_dir = config->model_dir;
   config2.lora_dir = config->lora_dir;
   if (config->lora_weights_layer_mapping) {
