@@ -62,6 +62,8 @@ struct IrQuantParams {
 struct BufferSource {
   // True if the tensor is a shared constant.
   bool is_shared = false;
+  // Original TFLite tensor ID.
+  int tflite_tensor_id = -1;
   // Global buffer id identifying the shared buffer in the shared-memory
   // manager. Only meaningful when is_shared is true.
   int64_t global_id = -1;
