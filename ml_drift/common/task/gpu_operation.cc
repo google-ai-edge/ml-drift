@@ -755,10 +755,9 @@ struct LinkableContext {
   TensorDescriptor* final_tensor_desc;
 };
 
-absl::Status ResolveLinking(const GpuInfo& gpu_info,
-                            const LinkableContext& linkable_context,
-                            std::vector<std::string>* function_args,
-                            std::string* result) {
+absl::StatusOr<std::string> ResolveLinking(
+    const GpuInfo& gpu_info, const LinkableContext& linkable_context,
+    std::vector<std::string>* function_args) {
   std::string value_name, x_coord, y_coord, z_coord, s_coord, b_coord;
   ABSL_RETURN_IF_ERROR(
       linkable_context.tensor_desc->GetLinkingContextFromWriteSelector(
@@ -773,21 +772,21 @@ absl::Status ResolveLinking(const GpuInfo& gpu_info,
   const std::string type_decl = ToUclDataType(type, 4);
   const std::string out_var_declaration =
       "\n " + type_decl + " " + new_value_name + ";\n";
-  *result = out_var_declaration +
-            "{  // elementwise code with input:" + value_name +
-            " output:" + new_value_name + "\n" +
-            absl::Substitute(linkable_context.code, "") + "\n}\n";
-  *result = absl::StrReplaceAll(*result, {{"\n", "\n  "},
-                                          {"in_value", value_name},
-                                          {"out_value", new_value_name},
-                                          {"X_COORD", x_coord},
-                                          {"Y_COORD", y_coord},
-                                          {"Z_COORD", z_coord},
-                                          {"S_COORD", s_coord},
-                                          {"B_COORD", b_coord}});
+  std::string result = out_var_declaration +
+                       "{  // elementwise code with input:" + value_name +
+                       " output:" + new_value_name + "\n" +
+                       absl::Substitute(linkable_context.code, "") + "\n}\n";
+  result = absl::StrReplaceAll(result, {{"\n", "\n  "},
+                                        {"in_value", value_name},
+                                        {"out_value", new_value_name},
+                                        {"X_COORD", x_coord},
+                                        {"Y_COORD", y_coord},
+                                        {"Z_COORD", z_coord},
+                                        {"S_COORD", s_coord},
+                                        {"B_COORD", b_coord}});
 
   (*function_args)[0] = new_value_name;
-  return absl::OkStatus();
+  return result;
 }
 
 // resolve constructions of type: args.object_name::const_expr_name
@@ -880,8 +879,9 @@ absl::Status ResolveSelectorsPass(
         if (selector_name == "WriteLinear") {
           return absl::InternalError("Can not link with WriteLinear.");
         } else if (selector_name == "Write") {
-          ABSL_RETURN_IF_ERROR(ResolveLinking(gpu_info, it_link->second,
-                                              &function_args, &linkable_patch));
+          ABSL_ASSIGN_OR_RETURN(
+              linkable_patch,
+              ResolveLinking(gpu_info, it_link->second, &function_args));
           ABSL_RETURN_IF_ERROR(
               ResolveConstExprPass(gpu_info, args, &linkable_patch));
           ABSL_RETURN_IF_ERROR(
