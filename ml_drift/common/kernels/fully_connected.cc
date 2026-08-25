@@ -175,6 +175,9 @@ int3 GetWorkGroupSize(const FullyConnected::ConvParams& params,
     } else {
       y_size = 1;
     }
+    if (dst_slices >= 1024 * 16) {
+      y_size = 1;
+    }
     int wg_total_size = cu_count >= 16 ? 256 : 128;
     y_size = std::min(y_size, wg_total_size);
     x_size = wg_total_size / y_size;
@@ -1101,11 +1104,16 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
     }
   }
   if (gpu_info.IsApple() && gpu_info.IsApiMetal() &&
-      IsQuantized(conv_params_) && conv_params_.scale_zp_shape.o >= 1024 * 64) {
+      gpu_info.apple_info.IsMSeries() && IsQuantized(conv_params_) &&
+      conv_params_.block_size.c == 1) {
     // In some cases, on Metal with Apple GPUs, kernel with big dst channels
     // size shows unexpected slowdown. This workaround helps to restore
     // performance.
-    c += "    ucl::SyncThreads<WorkGroup, None>();\n";
+    const int dst_slices = DivideRoundUp(conv_params_.scale_zp_shape.o, 4);
+    if (dst_slices >= 1024 * 16 && dst_slices % work_group_size_.x == 0 &&
+        work_group_size_.y == 1) {
+      c += "    ucl::SyncThreads<WorkGroup, None>();\n";
+    }
   }
   if (IsQuantized(conv_params_) && conv_params_.scale_zp_shape.i != 1) {
     c += "  }} // end for loop\n";
