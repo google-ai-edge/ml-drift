@@ -1631,6 +1631,41 @@ mld_kernel_test(
 )
 
 cc_library(
+    name = "scatter_nd_test_util",
+    testonly = 1,
+    srcs = ["scatter_nd_test_util.cc"],
+    hdrs = ["scatter_nd_test_util.h"],
+    deps = [
+        "//ml_drift/common:data_type",
+        "//ml_drift/common:operations",
+        "//ml_drift/common:shape",
+        "//ml_drift/common:tensor",
+        "//ml_drift/common/default:status_matchers",
+        "//ml_drift/common/kernels:scatter_nd",
+        "//ml_drift/common/task:gpu_operation",
+        "//ml_drift/common/task:tensor_desc",
+        "//ml_drift/common/task:testing_util",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
+        "@com_google_googletest//:gtest",
+    ],
+)
+
+mld_kernel_test(
+    name = "scatter_nd_test",
+    srcs = [
+        "scatter_nd_test.cc",
+    ],
+    deps = [
+        ":scatter_nd_test_util",
+        "//ml_drift/common:data_type",
+        "//ml_drift/common/task:tensor_desc",
+        "//ml_drift/common/task:testing_util",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_library(
     name = "select_v2_test_util",
     testonly = 1,
     srcs = ["select_v2_test_util.cc"],
@@ -1998,6 +2033,7 @@ test_suite(
         ":reshape_test_opencl",
         ":resize_test_opencl",
         ":rope_test_opencl",
+        ":scatter_nd_test_opencl",
         ":select_v2_test_opencl",
         ":softmax_test_opencl",
         ":space_to_depth_test_opencl",
@@ -2043,6 +2079,7 @@ test_suite(
         ":reshape_test_webgpu",
         ":resize_test_webgpu",
         ":rope_test_webgpu",
+        ":scatter_nd_test_webgpu",
         ":select_v2_test_webgpu",
         ":softmax_test_webgpu",
         ":space_to_depth_test_webgpu",

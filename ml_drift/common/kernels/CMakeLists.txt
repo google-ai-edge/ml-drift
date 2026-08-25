@@ -297,6 +297,14 @@ target_link_libraries(mld_common_kernels_rope PUBLIC
     mld_common_task_gpu_operation
 )
 
+add_library(mld_common_kernels_scatter_nd scatter_nd.cc scatter_nd.h)
+target_include_directories(mld_common_kernels_scatter_nd PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
+target_link_libraries(mld_common_kernels_scatter_nd PUBLIC
+    mld_common_data_type
+    mld_common_operations
+    mld_common_task_gpu_operation
+)
+
 add_library(mld_common_kernels_select_v2 select_v2.cc select_v2.h)
 target_include_directories(mld_common_kernels_select_v2 PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_common_kernels_select_v2 PUBLIC

@@ -250,6 +250,8 @@ std::string ToString(enum OperationType op) {
       return "rsqrt";
     case OperationType::SCALED_DOT_PRODUCT_ATTENTION:
       return "scaled_dot_product_attention";
+    case OperationType::SCATTER_ND:
+      return "scatter_nd";
     case OperationType::SELECT_V2:
       return "select_v2";
     case OperationType::SHIFT_LEFT:
@@ -381,6 +383,7 @@ OperationType OperationTypeFromString(const std::string& name) {
           {"rsqrt", OperationType::RSQRT},
           {"scaled_dot_product_attention",
            OperationType::SCALED_DOT_PRODUCT_ATTENTION},
+          {"scatter_nd", OperationType::SCATTER_ND},
           {"select_v2", OperationType::SELECT_V2},
           {"shift_left", OperationType::SHIFT_LEFT},
           {"shift_right", OperationType::SHIFT_RIGHT},

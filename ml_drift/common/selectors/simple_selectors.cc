@@ -41,6 +41,7 @@
 #include "ml_drift/common/kernels/resampler.h"
 #include "ml_drift/common/kernels/resize.h"
 #include "ml_drift/common/kernels/reverse.h"
+#include "ml_drift/common/kernels/scatter_nd.h"
 #include "ml_drift/common/kernels/select_v2.h"
 #include "ml_drift/common/kernels/space_to_depth.h"
 #include "ml_drift/common/kernels/split.h"
@@ -95,6 +96,10 @@ std::unique_ptr<GPUOperation> SelectDynamicUpdateSlice(
     const OperationDef& op_def, const GpuInfo& gpu_info) {
   return std::make_unique<GPUOperation>(
       CreateDynamicUpdateSlice(op_def, gpu_info));
+}
+
+std::unique_ptr<GPUOperation> SelectScatterNd(const OperationDef& op_def) {
+  return std::make_unique<GPUOperation>(CreateScatterNd(op_def));
 }
 
 std::unique_ptr<GPUOperation> SelectResampler(const OperationDef& op_def,

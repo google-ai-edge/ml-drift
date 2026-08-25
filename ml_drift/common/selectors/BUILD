@@ -152,6 +152,7 @@ cc_library(
         "//ml_drift/common/kernels:resampler",
         "//ml_drift/common/kernels:resize",
         "//ml_drift/common/kernels:reverse",
+        "//ml_drift/common/kernels:scatter_nd",
         "//ml_drift/common/kernels:select_v2",
         "//ml_drift/common/kernels:space_to_depth",
         "//ml_drift/common/kernels:split",
