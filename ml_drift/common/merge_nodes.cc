@@ -420,7 +420,22 @@ absl::Status LinkNodes(const GpuInfo& gpu_info, GpuModel* gpu_model) {
   return absl::OkStatus();
 }
 
-absl::Status MergeReorderNodes(GpuModel* gpu_model) {
+// Whether consumer node of a reorder node can be merged with the reorder node.
+bool CanMergeReorder(const GpuNode& consumer_node) {
+  // 2 consecutive reorder nodes can always be merged.
+  if (consumer_node.inputs.size() == 1 && consumer_node.outputs.size() == 1 &&
+      consumer_node.gpu_operation->IsReorderOp()) {
+    return true;
+  }
+
+  return consumer_node.gpu_operation->FuseInputReorderAllowed();
+}
+
+// 1) Merge two reorder nodes if they have the same input and output, and the
+//    same optional tag.
+// 2) Merge a reorder node into its only consumer if the consumer supports input
+//    reshape fusion.
+absl::Status MergeReorderNodes(const GpuInfo& gpu_info, GpuModel* gpu_model) {
   auto& nodes = gpu_model->nodes;
   for (int i = 0; i < nodes.size(); ++i) {
     auto& first_node = nodes[i];
@@ -441,27 +456,46 @@ absl::Status MergeReorderNodes(GpuModel* gpu_model) {
       continue;
     }
     auto& second_node = nodes[next_nodes[0]];
-    if (second_node.inputs.size() != 1 || second_node.outputs.size() != 1 ||
-        !second_node.gpu_operation->IsReorderOp() ||
-        first_node.optional_tag != second_node.optional_tag) {
+    if (first_node.optional_tag != second_node.optional_tag ||
+        !CanMergeReorder(second_node)) {
       continue;
     }
 
-    //     t0          t0
-    //      |           |
-    //  first_node      |
-    //      |           |
-    //     t1   -> second_node
-    //      |           |
-    // second_node      |
-    //      |           |
-    //     t2          t2
-    const BHWC interm_shape =
-        gpu_model->tensors[first_node.outputs[0]].GetBHWCShape();
-    second_node.inputs[0] = first_node.inputs[0];
-    second_node.name = first_node.name + " -> " + second_node.name;
-    ABSL_RETURN_IF_ERROR(second_node.gpu_operation->AddReorderOperation(
-        interm_shape, first_node.gpu_operation.get()));
+    if (second_node.gpu_operation->IsReorderOp()) {
+      //     t0          t0
+      //      |           |
+      //  first_node      |
+      //      |           |
+      //     t1   -> second_node
+      //      |           |
+      // second_node      |
+      //      |           |
+      //     t2          t2
+      const BHWC interm_shape =
+          gpu_model->tensors[first_node.outputs[0]].GetBHWCShape();
+      second_node.inputs[0] = first_node.inputs[0];
+      second_node.name = first_node.name + " -> " + second_node.name;
+      ABSL_RETURN_IF_ERROR(second_node.gpu_operation->AddReorderOperation(
+          interm_shape, first_node.gpu_operation.get()));
+    } else {
+      // Input reshape fusion.
+      const auto& in_desc = gpu_model->tensors[first_node.inputs[0]];
+      const auto& out_desc = gpu_model->tensors[first_node.outputs[0]];
+      const auto& src_names = second_node.gpu_operation->GetSrcTensorsNames();
+      int input_index = -1;
+      for (int i = 0; i < second_node.inputs.size(); ++i) {
+        if (second_node.inputs[i] == first_node.outputs[0]) {
+          input_index = i;
+          break;
+        }
+      }
+      second_node.name = first_node.name + " -> " + second_node.name;
+      second_node.gpu_operation->AddInputReorder(
+          src_names[input_index], first_node.gpu_operation->GetReorderCode(),
+          const_cast<TensorDescriptor*>(&in_desc),
+          const_cast<TensorDescriptor*>(&out_desc));
+      second_node.inputs[input_index] = first_node.inputs[0];
+    }
     nodes.erase(nodes.begin() + i);
     i -= 1;
   }
@@ -646,7 +680,7 @@ absl::Status ResolveArgs(GpuModel* gpu_model) {
 void ExpandSubgraphs(GpuModel* gpu_model) { ExpandSubgraphNodes(gpu_model); }
 
 absl::Status MergeNodes(const GpuInfo& gpu_info, GpuModel* gpu_model) {
-  ABSL_RETURN_IF_ERROR(MergeReorderNodes(gpu_model));
+  ABSL_RETURN_IF_ERROR(MergeReorderNodes(gpu_info, gpu_model));
   ABSL_RETURN_IF_ERROR(MergeElementwiseNodes(gpu_info, gpu_model));
   ABSL_RETURN_IF_ERROR(LinkNodes(gpu_info, gpu_model));
   return absl::OkStatus();

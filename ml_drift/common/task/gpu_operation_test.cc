@@ -152,5 +152,71 @@ void BM_AssembleCode(benchmark::State& state) {
 }
 BENCHMARK(BM_AssembleCode);
 
+TEST(GpuOperationTest, FuseInputReorderAllowed) {
+  GPUOperation op;
+
+  // Disabled by default
+  EXPECT_FALSE(op.FuseInputReorderAllowed());
+
+  op.AllowFuseInputReorder(true);
+  EXPECT_TRUE(op.FuseInputReorderAllowed());
+
+  op.AllowFuseInputReorder(false);
+  EXPECT_FALSE(op.FuseInputReorderAllowed());
+}
+
+TEST(GpuOperationTest, AddInputReorderUpdatesDescriptor) {
+  GPUOperation op;
+  TensorDescriptor orig_desc;
+  orig_desc.SetBHWDCShape(BHWDC(1, 8, 1, 1, 8));
+  op.args_.AddObjectRef("src_k", AccessType::READ,
+                        std::make_unique<TensorDescriptor>(orig_desc));
+
+  TensorDescriptor src_desc;
+  src_desc.SetBHWDCShape(BHWDC(1, 2, 4, 1, 8));
+  TensorDescriptor dst_desc;
+  dst_desc.SetBHWDCShape(BHWDC(1, 8, 1, 1, 8));
+
+  op.AddInputReorder("src_k", "SRC_X = DST_X; SRC_Y = DST_Y; SRC_S = DST_S;",
+                     &src_desc, &dst_desc);
+
+  TensorDescriptor desc;
+  MLD_EXPECT_OK(op.GetTensorDescriptor("src_k", &desc));
+  EXPECT_EQ(desc.GetBHWDCShape(), BHWDC(1, 2, 4, 1, 8));
+}
+
+TEST(GpuOperationTest, AssembleCodeWithInputReorder) {
+  GPUOperation op;
+  TensorDescriptor orig_desc(DataType::FLOAT32, TensorStorageType::BUFFER,
+                             Layout::BHWC);
+  orig_desc.SetBHWDCShape(BHWDC(1, 8, 1, 1, 8));
+  op.AddSrcTensor("src_k", orig_desc);
+
+  TensorDescriptor dst_tensor_desc(DataType::FLOAT32, TensorStorageType::BUFFER,
+                                   Layout::BHWC);
+  dst_tensor_desc.SetBHWDCShape(BHWDC(1, 8, 1, 1, 8));
+  op.AddDstTensor("dst_tensor", dst_tensor_desc);
+
+  TensorDescriptor src_desc(DataType::FLOAT32, TensorStorageType::BUFFER,
+                            Layout::BHWC);
+  src_desc.SetBHWDCShape(BHWDC(1, 2, 4, 1, 8));
+  TensorDescriptor dst_desc(DataType::FLOAT32, TensorStorageType::BUFFER,
+                            Layout::BHWC);
+  dst_desc.SetBHWDCShape(BHWDC(1, 8, 1, 1, 8));
+
+  op.AddInputReorder("src_k", "SRC_X = DST_X; SRC_Y = DST_Y; SRC_S = DST_S;",
+                     &src_desc, &dst_desc);
+  op.code_ = R"(
+MAIN_FUNCTION($0) {
+  args.dst_tensor::type v = args.src_k.Read(0, 0, 0, 0);
+  args.dst_tensor.Write(v, 0, 0, 0, 0);
+}
+)";
+
+  GpuInfo gpu_info;
+  gpu_info.gpu_api = GpuApi::kWebGpu;
+  MLD_EXPECT_OK(op.AssembleCode(gpu_info));
+}
+
 }  // namespace
 }  // namespace ml_drift

@@ -24,6 +24,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
 #include "flatbuffers/buffer.h"
 #include "flatbuffers/flatbuffer_builder.h"
@@ -87,6 +88,12 @@ struct CodeInfo {
   bool uses_sub_group_size = false;
 };
 
+struct LinkableContext {
+  std::string code;
+  TensorDescriptor* tensor_desc = nullptr;
+  TensorDescriptor* final_tensor_desc = nullptr;  // for reorder.
+};
+
 class GPUOperation {
  public:
   GPUOperation() = default;
@@ -148,9 +155,18 @@ class GPUOperation {
     reorder_code_ = code;
     reorder_op_ = true;
   }
+  const std::string& GetReorderCode() const { return reorder_code_; }
+  void AddInputReorder(const std::string& input_name, std::string reorder_code,
+                       TensorDescriptor* src_tensor_desc,
+                       TensorDescriptor* dst_tensor_desc);
   bool IsReorderOp() const { return reorder_op_; }
   void ResolveReorderFinalShape(const BHWC& final_shape);
   void ResolveReorderFinalShape(const BHWDC& final_shape);
+
+  void AllowFuseInputReorder(bool value = true) {
+    allow_fuse_input_reorder_ = value;
+  }
+  bool FuseInputReorderAllowed() const { return allow_fuse_input_reorder_; }
 
   virtual absl::Status BindArguments(ArgumentsBinder* args) {
     return absl::OkStatus();
@@ -250,8 +266,11 @@ class GPUOperation {
   bool reorder_op_ = false;   // temporary, used during op construction
   int reorder_op_count_ = 0;  // temporary, used during op construction
   std::string reorder_code_;  // temporary, used during op construction
+  absl::flat_hash_map<std::string, LinkableContext> input_reorder_linkables_;
 
   bool const_expr_resolved_ = false;  // temporary, used during op construction
+  bool allow_fuse_input_reorder_ =
+      false;  // temporary, used during op construction
 };
 
 GPUOperation CreateGpuOperation(const TensorDescriptor& src,

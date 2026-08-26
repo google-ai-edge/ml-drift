@@ -229,6 +229,7 @@ GPUOperation CreateSplitRoPEConcat(const GpuInfo& gpu_info,
       {{"Type", ToUclDataType(definition.dst_tensors[0].GetDataType(), 4)}},
       &code);
   op.code_ = code;
+  op.AllowFuseInputReorder(true);
   return op;
 }
 }  // namespace ml_drift

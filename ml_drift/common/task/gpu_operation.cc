@@ -747,14 +747,6 @@ void ReplaceAllWords(const std::string& old_word, const std::string& new_word,
   }
 }
 
-struct LinkableContext {
-  std::string code;
-  TensorDescriptor* tensor_desc;
-
-  // for reorder
-  TensorDescriptor* final_tensor_desc;
-};
-
 absl::StatusOr<std::string> ResolveLinking(
     const GpuInfo& gpu_info, const LinkableContext& linkable_context,
     std::vector<std::string>* function_args) {
@@ -1129,7 +1121,8 @@ GPUOperation::GPUOperation(GPUOperation&& operation)
       elementwise_code_(std::move(operation.elementwise_code_)),
       reorder_op_(operation.reorder_op_),
       reorder_op_count_(operation.reorder_op_count_),
-      reorder_code_(std::move(operation.reorder_code_)) {}
+      reorder_code_(std::move(operation.reorder_code_)),
+      allow_fuse_input_reorder_(operation.allow_fuse_input_reorder_) {}
 
 GPUOperation& GPUOperation::operator=(GPUOperation&& operation) {
   if (this != &operation) {
@@ -1160,6 +1153,7 @@ GPUOperation& GPUOperation::operator=(GPUOperation&& operation) {
     std::swap(reorder_op_, operation.reorder_op_);
     std::swap(reorder_op_count_, operation.reorder_op_count_);
     reorder_code_ = std::move(operation.reorder_code_);
+    std::swap(allow_fuse_input_reorder_, operation.allow_fuse_input_reorder_);
   }
   return *this;
 }
@@ -1419,11 +1413,6 @@ absl::Status GPUOperation::AssembleCode(const GpuInfo& gpu_info) {
   }
   std::map<std::string, LinkableContext, std::less<>> linkables;
   if (!reorder_code_.empty()) {
-    // declaring src coords for reorder operation
-    const std::string patch = "  int r_s_x, r_s_y, r_s_s, r_s_b;\n";
-    code_ = absl::StrReplaceAll(
-        code_, {{"MAIN_FUNCTION($0) {", "MAIN_FUNCTION($0) {\n" + patch}});
-
     if (src_objects_names_.empty() || dst_objects_names_.empty()) {
       return absl::InvalidArgumentError(
           "Invalid operation, src_objects_names_ or dst_objects_names_ empty.");
@@ -1439,6 +1428,15 @@ absl::Status GPUOperation::AssembleCode(const GpuInfo& gpu_info) {
     link_context.tensor_desc = src_tensor_desc;
     link_context.final_tensor_desc = dst_tensor_desc;
     linkables[src_objects_names_[0]] = link_context;
+  }
+  for (const auto& [name, context] : input_reorder_linkables_) {
+    linkables[name] = context;
+  }
+  if (!linkables.empty()) {
+    // declaring src coords for reorder operation
+    const std::string patch = "  int r_s_x, r_s_y, r_s_s, r_s_b;\n";
+    code_ = absl::StrReplaceAll(
+        code_, {{"MAIN_FUNCTION($0) {", "MAIN_FUNCTION($0) {\n" + patch}});
   }
   if (!elementwise_code_.empty()) {
     if (dst_objects_names_.empty()) {
@@ -1474,6 +1472,22 @@ absl::Status GPUOperation::AssembleCode(const GpuInfo& gpu_info) {
 void GPUOperation::RecalculateWorkGroupsCount() {
   work_groups_count_ = GetWorkGroupsCountInternal(
       grid_dimension_, grid_size_, work_group_size_, work_group_launch_order_);
+}
+
+void GPUOperation::AddInputReorder(const std::string& input_name,
+                                   std::string reorder_code,
+                                   TensorDescriptor* src_tensor_desc,
+                                   TensorDescriptor* dst_tensor_desc) {
+  LinkableContext link_context;
+  link_context.code = std::move(reorder_code);
+  link_context.tensor_desc = src_tensor_desc;
+  link_context.final_tensor_desc = dst_tensor_desc;
+  input_reorder_linkables_[input_name] = link_context;
+  GPUObjectDescriptor* desc_ptr = nullptr;
+  if (src_tensor_desc && args_.GetDescriptor(input_name, &desc_ptr).ok() &&
+      desc_ptr && desc_ptr->IsTensorDescriptor()) {
+    *static_cast<TensorDescriptor*>(desc_ptr) = *src_tensor_desc;
+  }
 }
 
 void GPUOperation::CalculateConstArgsSize() {

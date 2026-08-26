@@ -650,4 +650,99 @@ TEST(MergeNodesTest, ExpandSubgraphWithConstTensor) {
   EXPECT_EQ(gpu_model.const_tensors.size(), 1);
 }
 
+TEST(MergeNodesTest, MergeLinear1DReshapes) {
+  GpuInfo gpu_info;
+  gpu_info.gpu_api = GpuApi::kWebGpu;
+  gpu_info.vendor = GpuVendor::kApple;
+
+  GpuModelBuilderOptions options;
+  options.storage = TensorStorageType::BUFFER;
+  GpuModelBuilder model_builder(gpu_info, options);
+  auto src_th = model_builder.AddTensor(BHWC(1, 1, 32, 16), DataType::FLOAT32);
+  auto pos_th = model_builder.AddTensor(BHWC(1, 1, 1, 1), DataType::INT32);
+  auto reshaped = model_builder.Reshape(src_th, BHWC(1, 32, 1, 16));
+  RoPEAttributes rope_attr;
+  auto out = model_builder.SplitRoPEConcat(reshaped, pos_th, rope_attr);
+
+  GpuModel gpu_model;
+  MLD_ASSERT_OK(
+      model_builder.GetGpuModel(std::vector<unsigned int>{src_th.id, pos_th.id},
+                                std::vector<unsigned int>{out.id}, &gpu_model));
+  // Reshape should be eliminated.
+  EXPECT_EQ(gpu_model.nodes.size(), 1);
+  EXPECT_TRUE(absl::StrContains(gpu_model.nodes[0].name, "SplitRoPEConcat"));
+}
+
+TEST(MergeNodesTest, MergeLinear2DReshapes) {
+  GpuInfo gpu_info;
+  gpu_info.gpu_api = GpuApi::kWebGpu;
+  gpu_info.vendor = GpuVendor::kApple;
+
+  GpuModelBuilderOptions options;
+  options.storage = TensorStorageType::BUFFER;
+  GpuModelBuilder model_builder(gpu_info, options);
+  auto src_th = model_builder.AddTensor(BHWC(1, 2, 32, 16), DataType::FLOAT32);
+  auto pos_th = model_builder.AddTensor(BHWC(1, 1, 1, 1), DataType::INT32);
+  auto reshaped = model_builder.Reshape(src_th, BHWC(1, 32, 2, 16));
+  RoPEAttributes rope_attr;
+  auto out = model_builder.SplitRoPEConcat(reshaped, pos_th, rope_attr);
+
+  GpuModel gpu_model;
+  MLD_ASSERT_OK(
+      model_builder.GetGpuModel(std::vector<unsigned int>{src_th.id, pos_th.id},
+                                std::vector<unsigned int>{out.id}, &gpu_model));
+  // Reshape should be eliminated.
+  EXPECT_EQ(gpu_model.nodes.size(), 1);
+  EXPECT_TRUE(absl::StrContains(gpu_model.nodes[0].name, "SplitRoPEConcat"));
+}
+
+TEST(MergeNodesTest, DontMergeLinear1DReshapesUnsupportedConsumer) {
+  GpuInfo gpu_info;
+  gpu_info.gpu_api = GpuApi::kWebGpu;
+  gpu_info.vendor = GpuVendor::kApple;
+
+  GpuModelBuilderOptions options;
+  options.storage = TensorStorageType::BUFFER;
+  GpuModelBuilder model_builder(gpu_info, options);
+  auto src_th = model_builder.AddTensor(BHWC(1, 1, 32, 16), DataType::FLOAT32);
+  auto pos_th = model_builder.AddTensor(BHWC(1, 1, 1, 1), DataType::INT32);
+  auto reshaped = model_builder.Reshape(src_th, BHWC(1, 32, 1, 16));
+  auto out = model_builder.PositionalEmbedding(reshaped, pos_th);
+
+  GpuModel gpu_model;
+  MLD_ASSERT_OK(
+      model_builder.GetGpuModel(std::vector<unsigned int>{src_th.id, pos_th.id},
+                                std::vector<unsigned int>{out.id}, &gpu_model));
+  // Reshape should not be eliminated because PositionalEmbedding consumer does
+  // not support input reshape fusion.
+  EXPECT_EQ(gpu_model.nodes.size(), 2);
+  EXPECT_TRUE(absl::StrContains(gpu_model.nodes[0].name, "reshape"));
+  EXPECT_TRUE(absl::StrContains(gpu_model.nodes[1].name, "add_position_emb"));
+}
+
+TEST(MergeNodesTest, DontMergeLinear1DReshapesGraphOutput) {
+  GpuInfo gpu_info;
+  gpu_info.gpu_api = GpuApi::kWebGpu;
+  gpu_info.vendor = GpuVendor::kApple;
+
+  GpuModelBuilderOptions options;
+  options.storage = TensorStorageType::BUFFER;
+  GpuModelBuilder model_builder(gpu_info, options);
+  auto src_th = model_builder.AddTensor(BHWC(1, 1, 32, 16), DataType::FLOAT32);
+  auto pos_th = model_builder.AddTensor(BHWC(1, 1, 1, 1), DataType::INT32);
+  auto reshaped = model_builder.Reshape(src_th, BHWC(1, 32, 1, 16));
+  RoPEAttributes rope_attr;
+  auto out = model_builder.SplitRoPEConcat(reshaped, pos_th, rope_attr);
+
+  GpuModel gpu_model;
+  // reshaped is marked as an external graph output.
+  MLD_ASSERT_OK(model_builder.GetGpuModel(
+      std::vector<unsigned int>{src_th.id, pos_th.id},
+      std::vector<unsigned int>{reshaped.id, out.id}, &gpu_model));
+  // Reshape should not be eliminated because its output is a graph output.
+  EXPECT_EQ(gpu_model.nodes.size(), 2);
+  EXPECT_TRUE(absl::StrContains(gpu_model.nodes[0].name, "reshape"));
+  EXPECT_TRUE(absl::StrContains(gpu_model.nodes[1].name, "SplitRoPEConcat"));
+}
+
 }  // namespace ml_drift

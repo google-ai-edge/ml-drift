@@ -102,6 +102,7 @@ cc_library(
         "//ml_drift/common:shape",
         "//ml_drift/common:types",
         "//ml_drift/common:util",
+        "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:status_macros",
         "@com_google_absl//absl/strings",
