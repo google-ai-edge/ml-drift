@@ -175,7 +175,9 @@ void FuseConvolution2DWithMultiply(const ElementwiseAttributes& mul_attr,
                                    Convolution2DAttributes* attr) {
   auto mul = std::get_if<Tensor<Linear, DataType::FLOAT32>>(&mul_attr.param);
   auto mul_scalar = GetIfFloatScalar(&mul_attr.param);
+  if (!mul && !mul_scalar) return;
   auto& weights = GetFloatWeights(*attr);
+  if (weights.data.empty()) return;
   for (int d = 0; d < weights.shape.o; ++d) {
     const float multiplier = mul ? mul->data[d] : *mul_scalar;
     for (int s = 0; s < weights.shape.i; ++s) {
@@ -197,7 +199,9 @@ void FuseDepthwiseConvolution2DWithMultiply(
     DepthwiseConvolution2DAttributes* attr) {
   auto mul = std::get_if<Tensor<Linear, DataType::FLOAT32>>(&mul_attr.param);
   auto mul_scalar = GetIfFloatScalar(&mul_attr.param);
+  if (!mul && !mul_scalar) return;
   auto& weights = GetFloatWeights(*attr);
+  if (weights.data.empty()) return;
   for (int g = 0; g < weights.shape.o; ++g) {
     for (int s = 0; s < weights.shape.i; ++s) {
       const int d = s * weights.shape.o + g;
@@ -220,6 +224,8 @@ void FuseConvolutionTransposedWithMultiply(
     ConvolutionTransposedAttributes* attr) {
   auto mul = std::get_if<Tensor<Linear, DataType::FLOAT32>>(&mul_attr.param);
   auto mul_scalar = GetIfFloatScalar(&mul_attr.param);
+  if (!mul && !mul_scalar) return;
+  if (attr->weights.data.empty()) return;
   for (int d = 0; d < attr->weights.shape.o; ++d) {
     const float multiplier = mul ? mul->data[d] : *mul_scalar;
     for (int s = 0; s < attr->weights.shape.i; ++s) {
@@ -240,6 +246,8 @@ void FuseFullyConnectedWithMultiply(const ElementwiseAttributes& mul_attr,
                                     FullyConnectedAttributes* attr) {
   auto mul = std::get_if<Tensor<Linear, DataType::FLOAT32>>(&mul_attr.param);
   auto mul_scalar = GetIfFloatScalar(&mul_attr.param);
+  if (!mul && !mul_scalar) return;
+  if (attr->weights.data.empty()) return;
   for (int d = 0; d < attr->weights.shape.o; ++d) {
     const float multiplier = mul ? mul->data[d] : *mul_scalar;
     for (int s = 0; s < attr->weights.shape.i; ++s) {
@@ -256,7 +264,9 @@ void FuseMultiplyWithConvolution2D(const ElementwiseAttributes& mul_attr,
                                    Convolution2DAttributes* attr) {
   auto mul = std::get_if<Tensor<Linear, DataType::FLOAT32>>(&mul_attr.param);
   auto mul_scalar = GetIfFloatScalar(&mul_attr.param);
+  if (!mul && !mul_scalar) return;
   auto& weights = GetFloatWeights(*attr);
+  if (weights.data.empty()) return;
   for (int s = 0; s < weights.shape.i; ++s) {
     const float multiplier = mul ? mul->data[s] : *mul_scalar;
     for (int d = 0; d < weights.shape.o; ++d) {
@@ -275,7 +285,9 @@ void FuseMultiplyWithDepthwiseConvolution2D(
     DepthwiseConvolution2DAttributes* attr) {
   auto mul = std::get_if<Tensor<Linear, DataType::FLOAT32>>(&mul_attr.param);
   auto mul_scalar = GetIfFloatScalar(&mul_attr.param);
+  if (!mul && !mul_scalar) return;
   auto& weights = GetFloatWeights(*attr);
+  if (weights.data.empty()) return;
   for (int s = 0; s < weights.shape.i; ++s) {
     const float multiplier = mul ? mul->data[s] : *mul_scalar;
     for (int g = 0; g < weights.shape.o; ++g) {
@@ -294,6 +306,8 @@ void FuseMultiplyWithConvolutionTransposed(
     ConvolutionTransposedAttributes* attr) {
   auto mul = std::get_if<Tensor<Linear, DataType::FLOAT32>>(&mul_attr.param);
   auto mul_scalar = GetIfFloatScalar(&mul_attr.param);
+  if (!mul && !mul_scalar) return;
+  if (attr->weights.data.empty()) return;
   for (int s = 0; s < attr->weights.shape.i; ++s) {
     const float multiplier = mul ? mul->data[s] : *mul_scalar;
     for (int d = 0; d < attr->weights.shape.o; ++d) {
@@ -311,6 +325,8 @@ void FuseMultiplyWithFullyConnected(const ElementwiseAttributes& mul_attr,
                                     FullyConnectedAttributes* attr) {
   auto mul = std::get_if<Tensor<Linear, DataType::FLOAT32>>(&mul_attr.param);
   auto mul_scalar = GetIfFloatScalar(&mul_attr.param);
+  if (!mul && !mul_scalar) return;
+  if (attr->weights.data.empty()) return;
   for (int s = 0; s < attr->weights.shape.i; ++s) {
     const float multiplier = mul ? mul->data[s] : *mul_scalar;
     for (int d = 0; d < attr->weights.shape.o; ++d) {

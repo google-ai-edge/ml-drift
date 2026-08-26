@@ -36,6 +36,7 @@ void FuseBiasWithAddAttributes(const ElementwiseAttributes& add_attr,
                                Tensor<Linear, DataType::FLOAT32>* bias) {
   auto add = std::get_if<Tensor<Linear, DataType::FLOAT32>>(&add_attr.param);
   auto add_scalar = GetIfFloatScalar(&add_attr.param);
+  if (!add && !add_scalar) return;
   if (bias->data.empty()) {
     *bias = MakeZeroTensor<Linear, DataType::FLOAT32>(Linear(channels));
   }
@@ -111,7 +112,9 @@ void FuseAddWithConvolution2D(const ElementwiseAttributes& add_attr,
                               Convolution2DAttributes* attr) {
   auto add = std::get_if<Tensor<Linear, DataType::FLOAT32>>(&add_attr.param);
   auto add_scalar = GetIfFloatScalar(&add_attr.param);
+  if (!add && !add_scalar) return;
   const auto& weights = GetFloatWeights(*attr);
+  if (weights.data.empty()) return;
   if (attr->bias.data.empty()) {
     attr->bias =
         MakeZeroTensor<Linear, DataType::FLOAT32>(Linear(weights.shape.o));

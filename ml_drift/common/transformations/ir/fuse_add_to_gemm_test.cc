@@ -14,6 +14,7 @@
 
 #include <any>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "gmock/gmock.h"
@@ -318,6 +319,80 @@ TEST(FuseAddAfterFullyConnectedTest, MathVerification) {
   EXPECT_THAT(attr.weights.data,
               Pointwise(FloatNear(1e-6), {0.1f, 0.2f, 0.3f, 0.4f}));
   EXPECT_THAT(attr.bias.data, Pointwise(FloatNear(1e-6), {1.4f, 1.9f}));
+}
+
+TEST(FuseAddToGemmTest, MultiInputGemmDeclinesFusion) {
+  IrModel model;
+
+  IrTensor* input = model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 8));
+  IrTensor* weights_tensor =
+      model.add_tensor(DataType::FLOAT32, BHWC(1, 1, 8, 16));
+  IrTensor* intermediate =
+      model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 16));
+  IrTensor* output = model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 16));
+  model.add_input(input->id);
+  model.add_input(weights_tensor->id);
+  model.add_output(output->id);
+
+  IrOp* main_op = model.add_op();
+  main_op->name = ToString(OperationType::CONVOLUTION_2D);
+  main_op->attr = GetDefaultAttr(OperationType::CONVOLUTION_2D);
+  model.AddConsumer(input->id, main_op->id);
+  model.AddConsumer(weights_tensor->id, main_op->id);
+  model.SetProducer(intermediate->id, main_op->id);
+
+  IrOp* add_op = model.add_op();
+  add_op->name = ToString(OperationType::ADD);
+  add_op->attr = GetAddAttr();
+  model.AddConsumer(intermediate->id, add_op->id);
+  model.SetProducer(output->id, add_op->id);
+
+  IrOpId add_op_id = add_op->id;
+  EXPECT_TRUE(TransformIrModel(&model).ok());
+
+  // Add must NOT be fused into main_op because main_op has 2 inputs.
+  EXPECT_NE(model.op(add_op_id), nullptr);
+  EXPECT_NE(model.op(main_op->id), nullptr);
+}
+
+TEST(FuseAddToGemmTest, EmptyWeightsDataDeclinesProducerFusion) {
+  IrModel model;
+
+  ElementwiseAttributes add_attr;
+  Tensor<Linear, DataType::FLOAT32> add_tensor;
+  add_tensor.shape = Linear(8);
+  add_tensor.data.resize(8, 0.3f);
+  add_attr.param = add_tensor;
+
+  IrTensor* input = model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 8));
+  IrTensor* intermediate =
+      model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 8));
+  IrTensor* output = model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 16));
+  model.add_input(input->id);
+  model.add_output(output->id);
+
+  IrOp* add_op = model.add_op();
+  add_op->name = ToString(OperationType::ADD);
+  add_op->attr = add_attr;
+  model.AddConsumer(input->id, add_op->id);
+  model.SetProducer(intermediate->id, add_op->id);
+
+  IrOp* main_op = model.add_op();
+  main_op->name = ToString(OperationType::CONVOLUTION_2D);
+  Convolution2DAttributes attr;
+  auto& weights = attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
+  weights.shape = OHWI(16, 3, 2, 8);
+  // weights.data is empty
+  main_op->attr = std::move(attr);
+  model.AddConsumer(intermediate->id, main_op->id);
+  model.SetProducer(output->id, main_op->id);
+
+  IrOpId add_op_id = add_op->id;
+  EXPECT_TRUE(TransformIrModel(&model).ok());
+
+  // Producer Add must NOT be fused into main_op because weights.data is empty.
+  EXPECT_NE(model.op(add_op_id), nullptr);
+  EXPECT_NE(model.op(main_op->id), nullptr);
 }
 
 }  // namespace

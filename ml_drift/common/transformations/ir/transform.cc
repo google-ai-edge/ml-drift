@@ -178,9 +178,25 @@ absl::StatusOr<bool> TryFusePad(IrModel* ir_model, const IrOp* op) {
 }
 
 template <typename AttrType>
+bool HasNonEmptyWeights(const AttrType* attr) {
+  if constexpr (std::is_same_v<AttrType, Convolution2DAttributes> ||
+                std::is_same_v<AttrType, DepthwiseConvolution2DAttributes>) {
+    return std::visit([](const auto& w) { return !w.data.empty(); },
+                      attr->weights);
+  } else if constexpr (std::is_same_v<AttrType,
+                                      ConvolutionTransposedAttributes> ||
+                       std::is_same_v<AttrType, FullyConnectedAttributes>) {
+    return !attr->weights.data.empty();
+  } else {
+    return false;
+  }
+}
+
+template <typename AttrType>
 absl::StatusOr<bool> TryAbsorbProducer(IrModel* ir_model, const IrOp* gemm_op,
                                        AttrType* attr) {
   if (gemm_op->inputs.size() != 1) return false;
+  if (!HasNonEmptyWeights(attr)) return false;
   const IrTensor* input_tensor = ir_model->tensor(gemm_op->inputs[0]);
   if (!input_tensor || !input_tensor->producer.has_value() ||
       input_tensor->consumers.size() != 1) {
@@ -238,6 +254,7 @@ absl::StatusOr<bool> TryAbsorbProducer(IrModel* ir_model, const IrOp* gemm_op,
 template <typename AttrType>
 absl::StatusOr<bool> TryAbsorbConsumer(IrModel* ir_model, const IrOp* gemm_op,
                                        AttrType* attr) {
+  if (gemm_op->inputs.size() != 1) return false;
   if (gemm_op->outputs.size() != 1) return false;
 
   const IrTensor* output_tensor = ir_model->tensor(gemm_op->outputs[0]);
@@ -272,6 +289,7 @@ absl::StatusOr<bool> TryAbsorbConsumer(IrModel* ir_model, const IrOp* gemm_op,
     // Try to merge with MUL
   } else if (consumer->name == ToString(OperationType::MUL) &&
              consumer->attr.type() == typeid(ElementwiseAttributes)) {
+    if (!HasNonEmptyWeights(attr)) return false;
     auto mul_attr = std::any_cast<ElementwiseAttributes>(consumer->attr);
     if (!std::holds_alternative<Tensor<Linear, DataType::FLOAT32>>(
             mul_attr.param) &&

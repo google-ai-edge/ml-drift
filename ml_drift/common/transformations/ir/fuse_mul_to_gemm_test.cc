@@ -14,6 +14,7 @@
 
 #include <any>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "gmock/gmock.h"
@@ -408,6 +409,74 @@ TEST(FuseMulBeforeFullyConnectedTest, MathVerification) {
   EXPECT_THAT(attr.weights.data,
               Pointwise(FloatNear(1e-6), {0.05f, 0.4f, 0.15f, 0.8f}));
   EXPECT_THAT(attr.bias.data, Pointwise(FloatNear(1e-6), {1.5f, 2.5f}));
+}
+
+TEST(FuseMulToGemmTest, MultiInputGemmDeclinesFusion) {
+  IrModel model;
+
+  IrTensor* input = model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 8));
+  IrTensor* weights_tensor =
+      model.add_tensor(DataType::FLOAT32, BHWC(1, 1, 8, 16));
+  IrTensor* intermediate =
+      model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 16));
+  IrTensor* output = model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 16));
+  model.add_input(input->id);
+  model.add_input(weights_tensor->id);
+  model.add_output(output->id);
+
+  IrOp* main_op = model.add_op();
+  main_op->name = ToString(OperationType::CONVOLUTION_2D);
+  main_op->attr = GetDefaultAttr(OperationType::CONVOLUTION_2D);
+  model.AddConsumer(input->id, main_op->id);
+  model.AddConsumer(weights_tensor->id, main_op->id);
+  model.SetProducer(intermediate->id, main_op->id);
+
+  IrOp* mul_op = model.add_op();
+  mul_op->name = ToString(OperationType::MUL);
+  mul_op->attr = GetMulAttr();
+  model.AddConsumer(intermediate->id, mul_op->id);
+  model.SetProducer(output->id, mul_op->id);
+
+  IrOpId mul_op_id = mul_op->id;
+  EXPECT_TRUE(TransformIrModel(&model).ok());
+
+  // Mul must NOT be fused into main_op because main_op has 2 inputs.
+  EXPECT_NE(model.op(mul_op_id), nullptr);
+  EXPECT_NE(model.op(main_op->id), nullptr);
+}
+
+TEST(FuseMulToGemmTest, EmptyWeightsDataDeclinesFusion) {
+  IrModel model;
+
+  IrTensor* input = model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 8));
+  IrTensor* intermediate =
+      model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 16));
+  IrTensor* output = model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 16));
+  model.add_input(input->id);
+  model.add_output(output->id);
+
+  IrOp* main_op = model.add_op();
+  main_op->name = ToString(OperationType::CONVOLUTION_2D);
+  Convolution2DAttributes attr;
+  auto& weights = attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
+  weights.shape = OHWI(16, 3, 2, 8);
+  // weights.data is empty
+  main_op->attr = std::move(attr);
+  model.AddConsumer(input->id, main_op->id);
+  model.SetProducer(intermediate->id, main_op->id);
+
+  IrOp* mul_op = model.add_op();
+  mul_op->name = ToString(OperationType::MUL);
+  mul_op->attr = GetMulAttr();
+  model.AddConsumer(intermediate->id, mul_op->id);
+  model.SetProducer(output->id, mul_op->id);
+
+  IrOpId mul_op_id = mul_op->id;
+  EXPECT_TRUE(TransformIrModel(&model).ok());
+
+  // Mul must NOT be fused into main_op because weights.data is empty.
+  EXPECT_NE(model.op(mul_op_id), nullptr);
+  EXPECT_NE(model.op(main_op->id), nullptr);
 }
 
 }  // namespace
