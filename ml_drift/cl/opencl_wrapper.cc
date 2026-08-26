@@ -14,6 +14,7 @@
 
 #include "ml_drift/cl/opencl_wrapper.h"
 
+#include "absl/debugging/leak_check.h"
 #include "ml_drift/cl/default/qcom_wrapper.h"
 
 #if defined(_WIN32)
@@ -103,6 +104,7 @@ absl::Status HasPlatform() {
     return absl::UnknownError("clGetPlatformIDs is not loaded.");
   }
   cl_uint num_platforms;
+  absl::LeakCheckDisabler disabler;
   cl_int status = clGetPlatformIDs(0, nullptr, &num_platforms);
   if (status == CL_SUCCESS && num_platforms != 0) {
     return absl::OkStatus();

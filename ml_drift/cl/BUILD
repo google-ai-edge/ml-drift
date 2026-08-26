@@ -508,6 +508,7 @@ cc_library(
         "//conditions:default": ["-ldl"],  # opencl_wrapper calls dlopen()
     }),
     deps = [
+        "@com_google_absl//absl/debugging:leak_check",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
         "@opencl_headers",
