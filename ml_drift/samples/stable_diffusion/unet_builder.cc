@@ -73,9 +73,14 @@ absl::Status UnetBuilder::Build(
     input_tensor = builder_ptr_->Concat(src_tensor, masked_image_latent_tensor,
                                         Axis::CHANNELS);
   }
-  auto temb_tensor = builder_ptr_->AddTensor(
-      BHWC(1, 1, 1, config.model_channels * config.channel_mult[0]),
-      float_type);
+  GpuModelBuilder::TensorHandle temb_tensor;
+  if (temb_ptr && temb_ptr->tensor_desc.GetBHWCShape().c > 0) {
+    temb_tensor = *temb_ptr;
+  } else {
+    temb_tensor = builder_ptr_->AddTensor(
+        BHWC(1, 1, 1, config.model_channels * config.channel_mult[0]),
+        float_type);
+  }
   auto guidance_tensor =
       builder_ptr_->AddTensor(BHWC(1, 2, 77, config.context_dim), float_type);
   auto text_proj_tensor =
@@ -153,9 +158,14 @@ absl::Status UnetBuilder::BuildControlNet(
       BHWC(1, height, width, config.in_channels), float_type);
   auto condition_tensor =
       builder_ptr_->AddTensor(BHWC(1, height * 8, width * 8, 3), float_type);
-  auto temb_tensor = builder_ptr_->AddTensor(
-      BHWC(1, 1, 1, config.model_channels * config.channel_mult[0]),
-      float_type);
+  GpuModelBuilder::TensorHandle temb_tensor;
+  if (temb_ptr && temb_ptr->tensor_desc.GetBHWCShape().c > 0) {
+    temb_tensor = *temb_ptr;
+  } else {
+    temb_tensor = builder_ptr_->AddTensor(
+        BHWC(1, 1, 1, config.model_channels * config.channel_mult[0]),
+        float_type);
+  }
   auto guidance_tensor =
       builder_ptr_->AddTensor(BHWC(1, 2, 77, config.context_dim), float_type);
 
@@ -215,9 +225,14 @@ absl::Status UnetBuilder::BuildUNetWithPlugins(
 
   auto src_tensor = builder_ptr_->AddTensor(
       BHWC(1, height, width, config.in_channels), float_type);
-  auto temb_tensor = builder_ptr_->AddTensor(
-      BHWC(1, 1, 1, config.model_channels * config.channel_mult[0]),
-      float_type);
+  GpuModelBuilder::TensorHandle temb_tensor;
+  if (temb_ptr && temb_ptr->tensor_desc.GetBHWCShape().c > 0) {
+    temb_tensor = *temb_ptr;
+  } else {
+    temb_tensor = builder_ptr_->AddTensor(
+        BHWC(1, 1, 1, config.model_channels * config.channel_mult[0]),
+        float_type);
+  }
   auto guidance_tensor =
       builder_ptr_->AddTensor(BHWC(1, 2, 77, config.context_dim), float_type);
   plugin_tensors->emplace_back(

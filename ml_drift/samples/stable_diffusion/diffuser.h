@@ -175,6 +175,12 @@ class Diffuser {
     absl::Status Init(const Config& runner_config, int width, int height,
                       Environment* env);
 
+    Tensor* GetInputLatentTensor() {
+      return inference_context_.GetTensor(src_input_.id);
+    }
+    Tensor* GetOutputLatentTensor() {
+      return inference_context_.GetTensor(src_.id);
+    }
     Tensor* GetLatentTensor() { return inference_context_.GetTensor(src_.id); }
     Tensor* GetTembTensor() { return inference_context_.GetTensor(temb_.id); }
     Tensor* GetMaskedImageTensor() {
@@ -203,16 +209,24 @@ class Diffuser {
       };
     }
     absl::Status GenerateNoiseInput(CLCommandQueue* queue, uint32_t base_seed);
-    absl::Status Execute(CLCommandQueue* queue, int step_index);
+    absl::Status Execute(CLCommandQueue* queue, int step_index,
+                         float guidance_scale, float sqrt_alpha,
+                         float sqrt_alpha_prev, float sqrt_one_minus_alpha,
+                         float sqrt_one_minus_alpha_prev);
     absl::Status LogDebugTensor(CLCommandQueue* queue);
 
-   private:
-    GpuModelBuilder::TensorHandle src_, temb_, guidance_, eta0_, eta1_, dbg_,
-        plugins_strength_, masked_image_;
-    std::vector<GpuModelBuilder::TensorHandle> plugin_tensors_;
-    InferenceContext inference_context_;
-    OpHolder temb_generation_op_;
+    GpuModelBuilder::TensorHandle index_val_, guidance_scale_, sqrt_alpha_,
+        sqrt_alpha_prev_, sqrt_one_minus_alpha_, sqrt_one_minus_alpha_prev_;
+
     OpHolder noise_op_;
+    std::vector<half> alphas_;
+    std::vector<half> alphas_prev_;
+    InferenceContext inference_context_;
+
+   private:
+    GpuModelBuilder::TensorHandle src_, src_input_, temb_, guidance_, eta0_,
+        eta1_, dbg_, plugins_strength_, masked_image_;
+    std::vector<GpuModelBuilder::TensorHandle> plugin_tensors_;
   };
 
   // Image decoder.
@@ -236,33 +250,12 @@ class Diffuser {
     InferenceContext inference_context_;
   };
 
-  // The diffusion stepper to remove the predicted noise from the latent tensor
-  // after each reverse diffusion step.
-  class DiffusionStepper {
-   public:
-    absl::Status Init(const Config& runner_config, Environment* env);
-
-    absl::Status StepCustomOp(CLCommandQueue* queue, Tensor* xIn,
-                              Tensor* etaUncondIn, Tensor* etaCondIn,
-                              Tensor* dst, int tIn, int tPrevIn,
-                              float guidanceScaleIn);
-
-   private:
-    OpHolder custom_op_;
-    OpHolder noise_op_;
-    Tensor noise_;
-    bool run_lcm_stepper_ = false;
-    std::vector<half> alphas_;
-    std::vector<half> alphas_prev_;
-  };
-
   Config config_;
   std::unique_ptr<Environment> env_;
   std::unique_ptr<BPETokenizer> bpe_tokenizer_;
   std::unique_ptr<TextGuidance> text_guidance_graph_;
   std::unique_ptr<UNet> unet_;
   std::unique_ptr<Decoder> decoder_;
-  std::unique_ptr<DiffusionStepper> diffusion_stepper_;
   std::unique_ptr<OpHolder> copier_;
   ml_drift::Tensor<BHWC, DataType::INT32> tokens_;
   Tensor latent_copy_;
@@ -271,7 +264,6 @@ class Diffuser {
   Diffuser(const Diffuser::Config& config, std::unique_ptr<Environment> env,
            std::unique_ptr<TextGuidance> text_guidance_graph,
            std::unique_ptr<UNet> unet,
-           std::unique_ptr<DiffusionStepper> diffusion_stepper,
            std::unique_ptr<Decoder> decoder, std::unique_ptr<OpHolder> copier,
            Tensor latent_copy);
 };

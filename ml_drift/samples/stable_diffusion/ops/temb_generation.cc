@@ -35,13 +35,14 @@ std::string GetTembGenerationCode() {
     if (X >= args.dst.Width() || Y >= args.dst.Height() ||
         S >= args.dst.Slices())
       return;
+  float index_val = args.index_val.Read(0, 0, 0).x;
   if (S < args.half_slices) {
     args.dst::type result = ucl::Convert<args.dst::type>(
-        cos(args.coeffs.Read(S) * args.index_val));
+        cos(args.coeffs.Read(S) * index_val));
     args.dst.Write(result, X, Y, S);
   } else {
     args.dst::type result = ucl::Convert<args.dst::type>(
-        sin(args.coeffs.Read(S - args.half_slices) * args.index_val));
+        sin(args.coeffs.Read(S - args.half_slices) * index_val));
     args.dst.Write(result, X, Y, S);
   }
 })";
@@ -52,7 +53,6 @@ class TembGeneration : public OpBase {
  public:
   // clang-format off
   MLD_DECLARE_OP_ATTRS(
-      MLD_OP_ATTR(float, index_val, 0.0f),
       MLD_OP_ATTR(int, storage_type, 0),
       MLD_OP_ATTR(int, channels, 320)
   )
@@ -63,8 +63,8 @@ class TembGeneration : public OpBase {
       const std::vector<GpuModelBuilder::TensorHandle>& inputs,
       const OpAttrs& attrs,
       std::vector<GpuModelBuilder::TensorHandle>& outputs) const override {
-    if (!inputs.empty()) {
-      return absl::InvalidArgumentError("TembGeneration expects 0 inputs");
+    if (inputs.size() != 1) {
+      return absl::InvalidArgumentError("TembGeneration expects 1 input");
     }
 
     ABSL_ASSIGN_OR_RETURN(int channels, attrs.Get<int>("channels"));
@@ -95,6 +95,7 @@ class TembGeneration : public OpBase {
                                       std::move(coeffs_tensor_desc)));
     op->args_.AddInt("half_slices", half_slices);
 
+    AddSrcTensor(graph, op, "index_val", inputs[0]);
     AddDstTensor(graph, op, "dst", outputs[0]);
 
     const auto& dst_shape = outputs[0].tensor_desc.GetBHWCShape();

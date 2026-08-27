@@ -18,7 +18,6 @@
 #include <chrono>  // NOLINT(build/c++11)
 #include <cmath>
 #include <cstdint>
-#include <cstdlib>
 #include <iostream>
 #include <memory>
 #include <optional>
@@ -133,10 +132,6 @@ absl::StatusOr<std::unique_ptr<Diffuser>> Diffuser::Create(
       unet->Init(config, latent_image_width, latent_image_height, env.get()));
   ABSL_LOG(INFO) << "UNet is created";
 
-  auto diffusion = std::make_unique<DiffusionStepper>();
-  ABSL_RETURN_IF_ERROR(diffusion->Init(config, env.get()));
-  ABSL_LOG(INFO) << "DiffusionStepper is created";
-
   Tensor latent_copy;
   {
     Tensor* unet_latent = unet->GetLatentTensor();
@@ -150,24 +145,21 @@ absl::StatusOr<std::unique_ptr<Diffuser>> Diffuser::Create(
   }
   ABSL_LOG(INFO) << "latent_copy is created";
 
-  return absl::WrapUnique(
-      new Diffuser(config, std::move(env), std::move(text_guidance_graph),
-                   std::move(unet), std::move(diffusion), std::move(decoder),
-                   std::move(copier), std::move(latent_copy)));
+  return absl::WrapUnique(new Diffuser(
+      config, std::move(env), std::move(text_guidance_graph), std::move(unet),
+      std::move(decoder), std::move(copier), std::move(latent_copy)));
 }
 
 Diffuser::Diffuser(const Diffuser::Config& config,
                    std::unique_ptr<Environment> env,
                    std::unique_ptr<TextGuidance> text_guidance_graph,
                    std::unique_ptr<UNet> unet,
-                   std::unique_ptr<DiffusionStepper> diffusion_stepper,
                    std::unique_ptr<Decoder> decoder,
                    std::unique_ptr<OpHolder> copier, Tensor latent_copy) {
   config_ = config;
   env_ = std::move(env);
   text_guidance_graph_ = std::move(text_guidance_graph);
   unet_ = std::move(unet);
-  diffusion_stepper_ = std::move(diffusion_stepper);
   decoder_ = std::move(decoder);
   copier_ = std::move(copier);
   latent_copy_ = std::move(latent_copy);
@@ -283,11 +275,9 @@ absl::Status Diffuser::RunIterationStep(int total_steps, int curr_iteration) {
       return absl::InvalidArgumentError(
           "iteration is larget than targeted steps, something went wrong.");
     }
-    ts = t * stride + 1;
+    ts = std::min(t * stride + 1, 999);
     ts_prev = ts - stride;
   }
-  ABSL_RETURN_IF_ERROR(
-      copier_->Execute(env_->queue(), unet_->GetLatentTensor(), &latent_copy_));
 
   if (config_.run_unet_with_plugins) {
     Tensor* mc_tensor = unet_->GetPluginsStrengthTensor();
@@ -302,19 +292,29 @@ absl::Status Diffuser::RunIterationStep(int total_steps, int curr_iteration) {
         mc_tensor->UploadDescriptorData(descriptor_with_data, env_->queue()));
     ABSL_RETURN_IF_ERROR(env_->queue()->WaitForCompletion());
   }
-  ABSL_RETURN_IF_ERROR(unet_->Execute(env_->queue(), ts));
-
   float guidance_scale = 7.5f;
-  ABSL_RETURN_IF_ERROR(diffusion_stepper_->StepCustomOp(
-      env_->queue(), &latent_copy_, unet_->GetEtaUncondTensor(),
-      unet_->GetEtaCondTensor(), unet_->GetLatentTensor(), ts, ts_prev,
-      guidance_scale));
+
+  float alphaIn = unet_->alphas_[ts];
+  int tPrevInOffset = std::max(0, ts_prev + 1);
+  float alphaPrevIn = unet_->alphas_prev_[tPrevInOffset];
+  float sqrt_alpha = std::sqrt(alphaIn);
+  float sqrt_alpha_prev = std::sqrt(alphaPrevIn);
+  float sqrt_one_minus_alpha = std::sqrt(1.0f - alphaIn);
+  float sqrt_one_minus_alpha_prev = std::sqrt(1.0f - alphaPrevIn);
+
+  ABSL_RETURN_IF_ERROR(unet_->Execute(
+      env_->queue(), ts, guidance_scale, sqrt_alpha, sqrt_alpha_prev,
+      sqrt_one_minus_alpha, sqrt_one_minus_alpha_prev));
+  ABSL_RETURN_IF_ERROR(copier_->Execute(env_->queue(),
+                                        unet_->GetOutputLatentTensor(),
+                                        unet_->GetInputLatentTensor()));
   ABSL_RETURN_IF_ERROR(env_->queue()->WaitForCompletion());
   return absl::OkStatus();
 }
 
 absl::StatusOr<TensorFloat32> Diffuser::RunDecodeStep() {
-  ABSL_RETURN_IF_ERROR(copier_->Execute(env_->queue(), unet_->GetLatentTensor(),
+  ABSL_RETURN_IF_ERROR(copier_->Execute(env_->queue(),
+                                        unet_->GetOutputLatentTensor(),
                                         decoder_->GetInputTensor()));
   ABSL_RETURN_IF_ERROR(decoder_->Execute(env_->queue()));
   ABSL_RETURN_IF_ERROR(env_->queue()->WaitForCompletion());
@@ -366,6 +366,10 @@ absl::Status Diffuser::TextGuidance::SetInput(
 
 absl::Status Diffuser::UNet::Init(const Diffuser::Config& runner_config,
                                   int width, int height, Environment* env) {
+  alphas_ = LoadF16(absl::StrCat(runner_config.model_dir, "alphas_cumprod.bin"),
+                    1000);
+  alphas_prev_ = alphas_;
+  alphas_prev_.insert(alphas_prev_.begin(), half(1.0f));
   const auto& gpu_info = env->GetDevicePtr()->GetInfo();
 
   CreateGpuModelInfo create_info;
@@ -407,6 +411,24 @@ absl::Status Diffuser::UNet::Init(const Diffuser::Config& runner_config,
       (create_info.precision == CalculationsPrecision::F32_F16);
   ml_drift::GpuModelBuilder step_builder(gpu_info, options);
 
+  index_val_ = step_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::FLOAT32);
+  ABSL_ASSIGN_OR_RETURN(
+      auto result_or,
+      step_builder.AppendOp(
+          "TembGeneration", {index_val_},
+          {{"channels", 320},
+           {"storage_type",
+            static_cast<int>(GetFastestStorageType(gpu_info))}}));
+  temb_ = result_or[0];
+
+  guidance_scale_ = step_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::FLOAT32);
+  sqrt_alpha_ = step_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::FLOAT32);
+  sqrt_alpha_prev_ =
+      step_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::FLOAT32);
+  sqrt_one_minus_alpha_ =
+      step_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::FLOAT32);
+  sqrt_one_minus_alpha_prev_ =
+      step_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::FLOAT32);
   if (runner_config.run_unet_with_plugins) {
     ABSL_RETURN_IF_ERROR(builder.BuildUNetWithPlugins(
         config, gpu_info, create_info, width, height, &step_builder, &src_,
@@ -422,7 +444,14 @@ absl::Status Diffuser::UNet::Init(const Diffuser::Config& runner_config,
         &temb_, &guidance_, nullptr, nullptr, &eta0_, &eta1_, &dbg_));
   }
 
-  std::vector<ValueId> inputs = {src_.id, temb_.id, guidance_.id};
+  std::vector<ValueId> inputs = {src_.id,
+                                 guidance_.id,
+                                 index_val_.id,
+                                 guidance_scale_.id,
+                                 sqrt_alpha_.id,
+                                 sqrt_alpha_prev_.id,
+                                 sqrt_one_minus_alpha_.id,
+                                 sqrt_one_minus_alpha_prev_.id};
   if (runner_config.run_unet_with_masked_image) {
     inputs.push_back(masked_image_.id);
   }
@@ -433,7 +462,16 @@ absl::Status Diffuser::UNet::Init(const Diffuser::Config& runner_config,
     inputs.push_back(plugins_strength_.id);
   }
 
-  std::vector<ValueId> outputs = {eta0_.id, eta1_.id};
+  src_input_ = src_;
+  ABSL_ASSIGN_OR_RETURN(
+      auto step_result,
+      step_builder.AppendOp(
+          "DiffusionStep",
+          {src_, eta0_, eta1_, guidance_scale_, sqrt_alpha_, sqrt_alpha_prev_,
+           sqrt_one_minus_alpha_, sqrt_one_minus_alpha_prev_}));
+  src_ = step_result[0];
+
+  std::vector<ValueId> outputs = {src_.id};
   outputs.insert(outputs.end(), inputs.begin(), inputs.end());
 
   ABSL_RETURN_IF_ERROR(step_builder.GetGpuModel(inputs, outputs, &gpu_model));
@@ -448,19 +486,6 @@ absl::Status Diffuser::UNet::Init(const Diffuser::Config& runner_config,
 
   TensorDescriptor default_desc(DataType::FLOAT16,
                                 GetFastestStorageType(gpu_info), Layout::HWC);
-  ABSL_RETURN_IF_ERROR(temb_generation_op_.Init(env, [&]() {
-    GpuModelBuilderOptions options;
-    options.storage = default_desc.GetDataType() == DataType::FLOAT16
-                          ? TensorStorageType::TEXTURE_2D
-                          : TensorStorageType::BUFFER;
-    ml_drift::GpuModelBuilder tmp_builder(gpu_info, options);
-    auto _ = tmp_builder.AppendOp(
-        "TembGeneration", {},
-        {{"channels", 320},
-         {"index_val", 1.0f},
-         {"storage_type", static_cast<int>(GetFastestStorageType(gpu_info))}});
-    return std::move(*tmp_builder.GetLastGpuOperation());
-  }()));
 
   {
     OperationDef op_def;
@@ -475,19 +500,9 @@ absl::Status Diffuser::UNet::GenerateNoiseInput(CLCommandQueue* queue,
                                                 uint32_t base_seed) {
   int seed = GetRandomInt(60000, base_seed);
   OpHolder::ExecutionParams exec_params;
-  exec_params.dst = {GetLatentTensor()};
+  exec_params.dst = {GetInputLatentTensor()};
   exec_params.int_params = {{"seed", seed}};
   return noise_op_.Execute(queue, exec_params);
-}
-
-absl::Status Diffuser::UNet::Execute(CLCommandQueue* queue, int step_index) {
-  {
-    OpHolder::ExecutionParams exec_params;
-    exec_params.dst = {GetTembTensor()};
-    exec_params.float_params = {{"index_val", step_index}};
-    ABSL_RETURN_IF_ERROR(temb_generation_op_.Execute(queue, exec_params));
-  }
-  return inference_context_.AddToQueue(queue);
 }
 
 absl::Status Diffuser::UNet::LogDebugTensor(CLCommandQueue* queue) {
@@ -546,79 +561,6 @@ absl::Status Diffuser::Decoder::Init(const Diffuser::Config& runner_config,
     return absl::OkStatus();
 }
 
-absl::Status Diffuser::DiffusionStepper::Init(
-    const Diffuser::Config& runner_config, Environment* env) {
-  alphas_ =
-      LoadF16(runner_config.model_dir + "alphas_cumprod.bin", 1000);
-  alphas_prev_ = alphas_;
-  alphas_prev_.insert(alphas_prev_.begin(), half(1.0f));
-
-  const auto& gpu_info = env->GetDevicePtr()->GetInfo();
-  TensorDescriptor desc(DataType::FLOAT16, GetFastestStorageType(gpu_info),
-                        Layout::HWC);
-
-  ABSL_RETURN_IF_ERROR(custom_op_.Init(env, [&]() {
-    GpuModelBuilderOptions options;
-    options.storage = desc.GetStorageType();
-    ml_drift::GpuModelBuilder tmp_builder(gpu_info, options);
-    int width = runner_config.image_width;
-    int height = runner_config.image_height;
-    int in_channels = 4;
-    BHWC shape = BHWC(1, height / 8, width / 8, in_channels);
-    auto d1 = tmp_builder.AddTensor(shape, desc.GetDataType());
-    auto d2 = tmp_builder.AddTensor(shape, desc.GetDataType());
-    auto d3 = tmp_builder.AddTensor(shape, desc.GetDataType());
-    auto _ = tmp_builder.AppendOp("DiffusionStep", {d1, d2, d3});
-    return std::move(*tmp_builder.GetLastGpuOperation());
-  }()));
-
-  return absl::OkStatus();
-}
-
-absl::Status Diffuser::DiffusionStepper::StepCustomOp(
-    CLCommandQueue* queue, Tensor* xIn, Tensor* etaUncondIn, Tensor* etaCondIn,
-    Tensor* dst, int tIn, int tPrevIn, float guidanceScaleIn) {
-  float alphaIn = alphas_[tIn];
-  int tPrevInOffset = std::max(0, tPrevIn + 1);
-  float alphaPrevIn = alphas_prev_[tPrevInOffset];
-  half sqrt_alpha = half(sqrt(alphaIn));
-  half sqrt_alpha_prev = half(sqrt(alphaPrevIn));
-  half sqrt_one_minus_alpha = half(sqrt(1.0f - alphaIn));
-  half sqrt_one_minus_alpha_prev = half(sqrt(1.0f - alphaPrevIn));
-
-  if (run_lcm_stepper_) {
-    OpHolder::ExecutionParams exec_params;
-    exec_params.dst = {&noise_};
-    exec_params.int_params = {{"seed", rand()}};
-    ABSL_RETURN_IF_ERROR(noise_op_.Execute(queue, exec_params));
-    ABSL_RETURN_IF_ERROR(queue->WaitForCompletion());
-  }
-
-  OpHolder::ExecutionParams exec_params;
-  exec_params.src = {xIn, etaUncondIn, etaCondIn};
-  exec_params.dst = {dst};
-  exec_params.half_params = {
-      {"guidance_scale", half(guidanceScaleIn)},
-      {"sqrt_alpha", half(sqrt_alpha)},
-      {"sqrt_alpha_prev", half(sqrt_alpha_prev)},
-      {"sqrt_one_minus_alpha", half(sqrt_one_minus_alpha)},
-      {"sqrt_one_minus_alpha_prev", half(sqrt_one_minus_alpha_prev)}};
-  if (run_lcm_stepper_) {
-    exec_params.src.push_back(&noise_);
-    float sq_sigma = 0.25;
-    float timestep_scaling = 10;
-    float scaled_timestamp = tIn * timestep_scaling;
-    float sq_scaled_timestamp = scaled_timestamp * scaled_timestamp;
-    float c_skip = sq_sigma / (sq_scaled_timestamp + sq_sigma);
-    float c_out = scaled_timestamp / sqrt(sq_scaled_timestamp + sq_sigma);
-    exec_params.int_params = {{"step_idx", tIn}};
-    exec_params.half_params.insert({"c_skip", half(c_skip)});
-    exec_params.half_params.insert({"c_out", half(c_out)});
-  }
-  return custom_op_.Execute(queue, exec_params);
-}
-
-
 absl::Status Diffuser::OpHolder::InitElementwiseOneInput(
     OperationType op_type, const TensorDescriptor& src_desc,
     const TensorDescriptor& dst_desc, Environment* env) {
@@ -671,6 +613,38 @@ absl::Status Diffuser::OpHolder::Initialize(Environment* env,
   ABSL_RETURN_IF_ERROR(
       op_.Compile(env->GetDevicePtr(), &env->context(), env->program_cache()));
   return absl::OkStatus();
+}
+
+absl::Status Diffuser::UNet::Execute(CLCommandQueue* queue, int step_index,
+                                     float guidance_scale, float sqrt_alpha,
+                                     float sqrt_alpha_prev,
+                                     float sqrt_one_minus_alpha,
+                                     float sqrt_one_minus_alpha_prev) {
+  {
+    TensorFloat32 scalar_tensor;
+    scalar_tensor.shape = BHWC(1, 1, 1, 4);
+    scalar_tensor.data.resize(4, 0.0f);
+    scalar_tensor.data[0] = static_cast<float>(step_index);
+    ABSL_RETURN_IF_ERROR(
+        inference_context_.SetInputTensor(index_val_.id, scalar_tensor, queue));
+    scalar_tensor.data[0] = guidance_scale;
+    ABSL_RETURN_IF_ERROR(inference_context_.SetInputTensor(
+        guidance_scale_.id, scalar_tensor, queue));
+    scalar_tensor.data[0] = sqrt_alpha;
+    ABSL_RETURN_IF_ERROR(inference_context_.SetInputTensor(
+        sqrt_alpha_.id, scalar_tensor, queue));
+    scalar_tensor.data[0] = sqrt_alpha_prev;
+    ABSL_RETURN_IF_ERROR(inference_context_.SetInputTensor(
+        sqrt_alpha_prev_.id, scalar_tensor, queue));
+    scalar_tensor.data[0] = sqrt_one_minus_alpha;
+    ABSL_RETURN_IF_ERROR(inference_context_.SetInputTensor(
+        sqrt_one_minus_alpha_.id, scalar_tensor, queue));
+    scalar_tensor.data[0] = sqrt_one_minus_alpha_prev;
+    ABSL_RETURN_IF_ERROR(inference_context_.SetInputTensor(
+        sqrt_one_minus_alpha_prev_.id, scalar_tensor, queue));
+  }
+
+  return inference_context_.AddToQueue(queue);
 }
 
 }  // namespace stable_diffusion

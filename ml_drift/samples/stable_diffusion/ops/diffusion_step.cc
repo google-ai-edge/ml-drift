@@ -31,41 +31,32 @@ std::string GetDiffusionStepCode(DataType dst_type) {
     Type eta_uncond = args.etaUncondIn.Read(X, Y, S);
     Type x_in = args.xIn.Read(X, Y, S);
 
-    Type delta_cond = (eta_cond - eta_uncond) * args.guidance_scale;
+    Type delta_cond = (eta_cond - eta_uncond) * ucl::Convert<SType>(args.guidance_scale.Read(0, 0, 0).x);
     Type eta = eta_uncond + delta_cond;
 
-    Type deltaX0 = eta * args.sqrt_one_minus_alpha;
+    Type deltaX0 = eta * ucl::Convert<SType>(args.sqrt_one_minus_alpha.Read(0, 0, 0).x);
     Type predX0Unscaled = x_in - deltaX0;
-    Type predX0 = predX0Unscaled / args.sqrt_alpha;
-    Type dirX = eta * args.sqrt_one_minus_alpha_prev;
-    Type xPrevBase = predX0 * args.sqrt_alpha_prev;
+    Type predX0 = predX0Unscaled / ucl::Convert<SType>(args.sqrt_alpha.Read(0, 0, 0).x);
+    Type dirX = eta * ucl::Convert<SType>(args.sqrt_one_minus_alpha_prev.Read(0, 0, 0).x);
+    Type xPrevBase = predX0 * ucl::Convert<SType>(args.sqrt_alpha_prev.Read(0, 0, 0).x);
     Type result = xPrevBase + dirX;
     args.dst.Write(result, X, Y, S);
 })";
-  absl::StrReplaceAll({{"Type", ToUclDataType(dst_type, 4)}}, &c);
-  absl::StrReplaceAll({{"Type", ToUclDataType(dst_type, 4)}}, &c);
+  absl::StrReplaceAll({{"Type", ToUclDataType(dst_type, 4)},
+                       {"SType", ToUclDataType(dst_type, 1)}},
+                      &c);
   return c;
 }
 
 class DiffusionStep : public OpBase {
  public:
-  // clang-format off
-  MLD_DECLARE_OP_ATTRS(
-      MLD_OP_ATTR(half, guidance_scale, half(1.0f)),
-      MLD_OP_ATTR(half, sqrt_alpha, half(1.0f)),
-      MLD_OP_ATTR(half, sqrt_alpha_prev, half(1.0f)),
-      MLD_OP_ATTR(half, sqrt_one_minus_alpha, half(1.0f)),
-      MLD_OP_ATTR(half, sqrt_one_minus_alpha_prev, half(1.0f))
-  )
-  // clang-format on
-
   absl::Status Build(
       GpuModelBuilder& graph,
       const std::vector<GpuModelBuilder::TensorHandle>& inputs,
       const OpAttrs& attrs,
       std::vector<GpuModelBuilder::TensorHandle>& outputs) const override {
-    if (inputs.size() != 3) {
-      return absl::InvalidArgumentError("DiffusionStep expects 3 inputs");
+    if (inputs.size() != 8) {
+      return absl::InvalidArgumentError("DiffusionStep expects 8 inputs");
     }
 
     // Output shape matches input shape
@@ -77,6 +68,11 @@ class DiffusionStep : public OpBase {
     AddSrcTensor(graph, op, "xIn", inputs[0]);
     AddSrcTensor(graph, op, "etaUncondIn", inputs[1]);
     AddSrcTensor(graph, op, "etaCondIn", inputs[2]);
+    AddSrcTensor(graph, op, "guidance_scale", inputs[3]);
+    AddSrcTensor(graph, op, "sqrt_alpha", inputs[4]);
+    AddSrcTensor(graph, op, "sqrt_alpha_prev", inputs[5]);
+    AddSrcTensor(graph, op, "sqrt_one_minus_alpha", inputs[6]);
+    AddSrcTensor(graph, op, "sqrt_one_minus_alpha_prev", inputs[7]);
     AddDstTensor(graph, op, "dst", outputs[0]);
 
     const auto& dst_shape = outputs[0].tensor_desc.GetBHWCShape();
