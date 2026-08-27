@@ -1122,6 +1122,7 @@ GPUOperation::GPUOperation(GPUOperation&& operation)
       reorder_op_(operation.reorder_op_),
       reorder_op_count_(operation.reorder_op_count_),
       reorder_code_(std::move(operation.reorder_code_)),
+      input_reorder_linkables_(std::move(operation.input_reorder_linkables_)),
       allow_fuse_input_reorder_(operation.allow_fuse_input_reorder_) {}
 
 GPUOperation& GPUOperation::operator=(GPUOperation&& operation) {
@@ -1154,6 +1155,7 @@ GPUOperation& GPUOperation::operator=(GPUOperation&& operation) {
     std::swap(reorder_op_count_, operation.reorder_op_count_);
     reorder_code_ = std::move(operation.reorder_code_);
     std::swap(allow_fuse_input_reorder_, operation.allow_fuse_input_reorder_);
+    input_reorder_linkables_ = std::move(operation.input_reorder_linkables_);
   }
   return *this;
 }
@@ -1486,7 +1488,7 @@ void GPUOperation::AddInputReorder(const std::string& input_name,
   GPUObjectDescriptor* desc_ptr = nullptr;
   if (src_tensor_desc && args_.GetDescriptor(input_name, &desc_ptr).ok() &&
       desc_ptr && desc_ptr->IsTensorDescriptor()) {
-    *static_cast<TensorDescriptor*>(desc_ptr) = *src_tensor_desc;
+    src_tensor_desc->CopyWithoutData(static_cast<TensorDescriptor*>(desc_ptr));
   }
 }
 

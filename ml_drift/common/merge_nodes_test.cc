@@ -673,6 +673,28 @@ TEST(MergeNodesTest, MergeLinear1DReshapes) {
   EXPECT_TRUE(absl::StrContains(gpu_model.nodes[0].name, "SplitRoPEConcat"));
 }
 
+TEST(MergeNodesTest, MergeLinear1DReshapesVulkanTexture2D) {
+  GpuInfo gpu_info;
+  gpu_info.gpu_api = GpuApi::kVulkan;
+
+  GpuModelBuilderOptions options;
+  options.storage = TensorStorageType::TEXTURE_2D;
+  GpuModelBuilder model_builder(gpu_info, options);
+  auto src_th = model_builder.AddTensor(BHWC(1, 1, 32, 16), DataType::FLOAT32);
+  auto pos_th = model_builder.AddTensor(BHWC(1, 1, 1, 1), DataType::INT32);
+  auto reshaped = model_builder.Reshape(src_th, BHWC(1, 32, 1, 16));
+  RoPEAttributes rope_attr;
+  auto out = model_builder.SplitRoPEConcat(reshaped, pos_th, rope_attr);
+
+  GpuModel gpu_model;
+  MLD_ASSERT_OK(
+      model_builder.GetGpuModel(std::vector<unsigned int>{src_th.id, pos_th.id},
+                                std::vector<unsigned int>{out.id}, &gpu_model));
+  // Reshape should be eliminated.
+  EXPECT_EQ(gpu_model.nodes.size(), 1);
+  EXPECT_TRUE(absl::StrContains(gpu_model.nodes[0].name, "SplitRoPEConcat"));
+}
+
 TEST(MergeNodesTest, MergeLinear2DReshapes) {
   GpuInfo gpu_info;
   gpu_info.gpu_api = GpuApi::kWebGpu;

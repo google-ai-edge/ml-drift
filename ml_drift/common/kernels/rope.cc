@@ -45,21 +45,21 @@ GPUOperation CreateRoPE(const GpuInfo& gpu_info, const OperationDef& definition,
     sin_func_name = "native_sin";
     cos_func_name = "native_cos";
   }
+  const bool has_batch = definition.dst_tensors[0].HasAxis(Axis::BATCH);
+  const std::string src_dst_batch_arg = has_batch ? ", B" : "";
+  const std::string pos_batch_arg =
+      definition.src_tensors[2].HasAxis(Axis::BATCH) ? ", B" : "";
   std::string code;
   code += "MAIN_FUNCTION($0) {\n";
-  if (definition.dst_tensors[0].HasAxis(Axis::BATCH)) {
+  if (has_batch) {
     code += "  int linear_id = ucl::GetGlobalId<0>();\n";
     code += "  int X = linear_id / args.dst_l.Batch();\n";
     code += "  int B = linear_id % args.dst_l.Batch();\n";
-    code += "  args.src_l.SetBatchRef(B);\n";
-    code += "  args.src_r.SetBatchRef(B);\n";
-    code += "  args.position.SetBatchRef(B);\n";
-    code += "  args.dst_l.SetBatchRef(B);\n";
-    code += "  args.dst_r.SetBatchRef(B);\n";
   } else {
     code += "  int X = ucl::GetGlobalId<0>();\n";
   }
-  code += absl::Substitute(R"(
+  code += absl::Substitute(
+      R"(
   int Y = ucl::GetGlobalId<1>();
   int S = ucl::GetGlobalId<2>();
   if (X >= args.dst_l.Width() || Y >= args.dst_l.Height() || S >= args.dst_l.Slices()) {
@@ -72,16 +72,16 @@ GPUOperation CreateRoPE(const GpuInfo& gpu_info, const OperationDef& definition,
   float4 timescale = min_timescale * $0(max_timescale / min_timescale, fraction);
   float pos_scalar;
   if (args.position.Channels() > 1) {
-    args.position.ReadPerChannel<float>(pos_scalar, 0, 0, X % args.position.Channels());
+    args.position.ReadPerChannel<float>(pos_scalar, 0, 0, X % args.position.Channels()$3);
   } else {
-    pos_scalar = args.position.Read<float>(X % args.position.Width(), 0, 0).x;
+    pos_scalar = args.position.Read<float>(X % args.position.Width(), 0, 0$3).x;
   }
   float4 pos_val = ucl::Init<float4>(pos_scalar);
   float4 sinusoid_inp = pos_val / timescale;
   Type sin_val = ucl::Convert<Type>($1(sinusoid_inp));
   Type cos_val = ucl::Convert<Type>($2(sinusoid_inp));
-  Type val0 = args.src_l.Read(X, Y, S);
-  Type val1 = args.src_r.Read(X, Y, S);
+  Type val0 = args.src_l.Read(X, Y, S$4);
+  Type val1 = args.src_r.Read(X, Y, S$4);
   Type out0;
   Type out1;
   if (fraction.w < ucl::Init<float>(args.proportion)) {
@@ -91,10 +91,11 @@ GPUOperation CreateRoPE(const GpuInfo& gpu_info, const OperationDef& definition,
     out0 = val0;
     out1 = val1;
   }
-  args.dst_l.Write(out0, X, Y, S);
-  args.dst_r.Write(out1, X, Y, S);
+  args.dst_l.Write(out0, X, Y, S$4);
+  args.dst_r.Write(out1, X, Y, S$4);
 })",
-                           pow_func_name, sin_func_name, cos_func_name);
+      pow_func_name, sin_func_name, cos_func_name, pos_batch_arg,
+      src_dst_batch_arg);
   absl::StrReplaceAll(
       {{"Type", ToUclDataType(definition.dst_tensors[0].GetDataType(), 4)}},
       &code);
@@ -123,15 +124,16 @@ GPUOperation CreateSplitRoPEConcat(const GpuInfo& gpu_info,
     sin_func_name = "native_sin";
     cos_func_name = "native_cos";
   }
+  const bool has_batch = definition.dst_tensors[0].HasAxis(Axis::BATCH);
+  const std::string src_dst_batch_arg = has_batch ? ", B" : "";
+  const std::string pos_batch_arg =
+      definition.src_tensors[1].HasAxis(Axis::BATCH) ? ", B" : "";
   std::string code;
   code += "MAIN_FUNCTION($0) {\n";
-  if (definition.dst_tensors[0].HasAxis(Axis::BATCH)) {
+  if (has_batch) {
     code += "  int linear_id = ucl::GetGlobalId<0>();\n";
     code += "  int X = linear_id / args.dst_tensor.Batch();\n";
     code += "  int B = linear_id % args.dst_tensor.Batch();\n";
-    code += "  args.src_tensor.SetBatchRef(B);\n";
-    code += "  args.position.SetBatchRef(B);\n";
-    code += "  args.dst_tensor.SetBatchRef(B);\n";
   } else {
     code += "  int X = ucl::GetGlobalId<0>();\n";
   }
@@ -154,9 +156,9 @@ GPUOperation CreateSplitRoPEConcat(const GpuInfo& gpu_info,
   float inv_dst_ch = 1.0f / ucl::Convert<float>(args.dst_tensor.Channels());
   float pos_scalar;
   if (args.position.Channels() > 1) {
-    args.position.ReadPerChannel<float>(pos_scalar, 0, 0, X % args.position.Channels());
+    args.position.ReadPerChannel<float>(pos_scalar, 0, 0, X % args.position.Channels()$3);
   } else {
-    pos_scalar = args.position.Read<float>(X % args.position.Width(), 0, 0).x;
+    pos_scalar = args.position.Read<float>(X % args.position.Width(), 0, 0$3).x;
   }
   float4 pos_val = ucl::Init<float4>(pos_scalar);
   int s_mult = args.kernel_type == 1 ? 2 : 4;
@@ -170,9 +172,9 @@ GPUOperation CreateSplitRoPEConcat(const GpuInfo& gpu_info,
       R"(
     float pos_y_scalar;
     if (args.position.Channels() > 1) {
-      args.position.ReadPerChannel<float>(pos_y_scalar, 0, 0, Y % args.position.Channels());
+      args.position.ReadPerChannel<float>(pos_y_scalar, 0, 0, Y % args.position.Channels()$3);
     } else {
-      pos_y_scalar = args.position.Read<float>(Y % args.position.Width(), 0, 0).x;
+      pos_y_scalar = args.position.Read<float>(Y % args.position.Width(), 0, 0$3).x;
     }
     float4 pos_y = ucl::Init<float4>(pos_y_scalar);
     if (p.x >= slice_count) { p.x -= slice_count; p.y -= slice_count; pos_val.x = pos_y.x; pos_val.y = pos_y.y; }
@@ -198,8 +200,8 @@ GPUOperation CreateSplitRoPEConcat(const GpuInfo& gpu_info,
     slice0 = S;
     slice1 = S + 1;
   }
-  Type val0 = args.src_tensor.Read(X, Y, slice0);
-  Type val1 = args.src_tensor.Read(X, Y, slice1);
+  Type val0 = args.src_tensor.Read(X, Y, slice0$4);
+  Type val1 = args.src_tensor.Read(X, Y, slice1$4);
   if (args.kernel_type == 1) {
     Type t0 = ucl::Init<Type>(val0.x, val0.z, val1.x, val1.z);
     Type t1 = ucl::Init<Type>(val0.y, val0.w, val1.y, val1.w);
@@ -221,10 +223,11 @@ GPUOperation CreateSplitRoPEConcat(const GpuInfo& gpu_info,
     out0 = t0;
     out1 = t1;
   }
-  args.dst_tensor.Write(out0, X, Y, slice0);
-  args.dst_tensor.Write(out1, X, Y, slice1);
+  args.dst_tensor.Write(out0, X, Y, slice0$4);
+  args.dst_tensor.Write(out1, X, Y, slice1$4);
 })",
-      pow_func_name, sin_func_name, cos_func_name);
+      pow_func_name, sin_func_name, cos_func_name, pos_batch_arg,
+      src_dst_batch_arg);
   absl::StrReplaceAll(
       {{"Type", ToUclDataType(definition.dst_tensors[0].GetDataType(), 4)}},
       &code);
