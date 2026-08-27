@@ -1341,36 +1341,34 @@ int GetRecommendedMaxTotalSpatialSize(const GpuInfo& gpu_info,
 }
 
 void AddRuntimeParam(const ConvRuntimeCheckDesc& runtime_check,
-                     FullyConnected& result) {
+                     GPUOperation* op) {
   bool has_runtime_check = false;
   if (runtime_check.src_end_ch_index.has_value()) {
-    result.args_.AddInt("src_end_ch_index", *runtime_check.src_end_ch_index);
+    op->args_.AddInt("src_end_ch_index", *runtime_check.src_end_ch_index);
     has_runtime_check = true;
   }
   if (runtime_check.dst_end_ch_index.has_value()) {
-    result.args_.AddInt("dst_end_ch_index", *runtime_check.dst_end_ch_index);
+    op->args_.AddInt("dst_end_ch_index", *runtime_check.dst_end_ch_index);
     has_runtime_check = true;
   }
   if (runtime_check.packed_groups.has_value()) {
-    result.args_.AddInt("packed_params_offset",
-                        runtime_check.packed_groups->params_offset);
+    op->args_.AddInt("packed_params_offset",
+                     runtime_check.packed_groups->params_offset);
     has_runtime_check = true;
   }
   if (runtime_check.ring_o_offset_index.has_value()) {
-    result.args_.AddInt("ring_o_offset_index",
-                        *runtime_check.ring_o_offset_index);
+    op->args_.AddInt("ring_o_offset_index", *runtime_check.ring_o_offset_index);
     has_runtime_check = true;
   }
   if (runtime_check.ring_i_offset_index.has_value()) {
-    result.args_.AddInt("ring_i_offset_index",
-                        *runtime_check.ring_i_offset_index);
+    op->args_.AddInt("ring_i_offset_index", *runtime_check.ring_i_offset_index);
     has_runtime_check = true;
   }
   if (has_runtime_check) {
     BufferDescriptor desc;
     desc.element_type = DataType::INT32;
     desc.element_size = 1;
-    result.AddSrcBuffer("params", desc);
+    op->AddSrcBuffer("params", desc);
   }
 }
 
@@ -1450,7 +1448,7 @@ absl::StatusOr<FullyConnected> CreateFullyConnectedWeightsAreSpatialTensor(
   if (bias) {
     result.AddSrcTensor("biases", *bias);
   }
-  AddRuntimeParam(runtime_check, result);
+  AddRuntimeParam(runtime_check, &result);
 
   return result;
 }
@@ -1538,7 +1536,7 @@ absl::StatusOr<FullyConnected> CreateFullyConnectedExternalWeights(
     result.AddSrcTensor("src_exp", *src_exp);
   }
 
-  AddRuntimeParam(runtime_check, result);
+  AddRuntimeParam(runtime_check, &result);
   return result;
 }
 
