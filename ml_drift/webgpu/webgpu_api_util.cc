@@ -66,18 +66,33 @@ absl::Status ReadDataFromMappableBuffer(const wgpu::Device& device,
 #ifdef __EMSCRIPTEN__
   ReadBufferDataJs(mappable_buffer.Get(), data_ptr);
 #else   // __EMSCRIPTEN__
+  // TODO: b/369445924 - This chunk should use Instance::Wait() instead of a
+  // while loop, but this currently causes a regression.
   wgpu::MapAsyncStatus status;
   std::string message;
-  ABSL_RETURN_IF_ERROR(Instance::Wait(
-      mappable_buffer.MapAsync(
-          wgpu::MapMode::Read, 0, AlignByN(data_size, 4),
-          wgpu::CallbackMode::WaitAnyOnly,
-          [&status, &message](wgpu::MapAsyncStatus s, wgpu::StringView msg) {
-            status = s;
-            message = std::string(msg);
-          }),
-      absl::Seconds(10)));
+  wgpu::Future future = mappable_buffer.MapAsync(
+      wgpu::MapMode::Read, 0, AlignByN(data_size, 4),
+      wgpu::CallbackMode::WaitAnyOnly,
+      [&status, &message](wgpu::MapAsyncStatus s, wgpu::StringView msg) {
+        status = s;
+        message = std::string(msg);
+      });
 
+  wgpu::FutureWaitInfo wait_info = {};
+  wait_info.future = future;
+  wgpu::WaitStatus wait_status = wgpu::WaitStatus::TimedOut;
+  absl::Time start = absl::Now();
+  wgpu::Instance instance = Instance::Get(device);
+  while (wait_status == wgpu::WaitStatus::TimedOut) {
+    instance.ProcessEvents();
+    Instance::MaybeRunFlushCallback(device.Get());
+    wait_status = instance.WaitAny(1u, &wait_info, 0);
+    if ((absl::Now() - start) > absl::Seconds(20)) {
+      return absl::AbortedError(
+          "The timeout was reached while reading back data.");
+    }
+  }
+  ABSL_RETURN_IF_ERROR(VerifyWaitStatus(wait_status));
   if (status != wgpu::MapAsyncStatus::Success) {
     return absl::InternalError(message);
   }
