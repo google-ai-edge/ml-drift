@@ -258,6 +258,8 @@ enum class AppleGpu {
   kM5,
   kM5Pro,
   kM5Max,
+  kM5Ultra,
+  kM6,
 };
 
 struct AppleInfo {
@@ -301,6 +303,7 @@ struct AppleInfo {
   bool IsM3Series() const;
   bool IsM4Series() const;
   bool IsM5Series() const;
+  bool IsM6Series() const;
 
   bool IsSIMDMatMulSupported() const;
   // Often, fp32 alu performance is 1/2 of fp16 alu performance

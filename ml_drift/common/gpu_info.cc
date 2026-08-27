@@ -689,6 +689,8 @@ AppleInfo::AppleInfo(const std::string& gpu_description) {
       {"apple m5", AppleGpu::kM5},
       {"apple m5 pro", AppleGpu::kM5Pro},
       {"apple m5 max", AppleGpu::kM5Max},
+      {"apple m5 ultra", AppleGpu::kM5Ultra},
+      {"apple m6", AppleGpu::kM6},
   };
   gpu_type = AppleGpu::kUnknown;
   std::string gpu_name = "";
@@ -726,7 +728,7 @@ AppleInfo::Family AppleInfo::GetGpuFamily() const {
              gpu_type == AppleGpu::kA18Pro || IsM3Series() || IsM4Series()) {
     return AppleInfo::Family::kApple9;
   } else if (gpu_type == AppleGpu::kA19 || gpu_type == AppleGpu::kA19Pro ||
-             IsM5Series()) {
+             IsM5Series() || IsM6Series()) {
     return AppleInfo::Family::kApple10;
   }
   return AppleInfo::Family::kApple1;
@@ -782,7 +784,7 @@ bool AppleInfo::IsLocalMemoryPreferredOverGlobal() const {
 
 bool AppleInfo::IsMSeries() const {
   return IsM1Series() || IsM2Series() || IsM3Series() || IsM4Series() ||
-         IsM5Series();
+         IsM5Series() || IsM6Series();
 }
 
 bool AppleInfo::IsM1Series() const {
@@ -807,8 +809,10 @@ bool AppleInfo::IsM4Series() const {
 
 bool AppleInfo::IsM5Series() const {
   return gpu_type == AppleGpu::kM5 || gpu_type == AppleGpu::kM5Pro ||
-         gpu_type == AppleGpu::kM5Max;
+         gpu_type == AppleGpu::kM5Max || gpu_type == AppleGpu::kM5Ultra;
 }
+
+bool AppleInfo::IsM6Series() const { return gpu_type == AppleGpu::kM6; }
 
 bool AppleInfo::IsBionic() const {
   return gpu_family >= AppleInfo::Family::kApple4;
@@ -925,6 +929,12 @@ int AppleInfo::GetComputeUnitsCount() const {
     case AppleGpu::kM5Max:
       // approximate
       return 40;
+    case AppleGpu::kM5Ultra:
+      // approximate
+      return 80;
+    case AppleGpu::kM6:
+      // approximate
+      return 12;
     case AppleGpu::kUnknown:
       return 4;
   }
