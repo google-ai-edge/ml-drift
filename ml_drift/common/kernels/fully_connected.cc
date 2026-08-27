@@ -142,7 +142,7 @@ int3 GetWorkGroupSize(const FullyConnected::ConvParams& params,
   const int dst_slices = DivideRoundUp(weights_shape.o, 4);
   if (gpu_info.IsApple() && gpu_info.IsApiMetal() &&
       gpu_info.apple_info.IsMSeries()) {
-    int total_task_size = dst_slices / params.block_size.c;
+    int total_task_size = dst_slices;
     if (params.batched_weights) {
       if (params.runtime_batch_ids) {
         total_task_size *= params.runtime_batch_ids;
@@ -184,7 +184,7 @@ int3 GetWorkGroupSize(const FullyConnected::ConvParams& params,
     return int3(x_size, y_size, 1);
   }
   if (gpu_info.IsIntel() && gpu_info.IsApiOpenCl()) {
-    int total_task_size = dst_slices / params.block_size.c;
+    int total_task_size = dst_slices;
     if (params.batched_weights) {
       if (params.runtime_batch_ids) {
         total_task_size *= params.runtime_batch_ids;
@@ -489,7 +489,7 @@ bool UseFMA(const GpuInfo& gpu_info) {
 
 std::string ReadWeightsAsFloat(const FullyConnected::ConvParams& conv_params,
                                const WeightsDescription& weights_desc,
-                               bool split_dst_slices, int dst_sub_s = 0) {
+                               bool split_dst_slices) {
   std::string c;
   if (conv_params.runtime_check.ring_o_offset_index.has_value()) {
     // kOSpatialIOGroupO4I4 -> kBIOI4
@@ -556,9 +556,6 @@ std::string ReadWeightsAsFloat(const FullyConnected::ConvParams& conv_params,
          ", src_s, dst_s * 4 + 3);\n";
   } else if (weights_desc.IsLinearLayout()) {
     c += "    int linear_i4o4 = src_s * args.dst_tensor.Slices() + dst_s;\n";
-    if (dst_sub_s != 0) {
-      c += "    linear_i4o4 += " + std::to_string(dst_sub_s) + ";\n";
-    }
     if (conv_params.batched_weights) {
       c += "    linear_i4o4 += weights_batch_id * args.src_tensor.Slices() * "
            "args.dst_tensor.Slices();\n";
@@ -585,9 +582,6 @@ std::string ReadWeightsAsFloat(const FullyConnected::ConvParams& conv_params,
     }
   } else {
     std::string x_c = "dst_s";
-    if (dst_sub_s != 0) {
-      x_c += " + " + std::to_string(dst_sub_s);
-    }
     std::string y_c = "src_s";
     if (conv_params.batched_weights) {
       y_c = "weights_batch_id * args.src_tensor.Slices() + src_s";
@@ -790,7 +784,6 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
   const int block_spatial = conv_params_.block_size.b *
                             conv_params_.block_size.w *
                             conv_params_.block_size.h;
-  const int block_s = conv_params_.block_size.c;
   const bool int8_math =
       definition.src_tensors[0].GetDataType() == DataType::INT8;
 
@@ -811,9 +804,6 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
     c += "  if (o_local_id >= args.o_group_size) return;\n";
   } else {
     c += "  int dst_s = ucl::GetGlobalId<0>();\n";
-  }
-  if (block_s != 1) {
-    c += "  dst_s *= " + std::to_string(block_s) + ";\n";
   }
   if (conv_params_.runtime_check.dst_end_ch_index.has_value()) {
     c += "  int dst_end_slice = " +
@@ -845,9 +835,6 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
     // memory barrier below.
     c += "  int dst_s_wg_offset = ucl::GetGroupId<0>() * "
          "ucl::GetGroupSize<0>();\n";
-    if (block_s != 1) {
-      c += "  dst_s_wg_offset *= " + std::to_string(block_s) + ";\n";
-    }
     c += "  if (dst_s_wg_offset >= dst_end_slice) return;\n";
   } else {
     c += "  if (dst_s >= dst_end_slice) return;\n";
@@ -876,16 +863,13 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
     c += "  dst_w = w_group_offset + dst_w * " +
          std::to_string(conv_params_.block_size.w) + ";\n";
   }
-  for (int s_id = 0; s_id < block_s; ++s_id) {
-    for (int sp_id = 0; sp_id < block_spatial; ++sp_id) {
-      const std::string r_name =
-          "r_sp" + std::to_string(sp_id) + "_s" + std::to_string(s_id);
-      if (int8_math) {
-        c += "  int4 " + r_name + " = ucl::Init<int4>(0);\n";
-        c += "  int " + r_name + "_sum = 0;\n";
-      } else {
-        c += "  AccType " + r_name + " = ucl::Init<AccType>(0.0f);\n";
-      }
+  for (int sp_id = 0; sp_id < block_spatial; ++sp_id) {
+    const std::string r_name = "r_sp" + std::to_string(sp_id);
+    if (int8_math) {
+      c += "  int4 " + r_name + " = ucl::Init<int4>(0);\n";
+      c += "  int " + r_name + "_sum = 0;\n";
+    } else {
+      c += "  AccType " + r_name + " = ucl::Init<AccType>(0.0f);\n";
     }
   }
   if (conv_params_.softmax_input_activation) {
@@ -921,42 +905,30 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
     if (conv_params_.scale_zp_shape.i != 1) {
       // block-wise quantization handled separately
     } else if (IsLinearPerOutputQuantized(conv_params_)) {
-      for (int s_id = 0; s_id < block_s; ++s_id) {
-        std::string coords = "dst_s + " + std::to_string(s_id);
-        if (conv_params_.scale_zp_shape.h != 1) {
-          coords += ", weights_batch_id, 0";
-        }
-        c += "  Type w_scale_s" + std::to_string(s_id) +
-             " = args.weights_scale.Read(" + coords + ");\n";
-        if (conv_params_.has_zero_point) {
-          c += "  Type w_zp_s" + std::to_string(s_id) +
-               " = args.weights_zero_point.Read(" + coords + ");\n";
-          c += "  Type w_bias_s" + std::to_string(s_id) + " = -w_scale_s" +
-               std::to_string(s_id) + " * (ucl::Init<Type>(" +
-               std::to_string(range_shift) + ") + w_zp_s" +
-               std::to_string(s_id) + ");\n";
-        } else {
-          c += "  Type w_bias_s" + std::to_string(s_id) + " = -w_scale_s" +
-               std::to_string(s_id) + " * (ucl::Init<Type>(" +
-               std::to_string(range_shift) + ".0f));\n";
-        }
+      std::string coords = "dst_s";
+      if (conv_params_.scale_zp_shape.h != 1) {
+        coords += ", weights_batch_id, 0";
+      }
+      c += "  Type w_scale = args.weights_scale.Read(" + coords + ");\n";
+      if (conv_params_.has_zero_point) {
+        c += "  Type w_zp = args.weights_zero_point.Read(" + coords + ");\n";
+        c += "  Type w_bias = -w_scale * (ucl::Init<Type>(" +
+             std::to_string(range_shift) + ") + w_zp);\n";
+      } else {
+        c += "  Type w_bias = -w_scale * (ucl::Init<Type>(" +
+             std::to_string(range_shift) + ".0f));\n";
       }
     } else if (IsScalarQuantized(conv_params_)) {
-      for (int s_id = 0; s_id < block_s; ++s_id) {
-        const std::string s_id_str = std::to_string(s_id);
-        c += "  Type w_scale_s" + s_id_str +
-             " = ucl::Convert<Type>(ucl::Init<float4>(args.scale));\n";
-        if (conv_params_.has_zero_point) {
-          c += "  Type w_zp_s" + s_id_str +
-               " = ucl::Convert<Type>(ucl::Init<float4>(args.zero_point));\n";
-          c += "  Type w_bias_s" + s_id_str + " = -w_scale_s" + s_id_str +
-               " * (ucl::Init<Type>(" + std::to_string(range_shift) +
-               ") + w_zp_s" + s_id_str + ");\n";
-        } else {
-          c += "  Type w_bias_s" + s_id_str + " = -w_scale_s" + s_id_str +
-               " * (ucl::Init<Type>(" + std::to_string(range_shift) +
-               ".0f));\n";
-        }
+      c += "  Type w_scale = "
+           "ucl::Convert<Type>(ucl::Init<float4>(args.scale));\n";
+      if (conv_params_.has_zero_point) {
+        c += "  Type w_zp = "
+             "ucl::Convert<Type>(ucl::Init<float4>(args.zero_point));\n";
+        c += "  Type w_bias = -w_scale * (ucl::Init<Type>(" +
+             std::to_string(range_shift) + ") + w_zp);\n";
+      } else {
+        c += "  Type w_bias = -w_scale * (ucl::Init<Type>(" +
+             std::to_string(range_shift) + ".0f));\n";
       }
     }
   }
@@ -966,27 +938,19 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
     c += "  for (int src_group = " + start_slice +
          "; src_group < args.src_groups; src_group += " + slice_stride +
          ") {\n";
-    for (int s_id = 0; s_id < block_s; ++s_id) {
-      std::string coords = "dst_s + " + std::to_string(s_id) + ", 0, src_group";
-      if (conv_params_.scale_zp_shape.h != 1) {
-        coords =
-            "dst_s + " + std::to_string(s_id) + ", weights_batch_id, src_group";
-      }
-      c += "    Type w_scale_s" + std::to_string(s_id) +
-           " = args.weights_scale.Read(" + coords + ");\n";
-      if (conv_params_.has_zero_point) {
-        c += "    Type w_zp_s" + std::to_string(s_id) +
-             " = args.weights_zero_point.Read(" + coords + ");\n";
-        c += "    Type w_bias_s" + std::to_string(s_id) + " = -w_scale_s" +
-             std::to_string(s_id) + " * (ucl::Init<Type>(" +
-             std::to_string(GetRangeShift(conv_params_.weights_type)) +
-             ") + w_zp_s" + std::to_string(s_id) + ");\n";
-      } else {
-        c += "    Type w_bias_s" + std::to_string(s_id) + " = -w_scale_s" +
-             std::to_string(s_id) + " * ucl::Init<Type>(" +
-             std::to_string(GetRangeShift(conv_params_.weights_type)) +
-             ".0f);\n";
-      }
+    std::string coords = "dst_s, 0, src_group";
+    if (conv_params_.scale_zp_shape.h != 1) {
+      coords = "dst_s, weights_batch_id, src_group";
+    }
+    c += "    Type w_scale = args.weights_scale.Read(" + coords + ");\n";
+    if (conv_params_.has_zero_point) {
+      c += "    Type w_zp = args.weights_zero_point.Read(" + coords + ");\n";
+      c += "    Type w_bias = -w_scale * (ucl::Init<Type>(" +
+           std::to_string(GetRangeShift(conv_params_.weights_type)) +
+           ") + w_zp);\n";
+    } else {
+      c += "    Type w_bias = -w_scale * ucl::Init<Type>(" +
+           std::to_string(GetRangeShift(conv_params_.weights_type)) + ".0f);\n";
     }
     c += "  for (int src_sub_id = 0; src_sub_id < args.src_group_size; "
          "src_sub_id += 1) {\n";
@@ -1033,79 +997,30 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
 
   if (!int8_math) {
     c += "    Type w0, w1, w2, w3;\n";
-    const bool optimized_block2_read =
-        block_s == 2 &&
-        (conv_params_.weights_type == DataType::INT2 ||
-         conv_params_.weights_type == DataType::INT4) &&
-        weights_desc.IsLinearLayout();
-    const bool optimized_block4_read =
-        block_s == 4 && (conv_params_.weights_type == DataType::INT2) &&
-        weights_desc.IsLinearLayout();
-    if (optimized_block2_read) {
-      c += "    int linear_i4o4 = src_s * args.dst_tensor.Slices() + dst_s;\n";
-      c += "    int linear_o2i4o4 = linear_i4o4 / 2;\n";
-      if (conv_params_.weights_type == DataType::INT4) {
-        c += "    uint4 w = args.weights.Read(linear_o2i4o4);\n";
-      } else if (conv_params_.weights_type == DataType::INT2) {
-        c += "    uint2 w = args.weights.Read(linear_o2i4o4);\n";
-      }
+    c += ReadWeightsAsFloat(conv_params_, weights_desc, split_dst_slices_);
+    const bool isI4O4 = weights_desc.IsI4O4() || conv_params_.sparse_2x4;
+    const bool use_fma = UseFMA(gpu_info);
+    if (IsQuantized(conv_params_)) {
+      const std::string w_scale = "w_scale";
+      const std::string w_bias = "w_bias";
+      c += WeightsScaleAddBias(w_scale, w_bias, isI4O4, use_fma);
     }
-    if (optimized_block4_read) {
-      c += "    int linear_i4o4 = src_s * args.dst_tensor.Slices() + dst_s;\n";
-      c += "    int linear_o4i4o4 = linear_i4o4 / 4;\n";
-      c += "    uint4 w = args.weights.Read(linear_o4i4o4);\n";
-    }
-    for (int s_id = 0; s_id < block_s; ++s_id) {
-      if (optimized_block2_read) {
-        if (conv_params_.weights_type == DataType::INT4) {
-          const std::string coords[] = {"xy", "zw"};
-          c += "    ucl::U32x2ToU4x16AsVec4x4<SType>(w." + coords[s_id] +
-               ", w0, w1, w2, w3);\n";
-        } else if (conv_params_.weights_type == DataType::INT2) {
-          const std::string coords[] = {"x", "y"};
-          c += "    ucl::U32x1ToU2x16AsVec4x4<SType>(w." + coords[s_id] +
-               ", w0, w1, w2, w3);\n";
-        }
-      } else if (optimized_block4_read) {
-        const std::string coords[] = {"x", "y", "z", "w"};
-        c += "    ucl::U32x1ToU2x16AsVec4x4<SType>(w." + coords[s_id] +
-             ", w0, w1, w2, w3);\n";
-      } else {
-        if (block_s != 1) {
-          c += "    {\n";
-        }
-        c += ReadWeightsAsFloat(conv_params_, weights_desc, split_dst_slices_,
-                                s_id);
-        if (block_s != 1) {
-          c += "    }\n";
-        }
-      }
-      const bool isI4O4 = weights_desc.IsI4O4() || conv_params_.sparse_2x4;
-      const bool use_fma = UseFMA(gpu_info);
-      if (IsQuantized(conv_params_)) {
-        const std::string w_scale = "w_scale_s" + std::to_string(s_id);
-        const std::string w_bias = "w_bias_s" + std::to_string(s_id);
-        c += WeightsScaleAddBias(w_scale, w_bias, isI4O4, use_fma);
-      }
-      for (int i = 0; i < block_spatial; ++i) {
-        const std::string r_name =
-            "r_sp" + std::to_string(i) + "_s" + std::to_string(s_id);
-        const std::string src_name = "v" + std::to_string(i);
-        c += AccumulateFloat(r_name, src_name, precision, isI4O4, use_fma);
-      }
+    for (int i = 0; i < block_spatial; ++i) {
+      const std::string r_name = "r_sp" + std::to_string(i);
+      const std::string src_name = "v" + std::to_string(i);
+      c += AccumulateFloat(r_name, src_name, precision, isI4O4, use_fma);
     }
   } else {
     c += "    uint w0, w1, w2, w3;\n";
     c += ReadWeightsAs4Uint8x4(conv_params_, weights_desc, split_dst_slices_);
     for (int i = 0; i < block_spatial; ++i) {
-      const std::string acc_name = "r_sp" + std::to_string(i) + "_s0";
+      const std::string acc_name = "r_sp" + std::to_string(i);
       const std::string src_name = "v" + std::to_string(i);
       c += AccumulateUint(acc_name, src_name, gpu_info);
     }
   }
   if (gpu_info.IsApple() && gpu_info.IsApiMetal() &&
-      gpu_info.apple_info.IsMSeries() && IsQuantized(conv_params_) &&
-      conv_params_.block_size.c == 1) {
+      gpu_info.apple_info.IsMSeries() && IsQuantized(conv_params_)) {
     // In some cases, on Metal with Apple GPUs, kernel with big dst channels
     // size shows unexpected slowdown. This workaround helps to restore
     // performance.
@@ -1122,14 +1037,14 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
   }
   if (int8_math) {
     for (int i = 0; i < block_spatial; ++i) {
-      c += "  r_sp" + std::to_string(i) + "_s0 -= r_sp" + std::to_string(i) +
-           "_s0_sum * " +
+      c += "  r_sp" + std::to_string(i) + " -= r_sp" + std::to_string(i) +
+           "_sum * " +
            std::to_string(GetRangeShift(conv_params_.weights_type)) + ";\n";
     }
   }
   if (wg_reduction_) {
     c += "  } // end if condition\n";
-    int local_patch_size = block_spatial * block_s;
+    int local_patch_size = block_spatial;
     int data_type_size =
         precision == CalculationsPrecision::F16 && gpu_info.SupportsFP16() ? 2
                                                                            : 4;
@@ -1154,33 +1069,29 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
     }
     c += "[" + std::to_string(work_group_size_.x * work_group_size_.y) + "];\n";
 
-    const int upload_groups =
-        DivideRoundUp(block_spatial * block_s, local_patch_size);
+    const int upload_groups = DivideRoundUp(block_spatial, local_patch_size);
     for (int group = 0; group < upload_groups; ++group) {
       const int first = group * local_patch_size;
       const int last =
-          std::min(block_spatial * block_s - 1, first + local_patch_size - 1);
-      for (int i = first; i <= last; ++i) {
-        int sp_id = i % block_spatial;
-        int s_id = i / block_spatial;
+          std::min(block_spatial - 1, first + local_patch_size - 1);
+      for (int sp_id = first; sp_id <= last; ++sp_id) {
         const std::string local_mem =
-            local_patch_size == 1 ? "temp" : "temp[" + std::to_string(i) + "]";
+            local_patch_size == 1 ? "temp"
+                                  : "temp[" + std::to_string(sp_id) + "]";
         c += "  " + local_mem + "[tid.x * WG_SIZE_Y + tid.y] = r_sp" +
-             std::to_string(sp_id) + "_s" + std::to_string(s_id) + ";\n";
+             std::to_string(sp_id) + ";\n";
       }
       c += "  for (int ystride = WG_SIZE_Y / 2; ystride > 0; ystride /= 2) {\n";
       c += "    LOCAL_MEM_BARRIER;\n";
       c += "    if (tid.y < ystride) {\n";
-      for (int i = first; i <= last; ++i) {
-        int sp_id = i % block_spatial;
-        int s_id = i / block_spatial;
+      for (int sp_id = first; sp_id <= last; ++sp_id) {
         const std::string local_mem =
-            local_patch_size == 1 ? "temp" : "temp[" + std::to_string(i) + "]";
-        c += "      r_sp" + std::to_string(sp_id) + "_s" +
-             std::to_string(s_id) + " += " + local_mem +
+            local_patch_size == 1 ? "temp"
+                                  : "temp[" + std::to_string(sp_id) + "]";
+        c += "      r_sp" + std::to_string(sp_id) + " += " + local_mem +
              "[tid.x * WG_SIZE_Y + tid.y + ystride];\n";
         c += "      " + local_mem + "[tid.x * WG_SIZE_Y + tid.y] = r_sp" +
-             std::to_string(sp_id) + "_s" + std::to_string(s_id) + ";\n";
+             std::to_string(sp_id) + ";\n";
       }
       c += "    }\n";
       c += "  }\n";
@@ -1191,48 +1102,43 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
     c += "  if (dst_s >= args.dst_tensor.Slices()) return;\n";
     c += "  if (tid.y != 0) return;\n";
   }
-  for (int s_id = 0; s_id < block_s; ++s_id) {
-    c += "  {\n";
-    if (conv_params_.has_bias) {
-      c += "  Type bias_value = args.biases.Read(dst_s + " +
-           std::to_string(s_id) + ");\n";
-    }
-    for (int sp_id = 0; sp_id < block_spatial; ++sp_id) {
-      const std::string r_name =
-          "r_sp" + std::to_string(sp_id) + "_s" + std::to_string(s_id);
-      const int3 bhw = GetBlockSpatialCoords(sp_id, conv_params_.block_size);
-      std::string y_coord = std::to_string(bhw.y);
-      if (conv_params_.batched_weights) {
-        y_coord = "weights_batch_id";
-        if (conv_params_.runtime_batch_ids) {
-          y_coord = "dst_h";
-        }
-      }
-      std::string x_coord = std::to_string(bhw.z);
-      if (conv_params_.runtime_check.packed_groups.has_value()) {
-        x_coord = "dst_w + " + x_coord;
-        y_coord = "0";
-        c += "  if (" + x_coord + " < w_group_offset + w_group_size) {\n";
-      } else if (block_spatial != 1) {
-        c += "  if (" + std::to_string(-sp_id) +
-             " < args.dst_tensor.Width()) {\n";
-      }
-      c += "  args.dst_tensor::type res_value = "
-           "ucl::Convert<args.dst_tensor::type>(" +
-           r_name + ");\n";
-      if (conv_params_.has_bias) {
-        c += "  res_value += bias_value;\n";
-      }
-      c += "  args.dst_tensor.Write(res_value, " + x_coord + ", " + y_coord +
-           ", dst_s + " + std::to_string(s_id) + ", " + std::to_string(bhw.x) +
-           ");\n";
-      if (conv_params_.runtime_check.packed_groups.has_value() ||
-          block_spatial != 1) {
-        c += "  }\n";
-      }
-    }
-    c += "  }\n";
+  c += "  {\n";
+  if (conv_params_.has_bias) {
+    c += "  Type bias_value = args.biases.Read(dst_s);\n";
   }
+  for (int sp_id = 0; sp_id < block_spatial; ++sp_id) {
+    const std::string r_name = "r_sp" + std::to_string(sp_id);
+    const int3 bhw = GetBlockSpatialCoords(sp_id, conv_params_.block_size);
+    std::string y_coord = std::to_string(bhw.y);
+    if (conv_params_.batched_weights) {
+      y_coord = "weights_batch_id";
+      if (conv_params_.runtime_batch_ids) {
+        y_coord = "dst_h";
+      }
+    }
+    std::string x_coord = std::to_string(bhw.z);
+    if (conv_params_.runtime_check.packed_groups.has_value()) {
+      x_coord = "dst_w + " + x_coord;
+      y_coord = "0";
+      c += "  if (" + x_coord + " < w_group_offset + w_group_size) {\n";
+    } else if (block_spatial != 1) {
+      c +=
+          "  if (" + std::to_string(-sp_id) + " < args.dst_tensor.Width()) {\n";
+    }
+    c += "  args.dst_tensor::type res_value = "
+         "ucl::Convert<args.dst_tensor::type>(" +
+         r_name + ");\n";
+    if (conv_params_.has_bias) {
+      c += "  res_value += bias_value;\n";
+    }
+    c += "  args.dst_tensor.Write(res_value, " + x_coord + ", " + y_coord +
+         ", dst_s, " + std::to_string(bhw.x) + ");\n";
+    if (conv_params_.runtime_check.packed_groups.has_value() ||
+        block_spatial != 1) {
+      c += "  }\n";
+    }
+  }
+  c += "  }\n";
   c += "}\n";
   return c;
 }
@@ -1250,8 +1156,7 @@ int3 FullyConnected::GetGridSize() const {
     return int3(dst_[0]->Slices() / work_group_size_.y,
                 work_group_size_.y * w_groups, w_batch_size);
   } else {
-    return int3(dst_[0]->Slices() / conv_params_.block_size.c,
-                work_group_size_.y * w_groups, w_batch_size);
+    return int3(dst_[0]->Slices(), work_group_size_.y * w_groups, w_batch_size);
   }
 }
 
@@ -1291,7 +1196,7 @@ void FullyConnected::AddWeightsArguments(const ExternalWeights& weights) {
     if (weights.desc.IsLinearLayout()) {
       BufferDescriptor desc;
       desc.element_type = DataType::UINT32;
-      desc.element_size = 2 * conv_params_.block_size.c;
+      desc.element_size = 2;
       AddSrcBuffer("weights", desc);
     } else {
       TensorDescriptor desc = TensorDescriptor(
@@ -1302,7 +1207,7 @@ void FullyConnected::AddWeightsArguments(const ExternalWeights& weights) {
     if (weights.desc.IsLinearLayout()) {
       BufferDescriptor desc;
       desc.element_type = DataType::UINT32;
-      desc.element_size = conv_params_.block_size.c;
+      desc.element_size = 1;
       AddSrcBuffer("weights", desc);
     } else {
       TensorDescriptor desc = TensorDescriptor(
