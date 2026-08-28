@@ -119,7 +119,6 @@ class FullyConnected : public GPUOperation {
       int scale_zp_group_size);
 
   bool wg_reduction_;
-  bool split_dst_slices_ = false;  // if used, wg_reduction will not be used.
   ConvParams conv_params_;
 };
 
