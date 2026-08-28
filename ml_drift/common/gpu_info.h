@@ -144,8 +144,8 @@ struct AdrenoInfo {
     kGen8 = 8,
   };
 
-  AdrenoGpu adreno_gpu;
-  Generation generation;
+  AdrenoGpu adreno_gpu = AdrenoGpu::kUnknown;
+  Generation generation = Generation::kUnknown;
   // compute units count using GPU name. Use GpuInfo::GetComputeUnitsCount().
   int compute_units = 1;
 
@@ -210,8 +210,8 @@ struct AMDInfo {
     return shader_engines * compute_units_per_shader_engine;
   }
 
-  AMDArchitecture architecture;
-  AMDGpu amd_gpu;
+  AMDArchitecture architecture = AMDArchitecture::kUnknown;
+  AMDGpu amd_gpu = AMDGpu::kUnknown;
 
   bool IsArchitectureOrNewer(AMDArchitecture arch) const;
   bool IsNavi10() const;
@@ -278,8 +278,8 @@ struct AppleInfo {
   };
   AppleInfo() = default;
   explicit AppleInfo(const std::string& gpu_description);
-  AppleGpu gpu_type;
-  Family gpu_family;
+  AppleGpu gpu_type = AppleGpu::kUnknown;
+  Family gpu_family = Family::kApple1;
 
   bool IsFamilyApple1() const;
   bool IsFamilyApple2() const;
@@ -334,8 +334,8 @@ struct BroadcomInfo {
   enum class Gen {
     kUnknown = 0,
   };
-  BroadcomGpu gpu_version;
-  Gen generation;
+  BroadcomGpu gpu_version = BroadcomGpu::kUnknown;
+  Gen generation = Gen::kUnknown;
 
   // returns approximate compute units count using GPU name
   int GetApproximateComputeUnitsCount() const;
@@ -396,8 +396,8 @@ struct MaliInfo {
     kValhallV4 = 10,
     kV5 = 11,
   };
-  MaliGpu gpu_version;
-  Gen generation;
+  MaliGpu gpu_version = MaliGpu::kUnknown;
+  Gen generation = Gen::kUnknown;
 
   bool IsMaliT6xx() const;
   bool IsMaliT7xx() const;
@@ -449,7 +449,7 @@ struct PowerVRInfo {
   };
   PowerVRInfo() = default;
   explicit PowerVRInfo(const std::string& gpu_description);
-  PowerVRGpu gpu_version;
+  PowerVRGpu gpu_version = PowerVRGpu::kUnknown;
   DriverVersion driver_version;
 
   bool IsRogue() const;
@@ -585,7 +585,7 @@ struct NvidiaInfo {
   NvidiaInfo() = default;
   explicit NvidiaInfo(const std::string& gpu_description);
 
-  NvidiaArchitecture architecture;
+  NvidiaArchitecture architecture = NvidiaArchitecture::kUnknown;
   NvidiaGpu gpu_type = NvidiaGpu::kUnknown;
 
   bool IsArchitectureOrNewer(NvidiaArchitecture arch) const;
@@ -613,9 +613,9 @@ struct OpenGlInfo {
   int max_shader_storage_block_size = 0;
 
   std::vector<std::string> extensions;
-  int max_compute_work_group_size_x;
-  int max_compute_work_group_size_y;
-  int max_compute_work_group_size_z;
+  int max_compute_work_group_size_x = 0;
+  int max_compute_work_group_size_y = 0;
+  int max_compute_work_group_size_z = 0;
 
   struct SubgroupInfo {
     int size = -1;
@@ -645,23 +645,23 @@ struct VulkanInfo {
   uint32_t max_per_stage_descriptor_sampled_images = 0;
   uint32_t max_per_stage_descriptor_storage_images = 0;
   uint32_t max_per_stage_descriptor_storage_buffers = 0;
-  uint32_t max_compute_work_group_invocations;
-  uint32_t max_image_dimension_1d;
-  uint32_t max_image_dimension_2d;
-  uint32_t max_image_dimension_3d;
-  uint32_t max_image_array_layers;
-  uint64_t max_texel_buffer_elements;
-  uint64_t max_uniform_buffer_range;
-  uint64_t max_storage_buffer_range;
-  uint64_t max_push_constants_size;
+  uint32_t max_compute_work_group_invocations = 0;
+  uint32_t max_image_dimension_1d = 0;
+  uint32_t max_image_dimension_2d = 0;
+  uint32_t max_image_dimension_3d = 0;
+  uint32_t max_image_array_layers = 0;
+  uint64_t max_texel_buffer_elements = 0;
+  uint64_t max_uniform_buffer_range = 0;
+  uint64_t max_storage_buffer_range = 0;
+  uint64_t max_push_constants_size = 0;
 
   uint32_t subgroup_size = 0;
   bool supports_subgroup_arithmetic = false;
 
   std::vector<std::string> extensions;
-  int max_compute_work_group_size_x;
-  int max_compute_work_group_size_y;
-  int max_compute_work_group_size_z;
+  int max_compute_work_group_size_x = 0;
+  int max_compute_work_group_size_y = 0;
+  int max_compute_work_group_size_z = 0;
 
   bool SupportsExplicitFp16() const;
 };
@@ -685,42 +685,42 @@ struct OpenClInfo {
   std::string platform_version;
   std::string driver_version;
 
-  OpenClVersion cl_version;
+  OpenClVersion cl_version = OpenClVersion::kUnknown;
 
   std::vector<std::string> extensions;
-  bool supports_fp16;
-  bool supports_image3d_writes;
-  bool supports_images;
-  int compute_units_count;
-  uint64_t buffer_max_size;
-  uint64_t max_allocation_size;
-  uint64_t image2d_max_width;
-  uint64_t image2d_max_height;
-  uint64_t image_buffer_max_size;
-  uint64_t image_array_max_layers;
-  uint64_t image3d_max_width;
-  uint64_t image3d_max_height;
-  uint64_t image3d_max_depth;
-  int max_work_group_size_x;
-  int max_work_group_size_y;
-  int max_work_group_size_z;
-  int max_work_group_total_size;
-  bool dedicated_local_memory;
+  bool supports_fp16 = false;
+  bool supports_image3d_writes = false;
+  bool supports_images = false;
+  int compute_units_count = 0;
+  uint64_t buffer_max_size = 0;
+  uint64_t max_allocation_size = 0;
+  uint64_t image2d_max_width = 0;
+  uint64_t image2d_max_height = 0;
+  uint64_t image_buffer_max_size = 0;
+  uint64_t image_array_max_layers = 0;
+  uint64_t image3d_max_width = 0;
+  uint64_t image3d_max_height = 0;
+  uint64_t image3d_max_depth = 0;
+  int max_work_group_size_x = 0;
+  int max_work_group_size_y = 0;
+  int max_work_group_size_z = 0;
+  int max_work_group_total_size = 0;
+  bool dedicated_local_memory = false;
 
   // The row pitch alignment size in pixels for 2D images created from a buffer.
   // The value must be a power of 2.
   uint64_t image_pitch_alignment = 0;
   // The minimum alignment in pixels. The value must be a power of 2.
   uint64_t image_base_address_alignment = 0;
-  uint64_t base_addr_align_in_bits;
+  uint64_t base_addr_align_in_bits = 0;
 
   // rtn is ROUND_TO_NEAREST
   // with rtn precision is much better then with rtz (ROUND_TO_ZERO)
   // Adreno 3xx supports only rtz, Adreno 4xx and more support rtn
   // Mali from T6xx supports rtn
   // PowerVR supports only rtz
-  bool supports_fp32_rtn;
-  bool supports_fp16_rtn;
+  bool supports_fp32_rtn = false;
+  bool supports_fp16_rtn = false;
 
   bool supports_register_allocation_arm = false;
 
@@ -735,12 +735,12 @@ struct OpenClInfo {
     bool suppports_4x8bit_packed = false;
     bool suppports_4x8bit = false;
     struct AccelerationProperties {
-      bool signed_accelerated;
-      bool unsigned_accelerated;
-      bool mixed_signedness_accelerated;
-      bool accumulating_saturating_signed_accelerated;
-      bool accumulating_saturating_unsigned_accelerated;
-      bool accumulating_saturating_mixed_signedness_accelerated;
+      bool signed_accelerated = false;
+      bool unsigned_accelerated = false;
+      bool mixed_signedness_accelerated = false;
+      bool accumulating_saturating_signed_accelerated = false;
+      bool accumulating_saturating_unsigned_accelerated = false;
+      bool accumulating_saturating_mixed_signedness_accelerated = false;
     };
     AccelerationProperties acceleration_info_4x8bit_packed;
     AccelerationProperties acceleration_info_4x8bit;
@@ -779,22 +779,22 @@ enum class MetalLanguageVersion {
 };
 
 struct MetalInfo {
-  MetalLanguageVersion language_version;
+  MetalLanguageVersion language_version = MetalLanguageVersion::kUnknown;
 
-  int max_work_group_size_x;
-  int max_work_group_size_y;
-  int max_work_group_size_z;
+  int max_work_group_size_x = 0;
+  int max_work_group_size_y = 0;
+  int max_work_group_size_z = 0;
 
-  uint64_t buffer_max_size;
+  uint64_t buffer_max_size = 0;
 
-  uint64_t image2d_max_width;
-  uint64_t image2d_max_height;
-  uint64_t image_array_max_layers;
-  uint64_t image3d_max_width;
-  uint64_t image3d_max_height;
-  uint64_t image3d_max_depth;
+  uint64_t image2d_max_width = 0;
+  uint64_t image2d_max_height = 0;
+  uint64_t image_array_max_layers = 0;
+  uint64_t image3d_max_width = 0;
+  uint64_t image3d_max_height = 0;
+  uint64_t image3d_max_depth = 0;
 
-  bool is_simulator;
+  bool is_simulator = false;
 
   bool IsSIMDMatMulSupported() const;
   // MSL is Metal shading language
@@ -884,7 +884,7 @@ struct IntelInfo {
   IntelInfo() = default;
   explicit IntelInfo(const std::string& gpu_description);
 
-  IntelGeneration generation;
+  IntelGeneration generation = IntelGeneration::kUnknown;
 
   bool IsGenerationOrNewer(IntelGeneration gen) const;
 };
@@ -897,19 +897,19 @@ enum class MaleoonGpu {
 };
 
 struct MaleoonInfo {
-  MaleoonGpu gpu;
+  MaleoonGpu gpu = MaleoonGpu::kUnknown;
 };
 
 // Describes the parameters of a wave matrix multiplication (with accumulation)
 // operation.
 // RESULT (MxN) += LEFT (MxK) * RIGHT (KxN)
 struct WaveMatMulOpDescriptor {
-  int m_size;
-  int n_size;
-  int k_size;
-  DataType left_type;
-  DataType right_type;
-  DataType result_type;
+  int m_size = 0;
+  int n_size = 0;
+  int k_size = 0;
+  DataType left_type = DataType::UNKNOWN;
+  DataType right_type = DataType::UNKNOWN;
+  DataType result_type = DataType::UNKNOWN;
 
   bool operator==(const WaveMatMulOpDescriptor& d) const {
     return d.m_size == m_size && d.n_size == n_size && d.k_size == k_size &&

@@ -242,5 +242,42 @@ TEST(AppleInfoTest, TestComputeUnitsCountAndFamily) {
   EXPECT_EQ(GetAppleInfo("Apple M5 Max").GetComputeUnitsCount(), 40);
 }
 
+TEST(GpuInfoTest, DefaultInitialization) {
+  GpuInfo gpu_info;
+  EXPECT_EQ(gpu_info.vendor, GpuVendor::kUnknown);
+  EXPECT_EQ(gpu_info.gpu_api, GpuApi::kUnknown);
+
+  EXPECT_EQ(gpu_info.vulkan_info.max_storage_buffer_range, 0);
+  EXPECT_EQ(gpu_info.vulkan_info.max_image_dimension_2d, 0);
+  EXPECT_EQ(gpu_info.vulkan_info.max_compute_work_group_invocations, 0);
+
+  EXPECT_EQ(gpu_info.opencl_info.buffer_max_size, 0);
+  EXPECT_EQ(gpu_info.opencl_info.max_allocation_size, 0);
+  EXPECT_EQ(gpu_info.opencl_info.cl_version, OpenClVersion::kUnknown);
+
+  EXPECT_EQ(gpu_info.metal_info.buffer_max_size, 0);
+  EXPECT_EQ(gpu_info.metal_info.language_version,
+            MetalLanguageVersion::kUnknown);
+
+  EXPECT_EQ(gpu_info.opengl_info.max_shader_storage_block_size, 0);
+  EXPECT_EQ(gpu_info.opengl_info.max_compute_work_group_size_x, 0);
+
+  EXPECT_EQ(gpu_info.adreno_info.adreno_gpu, AdrenoGpu::kUnknown);
+  EXPECT_EQ(gpu_info.adreno_info.generation, AdrenoInfo::Generation::kUnknown);
+
+  EXPECT_EQ(gpu_info.amd_info.architecture, AMDArchitecture::kUnknown);
+  EXPECT_EQ(gpu_info.amd_info.amd_gpu, AMDGpu::kUnknown);
+
+  EXPECT_EQ(gpu_info.apple_info.gpu_type, AppleGpu::kUnknown);
+  EXPECT_EQ(gpu_info.apple_info.gpu_family, AppleInfo::Family::kApple1);
+
+  EXPECT_EQ(gpu_info.broadcom_info.gpu_version, BroadcomGpu::kUnknown);
+  EXPECT_EQ(gpu_info.mali_info.gpu_version, MaliGpu::kUnknown);
+  EXPECT_EQ(gpu_info.powervr_info.gpu_version, PowerVRGpu::kUnknown);
+  EXPECT_EQ(gpu_info.nvidia_info.architecture, NvidiaArchitecture::kUnknown);
+  EXPECT_EQ(gpu_info.intel_info.generation, IntelGeneration::kUnknown);
+  EXPECT_EQ(gpu_info.maleoon_info.gpu, MaleoonGpu::kUnknown);
+}
+
 }  // namespace
 }  // namespace ml_drift
