@@ -749,7 +749,7 @@ GPUOperation CreateDequantization(const OHWI& weights_shape,
   c += ");\n";
   // Using extra checks to reduce register usage on PowerVR.
   const bool pvr_checks =
-      gpu_info.IsPowerVR() &&
+      gpu_info.IsPowerVR() && gpu_info.powervr_info.IsImgDxx() &&
       gpu_info.SupportsExtension("cl_img_pixel_subgroup_dot");
   if (src.GetDataType() == DataType::UINT32) {
     // Adjusting sum(Su * Wu) to sum(Su * Wi)

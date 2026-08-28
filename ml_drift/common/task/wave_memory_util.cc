@@ -426,9 +426,13 @@ absl::Status ResolveWaveMemory(const GpuInfo& gpu_info, std::string* code,
   if (!gpu_info.SupportsExtension("ucl_wave_memory")) {
     return absl::OkStatus();
   }
-  const bool use_work_group_memory =
-      gpu_info.IsPowerVR() &&
-      gpu_info.powervr_info.gpu_version != PowerVRGpu::kDXT;
+  bool use_work_group_memory =
+      gpu_info.IsPowerVR() && !gpu_info.powervr_info.IsImgDxx();
+  if (gpu_info.IsPowerVR() && gpu_info.powervr_info.IsImgCxx() &&
+      gpu_info.SupportsExtension("cl_img_pixel_subgroup_dot") &&
+      code->find("__builtin_PXL_dot") != std::string::npos) {
+    use_work_group_memory = false;
+  }
   if (use_work_group_memory) {
     return ResolveWaveMemoryToWorkGroupMemory(gpu_info, code);
   } else {
