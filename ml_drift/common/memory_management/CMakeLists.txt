@@ -25,5 +25,7 @@ target_include_directories(mld_common_memory_management_impl PUBLIC
 )
 
 target_link_libraries(mld_common_memory_management_impl PUBLIC
-    mld_common_status
+    absl::status
+    absl::status_macros
+    absl::statusor
 )

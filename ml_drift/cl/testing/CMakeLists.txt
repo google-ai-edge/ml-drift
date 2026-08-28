@@ -19,24 +19,18 @@ add_library(mld_cl_testing_perf_util
 target_include_directories(mld_cl_testing_perf_util PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_cl_testing_perf_util
     PUBLIC
+        absl::status
+        absl::status_macros
+        absl::statusor
         absl::time
         flatbuffers
         mld_cl_cl_operation
         mld_cl_environment
         mld_cl_tensor
-        mld_common_gpu_model_external_weights_test_util
         mld_common_data_type
         mld_common_flops_util
         mld_common_gpu_info
-        mld_common_operations
-        mld_common_precision
-        mld_common_shape
-        mld_common_status
-        mld_common_tensor
-        mld_common_types
-        mld_common_util
-        mld_common_winograd_util
-        mld_common_task_serialization_base_cc_fbs
+        mld_common_gpu_model_external_weights_test_util
         mld_common_kernels_conv_constants
         mld_common_kernels_conv_generic
         mld_common_kernels_conv_wave_matrix_mali
@@ -49,9 +43,17 @@ target_link_libraries(mld_cl_testing_perf_util
         mld_common_kernels_quantize_and_dequantize
         mld_common_kernels_softmax
         mld_common_kernels_special_conv_softmax_conv
+        mld_common_operations
+        mld_common_precision
         mld_common_selectors_convolution_selector
+        mld_common_shape
+        mld_common_task_serialization_base_cc_fbs
         mld_common_task_weights_conversion
         mld_common_task_weights_layout
+        mld_common_tensor
+        mld_common_types
+        mld_common_util
+        mld_common_winograd_util
         XNNPACK
 )
 
@@ -73,27 +75,31 @@ target_link_libraries(operation_perf_test PRIVATE
 add_library(mld_cl_testing_cl_test cl_test.cc cl_test.h)
 target_include_directories(mld_cl_testing_cl_test PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_cl_testing_cl_test PUBLIC
+  absl::status
+  absl::status_macros
+  absl::statusor
   gmock
   gtest
   mld_cl_cl_arguments
   mld_cl_cl_operation
+  mld_cl_default_util
   mld_cl_environment
   mld_cl_tensor
   mld_common_data_type
   mld_common_gpu_info
   mld_common_shape
-  mld_common_status
   mld_common_task_testing_util
   mld_common_tensor
   mld_common_types
-  mld_cl_default_util
 )
 
 add_executable(gpu_model_external_weights_test gpu_model_external_weights_test.cc)
 target_link_libraries(gpu_model_external_weights_test PUBLIC
-    mld_cl_testing_cl_test
-    mld_common_gpu_model_external_weights_test_util
-    mld_common_status
+    absl::status
+    absl::status_macros
+    absl::statusor
     gtest_main
     mld_cl_default_util
+    mld_cl_testing_cl_test
+    mld_common_gpu_model_external_weights_test_util
 )

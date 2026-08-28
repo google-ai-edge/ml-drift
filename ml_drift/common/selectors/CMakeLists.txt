@@ -15,10 +15,12 @@
 add_library(mld_common_selectors_default_selector default/default_selector.cc default_selector.h)
 target_include_directories(mld_common_selectors_default_selector PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_common_selectors_default_selector PUBLIC
+    absl::status
+    absl::status_macros
+    absl::statusor
     mld_common_gpu_info
     mld_common_model
     mld_common_model_hints
-    mld_common_status
     mld_common_task_gpu_operation
     mld_common_task_tensor_desc
 )
@@ -26,36 +28,38 @@ target_link_libraries(mld_common_selectors_default_selector PUBLIC
 add_library(mld_common_selectors_operation_selector operation_selector.cc operation_selector.h)
 target_include_directories(mld_common_selectors_operation_selector PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_common_selectors_operation_selector PUBLIC
-    mld_common_selectors_default_selector
-    mld_common_selectors_simple_selectors
+    absl::status
+    absl::status_macros
+    absl::statusor
     absl::strings
     mld_common_data_type
     mld_common_gpu_info
     mld_common_gpu_model
     mld_common_gpu_model_builder
-    mld_common_model
-    mld_common_model_hints
-    mld_common_operations
-    mld_common_shape
-    mld_common_status
-    mld_common_tensor
     mld_common_kernels_elementwise
     mld_common_kernels_fully_connected
     mld_common_kernels_mean_stddev_normalization
     mld_common_kernels_reduce
+    mld_common_model
+    mld_common_model_hints
+    mld_common_operations
+    mld_common_selectors_default_selector
+    mld_common_selectors_simple_selectors
+    mld_common_shape
     mld_common_task_gpu_operation
     mld_common_task_tensor_desc
     mld_common_task_weights_layout
+    mld_common_tensor
 )
 
 add_library(mld_common_selectors_special_selector special_selector.cc special_selector.h)
 target_include_directories(mld_common_selectors_special_selector PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_common_selectors_special_selector PUBLIC
+    absl::status
+    absl::status_macros
+    absl::statusor
     mld_common_gpu_info
     mld_common_gpu_model_builder
-    mld_common_model
-    mld_common_model_hints
-    mld_common_status
     mld_common_kernels_mean_stddev_normalization_parser
     mld_common_kernels_mish
     mld_common_kernels_reduce_parser
@@ -64,6 +68,8 @@ target_link_libraries(mld_common_selectors_special_selector PUBLIC
     mld_common_kernels_special_dw7x7_conv2to6_concat_conv8to8
     mld_common_kernels_special_thin_local_memory_fuser
     mld_common_kernels_special_thin_pointwise_fuser
+    mld_common_model
+    mld_common_model_hints
 )
 
 add_library(mld_common_selectors_convolution_selector convolution_selector.cc convolution_selector.h)
@@ -119,14 +125,11 @@ target_link_libraries(mld_common_selectors_dw_convolution_selector PUBLIC
 add_library(mld_common_selectors_simple_selectors simple_selectors.cc simple_selectors.h)
 target_include_directories(mld_common_selectors_simple_selectors PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_common_selectors_simple_selectors PUBLIC
+    absl::status
+    absl::status_macros
+    absl::statusor
     mld_common_data_type
     mld_common_gpu_info
-    mld_common_model_hints
-    mld_common_operations
-    mld_common_shape
-    mld_common_status
-    mld_common_tensor
-    mld_common_util
     mld_common_kernels_add
     mld_common_kernels_concat_xy
     mld_common_kernels_concat_z
@@ -156,6 +159,11 @@ target_link_libraries(mld_common_selectors_simple_selectors PUBLIC
     mld_common_kernels_split
     mld_common_kernels_tile
     mld_common_kernels_winograd
+    mld_common_model_hints
+    mld_common_operations
+    mld_common_shape
     mld_common_task_gpu_operation
     mld_common_task_weights_layout
+    mld_common_tensor
+    mld_common_util
 )

@@ -18,8 +18,10 @@ add_library(mld_cl_opencl_wrapper
 )
 target_link_libraries(mld_cl_opencl_wrapper
     PUBLIC
+        absl::status
+        absl::status_macros
+        absl::statusor
         opencl_headers
-        mld_common_status
     PRIVATE
         absl::strings
 )
@@ -42,6 +44,9 @@ add_library(mld_cl_environment environment.cc environment.h)
 target_include_directories(mld_cl_environment PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_compile_definitions(mld_cl_environment PUBLIC ML_DRIFT_ENABLE_OPENCL)
 target_link_libraries(mld_cl_environment PUBLIC
+  absl::status
+  absl::status_macros
+  absl::statusor
   mld_cl_cl_command_queue
   mld_cl_cl_context
   mld_cl_cl_device
@@ -49,7 +54,6 @@ target_link_libraries(mld_cl_environment PUBLIC
   mld_cl_util_types
   mld_common_gpu_info
   mld_common_precision
-  mld_common_status
   mld_common_task_tensor_desc
 PRIVATE
   XNNPACK
@@ -163,10 +167,12 @@ target_include_directories(mld_cl_memory_manager PUBLIC
   $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>
 )
 target_link_libraries(mld_cl_memory_manager PUBLIC
+  absl::status
+  absl::status_macros
+  absl::statusor
   mld_cl_buffer
   mld_cl_tensor
   mld_common_gpu_model
-  mld_common_status
 PRIVATE
   mld_common_memory_management
 )
@@ -183,10 +189,12 @@ target_link_libraries(mld_cl_cl_command_buffer PUBLIC
 add_library(mld_cl_command_buffer command_buffer.h)
 target_include_directories(mld_cl_command_buffer PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_cl_command_buffer PUBLIC
+  absl::status
+  absl::status_macros
+  absl::statusor
   mld_cl_cl_command_queue
   mld_cl_cl_event
   mld_cl_cl_operation
-  mld_common_status
 )
 
 add_library(mld_cl_cl_event cl_event.cc cl_event.h)
@@ -198,35 +206,41 @@ target_link_libraries(mld_cl_cl_event PUBLIC
 add_library(mld_cl_cl_kernel cl_kernel.cc cl_kernel.h)
 target_include_directories(mld_cl_cl_kernel PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_cl_cl_kernel PUBLIC
+  absl::status
+  absl::status_macros
+  absl::statusor
   absl::strings
   mld_cl_cl_device
-  mld_common_status
-  mld_common_util
   mld_cl_opencl_wrapper
   mld_cl_util
+  mld_common_util
 )
 
 add_library(mld_cl_cl_program cl_program.cc cl_program.h)
 target_include_directories(mld_cl_cl_program PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_cl_cl_program PUBLIC
+  absl::status
+  absl::status_macros
+  absl::statusor
   absl::strings
   mld_cl_cl_device
   mld_cl_cl_kernel
-  mld_common_status
   mld_cl_opencl_wrapper
 )
 
 add_library(mld_cl_util util.cc util.h)
 target_include_directories(mld_cl_util PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_cl_util PUBLIC
+  absl::status
+  absl::status_macros
+  absl::statusor
   absl::strings
-  mld_cl_cl_image_format
   mld_cl_cl_device
+  mld_cl_cl_image_format
+  mld_cl_opencl_wrapper
   mld_common_data_type
   mld_common_gpu_info
-  mld_common_status
   mld_common_types
-  mld_cl_opencl_wrapper
 )
 
 add_library(mld_cl_cl_image_format cl_image_format.cc cl_image_format.h)
@@ -239,12 +253,14 @@ target_link_libraries(mld_cl_cl_image_format PUBLIC
 add_library(mld_cl_tensor tensor.cc tensor.h)
 target_include_directories(mld_cl_tensor PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_cl_tensor PUBLIC
+  absl::status
+  absl::status_macros
+  absl::statusor
   mld_cl_buffer
   mld_cl_cl_command_queue
   mld_cl_cl_context
-  mld_cl_util
   mld_cl_opencl_wrapper
-  mld_common_status
+  mld_cl_util
   mld_common_task_tensor_desc
   mld_common_types
 )
@@ -252,38 +268,44 @@ target_link_libraries(mld_cl_tensor PUBLIC
 add_library(mld_cl_cl_arguments cl_arguments.cc cl_arguments.h)
 target_include_directories(mld_cl_cl_arguments PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_cl_cl_arguments PUBLIC
-  mld_common_task_arguments
-  mld_common_util
+  absl::status
+  absl::status_macros
+  absl::statusor
   mld_cl_cl_kernel
   mld_cl_opencl_wrapper
-  mld_common_status
   mld_cl_qcom_thin_filter
-  mld_common_task_gpu_object_desc
   mld_cl_tensor
+  mld_common_task_arguments
+  mld_common_task_gpu_object_desc
+  mld_common_util
 )
 
 add_library(mld_cl_qcom_thin_filter qcom_thin_filter.cc qcom_thin_filter.h
   ../common/task/qcom_thin_filter_desc.cc)
 target_include_directories(mld_cl_qcom_thin_filter PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_cl_qcom_thin_filter PUBLIC
+  absl::status
+  absl::status_macros
+  absl::statusor
   mld_cl_buffer
   mld_cl_cl_context
-  mld_common_status
   mld_common_task_gpu_object_desc
 )
 
 add_library(mld_cl_cl_operation cl_operation.cc cl_operation.h)
 target_include_directories(mld_cl_cl_operation PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_cl_cl_operation PUBLIC
+  absl::status
+  absl::status_macros
+  absl::statusor
   mld_cl_cl_arguments
-  mld_cl_cl_kernel
-  mld_common_task_gpu_operation
-  mld_cl_cl_program_cache
   mld_cl_cl_context
   mld_cl_cl_device
+  mld_cl_cl_kernel
+  mld_cl_cl_program_cache
   mld_cl_tensor
-  mld_common_status
   mld_common_gpu_info
+  mld_common_task_gpu_operation
 PRIVATE
   mld_common_task_util
 )
@@ -305,8 +327,10 @@ target_include_directories(gpu_object INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 )
 target_link_libraries(gpu_object INTERFACE
+    absl::status
+    absl::status_macros
+    absl::statusor
     mld_cl_opencl_wrapper
-    mld_common_status
     mld_common_task_gpu_object_desc
 )
 
@@ -323,29 +347,33 @@ target_link_libraries(buffer_test
 add_executable(cl_arguments_test cl_arguments_test.cc)
 target_link_libraries(cl_arguments_test
     PRIVATE
-        mld_cl_cl_arguments
+        absl::status
+        absl::status_macros
+        absl::statusor
         cl_test
-        mld_common_status
-        mld_common_task_arguments
         gtest_main
+        mld_cl_cl_arguments
+        mld_common_task_arguments
 )
 
 add_executable(inference_context_test inference_context_test.cc)
 target_link_libraries(inference_context_test
     PRIVATE
+        absl::log
+        absl::status
+        absl::status_macros
+        absl::statusor
         cl_test
+        gtest_main
+        mld_cl_cl_arguments
         mld_cl_inference_context
         mld_cl_tensor
-        gtest_main
-        absl::log
         mld_common_gpu_model
         mld_common_gpu_model_builder
         mld_common_precision
         mld_common_shape
-        mld_common_status
-        mld_common_tensor
         mld_common_task_tensor_desc
-        mld_cl_cl_arguments
+        mld_common_tensor
 )
 
 if(NOT CMAKE_CROSSCOMPILING)

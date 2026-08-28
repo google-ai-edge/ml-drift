@@ -27,19 +27,21 @@ target_include_directories(mld_common_task_serialization_base PUBLIC
   "${FLATBUFFERS_GEN_INCLUDE_DIR}"
 )
 target_link_libraries(mld_common_task_serialization_base PUBLIC
-  mld_common_task_serialization_base_cc_fbs
+  absl::status
+  absl::status_macros
+  absl::statusor
   flatbuffers
-  mld_common_task_gpu_operation
-  mld_common_task_tensor_desc
   mld_common_data_type
   mld_common_shape
-  mld_common_status
+  mld_common_task_gpu_operation
+  mld_common_task_serialization_base_cc_fbs
+  mld_common_task_tensor_desc
   mld_common_types
 PRIVATE
+  mld_common_access_type
   mld_common_task_arguments
   mld_common_task_buffer_desc
   mld_common_task_gpu_object_desc
-  mld_common_access_type
 )
 add_dependencies(mld_common_task_serialization_base mld_common_task_serialization_base_cc_fbs_gen)
 
@@ -63,9 +65,11 @@ add_dependencies(mld_common_task_gpu_object_desc mld_common_task_serialization_b
 add_library(mld_common_task_qcom_thin_filter_desc qcom_thin_filter_desc.cc qcom_thin_filter_desc.h)
 target_include_directories(mld_common_task_qcom_thin_filter_desc PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_common_task_qcom_thin_filter_desc PUBLIC
-  mld_common_task_gpu_object_desc
+  absl::status
+  absl::status_macros
+  absl::statusor
   mld_common_gpu_info
-  mld_common_status
+  mld_common_task_gpu_object_desc
 PRIVATE
   absl::strings
 )
@@ -76,16 +80,18 @@ target_include_directories(mld_common_task_tensor_desc PUBLIC
   "${FLATBUFFERS_GEN_INCLUDE_DIR}"
 )
 target_link_libraries(mld_common_task_tensor_desc PUBLIC
+  absl::span
+  absl::status
+  absl::status_macros
+  absl::statusor
+  flatbuffers
   mld_common_data_type
   mld_common_shape
-  mld_common_status
+  mld_common_task_gpu_object_desc
+  mld_common_task_serialization_base_cc_fbs
   mld_common_tensor
   mld_common_types
   mld_common_util
-  mld_common_task_gpu_object_desc
-  absl::span
-  flatbuffers
-  mld_common_task_serialization_base_cc_fbs
 PRIVATE
   absl::strings
   mld_common_task_util
@@ -107,9 +113,11 @@ target_include_directories(mld_common_task_buffer_desc PUBLIC
   "${FLATBUFFERS_GEN_INCLUDE_DIR}"
 )
 target_link_libraries(mld_common_task_buffer_desc PUBLIC
+  absl::status
+  absl::status_macros
+  absl::statusor
   mld_common_data_type
   mld_common_gpu_info
-  mld_common_status
   mld_common_task_gpu_object_desc
 PRIVATE
   absl::strings
@@ -120,18 +128,20 @@ add_dependencies(mld_common_task_buffer_desc mld_common_task_serialization_base_
 add_library(mld_common_task_arguments arguments.cc arguments.h)
 target_include_directories(mld_common_task_arguments PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_common_task_arguments PUBLIC
+  absl::status
+  absl::status_macros
+  absl::statusor
   mld_common_access_type
   mld_common_data_type
   mld_common_gpu_info
-  mld_common_status
-  mld_common_types
   mld_common_task_gpu_object_desc
+  mld_common_types
 PRIVATE
-  mld_common_task_buffer_desc
   absl::flat_hash_set
-  absl::strings
   absl::str_format
+  absl::strings
   flatbuffers
+  mld_common_task_buffer_desc
   mld_common_task_serialization_base_cc_fbs
   mld_common_task_util
 )
@@ -163,12 +173,15 @@ target_include_directories(mld_common_task_gpu_operation PUBLIC
   $<TARGET_PROPERTY:FP16,INTERFACE_INCLUDE_DIRECTORIES>
 )
 target_link_libraries(mld_common_task_gpu_operation PUBLIC
+  absl::status
+  absl::status_macros
+  absl::statusor
+  flatbuffers
   mld_common_data_type
   mld_common_gpu_info
   mld_common_kernel_info
   mld_common_precision
   mld_common_shape
-  mld_common_status
   mld_common_task_arguments
   mld_common_task_buffer_desc
   mld_common_task_compiler_options
@@ -177,18 +190,16 @@ target_link_libraries(mld_common_task_gpu_operation PUBLIC
   mld_common_task_tensor_desc
   mld_common_task_tuning_type
   mld_common_types
-  flatbuffers
 PRIVATE
+  absl::strings
+  FP16
   mld_common_access_type
-  mld_common_util
   mld_common_task_gpu_object_desc
   mld_common_task_util
   mld_common_task_wave_matrix_util
   mld_common_task_wave_memory_util
   mld_common_task_work_group_picking
-  absl::status
-  absl::strings
-  FP16
+  mld_common_util
 )
 add_dependencies(mld_common_task_gpu_operation mld_common_task_serialization_base_cc_fbs_gen)
 
@@ -201,45 +212,51 @@ target_link_libraries(mld_common_task_weights_layout PUBLIC
   mld_common_data_type
   mld_common_shape
 PRIVATE
-  mld_common_status
+  absl::status
+  absl::status_macros
+  absl::statusor
+  absl::strings
+  flatbuffers
+  mld_common_task_serialization_base_cc_fbs
   mld_common_tensor
   mld_common_types
   mld_common_util
-  absl::strings
-  flatbuffers
   XNNPACK
-  mld_common_task_serialization_base_cc_fbs
 )
 add_dependencies(mld_common_task_weights_layout mld_common_task_serialization_base_cc_fbs_gen)
 
 add_library(mld_common_task_wave_matrix_util wave_matrix_util.cc wave_matrix_util.h)
 target_include_directories(mld_common_task_wave_matrix_util PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_common_task_wave_matrix_util PUBLIC
+  absl::status
+  absl::status_macros
+  absl::statusor
   mld_common_gpu_info
-  mld_common_status
 PRIVATE
-  mld_common_task_util
   absl::flat_hash_map
   absl::strings
   mld_common_data_type
+  mld_common_task_util
 )
 
 add_library(mld_common_task_wave_memory_util wave_memory_util.cc wave_memory_util.h)
 target_include_directories(mld_common_task_wave_memory_util PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_common_task_wave_memory_util PUBLIC
+  absl::status
+  absl::status_macros
+  absl::statusor
   mld_common_data_type
   mld_common_gpu_info
   mld_common_shape
-  mld_common_status
   mld_common_task_arguments
   mld_common_task_buffer_desc
   mld_common_task_compiler_options
   mld_common_task_weights_layout
 PRIVATE
+  absl::strings
   mld_common_task_gpu_object_desc
   mld_common_task_util
   mld_common_task_weights_conversion
-  absl::strings
   mld_common_util
 )
 
@@ -249,21 +266,23 @@ add_library(mld_common_task_weights_conversion
 )
 target_include_directories(mld_common_task_weights_conversion PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_common_task_weights_conversion PUBLIC
-  mld_common_task_tensor_desc
-  mld_common_task_weights_layout
+  absl::status
+  absl::status_macros
+  absl::statusor
   mld_common_data_type
   mld_common_shape
-  mld_common_status
+  mld_common_task_tensor_desc
+  mld_common_task_weights_layout
   mld_common_tensor
   mld_common_types
 PRIVATE
-  mld_common_util
-  absl::log
   absl::check
+  absl::log
   absl::strings
   flatbuffers
-  XNNPACK
   mld_common_task_serialization_base_cc_fbs
+  mld_common_util
+  XNNPACK
 )
 add_dependencies(mld_common_task_weights_conversion mld_common_task_serialization_base_cc_fbs_gen)
 
@@ -271,11 +290,13 @@ add_library(mld_common_task_util util.cc util.h)
 target_include_directories(mld_common_task_util PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_compile_definitions(mld_common_task_util PUBLIC ML_DRIFT_ENABLE_VULKAN)
 target_link_libraries(mld_common_task_util PUBLIC
-  mld_common_task_gpu_object_desc
+  absl::status
+  absl::status_macros
+  absl::statusor
   mld_common_data_type
   mld_common_gpu_info
   mld_common_precision
-  mld_common_status
+  mld_common_task_gpu_object_desc
   mld_common_types
 PRIVATE
   absl::flat_hash_map
@@ -286,40 +307,44 @@ PRIVATE
 add_library(mld_common_task_testing_util testing_util.cc testing_util.h)
 target_include_directories(mld_common_task_testing_util PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_common_task_testing_util PUBLIC
-  gtest
+  absl::flat_hash_map
+  absl::log
+  absl::random_bit_gen_ref
+  absl::random_random
+  absl::status
+  absl::status_macros
+  absl::statusor
+  absl::strings
   gmock
+  gtest
   mld_common_data_type
   mld_common_gpu_info
   mld_common_gpu_model
   mld_common_operations
   mld_common_precision
   mld_common_shape
-  mld_common_status
+  mld_common_task_gpu_operation
+  mld_common_task_profiling_info
+  mld_common_task_tensor_desc
   mld_common_tensor
   mld_common_util
-  mld_common_task_gpu_operation
-  mld_common_task_tensor_desc
-  mld_common_task_profiling_info
-  absl::flat_hash_map
-  absl::log
-  absl::random_bit_gen_ref
-  absl::random_random
-  absl::strings
 )
 
 add_library(mld_common_task_testing_ref_ops testing_ref_ops.cc testing_ref_ops.h)
 target_include_directories(mld_common_task_testing_ref_ops PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_common_task_testing_ref_ops PUBLIC
-  XNNPACK
+  absl::check
+  absl::log
+  absl::status
+  absl::status_macros
+  absl::statusor
   mld_common_data_type
   mld_common_operations
   mld_common_shape
-  mld_common_status
+  mld_common_task_gpu_operation
+  mld_common_task_testing_util
   mld_common_tensor
   mld_common_util
   mld_common_winograd_util
-  mld_common_task_gpu_operation
-  mld_common_task_testing_util
-  absl::check
-  absl::log
+  XNNPACK
 )

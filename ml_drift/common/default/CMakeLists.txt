@@ -17,8 +17,9 @@ add_library(mld_common_status_matchers INTERFACE
 )
 target_include_directories(mld_common_status_matchers INTERFACE $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_common_status_matchers INTERFACE
-    mld_common_status
     absl::status
-    gtest
+    absl::status_macros
+    absl::statusor
     gmock
+    gtest
 )

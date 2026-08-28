@@ -18,14 +18,16 @@ add_library(mld_samples_stable_diffusion_autoencoder_kl_builder
 )
 target_include_directories(mld_samples_stable_diffusion_autoencoder_kl_builder PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_samples_stable_diffusion_autoencoder_kl_builder PUBLIC
-    mld_samples_stable_diffusion_util
+    absl::status
+    absl::status_macros
+    absl::statusor
     mld_common_gpu_info
     mld_common_gpu_model
     mld_common_gpu_model_builder
     mld_common_operations
     mld_common_shape
-    mld_common_status
     mld_common_types
+    mld_samples_stable_diffusion_util
 )
 
 add_library(mld_samples_stable_diffusion_bpe_tokenizer
@@ -45,20 +47,22 @@ add_library(mld_samples_stable_diffusion_text_guidance_builder
 )
 target_include_directories(mld_samples_stable_diffusion_text_guidance_builder PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_samples_stable_diffusion_text_guidance_builder PUBLIC
-    mld_samples_stable_diffusion_model_data_loader
-    mld_samples_stable_diffusion_util
     absl::log
+    absl::status
+    absl::status_macros
+    absl::statusor
     mld_common_data_type
     mld_common_gpu_info
     mld_common_gpu_model
     mld_common_gpu_model_builder
+    mld_common_kernels_reduce
     mld_common_operations
     mld_common_shape
-    mld_common_status
+    mld_common_task_gpu_operation
     mld_common_tensor
     mld_common_types
-    mld_common_kernels_reduce
-    mld_common_task_gpu_operation
+    mld_samples_stable_diffusion_model_data_loader
+    mld_samples_stable_diffusion_util
     tflite_schema
 )
 
@@ -68,18 +72,20 @@ add_library(mld_samples_stable_diffusion_unet_builder
 )
 target_include_directories(mld_samples_stable_diffusion_unet_builder PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_samples_stable_diffusion_unet_builder PUBLIC
-    mld_samples_stable_diffusion_util
     absl::log
-    absl::strings
     absl::span
+    absl::status
+    absl::status_macros
+    absl::statusor
+    absl::strings
     mld_common_gpu_info
     mld_common_gpu_model
     mld_common_gpu_model_builder
     mld_common_model
     mld_common_operations
     mld_common_shape
-    mld_common_status
     mld_common_types
+    mld_samples_stable_diffusion_util
 )
 
 add_library(mld_samples_stable_diffusion_util
@@ -88,18 +94,20 @@ add_library(mld_samples_stable_diffusion_util
 )
 target_include_directories(mld_samples_stable_diffusion_util PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_samples_stable_diffusion_util PUBLIC
-    XNNPACK
-    absl::strings
     absl::span
+    absl::status
+    absl::status_macros
+    absl::statusor
+    absl::strings
     mld_common_data_type
     mld_common_gpu_info
     mld_common_operations
     mld_common_shape
-    mld_common_status
-    mld_common_tensor
-    mld_common_types
     mld_common_task_gpu_operation
     mld_common_task_tensor_desc
+    mld_common_tensor
+    mld_common_types
+    XNNPACK
 )
 
 add_library(mld_samples_stable_diffusion_model_data_loader
@@ -108,15 +116,17 @@ add_library(mld_samples_stable_diffusion_model_data_loader
 )
 target_include_directories(mld_samples_stable_diffusion_model_data_loader PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_samples_stable_diffusion_model_data_loader PUBLIC
-    mld_samples_stable_diffusion_util
     absl::flat_hash_map
     absl::log
     absl::memory
-    absl::strings
     absl::span
+    absl::status
+    absl::status_macros
+    absl::statusor
+    absl::strings
     flatbuffers
-    mld_common_status
     mld_common_types
+    mld_samples_stable_diffusion_util
     tflite_schema
 )
 
@@ -124,13 +134,12 @@ add_executable(sd_gpu_opencl
     sd_gpu_opencl.cc
 )
 target_link_libraries(sd_gpu_opencl PUBLIC
-    mld_samples_stable_diffusion_autoencoder_kl_builder
-    mld_samples_stable_diffusion_bpe_tokenizer
-    mld_samples_stable_diffusion_text_guidance_builder
-    mld_samples_stable_diffusion_unet_builder
-    mld_samples_stable_diffusion_util
+    absl::status
+    absl::status_macros
+    absl::statusor
     mld_cl_cl_command_queue
     mld_cl_cl_operation
+    mld_cl_default_util
     mld_cl_environment
     mld_cl_inference_context
     mld_cl_opencl_wrapper
@@ -138,17 +147,20 @@ target_link_libraries(sd_gpu_opencl PUBLIC
     mld_common_data_type
     mld_common_gpu_model
     mld_common_gpu_model_builder
+    mld_common_kernels_elementwise
+    mld_common_kernels_random_philox
     mld_common_model_hints
     mld_common_operations
     mld_common_precision
     mld_common_shape
-    mld_common_status
-    mld_common_tensor
-    mld_common_types
-    mld_common_kernels_elementwise
-    mld_common_kernels_random_philox
     mld_common_task_gpu_operation
     mld_common_task_profiling_info
     mld_common_task_tensor_desc
-    mld_cl_default_util
+    mld_common_tensor
+    mld_common_types
+    mld_samples_stable_diffusion_autoencoder_kl_builder
+    mld_samples_stable_diffusion_bpe_tokenizer
+    mld_samples_stable_diffusion_text_guidance_builder
+    mld_samples_stable_diffusion_unet_builder
+    mld_samples_stable_diffusion_util
 )

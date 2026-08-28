@@ -15,14 +15,16 @@
 add_library(mld_common_kernels_add add.cc add.h)
 target_include_directories(mld_common_kernels_add PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_common_kernels_add PUBLIC
+  absl::status
+  absl::status_macros
+  absl::statusor
+  flatbuffers
   mld_common_data_type
   mld_common_operations
   mld_common_shape
-  mld_common_status
+  mld_common_task_gpu_object_desc
   mld_common_tensor
   mld_common_util
-  flatbuffers
-  mld_common_task_gpu_object_desc
 )
 
 add_library(mld_common_kernels_elementwise elementwise.cc)
@@ -30,8 +32,10 @@ target_include_directories(mld_common_kernels_elementwise PUBLIC
     $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>
 )
 target_link_libraries(mld_common_kernels_elementwise PUBLIC
+    absl::status
+    absl::status_macros
+    absl::statusor
     mld_common_task_gpu_operation
-    mld_common_status
 )
 
 add_library(mld_common_kernels_accumulate_input_channels accumulate_input_channels.cc accumulate_input_channels.h)
@@ -106,27 +110,31 @@ target_link_libraries(mld_common_kernels_conv_weights_converter PUBLIC
 add_library(mld_common_kernels_conv_constants conv_constants.cc conv_constants.h)
 target_include_directories(mld_common_kernels_conv_constants PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_common_kernels_conv_constants PUBLIC
+    absl::status
+    absl::status_macros
+    absl::statusor
+    flatbuffers
     mld_common_data_type
     mld_common_operations
     mld_common_shape
-    mld_common_status
+    mld_common_task_gpu_object_desc
     mld_common_tensor
     mld_common_util
-    flatbuffers
-    mld_common_task_gpu_object_desc
 )
 
 add_library(mld_common_kernels_conv_generic conv_generic.cc conv_generic.h)
 target_include_directories(mld_common_kernels_conv_generic PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_common_kernels_conv_generic PUBLIC
+    absl::status
+    absl::status_macros
+    absl::statusor
+    flatbuffers
     mld_common_data_type
     mld_common_operations
     mld_common_shape
-    mld_common_status
+    mld_common_task_gpu_object_desc
     mld_common_tensor
     mld_common_util
-    flatbuffers
-    mld_common_task_gpu_object_desc
 )
 
 
@@ -162,24 +170,26 @@ target_link_libraries(mld_common_kernels_embedding_lookup PUBLIC
 add_library(mld_common_kernels_fully_connected fully_connected.cc fully_connected.h)
 target_include_directories(mld_common_kernels_fully_connected PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_common_kernels_fully_connected PUBLIC
-    absl::strings
     absl::span
+    absl::status
+    absl::status_macros
+    absl::statusor
+    absl::strings
     mld_common_data_type
     mld_common_gpu_info
     mld_common_kernel_info
     mld_common_operations
     mld_common_precision
     mld_common_shape
-    mld_common_status
-    mld_common_tensor
-    mld_common_types
-    mld_common_util
     mld_common_task_arguments
     mld_common_task_buffer_desc
     mld_common_task_gpu_operation
     mld_common_task_tensor_desc
     mld_common_task_weights_conversion
     mld_common_task_weights_layout
+    mld_common_tensor
+    mld_common_types
+    mld_common_util
 )
 
 add_library(mld_common_kernels_mean_stddev_normalization mean_stddev_normalization.cc mean_stddev_normalization.h)
@@ -200,27 +210,31 @@ target_link_libraries(mld_common_kernels_mean_stddev_normalization PUBLIC
 add_library(mld_common_kernels_mean_stddev_normalization_parser mean_stddev_normalization_parser.cc mean_stddev_normalization_parser.h)
 target_include_directories(mld_common_kernels_mean_stddev_normalization_parser PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_common_kernels_mean_stddev_normalization_parser PUBLIC
-    mld_common_kernels_mean_stddev_normalization
+    absl::status
+    absl::status_macros
+    absl::statusor
     mld_common_data_type
     mld_common_gpu_info
     mld_common_gpu_model_builder
+    mld_common_kernels_mean_stddev_normalization
     mld_common_model
     mld_common_operations
     mld_common_shape
-    mld_common_status
-    mld_common_tensor
     mld_common_task_gpu_operation
+    mld_common_tensor
 )
 
 add_library(mld_common_kernels_mish mish.cc mish.h)
 target_include_directories(mld_common_kernels_mish PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_common_kernels_mish PUBLIC
-    mld_common_kernels_elementwise
+    absl::status
+    absl::status_macros
+    absl::statusor
     mld_common_gpu_info
     mld_common_gpu_model_builder
+    mld_common_kernels_elementwise
     mld_common_model
     mld_common_operations
-    mld_common_status
     mld_common_task_gpu_operation
 )
 
@@ -251,30 +265,34 @@ target_link_libraries(mld_common_kernels_quantize_and_dequantize PUBLIC
 add_library(mld_common_kernels_reduce reduce.cc reduce.h)
 target_include_directories(mld_common_kernels_reduce PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_common_kernels_reduce PUBLIC
+    absl::status
+    absl::status_macros
+    absl::statusor
     absl::strings
     mld_common_data_type
     mld_common_gpu_info
     mld_common_kernel_info
     mld_common_operations
     mld_common_shape
-    mld_common_status
-    mld_common_types
-    mld_common_util
     mld_common_task_arguments
     mld_common_task_gpu_operation
     mld_common_task_util
+    mld_common_types
+    mld_common_util
 )
 
 add_library(mld_common_kernels_reduce_parser reduce_parser.cc reduce_parser.h)
 target_include_directories(mld_common_kernels_reduce_parser PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_common_kernels_reduce_parser PUBLIC
-    mld_common_kernels_reduce
+    absl::status
+    absl::status_macros
+    absl::statusor
     mld_common_gpu_info
     mld_common_gpu_model_builder
+    mld_common_kernels_reduce
     mld_common_model
     mld_common_operations
     mld_common_shape
-    mld_common_status
     mld_common_task_gpu_operation
 )
 
@@ -331,26 +349,30 @@ target_link_libraries(mld_common_kernels_space_to_depth PUBLIC
 add_library(mld_common_kernels_strided_slice strided_slice.cc strided_slice.h)
 target_include_directories(mld_common_kernels_strided_slice PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_common_kernels_strided_slice PUBLIC
+    absl::status
+    absl::status_macros
+    absl::statusor
     mld_common_operations
     mld_common_shape
-    mld_common_status
-    mld_common_types
     mld_common_task_arguments
     mld_common_task_gpu_operation
+    mld_common_types
 )
 
 add_library(mld_common_kernels_top_k top_k.cc top_k.h)
 target_include_directories(mld_common_kernels_top_k PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_common_kernels_top_k PUBLIC
+    absl::status
+    absl::status_macros
+    absl::statusor
     absl::strings
     mld_common_data_type
     mld_common_gpu_info
     mld_common_kernel_info
-    mld_common_status
-    mld_common_types
-    mld_common_util
     mld_common_task_arguments
     mld_common_task_gpu_operation
+    mld_common_types
+    mld_common_util
 )
 
 add_library(mld_common_kernels_transpose transpose.cc transpose.h)
@@ -373,17 +395,15 @@ target_link_libraries(mld_common_kernels_max_unpooling PUBLIC
 add_library(mld_common_kernels_winograd winograd.cc winograd.h)
 target_include_directories(mld_common_kernels_winograd PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_common_kernels_winograd PUBLIC
+    absl::status
+    absl::status_macros
+    absl::statusor
     absl::strings
     mld_common_data_type
     mld_common_gpu_info
     mld_common_kernel_info
     mld_common_operations
     mld_common_shape
-    mld_common_status
-    mld_common_tensor
-    mld_common_types
-    mld_common_util
-    mld_common_winograd_util
     mld_common_task_arguments
     mld_common_task_buffer_desc
     mld_common_task_gpu_object_desc
@@ -391,6 +411,10 @@ target_link_libraries(mld_common_kernels_winograd PUBLIC
     mld_common_task_tensor_desc
     mld_common_task_weights_conversion
     mld_common_task_weights_layout
+    mld_common_tensor
+    mld_common_types
+    mld_common_util
+    mld_common_winograd_util
 )
 
 add_library(mld_common_kernels_convolution_transposed_thin convolution_transposed_thin.cc convolution_transposed_thin.h)

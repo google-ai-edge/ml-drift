@@ -15,18 +15,21 @@
 add_library(mld_cl_default_util util.cc)
 target_include_directories(mld_cl_default_util PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_cl_default_util PUBLIC
+  absl::status
+  absl::status_macros
+  absl::statusor
+  mld_cl_opencl_wrapper
   mld_cl_util_types
   mld_common_gpu_info
-  mld_common_status
-  mld_cl_opencl_wrapper
-  absl::status
 )
 
 add_library(mld_cl_default_qcom_command_buffer qcom_command_buffer.cc)
 target_include_directories(mld_cl_default_qcom_command_buffer PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_cl_default_qcom_command_buffer PUBLIC
+  absl::status
+  absl::status_macros
+  absl::statusor
   mld_cl_cl_context
   mld_cl_cl_device
   mld_cl_command_buffer
-  mld_common_status
 )

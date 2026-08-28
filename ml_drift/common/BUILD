@@ -634,17 +634,6 @@ cc_test(
 )
 
 cc_library(
-    name = "status",
-    hdrs = ["status.h"],
-    deps = [
-        "@com_google_absl//absl/log:absl_log",
-        "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:status_macros",
-        "@com_google_absl//absl/status:statusor",
-    ],
-)
-
-cc_library(
     name = "tensor",
     hdrs = ["tensor.h"],
     deps = [

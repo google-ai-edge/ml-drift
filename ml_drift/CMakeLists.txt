@@ -76,6 +76,9 @@ target_include_directories(ml_drift INTERFACE
     $<INSTALL_INTERFACE:include>
 )
 target_link_libraries(ml_drift INTERFACE
+    absl::status
+    absl::status_macros
+    absl::statusor
     mld_common_gpu_info
     mld_common_gpu_model
     mld_common_gpu_model_util
@@ -83,9 +86,8 @@ target_link_libraries(ml_drift INTERFACE
     mld_common_model_hints
     mld_common_precision
     mld_common_shape
-    mld_common_status
-    mld_common_tensor
     mld_common_task_tensor_desc
+    mld_common_tensor
 )
 
 if(ML_DRIFT_API STREQUAL "cl")

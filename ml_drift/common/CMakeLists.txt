@@ -14,12 +14,6 @@
 
 ## --- Header-Only (INTERFACE) Libraries ---
 
-add_library(mld_common_status INTERFACE
-    status.h
-)
-target_include_directories(mld_common_status INTERFACE $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
-target_link_libraries(mld_common_status INTERFACE absl::status absl::status_macros absl::statusor)
-
 add_library(mld_common_access_type INTERFACE
     access_type.h
 )
@@ -77,9 +71,11 @@ target_link_libraries(mld_common_tensor PUBLIC
 add_library(mld_common_operations operations.cc operations.h)
 target_include_directories(mld_common_operations PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_common_operations PUBLIC
+    absl::status
+    absl::status_macros
+    absl::statusor
     mld_common_data_type
     mld_common_shape
-    mld_common_status
     mld_common_tensor
 PRIVATE
     absl::flat_hash_map
@@ -143,17 +139,19 @@ target_include_directories(mld_common_gpu_model PUBLIC
   $<TARGET_PROPERTY:mld_common_task_serialization_base_cc_fbs,INTERFACE_INCLUDE_DIRECTORIES>
 )
 target_link_libraries(mld_common_gpu_model PUBLIC
+    absl::flat_hash_map
+    absl::flat_hash_set
+    absl::status
+    absl::status_macros
+    absl::statusor
+    flatbuffers
     mld_common_gpu_model_cc_fbs
     mld_common_model
     mld_common_model_hints
     mld_common_precision
-    mld_common_status
     mld_common_task_gpu_operation
     mld_common_task_gpu_tensor
     mld_common_task_tensor_desc
-    absl::flat_hash_map
-    absl::flat_hash_set
-    flatbuffers
 PRIVATE
     mld_common_operations
     mld_common_task_serialization_base
@@ -165,28 +163,27 @@ target_include_directories(mld_common_gpu_model_builder PUBLIC
   $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>
 )
 target_link_libraries(mld_common_gpu_model_builder PUBLIC
+    absl::flat_hash_map
+    absl::status
+    absl::status_macros
+    absl::statusor
     mld_common_data_type
     mld_common_gpu_info
     mld_common_gpu_model
+    mld_common_kernels_reduce
     mld_common_model
     mld_common_model_hints
     mld_common_operations
     mld_common_precision
     mld_common_shape
-    mld_common_status
-    mld_common_tensor
-    absl::flat_hash_map
-    mld_common_kernels_reduce
     mld_common_task_gpu_operation
     mld_common_task_tensor_desc
     mld_common_task_weights_layout
+    mld_common_tensor
 PRIVATE
-    mld_common_flops_util
-    mld_common_merge_nodes
-    mld_common_util
-    mld_common_winograd_util
     absl::log
     absl::strings
+    mld_common_flops_util
     mld_common_kernels_accumulate_input_channels
     mld_common_kernels_bitcast
     mld_common_kernels_cast
@@ -202,17 +199,20 @@ PRIVATE
     mld_common_kernels_select_v2
     mld_common_kernels_softmax
     mld_common_kernels_space_to_depth
+    mld_common_kernels_special_conv_softmax_conv
     mld_common_kernels_strided_slice
     mld_common_kernels_top_k
     mld_common_kernels_transpose
     mld_common_kernels_winograd
-    mld_common_kernels_special_conv_softmax_conv
+    mld_common_merge_nodes
     mld_common_selectors_convolution_selector
     mld_common_selectors_convolution_transposed_selector
     mld_common_selectors_dw_convolution_selector
     mld_common_selectors_simple_selectors
     mld_common_task_buffer_desc
     mld_common_task_weights_conversion
+    mld_common_util
+    mld_common_winograd_util
 )
 
 add_library(mld_common_gpu_model_util gpu_model_util.cc gpu_model_util.h)
@@ -220,26 +220,28 @@ target_include_directories(mld_common_gpu_model_util PUBLIC
   $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>
 )
 target_link_libraries(mld_common_gpu_model_util PUBLIC
+    absl::flat_hash_map
+    absl::status
+    absl::status_macros
+    absl::statusor
     mld_common_gpu_info
     mld_common_gpu_model
     mld_common_gpu_model_builder
     mld_common_model
-    mld_common_status
     mld_common_task_gpu_operation
-    absl::flat_hash_map
 PRIVATE
+    absl::flat_hash_set
+    absl::strings
     mld_common_data_type
     mld_common_model_hints
     mld_common_operations
     mld_common_precision
-    mld_common_shape
-    mld_common_tensor
-    absl::flat_hash_set
-    absl::strings
     mld_common_selectors_operation_selector
     mld_common_selectors_special_selector
+    mld_common_shape
     mld_common_task_gpu_tensor
     mld_common_task_tensor_desc
+    mld_common_tensor
 )
 
 add_library(mld_common_gpu_model_external_weights_test_util gpu_model_external_weights_test_util.cc gpu_model_external_weights_test_util.h)
@@ -247,6 +249,11 @@ target_include_directories(mld_common_gpu_model_external_weights_test_util PUBLI
   $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>
 )
 target_link_libraries(mld_common_gpu_model_external_weights_test_util PUBLIC
+    absl::span
+    absl::status
+    absl::status_macros
+    absl::statusor
+    gtest
     mld_common_data_type
     mld_common_gpu_model
     mld_common_gpu_model_builder
@@ -255,16 +262,13 @@ target_link_libraries(mld_common_gpu_model_external_weights_test_util PUBLIC
     mld_common_operations
     mld_common_precision
     mld_common_shape
-    mld_common_status
-    mld_common_tensor
-    gtest
-    XNNPACK
-    absl::span
     mld_common_task_tensor_desc
     mld_common_task_testing_ref_ops
     mld_common_task_testing_util
     mld_common_task_weights_conversion
     mld_common_task_weights_layout
+    mld_common_tensor
+    XNNPACK
 )
 
 add_library(mld_common_model model.cc model.h)
@@ -272,7 +276,9 @@ target_include_directories(mld_common_model PUBLIC
   $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>
 )
 target_link_libraries(mld_common_model PUBLIC
-    mld_common_status
+    absl::status
+    absl::status_macros
+    absl::statusor
     mld_common_tensor
 PRIVATE
     absl::log
@@ -296,11 +302,13 @@ target_include_directories(mld_common_memory_management PUBLIC
   $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>
 )
 target_link_libraries(mld_common_memory_management PUBLIC
-    mld_common_status
+    absl::status
+    absl::status_macros
+    absl::statusor
     mld_common_memory_management_impl
 PRIVATE
-    mld_common_gpu_model
     mld_common_gpu_info
+    mld_common_gpu_model
 )
 
 add_subdirectory(memory_management)
