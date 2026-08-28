@@ -18,7 +18,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_replace.h"
 #include "ml_drift/common/data_type.h"
@@ -53,7 +53,7 @@ TEST_P(BaseTest, ConvWaveMatrixMaliInt8BigTest) {
   if (!exec_env->IsStorageSupported(GetParam(), DataType::INT32)) {
     GTEST_SKIP() << "Unsupported storage: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(ConvWaveMatrixMaliInt8BigTest(*exec_env, GetParam(), src_shape));
+  ABSL_ASSERT_OK(ConvWaveMatrixMaliInt8BigTest(*exec_env, GetParam(), src_shape));
 }
 
 TEST_P(BaseTest, ConvWaveMatrixMaliInt8ExternalWeightsBigTest) {
@@ -64,7 +64,7 @@ TEST_P(BaseTest, ConvWaveMatrixMaliInt8ExternalWeightsBigTest) {
   if (!exec_env->IsStorageSupported(GetParam(), DataType::INT32)) {
     GTEST_SKIP() << "Unsupported storage: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(ConvWaveMatrixMaliInt8ExternalWeightsBigTest(*exec_env, GetParam(),
+  ABSL_ASSERT_OK(ConvWaveMatrixMaliInt8ExternalWeightsBigTest(*exec_env, GetParam(),
                                                          src_shape));
 }
 
@@ -99,7 +99,7 @@ TEST_P(SrcQuantizationTest, ConvWaveMatrixMaliInt8WithSrcQuantizationBig) {
   if (!exec_env->IsStorageSupported(float_storage, float_type)) {
     GTEST_SKIP() << "Unsupported float storage: " << ToString(float_storage);
   }
-  MLD_ASSERT_OK(ConvWaveMatrixMaliInt8WithSrcQuantizationBigTest(
+  ABSL_ASSERT_OK(ConvWaveMatrixMaliInt8WithSrcQuantizationBigTest(
       *exec_env, int_storage, float_storage, float_type, src_shape));
 }
 
@@ -116,7 +116,7 @@ TEST_P(SrcQuantizationTest,
   if (!exec_env->IsStorageSupported(float_storage, float_type)) {
     GTEST_SKIP() << "Unsupported float storage: " << ToString(float_storage);
   }
-  MLD_ASSERT_OK(ConvWaveMatrixMaliInt8WithSrcQuantizationBigTest(
+  ABSL_ASSERT_OK(ConvWaveMatrixMaliInt8WithSrcQuantizationBigTest(
       *exec_env, int_storage, float_storage, float_type, src_shape));
 }
 

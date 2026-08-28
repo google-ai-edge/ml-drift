@@ -20,7 +20,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/status/status.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/kernels/tests/kernel_test.h"
@@ -58,7 +58,7 @@ absl::Status PositionalEmbeddingTest(TestExecutionEnvironment& env,
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreatePositionalEmbedding(env.GetGpuInfo(), op_def);
-  MLD_EXPECT_OK(env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(env.ExecuteGPUOperation(
       {src_tensor, pos_tensor},
       std::make_unique<GPUOperation>(std::move(operation)), BHWC(1, 1, 4, 4),
       &dst_tensor));
@@ -78,7 +78,7 @@ TEST_P(PositionalEmbeddingFloatTest, PositionalEmbeddingTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_EXPECT_OK(PositionalEmbeddingTest(*exec_env, data_type(), storage()));
+  ABSL_EXPECT_OK(PositionalEmbeddingTest(*exec_env, data_type(), storage()));
 }
 
 INSTANTIATE_TEST_SUITE_P(

@@ -21,7 +21,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/status/status.h"
 #include "absl/types/optional.h"
 #include "ml_drift/common/data_type.h"
@@ -110,12 +110,12 @@ TEST(AddQuantAdjustmentsTest, GeneralCase) {
   // Connections.
   graph.AddConsumer(add1_node->id, input->id);
   Value* link1 = nullptr;
-  MLD_ASSERT_OK(ConnectTwoNodes(&graph, add1_node, quant_node, &link1));
+  ABSL_ASSERT_OK(ConnectTwoNodes(&graph, add1_node, quant_node, &link1));
   link1->quant_params = {.min = 0.0, .max = 2.0, .scale = 0.008};
   link1->tensor.shape = BHWC(1, 4, 4, 8);
   graph.AddConsumer(add2_node->id, link1->id);
   Value* link2 = nullptr;
-  MLD_ASSERT_OK(ConnectTwoNodes(&graph, quant_node, add2_node, &link2));
+  ABSL_ASSERT_OK(ConnectTwoNodes(&graph, quant_node, add2_node, &link2));
   link2->quant_params = {.min = -1.0, .max = 1.0, .scale = 0.008};
   link2->tensor.shape = BHWC(1, 4, 4, 8);
   Value* output = nullptr;

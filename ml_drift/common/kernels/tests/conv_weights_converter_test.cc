@@ -19,7 +19,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_replace.h"
 #include "ml_drift/common/data_type.h"
@@ -518,7 +518,7 @@ TEST_P(OutTest, 1x1OutX4Test) {
     GTEST_SKIP() << "Unsupported data_type " << ToString(data_type)
                  << " and storage type: " << ToString(storage);
   }
-  MLD_ASSERT_OK(ConverterToConvWeights1x1OutX4Test(*exec_env, data_type, storage,
+  ABSL_ASSERT_OK(ConverterToConvWeights1x1OutX4Test(*exec_env, data_type, storage,
                                                weights_layout));
 }
 
@@ -528,7 +528,7 @@ TEST_P(OutTest, 1x1OutX4UnalignedTest) {
     GTEST_SKIP() << "Unsupported data_type " << ToString(data_type)
                  << " and storage type: " << ToString(storage);
   }
-  MLD_ASSERT_OK(ConverterToConvWeights1x1OutX4UnalignedTest(
+  ABSL_ASSERT_OK(ConverterToConvWeights1x1OutX4UnalignedTest(
       *exec_env, data_type, storage, weights_layout));
 }
 
@@ -538,7 +538,7 @@ TEST_P(OutTest, 1x1OutX2Test) {
     GTEST_SKIP() << "Unsupported data_type " << ToString(data_type)
                  << " and storage type: " << ToString(storage);
   }
-  MLD_ASSERT_OK(ConverterToConvWeights1x1OutX2Test(*exec_env, data_type, storage,
+  ABSL_ASSERT_OK(ConverterToConvWeights1x1OutX2Test(*exec_env, data_type, storage,
                                                weights_layout));
 }
 
@@ -548,7 +548,7 @@ TEST_P(OutTest, OutX2Test) {
     GTEST_SKIP() << "Unsupported data_type " << ToString(data_type)
                  << " and storage type: " << ToString(storage);
   }
-  MLD_ASSERT_OK(ConverterToConvWeightsOutX2Test(*exec_env, data_type, storage,
+  ABSL_ASSERT_OK(ConverterToConvWeightsOutX2Test(*exec_env, data_type, storage,
                                             weights_layout));
 }
 
@@ -578,7 +578,7 @@ TEST_P(X4Test, TransposedWeights4x4Test) {
     GTEST_SKIP() << "Unsupported data_type " << ToString(data_type)
                  << " and storage type: " << ToString(storage);
   }
-  MLD_ASSERT_OK(ConverterToConvTransposedWeights4x4Test(*exec_env, data_type,
+  ABSL_ASSERT_OK(ConverterToConvTransposedWeights4x4Test(*exec_env, data_type,
                                                     storage, weights_layout));
 }
 
@@ -607,7 +607,7 @@ TEST_P(X4TexturesTest, TransposedWeights4xTexturesTest) {
     GTEST_SKIP() << "Unsupported data_type " << ToString(data_type)
                  << " and storage type: " << ToString(storage);
   }
-  MLD_ASSERT_OK(ConverterToConvWeights4xTexturesTest(*exec_env, data_type, storage,
+  ABSL_ASSERT_OK(ConverterToConvWeights4xTexturesTest(*exec_env, data_type, storage,
                                                  weights_layout));
 }
 
@@ -634,7 +634,7 @@ TEST_P(F32OHWItoF32Test, Float32OHWItoFloat32Test) {
   if (!exec_env->IsStorageSupported(TensorStorageType::BUFFER, data_type)) {
     GTEST_SKIP() << "Unsupported data_type " << ToString(data_type);
   }
-  MLD_ASSERT_OK(ConverterToConvWeightsFloat32OHWItoFloat32Test(*exec_env, data_type,
+  ABSL_ASSERT_OK(ConverterToConvWeightsFloat32OHWItoFloat32Test(*exec_env, data_type,
                                                            weights_shape));
 }
 
@@ -667,7 +667,7 @@ TEST_P(FromIntOHWITest, Int8OHWIToUint8Test) {
     GTEST_SKIP() << "Unsupported int8/uint8 buffer storage";
   }
   conv_weight_desc.type = DataType::UINT8;
-  MLD_ASSERT_OK(ConverterToConvWeightsInt8OHWIToUint8Test(*exec_env, weights_shape,
+  ABSL_ASSERT_OK(ConverterToConvWeightsInt8OHWIToUint8Test(*exec_env, weights_shape,
                                                       conv_weight_desc));
 }
 
@@ -680,7 +680,7 @@ TEST_P(FromIntOHWITest, Int2OHWIToUint2Test) {
                  << ToString(TensorStorageType::BUFFER);
   }
   conv_weight_desc.type = DataType::UINT2;
-  MLD_ASSERT_OK(ConverterToConvWeightsInt2OHWIToUint2Test(*exec_env, weights_shape,
+  ABSL_ASSERT_OK(ConverterToConvWeightsInt2OHWIToUint2Test(*exec_env, weights_shape,
                                                       conv_weight_desc));
 }
 
@@ -693,7 +693,7 @@ TEST_P(FromIntOHWITest, Int4OHWIToUint4Test) {
                  << ToString(TensorStorageType::BUFFER);
   }
   conv_weight_desc.type = DataType::UINT4;
-  MLD_ASSERT_OK(ConverterToConvWeightsInt4OHWIToUint4Test(*exec_env, weights_shape,
+  ABSL_ASSERT_OK(ConverterToConvWeightsInt4OHWIToUint4Test(*exec_env, weights_shape,
                                                       conv_weight_desc));
 }
 
@@ -727,21 +727,21 @@ class FromIntOHWIToFloatTest
 TEST_P(FromIntOHWIToFloatTest, Int2OHWIToFloatTest) {
   auto [data_type, weights_shape, conv_weight_desc] = GetParam();
   conv_weight_desc.type = data_type;
-  MLD_ASSERT_OK(ConverterToConvWeightsInt2OHWIToFloatTest(*exec_env, weights_shape,
+  ABSL_ASSERT_OK(ConverterToConvWeightsInt2OHWIToFloatTest(*exec_env, weights_shape,
                                                       conv_weight_desc));
 }
 
 TEST_P(FromIntOHWIToFloatTest, Int4OHWIToFloatTest) {
   auto [data_type, weights_shape, conv_weight_desc] = GetParam();
   conv_weight_desc.type = data_type;
-  MLD_ASSERT_OK(ConverterToConvWeightsInt4OHWIToFloatTest(*exec_env, weights_shape,
+  ABSL_ASSERT_OK(ConverterToConvWeightsInt4OHWIToFloatTest(*exec_env, weights_shape,
                                                       conv_weight_desc));
 }
 
 TEST_P(FromIntOHWIToFloatTest, Int8OHWIToFloatTest) {
   auto [data_type, weights_shape, conv_weight_desc] = GetParam();
   conv_weight_desc.type = data_type;
-  MLD_ASSERT_OK(ConverterToConvWeightsInt8OHWIToFloatTest(*exec_env, weights_shape,
+  ABSL_ASSERT_OK(ConverterToConvWeightsInt8OHWIToFloatTest(*exec_env, weights_shape,
                                                       conv_weight_desc));
 }
 
@@ -788,7 +788,7 @@ TEST_P(OTileI2Test, OSpatialIOGroupITileOTileI2) {
                       {Axis::HEIGHT, 0},
                       {Axis::OUTPUT_CHANNELS, 0}},
   };
-  MLD_ASSERT_OK(ConverterToOSpatialIOGroupITileOTileIXTest(*exec_env, shape,
+  ABSL_ASSERT_OK(ConverterToOSpatialIOGroupITileOTileIXTest(*exec_env, shape,
                                                        conv_weight_desc));
 }
 
@@ -826,7 +826,7 @@ TEST_P(OTileI4Test, OSpatialIOGroupITileOTileI4) {
                       {Axis::WIDTH, 0},
                       {Axis::HEIGHT, 0},
                       {Axis::OUTPUT_CHANNELS, 0}}};
-  MLD_ASSERT_OK(ConverterToOSpatialIOGroupITileOTileIXTest(*exec_env, shape,
+  ABSL_ASSERT_OK(ConverterToOSpatialIOGroupITileOTileIXTest(*exec_env, shape,
                                                        conv_weight_desc));
 }
 
@@ -867,21 +867,21 @@ class IntToFloatTest
 
 TEST_P(IntToFloatTest, Int8ToFloat) {
   WeightsDescription dst_weights_desc = GetDstWeightsDesc();
-  MLD_ASSERT_OK(Int8ToFloatWeightsConverterTest(*exec_env, GetWeightsShape(),
+  ABSL_ASSERT_OK(Int8ToFloatWeightsConverterTest(*exec_env, GetWeightsShape(),
                                             GetSrcChQuantGroups(),
                                             GetSrcLayout(), dst_weights_desc));
 }
 
 TEST_P(IntToFloatTest, Int4ToFloat) {
   WeightsDescription dst_weights_desc = GetDstWeightsDesc();
-  MLD_ASSERT_OK(Int4ToFloatWeightsConverterTest(*exec_env, GetWeightsShape(),
+  ABSL_ASSERT_OK(Int4ToFloatWeightsConverterTest(*exec_env, GetWeightsShape(),
                                             GetSrcChQuantGroups(),
                                             GetSrcLayout(), dst_weights_desc));
 }
 
 TEST_P(IntToFloatTest, Int2ToFloat) {
   WeightsDescription dst_weights_desc = GetDstWeightsDesc();
-  MLD_ASSERT_OK(Int2ToFloatWeightsConverterTest(*exec_env, GetWeightsShape(),
+  ABSL_ASSERT_OK(Int2ToFloatWeightsConverterTest(*exec_env, GetWeightsShape(),
                                             GetSrcChQuantGroups(),
                                             GetSrcLayout(), dst_weights_desc));
 }
@@ -912,11 +912,11 @@ INSTANTIATE_TEST_SUITE_P(
     });
 
 TEST(IntToFloatRuntimeTest, Int8ToFloatRuntimeInput) {
-  MLD_ASSERT_OK(Int8ToFloatWeightsWithRuntimeInputTest(*exec_env));
+  ABSL_ASSERT_OK(Int8ToFloatWeightsWithRuntimeInputTest(*exec_env));
 }
 
 TEST(IntToFloatRuntimeTest, Int8ToFloatRuntimeOutput) {
-  MLD_ASSERT_OK(Int8ToFloatWeightsWithRuntimeOutputTest(*exec_env));
+  ABSL_ASSERT_OK(Int8ToFloatWeightsWithRuntimeOutputTest(*exec_env));
 }
 
 class I8ToUI8Test
@@ -926,7 +926,7 @@ class I8ToUI8Test
 
 TEST_P(I8ToUI8Test, I8ToUI8) {
   WeightsDescription dst_weights_desc = std::get<1>(GetParam());
-  MLD_ASSERT_OK(Int8ToUint8WeightsConverterTest(
+  ABSL_ASSERT_OK(Int8ToUint8WeightsConverterTest(
       *exec_env, std::get<0>(GetParam()), dst_weights_desc,
       /*i_channels=*/std::get<2>(GetParam()),
       /*o_channels=*/std::get<3>(GetParam())));
@@ -969,7 +969,7 @@ class FloatToFloatTest
 
 TEST_P(FloatToFloatTest, F2F) {
   WeightsDescription dst_weights_desc = std::get<2>(GetParam());
-  MLD_ASSERT_OK(FloatToFloatWeightsConverterTest(*exec_env, std::get<0>(GetParam()),
+  ABSL_ASSERT_OK(FloatToFloatWeightsConverterTest(*exec_env, std::get<0>(GetParam()),
                                              std::get<1>(GetParam()),
                                              dst_weights_desc));
 }
@@ -1002,42 +1002,42 @@ class UITo8BitTest
 TEST_P(UITo8BitTest, UI8ToI8) {
   WeightsDescription dst_weights_desc = std::get<1>(GetParam());
   dst_weights_desc.type = DataType::INT8;
-  MLD_ASSERT_OK(Uint8ToInt8WeightsConverterTest(*exec_env, GetSrcLayout(),
+  ABSL_ASSERT_OK(Uint8ToInt8WeightsConverterTest(*exec_env, GetSrcLayout(),
                                             dst_weights_desc));
 }
 
 TEST_P(UITo8BitTest, UI4ToI8) {
   WeightsDescription dst_weights_desc = std::get<1>(GetParam());
   dst_weights_desc.type = DataType::INT8;
-  MLD_ASSERT_OK(Uint4ToInt8WeightsConverterTest(*exec_env, GetSrcLayout(),
+  ABSL_ASSERT_OK(Uint4ToInt8WeightsConverterTest(*exec_env, GetSrcLayout(),
                                             dst_weights_desc));
 }
 
 TEST_P(UITo8BitTest, UI2ToI8) {
   WeightsDescription dst_weights_desc = std::get<1>(GetParam());
   dst_weights_desc.type = DataType::INT8;
-  MLD_ASSERT_OK(Uint2ToInt8WeightsConverterTest(*exec_env, GetSrcLayout(),
+  ABSL_ASSERT_OK(Uint2ToInt8WeightsConverterTest(*exec_env, GetSrcLayout(),
                                             dst_weights_desc));
 }
 
 TEST_P(UITo8BitTest, UI8ToUI8) {
   WeightsDescription dst_weights_desc = std::get<1>(GetParam());
   dst_weights_desc.type = DataType::UINT8;
-  MLD_ASSERT_OK(Uint8ToUint8WeightsConverterTest(*exec_env, GetSrcLayout(),
+  ABSL_ASSERT_OK(Uint8ToUint8WeightsConverterTest(*exec_env, GetSrcLayout(),
                                              dst_weights_desc));
 }
 
 TEST_P(UITo8BitTest, UI4ToUI8) {
   WeightsDescription dst_weights_desc = std::get<1>(GetParam());
   dst_weights_desc.type = DataType::UINT8;
-  MLD_ASSERT_OK(Uint4ToUint8WeightsConverterTest(*exec_env, GetSrcLayout(),
+  ABSL_ASSERT_OK(Uint4ToUint8WeightsConverterTest(*exec_env, GetSrcLayout(),
                                              dst_weights_desc));
 }
 
 TEST_P(UITo8BitTest, UI2ToUI8) {
   WeightsDescription dst_weights_desc = std::get<1>(GetParam());
   dst_weights_desc.type = DataType::UINT8;
-  MLD_ASSERT_OK(Uint2ToUint8WeightsConverterTest(*exec_env, GetSrcLayout(),
+  ABSL_ASSERT_OK(Uint2ToUint8WeightsConverterTest(*exec_env, GetSrcLayout(),
                                              dst_weights_desc));
 }
 
@@ -1064,14 +1064,14 @@ class UITo4BitTest
 TEST_P(UITo4BitTest, UI4ToI4) {
   WeightsDescription dst_weights_desc = std::get<1>(GetParam());
   dst_weights_desc.type = DataType::INT4;
-  MLD_ASSERT_OK(Uint4ToInt4WeightsConverterTest(*exec_env, GetSrcLayout(),
+  ABSL_ASSERT_OK(Uint4ToInt4WeightsConverterTest(*exec_env, GetSrcLayout(),
                                             dst_weights_desc));
 }
 
 TEST_P(UITo4BitTest, UI2ToI4) {
   WeightsDescription dst_weights_desc = std::get<1>(GetParam());
   dst_weights_desc.type = DataType::INT4;
-  MLD_ASSERT_OK(Uint2ToInt4WeightsConverterTest(*exec_env, GetSrcLayout(),
+  ABSL_ASSERT_OK(Uint2ToInt4WeightsConverterTest(*exec_env, GetSrcLayout(),
                                             dst_weights_desc));
 }
 
@@ -1099,7 +1099,7 @@ TEST_P(OHWIToCustomGroupsTest, FromOHWI) {
       !exec_env->IsStorageSupported(TensorStorageType::BUFFER, dst_desc.type)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(storage);
   }
-  MLD_ASSERT_OK(ConverterToCustomGroupsTest(*exec_env, weights_shape, storage,
+  ABSL_ASSERT_OK(ConverterToCustomGroupsTest(*exec_env, weights_shape, storage,
                                         src_type, dst_desc));
 }
 

@@ -20,7 +20,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "xnnpack.h"  // from @XNNPACK
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
@@ -369,7 +369,7 @@ TEST_P(ConvolutionFloatTest, ConvolutionGenericWinograd4x4To6x6) {
   OperationDef op_def;
   op_def.src_tensors.push_back({data_type, storage(), Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage(), Layout::HWC});
-  MLD_EXPECT_OK(ConvGenericWinograd4x4To6x6Test(*exec_env, attr, src_tensor, op_def,
+  ABSL_EXPECT_OK(ConvGenericWinograd4x4To6x6Test(*exec_env, attr, src_tensor, op_def,
                                             precision()));
 }
 
@@ -394,7 +394,7 @@ TEST_P(ConvolutionFloatTest, ConvolutionGenericWinograd4x4To6x6Batched) {
   OperationDef op_def;
   op_def.src_tensors.push_back({data_type, storage(), Layout::BHWC});
   op_def.dst_tensors.push_back({data_type, storage(), Layout::BHWC});
-  MLD_EXPECT_OK(ConvGenericWinograd4x4To6x6Test(*exec_env, attr, src_tensor, op_def,
+  ABSL_EXPECT_OK(ConvGenericWinograd4x4To6x6Test(*exec_env, attr, src_tensor, op_def,
                                             precision()));
 }
 
@@ -422,7 +422,7 @@ TEST_P(ConvolutionFloatTest, ConvolutionGenericExternalWeights) {
   conv_def.src_tensors.push_back(
       {data_type, TensorStorageType::BUFFER, Layout::UNKNOWN});
   conv_def.dst_tensors.push_back({data_type, storage(), Layout::HWC});
-  MLD_EXPECT_OK(ConvolutionGenericExternalWeightsTest(*exec_env, src_tensor, attr,
+  ABSL_EXPECT_OK(ConvolutionGenericExternalWeightsTest(*exec_env, src_tensor, attr,
                                                   conv_def, precision(),
                                                   TestingRuntimeChannels()));
 }
@@ -457,7 +457,7 @@ TEST_P(ConvolutionFloatTest, ConvolutionGenericExternalWeightsRuntimeCh) {
     conv_def.src_tensors.push_back(
         {data_type, TensorStorageType::BUFFER, Layout::UNKNOWN});
     conv_def.dst_tensors.push_back({data_type, storage(), Layout::HWC});
-    MLD_EXPECT_OK(ConvolutionGenericExternalWeightsTest(
+    ABSL_EXPECT_OK(ConvolutionGenericExternalWeightsTest(
         *exec_env, src_tensor, attr, conv_def, precision(), runtime_channels));
   }
 }
@@ -489,7 +489,7 @@ TEST_P(ConvolutionFloatTest, ConvolutionGenericExternalBatchedWeights) {
     OperationDef conv_def;
     conv_def.src_tensors.push_back({data_type, storage(), Layout::HWC});
     conv_def.dst_tensors.push_back({data_type, storage(), Layout::HWC});
-    MLD_EXPECT_OK(ConvolutionGenericExternalBatchedWeightsTest(
+    ABSL_EXPECT_OK(ConvolutionGenericExternalBatchedWeightsTest(
         *exec_env, src_tensor, attr, conv_def, precision(), runtime_channels));
   }
 }
@@ -516,7 +516,7 @@ TEST_P(ConvolutionFloatTest, ConvolutionGenericBatchedMatMul) {
     OperationDef conv_def;
     conv_def.src_tensors.push_back({data_type, storage(), Layout::HWC});
     conv_def.dst_tensors.push_back({data_type, storage(), Layout::HWC});
-    MLD_EXPECT_OK(ConvolutionGenericBatchedMatMulTest(
+    ABSL_EXPECT_OK(ConvolutionGenericBatchedMatMulTest(
         *exec_env, left_tensor, right_tensor, conv_def, precision(),
         runtime_channels));
   }

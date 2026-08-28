@@ -14,7 +14,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/kernels/tests/kernel_test.h"
 #include "ml_drift/common/kernels/tests/reshape_test_util.h"
@@ -35,7 +35,7 @@ TEST_P(ReshapeFloatTest, ReshapeTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ReshapeTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(ReshapeTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(ReshapeFloatTest, ReshapeBigTest0) {
@@ -43,7 +43,7 @@ TEST_P(ReshapeFloatTest, ReshapeBigTest0) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ReshapeBigTest(*exec_env, data_type(), storage(), BHWC(1, 3, 2, 7),
+  ABSL_ASSERT_OK(ReshapeBigTest(*exec_env, data_type(), storage(), BHWC(1, 3, 2, 7),
                            BHWC(1, 7, 1, 6)));
 }
 
@@ -52,7 +52,7 @@ TEST_P(ReshapeFloatTest, ReshapeBigTest1) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ReshapeBigTest(*exec_env, data_type(), storage(), BHWC(1, 3, 2, 7),
+  ABSL_ASSERT_OK(ReshapeBigTest(*exec_env, data_type(), storage(), BHWC(1, 3, 2, 7),
                            BHWC(1, 1, 1, 42)));
 }
 
@@ -61,7 +61,7 @@ TEST_P(ReshapeFloatTest, ReshapeBigTest2) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ReshapeBigTest(*exec_env, data_type(), storage(), BHWC(1, 3, 2, 7),
+  ABSL_ASSERT_OK(ReshapeBigTest(*exec_env, data_type(), storage(), BHWC(1, 3, 2, 7),
                            BHWC(1, 42, 1, 1)));
 }
 
@@ -70,7 +70,7 @@ TEST_P(ReshapeFloatTest, ReshapeBatchedBigTest0) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ReshapeBigTest(*exec_env, data_type(), storage(), BHWC(4, 3, 2, 7),
+  ABSL_ASSERT_OK(ReshapeBigTest(*exec_env, data_type(), storage(), BHWC(4, 3, 2, 7),
                            BHWC(2, 7, 1, 12)));
 }
 
@@ -79,7 +79,7 @@ TEST_P(ReshapeFloatTest, ReshapeBatchedBigTest1) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ReshapeBigTest(*exec_env, data_type(), storage(), BHWC(3, 3, 2, 7),
+  ABSL_ASSERT_OK(ReshapeBigTest(*exec_env, data_type(), storage(), BHWC(3, 3, 2, 7),
                            BHWC(1, 1, 3, 42)));
 }
 
@@ -88,7 +88,7 @@ TEST_P(ReshapeFloatTest, ReshapeBatchedBigTest2) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ReshapeBigTest(*exec_env, data_type(), storage(), BHWC(1, 3, 2, 7),
+  ABSL_ASSERT_OK(ReshapeBigTest(*exec_env, data_type(), storage(), BHWC(1, 3, 2, 7),
                            BHWC(2, 21, 1, 1)));
 }
 
@@ -97,7 +97,7 @@ TEST_P(ReshapeFloatTest, Reshape3DBigTest0) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(Reshape3DBigTest(*exec_env, data_type(), storage(),
+  ABSL_ASSERT_OK(Reshape3DBigTest(*exec_env, data_type(), storage(),
                              BHWDC(1, 3, 2, 2, 7), BHWDC(1, 7, 1, 2, 6)));
 }
 
@@ -106,7 +106,7 @@ TEST_P(ReshapeFloatTest, Reshape3DBigTest1) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(Reshape3DBigTest(*exec_env, data_type(), storage(),
+  ABSL_ASSERT_OK(Reshape3DBigTest(*exec_env, data_type(), storage(),
                              BHWDC(1, 3, 2, 2, 7), BHWDC(1, 1, 1, 1, 84)));
 }
 
@@ -115,7 +115,7 @@ TEST_P(ReshapeFloatTest, Reshape3DBigTest2) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(Reshape3DBigTest(*exec_env, data_type(), storage(),
+  ABSL_ASSERT_OK(Reshape3DBigTest(*exec_env, data_type(), storage(),
                              BHWDC(4, 3, 2, 2, 7), BHWDC(2, 7, 1, 2, 12)));
 }
 
@@ -124,7 +124,7 @@ TEST_P(ReshapeFloatTest, Reshapex4Test) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(Reshapex4Test(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(Reshapex4Test(*exec_env, data_type(), storage()));
 }
 
 TEST_P(ReshapeFloatTest, Reshapex4BigTest0) {
@@ -132,7 +132,7 @@ TEST_P(ReshapeFloatTest, Reshapex4BigTest0) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(Reshapex4Test(*exec_env, data_type(), storage(), BHWC(1, 5, 4, 12),
+  ABSL_ASSERT_OK(Reshapex4Test(*exec_env, data_type(), storage(), BHWC(1, 5, 4, 12),
                           BHWC(1, 12, 1, 20)));
 }
 
@@ -141,7 +141,7 @@ TEST_P(ReshapeFloatTest, Reshapex4BigTest1) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(Reshapex4Test(*exec_env, data_type(), storage(), BHWC(1, 3, 2, 12),
+  ABSL_ASSERT_OK(Reshapex4Test(*exec_env, data_type(), storage(), BHWC(1, 3, 2, 12),
                           BHWC(1, 6, 3, 4)));
 }
 
@@ -150,7 +150,7 @@ TEST_P(ReshapeFloatTest, Reshapex4BigTest2) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(Reshapex4Test(*exec_env, data_type(), storage(), BHWC(1, 3, 16, 12),
+  ABSL_ASSERT_OK(Reshapex4Test(*exec_env, data_type(), storage(), BHWC(1, 3, 16, 12),
                           BHWC(1, 12, 3, 16)));
 }
 
@@ -159,7 +159,7 @@ TEST_P(ReshapeFloatTest, Reshapex4BatchedBigTest0) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(Reshapex4Test(*exec_env, data_type(), storage(), BHWC(3, 5, 4, 12),
+  ABSL_ASSERT_OK(Reshapex4Test(*exec_env, data_type(), storage(), BHWC(3, 5, 4, 12),
                           BHWC(1, 12, 3, 20)));
 }
 
@@ -168,7 +168,7 @@ TEST_P(ReshapeFloatTest, Reshapex4BatchedBigTest1) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(Reshapex4Test(*exec_env, data_type(), storage(), BHWC(1, 3, 2, 12),
+  ABSL_ASSERT_OK(Reshapex4Test(*exec_env, data_type(), storage(), BHWC(1, 3, 2, 12),
                           BHWC(3, 2, 3, 4)));
 }
 
@@ -177,7 +177,7 @@ TEST_P(ReshapeFloatTest, Reshapex4BatchedBigTest2) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(Reshapex4Test(*exec_env, data_type(), storage(), BHWC(8, 3, 16, 12),
+  ABSL_ASSERT_OK(Reshapex4Test(*exec_env, data_type(), storage(), BHWC(8, 3, 16, 12),
                           BHWC(2, 12, 12, 16)));
 }
 

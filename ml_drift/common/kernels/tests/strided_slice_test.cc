@@ -14,7 +14,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/strings/str_replace.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/kernels/tests/kernel_test.h"
@@ -38,7 +38,7 @@ TEST_P(StridedSliceTypedTest, StridedSliceBoolTest) {
   if (!exec_env->IsStorageSupported(GetParam(), DataType::BOOL)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(StridedSliceBoolTest(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(StridedSliceBoolTest(*exec_env, GetParam()));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -55,7 +55,7 @@ TEST_P(StridedSliceFloatTest, StridedSliceTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(StridedSliceTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(StridedSliceTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(StridedSliceFloatTest, StridedSliceChannelsAlignedx4) {
@@ -70,7 +70,7 @@ TEST_P(StridedSliceFloatTest, StridedSliceChannelsAlignedx4) {
   attr.ends = BHWC(src_shape.b, 5, 9, 8);
   attr.strides = BHWC(1, 2, 3, 1);
 
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       StridedSliceBigTest(*exec_env, attr, src_shape, data_type(), storage()));
 }
 
@@ -86,7 +86,7 @@ TEST_P(StridedSliceFloatTest, StridedSliceChannelsAlignedx4Batched) {
   attr.ends = BHWC(6, 5, 9, 8);
   attr.strides = BHWC(2, 2, 3, 1);
 
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       StridedSliceBigTest(*exec_env, attr, src_shape, data_type(), storage()));
 }
 
@@ -102,7 +102,7 @@ TEST_P(StridedSliceFloatTest, StridedSliceChannelsUnaligned) {
   attr.ends = BHWC(src_shape.b, 5, 9, 11);
   attr.strides = BHWC(1, 2, 3, 2);
 
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       StridedSliceBigTest(*exec_env, attr, src_shape, data_type(), storage()));
 }
 
@@ -118,7 +118,7 @@ TEST_P(StridedSliceFloatTest, StridedSliceChannelsUnalignedBatched) {
   attr.ends = BHWC(8, 5, 9, 11);
   attr.strides = BHWC(3, 2, 3, 2);
 
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       StridedSliceBigTest(*exec_env, attr, src_shape, data_type(), storage()));
 }
 
@@ -127,7 +127,7 @@ TEST_P(StridedSliceFloatTest, StridedSlice3DTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(StridedSlice3DTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(StridedSlice3DTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(StridedSliceFloatTest, StridedSlice3DPaddedGridTest) {
@@ -135,7 +135,7 @@ TEST_P(StridedSliceFloatTest, StridedSlice3DPaddedGridTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(StridedSlice3DPaddedGridTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(StridedSlice3DPaddedGridTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(StridedSliceFloatTest, StridedSlice3DChannelsAlignedx4) {
@@ -150,7 +150,7 @@ TEST_P(StridedSliceFloatTest, StridedSlice3DChannelsAlignedx4) {
   attr.ends = BHWDC(src_shape.b, 5, 9, 2, 8);
   attr.strides = BHWDC(1, 2, 3, 1, 1);
 
-  MLD_ASSERT_OK(StridedSlice3DBigTest(*exec_env, attr, src_shape, data_type(),
+  ABSL_ASSERT_OK(StridedSlice3DBigTest(*exec_env, attr, src_shape, data_type(),
                                   storage()));
 }
 
@@ -166,7 +166,7 @@ TEST_P(StridedSliceFloatTest, StridedSlice3DChannelsUnalignedBatched) {
   attr.ends = BHWDC(8, 5, 9, 2, 11);
   attr.strides = BHWDC(3, 2, 3, 1, 2);
 
-  MLD_ASSERT_OK(StridedSlice3DBigTest(*exec_env, attr, src_shape, data_type(),
+  ABSL_ASSERT_OK(StridedSlice3DBigTest(*exec_env, attr, src_shape, data_type(),
                                   storage()));
 }
 

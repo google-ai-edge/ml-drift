@@ -46,7 +46,7 @@ absl::Status ResizeTest(TestExecutionEnvironment& exec_env,
   Resize operation = CreateResize(op_def, attr);
 
   TensorFloat32 dst_tensor;
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(
       src_tensor, std::make_unique<Resize>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
   const float eps =
@@ -64,7 +64,7 @@ absl::Status Resize3DTest(TestExecutionEnvironment& exec_env,
   Resize3D operation = CreateResize3D(op_def, attr);
 
   Tensor5DFloat32 dst_tensor;
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(
       src_tensor, std::make_unique<Resize3D>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
   const float eps =

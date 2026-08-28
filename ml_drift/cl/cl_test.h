@@ -17,22 +17,22 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "ml_drift/cl/environment.h"
 #include "ml_drift/cl/opencl_wrapper.h"
 
 namespace ml_drift {
 namespace cl {
 
-#ifndef MLD_ASSERT_OK
-#define MLD_ASSERT_OK(x) ASSERT_TRUE(x.ok());
+#ifndef ABSL_ASSERT_OK
+#define ABSL_ASSERT_OK(x) ASSERT_TRUE(x.ok());
 #endif
 
 class OpenCLTest : public ::testing::Test {
  public:
   void SetUp() override {
-    MLD_ASSERT_OK(LoadOpenCL());
-    MLD_ASSERT_OK(CreateEnvironment(&env_));
+    ABSL_ASSERT_OK(LoadOpenCL());
+    ABSL_ASSERT_OK(CreateEnvironment(&env_));
   }
 
  protected:

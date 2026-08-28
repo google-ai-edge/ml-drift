@@ -17,7 +17,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_replace.h"
 #include "ml_drift/common/data_type.h"
@@ -46,7 +46,7 @@ TEST_P(ResamplerTest, ResamplerIdentityTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage);
   }
-  MLD_ASSERT_OK(ResamplerIdentityTest(*exec_env, data_type, storage, group_size));
+  ABSL_ASSERT_OK(ResamplerIdentityTest(*exec_env, data_type, storage, group_size));
 }
 
 INSTANTIATE_TEST_SUITE_P(

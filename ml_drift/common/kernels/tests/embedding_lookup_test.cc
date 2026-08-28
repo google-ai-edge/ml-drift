@@ -14,7 +14,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/kernels/tests/embedding_lookup_test_util.h"
 #include "ml_drift/common/kernels/tests/kernel_test.h"
@@ -35,7 +35,7 @@ TEST_P(EmbeddingLookupFloatTest, EmbeddingLookupTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(EmbeddingLookupTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(EmbeddingLookupTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(EmbeddingLookupFloatTest, EmbeddingLookupSeqLen2Test) {
@@ -43,7 +43,7 @@ TEST_P(EmbeddingLookupFloatTest, EmbeddingLookupSeqLen2Test) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(EmbeddingLookupSeqLen2Test(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(EmbeddingLookupSeqLen2Test(*exec_env, data_type(), storage()));
 }
 
 TEST_P(EmbeddingLookupFloatTest, EmbeddingLookupInt8Test) {
@@ -51,7 +51,7 @@ TEST_P(EmbeddingLookupFloatTest, EmbeddingLookupInt8Test) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(EmbeddingLookupInt8Test(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(EmbeddingLookupInt8Test(*exec_env, data_type(), storage()));
 }
 
 TEST_P(EmbeddingLookupFloatTest, EmbeddingLookupInt4Test) {
@@ -59,7 +59,7 @@ TEST_P(EmbeddingLookupFloatTest, EmbeddingLookupInt4Test) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(EmbeddingLookupInt4Test(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(EmbeddingLookupInt4Test(*exec_env, data_type(), storage()));
 }
 
 TEST_P(EmbeddingLookupFloatTest, EmbeddingLookupInt4NegativeTest) {
@@ -67,7 +67,7 @@ TEST_P(EmbeddingLookupFloatTest, EmbeddingLookupInt4NegativeTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(EmbeddingLookupInt4NegativeTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(EmbeddingLookupInt4NegativeTest(*exec_env, data_type(), storage()));
 }
 
 INSTANTIATE_TEST_SUITE_P(

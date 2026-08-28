@@ -16,7 +16,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_replace.h"
 #include "ml_drift/common/data_type.h"
@@ -41,42 +41,42 @@ TEST_P(CumsumTypedTest, Int8) {
   if (!exec_env->IsStorageSupported(GetParam(), DataType::INT8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(CumsumIntTest<DataType::INT8>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(CumsumIntTest<DataType::INT8>(*exec_env, GetParam()));
 }
 
 TEST_P(CumsumTypedTest, Int16) {
   if (!exec_env->IsStorageSupported(GetParam(), DataType::INT16)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(CumsumIntTest<DataType::INT16>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(CumsumIntTest<DataType::INT16>(*exec_env, GetParam()));
 }
 
 TEST_P(CumsumTypedTest, Int32) {
   if (!exec_env->IsStorageSupported(GetParam(), DataType::INT32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(CumsumIntTest<DataType::INT32>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(CumsumIntTest<DataType::INT32>(*exec_env, GetParam()));
 }
 
 TEST_P(CumsumTypedTest, Uint8) {
   if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(CumsumIntTest<DataType::UINT8>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(CumsumIntTest<DataType::UINT8>(*exec_env, GetParam()));
 }
 
 TEST_P(CumsumTypedTest, Uint16) {
   if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT16)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(CumsumIntTest<DataType::UINT16>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(CumsumIntTest<DataType::UINT16>(*exec_env, GetParam()));
 }
 
 TEST_P(CumsumTypedTest, Uint32) {
   if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(CumsumIntTest<DataType::UINT32>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(CumsumIntTest<DataType::UINT32>(*exec_env, GetParam()));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -102,7 +102,7 @@ TEST_P(CumsumFloatTest, HWC) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(CumsumHWCTest(*exec_env, data_type(), storage(), axis()));
+  ABSL_ASSERT_OK(CumsumHWCTest(*exec_env, data_type(), storage(), axis()));
 }
 
 TEST_P(CumsumFloatTest, BHWC) {
@@ -110,7 +110,7 @@ TEST_P(CumsumFloatTest, BHWC) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(CumsumBHWCTest(*exec_env, data_type(), storage(), axis()));
+  ABSL_ASSERT_OK(CumsumBHWCTest(*exec_env, data_type(), storage(), axis()));
 }
 
 TEST_P(CumsumFloatTest, Cumsum5DTest) {
@@ -118,7 +118,7 @@ TEST_P(CumsumFloatTest, Cumsum5DTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(Cumsum5DTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(Cumsum5DTest(*exec_env, data_type(), storage()));
 }
 
 INSTANTIATE_TEST_SUITE_P(

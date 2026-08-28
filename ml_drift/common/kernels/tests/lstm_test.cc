@@ -14,7 +14,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/kernels/tests/kernel_test.h"
 #include "ml_drift/common/kernels/tests/lstm_test_util.h"
@@ -36,7 +36,7 @@ TEST_P(LstmFloatTest, LstmTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(LstmTest(*exec_env, precision(), storage()));
+  ABSL_ASSERT_OK(LstmTest(*exec_env, precision(), storage()));
 }
 
 TEST_P(LstmFloatTest, LstmBigTest) {
@@ -45,7 +45,7 @@ TEST_P(LstmFloatTest, LstmBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(LstmBigTest(*exec_env, precision(), storage()));
+  ABSL_ASSERT_OK(LstmBigTest(*exec_env, precision(), storage()));
 }
 
 INSTANTIATE_TEST_SUITE_P(

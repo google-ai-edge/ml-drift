@@ -20,7 +20,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
 #include "ml_drift/common/data_type.h"
@@ -395,9 +395,9 @@ absl::Status QuantizationUint8Test(TestExecutionEnvironment& env,
   op_def.src_tensors.push_back({float_type, float_storage, Layout::HWC});
   op_def.dst_tensors.push_back({DataType::UINT8, dst_storage, Layout::HWC});
   op_def.dst_tensors.push_back({float_type, float_storage, Layout::HWC});
-  MLD_EXPECT_OK(QuantizationUint8Test(env, src_tensor, op_def,
+  ABSL_EXPECT_OK(QuantizationUint8Test(env, src_tensor, op_def,
                                   /*calculate_sum=*/false));
-  MLD_EXPECT_OK(QuantizationUint8Test(env, src_tensor, op_def,
+  ABSL_EXPECT_OK(QuantizationUint8Test(env, src_tensor, op_def,
                                   /*calculate_sum=*/true));
   return absl::OkStatus();
 }
@@ -416,9 +416,9 @@ absl::Status QuantizationInt8Test(TestExecutionEnvironment& env,
   op_def.src_tensors.push_back({float_type, float_storage, Layout::HWC});
   op_def.dst_tensors.push_back({DataType::INT8, dst_storage, Layout::HWC});
   op_def.dst_tensors.push_back({float_type, float_storage, Layout::HWC});
-  MLD_EXPECT_OK(QuantizationInt8Test(env, src_tensor, op_def,
+  ABSL_EXPECT_OK(QuantizationInt8Test(env, src_tensor, op_def,
                                  /*calculate_sum=*/false));
-  MLD_EXPECT_OK(QuantizationInt8Test(env, src_tensor, op_def,
+  ABSL_EXPECT_OK(QuantizationInt8Test(env, src_tensor, op_def,
                                  /*calculate_sum=*/true));
   return absl::OkStatus();
 }

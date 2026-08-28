@@ -21,7 +21,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/log/absl_check.h"
 #include "absl/log/absl_log.h"
 #include "ml_drift/common/data_type.h"
@@ -58,7 +58,7 @@ class SpatialTensorTest : public TestWithParam<TensorStorageType> {
 
  protected:
   void SetUp() override {
-    MLD_ASSERT_OK(env_.Initialize());
+    ABSL_ASSERT_OK(env_.Initialize());
   }
 
   // Upload and immediately download; essentially an idempotent operation.

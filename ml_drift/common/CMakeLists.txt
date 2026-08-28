@@ -313,7 +313,6 @@ PRIVATE
 
 add_subdirectory(memory_management)
 add_subdirectory(task)
-add_subdirectory(default)
 add_subdirectory(kernels)
 add_subdirectory(selectors)
 

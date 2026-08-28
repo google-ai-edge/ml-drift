@@ -14,7 +14,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/kernels/tests/buffer_desc_test_util.h"
 #include "ml_drift/common/kernels/tests/kernel_test.h"
@@ -29,7 +29,7 @@ TEST(TensorDescriptorTest, SupportsAbslHash) {
     GTEST_SKIP() << "Unsupported storage type: "
                  << ToString(TensorStorageType::BUFFER);
   }
-  MLD_ASSERT_OK(ReadAsI16SelectorTest(*exec_env));
+  ABSL_ASSERT_OK(ReadAsI16SelectorTest(*exec_env));
 }
 
 }  // namespace ml_drift

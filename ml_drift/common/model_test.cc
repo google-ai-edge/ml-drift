@@ -16,7 +16,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/status/status.h"
 #include "ml_drift/common/shape.h"
 
@@ -80,7 +80,7 @@ TEST(Model, RemoveConsumer) {
   EXPECT_THAT(graph.outputs(), UnorderedElementsAre());
 
   // Now remove graph_input1
-  MLD_ASSERT_OK(graph.RemoveConsumer(node->id, graph_input1->id));
+  ABSL_ASSERT_OK(graph.RemoveConsumer(node->id, graph_input1->id));
   EXPECT_THAT(graph.FindConsumers(graph_input1->id), UnorderedElementsAre());
   EXPECT_THAT(graph.FindInputs(node->id), UnorderedElementsAre(graph_input2));
   EXPECT_THAT(graph.outputs(), UnorderedElementsAre(graph_input1));
@@ -100,7 +100,7 @@ TEST(Model, ReplaceInput) {
   graph.AddConsumer(node->id, v1->id);
   graph.AddConsumer(node->id, v2->id);
   EXPECT_THAT(graph.FindInputs(node->id), ElementsAre(v0, v1, v2));
-  MLD_ASSERT_OK(graph.ReplaceInput(node->id, v1->id, v3->id));
+  ABSL_ASSERT_OK(graph.ReplaceInput(node->id, v1->id, v3->id));
   EXPECT_THAT(graph.FindInputs(node->id), ElementsAre(v0, v3, v2));
 }
 
@@ -113,7 +113,7 @@ TEST(Model, RemoveProducer) {
   EXPECT_THAT(graph.inputs(), UnorderedElementsAre());
   EXPECT_TRUE(graph.FindProducer(graph_output->id) == node);
 
-  MLD_ASSERT_OK(graph.RemoveProducer(graph_output->id));
+  ABSL_ASSERT_OK(graph.RemoveProducer(graph_output->id));
   EXPECT_THAT(graph.inputs(), UnorderedElementsAre(graph_output));
   EXPECT_TRUE(graph.FindProducer(graph_output->id) == nullptr);
 
@@ -138,14 +138,14 @@ class OneNodeModel : public testing::Test {
 };
 
 TEST_F(OneNodeModel, DeleteNodeKeepInput) {
-  MLD_ASSERT_OK(RemoveSimpleNodeKeepInput(&graph_, node_));
+  ABSL_ASSERT_OK(RemoveSimpleNodeKeepInput(&graph_, node_));
   EXPECT_TRUE(graph_.inputs().empty());
   EXPECT_TRUE(graph_.outputs().empty());
   EXPECT_TRUE(graph_.nodes().empty());
 }
 
 TEST_F(OneNodeModel, DeleteNodeKeepOutput) {
-  MLD_ASSERT_OK(RemoveSimpleNodeKeepOutput(&graph_, node_));
+  ABSL_ASSERT_OK(RemoveSimpleNodeKeepOutput(&graph_, node_));
   EXPECT_TRUE(graph_.inputs().empty());
   EXPECT_TRUE(graph_.outputs().empty());
   EXPECT_TRUE(graph_.nodes().empty());
@@ -177,28 +177,28 @@ class TwoNodesModel : public testing::Test {
 };
 
 TEST_F(TwoNodesModel, DeleteFirstNodeKeepInput) {
-  MLD_ASSERT_OK(RemoveSimpleNodeKeepInput(&graph_, first_node_));
+  ABSL_ASSERT_OK(RemoveSimpleNodeKeepInput(&graph_, first_node_));
   EXPECT_THAT(graph_.inputs(), UnorderedElementsAre(graph_input_));
   EXPECT_THAT(graph_.outputs(), UnorderedElementsAre(graph_output_));
   EXPECT_THAT(graph_.nodes(), ElementsAre(second_node_));
 }
 
 TEST_F(TwoNodesModel, DeleteFirstNodeKeepOutput) {
-  MLD_ASSERT_OK(RemoveSimpleNodeKeepOutput(&graph_, first_node_));
+  ABSL_ASSERT_OK(RemoveSimpleNodeKeepOutput(&graph_, first_node_));
   EXPECT_THAT(graph_.inputs(), UnorderedElementsAre(value_));
   EXPECT_THAT(graph_.outputs(), UnorderedElementsAre(graph_output_));
   EXPECT_THAT(graph_.nodes(), ElementsAre(second_node_));
 }
 
 TEST_F(TwoNodesModel, DeleteSecondNodeKeepInput) {
-  MLD_ASSERT_OK(RemoveSimpleNodeKeepInput(&graph_, second_node_));
+  ABSL_ASSERT_OK(RemoveSimpleNodeKeepInput(&graph_, second_node_));
   EXPECT_THAT(graph_.inputs(), UnorderedElementsAre(graph_input_));
   EXPECT_THAT(graph_.outputs(), UnorderedElementsAre(value_));
   EXPECT_THAT(graph_.nodes(), ElementsAre(first_node_));
 }
 
 TEST_F(TwoNodesModel, DeleteSecondNodeKeepOutput) {
-  MLD_ASSERT_OK(RemoveSimpleNodeKeepOutput(&graph_, second_node_));
+  ABSL_ASSERT_OK(RemoveSimpleNodeKeepOutput(&graph_, second_node_));
   EXPECT_THAT(graph_.inputs(), UnorderedElementsAre(graph_input_));
   EXPECT_THAT(graph_.outputs(), UnorderedElementsAre(graph_output_));
   EXPECT_THAT(graph_.nodes(), ElementsAre(first_node_));
@@ -237,7 +237,7 @@ class ThreeNodesModel : public testing::Test {
 };
 
 TEST_F(ThreeNodesModel, DeleteMiddleNodeKeepInput) {
-  MLD_ASSERT_OK(RemoveSimpleNodeKeepInput(&graph_, second_node_));
+  ABSL_ASSERT_OK(RemoveSimpleNodeKeepInput(&graph_, second_node_));
   EXPECT_THAT(graph_.inputs(), UnorderedElementsAre(graph_input_));
   EXPECT_THAT(graph_.outputs(), UnorderedElementsAre(graph_output_));
   EXPECT_THAT(graph_.nodes(), ElementsAre(first_node_, third_node_));
@@ -246,7 +246,7 @@ TEST_F(ThreeNodesModel, DeleteMiddleNodeKeepInput) {
 }
 
 TEST_F(ThreeNodesModel, DeleteMiddleNodeKeepOutput) {
-  MLD_ASSERT_OK(RemoveSimpleNodeKeepOutput(&graph_, second_node_));
+  ABSL_ASSERT_OK(RemoveSimpleNodeKeepOutput(&graph_, second_node_));
   EXPECT_THAT(graph_.inputs(), UnorderedElementsAre(graph_input_));
   EXPECT_THAT(graph_.outputs(), UnorderedElementsAre(graph_output_));
   EXPECT_THAT(graph_.nodes(), ElementsAre(first_node_, third_node_));
@@ -304,7 +304,7 @@ TEST(Model, RemoveSimpleNodeKeepInputComplexCase) {
   // deleted with this function.
   ASSERT_FALSE(RemoveSimpleNodeKeepOutput(&graph, n1).ok());
 
-  MLD_ASSERT_OK(RemoveSimpleNodeKeepInput(&graph, n1));
+  ABSL_ASSERT_OK(RemoveSimpleNodeKeepInput(&graph, n1));
   EXPECT_THAT(graph.inputs(), UnorderedElementsAre(v0, v1, v3));
   EXPECT_THAT(graph.outputs(), UnorderedElementsAre(o1, o2));
   EXPECT_THAT(graph.nodes(), ElementsAre(n0, n2));
@@ -362,19 +362,19 @@ TEST(Model, DeleteValue) {
   EXPECT_THAT(graph.FindInputs(node2->id), UnorderedElementsAre(value));
   EXPECT_THAT(graph.FindOutputs(node1->id), UnorderedElementsAre(value));
 
-  MLD_ASSERT_OK(graph.DeleteValue(value->id));
+  ABSL_ASSERT_OK(graph.DeleteValue(value->id));
   value = nullptr;
   EXPECT_THAT(graph.values(), UnorderedElementsAre(graph_input, graph_output));
   EXPECT_THAT(graph.FindInputs(node2->id), UnorderedElementsAre());
   EXPECT_THAT(graph.FindOutputs(node1->id), UnorderedElementsAre());
 
-  MLD_ASSERT_OK(graph.DeleteValue(graph_input->id));
+  ABSL_ASSERT_OK(graph.DeleteValue(graph_input->id));
   graph_input = nullptr;
   EXPECT_THAT(graph.values(), UnorderedElementsAre(graph_output));
   EXPECT_THAT(graph.inputs(), UnorderedElementsAre());
   EXPECT_THAT(graph.FindInputs(node1->id), UnorderedElementsAre());
 
-  MLD_ASSERT_OK(graph.DeleteValue(graph_output->id));
+  ABSL_ASSERT_OK(graph.DeleteValue(graph_output->id));
   graph_output = nullptr;
   EXPECT_THAT(graph.values(), UnorderedElementsAre());
   EXPECT_THAT(graph.outputs(), UnorderedElementsAre());
@@ -411,7 +411,7 @@ TEST(Model, DeleteNode) {
 
   // graph_input  -> node1 -> value -> node2 -> graph_output
   // graph_output2
-  MLD_ASSERT_OK(graph.DeleteNode(node3->id));
+  ABSL_ASSERT_OK(graph.DeleteNode(node3->id));
   node3 = nullptr;
   EXPECT_THAT(graph.nodes(), ElementsAre(node1, node2));
   EXPECT_THAT(graph.inputs(), UnorderedElementsAre(graph_input, graph_output2));
@@ -422,7 +422,7 @@ TEST(Model, DeleteNode) {
   // value -> node2 -> graph_output
   // graph_input
   // graph_output2
-  MLD_ASSERT_OK(graph.DeleteNode(node1->id));
+  ABSL_ASSERT_OK(graph.DeleteNode(node1->id));
   node1 = nullptr;
   EXPECT_THAT(graph.nodes(), ElementsAre(node2));
   EXPECT_THAT(graph.inputs(),
@@ -432,7 +432,7 @@ TEST(Model, DeleteNode) {
   EXPECT_THAT(graph.FindConsumers(value->id), UnorderedElementsAre(node2));
   EXPECT_TRUE(graph.FindProducer(value->id) == nullptr);
 
-  MLD_ASSERT_OK(graph.DeleteNode(node2->id));
+  ABSL_ASSERT_OK(graph.DeleteNode(node2->id));
   node2 = nullptr;
   EXPECT_THAT(graph.nodes(), ElementsAre());
   EXPECT_THAT(graph.inputs(), UnorderedElementsAre(graph_output, graph_output2,
@@ -464,14 +464,14 @@ TEST(Model, InsertNodeAfter) {
   EXPECT_THAT(graph.FindInputs(node2->id), UnorderedElementsAre(value));
 
   Node* new_node1;
-  MLD_ASSERT_OK(graph.InsertNodeAfter(node1->id, &new_node1));
+  ABSL_ASSERT_OK(graph.InsertNodeAfter(node1->id, &new_node1));
   EXPECT_THAT(graph.nodes(), ElementsAre(node1, new_node1, node2));
 
   Node* new_node2;
   EXPECT_EQ(graph.InsertNodeAfter(/*id=*/100, &new_node2).code(),
             absl::StatusCode::kOutOfRange);
 
-  MLD_ASSERT_OK(graph.InsertNodeAfter(node2->id, &new_node2));
+  ABSL_ASSERT_OK(graph.InsertNodeAfter(node2->id, &new_node2));
   EXPECT_THAT(graph.nodes(), ElementsAre(node1, new_node1, node2, new_node2));
 }
 

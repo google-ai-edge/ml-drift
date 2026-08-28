@@ -21,7 +21,7 @@
 #include "benchmark/benchmark.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "xnnpack.h"  // from @XNNPACK
 #include "ml_drift/common/access_type.h"
 #include "ml_drift/common/data_type.h"
@@ -50,7 +50,7 @@ TEST(GpuOperationTest, RemovesComments) {
      */
     int baz; /* foo */// more comment)";
   GpuInfo gpu_info;
-  MLD_EXPECT_OK(op.AssembleCode(gpu_info));
+  ABSL_EXPECT_OK(op.AssembleCode(gpu_info));
   EXPECT_EQ(op.code_, R"(
     int foo;
     int bar;
@@ -64,7 +64,7 @@ TEST(GpuOperationTest, RemovesCommentsEndsWithLongComment) {
     int foo;/*
     comment */)";
   GpuInfo gpu_info;
-  MLD_EXPECT_OK(op.AssembleCode(gpu_info));
+  ABSL_EXPECT_OK(op.AssembleCode(gpu_info));
   EXPECT_EQ(op.code_, R"(
     int foo;)");
 }
@@ -88,7 +88,7 @@ TEST(GpuOperationTest, MarksActiveArguments) {
     int e =  args.i1+args.u1+_args.u2;args.)";
   op.code_ = code;
   GpuInfo gpu_info;
-  MLD_EXPECT_OK(op.AssembleCode(gpu_info));
+  ABSL_EXPECT_OK(op.AssembleCode(gpu_info));
   EXPECT_EQ(op.code_, code);
 
   const auto& args = op.args_;
@@ -147,7 +147,7 @@ void BM_AssembleCode(benchmark::State& state) {
   for (auto s : state) {
     ConvGeneric conv_operation = CreateConvGeneric(
         gpu_info, op_def, CalculationsPrecision::F32, conv_attr);
-    MLD_EXPECT_OK(conv_operation.AssembleCode(gpu_info));
+    ABSL_EXPECT_OK(conv_operation.AssembleCode(gpu_info));
   }
 }
 BENCHMARK(BM_AssembleCode);
@@ -181,7 +181,7 @@ TEST(GpuOperationTest, AddInputReorderUpdatesDescriptor) {
                      &src_desc, &dst_desc);
 
   TensorDescriptor desc;
-  MLD_EXPECT_OK(op.GetTensorDescriptor("src_k", &desc));
+  ABSL_EXPECT_OK(op.GetTensorDescriptor("src_k", &desc));
   EXPECT_EQ(desc.GetBHWDCShape(), BHWDC(1, 2, 4, 1, 8));
 }
 
@@ -215,7 +215,7 @@ MAIN_FUNCTION($0) {
 
   GpuInfo gpu_info;
   gpu_info.gpu_api = GpuApi::kWebGpu;
-  MLD_EXPECT_OK(op.AssembleCode(gpu_info));
+  ABSL_EXPECT_OK(op.AssembleCode(gpu_info));
 }
 
 }  // namespace

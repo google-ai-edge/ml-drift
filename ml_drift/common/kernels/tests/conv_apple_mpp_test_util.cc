@@ -23,7 +23,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "xnnpack.h"  // from @XNNPACK
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
@@ -700,7 +700,7 @@ absl::Status ConvAppleMPPRuntimeSrcEndChannelsTest(
   for (int src_ch = 4; src_ch <= weights_shape.i; src_ch += 4) {
     TestingRuntimeChannels runtime_channels;
     runtime_channels.src_end_ch = src_ch;
-    MLD_EXPECT_OK(ConvWaveMemoryRuntimeChannelsTest(env, src_tensor, attr, storage,
+    ABSL_EXPECT_OK(ConvWaveMemoryRuntimeChannelsTest(env, src_tensor, attr, storage,
                                                 runtime_channels));
   }
   return absl::OkStatus();
@@ -721,7 +721,7 @@ absl::Status ConvAppleMPPRuntimeDstEndChannelsTest(
   for (int dst_ch = 0; dst_ch <= weights_shape.o; dst_ch += 4) {
     TestingRuntimeChannels runtime_channels;
     runtime_channels.dst_end_ch = dst_ch;
-    MLD_EXPECT_OK(ConvWaveMemoryRuntimeChannelsTest(env, src_tensor, attr, storage,
+    ABSL_EXPECT_OK(ConvWaveMemoryRuntimeChannelsTest(env, src_tensor, attr, storage,
                                                 runtime_channels));
   }
   return absl::OkStatus();

@@ -156,7 +156,7 @@ absl::Status ConvConstantsBatchedBigTest(TestExecutionEnvironment& env,
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
   op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
-  MLD_EXPECT_OK(ConvConstantsTest(env, attr, src_tensor, op_def, precision));
+  ABSL_EXPECT_OK(ConvConstantsTest(env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();
 }
 
@@ -184,7 +184,7 @@ absl::Status ConvConstantsBigTest(TestExecutionEnvironment& env,
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  MLD_EXPECT_OK(ConvConstantsTest(env, attr, src_tensor, op_def, precision));
+  ABSL_EXPECT_OK(ConvConstantsTest(env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();
 }
 

@@ -14,7 +14,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "ml_drift/common/precision.h"
 #include "ml_drift/common/shape.h"
 #include "ml_drift/webgpu/testing/perf_util.h"
@@ -23,11 +23,11 @@ namespace ml_drift {
 namespace webgpu {
 
 TEST(WebGpuOperationTest, Performance) {
-  MLD_ASSERT_OK(ConvolutionPerfTest(CalculationsPrecision::F16,
+  ABSL_ASSERT_OK(ConvolutionPerfTest(CalculationsPrecision::F16,
                                 BHWC(1, 32, 32, 1024), 1024, HW(1, 1)));
-  // MLD_ASSERT_OK(ConvolutionInt8PerfTest(BHWC(1, 1, 1024, 1024), 1024));
+  // ABSL_ASSERT_OK(ConvolutionInt8PerfTest(BHWC(1, 1, 1024, 1024), 1024));
 
-  // MLD_ASSERT_OK(FullyConnectedPerfTest(CalculationsPrecision::F16,
+  // ABSL_ASSERT_OK(FullyConnectedPerfTest(CalculationsPrecision::F16,
   //                                  DataType::INT2,
   //                                  BHWC(1, 1, 1, 2560), 262144,
   //                                  OHWI(262144, 1, 1, 1)));

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "ml_drift/cl/testing/cl_test.h"
 #include "ml_drift/common/kernels/tests/kernel_test.h"
 #include "ml_drift/common/task/testing_util.h"

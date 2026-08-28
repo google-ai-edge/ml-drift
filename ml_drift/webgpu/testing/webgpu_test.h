@@ -20,7 +20,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/status/status.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
@@ -80,7 +80,7 @@ class WebGpuExecutionEnvironment : public TestExecutionEnvironment {
 
 class WebGpuOperationTest : public ::testing::Test {
  public:
-  void SetUp() override { MLD_ASSERT_OK(exec_env_.Init()); }
+  void SetUp() override { ABSL_ASSERT_OK(exec_env_.Init()); }
 
  protected:
   WebGpuExecutionEnvironment exec_env_;
@@ -88,7 +88,7 @@ class WebGpuOperationTest : public ::testing::Test {
 
 class WebGpuOperationTestEnvironment : public ::testing::Environment {
  public:
-  void SetUp() override { MLD_ASSERT_OK(exec_env_.Init()); }
+  void SetUp() override { ABSL_ASSERT_OK(exec_env_.Init()); }
   WebGpuExecutionEnvironment exec_env_;
 };
 

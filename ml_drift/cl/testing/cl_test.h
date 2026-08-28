@@ -20,7 +20,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "ml_drift/cl/environment.h"
@@ -69,8 +69,8 @@ class ClExecutionEnvironment : public TestExecutionEnvironment {
 class OpenCLOperationTest : public ::testing::Test {
  public:
   void SetUp() override {
-    MLD_ASSERT_OK(LoadOpenCL());
-    MLD_ASSERT_OK(exec_env_.Init());
+    ABSL_ASSERT_OK(LoadOpenCL());
+    ABSL_ASSERT_OK(exec_env_.Init());
   }
 
  protected:
@@ -80,8 +80,8 @@ class OpenCLOperationTest : public ::testing::Test {
 class OpenCLOperationTestEnvironment : public ::testing::Environment {
  public:
   void SetUp() override {
-    MLD_ASSERT_OK(LoadOpenCL());
-    MLD_ASSERT_OK(exec_env_.Init());
+    ABSL_ASSERT_OK(LoadOpenCL());
+    ABSL_ASSERT_OK(exec_env_.Init());
   }
 
   ClExecutionEnvironment exec_env_;

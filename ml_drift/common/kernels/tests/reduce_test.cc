@@ -18,7 +18,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_replace.h"
 #include "ml_drift/common/data_type.h"
@@ -44,28 +44,28 @@ TEST_P(ReduceTypedTest, ReduceSumChannelsInt8) {
   if (!exec_env->IsStorageSupported(GetParam(), DataType::INT8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(ReduceSumChannelsIntTest<DataType::INT8>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(ReduceSumChannelsIntTest<DataType::INT8>(*exec_env, GetParam()));
 }
 
 TEST_P(ReduceTypedTest, ReduceSumChannelsInt16) {
   if (!exec_env->IsStorageSupported(GetParam(), DataType::INT16)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(ReduceSumChannelsIntTest<DataType::INT16>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(ReduceSumChannelsIntTest<DataType::INT16>(*exec_env, GetParam()));
 }
 
 TEST_P(ReduceTypedTest, ReduceSumChannelsInt32) {
   if (!exec_env->IsStorageSupported(GetParam(), DataType::INT32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(ReduceSumChannelsIntTest<DataType::INT32>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(ReduceSumChannelsIntTest<DataType::INT32>(*exec_env, GetParam()));
 }
 
 TEST_P(ReduceTypedTest, ReduceProductChannelsUInt8) {
   if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       ReduceProductChannelsUIntTest<DataType::UINT8>(*exec_env, GetParam()));
 }
 
@@ -73,7 +73,7 @@ TEST_P(ReduceTypedTest, ReduceProductChannelsUInt16) {
   if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT16)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       ReduceProductChannelsUIntTest<DataType::UINT16>(*exec_env, GetParam()));
 }
 
@@ -81,7 +81,7 @@ TEST_P(ReduceTypedTest, ReduceProductChannelsUInt32) {
   if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       ReduceProductChannelsUIntTest<DataType::UINT32>(*exec_env, GetParam()));
 }
 
@@ -89,14 +89,14 @@ TEST_P(ReduceTypedTest, ReduceAny) {
   if (!exec_env->IsStorageSupported(GetParam(), DataType::BOOL)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(ReduceAnyTest(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(ReduceAnyTest(*exec_env, GetParam()));
 }
 
 TEST_P(ReduceTypedTest, ReduceBool) {
   if (!exec_env->IsStorageSupported(GetParam(), DataType::BOOL)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(ReduceAllTest(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(ReduceAllTest(*exec_env, GetParam()));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -112,7 +112,7 @@ TEST_P(ReduceFloatTest, MeanHWTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(MeanHWTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(MeanHWTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(ReduceFloatTest, ReduceSumChannelsTest) {
@@ -120,7 +120,7 @@ TEST_P(ReduceFloatTest, ReduceSumChannelsTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ReduceSumChannelsTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(ReduceSumChannelsTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(ReduceFloatTest, ReduceProductChannelsTest) {
@@ -128,7 +128,7 @@ TEST_P(ReduceFloatTest, ReduceProductChannelsTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ReduceProductChannelsTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(ReduceProductChannelsTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(ReduceFloatTest, ReduceMaxChannelsTest) {
@@ -136,7 +136,7 @@ TEST_P(ReduceFloatTest, ReduceMaxChannelsTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ReduceMaxChannelsTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(ReduceMaxChannelsTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(ReduceFloatTest, ReduceMinChannelsTest) {
@@ -144,7 +144,7 @@ TEST_P(ReduceFloatTest, ReduceMinChannelsTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ReduceMinChannelsTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(ReduceMinChannelsTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(ReduceFloatTest, ReduceMaxIndChannelsTest) {
@@ -152,7 +152,7 @@ TEST_P(ReduceFloatTest, ReduceMaxIndChannelsTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ReduceMaxIndChannelsTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(ReduceMaxIndChannelsTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(ReduceFloatTest, ReduceMaxIndHeightTest) {
@@ -160,7 +160,7 @@ TEST_P(ReduceFloatTest, ReduceMaxIndHeightTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ReduceMaxIndHeightTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(ReduceMaxIndHeightTest(*exec_env, data_type(), storage()));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -186,7 +186,7 @@ TEST_P(ReduceBigFloatTest, ReduceHWBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ReduceHWBigTest(*exec_env, data_type(), storage(), op_type()));
+  ABSL_ASSERT_OK(ReduceHWBigTest(*exec_env, data_type(), storage(), op_type()));
 }
 
 TEST_P(ReduceBigFloatTest, ReduceHWBatchedBigTest) {
@@ -194,7 +194,7 @@ TEST_P(ReduceBigFloatTest, ReduceHWBatchedBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       ReduceHWBatchedBigTest(*exec_env, data_type(), storage(), op_type()));
 }
 
@@ -203,7 +203,7 @@ TEST_P(ReduceBigFloatTest, ReduceHBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ReduceHBigTest(*exec_env, data_type(), storage(), op_type()));
+  ABSL_ASSERT_OK(ReduceHBigTest(*exec_env, data_type(), storage(), op_type()));
 }
 
 TEST_P(ReduceBigFloatTest, ReduceBHBigTest) {
@@ -211,7 +211,7 @@ TEST_P(ReduceBigFloatTest, ReduceBHBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ReduceBHBigTest(*exec_env, data_type(), storage(), op_type()));
+  ABSL_ASSERT_OK(ReduceBHBigTest(*exec_env, data_type(), storage(), op_type()));
 }
 
 TEST_P(ReduceBigFloatTest, ReduceCBigTest) {
@@ -219,7 +219,7 @@ TEST_P(ReduceBigFloatTest, ReduceCBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ReduceCBigTest(*exec_env, data_type(), storage(), op_type()));
+  ABSL_ASSERT_OK(ReduceCBigTest(*exec_env, data_type(), storage(), op_type()));
 }
 
 TEST_P(ReduceBigFloatTest, ReduceCx4BigTest) {
@@ -227,7 +227,7 @@ TEST_P(ReduceBigFloatTest, ReduceCx4BigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ReduceCx4BigTest(*exec_env, data_type(), storage(), op_type()));
+  ABSL_ASSERT_OK(ReduceCx4BigTest(*exec_env, data_type(), storage(), op_type()));
 }
 
 TEST_P(ReduceBigFloatTest, ReduceHWCBigTest) {
@@ -235,7 +235,7 @@ TEST_P(ReduceBigFloatTest, ReduceHWCBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ReduceHWCBigTest(*exec_env, data_type(), storage(), op_type()));
+  ABSL_ASSERT_OK(ReduceHWCBigTest(*exec_env, data_type(), storage(), op_type()));
 }
 
 TEST_P(ReduceBigFloatTest, ReduceBHDBigTest) {
@@ -243,7 +243,7 @@ TEST_P(ReduceBigFloatTest, ReduceBHDBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ReduceBHDBigTest(*exec_env, data_type(), storage(), op_type()));
+  ABSL_ASSERT_OK(ReduceBHDBigTest(*exec_env, data_type(), storage(), op_type()));
 }
 
 TEST_P(ReduceBigFloatTest, ReduceBHWDBigTest) {
@@ -251,7 +251,7 @@ TEST_P(ReduceBigFloatTest, ReduceBHWDBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ReduceBHWDBigTest(*exec_env, data_type(), storage(), op_type()));
+  ABSL_ASSERT_OK(ReduceBHWDBigTest(*exec_env, data_type(), storage(), op_type()));
 }
 
 std::vector<OperationType> GetReduceOps() {

@@ -14,7 +14,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/kernels/tests/kernel_test.h"
 #include "ml_drift/common/kernels/tests/padding_test_util.h"
@@ -34,7 +34,7 @@ TEST_P(PaddingFloatTest, PaddingAppendWidthTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(PaddingAppendWidthTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(PaddingAppendWidthTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(PaddingFloatTest, PaddingAppendWidthConstValuesTest) {
@@ -42,7 +42,7 @@ TEST_P(PaddingFloatTest, PaddingAppendWidthConstValuesTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       PaddingAppendWidthConstValuesTest(*exec_env, data_type(), storage()));
 }
 
@@ -51,7 +51,7 @@ TEST_P(PaddingFloatTest, PaddingPrependWidthTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(PaddingPrependWidthTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(PaddingPrependWidthTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(PaddingFloatTest, PaddingAppendHeightTest) {
@@ -59,7 +59,7 @@ TEST_P(PaddingFloatTest, PaddingAppendHeightTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(PaddingAppendHeightTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(PaddingAppendHeightTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(PaddingFloatTest, PaddingPrependHeightTest) {
@@ -67,7 +67,7 @@ TEST_P(PaddingFloatTest, PaddingPrependHeightTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(PaddingPrependHeightTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(PaddingPrependHeightTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(PaddingFloatTest, PaddingAppendChannelsTest) {
@@ -75,7 +75,7 @@ TEST_P(PaddingFloatTest, PaddingAppendChannelsTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(PaddingAppendChannelsTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(PaddingAppendChannelsTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(PaddingFloatTest, PaddingPrependChannelsTest) {
@@ -83,7 +83,7 @@ TEST_P(PaddingFloatTest, PaddingPrependChannelsTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(PaddingPrependChannelsTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(PaddingPrependChannelsTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(PaddingFloatTest, PaddingPrependChannelsX4Test) {
@@ -91,7 +91,7 @@ TEST_P(PaddingFloatTest, PaddingPrependChannelsX4Test) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(PaddingPrependChannelsX4Test(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(PaddingPrependChannelsX4Test(*exec_env, data_type(), storage()));
 }
 
 TEST_P(PaddingFloatTest, PaddingComplexTest) {
@@ -99,7 +99,7 @@ TEST_P(PaddingFloatTest, PaddingComplexTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(PaddingComplexTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(PaddingComplexTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(PaddingFloatTest, PaddingReflectWidthTest) {
@@ -107,7 +107,7 @@ TEST_P(PaddingFloatTest, PaddingReflectWidthTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(PaddingReflectWidthTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(PaddingReflectWidthTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(PaddingFloatTest, PaddingReflectChannelsTest) {
@@ -115,7 +115,7 @@ TEST_P(PaddingFloatTest, PaddingReflectChannelsTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(PaddingReflectChannelsTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(PaddingReflectChannelsTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(PaddingFloatTest, PaddingBigTest) {
@@ -123,7 +123,7 @@ TEST_P(PaddingFloatTest, PaddingBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(PaddingBigTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(PaddingBigTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(PaddingFloatTest, PaddingBatchedBigTest) {
@@ -131,7 +131,7 @@ TEST_P(PaddingFloatTest, PaddingBatchedBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(PaddingBatchedBigTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(PaddingBatchedBigTest(*exec_env, data_type(), storage()));
 }
 
 INSTANTIATE_TEST_SUITE_P(

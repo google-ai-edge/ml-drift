@@ -83,7 +83,7 @@ absl::Status MaxUnpoolingTest(TestExecutionEnvironment& exec_env,
   auto operation = CreateMaxUnpooling(exec_env.GetGpuInfo(), op_def, attr);
 
   TensorFloat32 dst_tensor;
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(
       {src_tensors[0], src_tensors[1]},
       std::make_unique<GPUOperation>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
@@ -105,7 +105,7 @@ absl::Status MaxUnpoolingTest(TestExecutionEnvironment& exec_env,
   auto operation = CreateMaxUnpooling(exec_env.GetGpuInfo(), op_def, attr);
 
   Tensor5DFloat32 dst_tensor;
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(
       {src_tensors[0], src_tensors[1]},
       std::make_unique<GPUOperation>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));

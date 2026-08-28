@@ -16,7 +16,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_replace.h"
 #include "ml_drift/common/data_type.h"
@@ -42,7 +42,7 @@ TEST_P(AccumulateInputChannelsTests, AccumulateInputChannelsInt8ToInt32Test) {
   if (!exec_env->IsStorageSupported(storage, DataType::INT8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(storage);
   }
-  MLD_ASSERT_OK(AccumulateInputChannelsInt8ToInt32Test(*exec_env, storage,
+  ABSL_ASSERT_OK(AccumulateInputChannelsInt8ToInt32Test(*exec_env, storage,
                                                    weights_shape));
 }
 
@@ -52,7 +52,7 @@ TEST_P(AccumulateInputChannelsTests, AccumulateInputChannelsInt4ToInt32Test) {
   if (!exec_env->IsStorageSupported(storage, DataType::INT8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(storage);
   }
-  MLD_ASSERT_OK(AccumulateInputChannelsInt4ToInt32Test(*exec_env, storage,
+  ABSL_ASSERT_OK(AccumulateInputChannelsInt4ToInt32Test(*exec_env, storage,
                                                    weights_shape));
 }
 
@@ -63,7 +63,7 @@ TEST_P(AccumulateInputChannelsTests, AccumulateInputChannelsInt2ToInt32Test) {
   if (!exec_env->IsStorageSupported(storage, DataType::INT8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(storage);
   }
-  MLD_ASSERT_OK(AccumulateInputChannelsInt2ToInt32Test(*exec_env, storage,
+  ABSL_ASSERT_OK(AccumulateInputChannelsInt2ToInt32Test(*exec_env, storage,
                                                    weights_shape));
 }
 

@@ -21,7 +21,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/log/absl_check.h"
 #include "absl/log/absl_log.h"
 #include "ml_drift/cl/environment.h"
@@ -44,8 +44,8 @@ namespace {
 class TensorTest : public TestWithParam<TensorStorageType> {
  protected:
   void SetUp() override {
-    MLD_ASSERT_OK(LoadOpenCL());
-    MLD_ASSERT_OK(CreateEnvironment(&env_));
+    ABSL_ASSERT_OK(LoadOpenCL());
+    ABSL_ASSERT_OK(CreateEnvironment(&env_));
   }
 
   // Upload and immediately download; essentially an idempotent operation.

@@ -41,7 +41,7 @@ def mld_kernel_test(
             ],
             linkstatic = True,
             deps = deps + [
-                "@com_google_googletest//:gtest", "//ml_drift/common/default:status_matchers",
+                "@com_google_googletest//:gtest", "@com_google_absl//absl/status:status_matchers",
                 "//ml_drift/cl/testing:cl_test",
             ],
             tags = mld_gpu_tests_tags(),
@@ -58,7 +58,7 @@ def mld_kernel_test(
             ],
             linkstatic = True,
             deps = deps + [
-                "@com_google_googletest//:gtest", "//ml_drift/common/default:status_matchers",
+                "@com_google_googletest//:gtest", "@com_google_absl//absl/status:status_matchers",
                 "//ml_drift/webgpu/testing:webgpu_test",
             ],
             tags = mld_gpu_tests_tags(),

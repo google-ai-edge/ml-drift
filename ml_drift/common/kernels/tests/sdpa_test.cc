@@ -19,7 +19,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/status/status_macros.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_replace.h"
@@ -140,10 +140,11 @@ TEST_P(SdpaTest, SdpaWithoutMask) {
   }
 
   TensorFloat32 inference_result;
-  MLD_ASSERT_OK_AND_ASSIGN(
-      inference_result,
+  auto inference_result_or =
       RunModel(model, input_tensor_q, input_tensor_k, input_tensor_v,
-               /*input_tensor_mask=*/{}, GetParam(), *exec_env));
+               /*input_tensor_mask=*/{}, GetParam(), *exec_env);
+  ABSL_ASSERT_OK(inference_result_or);
+  inference_result = std::move(inference_result_or.value());
 
   TensorFloat32 expected;
   expected.shape = ml_drift::BHWC(1, 4, 1, 4);
@@ -236,10 +237,11 @@ TEST_P(SdpaTest, SdpaWithMaskNoScale) {
   }
 
   TensorFloat32 inference_result;
-  MLD_ASSERT_OK_AND_ASSIGN(
-      inference_result,
+  auto inference_result_or =
       RunModel(model, input_tensor_q, input_tensor_k, input_tensor_v,
-               input_tensor_mask, GetParam(), *exec_env));
+               input_tensor_mask, GetParam(), *exec_env);
+  ABSL_ASSERT_OK(inference_result_or);
+  inference_result = std::move(inference_result_or.value());
 
   TensorFloat32 expected;
   expected.shape = ml_drift::BHWC(1, 4, 1, 4);
@@ -333,10 +335,11 @@ TEST_P(SdpaTest, SdpaWithMaskZeroScale) {
   }
 
   TensorFloat32 inference_result;
-  MLD_ASSERT_OK_AND_ASSIGN(
-      inference_result,
+  auto inference_result_or =
       RunModel(model, input_tensor_q, input_tensor_k, input_tensor_v,
-               input_tensor_mask, GetParam(), *exec_env));
+               input_tensor_mask, GetParam(), *exec_env);
+  ABSL_ASSERT_OK(inference_result_or);
+  inference_result = std::move(inference_result_or.value());
 
   TensorFloat32 expected;
   expected.shape = ml_drift::BHWC(1, 4, 1, 4);
@@ -430,10 +433,11 @@ TEST_P(SdpaTest, SdpaWithMaskNegativeScale) {
   }
 
   TensorFloat32 inference_result;
-  MLD_ASSERT_OK_AND_ASSIGN(
-      inference_result,
+  auto inference_result_or =
       RunModel(model, input_tensor_q, input_tensor_k, input_tensor_v,
-               input_tensor_mask, GetParam(), *exec_env));
+               input_tensor_mask, GetParam(), *exec_env);
+  ABSL_ASSERT_OK(inference_result_or);
+  inference_result = std::move(inference_result_or.value());
 
   TensorFloat32 expected;
   expected.shape = ml_drift::BHWC(1, 4, 1, 4);

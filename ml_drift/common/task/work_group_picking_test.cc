@@ -15,7 +15,7 @@
 #include "ml_drift/common/task/work_group_picking.h"
 
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/kernel_info.h"
 #include "ml_drift/common/task/tuning_type.h"

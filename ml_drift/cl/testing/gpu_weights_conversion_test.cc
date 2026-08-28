@@ -21,7 +21,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/log/absl_check.h"
 #include "absl/status/status.h"
@@ -132,19 +132,19 @@ absl::Status ConvFloatTest(cl::ClExecutionEnvironment& exec_env,
   InitWithSinValues(input_tensor.data);
 
   GpuModel reference_gpu_model;
-  MLD_EXPECT_OK(GraphToGpuModel(graph, create_info, exec_env.GetGpuInfo(),
+  ABSL_EXPECT_OK(GraphToGpuModel(graph, create_info, exec_env.GetGpuInfo(),
                             &reference_gpu_model));
   cl::InferenceContext reference_context;
-  MLD_EXPECT_OK(reference_context.InitFromGpuModel(create_info,
+  ABSL_EXPECT_OK(reference_context.InitFromGpuModel(create_info,
                                                &reference_gpu_model, env));
   ABSL_ASSIGN_OR_RETURN(auto reference,
                         GetOutput(exec_env, reference_context, input_tensor));
 
   cl::InferenceContext conversion_context;
   cl::InferenceContext context_with_external_weights;
-  MLD_EXPECT_OK(InitContexts(env, graph, create_info,
+  ABSL_EXPECT_OK(InitContexts(env, graph, create_info,
                          &context_with_external_weights, &conversion_context));
-  MLD_EXPECT_OK(conversion_context.AddToQueue(env->queue()));
+  ABSL_EXPECT_OK(conversion_context.AddToQueue(env->queue()));
   ABSL_ASSIGN_OR_RETURN(
       auto actual,
       GetOutput(exec_env, context_with_external_weights, input_tensor));
@@ -173,19 +173,19 @@ absl::Status FullyConnectedInt8Test(cl::ClExecutionEnvironment& exec_env,
   // Compute the results of Int8 FullyConnected without WeightsManager, as the
   // reference.
   GpuModel reference_gpu_model;
-  MLD_EXPECT_OK(GraphToGpuModel(graph_int8, create_info, exec_env.GetGpuInfo(),
+  ABSL_EXPECT_OK(GraphToGpuModel(graph_int8, create_info, exec_env.GetGpuInfo(),
                             &reference_gpu_model));
   cl::InferenceContext target_context;
-  MLD_EXPECT_OK(target_context.InitFromGpuModel(create_info, &reference_gpu_model,
+  ABSL_EXPECT_OK(target_context.InitFromGpuModel(create_info, &reference_gpu_model,
                                             exec_env.GetEnvironmentPtr()));
   ABSL_ASSIGN_OR_RETURN(auto reference,
                         GetOutput(exec_env, target_context, input_tensor));
 
   cl::InferenceContext conversion_context;
   cl::InferenceContext context_with_external_weights;
-  MLD_EXPECT_OK(InitContexts(env, graph_int8, create_info,
+  ABSL_EXPECT_OK(InitContexts(env, graph_int8, create_info,
                          &context_with_external_weights, &conversion_context));
-  MLD_EXPECT_OK(conversion_context.AddToQueue(env->queue()));
+  ABSL_EXPECT_OK(conversion_context.AddToQueue(env->queue()));
   ABSL_ASSIGN_OR_RETURN(
       auto actual,
       GetOutput(exec_env, context_with_external_weights, input_tensor));
@@ -213,10 +213,10 @@ absl::Status FullyConnectedFloat32VSInt8Test(
   ABSL_ASSIGN_OR_RETURN(GraphFloat32 graph_f32,
                         fc_int8_test_graph.CreateFCFloat32Graph());
   GpuModel reference_gpu_model;
-  MLD_EXPECT_OK(GraphToGpuModel(graph_f32, create_info, exec_env.GetGpuInfo(),
+  ABSL_EXPECT_OK(GraphToGpuModel(graph_f32, create_info, exec_env.GetGpuInfo(),
                             &reference_gpu_model));
   cl::InferenceContext reference_context;
-  MLD_EXPECT_OK(reference_context.InitFromGpuModel(
+  ABSL_EXPECT_OK(reference_context.InitFromGpuModel(
       create_info, &reference_gpu_model, exec_env.GetEnvironmentPtr()));
   ABSL_ASSIGN_OR_RETURN(auto reference_output,
                         GetOutput(exec_env, reference_context, input_tensor));
@@ -225,10 +225,10 @@ absl::Status FullyConnectedFloat32VSInt8Test(
   ABSL_ASSIGN_OR_RETURN(GraphFloat32 graph_int8,
                         fc_int8_test_graph.CreateFCInt8Graph());
   GpuModel target_gpu_model;
-  MLD_EXPECT_OK(GraphToGpuModel(graph_int8, create_info, exec_env.GetGpuInfo(),
+  ABSL_EXPECT_OK(GraphToGpuModel(graph_int8, create_info, exec_env.GetGpuInfo(),
                             &target_gpu_model));
   cl::InferenceContext target_context;
-  MLD_EXPECT_OK(target_context.InitFromGpuModel(create_info, &target_gpu_model,
+  ABSL_EXPECT_OK(target_context.InitFromGpuModel(create_info, &target_gpu_model,
                                             exec_env.GetEnvironmentPtr()));
   ABSL_ASSIGN_OR_RETURN(auto actual,
                         GetOutput(exec_env, target_context, input_tensor));
@@ -259,19 +259,19 @@ absl::Status QuantizedConvTest(cl::ClExecutionEnvironment& exec_env,
   InitWithSinValues(input_tensor.data);
 
   GpuModel reference_gpu_model;
-  MLD_EXPECT_OK(GraphToGpuModel(graph, create_info, exec_env.GetGpuInfo(),
+  ABSL_EXPECT_OK(GraphToGpuModel(graph, create_info, exec_env.GetGpuInfo(),
                             &reference_gpu_model));
   cl::InferenceContext reference_context;
-  MLD_EXPECT_OK(reference_context.InitFromGpuModel(create_info,
+  ABSL_EXPECT_OK(reference_context.InitFromGpuModel(create_info,
                                                &reference_gpu_model, env));
   ABSL_ASSIGN_OR_RETURN(auto reference,
                         GetOutput(exec_env, reference_context, input_tensor));
 
   cl::InferenceContext conversion_context;
   cl::InferenceContext context_with_external_weights;
-  MLD_EXPECT_OK(InitContexts(env, graph, create_info,
+  ABSL_EXPECT_OK(InitContexts(env, graph, create_info,
                          &context_with_external_weights, &conversion_context));
-  MLD_EXPECT_OK(conversion_context.AddToQueue(env->queue()));
+  ABSL_EXPECT_OK(conversion_context.AddToQueue(env->queue()));
   ABSL_ASSIGN_OR_RETURN(
       auto actual,
       GetOutput(exec_env, context_with_external_weights, input_tensor));
@@ -292,7 +292,7 @@ TEST_P(WeightsManagerConvTest, Conv1x1Float32) {
     GTEST_SKIP() << "Unsupported storage " << ToString(storage_type)
                  << " with data type " << ToString(data_type);
   }
-  MLD_EXPECT_OK(ConvFloatTest(exec_env_, precision, input_shape, output_shape,
+  ABSL_EXPECT_OK(ConvFloatTest(exec_env_, precision, input_shape, output_shape,
                           kernel_size));
 }
 
@@ -304,7 +304,7 @@ TEST_P(WeightsManagerConvTest, Conv3x3Int4) {
     GTEST_SKIP() << "Unsupported storage " << ToString(storage_type)
                  << " with data type " << ToString(data_type);
   }
-  MLD_EXPECT_OK(QuantizedConvTest<DataType::INT4>(exec_env_, precision, input_shape,
+  ABSL_EXPECT_OK(QuantizedConvTest<DataType::INT4>(exec_env_, precision, input_shape,
                                               output_shape, kernel_size));
 }
 
@@ -316,7 +316,7 @@ TEST_P(WeightsManagerConvTest, Conv3x3Int8) {
     GTEST_SKIP() << "Unsupported storage " << ToString(storage_type)
                  << " with data type " << ToString(data_type);
   }
-  MLD_EXPECT_OK(QuantizedConvTest<DataType::INT8>(exec_env_, precision, input_shape,
+  ABSL_EXPECT_OK(QuantizedConvTest<DataType::INT8>(exec_env_, precision, input_shape,
                                               output_shape, kernel_size));
 }
 
@@ -344,7 +344,7 @@ TEST_P(WeightsManagerFCTest, FullyConnectedInt8) {
   auto [input_shape, output_channels] = GetParam();
   BHWC output_shape = input_shape;
   output_shape.c = output_channels;
-  MLD_EXPECT_OK(FullyConnectedInt8Test(exec_env_, input_shape, output_shape));
+  ABSL_EXPECT_OK(FullyConnectedInt8Test(exec_env_, input_shape, output_shape));
 }
 // TODO: b/410044840 - FullyConnectedFloat32VSInt8 test fails on Pixel 9 (Mali
 // GPU chip), through it's passed with 'requires-gpu-nvidia' tag.
@@ -355,7 +355,7 @@ TEST_P(WeightsManagerFCTest, FullyConnectedFloat32VSInt8) {
   auto [input_shape, output_channels] = GetParam();
   BHWC output_shape = input_shape;
   output_shape.c = output_channels;
-  MLD_EXPECT_OK(
+  ABSL_EXPECT_OK(
       FullyConnectedFloat32VSInt8Test(exec_env_, input_shape, output_shape));
 }
 
@@ -400,7 +400,7 @@ TEST_P(WeightsManagerWeightsSumITest, WeightsSumI) {
   weights_manager.RegisterWeightsSumIConversion(main_model_weights_ids,
                                                 weights_shape, input_data_type,
                                                 weights_data.data());
-  MLD_ASSERT_OK(weights_manager.CreateConversionGpuModel(
+  ABSL_ASSERT_OK(weights_manager.CreateConversionGpuModel(
       exec_env_.GetGpuInfo(), &conversion_gpu_model, &weights_mapping,
       &upload_weights_info));
   ValueId converted_output_id = 0;
@@ -411,19 +411,19 @@ TEST_P(WeightsManagerWeightsSumITest, WeightsSumI) {
     }
   }
   cl::InferenceContext conversion_context;
-  MLD_ASSERT_OK(conversion_context.InitFromGpuModel(create_info,
+  ABSL_ASSERT_OK(conversion_context.InitFromGpuModel(create_info,
                                                 &conversion_gpu_model, env,
                                                 /*serialized_model=*/nullptr,
                                                 /*shared_buffer=*/nullptr));
   for (const auto& upload_info : upload_weights_info) {
     auto tensor = conversion_context.GetTensor(upload_info.input_id);
-    MLD_ASSERT_OK(
+    ABSL_ASSERT_OK(
         tensor->WriteData(upload_info.data, env->queue(), /*async=*/true));
   }
-  MLD_EXPECT_OK(conversion_context.AddToQueue(env->queue()));
-  MLD_ASSERT_OK(env->queue()->WaitForCompletion());
+  ABSL_EXPECT_OK(conversion_context.AddToQueue(env->queue()));
+  ABSL_ASSERT_OK(env->queue()->WaitForCompletion());
   TensorInt32 output;
-  MLD_ASSERT_OK(conversion_context.GetOutputTensor(converted_output_id,
+  ABSL_ASSERT_OK(conversion_context.GetOutputTensor(converted_output_id,
                                                env->queue(), &output));
 
   EXPECT_THAT(output.data, Pointwise(testing::Eq(), reference_output))
@@ -495,7 +495,7 @@ TEST_P(WeightsManagerGpuMemoryUsageTest, Int4WeightsConversion) {
   weights_manager.RegisterWeightsConversion(
       main_model_weights_ids, weights_desc, weights_shape, input_data_type,
       raw_weights_data.data());
-  MLD_ASSERT_OK(weights_manager.CreateConversionGpuModel(
+  ABSL_ASSERT_OK(weights_manager.CreateConversionGpuModel(
       exec_env_.GetGpuInfo(), &conversion_gpu_model, &weights_mapping,
       &upload_weights_info));
   ASSERT_EQ(conversion_gpu_model.input_ids_and_refs.size(), 1);

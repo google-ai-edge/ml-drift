@@ -23,7 +23,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "xnnpack.h"  // from @XNNPACK
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
@@ -1037,7 +1037,7 @@ absl::Status ConvWaveMatrixRuntimeSrcEndChannelsTest(
   for (int src_ch = 0; src_ch <= weights_shape.i; src_ch += 4) {
     TestingRuntimeChannels runtime_channels;
     runtime_channels.src_end_ch = src_ch;
-    MLD_EXPECT_OK(ConvWaveMatrixRuntimeChannelsTest(env, src_tensor, attr, conv_def,
+    ABSL_EXPECT_OK(ConvWaveMatrixRuntimeChannelsTest(env, src_tensor, attr, conv_def,
                                                 precision, runtime_channels));
   }
   return absl::OkStatus();
@@ -1072,7 +1072,7 @@ absl::Status ConvWaveMatrixRuntimeDstEndChannelsTest(
   for (int dst_ch = 0; dst_ch <= weights_shape.o; dst_ch += 4) {
     TestingRuntimeChannels runtime_channels;
     runtime_channels.dst_end_ch = dst_ch;
-    MLD_EXPECT_OK(ConvWaveMatrixRuntimeChannelsTest(env, src_tensor, attr, conv_def,
+    ABSL_EXPECT_OK(ConvWaveMatrixRuntimeChannelsTest(env, src_tensor, attr, conv_def,
                                                 precision, runtime_channels));
   }
   return absl::OkStatus();
@@ -1138,7 +1138,7 @@ absl::Status ConvWaveMatrixInt8Test(
 
   TensorDescriptor dst_td = op_def.dst_tensors[0];
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(
       {&src_td}, {&dst_td},
       std::make_unique<ConvWaveMatrix>(std::move(operation))));
   TensorInt32 dst_tensor;
@@ -1185,7 +1185,7 @@ absl::Status ConvWaveMatrixInt8Test(TestExecutionEnvironment& env,
   OperationDef op_def;
   op_def.src_tensors.push_back({src_data_type, src_storage, Layout::HWC});
   op_def.dst_tensors.push_back({dst_data_type, dst_storage, Layout::HWC});
-  MLD_EXPECT_OK(ConvWaveMatrixInt8Test(env, src_i8_tensor, quantized_type,
+  ABSL_EXPECT_OK(ConvWaveMatrixInt8Test(env, src_i8_tensor, quantized_type,
                                    weights_i8, op_def));
   return absl::OkStatus();
 }
@@ -1263,7 +1263,7 @@ absl::Status ConvWaveMatrixInt8ExternalWeightsTest(
 
   TensorDescriptor dst_td = op_def.dst_tensors[0];
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(
       {&src_td, &weights_i8_td}, {&dst_td},
       std::make_unique<ConvWaveMatrix>(std::move(operation))));
   TensorInt32 dst_tensor;
@@ -1310,7 +1310,7 @@ absl::Status ConvWaveMatrixInt8ExternalWeightsTest(
   OperationDef op_def;
   op_def.src_tensors.push_back({src_data_type, src_storage, Layout::HWC});
   op_def.dst_tensors.push_back({dst_data_type, dst_storage, Layout::HWC});
-  MLD_EXPECT_OK(ConvWaveMatrixInt8ExternalWeightsTest(
+  ABSL_EXPECT_OK(ConvWaveMatrixInt8ExternalWeightsTest(
       env, src_i8_tensor, quantized_type, weights_i8, op_def));
   return absl::OkStatus();
 }
@@ -1353,7 +1353,7 @@ absl::Status ConvWaveMatrixInt8WithSrcQuantizationTest(
     params_shape.c = need_src_sum ? 3 : 2;
     src_params_td.SetBHWCShape(params_shape);
 
-    MLD_EXPECT_OK(exec_env.ExecuteGPUOperation({&src_td},
+    ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation({&src_td},
                                            {&src_quantized_td, &src_params_td},
                                            std::move(quantization_op)));
   }
@@ -1386,7 +1386,7 @@ absl::Status ConvWaveMatrixInt8WithSrcQuantizationTest(
       weights_i8.shape, exec_env.GetGpuInfo(), conv_def.dst_tensors[0],
       dequant_dst, src_params_td, weights_sum_i_td, weights_scale_td,
       weights_zero_point_td_ptr);
-  MLD_EXPECT_OK(conv_op.AddOperation(exec_env.GetGpuInfo(), &dequant_op));
+  ABSL_EXPECT_OK(conv_op.AddOperation(exec_env.GetGpuInfo(), &dequant_op));
 
   TensorDescriptor weights_i8_td;
   {
@@ -1409,7 +1409,7 @@ absl::Status ConvWaveMatrixInt8WithSrcQuantizationTest(
   if (weights_zero_point != nullptr) {
     src_descs.push_back(&weights_zero_point_td);
   }
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(
       src_descs, {&dst_td},
       std::make_unique<ConvWaveMatrix>(std::move(conv_op))));
   TensorFloat32 dst_tensor;
@@ -1462,11 +1462,11 @@ absl::Status ConvWaveMatrixInt8WithSrcQuantizationTest(
     if (!SupportsConvWaveMatrixInt8(env.GetGpuInfo(), weights_i8.shape)) {
       return absl::UnimplementedError(env.SkipTestMessage());
     }
-    MLD_EXPECT_OK(ConvWaveMatrixInt8WithSrcQuantizationTest(
+    ABSL_EXPECT_OK(ConvWaveMatrixInt8WithSrcQuantizationTest(
         env, src_tensor, weights_i8, weights_scale,
         /*weights_zero_point=*/nullptr, quantized_type, quantized_storage,
         float_type, float_storage));
-    MLD_EXPECT_OK(ConvWaveMatrixInt8WithSrcQuantizationTest(
+    ABSL_EXPECT_OK(ConvWaveMatrixInt8WithSrcQuantizationTest(
         env, src_tensor, weights_i8, weights_scale, &weights_zp, quantized_type,
         quantized_storage, float_type, float_storage));
   }

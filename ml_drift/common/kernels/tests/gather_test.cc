@@ -14,7 +14,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/strings/str_replace.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/kernels/tests/gather_test_util.h"
@@ -37,42 +37,42 @@ TEST_P(GatherTypedTest, Int8) {
   if (!exec_env->IsStorageSupported(GetParam(), DataType::INT8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(GatherWidthIntTest<DataType::INT8>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(GatherWidthIntTest<DataType::INT8>(*exec_env, GetParam()));
 }
 
 TEST_P(GatherTypedTest, Int16) {
   if (!exec_env->IsStorageSupported(GetParam(), DataType::INT16)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(GatherWidthIntTest<DataType::INT16>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(GatherWidthIntTest<DataType::INT16>(*exec_env, GetParam()));
 }
 
 TEST_P(GatherTypedTest, Int32) {
   if (!exec_env->IsStorageSupported(GetParam(), DataType::INT32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(GatherWidthIntTest<DataType::INT32>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(GatherWidthIntTest<DataType::INT32>(*exec_env, GetParam()));
 }
 
 TEST_P(GatherTypedTest, Uint8) {
   if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(GatherWidthIntTest<DataType::UINT8>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(GatherWidthIntTest<DataType::UINT8>(*exec_env, GetParam()));
 }
 
 TEST_P(GatherTypedTest, Uint16) {
   if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT16)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(GatherWidthIntTest<DataType::UINT16>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(GatherWidthIntTest<DataType::UINT16>(*exec_env, GetParam()));
 }
 
 TEST_P(GatherTypedTest, Uint32) {
   if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(GatherWidthIntTest<DataType::UINT32>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(GatherWidthIntTest<DataType::UINT32>(*exec_env, GetParam()));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -89,7 +89,7 @@ TEST_P(GatherFloatTest, GatherWidthTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(GatherTest(*exec_env, data_type(), storage(), Axis::WIDTH));
+  ABSL_ASSERT_OK(GatherTest(*exec_env, data_type(), storage(), Axis::WIDTH));
 }
 
 TEST_P(GatherFloatTest, GatherHeightTest) {
@@ -97,7 +97,7 @@ TEST_P(GatherFloatTest, GatherHeightTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(GatherTest(*exec_env, data_type(), storage(), Axis::HEIGHT));
+  ABSL_ASSERT_OK(GatherTest(*exec_env, data_type(), storage(), Axis::HEIGHT));
 }
 
 TEST_P(GatherFloatTest, GatherChannelsTest) {
@@ -105,7 +105,7 @@ TEST_P(GatherFloatTest, GatherChannelsTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(GatherTest(*exec_env, data_type(), storage(), Axis::CHANNELS));
+  ABSL_ASSERT_OK(GatherTest(*exec_env, data_type(), storage(), Axis::CHANNELS));
 }
 
 TEST_P(GatherFloatTest, GatherBatchTest) {
@@ -113,7 +113,7 @@ TEST_P(GatherFloatTest, GatherBatchTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(GatherTest(*exec_env, data_type(), storage(), Axis::BATCH));
+  ABSL_ASSERT_OK(GatherTest(*exec_env, data_type(), storage(), Axis::BATCH));
 }
 
 INSTANTIATE_TEST_SUITE_P(

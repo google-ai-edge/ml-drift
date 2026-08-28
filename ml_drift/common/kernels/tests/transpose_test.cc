@@ -14,7 +14,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/strings/str_replace.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/kernels/tests/kernel_test.h"
@@ -38,42 +38,42 @@ TEST_P(TransposeTypedTest, Int8) {
   if (!exec_env->IsStorageSupported(GetParam(), DataType::INT8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(TransposeIntTest<DataType::INT8>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(TransposeIntTest<DataType::INT8>(*exec_env, GetParam()));
 }
 
 TEST_P(TransposeTypedTest, Int16) {
   if (!exec_env->IsStorageSupported(GetParam(), DataType::INT16)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(TransposeIntTest<DataType::INT16>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(TransposeIntTest<DataType::INT16>(*exec_env, GetParam()));
 }
 
 TEST_P(TransposeTypedTest, Int32) {
   if (!exec_env->IsStorageSupported(GetParam(), DataType::INT32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(TransposeIntTest<DataType::INT32>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(TransposeIntTest<DataType::INT32>(*exec_env, GetParam()));
 }
 
 TEST_P(TransposeTypedTest, Uint8) {
   if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(TransposeUintTest<DataType::UINT8>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(TransposeUintTest<DataType::UINT8>(*exec_env, GetParam()));
 }
 
 TEST_P(TransposeTypedTest, Uint16) {
   if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT16)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(TransposeUintTest<DataType::UINT16>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(TransposeUintTest<DataType::UINT16>(*exec_env, GetParam()));
 }
 
 TEST_P(TransposeTypedTest, Uint32) {
   if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(TransposeUintTest<DataType::UINT32>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(TransposeUintTest<DataType::UINT32>(*exec_env, GetParam()));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -90,7 +90,7 @@ TEST_P(TransposeFloatTest, TransposeTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(TransposeTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(TransposeTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(TransposeFloatTest, TransposeBigTest) {
@@ -103,7 +103,7 @@ TEST_P(TransposeFloatTest, TransposeBigTest) {
   TransposeAttributes attr;
   attr.perm = BHWC(0, 3, 1, 2);
 
-  MLD_ASSERT_OK(TransposeTest(*exec_env, attr, src_shape, data_type(), storage()));
+  ABSL_ASSERT_OK(TransposeTest(*exec_env, attr, src_shape, data_type(), storage()));
 }
 
 TEST_P(TransposeFloatTest, TransposeBatchedBigTest) {
@@ -116,7 +116,7 @@ TEST_P(TransposeFloatTest, TransposeBatchedBigTest) {
   TransposeAttributes attr;
   attr.perm = BHWC(2, 3, 1, 0);
 
-  MLD_ASSERT_OK(TransposeTest(*exec_env, attr, src_shape, data_type(), storage()));
+  ABSL_ASSERT_OK(TransposeTest(*exec_env, attr, src_shape, data_type(), storage()));
 }
 
 TEST_P(TransposeFloatTest, TransposeNoChannelsPermutationBigTest) {
@@ -129,7 +129,7 @@ TEST_P(TransposeFloatTest, TransposeNoChannelsPermutationBigTest) {
   TransposeAttributes attr;
   attr.perm = BHWC(0, 2, 1, 3);
 
-  MLD_ASSERT_OK(TransposeTest(*exec_env, attr, src_shape, data_type(), storage()));
+  ABSL_ASSERT_OK(TransposeTest(*exec_env, attr, src_shape, data_type(), storage()));
 }
 
 TEST_P(TransposeFloatTest, TransposeNoChannelsPermutationBatchedBigTest) {
@@ -142,7 +142,7 @@ TEST_P(TransposeFloatTest, TransposeNoChannelsPermutationBatchedBigTest) {
   TransposeAttributes attr;
   attr.perm = BHWC(2, 0, 1, 3);
 
-  MLD_ASSERT_OK(TransposeTest(*exec_env, attr, src_shape, data_type(), storage()));
+  ABSL_ASSERT_OK(TransposeTest(*exec_env, attr, src_shape, data_type(), storage()));
 }
 
 TEST_P(TransposeFloatTest, Transpose3DBigTest) {
@@ -155,7 +155,7 @@ TEST_P(TransposeFloatTest, Transpose3DBigTest) {
   Transpose3DAttributes attr;
   attr.perm = BHWDC(0, 4, 1, 2, 3);
 
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       Transpose3DTest(*exec_env, attr, src_shape, data_type(), storage()));
 }
 
@@ -169,7 +169,7 @@ TEST_P(TransposeFloatTest, Transpose3DBatchedBigTest) {
   Transpose3DAttributes attr;
   attr.perm = BHWDC(2, 4, 1, 0, 3);
 
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       Transpose3DTest(*exec_env, attr, src_shape, data_type(), storage()));
 }
 

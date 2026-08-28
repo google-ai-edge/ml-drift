@@ -19,7 +19,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/status/status.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/kernels/tests/kernel_test.h"
@@ -103,7 +103,7 @@ absl::Status DW3x3Conv16To16Conv16To32AddConv32To16Test0(
       prelu_2, true);
 
   TensorFloat32 dst_0, dst_1;
-  MLD_EXPECT_OK(exec_env->ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env->ExecuteGPUOperation(
       {src_tensor_0, src_tensor_1},
       std::make_unique<GPUOperation>(std::move(operation)),
       {out_ref_0.shape, out_ref_1.shape}, {&dst_0, &dst_1}));
@@ -179,7 +179,7 @@ absl::Status DW3x3Conv16To16Conv16To32AddConv32To16Test2(
       prelu_2, false);
 
   TensorFloat32 dst_0, dst_1;
-  MLD_EXPECT_OK(exec_env->ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env->ExecuteGPUOperation(
       {src_tensor_0, src_tensor_1},
       std::make_unique<GPUOperation>(std::move(operation)),
       {out_ref_0.shape, out_ref_1.shape}, {&dst_0, &dst_1}));
@@ -206,7 +206,7 @@ TEST_P(DataTypeTest, DW3x3Conv16To16Conv16To32AddConv32To16Test0) {
                                                exec_env->GetGpuInfo())) {
     GTEST_SKIP() << "Source tensor does not support zero clamp.";
   }
-  MLD_EXPECT_OK(DW3x3Conv16To16Conv16To32AddConv32To16Test0(exec_env, op_def));
+  ABSL_EXPECT_OK(DW3x3Conv16To16Conv16To32AddConv32To16Test0(exec_env, op_def));
 }
 
 TEST_P(DataTypeTest, DW3x3Conv16To16Conv16To32AddConv32To16Test2) {
@@ -225,7 +225,7 @@ TEST_P(DataTypeTest, DW3x3Conv16To16Conv16To32AddConv32To16Test2) {
                                                exec_env->GetGpuInfo())) {
     GTEST_SKIP() << "Source tensor does not support zero clamp.";
   }
-  MLD_EXPECT_OK(DW3x3Conv16To16Conv16To32AddConv32To16Test2(exec_env, op_def));
+  ABSL_EXPECT_OK(DW3x3Conv16To16Conv16To32AddConv32To16Test2(exec_env, op_def));
 }
 
 INSTANTIATE_TEST_SUITE_P(

@@ -99,7 +99,7 @@ absl::Status ReshapeBigTest(TestExecutionEnvironment& env, DataType data_type,
   GPUOperation operation = CreateReshape(op_def);
 
   TensorFloat32 dst_tensor;
-  MLD_EXPECT_OK(env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -124,7 +124,7 @@ absl::Status Reshape3DBigTest(TestExecutionEnvironment& env, DataType data_type,
   GPUOperation operation = CreateReshape(op_def);
 
   Tensor5DFloat32 dst_tensor;
-  MLD_EXPECT_OK(env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -150,7 +150,7 @@ absl::Status Reshapex4Test(TestExecutionEnvironment& env, DataType data_type,
   operation.ResolveReorderFinalShape(dst_ref_tensor.shape);
 
   TensorFloat32 dst_tensor;
-  MLD_EXPECT_OK(env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<Reshapex4>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data,

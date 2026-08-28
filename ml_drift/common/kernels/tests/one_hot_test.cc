@@ -14,7 +14,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/kernels/tests/kernel_test.h"
 #include "ml_drift/common/kernels/tests/one_hot_test_util.h"
@@ -34,7 +34,7 @@ TEST_P(OneHotFloatTest, OneHotTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(OneHotTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(OneHotTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(OneHotFloatTest, OneHotBatchTest) {
@@ -42,7 +42,7 @@ TEST_P(OneHotFloatTest, OneHotBatchTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(OneHotBatchTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(OneHotBatchTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(OneHotFloatTest, OneHot2DTest) {
@@ -50,7 +50,7 @@ TEST_P(OneHotFloatTest, OneHot2DTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(OneHot2DTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(OneHot2DTest(*exec_env, data_type(), storage()));
 }
 
 INSTANTIATE_TEST_SUITE_P(

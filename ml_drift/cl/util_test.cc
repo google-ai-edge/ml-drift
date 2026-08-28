@@ -16,7 +16,7 @@
 #include "ml_drift/cl/util.h"
 
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "ml_drift/common/gpu_info.h"
 namespace ml_drift {
 namespace cl {

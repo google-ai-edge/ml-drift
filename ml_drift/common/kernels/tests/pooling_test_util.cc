@@ -20,7 +20,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
 #include "ml_drift/common/data_type.h"
@@ -196,7 +196,7 @@ absl::Status AveragePoolingTest(TestExecutionEnvironment& exec_env,
   auto operation = CreatePooling(op_def, exec_env.GetGpuInfo(), attr);
 
   TensorFloat32 dst_tensor;
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -213,7 +213,7 @@ absl::Status AveragePooling3DTest(TestExecutionEnvironment& exec_env,
   auto operation = CreatePooling(op_def, exec_env.GetGpuInfo(), attr);
 
   Tensor5DFloat32 dst_tensor;
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -230,7 +230,7 @@ absl::Status MaxPoolingTest(TestExecutionEnvironment& exec_env,
   auto operation = CreatePooling(op_def, exec_env.GetGpuInfo(), attr);
 
   TensorFloat32 dst_tensor;
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -247,7 +247,7 @@ absl::Status MaxPooling3DTest(TestExecutionEnvironment& exec_env,
   auto operation = CreatePooling(op_def, exec_env.GetGpuInfo(), attr);
 
   Tensor5DFloat32 dst_tensor;
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -264,7 +264,7 @@ absl::Status MaxPoolingIndicesTest(TestExecutionEnvironment& exec_env,
   auto operation = CreatePooling(op_def, exec_env.GetGpuInfo(), attr);
 
   std::vector<TensorFloat32> dst_tensors(2);
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(
       {src_tensor}, std::make_unique<GPUOperation>(std::move(operation)),
       {dst_ref_tensors[0].shape, dst_ref_tensors[1].shape},
       {&dst_tensors[0], &dst_tensors[1]}));
@@ -284,7 +284,7 @@ absl::Status MaxPoolingIndices3DTest(TestExecutionEnvironment& exec_env,
   auto operation = CreatePooling(op_def, exec_env.GetGpuInfo(), attr);
 
   std::vector<Tensor5DFloat32> dst_tensors(2);
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(
       {src_tensor}, std::make_unique<GPUOperation>(std::move(operation)),
       {dst_ref_tensors[0].shape, dst_ref_tensors[1].shape},
       {&dst_tensors[0], &dst_tensors[1]}));

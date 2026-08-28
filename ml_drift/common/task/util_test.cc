@@ -20,7 +20,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/status/status.h"
 #include "ml_drift/common/gpu_info.h"
 
@@ -30,7 +30,7 @@ TEST(ParseArguments, TestOneArg) {
   std::string text = "func(arg0)";
   size_t close_bracket_pos;
   std::vector<std::string> args;
-  MLD_ASSERT_OK(ParseArguments(text, text.find('('), &close_bracket_pos, &args));
+  ABSL_ASSERT_OK(ParseArguments(text, text.find('('), &close_bracket_pos, &args));
   EXPECT_EQ(args.size(), 1);
   EXPECT_EQ(args[0], "arg0");
   EXPECT_EQ(close_bracket_pos, text.size() - 1);
@@ -40,7 +40,7 @@ TEST(ParseArguments, TestTwoArgs) {
   std::string text = "func(arg0, arg1)";
   size_t close_bracket_pos;
   std::vector<std::string> args;
-  MLD_ASSERT_OK(ParseArguments(text, text.find('('), &close_bracket_pos, &args));
+  ABSL_ASSERT_OK(ParseArguments(text, text.find('('), &close_bracket_pos, &args));
   EXPECT_EQ(args.size(), 2);
   EXPECT_EQ(args[0], "arg0");
   EXPECT_EQ(args[1], "arg1");
@@ -51,7 +51,7 @@ TEST(ParseArguments, TestThreeArgs) {
   std::string text = "func( arg0 ,     arg1,arg2)";
   size_t close_bracket_pos;
   std::vector<std::string> args;
-  MLD_ASSERT_OK(ParseArguments(text, text.find('('), &close_bracket_pos, &args));
+  ABSL_ASSERT_OK(ParseArguments(text, text.find('('), &close_bracket_pos, &args));
   EXPECT_EQ(args.size(), 3);
   EXPECT_EQ(args[0], "arg0");
   EXPECT_EQ(args[1], "arg1");
@@ -63,7 +63,7 @@ TEST(ParseArguments, TestOneComplexArg) {
   std::string text = "func(arg0<int>)";
   size_t close_bracket_pos;
   std::vector<std::string> args;
-  MLD_ASSERT_OK(ParseArguments(text, text.find('('), &close_bracket_pos, &args));
+  ABSL_ASSERT_OK(ParseArguments(text, text.find('('), &close_bracket_pos, &args));
   EXPECT_EQ(args.size(), 1);
   EXPECT_EQ(args[0], "arg0<int>");
   EXPECT_EQ(close_bracket_pos, text.size() - 1);
@@ -73,7 +73,7 @@ TEST(ParseArguments, TestTwoComplexArgs) {
   std::string text = "func(arg0<int(2,2)>, arg1[23, int(2,2), {code}])";
   size_t close_bracket_pos;
   std::vector<std::string> args;
-  MLD_ASSERT_OK(ParseArguments(text, text.find('('), &close_bracket_pos, &args));
+  ABSL_ASSERT_OK(ParseArguments(text, text.find('('), &close_bracket_pos, &args));
   EXPECT_EQ(args.size(), 2);
   EXPECT_EQ(args[0], "arg0<int(2,2)>");
   EXPECT_EQ(args[1], "arg1[23, int(2,2), {code}]");
@@ -84,7 +84,7 @@ TEST(ParseArguments, TestMixedArgs) {
   std::string text = "func(arg0<int(2,2)>, arg1, arg2[23, int(2,2)],  [0,0])";
   size_t close_bracket_pos;
   std::vector<std::string> args;
-  MLD_ASSERT_OK(ParseArguments(text, text.find('('), &close_bracket_pos, &args));
+  ABSL_ASSERT_OK(ParseArguments(text, text.find('('), &close_bracket_pos, &args));
   EXPECT_EQ(args.size(), 4);
   EXPECT_EQ(args[0], "arg0<int(2,2)>");
   EXPECT_EQ(args[1], "arg1");
@@ -97,7 +97,7 @@ TEST(ParseArguments, TestArgWithLeftShift) {
   std::string text = "func(arg0, arg1 >> 4)";
   size_t close_bracket_pos;
   std::vector<std::string> args;
-  MLD_ASSERT_OK(ParseArguments(text, text.find('('), &close_bracket_pos, &args));
+  ABSL_ASSERT_OK(ParseArguments(text, text.find('('), &close_bracket_pos, &args));
   EXPECT_EQ(args.size(), 2);
   EXPECT_EQ(args[0], "arg0");
   EXPECT_EQ(args[1], "arg1 >> 4");
@@ -108,7 +108,7 @@ TEST(ParseArguments, TestArgWithRightShift) {
   std::string text = "func(arg0 << 4, arg1)";
   size_t close_bracket_pos;
   std::vector<std::string> args;
-  MLD_ASSERT_OK(ParseArguments(text, text.find('('), &close_bracket_pos, &args));
+  ABSL_ASSERT_OK(ParseArguments(text, text.find('('), &close_bracket_pos, &args));
   EXPECT_EQ(args.size(), 2);
   EXPECT_EQ(args[0], "arg0 << 4");
   EXPECT_EQ(args[1], "arg1");
@@ -119,7 +119,7 @@ TEST(ParseArguments, TestTemplateArgWithLeftShift) {
   std::string text = "func<a>>4>()";
   size_t close_bracket_pos;
   std::vector<std::string> args;
-  MLD_ASSERT_OK(ParseArguments(text, text.find('<'), &close_bracket_pos, &args));
+  ABSL_ASSERT_OK(ParseArguments(text, text.find('<'), &close_bracket_pos, &args));
   EXPECT_EQ(args.size(), 1);
   EXPECT_EQ(args[0], "a>>4");
   EXPECT_EQ(close_bracket_pos, text.size() - 3);
@@ -129,7 +129,7 @@ TEST(ParseArguments, TestNestedTemplateArg) {
   std::string text = "func<vec4<float> >()";
   size_t close_bracket_pos;
   std::vector<std::string> args;
-  MLD_ASSERT_OK(ParseArguments(text, text.find('<'), &close_bracket_pos, &args));
+  ABSL_ASSERT_OK(ParseArguments(text, text.find('<'), &close_bracket_pos, &args));
   EXPECT_EQ(args.size(), 1);
   EXPECT_EQ(args[0], "vec4<float>");
   EXPECT_EQ(close_bracket_pos, text.size() - 3);
@@ -139,7 +139,7 @@ TEST(ParseArguments, TestNoArgs) {
   std::string text = "func()";
   size_t close_bracket_pos;
   std::vector<std::string> args;
-  MLD_ASSERT_OK(ParseArguments(text, text.find('('), &close_bracket_pos, &args));
+  ABSL_ASSERT_OK(ParseArguments(text, text.find('('), &close_bracket_pos, &args));
   EXPECT_EQ(args.size(), 0);
   EXPECT_EQ(close_bracket_pos, text.size() - 1);
 }
@@ -148,7 +148,7 @@ TEST(ParseArguments, Test2NoArgs) {
   std::string text = "func(  )";
   size_t close_bracket_pos;
   std::vector<std::string> args;
-  MLD_ASSERT_OK(ParseArguments(text, text.find('('), &close_bracket_pos, &args));
+  ABSL_ASSERT_OK(ParseArguments(text, text.find('('), &close_bracket_pos, &args));
   EXPECT_EQ(args.size(), 0);
   EXPECT_EQ(close_bracket_pos, text.size() - 1);
 }
@@ -200,7 +200,7 @@ TEST(ParseSystemFunction, TestInt32x4ToInt8x16AsVec4x4) {
             absl::NotFoundError(
                 "Int32x4ToInt8x16AsVec4x4 must have 1 template argument and 5 "
                 "arguments"));
-  MLD_ASSERT_OK(PerformSystemFunction(GpuInfo(), "Int32x4ToInt8x16AsVec4x4",
+  ABSL_ASSERT_OK(PerformSystemFunction(GpuInfo(), "Int32x4ToInt8x16AsVec4x4",
                                   {"a", "b", "c", "d", "e"}, {"float"},
                                   &result));
   EXPECT_EQ(result, R"(

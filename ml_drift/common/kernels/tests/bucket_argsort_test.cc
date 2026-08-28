@@ -22,7 +22,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/types/span.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/kernels/tests/kernel_test.h"
@@ -77,7 +77,7 @@ TEST(ArgsortTest, SmallScaleReferenceTest) {
 
   BucketArgsortOp op = CreateBucketArgsort(op_def, exec_env->GetGpuInfo(),
                                            num_buckets, num_elements);
-  MLD_ASSERT_OK(exec_env->ExecuteGPUOperation(
+  ABSL_ASSERT_OK(exec_env->ExecuteGPUOperation(
       {&src_td}, {&dst_td}, std::make_unique<BucketArgsortOp>(std::move(op))));
 
   Tensor<BHWC, DataType::INT32> gpu_output_tensor;
@@ -115,7 +115,7 @@ TEST_P(ArgsortScaleTest, GpuEquivalence) {
 
   BucketArgsortOp op = CreateBucketArgsort(op_def, exec_env->GetGpuInfo(),
                                            num_buckets, num_elements);
-  MLD_ASSERT_OK(exec_env->ExecuteGPUOperation(
+  ABSL_ASSERT_OK(exec_env->ExecuteGPUOperation(
       {&src_td}, {&dst_td}, std::make_unique<BucketArgsortOp>(std::move(op))));
 
   Tensor<BHWC, DataType::INT32> gpu_output_tensor;

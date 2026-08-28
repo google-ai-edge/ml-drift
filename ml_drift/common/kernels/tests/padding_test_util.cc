@@ -333,7 +333,7 @@ absl::Status PaddingTest(TestExecutionEnvironment& exec_env,
   GPUOperation operation = CreatePadding(exec_env.GetGpuInfo(), op_def, attr);
 
   TensorFloat32 dst_tensor;
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data,

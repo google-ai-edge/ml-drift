@@ -17,7 +17,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_replace.h"
 #include "ml_drift/common/data_type.h"
@@ -48,7 +48,7 @@ TEST_P(BitcastTest, Grow) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(src_storage())
                  << " to " << ToString(dst_storage());
   }
-  MLD_ASSERT_OK(BitcastGrowTest(*exec_env, src_storage(), dst_storage()));
+  ABSL_ASSERT_OK(BitcastGrowTest(*exec_env, src_storage(), dst_storage()));
 }
 
 TEST_P(BitcastTest, Shrink) {
@@ -57,7 +57,7 @@ TEST_P(BitcastTest, Shrink) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(src_storage())
                  << " to " << ToString(dst_storage());
   }
-  MLD_ASSERT_OK(BitcastShrinkTest(*exec_env, src_storage(), dst_storage()));
+  ABSL_ASSERT_OK(BitcastShrinkTest(*exec_env, src_storage(), dst_storage()));
 }
 
 TEST_P(BitcastTest, Stable) {
@@ -66,7 +66,7 @@ TEST_P(BitcastTest, Stable) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(src_storage())
                  << " to " << ToString(dst_storage());
   }
-  MLD_ASSERT_OK(BitcastStableTest(*exec_env, src_storage(), dst_storage()));
+  ABSL_ASSERT_OK(BitcastStableTest(*exec_env, src_storage(), dst_storage()));
 }
 
 TEST_P(BitcastTest, FromBoolToUchar) {
@@ -75,7 +75,7 @@ TEST_P(BitcastTest, FromBoolToUchar) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(src_storage())
                  << " to " << ToString(dst_storage());
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       BitcastFromBoolToUcharTest(*exec_env, src_storage(), dst_storage()));
 }
 
@@ -85,7 +85,7 @@ TEST_P(BitcastTest, FromBoolToUshort) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(src_storage())
                  << " to " << ToString(dst_storage());
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       BitcastFromBoolToUshortTest(*exec_env, src_storage(), dst_storage()));
 }
 
@@ -95,7 +95,7 @@ TEST_P(BitcastTest, FromBoolToFloat) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(src_storage())
                  << " to " << ToString(dst_storage());
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       BitcastFromBoolToFloatTest(*exec_env, src_storage(), dst_storage()));
 }
 
@@ -105,7 +105,7 @@ TEST_P(BitcastTest, FromUcharToBool) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(src_storage())
                  << " to " << ToString(dst_storage());
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       BitcastFromUcharToBoolTest(*exec_env, src_storage(), dst_storage()));
 }
 
@@ -115,7 +115,7 @@ TEST_P(BitcastTest, FromShortToBool) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(src_storage())
                  << " to " << ToString(dst_storage());
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       BitcastFromShortToBoolTest(*exec_env, src_storage(), dst_storage()));
 }
 
@@ -125,7 +125,7 @@ TEST_P(BitcastTest, FromFloatToBool) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(src_storage())
                  << " to " << ToString(dst_storage());
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       BitcastFromFloatToBoolTest(*exec_env, src_storage(), dst_storage()));
 }
 
@@ -135,7 +135,7 @@ TEST_P(BitcastTest, FromFloatToUint8) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(src_storage())
                  << " to " << ToString(dst_storage());
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       BitcastFromFloatToUint8Test(*exec_env, src_storage(), dst_storage()));
 }
 
@@ -145,7 +145,7 @@ TEST_P(BitcastTest, FromUint8ToFloat) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(src_storage())
                  << " to " << ToString(dst_storage());
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       BitcastFromUint8ToFloatTest(*exec_env, src_storage(), dst_storage()));
 }
 

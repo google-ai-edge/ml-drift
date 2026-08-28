@@ -14,7 +14,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/kernels/tests/kernel_test.h"
 #include "ml_drift/common/kernels/tests/space_to_depth_test_util.h"
@@ -34,7 +34,7 @@ TEST_P(SpaceToDepthFloatTest, SpaceToDepthTensorShape1x2x2x1BlockSize2Test) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(SpaceToDepthTensorShape1x2x2x1BlockSize2Test(*exec_env, data_type(),
+  ABSL_ASSERT_OK(SpaceToDepthTensorShape1x2x2x1BlockSize2Test(*exec_env, data_type(),
                                                          storage()));
 }
 
@@ -43,7 +43,7 @@ TEST_P(SpaceToDepthFloatTest, SpaceToDepthTensorShape1x2x2x2BlockSize2Test) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(SpaceToDepthTensorShape1x2x2x2BlockSize2Test(*exec_env, data_type(),
+  ABSL_ASSERT_OK(SpaceToDepthTensorShape1x2x2x2BlockSize2Test(*exec_env, data_type(),
                                                          storage()));
 }
 
@@ -52,7 +52,7 @@ TEST_P(SpaceToDepthFloatTest, SpaceToDepthTensorShape1x2x2x3BlockSize2Test) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(SpaceToDepthTensorShape1x2x2x3BlockSize2Test(*exec_env, data_type(),
+  ABSL_ASSERT_OK(SpaceToDepthTensorShape1x2x2x3BlockSize2Test(*exec_env, data_type(),
                                                          storage()));
 }
 
@@ -61,7 +61,7 @@ TEST_P(SpaceToDepthFloatTest, SpaceToDepthTensorShape1x4x4x1BlockSize2Test) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(SpaceToDepthTensorShape1x4x4x1BlockSize2Test(*exec_env, data_type(),
+  ABSL_ASSERT_OK(SpaceToDepthTensorShape1x4x4x1BlockSize2Test(*exec_env, data_type(),
                                                          storage()));
 }
 
@@ -70,7 +70,7 @@ TEST_P(SpaceToDepthFloatTest, DepthToSpaceFrom1x1x1x4To1x2x2x1Test) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       DepthToSpaceFrom1x1x1x4To1x2x2x1Test(*exec_env, data_type(), storage()));
 }
 
@@ -79,7 +79,7 @@ TEST_P(SpaceToDepthFloatTest, DepthToSpaceFrom1x1x1x16To1x2x2x4Test) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       DepthToSpaceFrom1x1x1x16To1x2x2x4Test(*exec_env, data_type(), storage()));
 }
 
@@ -88,7 +88,7 @@ TEST_P(SpaceToDepthFloatTest, DepthToSpaceFrom1x2x2x16To1x4x4x4Test) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       DepthToSpaceFrom1x2x2x16To1x4x4x4Test(*exec_env, data_type(), storage()));
 }
 

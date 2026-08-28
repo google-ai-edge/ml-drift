@@ -63,12 +63,12 @@ add_executable(operation_perf_test
 target_include_directories(operation_perf_test PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(operation_perf_test PRIVATE
     gtest_main
+    absl::status_matchers
     absl::time
     mld_cl_opencl_wrapper
     mld_cl_testing_perf_util
     mld_common_precision
     mld_common_shape
-    mld_common_status_matchers
     mld_cl_default_util
 )
 

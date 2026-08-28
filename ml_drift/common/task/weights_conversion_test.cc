@@ -22,7 +22,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "xnnpack.h"  // from @XNNPACK
 #include "absl/types/span.h"
 #include "ml_drift/common/data_type.h"
@@ -70,7 +70,7 @@ TEST(RearrangeWeightsUInt4Packed, kOSpatialIOGroupI4O4Base) {
 
   std::vector<uint8_t> output(8);
   std::vector<int32_t> weights_sum_i(weights.shape.o);
-  MLD_ASSERT_OK(RearrangeWeightsUInt4Packed(weights, dst_weight_desc,
+  ABSL_ASSERT_OK(RearrangeWeightsUInt4Packed(weights, dst_weight_desc,
                                         absl::MakeSpan(output),
                                         absl::MakeSpan(weights_sum_i),
                                         /*pad_value=*/8u, /*swap_dims=*/false));
@@ -114,7 +114,7 @@ TEST(RearrangeWeightsUInt4Packed, kOSpatialIOGroupI4O4ZeroWeights) {
   std::vector<uint8_t> output(8);
   std::vector<int32_t> weights_sum_i(weights.shape.o);
   weights_sum_i[0] = 1;  // This will be zeroed out
-  MLD_ASSERT_OK(RearrangeWeightsUInt4Packed(weights, dst_weight_desc,
+  ABSL_ASSERT_OK(RearrangeWeightsUInt4Packed(weights, dst_weight_desc,
                                         absl::MakeSpan(output),
                                         absl::MakeSpan(weights_sum_i),
                                         /*pad_value=*/8u, /*swap_dims=*/false));
@@ -158,7 +158,7 @@ TEST(RearrangeWeightsUInt4Packed, k2DYIsSpatialIOAndXIsOGroupI4O4ZeroWeights) {
   std::vector<uint8_t> output(8);
   std::vector<int32_t> weights_sum_i(weights.shape.o);
   weights_sum_i[0] = 1;  // This will be zeroed out
-  MLD_ASSERT_OK(RearrangeWeightsUInt4Packed(weights, dst_weight_desc,
+  ABSL_ASSERT_OK(RearrangeWeightsUInt4Packed(weights, dst_weight_desc,
                                         absl::MakeSpan(output),
                                         absl::MakeSpan(weights_sum_i),
                                         /*pad_value=*/8u, /*swap_dims=*/false));
@@ -204,7 +204,7 @@ TEST(RearrangeWeightsUInt4Packed, kOSpatialIOGroupI4O4BaseVersusRef) {
 
   std::vector<uint8_t> output(8);
   std::vector<int32_t> weights_sum_i(weights.shape.o);
-  MLD_ASSERT_OK(RearrangeWeightsUInt4Packed(weights, dst_weight_desc,
+  ABSL_ASSERT_OK(RearrangeWeightsUInt4Packed(weights, dst_weight_desc,
                                         absl::MakeSpan(output),
                                         absl::MakeSpan(weights_sum_i),
                                         /*pad_value=*/8u, /*swap_dims=*/false));
@@ -247,7 +247,7 @@ TEST(RearrangeWeightsUInt4Packed,
   std::vector<uint8_t> output(
       GetTotalElementsCountForLayout(dst_weight_desc, weights.shape));
   std::vector<int32_t> weights_sum_i(weights.shape.o);
-  MLD_ASSERT_OK(RearrangeWeightsUInt4Packed(weights, dst_weight_desc,
+  ABSL_ASSERT_OK(RearrangeWeightsUInt4Packed(weights, dst_weight_desc,
                                         absl::MakeSpan(output),
                                         absl::MakeSpan(weights_sum_i),
                                         /*pad_value=*/8u, /*swap_dims=*/false));
@@ -284,7 +284,7 @@ TEST(RearrangeWeightsUInt4Packed, k2DYIsSpatialIOAndXIsOGroupI4O4Base) {
 
   std::vector<uint8_t> output(8);
   std::vector<int32_t> weights_sum_i(weights.shape.o);
-  MLD_ASSERT_OK(RearrangeWeightsUInt4Packed(weights, dst_weight_desc,
+  ABSL_ASSERT_OK(RearrangeWeightsUInt4Packed(weights, dst_weight_desc,
                                         absl::MakeSpan(output),
                                         absl::MakeSpan(weights_sum_i),
                                         /*pad_value=*/8u, /*swap_dims=*/false));
@@ -327,7 +327,7 @@ TEST(RearrangeWeightsUInt4Packed, kOSpatialIOGroupI4O4Pad) {
   std::vector<uint8_t> output(8);
   uint8_t pad = 8u;
   std::vector<int32_t> weights_sum_i(AlignByN(weights.shape.o, 4));
-  MLD_ASSERT_OK(RearrangeWeightsUInt4Packed(weights, dst_weight_desc,
+  ABSL_ASSERT_OK(RearrangeWeightsUInt4Packed(weights, dst_weight_desc,
                                         absl::MakeSpan(output),
                                         absl::MakeSpan(weights_sum_i), pad,
                                         /*swap_dims=*/false));
@@ -371,7 +371,7 @@ TEST(RearrangeWeightsUInt4Packed, k2DYIsSpatialIOAndXIsOGroupI4O4Pad) {
   std::vector<uint8_t> output(8);
   uint8_t pad = 8u;
   std::vector<int32_t> weights_sum_i(AlignByN(weights.shape.o, 4));
-  MLD_ASSERT_OK(RearrangeWeightsUInt4Packed(weights, dst_weight_desc,
+  ABSL_ASSERT_OK(RearrangeWeightsUInt4Packed(weights, dst_weight_desc,
                                         absl::MakeSpan(output),
                                         absl::MakeSpan(weights_sum_i), pad,
                                         /*swap_dims=*/false));
@@ -416,7 +416,7 @@ TEST(RearrangeWeightsUInt4Packed, DoublePad) {
   std::vector<uint8_t> output(8);
   uint8_t pad = 8u;
   std::vector<int32_t> weights_sum_i(weights.shape.o);
-  MLD_ASSERT_OK(RearrangeWeightsUInt4Packed(weights, dst_weight_desc,
+  ABSL_ASSERT_OK(RearrangeWeightsUInt4Packed(weights, dst_weight_desc,
                                         absl::MakeSpan(output),
                                         absl::MakeSpan(weights_sum_i), pad,
                                         /*swap_dims=*/false));
@@ -460,7 +460,7 @@ TEST(RearrangeWeightsUInt4Packed, SwapDims) {
 
   std::vector<uint8_t> output(8);
   std::vector<int32_t> weights_sum_i(weights.shape.o);
-  MLD_ASSERT_OK(RearrangeWeightsUInt4Packed(weights, dst_weight_desc,
+  ABSL_ASSERT_OK(RearrangeWeightsUInt4Packed(weights, dst_weight_desc,
                                         absl::MakeSpan(output),
                                         absl::MakeSpan(weights_sum_i),
                                         /*pad_value=*/8u, /*swap_dims=*/true));
@@ -508,7 +508,7 @@ TEST(RearrangeWeightsUInt2Packed, kOSpatialIOGroupI4O4Base) {
 
   std::vector<uint8_t> output(4);
   std::vector<int32_t> weights_sum_i(weights.shape.o);
-  MLD_ASSERT_OK(RearrangeWeightsUInt2Packed(weights, dst_weight_desc,
+  ABSL_ASSERT_OK(RearrangeWeightsUInt2Packed(weights, dst_weight_desc,
                                         absl::MakeSpan(output),
                                         absl::MakeSpan(weights_sum_i),
                                         /*pad_value=*/2u, /*swap_dims=*/false));
@@ -548,7 +548,7 @@ TEST(RearrangeWeightsUInt2Packed, kOSpatialIOGroupI4O4ZeroWeights) {
   std::vector<uint8_t> output(4);
   std::vector<int32_t> weights_sum_i(weights.shape.o);
   weights_sum_i[0] = 1;  // This will be zeroed out
-  MLD_ASSERT_OK(RearrangeWeightsUInt2Packed(weights, dst_weight_desc,
+  ABSL_ASSERT_OK(RearrangeWeightsUInt2Packed(weights, dst_weight_desc,
                                         absl::MakeSpan(output),
                                         absl::MakeSpan(weights_sum_i),
                                         /*pad_value=*/2u, /*swap_dims=*/false));
@@ -588,7 +588,7 @@ TEST(RearrangeWeightsUInt2Packed, k2DYIsSpatialIOAndXIsOGroupI4O4ZeroWeights) {
   std::vector<uint8_t> output(4);
   std::vector<int32_t> weights_sum_i(weights.shape.o);
   weights_sum_i[0] = 1;  // This will be zeroed out
-  MLD_ASSERT_OK(RearrangeWeightsUInt2Packed(weights, dst_weight_desc,
+  ABSL_ASSERT_OK(RearrangeWeightsUInt2Packed(weights, dst_weight_desc,
                                         absl::MakeSpan(output),
                                         absl::MakeSpan(weights_sum_i),
                                         /*pad_value=*/2u, /*swap_dims=*/false));
@@ -635,7 +635,7 @@ TEST(RearrangeWeightsUInt2Packed, kOSpatialIOGroupI4O4BaseVersusRef) {
 
   std::vector<uint8_t> output(4);
   std::vector<int32_t> weights_sum_i(weights.shape.o);
-  MLD_ASSERT_OK(RearrangeWeightsUInt2Packed(weights, dst_weight_desc,
+  ABSL_ASSERT_OK(RearrangeWeightsUInt2Packed(weights, dst_weight_desc,
                                         absl::MakeSpan(output),
                                         absl::MakeSpan(weights_sum_i),
                                         /*pad_value=*/2u, /*swap_dims=*/false));
@@ -678,7 +678,7 @@ TEST(RearrangeWeightsUInt2Packed,
   std::vector<uint8_t> output(
       GetTotalElementsCountForLayout(dst_weight_desc, weights.shape));
   std::vector<int32_t> weights_sum_i(weights.shape.o);
-  MLD_ASSERT_OK(RearrangeWeightsUInt2Packed(weights, dst_weight_desc,
+  ABSL_ASSERT_OK(RearrangeWeightsUInt2Packed(weights, dst_weight_desc,
                                         absl::MakeSpan(output),
                                         absl::MakeSpan(weights_sum_i),
                                         /*pad_value=*/2u, /*swap_dims=*/false));
@@ -712,7 +712,7 @@ TEST(RearrangeWeightsUInt2Packed, k2DYIsSpatialIOAndXIsOGroupI4O4Base) {
 
   std::vector<uint8_t> output(4);
   std::vector<int32_t> weights_sum_i(weights.shape.o);
-  MLD_ASSERT_OK(RearrangeWeightsUInt2Packed(weights, dst_weight_desc,
+  ABSL_ASSERT_OK(RearrangeWeightsUInt2Packed(weights, dst_weight_desc,
                                         absl::MakeSpan(output),
                                         absl::MakeSpan(weights_sum_i),
                                         /*pad_value=*/2u, /*swap_dims=*/false));
@@ -751,7 +751,7 @@ TEST(RearrangeWeightsUInt2Packed, kOSpatialIOGroupI4O4Pad) {
   std::vector<uint8_t> output(4);
   uint8_t pad = 2u;
   std::vector<int32_t> weights_sum_i(AlignByN(weights.shape.o, 4));
-  MLD_ASSERT_OK(RearrangeWeightsUInt2Packed(weights, dst_weight_desc,
+  ABSL_ASSERT_OK(RearrangeWeightsUInt2Packed(weights, dst_weight_desc,
                                         absl::MakeSpan(output),
                                         absl::MakeSpan(weights_sum_i), pad,
                                         /*swap_dims=*/false));
@@ -791,7 +791,7 @@ TEST(RearrangeWeightsUInt2Packed, k2DYIsSpatialIOAndXIsOGroupI4O4Pad) {
   std::vector<uint8_t> output(4);
   uint8_t pad = 2u;
   std::vector<int32_t> weights_sum_i(AlignByN(weights.shape.o, 4));
-  MLD_ASSERT_OK(RearrangeWeightsUInt2Packed(weights, dst_weight_desc,
+  ABSL_ASSERT_OK(RearrangeWeightsUInt2Packed(weights, dst_weight_desc,
                                         absl::MakeSpan(output),
                                         absl::MakeSpan(weights_sum_i), pad,
                                         /*swap_dims=*/false));
@@ -832,7 +832,7 @@ TEST(RearrangeWeightsUInt2Packed, DoublePad) {
   std::vector<uint8_t> output(4);
   uint8_t pad = 2u;
   std::vector<int32_t> weights_sum_i(weights.shape.o);
-  MLD_ASSERT_OK(RearrangeWeightsUInt2Packed(weights, dst_weight_desc,
+  ABSL_ASSERT_OK(RearrangeWeightsUInt2Packed(weights, dst_weight_desc,
                                         absl::MakeSpan(output),
                                         absl::MakeSpan(weights_sum_i), pad,
                                         /*swap_dims=*/false));
@@ -872,7 +872,7 @@ TEST(RearrangeWeightsUInt2Packed, SwapDims) {
 
   std::vector<uint8_t> output(4);
   std::vector<int32_t> weights_sum_i(weights.shape.o);
-  MLD_ASSERT_OK(RearrangeWeightsUInt2Packed(weights, dst_weight_desc,
+  ABSL_ASSERT_OK(RearrangeWeightsUInt2Packed(weights, dst_weight_desc,
                                         absl::MakeSpan(output),
                                         absl::MakeSpan(weights_sum_i),
                                         /*pad_value=*/2u, /*swap_dims=*/true));

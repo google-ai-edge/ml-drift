@@ -21,7 +21,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/status_matchers.h"
 #include "absl/time/time.h"
@@ -58,7 +58,7 @@ TEST(WebGpuWeightsManagerTest,
      BatchExecutionOutputsSameWithInferenceContextExecution) {
   // Testing environment setup.
   ExecutionEnvironment env(GetBackendType());
-  MLD_ASSERT_OK(env.Initialize({.enable_host_mapped_pointer = true}));
+  ABSL_ASSERT_OK(env.Initialize({.enable_host_mapped_pointer = true}));
   const GpuInfo& gpu_info = env.GetInfo();
 
   // Define testing parameters.
@@ -94,7 +94,7 @@ TEST(WebGpuWeightsManagerTest,
   absl::flat_hash_map<ValueId, ValueId> preparation_id_to_main_id_map;
   std::vector<WeightsManager::UploadWeightsInfo> upload_weights_info;
   GpuModel conversion_gpu_model;
-  MLD_ASSERT_OK(weights_manager.CreateConversionGpuModel(
+  ABSL_ASSERT_OK(weights_manager.CreateConversionGpuModel(
       gpu_info, &conversion_gpu_model, &preparation_id_to_main_id_map,
       &upload_weights_info));
   absl::flat_hash_map<ValueId, ValueId> main_id_to_preparation_id_map;
@@ -103,29 +103,29 @@ TEST(WebGpuWeightsManagerTest,
   }
 
   InferenceContext conversion_context;
-  MLD_ASSERT_OK(conversion_context.InitFromGpuModel(env, create_info,
+  ABSL_ASSERT_OK(conversion_context.InitFromGpuModel(env, create_info,
                                                 &conversion_gpu_model));
   for (const auto& upload_info : upload_weights_info) {
     auto tensor = conversion_context.GetTensor(upload_info.input_id);
-    MLD_ASSERT_OK(tensor->WriteData(env.queue(), upload_info.data));
+    ABSL_ASSERT_OK(tensor->WriteData(env.queue(), upload_info.data));
   }
-  MLD_ASSERT_OK(conversion_context.AddToQueue(env));
-  MLD_ASSERT_OK(WaitUntilCompleted(env.queue(), env.device(), absl::Seconds(10)));
+  ABSL_ASSERT_OK(conversion_context.AddToQueue(env));
+  ABSL_ASSERT_OK(WaitUntilCompleted(env.queue(), env.device(), absl::Seconds(10)));
 
   // Batch execution.
-  MLD_ASSERT_OK_AND_ASSIGN(
-      auto weights_map,
-      weights_manager.PrepareWeightsInBatches(
-          env, WeightsManager::ScheduleStrategy::kDefaultBatch, 0));
+  auto weights_map_or = weights_manager.PrepareWeightsInBatches(
+      env, WeightsManager::ScheduleStrategy::kDefaultBatch, 0);
+  ABSL_ASSERT_OK(weights_map_or);
+  auto weights_map = std::move(weights_map_or.value());
 
   for (int i = 0; i < num_weights_to_prepare; ++i) {
     TensorFloat32 ic_exec_output;
-    MLD_ASSERT_OK(conversion_context.GetOutputTensor(
+    ABSL_ASSERT_OK(conversion_context.GetOutputTensor(
         env, main_id_to_preparation_id_map[i], &ic_exec_output));
 
     auto tensor = static_cast<SpatialTensor*>(weights_map[i].get());
     TensorDescriptor desc;
-    MLD_ASSERT_OK(tensor->ToDescriptor(env.device(), &desc));
+    ABSL_ASSERT_OK(tensor->ToDescriptor(env.device(), &desc));
     TensorFloat32 batch_exec_output;
     desc.DownloadData(&batch_exec_output);
 

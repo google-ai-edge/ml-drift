@@ -14,7 +14,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/kernels/tests/kernel_test.h"
 #include "ml_drift/common/kernels/tests/pooling_test_util.h"
@@ -34,7 +34,7 @@ TEST_P(PoolingFloatTest, AveragePoolingTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(AveragePoolingTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(AveragePoolingTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(PoolingFloatTest, AveragePoolingNonEmptyPaddingTest) {
@@ -42,7 +42,7 @@ TEST_P(PoolingFloatTest, AveragePoolingNonEmptyPaddingTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       AveragePoolingNonEmptyPaddingTest(*exec_env, data_type(), storage()));
 }
 
@@ -51,7 +51,7 @@ TEST_P(PoolingFloatTest, MaxPoolingTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(MaxPoolingTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(MaxPoolingTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(PoolingFloatTest, MaxPoolingIndicesTest) {
@@ -59,7 +59,7 @@ TEST_P(PoolingFloatTest, MaxPoolingIndicesTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(MaxPoolingIndicesTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(MaxPoolingIndicesTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(PoolingFloatTest, AveragePoolingBigTest) {
@@ -67,7 +67,7 @@ TEST_P(PoolingFloatTest, AveragePoolingBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(AveragePoolingBigTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(AveragePoolingBigTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(PoolingFloatTest, AveragePoolingBatchedBigTest) {
@@ -75,7 +75,7 @@ TEST_P(PoolingFloatTest, AveragePoolingBatchedBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(AveragePoolingBatchedBigTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(AveragePoolingBatchedBigTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(PoolingFloatTest, AveragePoolingNonEmptyPaddingBigTest) {
@@ -83,7 +83,7 @@ TEST_P(PoolingFloatTest, AveragePoolingNonEmptyPaddingBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       AveragePoolingNonEmptyPaddingBigTest(*exec_env, data_type(), storage()));
 }
 
@@ -92,7 +92,7 @@ TEST_P(PoolingFloatTest, AveragePooling3DBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(AveragePooling3DBigTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(AveragePooling3DBigTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(PoolingFloatTest, AveragePooling3DBatchedBigTest) {
@@ -100,7 +100,7 @@ TEST_P(PoolingFloatTest, AveragePooling3DBatchedBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(AveragePooling3DBatchedBigTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(AveragePooling3DBatchedBigTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(PoolingFloatTest, MaxPoolingBigTest) {
@@ -108,7 +108,7 @@ TEST_P(PoolingFloatTest, MaxPoolingBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(MaxPoolingBigTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(MaxPoolingBigTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(PoolingFloatTest, MaxPoolingBatchedBigTest) {
@@ -116,7 +116,7 @@ TEST_P(PoolingFloatTest, MaxPoolingBatchedBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(MaxPoolingBatchedBigTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(MaxPoolingBatchedBigTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(PoolingFloatTest, MaxPooling3DBigTest) {
@@ -124,7 +124,7 @@ TEST_P(PoolingFloatTest, MaxPooling3DBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(MaxPooling3DBigTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(MaxPooling3DBigTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(PoolingFloatTest, MaxPooling3DBatchedBigTest) {
@@ -132,7 +132,7 @@ TEST_P(PoolingFloatTest, MaxPooling3DBatchedBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(MaxPooling3DBatchedBigTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(MaxPooling3DBatchedBigTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(PoolingFloatTest, MaxPoolingIndicesBigTest) {
@@ -140,7 +140,7 @@ TEST_P(PoolingFloatTest, MaxPoolingIndicesBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(MaxPoolingIndicesBigTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(MaxPoolingIndicesBigTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(PoolingFloatTest, MaxPoolingIndicesBatchedBigTest) {
@@ -148,7 +148,7 @@ TEST_P(PoolingFloatTest, MaxPoolingIndicesBatchedBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(MaxPoolingIndicesBatchedBigTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(MaxPoolingIndicesBatchedBigTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(PoolingFloatTest, MaxPoolingIndices3DBigTest) {
@@ -156,7 +156,7 @@ TEST_P(PoolingFloatTest, MaxPoolingIndices3DBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(MaxPoolingIndices3DBigTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(MaxPoolingIndices3DBigTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(PoolingFloatTest, MaxPoolingIndices3DBatchedBigTest) {
@@ -164,7 +164,7 @@ TEST_P(PoolingFloatTest, MaxPoolingIndices3DBatchedBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       MaxPoolingIndices3DBatchedBigTest(*exec_env, data_type(), storage()));
 }
 

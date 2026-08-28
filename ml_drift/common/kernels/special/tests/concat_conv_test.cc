@@ -23,7 +23,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
@@ -178,7 +178,7 @@ absl::Status ConcatConvTest(TestExecutionEnvironment* exec_env,
   TensorFloat32 dst_ref = ConvolutionReference(conv_attr, concat_result);
 
   TensorFloat32 dst_gpu;
-  MLD_EXPECT_OK(exec_env->ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env->ExecuteGPUOperation(
       {src0_tensor, src1_tensor, src2_tensor}, std::move(operation),
       dst_ref.shape, &dst_gpu));
   float eps = GetEpsilon(precision, exec_env->GetGpuInfo(), conv_attr);
@@ -200,7 +200,7 @@ TEST_F(Test, ConcatConv4x3x3x3) {
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  MLD_EXPECT_OK(ConcatConvTest(exec_env, BHWC(1, 31, 49, 1), op_def,
+  ABSL_EXPECT_OK(ConcatConvTest(exec_env, BHWC(1, 31, 49, 1), op_def,
                            CalculationsPrecision::F32,
                            /*use_thin_local_memory_fuser=*/false));
 }
@@ -220,7 +220,7 @@ TEST_F(Test, ConcatConv4x3x3x3Perf) {
       {data_type, TensorStorageType::SINGLE_TEXTURE_2D, Layout::HWC});
   op_def.dst_tensors.push_back(
       {data_type, TensorStorageType::TEXTURE_2D, Layout::HWC});
-  MLD_EXPECT_OK(ConcatConvTest(exec_env, BHWC(1, 3024, 4032, 1), op_def,
+  ABSL_EXPECT_OK(ConcatConvTest(exec_env, BHWC(1, 3024, 4032, 1), op_def,
                            CalculationsPrecision::F16,
                            /*use_thin_local_memory_fuser=*/false,
                            /*perf_test=*/true));
@@ -237,7 +237,7 @@ TEST_F(Test, ConcatConv4x3x3x3LocalMemory) {
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  MLD_EXPECT_OK(ConcatConvTest(exec_env, BHWC(1, 31, 49, 1), op_def,
+  ABSL_EXPECT_OK(ConcatConvTest(exec_env, BHWC(1, 31, 49, 1), op_def,
                            CalculationsPrecision::F32,
                            /*use_thin_local_memory_fuser=*/true));
 }
@@ -256,7 +256,7 @@ TEST_F(Test, ConcatConv4x3x3x3LocalMemoryPerf) {
       {data_type, TensorStorageType::SINGLE_TEXTURE_2D, Layout::HWC});
   op_def.dst_tensors.push_back(
       {data_type, TensorStorageType::TEXTURE_2D, Layout::HWC});
-  MLD_EXPECT_OK(ConcatConvTest(exec_env, BHWC(1, 3024, 4032, 1), op_def,
+  ABSL_EXPECT_OK(ConcatConvTest(exec_env, BHWC(1, 3024, 4032, 1), op_def,
                            CalculationsPrecision::F16,
                            /*use_thin_local_memory_fuser=*/true,
                            /*perf_test=*/true));

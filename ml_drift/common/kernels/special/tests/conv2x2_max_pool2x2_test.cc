@@ -19,7 +19,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/status/status.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/kernels/tests/kernel_test.h"
@@ -70,7 +70,7 @@ absl::Status Conv2x2MaxPool2x2Test(TestExecutionEnvironment* exec_env,
   auto operation = CreateConv2x2MaxPool2x2(op_def, conv2x2, prelu);
 
   TensorFloat32 dst_0, dst_1;
-  MLD_EXPECT_OK(exec_env->ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env->ExecuteGPUOperation(
       {src_tensor}, std::make_unique<GPUOperation>(std::move(operation)),
       {out_ref_0.shape, out_ref_1.shape}, {&dst_0, &dst_1}));
   EXPECT_THAT(dst_0.data, Pointwise(FloatNear(0.02f), out_ref_0.data));
@@ -95,7 +95,7 @@ TEST_P(DataTypeTest, Conv2x2MaxPool2x2) {
                                                exec_env->GetGpuInfo())) {
     GTEST_SKIP() << "Source tensor does not support zero clamp.";
   }
-  MLD_EXPECT_OK(Conv2x2MaxPool2x2Test(exec_env, op_def));
+  ABSL_EXPECT_OK(Conv2x2MaxPool2x2Test(exec_env, op_def));
 }
 
 INSTANTIATE_TEST_SUITE_P(

@@ -20,7 +20,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/hash/hash_testing.h"
 #include "absl/status/status.h"
 #include "absl/types/span.h"
@@ -33,7 +33,7 @@
 using ::testing::FloatNear;
 using ::testing::HasSubstr;
 using ::testing::Pointwise;
-using ::ml_drift::StatusIs;
+using ::absl_testing::StatusIs;
 
 namespace ml_drift {
 
@@ -101,7 +101,7 @@ TEST(TensorDescriptorTest, PerformReadSelectorForHWBuffer) {
   desc.SetBHWCShape(BHWC(1, 1, 1, 4));
   GpuInfo gpu_info;
   std::string result;
-  MLD_ASSERT_OK(desc.PerformSelector(gpu_info, "Read", {"x", "y"},
+  ABSL_ASSERT_OK(desc.PerformSelector(gpu_info, "Read", {"x", "y"},
                                  /*template_args=*/{}, &result));
   EXPECT_EQ(result, "buffer[((y) * width + (x))]");
 }
@@ -112,7 +112,7 @@ TEST(TensorDescriptorTest, PerformReadSelectorForHWCBuffer) {
   desc.SetBHWCShape(BHWC(1, 1, 1, 4));
   GpuInfo gpu_info;
   std::string result;
-  MLD_ASSERT_OK(desc.PerformSelector(gpu_info, "Read", {"x", "y", "s"},
+  ABSL_ASSERT_OK(desc.PerformSelector(gpu_info, "Read", {"x", "y", "s"},
                                  /*template_args=*/{}, &result));
   EXPECT_EQ(result, "buffer[(((s) * height + (y)) * width + (x))]");
 }
@@ -123,7 +123,7 @@ TEST(TensorDescriptorTest, PerformReadSelectorForBHWCBuffer) {
   desc.SetBHWCShape(BHWC(1, 1, 1, 4));
   GpuInfo gpu_info;
   std::string result;
-  MLD_ASSERT_OK(desc.PerformSelector(gpu_info, "Read", {"x", "y", "s", "b"},
+  ABSL_ASSERT_OK(desc.PerformSelector(gpu_info, "Read", {"x", "y", "s", "b"},
                                  /*template_args=*/{}, &result));
   EXPECT_EQ(result,
             "buffer[((((s) * height + y) * width + (x)) * batch + (b))]");
@@ -135,7 +135,7 @@ TEST(TensorDescriptorTest, PerformReadSelectorForHWDCBuffer) {
   desc.SetBHWCShape(BHWC(1, 1, 1, 4));
   GpuInfo gpu_info;
   std::string result;
-  MLD_ASSERT_OK(desc.PerformSelector(gpu_info, "Read", {"x", "y", "z", "s"},
+  ABSL_ASSERT_OK(desc.PerformSelector(gpu_info, "Read", {"x", "y", "z", "s"},
                                  /*template_args=*/{}, &result));
   EXPECT_EQ(result,
             "buffer[((((z) * height + y) * width + (x)) * batch + (s))]");
@@ -147,7 +147,7 @@ TEST(TensorDescriptorTest, PerformReadSelectorForBHWDCBuffer) {
   desc.SetBHWCShape(BHWC(1, 1, 1, 4));
   GpuInfo gpu_info;
   std::string result;
-  MLD_ASSERT_OK(desc.PerformSelector(gpu_info, "Read", {"x", "y", "z", "s", "b"},
+  ABSL_ASSERT_OK(desc.PerformSelector(gpu_info, "Read", {"x", "y", "z", "s", "b"},
                                  /*template_args=*/{}, &result));
   EXPECT_EQ(result,
             "buffer[((((z) * height + y) * width + (x)) * batch + (s))]");
@@ -159,7 +159,7 @@ TEST(TensorDescriptorTest, PerformWriteLinearSelectorForBuffer) {
   desc.SetBHWCShape(BHWC(1, 1, 1, 64));
   GpuInfo gpu_info;
   std::string result;
-  MLD_ASSERT_OK(desc.PerformSelector(gpu_info, "WriteLinear",
+  ABSL_ASSERT_OK(desc.PerformSelector(gpu_info, "WriteLinear",
                                  {/*var_name=*/"val", /*coord[0]=*/"id"},
                                  /*template_args=*/{}, &result));
   EXPECT_EQ(result, "buffer[id] = val");
@@ -172,7 +172,7 @@ TEST(TensorDescriptorTest, PerformWriteLinearSelectorForTexture2D) {
   GpuInfo gpu_info;
   gpu_info.gpu_api = GpuApi::kOpenCl;
   std::string result;
-  MLD_ASSERT_OK(desc.PerformSelector(
+  ABSL_ASSERT_OK(desc.PerformSelector(
       gpu_info, "WriteLinear", {/*var_name=*/"value", /*coord[0]=*/"linear_id"},
       /*template_args=*/{}, &result));
   EXPECT_EQ(result, "write_imagef(image2d, (int2)(linear_id, 0), value)");

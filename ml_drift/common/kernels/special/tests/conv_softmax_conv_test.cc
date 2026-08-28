@@ -20,7 +20,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "xnnpack.h"  // from @XNNPACK
 #include "absl/strings/str_replace.h"
 #include "ml_drift/common/data_type.h"
@@ -221,7 +221,7 @@ TEST_P(SoftmaxConv1x1BigTest, BatchedConvSoftmaxBatchedConv) {
   float eps = GetEpsilon(precision, exec_env->GetGpuInfo()) * mads_amount;
 
   TensorFloat32 dst_tensor;
-  MLD_EXPECT_OK(exec_env->ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env->ExecuteGPUOperation(
       src_tensor, std::make_unique<ConvSoftmaxConv>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data,

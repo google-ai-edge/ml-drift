@@ -20,7 +20,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
@@ -176,7 +176,7 @@ absl::Status DWPlusConv1x1Test(TestExecutionEnvironment* exec_env,
   }
 
   TensorFloat32 dst_0;
-  MLD_EXPECT_OK(exec_env->ExecuteGpuModel(
+  ABSL_EXPECT_OK(exec_env->ExecuteGpuModel(
       {src_tensor}, std::vector<TensorFloat32*>{&dst_0}, &gpu_model));
   EXPECT_THAT(dst_0.data, Pointwise(FloatNear(0.02f), result.data));
 
@@ -223,7 +223,7 @@ absl::Status DWPlusConv1x1Test(TestExecutionEnvironment* exec_env,
         {values_ids[0]}, {values_ids[2]}, &gpu_model_batched));
   }
 
-  MLD_EXPECT_OK(exec_env->ExecuteGpuModel(
+  ABSL_EXPECT_OK(exec_env->ExecuteGpuModel(
       {src_tensor}, std::vector<TensorFloat32*>{&dst_0}, &gpu_model_batched));
   EXPECT_THAT(dst_0.data, Pointwise(FloatNear(0.02f), result.data));
 
@@ -286,7 +286,7 @@ absl::Status Conv2dConv1x1Test(TestExecutionEnvironment* exec_env, int kernel_x,
   }
 
   TensorFloat32 dst_0;
-  MLD_EXPECT_OK(exec_env->ExecuteGpuModel(
+  ABSL_EXPECT_OK(exec_env->ExecuteGpuModel(
       {src_tensor}, std::vector<TensorFloat32*>{&dst_0}, &gpu_model));
   EXPECT_THAT(dst_0.data, Pointwise(FloatNear(0.02f), result.data));
 
@@ -333,7 +333,7 @@ absl::Status Conv2dConv1x1Test(TestExecutionEnvironment* exec_env, int kernel_x,
         {values_ids[0]}, {values_ids[2]}, &gpu_model_batched));
   }
 
-  MLD_EXPECT_OK(exec_env->ExecuteGpuModel(
+  ABSL_EXPECT_OK(exec_env->ExecuteGpuModel(
       {src_tensor}, std::vector<TensorFloat32*>{&dst_0}, &gpu_model_batched));
   EXPECT_THAT(dst_0.data, Pointwise(FloatNear(0.02f), result.data));
 
@@ -351,7 +351,7 @@ TEST_P(FloatTest, DWPlusConv1x1_4_4) {
   OperationDef op_def;
   op_def.src_tensors.push_back({data_type, storage(), Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage(), Layout::HWC});
-  MLD_EXPECT_OK(DWPlusConv1x1Test(exec_env, {4, 4}, op_def, precision()));
+  ABSL_EXPECT_OK(DWPlusConv1x1Test(exec_env, {4, 4}, op_def, precision()));
 }
 
 TEST_P(FloatTest, DWPlusConv1x1_3_11) {
@@ -363,7 +363,7 @@ TEST_P(FloatTest, DWPlusConv1x1_3_11) {
   OperationDef op_def;
   op_def.src_tensors.push_back({data_type, storage(), Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage(), Layout::HWC});
-  MLD_EXPECT_OK(DWPlusConv1x1Test(exec_env, {3, 11}, op_def, precision()));
+  ABSL_EXPECT_OK(DWPlusConv1x1Test(exec_env, {3, 11}, op_def, precision()));
 }
 
 TEST_P(FloatTest, DWPlusConv1x1_7_9) {
@@ -375,7 +375,7 @@ TEST_P(FloatTest, DWPlusConv1x1_7_9) {
   OperationDef op_def;
   op_def.src_tensors.push_back({data_type, storage(), Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage(), Layout::HWC});
-  MLD_EXPECT_OK(DWPlusConv1x1Test(exec_env, {7, 9}, op_def, precision()));
+  ABSL_EXPECT_OK(DWPlusConv1x1Test(exec_env, {7, 9}, op_def, precision()));
 }
 
 TEST_P(FloatTest, Conv3x2from4to4Conv1x1from4to8) {
@@ -387,7 +387,7 @@ TEST_P(FloatTest, Conv3x2from4to4Conv1x1from4to8) {
   OperationDef op_def;
   op_def.src_tensors.push_back({data_type, storage(), Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage(), Layout::HWC});
-  MLD_EXPECT_OK(Conv2dConv1x1Test(exec_env, 3, 2, {4, 4, 8}, op_def, precision()));
+  ABSL_EXPECT_OK(Conv2dConv1x1Test(exec_env, 3, 2, {4, 4, 8}, op_def, precision()));
 }
 
 TEST_P(FloatTest, Conv1x1from8to4Conv1x1from4to8) {
@@ -399,7 +399,7 @@ TEST_P(FloatTest, Conv1x1from8to4Conv1x1from4to8) {
   OperationDef op_def;
   op_def.src_tensors.push_back({data_type, storage(), Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage(), Layout::HWC});
-  MLD_EXPECT_OK(Conv2dConv1x1Test(exec_env, 1, 1, {8, 4, 8}, op_def, precision()));
+  ABSL_EXPECT_OK(Conv2dConv1x1Test(exec_env, 1, 1, {8, 4, 8}, op_def, precision()));
 }
 
 INSTANTIATE_TEST_SUITE_P(FloatTestSuite, FloatTest,

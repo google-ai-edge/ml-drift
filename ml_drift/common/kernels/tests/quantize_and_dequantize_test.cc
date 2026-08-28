@@ -17,7 +17,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_replace.h"
 #include "ml_drift/common/data_type.h"
@@ -41,7 +41,7 @@ TEST_P(QuantizeAndDequantizeFloatTest, QuantAndDequant_Dim2Bits8Test) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(QuantAndDequant_Dim2Bits8Test(*exec_env, precision(), storage()));
+  ABSL_ASSERT_OK(QuantAndDequant_Dim2Bits8Test(*exec_env, precision(), storage()));
 }
 
 TEST_P(QuantizeAndDequantizeFloatTest,
@@ -51,7 +51,7 @@ TEST_P(QuantizeAndDequantizeFloatTest,
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(QuantAndDequant_Dim3Bits8_NegativeRangeTest(*exec_env, precision(),
+  ABSL_ASSERT_OK(QuantAndDequant_Dim3Bits8_NegativeRangeTest(*exec_env, precision(),
                                                         storage()));
 }
 
@@ -61,7 +61,7 @@ TEST_P(QuantizeAndDequantizeFloatTest, QuantAndDequant_Dim3Bits16Test) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(QuantAndDequant_Dim3Bits16Test(*exec_env, precision(), storage()));
+  ABSL_ASSERT_OK(QuantAndDequant_Dim3Bits16Test(*exec_env, precision(), storage()));
 }
 
 TEST_P(QuantizeAndDequantizeFloatTest,
@@ -71,7 +71,7 @@ TEST_P(QuantizeAndDequantizeFloatTest,
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(QuantAndDequant_Dim2Bits16_NegativeRangeTest(*exec_env, precision(),
+  ABSL_ASSERT_OK(QuantAndDequant_Dim2Bits16_NegativeRangeTest(*exec_env, precision(),
                                                          storage()));
 }
 
@@ -103,7 +103,7 @@ TEST_P(QuantizationTest, QuantizationUint8) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(DataType::UINT8)
                  << " storage type: " << ToString(quant_storage());
   }
-  MLD_ASSERT_OK(QuantizationUint8Test(*exec_env, float_storage(), data_type(),
+  ABSL_ASSERT_OK(QuantizationUint8Test(*exec_env, float_storage(), data_type(),
                                   quant_storage()));
 }
 
@@ -116,7 +116,7 @@ TEST_P(QuantizationTest, QuantizationInt8) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(DataType::INT8)
                  << " storage type: " << ToString(quant_storage());
   }
-  MLD_ASSERT_OK(QuantizationUint8Test(*exec_env, float_storage(), data_type(),
+  ABSL_ASSERT_OK(QuantizationUint8Test(*exec_env, float_storage(), data_type(),
                                   quant_storage()));
 }
 

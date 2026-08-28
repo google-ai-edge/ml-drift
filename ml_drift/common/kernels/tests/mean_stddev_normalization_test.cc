@@ -17,7 +17,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_replace.h"
 #include "ml_drift/common/data_type.h"
@@ -45,7 +45,7 @@ TEST_P(MeanStddevGroupTest, HWCGroupNormalizationTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage);
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       HWCGroupNormalizationTest(*exec_env, data_type, storage, group_size));
 }
 
@@ -55,7 +55,7 @@ TEST_P(MeanStddevGroupTest, HWCGroupNormalizationBatchTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage);
   }
-  MLD_ASSERT_OK(HWCGroupNormalizationBatchTest(*exec_env, data_type, storage,
+  ABSL_ASSERT_OK(HWCGroupNormalizationBatchTest(*exec_env, data_type, storage,
                                            group_size));
 }
 
@@ -82,7 +82,7 @@ TEST_P(MeanStddevFloatTest, MeanStddevNormSeparateBatchesTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       MeanStddevNormSeparateBatchesTest(*exec_env, data_type(), storage()));
 }
 
@@ -91,7 +91,7 @@ TEST_P(MeanStddevFloatTest, MeanStddevNormalizationAllBatchesTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       MeanStddevNormalizationAllBatchesTest(*exec_env, data_type(), storage()));
 }
 
@@ -100,7 +100,7 @@ TEST_P(MeanStddevFloatTest, MeanStddevNormalizationLargeVectorTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(MeanStddevNormalizationLargeVectorTest(*exec_env, data_type(),
+  ABSL_ASSERT_OK(MeanStddevNormalizationLargeVectorTest(*exec_env, data_type(),
                                                    storage()));
 }
 
@@ -109,7 +109,7 @@ TEST_P(MeanStddevFloatTest, RMSNormalizationBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(RMSNormalizationBigTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(RMSNormalizationBigTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(MeanStddevFloatTest, StatisticalTopKTest) {
@@ -117,7 +117,7 @@ TEST_P(MeanStddevFloatTest, StatisticalTopKTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(StatisticalTopKTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(StatisticalTopKTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(MeanStddevFloatTest, MeanStddevNormalization5DTest) {
@@ -125,7 +125,7 @@ TEST_P(MeanStddevFloatTest, MeanStddevNormalization5DTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(MeanStddevNormalization5DTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(MeanStddevNormalization5DTest(*exec_env, data_type(), storage()));
 }
 
 INSTANTIATE_TEST_SUITE_P(

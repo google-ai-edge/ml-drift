@@ -19,7 +19,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/log/absl_check.h"
 #include "absl/status/status_macros.h"
 #include "absl/status/statusor.h"
@@ -216,7 +216,9 @@ TEST_F(InferenceContextTest, OptionalNodes) {
 }
 
 TEST_F(InferenceContextTest, Subgraph) {
-  MLD_ASSERT_OK_AND_ASSIGN(auto out, InitSubgraphModel());
+  auto out_or = InitSubgraphModel();
+  ABSL_ASSERT_OK(out_or);
+  auto out = std::move(out_or.value());
   // (2 + 2) * 4 = 20
   EXPECT_EQ(GetModelResult(out), 20);
 }

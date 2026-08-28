@@ -21,7 +21,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/shape.h"
 #include "ml_drift/common/task/tensor_desc.h"
@@ -48,7 +48,7 @@ TEST_F(WebGpuOperationTest, TensorToTensorConverterTest) {
           TensorDescriptor src_desc(src_type, src_storage, Layout::HWC);
           TensorDescriptor dst_desc(dst_type, dst_storage, Layout::HWC);
           TensorToTensorConverter converter;
-          MLD_ASSERT_OK(converter.Init(exec_env_.GetEnv(), src_desc, dst_desc));
+          ABSL_ASSERT_OK(converter.Init(exec_env_.GetEnv(), src_desc, dst_desc));
 
           const BHWC shape(1, 18, 37, 17);
           TensorFloat32 src_tensor;
@@ -60,22 +60,22 @@ TEST_F(WebGpuOperationTest, TensorToTensorConverterTest) {
 
           SpatialTensor src, dst;
           src_desc.UploadData(src_tensor);
-          MLD_ASSERT_OK(
+          ABSL_ASSERT_OK(
               src.CreateFromDescriptor(exec_env_.GetEnv().device(), src_desc));
           dst_desc.SetBHWCShape(shape);
-          MLD_ASSERT_OK(
+          ABSL_ASSERT_OK(
               dst.CreateFromDescriptor(exec_env_.GetEnv().device(), dst_desc));
 
           wgpu::CommandEncoder encoder =
               exec_env_.GetEnv().device().CreateCommandEncoder();
           wgpu::ComputePassEncoder compute_encoder = encoder.BeginComputePass();
-          MLD_ASSERT_OK(converter.Convert(exec_env_.GetEnv().device(),
+          ABSL_ASSERT_OK(converter.Convert(exec_env_.GetEnv().device(),
                                       compute_encoder, &src, &dst));
           compute_encoder.End();
           wgpu::CommandBuffer cb = encoder.Finish();
           exec_env_.GetEnv().queue().Submit(1, &cb);
 
-          MLD_ASSERT_OK(dst.ToDescriptor(exec_env_.GetEnv().device(), &dst_desc));
+          ABSL_ASSERT_OK(dst.ToDescriptor(exec_env_.GetEnv().device(), &dst_desc));
 
           TensorFloat32 dst_tensor;
           dst_desc.DownloadData(&dst_tensor);
@@ -94,7 +94,7 @@ TEST_F(WebGpuOperationTest, FloatTensorToFloatBHWCBufferConverterTest) {
         TensorDescriptor src_desc(src_type, src_storage, Layout::BHWC);
 
         TensorToBHWCBufferConverter converter;
-        MLD_ASSERT_OK(converter.Init(exec_env_.GetEnv(), src_desc, dst_type));
+        ABSL_ASSERT_OK(converter.Init(exec_env_.GetEnv(), src_desc, dst_type));
 
         const BHWC shape(3, 18, 23, 17);
         TensorFloat32 src_tensor;
@@ -106,7 +106,7 @@ TEST_F(WebGpuOperationTest, FloatTensorToFloatBHWCBufferConverterTest) {
 
         SpatialTensor src;
         src_desc.UploadData(src_tensor);
-        MLD_ASSERT_OK(
+        ABSL_ASSERT_OK(
             src.CreateFromDescriptor(exec_env_.GetEnv().device(), src_desc));
 
         const size_t dst_buf_size =
@@ -119,7 +119,7 @@ TEST_F(WebGpuOperationTest, FloatTensorToFloatBHWCBufferConverterTest) {
         wgpu::CommandEncoder encoder =
             exec_env_.GetEnv().device().CreateCommandEncoder();
         wgpu::ComputePassEncoder compute_encoder = encoder.BeginComputePass();
-        MLD_ASSERT_OK(converter.Convert(exec_env_.GetEnv().device(),
+        ABSL_ASSERT_OK(converter.Convert(exec_env_.GetEnv().device(),
                                     compute_encoder, &src, &dst));
         compute_encoder.End();
         wgpu::CommandBuffer cb = encoder.Finish();
@@ -128,14 +128,14 @@ TEST_F(WebGpuOperationTest, FloatTensorToFloatBHWCBufferConverterTest) {
         std::vector<float> dst_data(shape.DimensionsProduct());
         if (dst_type == DataType::FLOAT16) {
           std::vector<half> dst_data_f16(shape.DimensionsProduct());
-          MLD_ASSERT_OK(ReadDataFromBuffer(
+          ABSL_ASSERT_OK(ReadDataFromBuffer(
               exec_env_.GetEnv().device(), exec_env_.GetEnv().queue(),
               dst.GetMemoryHandle(), dst_buf_size, dst_data_f16.data()));
           for (int i = 0; i < dst_data_f16.size(); ++i) {
             dst_data[i] = static_cast<float>(dst_data_f16[i]);
           }
         } else {
-          MLD_ASSERT_OK(ReadDataFromBuffer(
+          ABSL_ASSERT_OK(ReadDataFromBuffer(
               exec_env_.GetEnv().device(), exec_env_.GetEnv().queue(),
               dst.GetMemoryHandle(), dst_buf_size, dst_data.data()));
         }
@@ -153,7 +153,7 @@ TEST_F(WebGpuOperationTest, BoolTensorToBoolBHWCBufferConverterTest) {
     TensorDescriptor src_desc(src_type, src_storage, Layout::BHWC);
 
     TensorToBHWCBufferConverter converter;
-    MLD_ASSERT_OK(converter.Init(exec_env_.GetEnv(), src_desc, dst_type));
+    ABSL_ASSERT_OK(converter.Init(exec_env_.GetEnv(), src_desc, dst_type));
 
     const BHWC shape(3, 18, 23, 17);
     TensorBool src_tensor;
@@ -165,7 +165,7 @@ TEST_F(WebGpuOperationTest, BoolTensorToBoolBHWCBufferConverterTest) {
 
     SpatialTensor src;
     src_desc.UploadData(src_tensor);
-    MLD_ASSERT_OK(src.CreateFromDescriptor(exec_env_.GetEnv().device(), src_desc));
+    ABSL_ASSERT_OK(src.CreateFromDescriptor(exec_env_.GetEnv().device(), src_desc));
 
     const size_t dst_buf_size = shape.DimensionsProduct() * SizeOf(dst_type);
     const size_t dst_buf_size_aligned =
@@ -176,14 +176,14 @@ TEST_F(WebGpuOperationTest, BoolTensorToBoolBHWCBufferConverterTest) {
     wgpu::CommandEncoder encoder =
         exec_env_.GetEnv().device().CreateCommandEncoder();
     wgpu::ComputePassEncoder compute_encoder = encoder.BeginComputePass();
-    MLD_ASSERT_OK(converter.Convert(exec_env_.GetEnv().device(), compute_encoder,
+    ABSL_ASSERT_OK(converter.Convert(exec_env_.GetEnv().device(), compute_encoder,
                                 &src, &dst));
     compute_encoder.End();
     wgpu::CommandBuffer cb = encoder.Finish();
     exec_env_.GetEnv().queue().Submit(1, &cb);
 
     std::vector<uint8_t> dst_data(shape.DimensionsProduct());
-    MLD_ASSERT_OK(ReadDataFromBuffer(
+    ABSL_ASSERT_OK(ReadDataFromBuffer(
         exec_env_.GetEnv().device(), exec_env_.GetEnv().queue(),
         dst.GetMemoryHandle(), dst_buf_size, dst_data.data()));
     EXPECT_EQ(src_tensor.data, dst_data);
@@ -197,7 +197,7 @@ TEST_F(WebGpuOperationTest, FloatBHWCBufferToFloatTensorConverterTest) {
         TensorDescriptor dst_desc(dst_type, dst_storage, Layout::HWC);
 
         BHWCBufferToTensorConverter converter;
-        MLD_ASSERT_OK(converter.Init(exec_env_.GetEnv(), src_type, dst_desc));
+        ABSL_ASSERT_OK(converter.Init(exec_env_.GetEnv(), src_type, dst_desc));
 
         const BHWC shape(1, 18, 37, 17);
         std::vector<float> src_data(shape.DimensionsProduct());
@@ -224,19 +224,19 @@ TEST_F(WebGpuOperationTest, FloatBHWCBufferToFloatTensorConverterTest) {
 
         SpatialTensor dst;
         dst_desc.SetBHWCShape(shape);
-        MLD_ASSERT_OK(
+        ABSL_ASSERT_OK(
             dst.CreateFromDescriptor(exec_env_.GetEnv().device(), dst_desc));
 
         wgpu::CommandEncoder encoder =
             exec_env_.GetEnv().device().CreateCommandEncoder();
         wgpu::ComputePassEncoder compute_encoder = encoder.BeginComputePass();
-        MLD_ASSERT_OK(converter.Convert(exec_env_.GetEnv().device(),
+        ABSL_ASSERT_OK(converter.Convert(exec_env_.GetEnv().device(),
                                     compute_encoder, &src, &dst));
         compute_encoder.End();
         wgpu::CommandBuffer cb = encoder.Finish();
         exec_env_.GetEnv().queue().Submit(1, &cb);
 
-        MLD_ASSERT_OK(dst.ToDescriptor(exec_env_.GetEnv().device(), &dst_desc));
+        ABSL_ASSERT_OK(dst.ToDescriptor(exec_env_.GetEnv().device(), &dst_desc));
         TensorFloat32 dst_tensor;
         dst_desc.DownloadData(&dst_tensor);
 
@@ -253,7 +253,7 @@ TEST_F(WebGpuOperationTest, Int32BHWCBufferToInt32TensorConverterTest) {
     TensorDescriptor dst_desc(dst_type, dst_storage, Layout::HWC);
 
     BHWCBufferToTensorConverter converter;
-    MLD_ASSERT_OK(converter.Init(exec_env_.GetEnv(), src_type, dst_desc));
+    ABSL_ASSERT_OK(converter.Init(exec_env_.GetEnv(), src_type, dst_desc));
 
     const BHWC shape(1, 18, 37, 17);
     std::vector<int> src_data(shape.DimensionsProduct());
@@ -271,18 +271,18 @@ TEST_F(WebGpuOperationTest, Int32BHWCBufferToInt32TensorConverterTest) {
 
     SpatialTensor dst;
     dst_desc.SetBHWCShape(shape);
-    MLD_ASSERT_OK(dst.CreateFromDescriptor(exec_env_.GetEnv().device(), dst_desc));
+    ABSL_ASSERT_OK(dst.CreateFromDescriptor(exec_env_.GetEnv().device(), dst_desc));
 
     wgpu::CommandEncoder encoder =
         exec_env_.GetEnv().device().CreateCommandEncoder();
     wgpu::ComputePassEncoder compute_encoder = encoder.BeginComputePass();
-    MLD_ASSERT_OK(converter.Convert(exec_env_.GetEnv().device(), compute_encoder,
+    ABSL_ASSERT_OK(converter.Convert(exec_env_.GetEnv().device(), compute_encoder,
                                 &src, &dst));
     compute_encoder.End();
     wgpu::CommandBuffer cb = encoder.Finish();
     exec_env_.GetEnv().queue().Submit(1, &cb);
 
-    MLD_ASSERT_OK(dst.ToDescriptor(exec_env_.GetEnv().device(), &dst_desc));
+    ABSL_ASSERT_OK(dst.ToDescriptor(exec_env_.GetEnv().device(), &dst_desc));
     TensorInt32 dst_tensor;
     dst_desc.DownloadData(&dst_tensor);
 
@@ -297,7 +297,7 @@ TEST_F(WebGpuOperationTest, Int16BHWCBufferToInt16TensorConverterTest) {
     TensorDescriptor dst_desc(dst_type, dst_storage, Layout::HWC);
 
     BHWCBufferToTensorConverter converter;
-    MLD_ASSERT_OK(converter.Init(exec_env_.GetEnv(), src_type, dst_desc));
+    ABSL_ASSERT_OK(converter.Init(exec_env_.GetEnv(), src_type, dst_desc));
 
     const BHWC shape(1, 18, 37, 17);
     std::vector<int16_t> src_data(shape.DimensionsProduct());
@@ -315,18 +315,18 @@ TEST_F(WebGpuOperationTest, Int16BHWCBufferToInt16TensorConverterTest) {
 
     SpatialTensor dst;
     dst_desc.SetBHWCShape(shape);
-    MLD_ASSERT_OK(dst.CreateFromDescriptor(exec_env_.GetEnv().device(), dst_desc));
+    ABSL_ASSERT_OK(dst.CreateFromDescriptor(exec_env_.GetEnv().device(), dst_desc));
 
     wgpu::CommandEncoder encoder =
         exec_env_.GetEnv().device().CreateCommandEncoder();
     wgpu::ComputePassEncoder compute_encoder = encoder.BeginComputePass();
-    MLD_ASSERT_OK(converter.Convert(exec_env_.GetEnv().device(), compute_encoder,
+    ABSL_ASSERT_OK(converter.Convert(exec_env_.GetEnv().device(), compute_encoder,
                                 &src, &dst));
     compute_encoder.End();
     wgpu::CommandBuffer cb = encoder.Finish();
     exec_env_.GetEnv().queue().Submit(1, &cb);
 
-    MLD_ASSERT_OK(dst.ToDescriptor(exec_env_.GetEnv().device(), &dst_desc));
+    ABSL_ASSERT_OK(dst.ToDescriptor(exec_env_.GetEnv().device(), &dst_desc));
     Tensor<BHWC, DataType::INT16> dst_tensor;
     dst_desc.DownloadData(&dst_tensor);
 
@@ -341,7 +341,7 @@ TEST_F(WebGpuOperationTest, BoolBHWCBufferToBoolTensorConverterTest) {
     TensorDescriptor dst_desc(dst_type, dst_storage, Layout::HWC);
 
     BHWCBufferToTensorConverter converter;
-    MLD_ASSERT_OK(converter.Init(exec_env_.GetEnv(), src_type, dst_desc));
+    ABSL_ASSERT_OK(converter.Init(exec_env_.GetEnv(), src_type, dst_desc));
 
     const BHWC shape(1, 18, 37, 17);
     std::vector<uint8_t> src_data(shape.DimensionsProduct());
@@ -359,18 +359,18 @@ TEST_F(WebGpuOperationTest, BoolBHWCBufferToBoolTensorConverterTest) {
 
     SpatialTensor dst;
     dst_desc.SetBHWCShape(shape);
-    MLD_ASSERT_OK(dst.CreateFromDescriptor(exec_env_.GetEnv().device(), dst_desc));
+    ABSL_ASSERT_OK(dst.CreateFromDescriptor(exec_env_.GetEnv().device(), dst_desc));
 
     wgpu::CommandEncoder encoder =
         exec_env_.GetEnv().device().CreateCommandEncoder();
     wgpu::ComputePassEncoder compute_encoder = encoder.BeginComputePass();
-    MLD_ASSERT_OK(converter.Convert(exec_env_.GetEnv().device(), compute_encoder,
+    ABSL_ASSERT_OK(converter.Convert(exec_env_.GetEnv().device(), compute_encoder,
                                 &src, &dst));
     compute_encoder.End();
     wgpu::CommandBuffer cb = encoder.Finish();
     exec_env_.GetEnv().queue().Submit(1, &cb);
 
-    MLD_ASSERT_OK(dst.ToDescriptor(exec_env_.GetEnv().device(), &dst_desc));
+    ABSL_ASSERT_OK(dst.ToDescriptor(exec_env_.GetEnv().device(), &dst_desc));
     Tensor<BHWC, DataType::BOOL> dst_tensor;
     dst_desc.DownloadData(&dst_tensor);
 

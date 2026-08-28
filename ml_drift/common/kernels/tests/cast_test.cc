@@ -17,7 +17,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_replace.h"
 #include "ml_drift/common/data_type.h"
@@ -48,7 +48,7 @@ TEST_P(CastTest, Base) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(src_storage())
                  << " to " << ToString(dst_storage());
   }
-  MLD_ASSERT_OK(CastBaseTest(*exec_env, src_storage(), dst_storage()));
+  ABSL_ASSERT_OK(CastBaseTest(*exec_env, src_storage(), dst_storage()));
 }
 
 TEST_P(CastTest, ToBool) {
@@ -57,7 +57,7 @@ TEST_P(CastTest, ToBool) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(src_storage())
                  << " to " << ToString(dst_storage());
   }
-  MLD_ASSERT_OK(CastToBoolTest(*exec_env, src_storage(), dst_storage()));
+  ABSL_ASSERT_OK(CastToBoolTest(*exec_env, src_storage(), dst_storage()));
 }
 
 TEST_P(CastTest, FromBool) {
@@ -66,7 +66,7 @@ TEST_P(CastTest, FromBool) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(src_storage())
                  << " to " << ToString(dst_storage());
   }
-  MLD_ASSERT_OK(CastFromBoolTest(*exec_env, src_storage(), dst_storage()));
+  ABSL_ASSERT_OK(CastFromBoolTest(*exec_env, src_storage(), dst_storage()));
 }
 
 TEST_P(CastTest, ToBfloat) {
@@ -75,7 +75,7 @@ TEST_P(CastTest, ToBfloat) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(src_storage())
                  << " to " << ToString(dst_storage());
   }
-  MLD_ASSERT_OK(CastToBfloatTest(*exec_env, src_storage(), dst_storage()));
+  ABSL_ASSERT_OK(CastToBfloatTest(*exec_env, src_storage(), dst_storage()));
 }
 
 TEST_P(CastTest, FromBfloat) {
@@ -84,7 +84,7 @@ TEST_P(CastTest, FromBfloat) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(src_storage())
                  << " to " << ToString(dst_storage());
   }
-  MLD_ASSERT_OK(CastFromBfloatTest(*exec_env, src_storage(), dst_storage()));
+  ABSL_ASSERT_OK(CastFromBfloatTest(*exec_env, src_storage(), dst_storage()));
 }
 
 INSTANTIATE_TEST_SUITE_P(CastTestSuite, CastTest,

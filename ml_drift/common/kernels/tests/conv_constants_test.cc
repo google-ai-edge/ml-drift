@@ -16,7 +16,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/strings/str_cat.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/kernels/tests/conv_constants_test_util.h"
@@ -41,7 +41,7 @@ TEST_P(ConvConstantsFloatTest, SimpleWeights) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ConvConstantsSimpleWeightsTest(*exec_env, precision(), storage()));
+  ABSL_ASSERT_OK(ConvConstantsSimpleWeightsTest(*exec_env, precision(), storage()));
 }
 
 TEST_P(ConvConstantsFloatTest, ConvConstantsTest) {
@@ -50,7 +50,7 @@ TEST_P(ConvConstantsFloatTest, ConvConstantsTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ConvConstantsTest(*exec_env, precision(), storage()));
+  ABSL_ASSERT_OK(ConvConstantsTest(*exec_env, precision(), storage()));
 }
 
 TEST_P(ConvConstantsFloatTest, ConvConstantsBatchedBigTest) {
@@ -59,7 +59,7 @@ TEST_P(ConvConstantsFloatTest, ConvConstantsBatchedBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ConvConstantsBatchedBigTest(*exec_env, precision(), storage()));
+  ABSL_ASSERT_OK(ConvConstantsBatchedBigTest(*exec_env, precision(), storage()));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -92,7 +92,7 @@ TEST_P(ConvConstantsChannelTest, ConvConstantsBigTest) {
       (src_channel() != 5 || dst_channel() != 7)) {
     GTEST_SKIP() << "Only test non F32 for channels = (5, 7)";
   }
-  MLD_ASSERT_OK(ConvConstantsBigTest(*exec_env, precision(), storage(),
+  ABSL_ASSERT_OK(ConvConstantsBigTest(*exec_env, precision(), storage(),
                                  src_channel(), dst_channel()));
 }
 
@@ -125,7 +125,7 @@ TEST_P(ConvConstantsExternalWeightsTest, BigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       ConvConstantsExternalWeightsBigTest(*exec_env, precision(), storage()));
 }
 

@@ -18,7 +18,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_replace.h"
@@ -53,7 +53,7 @@ TEST_P(ConvWaveMemoryFloatTest, ConvWaveMemoryDst4SlicesTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ConvWaveMemoryTest(*exec_env, precision(), storage(),
+  ABSL_ASSERT_OK(ConvWaveMemoryTest(*exec_env, precision(), storage(),
                                BHWC(1, 7, 4, 7), 13));
 }
 
@@ -63,7 +63,7 @@ TEST_P(ConvWaveMemoryFloatTest, ConvWaveMemoryDst4SlicesBatchedTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ConvWaveMemoryTest(*exec_env, precision(), storage(),
+  ABSL_ASSERT_OK(ConvWaveMemoryTest(*exec_env, precision(), storage(),
                                BHWC(5, 7, 4, 7), 13));
 }
 
@@ -73,7 +73,7 @@ TEST_P(ConvWaveMemoryFloatTest, ConvWaveMemoryDst9SlicesTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ConvWaveMemoryTest(*exec_env, precision(), storage(),
+  ABSL_ASSERT_OK(ConvWaveMemoryTest(*exec_env, precision(), storage(),
                                BHWC(1, 7, 4, 7), 33));
 }
 
@@ -83,7 +83,7 @@ TEST_P(ConvWaveMemoryFloatTest, ConvWaveMemoryDst9SlicesBatchedTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ConvWaveMemoryTest(*exec_env, precision(), storage(),
+  ABSL_ASSERT_OK(ConvWaveMemoryTest(*exec_env, precision(), storage(),
                                BHWC(7, 7, 4, 7), 33));
 }
 
@@ -93,7 +93,7 @@ TEST_P(ConvWaveMemoryFloatTest, ConvWaveMemoryDst6SlicesTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ConvWaveMemoryTest(*exec_env, precision(), storage(),
+  ABSL_ASSERT_OK(ConvWaveMemoryTest(*exec_env, precision(), storage(),
                                BHWC(1, 5, 3, 7), 23));
 }
 
@@ -103,7 +103,7 @@ TEST_P(ConvWaveMemoryFloatTest, ConvWaveMemoryDst6SlicesBatchedTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ConvWaveMemoryTest(*exec_env, precision(), storage(),
+  ABSL_ASSERT_OK(ConvWaveMemoryTest(*exec_env, precision(), storage(),
                                BHWC(11, 5, 3, 7), 23));
 }
 
@@ -113,7 +113,7 @@ TEST_P(ConvWaveMemoryFloatTest, ConvWaveMemoryDst3SlicesTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ConvWaveMemoryTest(*exec_env, precision(), storage(),
+  ABSL_ASSERT_OK(ConvWaveMemoryTest(*exec_env, precision(), storage(),
                                BHWC(1, 5, 3, 15), 9));
 }
 
@@ -123,7 +123,7 @@ TEST_P(ConvWaveMemoryFloatTest, ConvWaveMemoryDst3SlicesBatchedTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ConvWaveMemoryTest(*exec_env, precision(), storage(),
+  ABSL_ASSERT_OK(ConvWaveMemoryTest(*exec_env, precision(), storage(),
                                BHWC(2, 5, 3, 15), 9));
 }
 
@@ -133,7 +133,7 @@ TEST_P(ConvWaveMemoryFloatTest, ConvWaveMemoryGroupedX3Test) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ConvWaveMemoryGroupedX3Test(*exec_env, precision(), storage()));
+  ABSL_ASSERT_OK(ConvWaveMemoryGroupedX3Test(*exec_env, precision(), storage()));
 }
 
 TEST_P(ConvWaveMemoryFloatTest, ConvWaveMemoryGroupedX7Test) {
@@ -142,7 +142,7 @@ TEST_P(ConvWaveMemoryFloatTest, ConvWaveMemoryGroupedX7Test) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ConvWaveMemoryGroupedX7Test(*exec_env, precision(), storage()));
+  ABSL_ASSERT_OK(ConvWaveMemoryGroupedX7Test(*exec_env, precision(), storage()));
 }
 
 TEST_P(ConvWaveMemoryFloatTest, ConvWaveMemoryExternalWeightsTest) {
@@ -151,7 +151,7 @@ TEST_P(ConvWaveMemoryFloatTest, ConvWaveMemoryExternalWeightsTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       ConvWaveMemoryExternalWeightsTest(*exec_env, precision(), storage()));
 }
 
@@ -161,7 +161,7 @@ TEST_P(ConvWaveMemoryFloatTest, ConvWaveMemoryExternalBatchedWeightsTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ConvWaveMemoryExternalBatchedWeightsTest(*exec_env, precision(),
+  ABSL_ASSERT_OK(ConvWaveMemoryExternalBatchedWeightsTest(*exec_env, precision(),
                                                      storage()));
 }
 
@@ -171,7 +171,7 @@ TEST_P(ConvWaveMemoryFloatTest, ConvWaveMemoryWinograd4x4To6x6Test) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       ConvWaveMemoryWinograd4x4To6x6Test(*exec_env, precision(), storage()));
 }
 
@@ -181,7 +181,7 @@ TEST_P(ConvWaveMemoryFloatTest, ConvWaveMemoryBatchedMatMulTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ConvWaveMemoryBatchedMatMulTest(*exec_env, precision(), storage()));
+  ABSL_ASSERT_OK(ConvWaveMemoryBatchedMatMulTest(*exec_env, precision(), storage()));
 }
 
 TEST_P(ConvWaveMemoryFloatTest, ConvWaveMemoryPackedGroupsTest) {
@@ -198,7 +198,7 @@ TEST_P(ConvWaveMemoryFloatTest, ConvWaveMemoryPackedGroupsTest) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMemoryFloatTest, ConvWaveMemoryRuntimeSrcEndChannelsTest) {
@@ -258,7 +258,7 @@ TEST_P(IntTest, ConvWaveMemoryInt8Test) {
     GTEST_SKIP() << "Unsupported dst storage type: " << ToString(dst_storage())
                  << " data type: " << ToString(DataType::INT32);
   }
-  MLD_ASSERT_OK(ConvWaveMemoryInt8Test(*exec_env, src_storage(), dst_storage()));
+  ABSL_ASSERT_OK(ConvWaveMemoryInt8Test(*exec_env, src_storage(), dst_storage()));
 }
 
 TEST_P(IntTest, ConvWaveMemoryInt8ExternalWeightsTest) {
@@ -267,7 +267,7 @@ TEST_P(IntTest, ConvWaveMemoryInt8ExternalWeightsTest) {
     GTEST_SKIP() << "Unsupported dst storage type: " << ToString(dst_storage())
                  << " data type: " << ToString(DataType::INT32);
   }
-  MLD_ASSERT_OK(ConvWaveMemoryInt8ExternalWeightsTest(*exec_env, src_storage(),
+  ABSL_ASSERT_OK(ConvWaveMemoryInt8ExternalWeightsTest(*exec_env, src_storage(),
                                                   dst_storage()));
 }
 
@@ -302,7 +302,7 @@ TEST_P(SrcQuantizationTest, ConvWaveMemoryInt8WithSrcQuantizationBig) {
   if (!exec_env->IsStorageSupported(float_storage, float_type)) {
     GTEST_SKIP() << "Unsupported float storage: " << ToString(float_storage);
   }
-  MLD_ASSERT_OK(ConvWaveMemoryInt8WithSrcQuantizationTest(
+  ABSL_ASSERT_OK(ConvWaveMemoryInt8WithSrcQuantizationTest(
       *exec_env, int_storage, float_storage, float_type));
 }
 

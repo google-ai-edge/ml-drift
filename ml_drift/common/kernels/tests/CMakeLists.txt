@@ -35,9 +35,9 @@ target_link_libraries(add_test_opencl PUBLIC
   mld_common_task_util
   mld_common_kernels_tests_add_test_util
   mld_common_data_type
-  mld_common_status_matchers
   mld_common_task_tensor_desc
   mld_common_task_testing_util
+  absl::status_matchers
   absl::strings
   gtest
   gmock
@@ -97,9 +97,9 @@ target_link_libraries(bitcast_test_opencl PUBLIC
   mld_common_task_util
   mld_common_kernels_tests_bitcast_test_util
   mld_common_data_type
-  mld_common_status_matchers
   mld_common_task_tensor_desc
   mld_common_task_testing_util
+  absl::status_matchers
   absl::strings
   gtest
   gmock
@@ -143,9 +143,9 @@ target_link_libraries(buffer_desc_test_opencl PUBLIC
   mld_common_task_util
   mld_common_kernels_tests_buffer_desc_test_util
   mld_common_data_type
-  mld_common_status_matchers
   mld_common_task_tensor_desc
   mld_common_task_testing_util
+  absl::status_matchers
   absl::strings
   gtest
   gmock
@@ -189,9 +189,9 @@ target_link_libraries(cast_test_opencl PUBLIC
   mld_common_task_util
   mld_common_kernels_tests_cast_test_util
   mld_common_data_type
-  mld_common_status_matchers
   mld_common_task_tensor_desc
   mld_common_task_testing_util
+  absl::status_matchers
   absl::strings
   gtest
   gmock
@@ -237,9 +237,9 @@ target_link_libraries(concat_test_opencl PUBLIC
   mld_common_task_util
   mld_common_kernels_tests_concat_test_util
   mld_common_data_type
-  mld_common_status_matchers
   mld_common_task_tensor_desc
   mld_common_task_testing_util
+  absl::status_matchers
   absl::strings
   gtest
   gmock
@@ -287,9 +287,9 @@ target_link_libraries(conv_constants_test_opencl PUBLIC
   mld_common_task_util
   mld_common_kernels_tests_conv_constants_test_util
   mld_common_data_type
-  mld_common_status_matchers
   mld_common_task_tensor_desc
   mld_common_task_testing_util
+  absl::status_matchers
   absl::strings
   gtest
   gmock
@@ -346,9 +346,9 @@ target_link_libraries(conv_generic_test_opencl PUBLIC
   mld_common_task_util
   mld_common_kernels_tests_conv_generic_test_util
   mld_common_data_type
-  mld_common_status_matchers
   mld_common_task_tensor_desc
   mld_common_task_testing_util
+  absl::status_matchers
   absl::strings
   gtest
   gmock
@@ -399,9 +399,9 @@ target_link_libraries(conv_transpose_test_opencl PUBLIC
   mld_common_task_util
   mld_common_kernels_tests_conv_transpose_test_util
   mld_common_data_type
-  mld_common_status_matchers
   mld_common_task_tensor_desc
   mld_common_task_testing_util
+  absl::status_matchers
   absl::strings
   gtest
   gmock
@@ -450,9 +450,9 @@ target_link_libraries(conv_transpose_thin_test_opencl PUBLIC
   mld_common_task_util
   mld_common_kernels_tests_conv_transpose_thin_test_util
   mld_common_data_type
-  mld_common_status_matchers
   mld_common_task_tensor_desc
   mld_common_task_testing_util
+  absl::status_matchers
   absl::strings
   gtest
   gmock
@@ -503,9 +503,9 @@ target_link_libraries(conv_wave_matrix_mali_test_opencl PUBLIC
   mld_common_task_util
   mld_common_kernels_tests_conv_wave_matrix_mali_test_util
   mld_common_data_type
-  mld_common_status_matchers
   mld_common_task_tensor_desc
   mld_common_task_testing_util
+  absl::status_matchers
   absl::strings
   gtest
   gmock
@@ -561,9 +561,9 @@ target_link_libraries(conv_wave_matrix_test_opencl PUBLIC
   mld_common_kernels_tests_conv_wave_matrix_test_util
   mld_common_data_type
   mld_common_shape
-  mld_common_status_matchers
   mld_common_task_tensor_desc
   mld_common_task_testing_util
+  absl::status_matchers
   absl::strings
   gtest
   gmock
@@ -618,9 +618,9 @@ target_link_libraries(conv_wave_memory_test_opencl PUBLIC
   mld_common_task_util
   mld_common_kernels_tests_conv_wave_memory_test_util
   mld_common_data_type
-  mld_common_status_matchers
   mld_common_task_tensor_desc
   mld_common_task_testing_util
+  absl::status_matchers
   absl::strings
   gtest
   gmock
@@ -667,9 +667,9 @@ target_link_libraries(cumsum_test_opencl PUBLIC
   mld_common_task_util
   mld_common_kernels_tests_cumsum_test_util
   mld_common_data_type
-  mld_common_status_matchers
   mld_common_task_tensor_desc
   mld_common_task_testing_util
+  absl::status_matchers
   absl::strings
   gtest
   gmock
@@ -717,9 +717,9 @@ target_link_libraries(depthwise_conv_test_opencl PUBLIC
   mld_common_task_util
   mld_common_kernels_tests_depthwise_conv_test_util
   mld_common_data_type
-  mld_common_status_matchers
   mld_common_task_tensor_desc
   mld_common_task_testing_util
+  absl::status_matchers
   absl::strings
   gtest
   gmock
@@ -765,9 +765,9 @@ target_link_libraries(depthwise_conv_wave_memory_test_opencl PUBLIC
   mld_common_task_util
   mld_common_kernels_tests_depthwise_conv_wave_memory_test_util
   mld_common_data_type
-  mld_common_status_matchers
   mld_common_task_tensor_desc
   mld_common_task_testing_util
+  absl::status_matchers
   absl::strings
   gtest
   gmock
@@ -813,9 +813,9 @@ target_link_libraries(dot_general_test_opencl PUBLIC
   mld_common_task_util
   mld_common_kernels_tests_dot_general_test_util
   mld_common_data_type
-  mld_common_status_matchers
   mld_common_task_tensor_desc
   mld_common_task_testing_util
+  absl::status_matchers
   absl::strings
   gtest
   gmock
@@ -859,9 +859,9 @@ target_link_libraries(dynamic_update_slice_test_opencl PUBLIC
   mld_common_task_util
   mld_common_kernels_tests_dynamic_update_slice_test_util
   mld_common_data_type
-  mld_common_status_matchers
   mld_common_task_tensor_desc
   mld_common_task_testing_util
+  absl::status_matchers
   absl::strings
   gtest
   gmock
@@ -906,9 +906,9 @@ target_link_libraries(elementwise_test_opencl PUBLIC
   mld_common_task_util
   mld_common_kernels_tests_elementwise_test_util
   mld_common_data_type
-  mld_common_status_matchers
   mld_common_task_tensor_desc
   mld_common_task_testing_util
+  absl::status_matchers
   absl::strings
   gtest
   gmock
@@ -953,9 +953,9 @@ target_link_libraries(embedding_lookup_test_opencl PUBLIC
   mld_common_task_util
   mld_common_kernels_tests_embedding_lookup_test_util
   mld_common_data_type
-  mld_common_status_matchers
   mld_common_task_tensor_desc
   mld_common_task_testing_util
+  absl::status_matchers
   absl::strings
   gtest
   gmock
@@ -1003,9 +1003,9 @@ target_link_libraries(fully_connected_test_opencl PUBLIC
   mld_common_task_util
   mld_common_kernels_tests_fully_connected_test_util
   mld_common_data_type
-  mld_common_status_matchers
   mld_common_task_tensor_desc
   mld_common_task_testing_util
+  absl::status_matchers
   absl::strings
   gtest
   gmock
@@ -1050,9 +1050,9 @@ target_link_libraries(gather_test_opencl PUBLIC
   mld_common_task_util
   mld_common_kernels_tests_gather_test_util
   mld_common_data_type
-  mld_common_status_matchers
   mld_common_task_tensor_desc
   mld_common_task_testing_util
+  absl::status_matchers
   absl::strings
   gtest
   gmock
@@ -1170,9 +1170,9 @@ target_link_libraries(lstm_test_opencl PUBLIC
   mld_common_task_util
   mld_common_kernels_tests_lstm_test_util
   mld_common_data_type
-  mld_common_status_matchers
   mld_common_task_tensor_desc
   mld_common_task_testing_util
+  absl::status_matchers
   absl::strings
   gtest
   gmock
@@ -1217,9 +1217,9 @@ target_link_libraries(max_unpooling_test_opencl PUBLIC
   mld_common_task_util
   mld_common_kernels_tests_max_unpooling_test_util
   mld_common_data_type
-  mld_common_status_matchers
   mld_common_task_tensor_desc
   mld_common_task_testing_util
+  absl::status_matchers
   absl::strings
   gtest
   gmock
@@ -1265,9 +1265,9 @@ target_link_libraries(mean_stddev_normalization_test_opencl PUBLIC
   mld_common_task_util
   mld_common_kernels_tests_mean_stddev_normalization_test_util
   mld_common_data_type
-  mld_common_status_matchers
   mld_common_task_tensor_desc
   mld_common_task_testing_util
+  absl::status_matchers
   absl::strings
   gtest
   gmock
@@ -1313,9 +1313,9 @@ target_link_libraries(one_hot_test_opencl PUBLIC
   mld_common_task_util
   mld_common_kernels_tests_one_hot_test_util
   mld_common_data_type
-  mld_common_status_matchers
   mld_common_task_tensor_desc
   mld_common_task_testing_util
+  absl::status_matchers
   absl::strings
   gtest
   gmock
@@ -1360,9 +1360,9 @@ target_link_libraries(padding_test_opencl PUBLIC
   mld_common_task_util
   mld_common_kernels_tests_padding_test_util
   mld_common_data_type
-  mld_common_status_matchers
   mld_common_task_tensor_desc
   mld_common_task_testing_util
+  absl::status_matchers
   absl::strings
   gtest
   gmock
@@ -1407,9 +1407,9 @@ target_link_libraries(pooling_test_opencl PUBLIC
   mld_common_task_util
   mld_common_kernels_tests_pooling_test_util
   mld_common_data_type
-  mld_common_status_matchers
   mld_common_task_tensor_desc
   mld_common_task_testing_util
+  absl::status_matchers
   absl::strings
   gtest
   gmock
@@ -1486,9 +1486,9 @@ target_link_libraries(prelu_test_opencl PUBLIC
   mld_common_task_util
   mld_common_kernels_tests_prelu_test_util
   mld_common_data_type
-  mld_common_status_matchers
   mld_common_task_tensor_desc
   mld_common_task_testing_util
+  absl::status_matchers
   absl::strings
   gtest
   gmock
@@ -1536,9 +1536,9 @@ target_link_libraries(random_philox_test_opencl PUBLIC
   mld_common_task_util
   mld_common_kernels_tests_random_philox_test_util
   mld_common_data_type
-  mld_common_status_matchers
   mld_common_task_tensor_desc
   mld_common_task_testing_util
+  absl::status_matchers
   absl::strings
   gtest
   gmock
@@ -1584,9 +1584,9 @@ target_link_libraries(reduce_test_opencl PUBLIC
   mld_common_task_util
   mld_common_kernels_tests_reduce_test_util
   mld_common_data_type
-  mld_common_status_matchers
   mld_common_task_tensor_desc
   mld_common_task_testing_util
+  absl::status_matchers
   absl::strings
   gtest
   gmock
@@ -1632,9 +1632,9 @@ target_link_libraries(relu_test_opencl PUBLIC
   mld_common_task_util
   mld_common_kernels_tests_relu_test_util
   mld_common_data_type
-  mld_common_status_matchers
   mld_common_task_tensor_desc
   mld_common_task_testing_util
+  absl::status_matchers
   absl::strings
   gtest
   gmock
@@ -1680,9 +1680,9 @@ target_link_libraries(resampler_test_opencl PUBLIC
   mld_common_task_util
   mld_common_kernels_tests_resampler_test_util
   mld_common_data_type
-  mld_common_status_matchers
   mld_common_task_tensor_desc
   mld_common_task_testing_util
+  absl::status_matchers
   absl::strings
   gtest
   gmock
@@ -1728,9 +1728,9 @@ target_link_libraries(reshape_test_opencl PUBLIC
   mld_common_task_util
   mld_common_kernels_tests_reshape_test_util
   mld_common_data_type
-  mld_common_status_matchers
   mld_common_task_tensor_desc
   mld_common_task_testing_util
+  absl::status_matchers
   absl::strings
   gtest
   gmock
@@ -1775,9 +1775,9 @@ target_link_libraries(resize_test_opencl PUBLIC
   mld_common_task_util
   mld_common_kernels_tests_resize_test_util
   mld_common_data_type
-  mld_common_status_matchers
   mld_common_task_tensor_desc
   mld_common_task_testing_util
+  absl::status_matchers
   absl::strings
   gtest
   gmock
@@ -1821,9 +1821,9 @@ target_link_libraries(rope_test_opencl PUBLIC
   mld_common_task_util
   mld_common_kernels_tests_rope_test_util
   mld_common_data_type
-  mld_common_status_matchers
   mld_common_task_tensor_desc
   mld_common_task_testing_util
+  absl::status_matchers
   absl::strings
   gtest
   gmock
@@ -1906,9 +1906,9 @@ target_link_libraries(select_v2_test_opencl PUBLIC
   mld_common_task_util
   mld_common_kernels_tests_select_v2_test_util
   mld_common_data_type
-  mld_common_status_matchers
   mld_common_task_tensor_desc
   mld_common_task_testing_util
+  absl::status_matchers
   absl::strings
   gtest
   gmock
@@ -1955,9 +1955,9 @@ target_link_libraries(softmax_test_opencl PUBLIC
   mld_common_task_util
   mld_common_kernels_tests_softmax_test_util
   mld_common_data_type
-  mld_common_status_matchers
   mld_common_task_tensor_desc
   mld_common_task_testing_util
+  absl::status_matchers
   absl::strings
   gtest
   gmock
@@ -2003,9 +2003,9 @@ target_link_libraries(space_to_depth_test_opencl PUBLIC
   mld_common_task_util
   mld_common_kernels_tests_space_to_depth_test_util
   mld_common_data_type
-  mld_common_status_matchers
   mld_common_task_tensor_desc
   mld_common_task_testing_util
+  absl::status_matchers
   absl::strings
   gtest
   gmock
@@ -2050,9 +2050,9 @@ target_link_libraries(split_test_opencl PUBLIC
   mld_common_task_util
   mld_common_kernels_tests_split_test_util
   mld_common_data_type
-  mld_common_status_matchers
   mld_common_task_tensor_desc
   mld_common_task_testing_util
+  absl::status_matchers
   absl::strings
   gtest
   gmock
@@ -2097,9 +2097,9 @@ target_link_libraries(strided_slice_test_opencl PUBLIC
   mld_common_task_util
   mld_common_kernels_tests_strided_slice_test_util
   mld_common_data_type
-  mld_common_status_matchers
   mld_common_task_tensor_desc
   mld_common_task_testing_util
+  absl::status_matchers
   absl::strings
   gtest
   gmock
@@ -2143,9 +2143,9 @@ target_link_libraries(tile_test_opencl PUBLIC
   mld_common_task_util
   mld_common_kernels_tests_tile_test_util
   mld_common_data_type
-  mld_common_status_matchers
   mld_common_task_tensor_desc
   mld_common_task_testing_util
+  absl::status_matchers
   absl::strings
   gtest
   gmock
@@ -2189,9 +2189,9 @@ target_link_libraries(top_k_test_opencl PUBLIC
   mld_common_task_util
   mld_common_kernels_tests_top_k_test_util
   mld_common_data_type
-  mld_common_status_matchers
   mld_common_task_tensor_desc
   mld_common_task_testing_util
+  absl::status_matchers
   absl::strings
   gtest
   gmock
@@ -2236,9 +2236,9 @@ target_link_libraries(transpose_test_opencl PUBLIC
   mld_common_task_util
   mld_common_kernels_tests_transpose_test_util
   mld_common_data_type
-  mld_common_status_matchers
   mld_common_task_tensor_desc
   mld_common_task_testing_util
+  absl::status_matchers
   absl::strings
   gtest
   gmock
@@ -2287,9 +2287,9 @@ target_link_libraries(winograd_test_opencl PUBLIC
   mld_common_task_util
   mld_common_kernels_tests_winograd_test_util
   mld_common_data_type
-  mld_common_status_matchers
   mld_common_task_tensor_desc
   mld_common_task_testing_util
+  absl::status_matchers
   absl::strings
   gtest
   gmock

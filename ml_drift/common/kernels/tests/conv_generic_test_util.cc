@@ -25,7 +25,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "xnnpack.h"  // from @XNNPACK
 #include "absl/log/absl_log.h"
 #include "absl/status/status.h"
@@ -84,7 +84,7 @@ absl::Status ConvGeneric1x1SimpleWeightsTest(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   ConvGeneric operation =
       CreateConvGeneric(env.GetGpuInfo(), op_def, precision, attr);
-  MLD_EXPECT_OK(env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<ConvGeneric>(std::move(operation)),
       BHWC(1, 2, 2, 2), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -122,7 +122,7 @@ absl::Status ConvGeneric1x1Test(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   ConvGeneric operation =
       CreateConvGeneric(env.GetGpuInfo(), op_def, precision, attr);
-  MLD_EXPECT_OK(env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<ConvGeneric>(std::move(operation)),
       BHWC(1, 2, 2, 2), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -160,7 +160,7 @@ absl::Status ConvGenericSimpleWeightsTest(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   ConvGeneric operation =
       CreateConvGeneric(env.GetGpuInfo(), op_def, precision, attr);
-  MLD_EXPECT_OK(env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<ConvGeneric>(std::move(operation)),
       BHWC(1, 2, 2, 1), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -198,7 +198,7 @@ absl::Status ConvGenericTest(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   ConvGeneric operation =
       CreateConvGeneric(env.GetGpuInfo(), op_def, precision, attr);
-  MLD_EXPECT_OK(env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<ConvGeneric>(std::move(operation)),
       BHWC(1, 2, 2, 2), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -240,7 +240,7 @@ absl::Status ConvGenericGroupedTest(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   ConvGeneric operation =
       CreateConvGeneric(env.GetGpuInfo(), op_def, precision, attr);
-  MLD_EXPECT_OK(env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<ConvGeneric>(std::move(operation)),
       BHWC(1, 1, 1, 8), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -346,7 +346,7 @@ absl::Status ConvGenericWinograd3x3TileNxNTest(TestExecutionEnvironment& env,
     TensorFloat32 winograd_forward;
     BHWC winograd_forward_shape = conv_wino_shape;
     winograd_forward_shape.c = src_shape.c;
-    MLD_EXPECT_OK(env.ExecuteGPUOperation(src_tensor, std::move(op1_ptr),
+    ABSL_EXPECT_OK(env.ExecuteGPUOperation(src_tensor, std::move(op1_ptr),
                                       winograd_forward_shape,
                                       &winograd_forward));
     EXPECT_THAT(winograd_forward.data,
@@ -370,7 +370,7 @@ absl::Status ConvGenericWinograd3x3TileNxNTest(TestExecutionEnvironment& env,
       dst_td.DownloadData(&output_conv_wino);
     }
 
-    MLD_EXPECT_OK(env.ExecuteGPUOperation(output_conv_wino, std::move(op3_ptr),
+    ABSL_EXPECT_OK(env.ExecuteGPUOperation(output_conv_wino, std::move(op3_ptr),
                                       dst_shape, &output_conv));
   }
   EXPECT_THAT(output_conv.data,
@@ -410,7 +410,7 @@ absl::Status ConvGeneric1x1Int8SymmetricTest(TestExecutionEnvironment& env,
 
     TensorDescriptor dst_td = op_def.dst_tensors[0];
     dst_td.SetBHWCShape(BHWC(1, 2, 2, 2));
-    MLD_EXPECT_OK(env.ExecuteGPUOperation(
+    ABSL_EXPECT_OK(env.ExecuteGPUOperation(
         {&src_td}, {&dst_td},
         std::make_unique<ConvGeneric>(std::move(operation))));
     TensorInt32 dst_tensor;
@@ -433,7 +433,7 @@ absl::Status ConvolutionGenericTest(TestExecutionEnvironment& exec_env,
       CreateConvGeneric(exec_env.GetGpuInfo(), op_def, precision, attr);
   float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr);
   TensorFloat32 dst_tensor;
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(
       src_tensor, std::make_unique<ConvGeneric>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), dst_ref_tensor.data));
@@ -467,7 +467,7 @@ absl::Status ConvGeneric1x1BigTest(TestExecutionEnvironment& env,
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  MLD_EXPECT_OK(ConvolutionGenericTest(env, attr, src_tensor, op_def, precision));
+  ABSL_EXPECT_OK(ConvolutionGenericTest(env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();
 }
 
@@ -497,7 +497,7 @@ absl::Status ConvGeneric1x1BatchedBigTest(TestExecutionEnvironment& env,
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
   op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
-  MLD_EXPECT_OK(ConvolutionGenericTest(env, attr, src_tensor, op_def, precision));
+  ABSL_EXPECT_OK(ConvolutionGenericTest(env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();
 }
 
@@ -527,7 +527,7 @@ absl::Status ConvGenericBigTest(TestExecutionEnvironment& env,
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  MLD_EXPECT_OK(ConvolutionGenericTest(env, attr, src_tensor, op_def, precision));
+  ABSL_EXPECT_OK(ConvolutionGenericTest(env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();
 }
 
@@ -557,7 +557,7 @@ absl::Status ConvGenericBatchedBigTest(TestExecutionEnvironment& env,
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
   op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
-  MLD_EXPECT_OK(ConvolutionGenericTest(env, attr, src_tensor, op_def, precision));
+  ABSL_EXPECT_OK(ConvolutionGenericTest(env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();
 }
 
@@ -588,7 +588,7 @@ absl::Status ConvGenericGroupedBigTest(TestExecutionEnvironment& env,
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  MLD_EXPECT_OK(ConvolutionGenericTest(env, attr, src_tensor, op_def, precision));
+  ABSL_EXPECT_OK(ConvolutionGenericTest(env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();
 }
 
@@ -1211,7 +1211,7 @@ absl::Status ConvolutionGenericInt8Test(
 
   TensorDescriptor dst_td = op_def.dst_tensors[0];
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(
       {&src_td}, {&dst_td},
       std::make_unique<ConvGeneric>(std::move(operation))));
   TensorInt32 dst_tensor;
@@ -1278,7 +1278,7 @@ absl::Status ConvolutionGenericInt8Test(
 
   TensorDescriptor dst_td = op_def.dst_tensors[0];
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(
       {&src_td}, {&dst_td},
       std::make_unique<ConvGeneric>(std::move(operation))));
   TensorInt32 dst_tensor;
@@ -1444,7 +1444,7 @@ absl::Status ConvolutionGenericInt8ExternalWeightsTest(
 
   TensorDescriptor dst_td = op_def.dst_tensors[0];
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(
       {&src_td, &weights_i8_td}, {&dst_td},
       std::make_unique<ConvGeneric>(std::move(operation))));
   TensorInt32 dst_tensor;
@@ -1538,7 +1538,7 @@ absl::Status ConvolutionGenericInt8ExternalWeightsTest(
 
   TensorDescriptor dst_td = op_def.dst_tensors[0];
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(
       {&src_td, &weights_i8_td}, {&dst_td},
       std::make_unique<ConvGeneric>(std::move(operation))));
   TensorInt32 dst_tensor;
@@ -1601,7 +1601,7 @@ absl::Status ConvGenericInt8ExternalWeightsBigTest(
       OperationDef op_def;
       op_def.src_tensors.push_back({src_data_type, src_storage, Layout::HWC});
       op_def.dst_tensors.push_back({dst_data_type, dst_storage, Layout::HWC});
-      MLD_EXPECT_OK(ConvolutionGenericInt8ExternalWeightsTest(
+      ABSL_EXPECT_OK(ConvolutionGenericInt8ExternalWeightsTest(
           env, src_i8_tensor, quantized_type, weights_i8, op_def));
     }
   } else {
@@ -1622,7 +1622,7 @@ absl::Status ConvGenericInt8ExternalWeightsBigTest(
       OperationDef op_def;
       op_def.src_tensors.push_back({src_data_type, src_storage, Layout::HWC});
       op_def.dst_tensors.push_back({dst_data_type, dst_storage, Layout::HWC});
-      MLD_EXPECT_OK(ConvolutionGenericInt8ExternalWeightsTest(
+      ABSL_EXPECT_OK(ConvolutionGenericInt8ExternalWeightsTest(
           env, src_ui8_tensor, quantized_type, weights_i8, op_def));
     }
   }
@@ -1670,7 +1670,7 @@ absl::Status ConvGenericInt8WithSrcQuantizationTest(
     params_shape.c = need_src_sum ? 3 : 2;
     src_params_td.SetBHWCShape(params_shape);
 
-    MLD_EXPECT_OK(exec_env.ExecuteGPUOperation({&src_td},
+    ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation({&src_td},
                                            {&src_quantized_td, &src_params_td},
                                            std::move(quantization_op)));
   }
@@ -1706,7 +1706,7 @@ absl::Status ConvGenericInt8WithSrcQuantizationTest(
       weights_i8.shape, exec_env.GetGpuInfo(), conv_def.dst_tensors[0],
       dequant_dst, src_params_td, weights_sum_i_td, weights_scale_td,
       weights_zero_point_td_ptr);
-  MLD_EXPECT_OK(conv_op.AddOperation(exec_env.GetGpuInfo(), &dequant_op));
+  ABSL_EXPECT_OK(conv_op.AddOperation(exec_env.GetGpuInfo(), &dequant_op));
 
   TensorDescriptor weights_i8_td;
   if (UseUint8MathForInt8Weights(exec_env.GetGpuInfo())) {
@@ -1739,7 +1739,7 @@ absl::Status ConvGenericInt8WithSrcQuantizationTest(
   if (weights_zero_point != nullptr) {
     src_descs.push_back(&weights_zero_point_td);
   }
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(
       src_descs, {&dst_td}, std::make_unique<ConvGeneric>(std::move(conv_op))));
   TensorFloat32 dst_tensor;
   dst_td.DownloadData(&dst_tensor);
@@ -1814,11 +1814,11 @@ absl::Status ConvGenericInt8WithSrcQuantizationBigTest(
                        << " data type: " << ToString(float_type);
         continue;
       }
-      MLD_EXPECT_OK(ConvGenericInt8WithSrcQuantizationTest(
+      ABSL_EXPECT_OK(ConvGenericInt8WithSrcQuantizationTest(
           env, src_tensor, weights_i8, weights_scale,
           /*weights_zero_point=*/nullptr, quantized_type, quantized_storage,
           float_type, float_storage));
-      MLD_EXPECT_OK(ConvGenericInt8WithSrcQuantizationTest(
+      ABSL_EXPECT_OK(ConvGenericInt8WithSrcQuantizationTest(
           env, src_tensor, weights_i8, weights_scale, &weights_zp,
           quantized_type, quantized_storage, float_type, float_storage));
     }
@@ -1866,7 +1866,7 @@ absl::Status ConvGenericInt8WeightsInt4WithSrcQuantizationBig(
     params_shape.c = need_src_sum ? 3 : 2;
     src_params_td.SetBHWCShape(params_shape);
 
-    MLD_EXPECT_OK(exec_env.ExecuteGPUOperation({&src_td},
+    ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation({&src_td},
                                            {&src_quantized_td, &src_params_td},
                                            std::move(quantization_op)));
   }
@@ -1902,7 +1902,7 @@ absl::Status ConvGenericInt8WeightsInt4WithSrcQuantizationBig(
       weights_i4.shape, exec_env.GetGpuInfo(), conv_def.dst_tensors[0],
       dequant_dst, src_params_td, weights_sum_i_td, weights_scale_td,
       weights_zero_point_td_ptr);
-  MLD_EXPECT_OK(conv_op.AddOperation(exec_env.GetGpuInfo(), &dequant_op));
+  ABSL_EXPECT_OK(conv_op.AddOperation(exec_env.GetGpuInfo(), &dequant_op));
 
   TensorDescriptor weights_i4_td;
   WeightsDescription src_weights_desc;
@@ -1939,7 +1939,7 @@ absl::Status ConvGenericInt8WeightsInt4WithSrcQuantizationBig(
         1, 1, 1,
         GetTotalElementsCountForLayout(dst_weights_desc, weights_i4.shape)));
 
-    MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(
+    ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(
         {&weights_i4_td}, {&weights_i8_td},
         std::make_unique<WeightsConverter>(std::move(uint4_converter))));
   }
@@ -1952,7 +1952,7 @@ absl::Status ConvGenericInt8WeightsInt4WithSrcQuantizationBig(
   if (weights_zero_point != nullptr) {
     src_descs.push_back(&weights_zero_point_td);
   }
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(
       src_descs, {&dst_td}, std::make_unique<ConvGeneric>(std::move(conv_op))));
   TensorFloat32 dst_tensor;
   dst_td.DownloadData(&dst_tensor);
@@ -2111,7 +2111,7 @@ absl::Status ConvolutionGenericInt4Test(
 
   TensorDescriptor dst_td = op_def.dst_tensors[0];
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(
       {&src_td}, {&dst_td},
       std::make_unique<ConvGeneric>(std::move(operation))));
   TensorInt32 dst_tensor;
@@ -2158,7 +2158,7 @@ absl::Status ConvGenericInt4BigTest(TestExecutionEnvironment& env,
       OperationDef op_def;
       op_def.src_tensors.push_back({src_data_type, src_storage, Layout::HWC});
       op_def.dst_tensors.push_back({dst_data_type, dst_storage, Layout::HWC});
-      MLD_EXPECT_OK(ConvolutionGenericInt4Test(env, src_i4_tensor, quantized_type,
+      ABSL_EXPECT_OK(ConvolutionGenericInt4Test(env, src_i4_tensor, quantized_type,
                                            weights_i4, op_def));
     }
   }
@@ -2251,7 +2251,7 @@ absl::Status ConvolutionGenericInt4ExternalWeightsTest(
   TensorDescriptor dst_td = op_def.dst_tensors[0];
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
   std::vector<TensorDescriptor*> src_descs = {&src_td, &weights_i4_td};
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(
       src_descs, {&dst_td},
       std::make_unique<ConvGeneric>(std::move(operation))));
   TensorInt32 dst_tensor;
@@ -2298,7 +2298,7 @@ absl::Status ConvGenericInt4ExternalWeightsBigTest(
       OperationDef op_def;
       op_def.src_tensors.push_back({src_data_type, src_storage, Layout::HWC});
       op_def.dst_tensors.push_back({dst_data_type, dst_storage, Layout::HWC});
-      MLD_EXPECT_OK(ConvolutionGenericInt4ExternalWeightsTest(
+      ABSL_EXPECT_OK(ConvolutionGenericInt4ExternalWeightsTest(
           env, src_i4_tensor, quantized_type, weights_i4, op_def));
     }
   }
@@ -2345,7 +2345,7 @@ absl::Status ConvGenericInt4WithSrcQuantizationTest(
     params_shape.c = need_src_sum ? 3 : 2;
     src_params_td.SetBHWCShape(params_shape);
 
-    MLD_EXPECT_OK(exec_env.ExecuteGPUOperation({&src_td},
+    ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation({&src_td},
                                            {&src_quantized_td, &src_params_td},
                                            std::move(quantization_op)));
   }
@@ -2377,7 +2377,7 @@ absl::Status ConvGenericInt4WithSrcQuantizationTest(
       weights_i4.shape, exec_env.GetGpuInfo(), conv_def.dst_tensors[0],
       dequant_dst, src_params_td, weights_sum_i_td, weights_scale_td,
       weights_zero_point_td_ptr);
-  MLD_EXPECT_OK(conv_op.AddOperation(exec_env.GetGpuInfo(), &dequant_op));
+  ABSL_EXPECT_OK(conv_op.AddOperation(exec_env.GetGpuInfo(), &dequant_op));
 
   TensorDescriptor weights_i4_td;
   {
@@ -2400,7 +2400,7 @@ absl::Status ConvGenericInt4WithSrcQuantizationTest(
   if (weights_zero_point != nullptr) {
     src_descs.push_back(&weights_zero_point_td);
   }
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(
       src_descs, {&dst_td}, std::make_unique<ConvGeneric>(std::move(conv_op))));
   TensorFloat32 dst_tensor;
   dst_td.DownloadData(&dst_tensor);
@@ -2458,11 +2458,11 @@ absl::Status ConvGenericInt4WithSrcQuantizationBigTest(
                        << " data type: " << ToString(float_type);
         continue;
       }
-      MLD_EXPECT_OK(ConvGenericInt4WithSrcQuantizationTest(
+      ABSL_EXPECT_OK(ConvGenericInt4WithSrcQuantizationTest(
           env, src_tensor, weights_i4, weights_scale,
           /*weights_zero_point=*/nullptr, quantized_type, quantized_storage,
           float_type, float_storage));
-      MLD_EXPECT_OK(ConvGenericInt4WithSrcQuantizationTest(
+      ABSL_EXPECT_OK(ConvGenericInt4WithSrcQuantizationTest(
           env, src_tensor, weights_i4, weights_scale, &weights_zp,
           quantized_type, quantized_storage, float_type, float_storage));
     }

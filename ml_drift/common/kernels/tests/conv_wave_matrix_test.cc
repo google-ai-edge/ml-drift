@@ -16,7 +16,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_replace.h"
@@ -47,7 +47,7 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrix1x1Test) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixTest) {
@@ -61,7 +61,7 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixTest) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrix1x1BatchTest) {
@@ -75,7 +75,7 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrix1x1BatchTest) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrix1x1ExternalWeightsTest) {
@@ -90,7 +90,7 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrix1x1ExternalWeightsTest) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalWeightsTest) {
@@ -105,7 +105,7 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalWeightsTest) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalBatchedWeightsTest) {
@@ -120,7 +120,7 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalBatchedWeightsTest) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixPackedGroupsTest) {
@@ -137,7 +137,7 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixPackedGroupsTest) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalWfloatTest) {
@@ -154,7 +154,7 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalWfloatTest) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalBatchedWfloatTest) {
@@ -172,7 +172,7 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalBatchedWfloatTest) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalWi8Test) {
@@ -189,7 +189,7 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalWi8Test) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalBatchedWi8Test) {
@@ -207,7 +207,7 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalBatchedWi8Test) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalGroupedWi8Test) {
@@ -226,7 +226,7 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalGroupedWi8Test) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalBatchedGroupedWi8Test) {
@@ -245,7 +245,7 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalBatchedGroupedWi8Test) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest,
@@ -266,7 +266,7 @@ TEST_P(ConvWaveMatrixFloatTest,
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalWi4Test) {
@@ -283,7 +283,7 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalWi4Test) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalBatchedWi4Test) {
@@ -301,7 +301,7 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalBatchedWi4Test) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalGroupedWi4Test) {
@@ -320,7 +320,7 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalGroupedWi4Test) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalBatchedGroupedWi4Test) {
@@ -339,7 +339,7 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalBatchedGroupedWi4Test) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalWi2Test) {
@@ -356,7 +356,7 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalWi2Test) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalBatchedWi2Test) {
@@ -374,7 +374,7 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalBatchedWi2Test) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalGroupedWi2Test) {
@@ -393,7 +393,7 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalGroupedWi2Test) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalBatchedGroupedWi2Test) {
@@ -412,7 +412,7 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalBatchedGroupedWi2Test) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixWinograd4x4To6x6Test) {
@@ -427,7 +427,7 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixWinograd4x4To6x6Test) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixRuntimeSrcEndChannelsTest) {
@@ -442,7 +442,7 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixRuntimeSrcEndChannelsTest) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixRuntimeDstEndChannelsTest) {
@@ -457,7 +457,7 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixRuntimeDstEndChannelsTest) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -507,7 +507,7 @@ TEST_P(Int8Test, ConvWaveMatrixInt8ExternalWeightsTest) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(Int8Test, ConvWaveMatrixInt8WithSrcQuantizationTest) {
@@ -525,7 +525,7 @@ TEST_P(Int8Test, ConvWaveMatrixInt8WithSrcQuantizationTest) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 INSTANTIATE_TEST_SUITE_P(

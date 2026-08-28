@@ -23,7 +23,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
@@ -182,7 +182,7 @@ absl::Status ResizeAddConv(TestExecutionEnvironment* exec_env,
   TensorFloat32 dst_ref = ConvolutionReference(conv_attr, add_result);
 
   TensorFloat32 dst_gpu;
-  MLD_EXPECT_OK(exec_env->ExecuteGpuModel({src0_tensor, src1_tensor},
+  ABSL_EXPECT_OK(exec_env->ExecuteGpuModel({src0_tensor, src1_tensor},
                                       std::vector<TensorFloat32*>{&dst_gpu},
                                       &gpu_model));
   float eps = GetEpsilon(precision, exec_env->GetGpuInfo(), conv_attr);
@@ -201,7 +201,7 @@ TEST_F(Test, PerfResizeAddConv1x3x3x4) {
       {data_type, TensorStorageType::TEXTURE_2D, Layout::HWC});
   op_def.dst_tensors.push_back(
       {data_type, TensorStorageType::SINGLE_TEXTURE_2D, Layout::HWC});
-  MLD_EXPECT_OK(ResizeAddConv(exec_env, OHWI(1, 3, 3, 4), BHWC(1, 1512, 2016, 4),
+  ABSL_EXPECT_OK(ResizeAddConv(exec_env, OHWI(1, 3, 3, 4), BHWC(1, 1512, 2016, 4),
                           BHWC(1, 3024, 4032, 4), op_def, /*perf_test=*/true));
 }
 
@@ -212,7 +212,7 @@ TEST_F(Test, PerfResizeAddConv4x3x3x8) {
       {data_type, TensorStorageType::TEXTURE_2D, Layout::HWC});
   op_def.dst_tensors.push_back(
       {data_type, TensorStorageType::TEXTURE_2D, Layout::HWC});
-  MLD_EXPECT_OK(ResizeAddConv(exec_env, OHWI(4, 3, 3, 8), BHWC(1, 756, 1008, 8),
+  ABSL_EXPECT_OK(ResizeAddConv(exec_env, OHWI(4, 3, 3, 8), BHWC(1, 756, 1008, 8),
                           BHWC(1, 1512, 2016, 8), op_def, /*perf_test=*/true));
 }
 
@@ -225,7 +225,7 @@ TEST_P(DataTypeTest, ResizeAddConv1x3x3x4) {
   OperationDef op_def;
   op_def.src_tensors.push_back({data_type(), storage(), Layout::HWC});
   op_def.dst_tensors.push_back({data_type(), storage(), Layout::HWC});
-  MLD_EXPECT_OK(ResizeAddConv(exec_env, OHWI(1, 3, 3, 4), BHWC(1, 31, 49, 4),
+  ABSL_EXPECT_OK(ResizeAddConv(exec_env, OHWI(1, 3, 3, 4), BHWC(1, 31, 49, 4),
                           BHWC(1, 62, 98, 4), op_def));
 }
 
@@ -237,7 +237,7 @@ TEST_P(DataTypeTest, ResizeAddConv4x3x3x8) {
   OperationDef op_def;
   op_def.src_tensors.push_back({data_type(), storage(), Layout::HWC});
   op_def.dst_tensors.push_back({data_type(), storage(), Layout::HWC});
-  MLD_EXPECT_OK(ResizeAddConv(exec_env, OHWI(4, 3, 3, 8), BHWC(1, 31, 49, 8),
+  ABSL_EXPECT_OK(ResizeAddConv(exec_env, OHWI(4, 3, 3, 8), BHWC(1, 31, 49, 8),
                           BHWC(1, 62, 98, 8), op_def));
 }
 

@@ -14,7 +14,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/strings/str_replace.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/kernels/tests/dynamic_update_slice_test_util.h"
@@ -36,49 +36,49 @@ TEST_P(DynamicUpdateSliceTypedTest, Bool) {
   if (!exec_env->IsStorageSupported(GetParam(), DataType::BOOL)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(DynamicUpdateSliceBoolTest(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(DynamicUpdateSliceBoolTest(*exec_env, GetParam()));
 }
 
 TEST_P(DynamicUpdateSliceTypedTest, Int8) {
   if (!exec_env->IsStorageSupported(GetParam(), DataType::INT8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(DynamicUpdateSliceIntTest<DataType::INT8>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(DynamicUpdateSliceIntTest<DataType::INT8>(*exec_env, GetParam()));
 }
 
 TEST_P(DynamicUpdateSliceTypedTest, Int16) {
   if (!exec_env->IsStorageSupported(GetParam(), DataType::INT16)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(DynamicUpdateSliceIntTest<DataType::INT16>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(DynamicUpdateSliceIntTest<DataType::INT16>(*exec_env, GetParam()));
 }
 
 TEST_P(DynamicUpdateSliceTypedTest, Int32) {
   if (!exec_env->IsStorageSupported(GetParam(), DataType::INT32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(DynamicUpdateSliceIntTest<DataType::INT32>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(DynamicUpdateSliceIntTest<DataType::INT32>(*exec_env, GetParam()));
 }
 
 TEST_P(DynamicUpdateSliceTypedTest, Uint8) {
   if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(DynamicUpdateSliceIntTest<DataType::UINT8>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(DynamicUpdateSliceIntTest<DataType::UINT8>(*exec_env, GetParam()));
 }
 
 TEST_P(DynamicUpdateSliceTypedTest, Uint16) {
   if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT16)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(DynamicUpdateSliceIntTest<DataType::UINT16>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(DynamicUpdateSliceIntTest<DataType::UINT16>(*exec_env, GetParam()));
 }
 
 TEST_P(DynamicUpdateSliceTypedTest, Uint32) {
   if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(DynamicUpdateSliceIntTest<DataType::UINT32>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(DynamicUpdateSliceIntTest<DataType::UINT32>(*exec_env, GetParam()));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -95,7 +95,7 @@ TEST_P(DynamicUpdateSliceFloatTest, DynamicUpdateSliceTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(DynamicUpdateSliceTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(DynamicUpdateSliceTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(DynamicUpdateSliceFloatTest, DynamicUpdateSliceTwoDimensionSliceTest) {
@@ -103,7 +103,7 @@ TEST_P(DynamicUpdateSliceFloatTest, DynamicUpdateSliceTwoDimensionSliceTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(DynamicUpdateSliceTwoDimensionSliceTest(*exec_env, data_type(),
+  ABSL_ASSERT_OK(DynamicUpdateSliceTwoDimensionSliceTest(*exec_env, data_type(),
                                                     storage()));
 }
 
@@ -112,7 +112,7 @@ TEST_P(DynamicUpdateSliceFloatTest, DynamicUpdateSliceThreeDimensionSliceTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(DynamicUpdateSliceThreeDimensionSliceTest(*exec_env, data_type(),
+  ABSL_ASSERT_OK(DynamicUpdateSliceThreeDimensionSliceTest(*exec_env, data_type(),
                                                       storage()));
 }
 
@@ -122,7 +122,7 @@ TEST_P(DynamicUpdateSliceFloatTest,
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(DynamicUpdateSliceStartIndicesThreeValuesSliceTest(
+  ABSL_ASSERT_OK(DynamicUpdateSliceStartIndicesThreeValuesSliceTest(
       *exec_env, data_type(), storage()));
 }
 
@@ -132,7 +132,7 @@ TEST_P(DynamicUpdateSliceFloatTest,
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(DynamicUpdateSliceStartIndicesTwoValuesSliceTest(
+  ABSL_ASSERT_OK(DynamicUpdateSliceStartIndicesTwoValuesSliceTest(
       *exec_env, data_type(), storage()));
 }
 
@@ -141,7 +141,7 @@ TEST_P(DynamicUpdateSliceFloatTest, DynamicUpdateSliceClampTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(DynamicUpdateSliceClampTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(DynamicUpdateSliceClampTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(DynamicUpdateSliceFloatTest, DynamicUpdateSliceConversionTest) {
@@ -154,7 +154,7 @@ TEST_P(DynamicUpdateSliceFloatTest, DynamicUpdateSliceConversionTest) {
   if (!exec_env->IsStorageSupported(storage(), src_type)) {
     GTEST_SKIP() << "Unsupported src data type: " << ToString(src_type);
   }
-  MLD_ASSERT_OK(DynamicUpdateSliceConversionTest(*exec_env, src_type, data_type(),
+  ABSL_ASSERT_OK(DynamicUpdateSliceConversionTest(*exec_env, src_type, data_type(),
                                              storage()));
 }
 

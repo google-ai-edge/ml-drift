@@ -18,7 +18,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_replace.h"
 #include "ml_drift/common/data_type.h"
@@ -48,35 +48,35 @@ class ConvAppleMPPFloat16Test : public Test,
 TEST_P(ConvAppleMPPFloat16Test, BigTest) {
   const BHWC src_shape(1, 1, 128, 128);
   const int dst_channels = 128;
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       ConvAppleMPPBigTest(*exec_env, GetParam(), src_shape, dst_channels));
 }
 
 TEST_P(ConvAppleMPPFloat16Test, ExternalWeightsBigTest) {
   const BHWC src_shape(1, 1, 128, 128);
   const int dst_channels = 128;
-  MLD_ASSERT_OK(ConvAppleMPPExternalWeightsTest(*exec_env, GetParam(), src_shape,
+  ABSL_ASSERT_OK(ConvAppleMPPExternalWeightsTest(*exec_env, GetParam(), src_shape,
                                             dst_channels));
 }
 
 TEST_P(ConvAppleMPPFloat16Test, PackedGroupsTest) {
   const BHWC src_shape(1, 1, 383, 128);
   const int dst_channels = 64;
-  MLD_ASSERT_OK(ConvAppleMPPPackedGroupsTest(*exec_env, GetParam(), src_shape,
+  ABSL_ASSERT_OK(ConvAppleMPPPackedGroupsTest(*exec_env, GetParam(), src_shape,
                                          dst_channels));
 }
 
 TEST_P(ConvAppleMPPFloat16Test, ConvAppleMPPExternalWfloatTest) {
   const BHWC src_shape(1, 1, 32, 32 * 3);
   const int dst_channels = 68;
-  MLD_ASSERT_OK(ConvAppleMPPExternalWfloatTest(*exec_env, GetParam(), src_shape,
+  ABSL_ASSERT_OK(ConvAppleMPPExternalWfloatTest(*exec_env, GetParam(), src_shape,
                                            dst_channels));
 }
 
 TEST_P(ConvAppleMPPFloat16Test, ConvAppleMPPExternalBatchedWfloatTest) {
   const BHWC src_shape(1, 6, 12, 32 * 3);
   const int dst_channels = 68;
-  MLD_ASSERT_OK(ConvAppleMPPExternalWfloatTest(*exec_env, GetParam(), src_shape,
+  ABSL_ASSERT_OK(ConvAppleMPPExternalWfloatTest(*exec_env, GetParam(), src_shape,
                                            dst_channels,
                                            /*batched_weights=*/true));
 }
@@ -84,14 +84,14 @@ TEST_P(ConvAppleMPPFloat16Test, ConvAppleMPPExternalBatchedWfloatTest) {
 TEST_P(ConvAppleMPPFloat16Test, ConvAppleMPPExternalWi8Test) {
   const BHWC src_shape(1, 1, 32, 128);
   const int dst_channels = 64;
-  MLD_ASSERT_OK(ConvAppleMPPExternalWi8Test(*exec_env, GetParam(), src_shape,
+  ABSL_ASSERT_OK(ConvAppleMPPExternalWi8Test(*exec_env, GetParam(), src_shape,
                                         dst_channels));
 }
 
 TEST_P(ConvAppleMPPFloat16Test, ConvAppleMPPExternalBatchedWi8Test) {
   const BHWC src_shape(1, 6, 12, 32 * 3);
   const int dst_channels = 68;
-  MLD_ASSERT_OK(ConvAppleMPPExternalWi8Test(*exec_env, GetParam(), src_shape,
+  ABSL_ASSERT_OK(ConvAppleMPPExternalWi8Test(*exec_env, GetParam(), src_shape,
                                         dst_channels,
                                         /*batched_weights=*/true));
 }
@@ -99,7 +99,7 @@ TEST_P(ConvAppleMPPFloat16Test, ConvAppleMPPExternalBatchedWi8Test) {
 TEST_P(ConvAppleMPPFloat16Test, ConvAppleMPPExternalGroupedWi8Test) {
   const BHWC src_shape(1, 6, 12, 32 * 3);
   const int dst_channels = 68;
-  MLD_ASSERT_OK(ConvAppleMPPExternalWi8Test(*exec_env, GetParam(), src_shape,
+  ABSL_ASSERT_OK(ConvAppleMPPExternalWi8Test(*exec_env, GetParam(), src_shape,
                                         dst_channels,
                                         /*batched_weights=*/false,
                                         /*group_size=*/12));
@@ -108,7 +108,7 @@ TEST_P(ConvAppleMPPFloat16Test, ConvAppleMPPExternalGroupedWi8Test) {
 TEST_P(ConvAppleMPPFloat16Test, ConvAppleMPPExternalBatchedGroupedWi8Test) {
   const BHWC src_shape(1, 6, 12, 32 * 3);
   const int dst_channels = 68;
-  MLD_ASSERT_OK(ConvAppleMPPExternalWi8Test(*exec_env, GetParam(), src_shape,
+  ABSL_ASSERT_OK(ConvAppleMPPExternalWi8Test(*exec_env, GetParam(), src_shape,
                                         dst_channels,
                                         /*batched_weights=*/true,
                                         /*group_size=*/12));
@@ -118,7 +118,7 @@ TEST_P(ConvAppleMPPFloat16Test,
        ConvAppleMPPExternalBatchedWi8NonBatchedScalesTest) {
   const BHWC src_shape(1, 6, 12, 32 * 3);
   const int dst_channels = 68;
-  MLD_ASSERT_OK(ConvAppleMPPExternalWi8Test(*exec_env, GetParam(), src_shape,
+  ABSL_ASSERT_OK(ConvAppleMPPExternalWi8Test(*exec_env, GetParam(), src_shape,
                                         dst_channels,
                                         /*batched_weights=*/true,
                                         /*group_size=*/-1,
@@ -128,14 +128,14 @@ TEST_P(ConvAppleMPPFloat16Test,
 TEST_P(ConvAppleMPPFloat16Test, ConvAppleMPPExternalWi4Test) {
   const BHWC src_shape(1, 1, 32, 128);
   const int dst_channels = 64;
-  MLD_ASSERT_OK(ConvAppleMPPExternalWi4Test(*exec_env, GetParam(), src_shape,
+  ABSL_ASSERT_OK(ConvAppleMPPExternalWi4Test(*exec_env, GetParam(), src_shape,
                                         dst_channels));
 }
 
 TEST_P(ConvAppleMPPFloat16Test, ConvAppleMPPExternalBatchedWi4Test) {
   const BHWC src_shape(1, 6, 12, 32 * 3);
   const int dst_channels = 68;
-  MLD_ASSERT_OK(ConvAppleMPPExternalWi4Test(*exec_env, GetParam(), src_shape,
+  ABSL_ASSERT_OK(ConvAppleMPPExternalWi4Test(*exec_env, GetParam(), src_shape,
                                         dst_channels,
                                         /*batched_weights=*/true));
 }
@@ -143,7 +143,7 @@ TEST_P(ConvAppleMPPFloat16Test, ConvAppleMPPExternalBatchedWi4Test) {
 TEST_P(ConvAppleMPPFloat16Test, ConvAppleMPPExternalGroupedWi4Test) {
   const BHWC src_shape(1, 6, 12, 32 * 3);
   const int dst_channels = 68;
-  MLD_ASSERT_OK(ConvAppleMPPExternalWi4Test(*exec_env, GetParam(), src_shape,
+  ABSL_ASSERT_OK(ConvAppleMPPExternalWi4Test(*exec_env, GetParam(), src_shape,
                                         dst_channels,
                                         /*batched_weights=*/false,
                                         /*group_size=*/12));
@@ -152,7 +152,7 @@ TEST_P(ConvAppleMPPFloat16Test, ConvAppleMPPExternalGroupedWi4Test) {
 TEST_P(ConvAppleMPPFloat16Test, ConvAppleMPPExternalBatchedGroupedWi4Test) {
   const BHWC src_shape(1, 6, 12, 32 * 3);
   const int dst_channels = 68;
-  MLD_ASSERT_OK(ConvAppleMPPExternalWi4Test(*exec_env, GetParam(), src_shape,
+  ABSL_ASSERT_OK(ConvAppleMPPExternalWi4Test(*exec_env, GetParam(), src_shape,
                                         dst_channels,
                                         /*batched_weights=*/true,
                                         /*group_size=*/12));
@@ -161,14 +161,14 @@ TEST_P(ConvAppleMPPFloat16Test, ConvAppleMPPExternalBatchedGroupedWi4Test) {
 TEST_P(ConvAppleMPPFloat16Test, ConvAppleMPPExternalWi2Test) {
   const BHWC src_shape(1, 1, 32, 128);
   const int dst_channels = 64;
-  MLD_ASSERT_OK(ConvAppleMPPExternalWi2Test(*exec_env, GetParam(), src_shape,
+  ABSL_ASSERT_OK(ConvAppleMPPExternalWi2Test(*exec_env, GetParam(), src_shape,
                                         dst_channels));
 }
 
 TEST_P(ConvAppleMPPFloat16Test, ConvAppleMPPExternalBatchedWi2Test) {
   const BHWC src_shape(1, 6, 12, 32 * 3);
   const int dst_channels = 68;
-  MLD_ASSERT_OK(ConvAppleMPPExternalWi2Test(*exec_env, GetParam(), src_shape,
+  ABSL_ASSERT_OK(ConvAppleMPPExternalWi2Test(*exec_env, GetParam(), src_shape,
                                         dst_channels,
                                         /*batched_weights=*/true));
 }
@@ -176,7 +176,7 @@ TEST_P(ConvAppleMPPFloat16Test, ConvAppleMPPExternalBatchedWi2Test) {
 TEST_P(ConvAppleMPPFloat16Test, ConvAppleMPPExternalGroupedWi2Test) {
   const BHWC src_shape(1, 6, 12, 32 * 3);
   const int dst_channels = 68;
-  MLD_ASSERT_OK(ConvAppleMPPExternalWi2Test(*exec_env, GetParam(), src_shape,
+  ABSL_ASSERT_OK(ConvAppleMPPExternalWi2Test(*exec_env, GetParam(), src_shape,
                                         dst_channels,
                                         /*batched_weights=*/false,
                                         /*group_size=*/12));
@@ -185,7 +185,7 @@ TEST_P(ConvAppleMPPFloat16Test, ConvAppleMPPExternalGroupedWi2Test) {
 TEST_P(ConvAppleMPPFloat16Test, ConvAppleMPPExternalBatchedGroupedWi2Test) {
   const BHWC src_shape(1, 6, 12, 32 * 3);
   const int dst_channels = 68;
-  MLD_ASSERT_OK(ConvAppleMPPExternalWi2Test(*exec_env, GetParam(), src_shape,
+  ABSL_ASSERT_OK(ConvAppleMPPExternalWi2Test(*exec_env, GetParam(), src_shape,
                                         dst_channels,
                                         /*batched_weights=*/true,
                                         /*group_size=*/12));
@@ -194,16 +194,16 @@ TEST_P(ConvAppleMPPFloat16Test, ConvAppleMPPExternalBatchedGroupedWi2Test) {
 TEST_P(ConvAppleMPPFloat16Test, BatchedMatMulTest) {
   const BHWC left_shape(1, 12, 128, 32);
   const BHWC right_shape(1, 12, 32, 64);
-  MLD_ASSERT_OK(ConvAppleMPPBatchedMatMulTest(*exec_env, GetParam(), left_shape,
+  ABSL_ASSERT_OK(ConvAppleMPPBatchedMatMulTest(*exec_env, GetParam(), left_shape,
                                           right_shape));
 }
 
 TEST_P(ConvAppleMPPFloat16Test, RuntimeSrcEndChannelsTest) {
-  MLD_ASSERT_OK(ConvAppleMPPRuntimeSrcEndChannelsTest(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(ConvAppleMPPRuntimeSrcEndChannelsTest(*exec_env, GetParam()));
 }
 
 TEST_P(ConvAppleMPPFloat16Test, RuntimeDstEndChannelsTest) {
-  MLD_ASSERT_OK(ConvAppleMPPRuntimeDstEndChannelsTest(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(ConvAppleMPPRuntimeDstEndChannelsTest(*exec_env, GetParam()));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -225,21 +225,21 @@ class BaseTest : public Test, public WithParamInterface<TensorStorageType> {
 TEST_P(BaseTest, ConvAppleMPPInt8BigTest) {
   const BHWC src_shape(1, 1, 128, 128);
   const int dst_channels = 128;
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       ConvAppleMPPInt8BigTest(*exec_env, GetParam(), src_shape, dst_channels));
 }
 
 TEST_P(BaseTest, ConvAppleMPPInt8ExternalWeightsBigTest) {
   const BHWC src_shape(1, 1, 128, 128);
   const int dst_channels = 128;
-  MLD_ASSERT_OK(ConvAppleMPPInt8ExternalWeightsBigTest(*exec_env, GetParam(),
+  ABSL_ASSERT_OK(ConvAppleMPPInt8ExternalWeightsBigTest(*exec_env, GetParam(),
                                                    src_shape, dst_channels));
 }
 
 TEST_P(BaseTest, ConvAppleMPPInt8ExternalBatchedWi4Test) {
   const BHWC src_shape(1, 6, 128, 128);
   const int dst_channels = 128;
-  MLD_ASSERT_OK(ConvAppleMPPInt8ExternalBatchedWi4Test(*exec_env, GetParam(),
+  ABSL_ASSERT_OK(ConvAppleMPPInt8ExternalBatchedWi4Test(*exec_env, GetParam(),
                                                    src_shape, dst_channels));
 }
 
@@ -266,7 +266,7 @@ TEST_P(SrcQuantizationTest, ConvAppleMPPInt8WithSrcQuantizationBigTest) {
   const BHWC src_shape(1, 3, 39, 128);
   const int dst_channels = 128;
   const auto& [float_type, int_storage, float_storage] = GetParam();
-  MLD_ASSERT_OK(ConvAppleMPPInt8WithSrcQuantizationBigTest(
+  ABSL_ASSERT_OK(ConvAppleMPPInt8WithSrcQuantizationBigTest(
       *exec_env, int_storage, float_storage, float_type, src_shape,
       dst_channels));
 }

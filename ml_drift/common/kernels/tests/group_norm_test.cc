@@ -19,7 +19,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_replace.h"
@@ -107,9 +107,9 @@ absl::Status GroupNorm(TestExecutionEnvironment* env, int num_batch,
     create_info.hints.Add(ModelHints::kAllowSpecialKernels);
     create_info.hints.Add(ml_drift::ModelHints::kFastTuning);
     GpuModel gpu_model;
-    MLD_EXPECT_OK(GraphToGpuModel(model, create_info, exec_env->GetGpuInfo(),
+    ABSL_EXPECT_OK(GraphToGpuModel(model, create_info, exec_env->GetGpuInfo(),
                               &gpu_model));
-    MLD_EXPECT_OK(exec_env->ExecuteGpuModel(
+    ABSL_EXPECT_OK(exec_env->ExecuteGpuModel(
         {input_tensor}, std::vector<TensorFloat32*>{&inference_result},
         &gpu_model));
   }
@@ -138,7 +138,7 @@ TEST_P(GroupNormTest, GroupNormMultiBatches) {
     GTEST_SKIP() << "Unsupported storage type: "
                  << ToString(std::get<1>(GetParam()));
   }
-  MLD_EXPECT_OK(GroupNorm(exec_env, num_batch, storage));
+  ABSL_EXPECT_OK(GroupNorm(exec_env, num_batch, storage));
 }
 
 INSTANTIATE_TEST_SUITE_P(

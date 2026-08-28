@@ -48,7 +48,7 @@ absl::Status LSTMTest(TestExecutionEnvironment& exec_env,
   auto operation = CreateLSTM(op_def, exec_env.GetGpuInfo());
 
   std::vector<TensorFloat32> dsts(2);
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(
       {intermediate_tensor, prev_state},
       std::make_unique<GPUOperation>(std::move(operation)),
       {dsts_ref[0].shape, dsts_ref[1].shape}, {&dsts[0], &dsts[1]}));

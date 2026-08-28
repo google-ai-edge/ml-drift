@@ -38,15 +38,3 @@ cc_library(
         "//ml_drift/common:model_transformer",
     ],
 )
-
-cc_library(
-    name = "status_matchers",
-    testonly = True,
-    srcs = ["status_matchers.h"],
-    deps = [
-        "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:status_matchers",
-        "@com_google_absl//absl/status:statusor",
-        "@com_google_googletest//:gtest",
-    ],
-)

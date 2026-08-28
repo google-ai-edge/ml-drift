@@ -149,7 +149,7 @@ absl::Status SoftmaxTest(std::unique_ptr<GPUOperation>&& operation,
   TensorFloat32 dst_ref_tensor = SoftmaxReference(attr, src_tensor);
 
   TensorFloat32 dst_tensor;
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(src_tensor, std::move(operation),
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(src_tensor, std::move(operation),
                                          dst_ref_tensor.shape, &dst_tensor));
   const float eps =
       op_def.src_tensors[0].GetDataType() == DataType::FLOAT32 ? 1e-6f : 1e-3f;
@@ -167,7 +167,7 @@ absl::Status SoftmaxReduceTest(std::unique_ptr<GPUOperation>&& operation,
   TensorFloat32 dst_ref_tensor = SoftmaxReduceReference(attr, src_tensor);
 
   TensorFloat32 dst_tensor;
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(src_tensor, std::move(operation),
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(src_tensor, std::move(operation),
                                          dst_ref_tensor.shape, &dst_tensor));
   const float eps =
       op_def.src_tensors[0].GetDataType() == DataType::FLOAT32 ? 1e-6f : 1e-3f;
@@ -201,7 +201,7 @@ absl::Status SoftmaxReduceRuntimeChannelsTest(
   TensorDescriptor dst_td = op_def.dst_tensors[0];
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
 
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation({&src_td, &params_td}, {&dst_td},
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation({&src_td, &params_td}, {&dst_td},
                                          std::move(operation)));
   TensorFloat32 dst_tensor;
   dst_td.DownloadData(&dst_tensor);
@@ -237,7 +237,7 @@ absl::Status RuntimeChannelsTest(
     dst_td.SetBHWCShape(src_tensor.shape);
     T operation = create_softmax(op_def, exec_env.GetGpuInfo(),
                                  src_tensor.shape, runtime_check);
-    MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(
+    ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(
         {&src_td, &params_td}, {&dst_td},
         std::make_unique<T>(std::move(operation))));
     TensorFloat32 dst_tensor;
@@ -467,7 +467,7 @@ absl::Status SoftmaxReduceRuntimeChannelsBigTest(TestExecutionEnvironment& env,
 
     Softmax operation = CreateSoftmaxReduce(op_def, env.GetGpuInfo(),
                                             src_tensor.shape, runtime_check);
-    MLD_EXPECT_OK(SoftmaxReduceRuntimeChannelsTest(
+    ABSL_EXPECT_OK(SoftmaxReduceRuntimeChannelsTest(
         std::make_unique<Softmax>(std::move(operation)), env, src_tensor,
         /*channels_count=*/12, op_def));
   }
@@ -484,7 +484,7 @@ absl::Status SoftmaxRuntimeChannelsBigTest(TestExecutionEnvironment& env,
   OperationDef op_def;
   op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
-  MLD_EXPECT_OK(
+  ABSL_EXPECT_OK(
       RuntimeChannelsTest<Softmax>(CreateSoftmax, env, src_tensor, op_def));
   return absl::OkStatus();
 }
@@ -675,7 +675,7 @@ absl::Status Softmax1x1ReduceRuntimeChannelsBigTest(
 
     Softmax1x1 operation = CreateSoftmax1x1Reduce(
         op_def, env.GetGpuInfo(), src_tensor.shape, runtime_check);
-    MLD_EXPECT_OK(SoftmaxReduceRuntimeChannelsTest(
+    ABSL_EXPECT_OK(SoftmaxReduceRuntimeChannelsTest(
         std::make_unique<Softmax1x1>(std::move(operation)), env, src_tensor,
         /*channels_count=*/12, op_def));
   }
@@ -692,7 +692,7 @@ absl::Status Softmax1x1RuntimeChannelsBigTest(TestExecutionEnvironment& env,
   OperationDef op_def;
   op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
-  MLD_EXPECT_OK(RuntimeChannelsTest<Softmax1x1>(CreateSoftmax1x1, env, src_tensor,
+  ABSL_EXPECT_OK(RuntimeChannelsTest<Softmax1x1>(CreateSoftmax1x1, env, src_tensor,
                                             op_def));
   return absl::OkStatus();
 }

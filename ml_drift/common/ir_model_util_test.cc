@@ -19,7 +19,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/gpu_model.h"
@@ -93,7 +93,7 @@ TEST(IrModelUtilTest, TryAddThenReduce) {
   GpuInfo gpu_info = GetTestGpuInfo();
 
   GpuModel gpu_model;
-  MLD_ASSERT_OK(IrModelToGpuModel(ir_model, create_info, gpu_info, &gpu_model));
+  ABSL_ASSERT_OK(IrModelToGpuModel(ir_model, create_info, gpu_info, &gpu_model));
   // 1 fused node instead of 2.
   EXPECT_EQ(gpu_model.nodes.size(), 1);
   EXPECT_EQ(gpu_model.nodes[0].inputs.size(), 2);
@@ -152,7 +152,7 @@ TEST(IrModelUtilTest, TryMish) {
   GpuInfo gpu_info = GetTestGpuInfo();
 
   GpuModel gpu_model;
-  MLD_ASSERT_OK(IrModelToGpuModel(ir_model, create_info, gpu_info, &gpu_model));
+  ABSL_ASSERT_OK(IrModelToGpuModel(ir_model, create_info, gpu_info, &gpu_model));
   // 1 fused mish node instead of 5 individual elementwise ops.
   EXPECT_EQ(gpu_model.nodes.size(), 1);
   EXPECT_EQ(gpu_model.nodes[0].name, "mish");
@@ -213,7 +213,7 @@ TEST(IrModelUtilTest, TryConcatConv) {
   gpu_info.mali_info.generation = MaliInfo::Gen::kUnknown;
 
   GpuModel gpu_model;
-  MLD_ASSERT_OK(IrModelToGpuModel(ir_model, create_info, gpu_info, &gpu_model));
+  ABSL_ASSERT_OK(IrModelToGpuModel(ir_model, create_info, gpu_info, &gpu_model));
   // 1 fused node instead of 2.
   EXPECT_EQ(gpu_model.nodes.size(), 1);
   EXPECT_EQ(gpu_model.nodes[0].inputs.size(), 3);
@@ -278,7 +278,7 @@ TEST(IrModelUtilTest, TryResizeAddConvLocalMemoryFuser) {
   GpuInfo gpu_info = GetTestGpuInfo();  // Faked Mali
 
   GpuModel gpu_model;
-  MLD_ASSERT_OK(IrModelToGpuModel(ir_model, create_info, gpu_info, &gpu_model));
+  ABSL_ASSERT_OK(IrModelToGpuModel(ir_model, create_info, gpu_info, &gpu_model));
   // 1 fused node instead of 3.
   EXPECT_EQ(gpu_model.nodes.size(), 1);
 }
@@ -308,7 +308,7 @@ TEST(IrModelUtilTest, HandlesTombstonedOpsAndTensors) {
   ir_model.add_output(add_out->id);
 
   // RemoveSimpleOp tombstones relu_op (null op entry in model_ops).
-  MLD_ASSERT_OK(ir_model.RemoveSimpleOp(relu_op->id));
+  ABSL_ASSERT_OK(ir_model.RemoveSimpleOp(relu_op->id));
 
   CreateGpuModelInfo create_info;
   create_info.precision = CalculationsPrecision::F32;
@@ -316,7 +316,7 @@ TEST(IrModelUtilTest, HandlesTombstonedOpsAndTensors) {
   GpuInfo gpu_info = GetTestGpuInfo();
 
   GpuModel gpu_model;
-  MLD_ASSERT_OK(IrModelToGpuModel(ir_model, create_info, gpu_info, &gpu_model));
+  ABSL_ASSERT_OK(IrModelToGpuModel(ir_model, create_info, gpu_info, &gpu_model));
   EXPECT_EQ(gpu_model.nodes.size(), 1);
 }
 
@@ -356,7 +356,7 @@ TEST(IrModelUtilTest, SwapsInputIdsWhenLatestWrittenTensorIsNotFirstInput) {
   GpuInfo gpu_info = GetTestGpuInfo();
 
   GpuModel gpu_model;
-  MLD_ASSERT_OK(IrModelToGpuModel(ir_model, create_info, gpu_info, &gpu_model));
+  ABSL_ASSERT_OK(IrModelToGpuModel(ir_model, create_info, gpu_info, &gpu_model));
   ASSERT_EQ(gpu_model.nodes.size(), 1);
   EXPECT_FALSE(gpu_model.nodes[0].gpu_operation->code_.empty());
 }

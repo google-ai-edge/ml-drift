@@ -53,7 +53,7 @@ absl::Status DepthwiseConvTest(TestExecutionEnvironment& exec_env,
   float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr);
 
   TensorFloat32 dst_tensor;
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(
       src_tensor, std::make_unique<DepthwiseConv>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), dst_ref_tensor.data));
@@ -79,7 +79,7 @@ absl::Status DepthwiseConvExternalWeightsTest(
   float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr);
 
   TensorFloat32 dst_tensor;
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(
       {src_tensor, weights_tensor},
       std::make_unique<DepthwiseConv>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
@@ -100,7 +100,7 @@ absl::Status DepthwiseConvTest(TestExecutionEnvironment& exec_env,
   float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr);
 
   Tensor5DFloat32 dst_tensor;
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(
       src_tensor, std::make_unique<DepthwiseConv>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -121,7 +121,7 @@ absl::Status DepthwiseConv3x3Test(TestExecutionEnvironment& exec_env,
   float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr);
 
   TensorFloat32 dst_tensor;
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(
       src_tensor, std::make_unique<DepthwiseConv3x3>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -142,7 +142,7 @@ absl::Status DepthwiseConvTiledTest(
   float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr);
 
   TensorFloat32 dst_tensor;
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(src_tensor, std::move(operation),
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(src_tensor, std::move(operation),
                                          dst_ref_tensor.shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), dst_ref_tensor.data));
   return absl::OkStatus();

@@ -14,7 +14,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/strings/str_replace.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/kernels/tests/kernel_test.h"
@@ -36,7 +36,7 @@ TEST_P(TopKTypedTest, TopKIterative2StepBigTest) {
   if (GetParam() != TensorStorageType::BUFFER) {
     GTEST_SKIP() << "Only test for BUFFER storage type.";
   }
-  MLD_ASSERT_OK(TopKIterative2StepBigTest(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(TopKIterative2StepBigTest(*exec_env, GetParam()));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -52,7 +52,7 @@ TEST_P(TopKFloatTest, TopKTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(TopKTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(TopKTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(TopKFloatTest, TopKPartialReductionTest) {
@@ -60,7 +60,7 @@ TEST_P(TopKFloatTest, TopKPartialReductionTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(TopKPartialReductionTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(TopKPartialReductionTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(TopKFloatTest, TopKBigTest) {
@@ -71,7 +71,7 @@ TEST_P(TopKFloatTest, TopKBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(TopKBigTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(TopKBigTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(TopKFloatTest, TopKBig2StepTest) {
@@ -83,7 +83,7 @@ TEST_P(TopKFloatTest, TopKBig2StepTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(TopKBig2StepTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(TopKBig2StepTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(TopKFloatTest, TopKBig2StepFirstStepNoWgReductionTest) {
@@ -95,7 +95,7 @@ TEST_P(TopKFloatTest, TopKBig2StepFirstStepNoWgReductionTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(TopKBig2StepFirstStepNoWgReductionTest(*exec_env, data_type(),
+  ABSL_ASSERT_OK(TopKBig2StepFirstStepNoWgReductionTest(*exec_env, data_type(),
                                                    storage()));
 }
 
@@ -104,7 +104,7 @@ TEST_P(TopKFloatTest, TopKIterativeTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(TopKIterativeTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(TopKIterativeTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(TopKFloatTest, TopKIterativeBigTest) {
@@ -116,7 +116,7 @@ TEST_P(TopKFloatTest, TopKIterativeBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(TopKIterativeBigTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(TopKIterativeBigTest(*exec_env, data_type(), storage()));
 }
 
 INSTANTIATE_TEST_SUITE_P(

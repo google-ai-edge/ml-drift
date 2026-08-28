@@ -554,7 +554,7 @@ absl::Status FullyConnectedBigTest(TestExecutionEnvironment& env,
   OperationDef op_def;
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  MLD_EXPECT_OK(FullyConnectedBigTest(env, attr, src_tensor, op_def, precision));
+  ABSL_EXPECT_OK(FullyConnectedBigTest(env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();
 }
 
@@ -577,7 +577,7 @@ absl::Status FullyConnectedWidth3Height2BigTest(TestExecutionEnvironment& env,
   OperationDef op_def;
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  MLD_EXPECT_OK(FullyConnectedBigTest(env, attr, src_tensor, op_def, precision));
+  ABSL_EXPECT_OK(FullyConnectedBigTest(env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();
 }
 
@@ -692,7 +692,7 @@ absl::Status FullyConnectedExternalWeightsBigTest(
       OperationDef op_def;
       op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
       op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-      MLD_EXPECT_OK(FullyConnectedExternalTest(env, attr, weights_layout,
+      ABSL_EXPECT_OK(FullyConnectedExternalTest(env, attr, weights_layout,
                                            src_tensor, op_def, precision,
                                            runtime_channels));
     }
@@ -729,7 +729,7 @@ absl::Status FullyConnectedBatchedWeightsBigTest(
       OperationDef op_def;
       op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
       op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-      MLD_EXPECT_OK(FullyConnectedExternalTest(env, attr, weights_layout,
+      ABSL_EXPECT_OK(FullyConnectedExternalTest(env, attr, weights_layout,
                                            src_tensor, op_def, precision,
                                            runtime_channels));
     }
@@ -1025,7 +1025,7 @@ absl::Status FullyConnectedInt8BigTest(TestExecutionEnvironment& env,
   OperationDef op_def;
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  MLD_EXPECT_OK(FullyConnectedInt8Test(env, weights_i8, weights_scales, biases,
+  ABSL_EXPECT_OK(FullyConnectedInt8Test(env, weights_i8, weights_scales, biases,
                                    src_tensor, op_def, precision));
   return absl::OkStatus();
 }
@@ -1059,7 +1059,7 @@ absl::Status FullyConnectedInt8Width2Batch2BigTest(
   OperationDef op_def;
   op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
-  MLD_EXPECT_OK(FullyConnectedInt8Test(env, weights_i8, weights_scales, biases,
+  ABSL_EXPECT_OK(FullyConnectedInt8Test(env, weights_i8, weights_scales, biases,
                                    src_tensor, op_def, precision));
   return absl::OkStatus();
 }
@@ -1093,7 +1093,7 @@ absl::Status FullyConnectedInt8GroupedQuantizationBigTest(
   OperationDef op_def;
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  MLD_EXPECT_OK(FullyConnectedInt8Test(env, weights_i8, weights_scales, biases,
+  ABSL_EXPECT_OK(FullyConnectedInt8Test(env, weights_i8, weights_scales, biases,
                                    src_tensor, op_def, precision));
   return absl::OkStatus();
 }
@@ -1357,7 +1357,7 @@ absl::Status FullyConnectedInt8ExternalBigTest(TestExecutionEnvironment& env,
     OperationDef op_def;
     op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
     op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-    MLD_EXPECT_OK(FullyConnectedInt8ExternalTest(env, weights_i8, weights_scales,
+    ABSL_EXPECT_OK(FullyConnectedInt8ExternalTest(env, weights_i8, weights_scales,
                                              biases, src_tensor, op_def,
                                              precision, runtime_channels));
   }
@@ -1394,7 +1394,7 @@ absl::Status FullyConnectedInt8BatchedWeightsBigTest(
   OperationDef op_def;
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  MLD_EXPECT_OK(FullyConnectedInt8ExternalTest(env, weights_i8, weights_scales,
+  ABSL_EXPECT_OK(FullyConnectedInt8ExternalTest(env, weights_i8, weights_scales,
                                            src_tensor, op_def, precision));
   return absl::OkStatus();
 }
@@ -1436,7 +1436,7 @@ absl::Status FullyConnectedInt8BatchedWeightsIdsBigTest(
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.src_tensors.push_back({DataType::INT32, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  MLD_EXPECT_OK(FullyConnectedInt8BatchedWeightsIdsTest(
+  ABSL_EXPECT_OK(FullyConnectedInt8BatchedWeightsIdsTest(
       env, weights_i8, weights_scales, src_tensor, batch_ids_tensor, op_def,
       precision));
   return absl::OkStatus();
@@ -1476,7 +1476,7 @@ absl::Status FullyConnectedInt8ExternalGroupedQuantizationBigTest(
     OperationDef op_def;
     op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
     op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-    MLD_EXPECT_OK(FullyConnectedInt8ExternalTest(env, weights_i8, weights_scales,
+    ABSL_EXPECT_OK(FullyConnectedInt8ExternalTest(env, weights_i8, weights_scales,
                                              biases, src_tensor, op_def,
                                              precision, runtime_channels));
   }
@@ -1551,7 +1551,7 @@ absl::Status FullyConnectedSi8Wi8BigTest(TestExecutionEnvironment& env,
   OperationDef op_def;
   op_def.src_tensors.push_back({src_data_type, src_storage, Layout::HWC});
   op_def.dst_tensors.push_back({dst_data_type, dst_storage, Layout::HWC});
-  MLD_EXPECT_OK(FullyConnectedSi8Wi8Test(env, src_int8_tensor, weights_i8, op_def));
+  ABSL_EXPECT_OK(FullyConnectedSi8Wi8Test(env, src_int8_tensor, weights_i8, op_def));
   return absl::OkStatus();
 }
 
@@ -1712,7 +1712,7 @@ absl::Status FullyConnectedInt4BigTest(TestExecutionEnvironment& env,
   OperationDef op_def;
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  MLD_EXPECT_OK(FullyConnectedInt4Test(env, weights_i4, weights_scales, biases,
+  ABSL_EXPECT_OK(FullyConnectedInt4Test(env, weights_i4, weights_scales, biases,
                                    src_tensor, op_def, precision));
   return absl::OkStatus();
 }
@@ -1818,7 +1818,7 @@ absl::Status FullyConnectedInt4WidthIs4BigTest(TestExecutionEnvironment& env,
   OperationDef op_def;
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  MLD_EXPECT_OK(FullyConnectedInt4Test(env, weights_i4, weights_scales, biases,
+  ABSL_EXPECT_OK(FullyConnectedInt4Test(env, weights_i4, weights_scales, biases,
                                    src_tensor, op_def, precision));
   return absl::OkStatus();
 }
@@ -1852,7 +1852,7 @@ absl::Status FullyConnectedInt4GroupedQuantizationBigTest(
   OperationDef op_def;
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  MLD_EXPECT_OK(FullyConnectedInt4Test(env, weights_i4, weights_scales, biases,
+  ABSL_EXPECT_OK(FullyConnectedInt4Test(env, weights_i4, weights_scales, biases,
                                    src_tensor, op_def, precision));
   return absl::OkStatus();
 }
@@ -1944,7 +1944,7 @@ absl::Status FullyConnectedInt4ExternalWeightsBigTest(
   OperationDef op_def;
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  MLD_EXPECT_OK(FullyConnectedInt4ExternalTest(
+  ABSL_EXPECT_OK(FullyConnectedInt4ExternalTest(
       env, weights_i4, weights_scales, biases, src_tensor, op_def, precision));
   return absl::OkStatus();
 }
@@ -1978,7 +1978,7 @@ absl::Status FullyConnectedInt4ExternalGroupedQuantizationBigTest(
   OperationDef op_def;
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  MLD_EXPECT_OK(FullyConnectedInt4ExternalTest(
+  ABSL_EXPECT_OK(FullyConnectedInt4ExternalTest(
       env, weights_i4, weights_scales, biases, src_tensor, op_def, precision));
   return absl::OkStatus();
 }
@@ -2051,7 +2051,7 @@ absl::Status FullyConnectedSi8Wi4BigTest(TestExecutionEnvironment& env,
   OperationDef op_def;
   op_def.src_tensors.push_back({src_data_type, src_storage, Layout::HWC});
   op_def.dst_tensors.push_back({dst_data_type, dst_storage, Layout::HWC});
-  MLD_EXPECT_OK(FullyConnectedSi8Wi4Test(env, src_int8_tensor, weights_i4, op_def));
+  ABSL_EXPECT_OK(FullyConnectedSi8Wi4Test(env, src_int8_tensor, weights_i4, op_def));
   return absl::OkStatus();
 }
 
@@ -2137,7 +2137,7 @@ absl::Status FullyConnectedInt2BigTest(TestExecutionEnvironment& env,
   OperationDef op_def;
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  MLD_EXPECT_OK(FullyConnectedInt2Test(env, weights_i2, weights_scales, biases,
+  ABSL_EXPECT_OK(FullyConnectedInt2Test(env, weights_i2, weights_scales, biases,
                                    src_tensor, op_def, precision));
   return absl::OkStatus();
 }
@@ -2171,7 +2171,7 @@ absl::Status FullyConnectedInt2WidthIs4BigTest(TestExecutionEnvironment& env,
   OperationDef op_def;
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  MLD_EXPECT_OK(FullyConnectedInt2Test(env, weights_i2, weights_scales, biases,
+  ABSL_EXPECT_OK(FullyConnectedInt2Test(env, weights_i2, weights_scales, biases,
                                    src_tensor, op_def, precision));
   return absl::OkStatus();
 }
@@ -2205,7 +2205,7 @@ absl::Status FullyConnectedInt2GroupedQuantizationBigTest(
   OperationDef op_def;
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  MLD_EXPECT_OK(FullyConnectedInt2Test(env, weights_i2, weights_scales, biases,
+  ABSL_EXPECT_OK(FullyConnectedInt2Test(env, weights_i2, weights_scales, biases,
                                    src_tensor, op_def, precision));
   return absl::OkStatus();
 }
@@ -2297,7 +2297,7 @@ absl::Status FullyConnectedInt2ExternalWeightsBigTest(
   OperationDef op_def;
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  MLD_EXPECT_OK(FullyConnectedInt2ExternalTest(
+  ABSL_EXPECT_OK(FullyConnectedInt2ExternalTest(
       env, weights_i2, weights_scales, biases, src_tensor, op_def, precision));
   return absl::OkStatus();
 }
@@ -2331,7 +2331,7 @@ absl::Status FullyConnectedInt2ExternalGroupedQuantizationBigTest(
   OperationDef op_def;
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  MLD_EXPECT_OK(FullyConnectedInt2ExternalTest(
+  ABSL_EXPECT_OK(FullyConnectedInt2ExternalTest(
       env, weights_i2, weights_scales, biases, src_tensor, op_def, precision));
   return absl::OkStatus();
 }
@@ -2403,7 +2403,7 @@ absl::Status FullyConnectedSi8Wi2BigTest(TestExecutionEnvironment& env,
   OperationDef op_def;
   op_def.src_tensors.push_back({src_data_type, src_storage, Layout::HWC});
   op_def.dst_tensors.push_back({dst_data_type, dst_storage, Layout::HWC});
-  MLD_EXPECT_OK(FullyConnectedSi8Wi2Test(env, src_int8_tensor, weights_i2, op_def));
+  ABSL_EXPECT_OK(FullyConnectedSi8Wi2Test(env, src_int8_tensor, weights_i2, op_def));
   return absl::OkStatus();
 }
 
