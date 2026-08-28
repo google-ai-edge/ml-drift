@@ -664,6 +664,66 @@ std::string ReadWeightsAs4Uint8x4(const FullyConnected::ConvParams& conv_params,
   return c;
 }
 
+std::string ReadScaleZeroPointBlock(const OHWI& scale_zp_shape,
+                                    bool has_zero_point,
+                                    DataType weights_type) {
+  std::string c;
+  const int range_shift = GetRangeShift(weights_type);
+  std::string coords = "dst_s, 0, src_group";
+  if (scale_zp_shape.h != 1) {
+    coords = "dst_s, weights_batch_id, src_group";
+  }
+  c += "    w_scale = args.weights_scale.Read(" + coords + ");\n";
+  if (has_zero_point) {
+    c += "    Type w_zp = args.weights_zero_point.Read(" + coords + ");\n";
+    c += "    w_bias = -w_scale * (ucl::Init<Type>(" +
+         std::to_string(range_shift) + ") + w_zp);\n";
+  } else {
+    c += "    w_bias = -w_scale * ucl::Init<Type>(" +
+         std::to_string(range_shift) + ".0f);\n";
+  }
+  return c;
+}
+
+std::string ReadScaleZeroPointLinear(const OHWI& scale_zp_shape,
+                                     bool has_zero_point,
+                                     DataType weights_type) {
+  std::string c;
+  const int range_shift = GetRangeShift(weights_type);
+  std::string coords = "dst_s";
+  if (scale_zp_shape.h != 1) {
+    coords += ", weights_batch_id, 0";
+  }
+  c += "  Type w_scale = args.weights_scale.Read(" + coords + ");\n";
+  if (has_zero_point) {
+    c += "  Type w_zp = args.weights_zero_point.Read(" + coords + ");\n";
+    c += "  Type w_bias = -w_scale * (ucl::Init<Type>(" +
+         std::to_string(range_shift) + ") + w_zp);\n";
+  } else {
+    c += "  Type w_bias = -w_scale * (ucl::Init<Type>(" +
+         std::to_string(range_shift) + ".0f));\n";
+  }
+  return c;
+}
+
+std::string ReadScaleZeroPointScalar(bool has_zero_point,
+                                     DataType weights_type) {
+  std::string c;
+  const int range_shift = GetRangeShift(weights_type);
+  c += "  Type w_scale = "
+       "ucl::Convert<Type>(ucl::Init<float4>(args.scale));\n";
+  if (has_zero_point) {
+    c += "  Type w_zp = "
+         "ucl::Convert<Type>(ucl::Init<float4>(args.zero_point));\n";
+    c += "  Type w_bias = -w_scale * (ucl::Init<Type>(" +
+         std::to_string(range_shift) + ") + w_zp);\n";
+  } else {
+    c += "  Type w_bias = -w_scale * (ucl::Init<Type>(" +
+         std::to_string(range_shift) + ".0f));\n";
+  }
+  return c;
+}
+
 std::string WeightsScaleAddBias(const std::string& w_scale,
                                 const std::string& w_bias, bool isI4O4,
                                 bool use_fma) {
@@ -862,36 +922,17 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
     c += "  if (dst_s < args.dst_tensor.Slices()) {\n";
   }
   if (IsQuantized(conv_params_) && !int8_math) {
-    // quantized weights, float output, read dequantization parameters
-    const int range_shift = GetRangeShift(conv_params_.weights_type);
     if (conv_params_.scale_zp_shape.i != 1) {
-      // block-wise quantization handled separately
+      // block-wise quantization handled later
+      c += "  Type w_scale;\n";
+      c += "  Type w_bias;\n";
     } else if (IsLinearPerOutputQuantized(conv_params_)) {
-      std::string coords = "dst_s";
-      if (conv_params_.scale_zp_shape.h != 1) {
-        coords += ", weights_batch_id, 0";
-      }
-      c += "  Type w_scale = args.weights_scale.Read(" + coords + ");\n";
-      if (conv_params_.has_zero_point) {
-        c += "  Type w_zp = args.weights_zero_point.Read(" + coords + ");\n";
-        c += "  Type w_bias = -w_scale * (ucl::Init<Type>(" +
-             std::to_string(range_shift) + ") + w_zp);\n";
-      } else {
-        c += "  Type w_bias = -w_scale * (ucl::Init<Type>(" +
-             std::to_string(range_shift) + ".0f));\n";
-      }
+      c += ReadScaleZeroPointLinear(conv_params_.scale_zp_shape,
+                                    conv_params_.has_zero_point,
+                                    conv_params_.weights_type);
     } else if (IsScalarQuantized(conv_params_)) {
-      c += "  Type w_scale = "
-           "ucl::Convert<Type>(ucl::Init<float4>(args.scale));\n";
-      if (conv_params_.has_zero_point) {
-        c += "  Type w_zp = "
-             "ucl::Convert<Type>(ucl::Init<float4>(args.zero_point));\n";
-        c += "  Type w_bias = -w_scale * (ucl::Init<Type>(" +
-             std::to_string(range_shift) + ") + w_zp);\n";
-      } else {
-        c += "  Type w_bias = -w_scale * (ucl::Init<Type>(" +
-             std::to_string(range_shift) + ".0f));\n";
-      }
+      c += ReadScaleZeroPointScalar(conv_params_.has_zero_point,
+                                    conv_params_.weights_type);
     }
   }
   const std::string start_slice = wg_reduction_ ? "tid.y" : "0";
@@ -900,20 +941,9 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
     c += "  for (int src_group = " + start_slice +
          "; src_group < args.src_groups; src_group += " + slice_stride +
          ") {\n";
-    std::string coords = "dst_s, 0, src_group";
-    if (conv_params_.scale_zp_shape.h != 1) {
-      coords = "dst_s, weights_batch_id, src_group";
-    }
-    c += "    Type w_scale = args.weights_scale.Read(" + coords + ");\n";
-    if (conv_params_.has_zero_point) {
-      c += "    Type w_zp = args.weights_zero_point.Read(" + coords + ");\n";
-      c += "    Type w_bias = -w_scale * (ucl::Init<Type>(" +
-           std::to_string(GetRangeShift(conv_params_.weights_type)) +
-           ") + w_zp);\n";
-    } else {
-      c += "    Type w_bias = -w_scale * ucl::Init<Type>(" +
-           std::to_string(GetRangeShift(conv_params_.weights_type)) + ".0f);\n";
-    }
+    c += ReadScaleZeroPointBlock(conv_params_.scale_zp_shape,
+                                 conv_params_.has_zero_point,
+                                 conv_params_.weights_type);
     c += "  for (int src_sub_id = 0; src_sub_id < args.src_group_size; "
          "src_sub_id += 1) {\n";
     c += "    int src_s = src_group * args.src_group_size + src_sub_id;\n";
