@@ -275,7 +275,7 @@ absl::Status InferenceContext::DecodeTasks(
 
 absl::Status InferenceContext::CompileOperations(Environment* env) {
   for (auto& node : nodes_) {
-    ABSL_RETURN_IF_ERROR(node.task.Compile(env, node.name));
+    ABSL_RETURN_IF_ERROR(node.task.Compile(env));
   }
   return absl::OkStatus();
 }

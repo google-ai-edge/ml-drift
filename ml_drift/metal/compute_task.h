@@ -57,7 +57,7 @@ class ComputeTask {
   absl::Status InitArgs(Environment* env);
   absl::Status InitArgsDeserialized(Environment* env);
 
-  absl::Status Compile(Environment* env, const std::string& name = "");
+  absl::Status Compile(Environment* env);
 
   // should be called after changes of inputs/outputs.
   absl::Status UpdateParams();
@@ -104,8 +104,7 @@ class ComputeTask {
   }
 
   absl::Status Init(Environment* env, const std::string& code,
-                    const std::map<std::string, std::string>& defines,
-                    const std::string& function_name = "ComputeFunction");
+                    const std::map<std::string, std::string>& defines);
   absl::Status RestoreDeserialized(Environment* env);
 
  private:
@@ -113,8 +112,7 @@ class ComputeTask {
 
   absl::Status CompileProgram(
       Environment* env, const std::string& code,
-      const std::map<std::string, std::string>& defines,
-      const std::string& function_name);
+      const std::map<std::string, std::string>& defines);
   void Release();
 
   std::unique_ptr<GPUOperation> operation_;
