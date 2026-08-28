@@ -130,6 +130,9 @@ absl::Status Instance::Set(const wgpu::Instance& instance) {
 
 absl::Status Instance::Wait(const wgpu::Device& device, wgpu::Future future,
                             absl::Duration timeout) {
+  if (device) {
+    Instance::MaybeRunFlushCallback(device.Get());
+  }
   wgpu::FutureWaitInfo wait_info = {};
   wait_info.future = future;
   wgpu::WaitStatus status =
