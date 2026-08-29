@@ -292,6 +292,25 @@ cc_library(
 )
 
 cc_library(
+    name = "cl_weights_manager",
+    srcs = ["cl_weights_manager.cc"],
+    hdrs = ["cl_weights_manager.h"],
+    deps = [
+        ":cl_operation",
+        ":environment",
+        ":tensor",
+        "//ml_drift/common:gpu_info",
+        "//ml_drift/common:gpu_model_builder",
+        "//ml_drift/common:model",
+        "//ml_drift/common/task:gpu_operation",
+        "//ml_drift/common/task:gpu_tensor",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+cc_library(
     name = "cl_program",
     srcs = ["cl_program.cc"],
     hdrs = ["cl_program.h"],
