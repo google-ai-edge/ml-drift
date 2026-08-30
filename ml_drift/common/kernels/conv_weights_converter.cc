@@ -1143,7 +1143,7 @@ std::string ConverterToConvWeights::GetConverterToConvWeightsCode(
   const auto src_layout =
       input_layout_ == Layout::HWIO ? BlockLayout::kI4O4 : BlockLayout::kO4I4;
 
-  if (src_quantized && !dst_quantized) {
+  if (src_quantized && !dst_quantized && weights_scale != nullptr) {
     c += Dequantize(src_zero_point, grouped_quantization, batched_quantization,
                     has_zero_point, src_layout == BlockLayout::kI4O4);
   }

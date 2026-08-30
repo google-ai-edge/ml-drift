@@ -722,8 +722,23 @@ absl::StatusOr<GpuModelBuilder::TensorHandle> GpuModelBuilder::Convolution(
         /*different_weights_for_height=*/false);
   }
 
-  std::vector<TensorHandle> conv_weights = WeightsConversion(
-      weights, Layout::OHWI, conv_weights_desc, weights_shape);
+  const DataType float_type = src.tensor_desc.GetDataType();
+  TensorHandle scale_handle;
+  const TensorHandle* scale_handle_ptr = nullptr;
+  if (!attr.scale.data.empty()) {
+    scale_handle = GetWeightsScale(attr.scale, float_type);
+    scale_handle_ptr = &scale_handle;
+  }
+  TensorHandle zp_handle;
+  const TensorHandle* zp_handle_ptr = nullptr;
+  if (!attr.zero_point.data.empty()) {
+    zp_handle = GetWeightsZeroPoint(attr.zero_point, float_type);
+    zp_handle_ptr = &zp_handle;
+  }
+
+  std::vector<TensorHandle> conv_weights =
+      WeightsConversion(weights, Layout::OHWI, conv_weights_desc, weights_shape,
+                        scale_handle_ptr, zp_handle_ptr);
 
   gpu_model_.nodes.push_back({});
   auto& conv_node = gpu_model_.nodes.back();
@@ -986,6 +1001,12 @@ std::vector<GpuModelBuilder::TensorHandle> GpuModelBuilder::WeightsConversion(
       gpu_info_, weights_shape, dst_desc, op_def, hints_, src_layout,
       weights_scale_td, weights_zero_point_td);
   gpu_node.inputs = {src_weights.id};
+  if (weights_scale) {
+    gpu_node.inputs.push_back(weights_scale->id);
+  }
+  if (weights_zero_point) {
+    gpu_node.inputs.push_back(weights_zero_point->id);
+  }
   for (auto& dst : dsts) {
     gpu_node.outputs.push_back(dst.id);
   }
