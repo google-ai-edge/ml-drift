@@ -374,18 +374,16 @@ DataType GetDataTypeForWeights(DataType weights_type) {
 
 }  // namespace
 
-FullyConnected::FullyConnected(const OperationDef& definition,
+FullyConnected::FullyConnected(const TensorDescriptor& src,
+                               const TensorDescriptor& dst,
                                CalculationsPrecision precision,
                                const GpuInfo& gpu_info,
                                const OHWI& weights_shape,
                                const WeightsDescription& weights_desc,
                                const ConvParams& conv_params) {
   conv_params_ = conv_params;
-  AddSrcTensor("src_tensor", definition.src_tensors[0]);
-  if (definition.src_tensors.size() == 2) {
-    AddSrcTensor("weights", definition.src_tensors[1]);
-  }
-  AddDstTensor("dst_tensor", definition.dst_tensors[0]);
+  AddSrcTensor("src_tensor", src);
+  AddDstTensor("dst_tensor", dst);
   args_.AddInt("o_group_size", weights_desc.GetOutputGroupSize());
   const int dst_slices = DivideRoundUp(weights_shape.o, 4);
   args_.AddInt("o_groups",
@@ -407,8 +405,8 @@ FullyConnected::FullyConnected(const OperationDef& definition,
   wg_reduction_ = work_group_size_.y != 1;
   const int scale_zp_group_size =
       DivideRoundUp(weights_shape.i / conv_params.scale_zp_shape.i, 4);
-  code_ = GetFullyConnectedKernelCode(definition, precision, gpu_info,
-                                      weights_desc, scale_zp_group_size);
+  code_ = GetFullyConnectedKernelCode(src, precision, gpu_info, weights_desc,
+                                      scale_zp_group_size);
 
   const int wg_total_size = work_group_size_.x * work_group_size_.y;
   const std::string scope = gpu_info.IsApiMetal() && wg_total_size == 32 &&
@@ -416,8 +414,8 @@ FullyConnected::FullyConnected(const OperationDef& definition,
                                 ? "SubGroup"
                                 : "WorkGroup";
   absl::StrReplaceAll(
-      {{"SType", ToUclDataType(definition.dst_tensors[0].GetDataType(), 1)},
-       {"Type", ToUclDataType(definition.dst_tensors[0].GetDataType(), 4)},
+      {{"SType", ToUclDataType(dst.GetDataType(), 1)},
+       {"Type", ToUclDataType(dst.GetDataType(), 4)},
        {"AccSType", ToUclDataType(acc_type, 1)},
        {"AccType", ToUclDataType(acc_type, 4)},
        {"WG_SIZE_X", std::to_string(work_group_size_.x)},
@@ -439,7 +437,7 @@ FullyConnected::FullyConnected(const OperationDef& definition,
   if (gpu_info.IsPowerVR()) {
     compiler_options_.push_back(CompilerOptions::kClFastRelaxedMath);
   }
-  if (definition.src_tensors[0].GetDataType() == DataType::INT8) {
+  if (src.GetDataType() == DataType::INT8) {
     if (gpu_info.SupportsExtension("cl_qcom_dot_product8")) {
       compiler_options_.push_back(CompilerOptions::kCl20);
     } else if (gpu_info.SupportsExtension("cl_khr_integer_dot_product")) {
@@ -653,14 +651,13 @@ std::string ReadWeightsAs4Uint8x4(const FullyConnected::ConvParams& conv_params,
 }
 
 std::string FullyConnected::GetFullyConnectedKernelCode(
-    const OperationDef& definition, CalculationsPrecision precision,
+    const TensorDescriptor& src, CalculationsPrecision precision,
     const GpuInfo& gpu_info, const WeightsDescription& weights_desc,
     int scale_zp_group_size) {
   const int block_spatial = conv_params_.block_size.b *
                             conv_params_.block_size.w *
                             conv_params_.block_size.h;
-  const bool int8_math =
-      definition.src_tensors[0].GetDataType() == DataType::INT8;
+  const bool int8_math = src.GetDataType() == DataType::INT8;
 
   std::string c;
   if (int8_math) {
@@ -810,8 +807,7 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
     std::string x_coord = std::to_string(bhw.z);
     if (conv_params_.runtime_check.packed_groups.has_value()) {
       x_coord = "dst_w + " + x_coord;
-      if (!definition.src_tensors[0].CanReadOutOfBorder(Axis::WIDTH,
-                                                        gpu_info)) {
+      if (!src.CanReadOutOfBorder(Axis::WIDTH, gpu_info)) {
         x_coord = "min(" + x_coord + ", args.src_tensor.Width() - 1)";
       }
       y_coord = "0";
@@ -1112,8 +1108,9 @@ FullyConnected CreateFullyConnected(const GpuInfo& gpu_info,
   conv_params.has_bias = !attr.bias.data.empty();
   conv_params.block_size =
       GetBlockSize(dst_shape_ptr, conv_params.batched_weights);
-  FullyConnected result(definition, precision, gpu_info, attr.weights.shape,
-                        weights_desc, conv_params);
+  FullyConnected result(definition.src_tensors[0], definition.dst_tensors[0],
+                        precision, gpu_info, attr.weights.shape, weights_desc,
+                        conv_params);
 
   result.UploadWeights(attr.weights, weights_desc);
   if (conv_params.has_bias) {
@@ -1148,8 +1145,10 @@ absl::StatusOr<FullyConnected> CreateFullyConnectedWeightsAreSpatialTensor(
   weights_desc.type = definition.src_tensors[1].GetDataType();
   weights_desc.layout = WeightsLayout::kUnknown;  // Using Spatial tensor as
                                                   // weights.
-  FullyConnected result(definition, precision, gpu_info, weights_shape,
-                        weights_desc, conv_params);
+  FullyConnected result(definition.src_tensors[0], definition.dst_tensors[0],
+                        precision, gpu_info, weights_shape, weights_desc,
+                        conv_params);
+  result.AddSrcTensor("weights", definition.src_tensors[1]);
   if (bias) {
     result.AddSrcTensor("biases", *bias);
   }
@@ -1225,10 +1224,7 @@ absl::StatusOr<FullyConnected> CreateFullyConnectedExternalWeights(
   if (wg_size) {
     conv_params.wg_size = *wg_size;
   }
-  OperationDef op_def;
-  op_def.src_tensors.push_back(src);
-  op_def.dst_tensors.push_back(dst);
-  FullyConnected result(op_def, precision, gpu_info, weights_shape,
+  FullyConnected result(src, dst, precision, gpu_info, weights_shape,
                         weights_desc, conv_params);
 
   result.AddWeightsArguments(weights);
@@ -1265,10 +1261,8 @@ absl::StatusOr<FullyConnected> CreateFullyConnectedWeightsBatchIds(
   conv_params.runtime_batch_ids = dst_shape_ptr ? dst_shape_ptr->h : 1;
   conv_params.block_size =
       GetBlockSize(dst_shape_ptr, conv_params.batched_weights);
-  OperationDef op_def;
-  op_def.src_tensors.push_back(src);
-  op_def.dst_tensors.push_back(dst);
-  FullyConnected result(op_def, precision, gpu_info, weights_shape,
+
+  FullyConnected result(src, dst, precision, gpu_info, weights_shape,
                         weights_desc, conv_params);
 
   result.AddSrcTensor("batch_ids", batch_ids);
@@ -1365,8 +1359,9 @@ FullyConnected CreateFullyConnectedInt4Sparse2x4(
   conv_params.sparse_2x4 = true;
   conv_params.block_size =
       GetBlockSize(dst_shape_ptr, conv_params.batched_weights);
-  FullyConnected result(definition, precision, gpu_info, weights_shape_dense,
-                        weights_desc, conv_params);
+  FullyConnected result(definition.src_tensors[0], definition.dst_tensors[0],
+                        precision, gpu_info, weights_shape_dense, weights_desc,
+                        conv_params);
   {
     const int elements_count =
         GetTotalElementsCountForLayout(weights_desc, weights.shape);

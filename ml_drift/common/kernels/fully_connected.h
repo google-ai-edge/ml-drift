@@ -71,7 +71,7 @@ class FullyConnected : public GPUOperation {
   FullyConnected& operator=(const FullyConnected&) = delete;
 
  private:
-  FullyConnected(const OperationDef& definition,
+  FullyConnected(const TensorDescriptor& src, const TensorDescriptor& dst,
                  CalculationsPrecision precision, const GpuInfo& gpu_info,
                  const OHWI& weights_shape,
                  const WeightsDescription& weights_desc,
@@ -114,7 +114,7 @@ class FullyConnected : public GPUOperation {
                      const WeightsDescription& weights_desc);
 
   std::string GetFullyConnectedKernelCode(
-      const OperationDef& definition, CalculationsPrecision precision,
+      const TensorDescriptor& src, CalculationsPrecision precision,
       const GpuInfo& gpu_info, const WeightsDescription& weights_desc,
       int scale_zp_group_size);
 
