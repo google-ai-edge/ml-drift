@@ -68,8 +68,7 @@ bool IsGpuSupportsPrecision(const GpuInfo& gpu_info,
 
 bool SupportsImgPixelSubgroupDot(const CLDevice& device,
                                  const CLContext& context) {
-  if (device.info_.IsPowerVR() &&
-      device.info_.powervr_info.gpu_version == PowerVRGpu::kDXT) {
+  if (device.info_.IsPowerVR()) {
     auto result = CreateCLProgram(GetImgPixelSubgroupDotSample(),
                                   /*compiler_options=*/"", context, device);
     if (result.ok()) {

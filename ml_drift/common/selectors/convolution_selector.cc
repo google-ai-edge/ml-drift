@@ -224,7 +224,7 @@ std::unique_ptr<GPUOperation> SelectConvolution(
                                    hints);
   } else if (gpu_info.IsMali()) {
     return SelectConvolutionMali(attr, dst_shape, gpu_info, op_def, precision);
-  } else if (gpu_info.IsPowerVR() && gpu_info.powervr_info.IsImgDxx() &&
+  } else if (gpu_info.IsPowerVR() &&
              gpu_info.SupportsExtension("cl_img_pixel_subgroup_dot") &&
              IsConvWaveMemorySupported(gpu_info)) {
     ConvWaveMemory conv =
@@ -297,7 +297,7 @@ std::unique_ptr<GPUOperation> SelectConvolutionWithExternalWeights(
     return SelectConvolutionExternalWeightsMali(
         attr, bias_desc, dst_shape, gpu_info, op_def, precision, hints,
         weights_desc, src_exp, different_weights_for_height, runtime_check);
-  } else if (gpu_info.IsPowerVR() && gpu_info.powervr_info.IsImgDxx() &&
+  } else if (gpu_info.IsPowerVR() &&
              gpu_info.SupportsExtension("cl_img_pixel_subgroup_dot") &&
              IsConvWaveMemorySupported(gpu_info)) {
     ConvWaveMemory convolution = CreateConvWaveMemoryExternalWeights(
