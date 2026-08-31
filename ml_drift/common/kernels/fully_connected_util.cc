@@ -221,5 +221,23 @@ std::string AdjustUintSum(const std::string& r_name, DataType weights_type) {
       r_name);
 }
 
+bool IsQuantized(DataType weights_type) {
+  return weights_type != DataType::FLOAT32 && weights_type != DataType::FLOAT16;
+}
+
+bool IsScalarQuantized(DataType weights_type, const OHWI& scale_zp_shape) {
+  return IsQuantized(weights_type) && scale_zp_shape.DimensionsProduct() == 1;
+}
+
+bool IsLinearQuantized(DataType weights_type, const OHWI& scale_zp_shape) {
+  return IsQuantized(weights_type) && scale_zp_shape.o != 1 &&
+         scale_zp_shape.i == 1;
+}
+
+bool IsBlockQuantized(DataType weights_type, const OHWI& scale_zp_shape) {
+  return IsQuantized(weights_type) && scale_zp_shape.o != 1 &&
+         scale_zp_shape.i != 1;
+}
+
 }  // namespace fc
 }  // namespace ml_drift

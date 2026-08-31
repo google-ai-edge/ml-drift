@@ -99,22 +99,10 @@ inline bool UseBufferForIntWeights(const GpuInfo& gpu_info, int int_bit_size,
   return !(can_use_textures && is_textures_recommended);
 }
 
-inline bool IsQuantized(const FullyConnected::ConvParams& params) {
-  return params.weights_type != DataType::FLOAT32 &&
-         params.weights_type != DataType::FLOAT16;
-}
-inline bool IsScalarQuantized(const FullyConnected::ConvParams& params) {
-  return IsQuantized(params) && params.scale_zp_shape.DimensionsProduct() == 1;
-}
-inline bool IsLinearPerOutputQuantized(
-    const FullyConnected::ConvParams& params) {
-  return IsQuantized(params) && params.scale_zp_shape.o != 1 &&
-         params.scale_zp_shape.i == 1;
-}
-
 int3 GetWorkGroupSize(const FullyConnected::ConvParams& params,
                       const GpuInfo& gpu_info, DataType acc_type,
                       const OHWI& weights_shape) {
+  const bool is_quantized = fc::IsQuantized(params.weights_type);
   const int dst_slices = DivideRoundUp(weights_shape.o, 4);
   if (gpu_info.IsApple() && gpu_info.IsApiMetal() &&
       gpu_info.apple_info.IsMSeries()) {
@@ -246,7 +234,7 @@ int3 GetWorkGroupSize(const FullyConnected::ConvParams& params,
     } else {
       wg_total_size = 128;
     }
-    if (IsQuantized(params) &&
+    if (is_quantized &&
         gpu_info.adreno_info.generation >= AdrenoInfo::Generation::kGen7) {
       wg_total_size = 256;
     }
@@ -267,7 +255,7 @@ int3 GetWorkGroupSize(const FullyConnected::ConvParams& params,
     }
   }
   int y_size = 8;
-  if (IsQuantized(params)) {
+  if (is_quantized) {
     if (params.weights_type == DataType::INT2) {
       y_size = 32;
     } else {
@@ -279,7 +267,7 @@ int3 GetWorkGroupSize(const FullyConnected::ConvParams& params,
     }
   }
   if (dst_slices >= 512) {
-    if (IsQuantized(params)) {
+    if (is_quantized) {
       if (params.weights_type == DataType::INT4 ||
           params.weights_type == DataType::INT2) {
         y_size = 16;
@@ -291,10 +279,10 @@ int3 GetWorkGroupSize(const FullyConnected::ConvParams& params,
     }
   }
   if (dst_slices >= 1024) {
-    y_size = IsQuantized(params) ? 4 : 2;
+    y_size = is_quantized ? 4 : 2;
   }
   if (dst_slices >= 1024 * 2) {
-    if (IsQuantized(params)) {
+    if (is_quantized) {
       if (params.weights_type == DataType::INT4 ||
           params.weights_type == DataType::INT2) {
         y_size = 4;
@@ -307,7 +295,7 @@ int3 GetWorkGroupSize(const FullyConnected::ConvParams& params,
   }
   if (dst_slices >= 1024 * 4) {
     y_size = std::min(2, y_size);
-    if (IsQuantized(params) && params.weights_type == DataType::INT2) {
+    if (is_quantized && params.weights_type == DataType::INT2) {
       y_size = 4;
     }
   }
@@ -317,7 +305,7 @@ int3 GetWorkGroupSize(const FullyConnected::ConvParams& params,
   y_size *= y_size_multiplier;
   int x_size = wg_total_size / y_size;
   if (dst_slices <= 64 && x_size >= 8) {
-    if (IsQuantized(params)) {
+    if (is_quantized) {
       x_size /= 2;
       y_size *= 2;
     } else {
@@ -529,7 +517,7 @@ std::string ReadWeightsAsFloat(const FullyConnected::ConvParams& conv_params,
       c += "    uint indexes = args.weights_indices.ReadAsU16(linear_i4o4);\n";
       c += "    ucl::U32Sparse2x4ToU4x16AsVec4x4<SType>(weights, indexes, "
            "w0, w1, w2, w3);\n";
-    } else if (IsQuantized(conv_params)) {
+    } else if (fc::IsQuantized(conv_params.weights_type)) {
       if (conv_params.weights_type == DataType::INT2) {
         c += "    uint w = args.weights.Read(linear_i4o4);\n";
         c += "    ucl::U32x1ToU2x16AsVec4x4<SType>(w, w0, w1, w2, w3);\n";
@@ -588,7 +576,7 @@ std::string ReadWeightsAs4Uint8x4(const FullyConnected::ConvParams& conv_params,
     }
     coords_2d = x_c + ", " + y_c;
   }
-  if (IsQuantized(conv_params)) {
+  if (fc::IsQuantized(conv_params.weights_type)) {
     if (conv_params.weights_type == DataType::INT2) {
       if (weights_desc.IsLinearLayout()) {
         c += "    uint w = args.weights.Read(linear_i4o4);\n";
@@ -658,6 +646,7 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
                             conv_params_.block_size.w *
                             conv_params_.block_size.h;
   const bool int8_math = src.GetDataType() == DataType::INT8;
+  const bool is_quantized = fc::IsQuantized(conv_params_.weights_type);
 
   std::string c;
   if (int8_math) {
@@ -764,23 +753,27 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
     c += "  tid.y = ucl::GetLocalId<1>();\n";
     c += "  if (dst_s < args.dst_tensor.Slices()) {\n";
   }
-  if (IsQuantized(conv_params_) && !int8_math) {
-    if (conv_params_.scale_zp_shape.i != 1) {
+  const bool is_block_quantized = fc::IsBlockQuantized(
+      conv_params_.weights_type, conv_params_.scale_zp_shape);
+  if (is_quantized && !int8_math) {
+    if (is_block_quantized) {
       // block-wise quantization handled later
       c += "  Type w_scale;\n";
       c += "  Type w_bias;\n";
-    } else if (IsLinearPerOutputQuantized(conv_params_)) {
+    } else if (fc::IsLinearQuantized(conv_params_.weights_type,
+                                     conv_params_.scale_zp_shape)) {
       c += fc::ReadScaleZeroPointLinear(conv_params_.scale_zp_shape,
                                         conv_params_.has_zero_point,
                                         conv_params_.weights_type);
-    } else if (IsScalarQuantized(conv_params_)) {
+    } else if (fc::IsScalarQuantized(conv_params_.weights_type,
+                                     conv_params_.scale_zp_shape)) {
       c += fc::ReadScaleZeroPointScalar(conv_params_.has_zero_point,
                                         conv_params_.weights_type);
     }
   }
   const std::string start_slice = wg_reduction_ ? "tid.y" : "0";
   const std::string slice_stride = wg_reduction_ ? "WG_SIZE_Y" : "1";
-  if (IsQuantized(conv_params_) && conv_params_.scale_zp_shape.i != 1) {
+  if (is_block_quantized) {
     c += "  for (int src_group = " + start_slice +
          "; src_group < args.src_groups; src_group += " + slice_stride +
          ") {\n";
@@ -834,7 +827,7 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
     c += ReadWeightsAsFloat(conv_params_, weights_desc);
     const bool isI4O4 = weights_desc.IsI4O4() || conv_params_.sparse_2x4;
     const bool use_fma = UseFMA(gpu_info);
-    if (IsQuantized(conv_params_)) {
+    if (is_quantized) {
       const std::string w_scale = "w_scale";
       const std::string w_bias = "w_bias";
       c += fc::WeightsScaleAddBias(w_scale, w_bias, isI4O4, use_fma);
@@ -854,7 +847,7 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
     }
   }
   if (gpu_info.IsApple() && gpu_info.IsApiMetal() &&
-      gpu_info.apple_info.IsMSeries() && IsQuantized(conv_params_)) {
+      gpu_info.apple_info.IsMSeries() && is_quantized) {
     // In some cases, on Metal with Apple GPUs, kernel with big dst channels
     // size shows unexpected slowdown. This workaround helps to restore
     // performance.
@@ -864,11 +857,10 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
       c += "    ucl::SyncThreads<WorkGroup, None>();\n";
     }
   }
-  if (IsQuantized(conv_params_) && conv_params_.scale_zp_shape.i != 1) {
-    c += "  }} // end for loop\n";
-  } else {
-    c += "  } // end for loop\n";
+  if (is_block_quantized) {
+    c += "  } // end for block loop\n";
   }
+  c += "  } // end for loop\n";
   if (int8_math) {
     for (int i = 0; i < block_spatial; ++i) {
       const std::string r_name = "r_sp" + std::to_string(i);

@@ -51,6 +51,11 @@ std::string AccumulateUint(const std::string& r_name,
                            const GpuInfo& gpu_info);
 std::string AdjustUintSum(const std::string& r_name, DataType weights_type);
 
+bool IsQuantized(DataType weights_type);
+bool IsScalarQuantized(DataType weights_type, const OHWI& scale_zp_shape);
+bool IsLinearQuantized(DataType weights_type, const OHWI& scale_zp_shape);
+bool IsBlockQuantized(DataType weights_type, const OHWI& scale_zp_shape);
+
 }  // namespace fc
 }  // namespace ml_drift
 
