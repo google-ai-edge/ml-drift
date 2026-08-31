@@ -327,19 +327,21 @@ absl::Status MakeLayerNorm(const GpuInfo& gpu_info,
     gamma.shape = Linear(attr.scale.value().data.size());
     gamma.data = attr.scale.value().data;
   } else {
+    // Tensor::shape and Tensor::data are independent members; assigning the
+    // shape leaves data empty, so writing through data[i] indexes an empty
+    // vector.
     gamma.shape = Linear(input_shape.c);
-    for (int i = 0; i < input_shape.c; ++i) {
-      gamma.data[i] = 1.0;
-    }
+    gamma.data.assign(input_shape.c, 1.0f);
   }
   if (attr.bias.has_value()) {
     beta.shape = Linear(attr.bias.value().data.size());
     beta.data = attr.bias.value().data;
   } else {
+    // Tensor::shape and Tensor::data are independent members; assigning the
+    // shape leaves data empty, so writing through data[i] indexes an empty
+    // vector.
     beta.shape = Linear(input_shape.c);
-    for (int i = 0; i < input_shape.c; ++i) {
-      beta.data[i] = 0.0;
-    }
+    beta.data.assign(input_shape.c, 0.0f);
   }
 
   return model_builder->UpdateOutputTensor(
@@ -364,19 +366,21 @@ absl::Status MakeGroupNorm(const GpuInfo& gpu_info,
     gamma.shape = Linear(attr.gamma.value().data.size());
     gamma.data = attr.gamma.value().data;
   } else {
+    // Tensor::shape and Tensor::data are independent members; assigning the
+    // shape leaves data empty, so writing through data[i] indexes an empty
+    // vector.
     gamma.shape = Linear(input_shape.c);
-    for (int i = 0; i < input_shape.c; ++i) {
-      gamma.data[i] = 1.0;
-    }
+    gamma.data.assign(input_shape.c, 1.0f);
   }
   if (attr.beta.has_value()) {
     beta.shape = Linear(attr.beta.value().data.size());
     beta.data = attr.beta.value().data;
   } else {
+    // Tensor::shape and Tensor::data are independent members; assigning the
+    // shape leaves data empty, so writing through data[i] indexes an empty
+    // vector.
     beta.shape = Linear(input_shape.c);
-    for (int i = 0; i < input_shape.c; ++i) {
-      beta.data[i] = 0.0;
-    }
+    beta.data.assign(input_shape.c, 0.0f);
   }
   return model_builder->UpdateOutputTensor(
       model_builder->HWCGroupNorm(src_tensor, attr.groups, attr.epsilon, gamma,
