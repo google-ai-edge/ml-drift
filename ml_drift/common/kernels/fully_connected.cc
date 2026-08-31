@@ -980,81 +980,6 @@ int3 FullyConnected::GetGridSize() const {
   return int3(dst_[0]->Slices(), work_group_size_.y * w_groups, w_batch_size);
 }
 
-void AddWeightsArguments(const ExternalWeights& weights, int vec_size,
-                         GPUOperation* op) {
-  if (weights.desc.type == DataType::FLOAT32 ||
-      weights.desc.type == DataType::FLOAT16) {
-    if (weights.desc.IsLinearLayout()) {
-      BufferDescriptor desc;
-      desc.element_type = weights.desc.type;
-      desc.element_size = vec_size;
-      op->AddSrcBuffer("weights", desc);
-    } else {
-      // Texture based weights, stored as 4 separate 2D textures.
-      TensorDescriptor desc{weights.desc.type, TensorStorageType::TEXTURE_2D,
-                            Layout::HW};
-      for (int i = 0; i < 4; ++i) {
-        const std::string name = "weights" + std::to_string(i);
-        op->AddSrcTensor(name, desc);
-      }
-    }
-  } else if (weights.desc.type == DataType::UINT8) {
-    if (weights.desc.IsLinearLayout()) {
-      BufferDescriptor desc;
-      desc.element_type = DataType::UINT32;
-      desc.element_size = vec_size / 4;
-      op->AddSrcBuffer("weights", desc);
-    } else {
-      TensorDescriptor desc = TensorDescriptor(
-          DataType::UINT32, TensorStorageType::TEXTURE_2D, Layout::HW);
-      op->AddSrcTensor("weights", desc);
-    }
-  } else if (weights.desc.type == DataType::UINT4) {
-    if (weights.desc.IsLinearLayout()) {
-      BufferDescriptor desc;
-      desc.element_type = DataType::UINT32;
-      desc.element_size = vec_size / 8;
-      op->AddSrcBuffer("weights", desc);
-    } else {
-      DataType texture_type = DataType::UINT16;
-      if (vec_size == 32) {
-        texture_type = DataType::UINT32;
-      }
-      TensorDescriptor desc = TensorDescriptor(
-          texture_type, TensorStorageType::TEXTURE_2D, Layout::HW);
-      op->AddSrcTensor("weights", desc);
-    }
-  } else if (weights.desc.type == DataType::UINT2) {
-    if (weights.desc.IsLinearLayout()) {
-      BufferDescriptor desc;
-      desc.element_type = DataType::UINT32;
-      desc.element_size = vec_size / 16;
-      op->AddSrcBuffer("weights", desc);
-    } else {
-      DataType texture_type = DataType::UINT8;
-      if (vec_size == 32) {
-        texture_type = DataType::UINT16;
-      } else if (vec_size == 64) {
-        texture_type = DataType::UINT32;
-      }
-      TensorDescriptor desc = TensorDescriptor(
-          texture_type, TensorStorageType::TEXTURE_2D, Layout::HW);
-      op->AddSrcTensor("weights", desc);
-    }
-  }
-
-  if (weights.scale) {
-    op->AddSrcTensor("weights_scale", *weights.scale);
-  } else if (weights.scalar_scale.has_value()) {
-    op->args_.AddFloat("scale", *weights.scalar_scale);
-  }
-  if (weights.zero_point) {
-    op->AddSrcTensor("weights_zero_point", *weights.zero_point);
-  } else if (weights.scalar_zero_point.has_value()) {
-    op->args_.AddFloat("zero_point", *weights.scalar_zero_point);
-  }
-}
-
 int GetRecommendedMaxTotalSpatialSize(const GpuInfo& gpu_info,
                                       CalculationsPrecision precision) {
   int base_max_size = 4;
@@ -1244,7 +1169,7 @@ absl::StatusOr<FullyConnected> CreateFullyConnectedExternalWeights(
       conv_params.runtime_check.ring_o_offset_index.has_value() ||
       conv_params.runtime_check.ring_i_offset_index.has_value();
   const int vec_size = vec4_elements ? 4 : 16;
-  AddWeightsArguments(weights, vec_size, &result);
+  fc::AddWeightsArguments(weights, vec_size, &result);
 
   if (bias) {
     result.AddSrcTensor("biases", *bias);
@@ -1287,7 +1212,7 @@ absl::StatusOr<FullyConnected> CreateFullyConnectedWeightsBatchIds(
       conv_params.runtime_check.ring_o_offset_index.has_value() ||
       conv_params.runtime_check.ring_i_offset_index.has_value();
   const int vec_size = vec4_elements ? 4 : 16;
-  AddWeightsArguments(weights, vec_size, &result);
+  fc::AddWeightsArguments(weights, vec_size, &result);
 
   if (bias) {
     result.AddSrcTensor("biases", *bias);

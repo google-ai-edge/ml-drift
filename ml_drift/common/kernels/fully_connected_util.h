@@ -56,6 +56,9 @@ bool IsScalarQuantized(DataType weights_type, const OHWI& scale_zp_shape);
 bool IsLinearQuantized(DataType weights_type, const OHWI& scale_zp_shape);
 bool IsBlockQuantized(DataType weights_type, const OHWI& scale_zp_shape);
 
+void AddWeightsArguments(const ExternalWeights& weights, int vec_size,
+                         GPUOperation* op);
+
 }  // namespace fc
 }  // namespace ml_drift
 

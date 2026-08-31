@@ -215,6 +215,7 @@ target_link_libraries(mld_common_kernels_fully_connected_util PUBLIC
     mld_common_precision
     mld_common_shape
     mld_common_task_buffer_desc
+    mld_common_task_tensor_desc
     mld_common_task_gpu_operation
 )
 

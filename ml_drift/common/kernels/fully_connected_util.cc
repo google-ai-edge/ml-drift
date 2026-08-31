@@ -23,6 +23,7 @@
 #include "ml_drift/common/shape.h"
 #include "ml_drift/common/task/buffer_desc.h"
 #include "ml_drift/common/task/gpu_operation.h"
+#include "ml_drift/common/task/tensor_desc.h"
 
 namespace ml_drift {
 namespace fc {
@@ -219,6 +220,81 @@ std::string AdjustUintSum(const std::string& r_name, DataType weights_type) {
   return absl::Substitute(
       "  $0 -= $0_sum * " + std::to_string(GetRangeShift(weights_type)) + ";\n",
       r_name);
+}
+
+void AddWeightsArguments(const ExternalWeights& weights, int vec_size,
+                         GPUOperation* op) {
+  if (weights.desc.type == DataType::FLOAT32 ||
+      weights.desc.type == DataType::FLOAT16) {
+    if (weights.desc.IsLinearLayout()) {
+      BufferDescriptor desc;
+      desc.element_type = weights.desc.type;
+      desc.element_size = vec_size;
+      op->AddSrcBuffer("weights", desc);
+    } else {
+      // Texture based weights, stored as 4 separate 2D textures.
+      TensorDescriptor desc{weights.desc.type, TensorStorageType::TEXTURE_2D,
+                            Layout::HW};
+      for (int i = 0; i < 4; ++i) {
+        const std::string name = "weights" + std::to_string(i);
+        op->AddSrcTensor(name, desc);
+      }
+    }
+  } else if (weights.desc.type == DataType::UINT8) {
+    if (weights.desc.IsLinearLayout()) {
+      BufferDescriptor desc;
+      desc.element_type = DataType::UINT32;
+      desc.element_size = vec_size / 4;
+      op->AddSrcBuffer("weights", desc);
+    } else {
+      TensorDescriptor desc = TensorDescriptor(
+          DataType::UINT32, TensorStorageType::TEXTURE_2D, Layout::HW);
+      op->AddSrcTensor("weights", desc);
+    }
+  } else if (weights.desc.type == DataType::UINT4) {
+    if (weights.desc.IsLinearLayout()) {
+      BufferDescriptor desc;
+      desc.element_type = DataType::UINT32;
+      desc.element_size = vec_size / 8;
+      op->AddSrcBuffer("weights", desc);
+    } else {
+      DataType texture_type = DataType::UINT16;
+      if (vec_size == 32) {
+        texture_type = DataType::UINT32;
+      }
+      TensorDescriptor desc = TensorDescriptor(
+          texture_type, TensorStorageType::TEXTURE_2D, Layout::HW);
+      op->AddSrcTensor("weights", desc);
+    }
+  } else if (weights.desc.type == DataType::UINT2) {
+    if (weights.desc.IsLinearLayout()) {
+      BufferDescriptor desc;
+      desc.element_type = DataType::UINT32;
+      desc.element_size = vec_size / 16;
+      op->AddSrcBuffer("weights", desc);
+    } else {
+      DataType texture_type = DataType::UINT8;
+      if (vec_size == 32) {
+        texture_type = DataType::UINT16;
+      } else if (vec_size == 64) {
+        texture_type = DataType::UINT32;
+      }
+      TensorDescriptor desc = TensorDescriptor(
+          texture_type, TensorStorageType::TEXTURE_2D, Layout::HW);
+      op->AddSrcTensor("weights", desc);
+    }
+  }
+
+  if (weights.scale) {
+    op->AddSrcTensor("weights_scale", *weights.scale);
+  } else if (weights.scalar_scale.has_value()) {
+    op->args_.AddFloat("scale", *weights.scalar_scale);
+  }
+  if (weights.zero_point) {
+    op->AddSrcTensor("weights_zero_point", *weights.zero_point);
+  } else if (weights.scalar_zero_point.has_value()) {
+    op->args_.AddFloat("zero_point", *weights.scalar_zero_point);
+  }
 }
 
 bool IsQuantized(DataType weights_type) {

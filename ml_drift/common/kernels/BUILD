@@ -694,6 +694,7 @@ cc_library(
         "//ml_drift/common:shape",
         "//ml_drift/common/task:buffer_desc",
         "//ml_drift/common/task:gpu_operation",
+        "//ml_drift/common/task:tensor_desc",
         "@com_google_absl//absl/strings",
     ],
 )
