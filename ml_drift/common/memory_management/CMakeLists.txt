@@ -24,7 +24,8 @@ target_include_directories(mld_common_memory_management_impl PUBLIC
     $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>
 )
 
-target_link_libraries(mld_common_memory_management_impl PUBLIC
+target_link_libraries(mld_common_memory_management_impl
+  PUBLIC
     absl::status
     absl::status_macros
     absl::statusor

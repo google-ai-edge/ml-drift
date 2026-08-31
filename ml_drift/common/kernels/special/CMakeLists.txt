@@ -14,7 +14,8 @@
 
 add_library(mld_common_kernels_special_concat_conv concat_conv.cc concat_conv.h)
 target_include_directories(mld_common_kernels_special_concat_conv PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
-target_link_libraries(mld_common_kernels_special_concat_conv PUBLIC
+target_link_libraries(mld_common_kernels_special_concat_conv
+  PUBLIC
     absl::status
     absl::status_macros
     absl::statusor
@@ -42,7 +43,8 @@ target_link_libraries(mld_common_kernels_special_concat_conv PUBLIC
 
 add_library(mld_common_kernels_special_conv_pointwise conv_pointwise.cc conv_pointwise.h)
 target_include_directories(mld_common_kernels_special_conv_pointwise PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
-target_link_libraries(mld_common_kernels_special_conv_pointwise PUBLIC
+target_link_libraries(mld_common_kernels_special_conv_pointwise
+  PUBLIC
     absl::status
     absl::status_macros
     absl::statusor
@@ -61,27 +63,29 @@ target_link_libraries(mld_common_kernels_special_conv_pointwise PUBLIC
 
 add_library(mld_common_kernels_special_conv_softmax_conv conv_softmax_conv.cc conv_softmax_conv.h)
 target_include_directories(mld_common_kernels_special_conv_softmax_conv PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
-target_link_libraries(mld_common_kernels_special_conv_softmax_conv PUBLIC
-    absl::strings
+target_link_libraries(mld_common_kernels_special_conv_softmax_conv
+  PUBLIC
     absl::span
+    absl::strings
     mld_common_data_type
     mld_common_gpu_info
     mld_common_kernel_info
     mld_common_precision
     mld_common_shape
-    mld_common_tensor
-    mld_common_types
-    mld_common_util
     mld_common_task_buffer_desc
     mld_common_task_gpu_object_desc
     mld_common_task_gpu_operation
     mld_common_task_weights_conversion
     mld_common_task_weights_layout
+    mld_common_tensor
+    mld_common_types
+    mld_common_util
 )
 
 add_library(mld_common_kernels_special_dw7x7_conv2to6_concat_conv8to8 dw7x7_conv2to6_concat_conv8to8.cc dw7x7_conv2to6_concat_conv8to8.h)
 target_include_directories(mld_common_kernels_special_dw7x7_conv2to6_concat_conv8to8 PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
-target_link_libraries(mld_common_kernels_special_dw7x7_conv2to6_concat_conv8to8 PUBLIC
+target_link_libraries(mld_common_kernels_special_dw7x7_conv2to6_concat_conv8to8
+  PUBLIC
     absl::status
     absl::status_macros
     absl::statusor
@@ -105,7 +109,8 @@ target_link_libraries(mld_common_kernels_special_dw7x7_conv2to6_concat_conv8to8 
 
 add_library(mld_common_kernels_special_thin_local_memory_fuser thin_local_memory_fuser.cc thin_local_memory_fuser.h)
 target_include_directories(mld_common_kernels_special_thin_local_memory_fuser PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
-target_link_libraries(mld_common_kernels_special_thin_local_memory_fuser PUBLIC
+target_link_libraries(mld_common_kernels_special_thin_local_memory_fuser
+  PUBLIC
     absl::status
     absl::status_macros
     absl::statusor
@@ -133,7 +138,8 @@ target_link_libraries(mld_common_kernels_special_thin_local_memory_fuser PUBLIC
 
 add_library(mld_common_kernels_special_thin_pointwise_fuser thin_pointwise_fuser.cc thin_pointwise_fuser.h)
 target_include_directories(mld_common_kernels_special_thin_pointwise_fuser PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
-target_link_libraries(mld_common_kernels_special_thin_pointwise_fuser PUBLIC
+target_link_libraries(mld_common_kernels_special_thin_pointwise_fuser
+  PUBLIC
     absl::status
     absl::status_macros
     absl::statusor

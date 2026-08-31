@@ -75,7 +75,8 @@ target_include_directories(ml_drift INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
-target_link_libraries(ml_drift INTERFACE
+target_link_libraries(ml_drift
+  INTERFACE
     absl::status
     absl::status_macros
     absl::statusor
@@ -93,7 +94,8 @@ target_link_libraries(ml_drift INTERFACE
 if(ML_DRIFT_API STREQUAL "cl")
     message(STATUS "ML Drift: Building with OpenCL (cl) backend")
     target_compile_definitions(ml_drift INTERFACE ML_DRIFT_API_CL)
-    target_link_libraries(ml_drift INTERFACE
+    target_link_libraries(ml_drift
+      INTERFACE
         mld_cl_cl_api_util
         mld_cl_cl_command_buffer
         mld_cl_environment

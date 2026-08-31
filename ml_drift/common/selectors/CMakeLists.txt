@@ -14,7 +14,8 @@
 
 add_library(mld_common_selectors_default_selector default/default_selector.cc default_selector.h)
 target_include_directories(mld_common_selectors_default_selector PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
-target_link_libraries(mld_common_selectors_default_selector PUBLIC
+target_link_libraries(mld_common_selectors_default_selector
+  PUBLIC
     absl::status
     absl::status_macros
     absl::statusor
@@ -27,7 +28,8 @@ target_link_libraries(mld_common_selectors_default_selector PUBLIC
 
 add_library(mld_common_selectors_operation_selector operation_selector.cc operation_selector.h)
 target_include_directories(mld_common_selectors_operation_selector PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
-target_link_libraries(mld_common_selectors_operation_selector PUBLIC
+target_link_libraries(mld_common_selectors_operation_selector
+  PUBLIC
     absl::status
     absl::status_macros
     absl::statusor
@@ -54,7 +56,8 @@ target_link_libraries(mld_common_selectors_operation_selector PUBLIC
 
 add_library(mld_common_selectors_special_selector special_selector.cc special_selector.h)
 target_include_directories(mld_common_selectors_special_selector PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
-target_link_libraries(mld_common_selectors_special_selector PUBLIC
+target_link_libraries(mld_common_selectors_special_selector
+  PUBLIC
     absl::status
     absl::status_macros
     absl::statusor
@@ -74,57 +77,61 @@ target_link_libraries(mld_common_selectors_special_selector PUBLIC
 
 add_library(mld_common_selectors_convolution_selector convolution_selector.cc convolution_selector.h)
 target_include_directories(mld_common_selectors_convolution_selector PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
-target_link_libraries(mld_common_selectors_convolution_selector PUBLIC
+target_link_libraries(mld_common_selectors_convolution_selector
+  PUBLIC
     mld_common_data_type
     mld_common_gpu_info
-    mld_common_model_hints
-    mld_common_operations
-    mld_common_precision
-    mld_common_shape
-    mld_common_tensor
     mld_common_kernels_conv_apple_mpp
     mld_common_kernels_conv_constants
     mld_common_kernels_conv_generic
     mld_common_kernels_conv_wave_matrix
     mld_common_kernels_conv_wave_matrix_mali
     mld_common_kernels_conv_wave_memory
+    mld_common_model_hints
+    mld_common_operations
+    mld_common_precision
+    mld_common_shape
     mld_common_task_gpu_operation
     mld_common_task_tensor_desc
     mld_common_task_weights_layout
+    mld_common_tensor
 )
 
 add_library(mld_common_selectors_convolution_transposed_selector convolution_transposed_selector.cc convolution_transposed_selector.h)
 target_include_directories(mld_common_selectors_convolution_transposed_selector PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
-target_link_libraries(mld_common_selectors_convolution_transposed_selector PUBLIC
+target_link_libraries(mld_common_selectors_convolution_transposed_selector
+  PUBLIC
     mld_common_gpu_info
-    mld_common_operations
-    mld_common_precision
     mld_common_kernels_convolution_transposed
     mld_common_kernels_convolution_transposed_2x2
     mld_common_kernels_convolution_transposed_3x3
     mld_common_kernels_convolution_transposed_3x3_thin
     mld_common_kernels_convolution_transposed_4x4
     mld_common_kernels_convolution_transposed_thin
+    mld_common_operations
+    mld_common_precision
     mld_common_task_gpu_operation
     mld_common_task_weights_layout
 )
 
 add_library(mld_common_selectors_dw_convolution_selector dw_convolution_selector.cc dw_convolution_selector.h)
 target_include_directories(mld_common_selectors_dw_convolution_selector PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
-target_link_libraries(mld_common_selectors_dw_convolution_selector PUBLIC
+target_link_libraries(mld_common_selectors_dw_convolution_selector
+  PUBLIC
     mld_common_gpu_info
-    mld_common_operations
-    mld_common_precision
     mld_common_kernels_depthwise_conv
     mld_common_kernels_depthwise_conv_3x3
     mld_common_kernels_depthwise_conv_tiled
     mld_common_kernels_depthwise_conv_wave_memory
+    mld_common_operations
+    mld_common_precision
     mld_common_task_gpu_operation
 )
 
 add_library(mld_common_selectors_simple_selectors simple_selectors.cc simple_selectors.h)
 target_include_directories(mld_common_selectors_simple_selectors PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
-target_link_libraries(mld_common_selectors_simple_selectors PUBLIC
+target_link_libraries(mld_common_selectors_simple_selectors
+  PUBLIC
     absl::status
     absl::status_macros
     absl::statusor

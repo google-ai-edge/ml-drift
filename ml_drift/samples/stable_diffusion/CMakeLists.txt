@@ -17,7 +17,8 @@ add_library(mld_samples_stable_diffusion_autoencoder_kl_builder
     autoencoder_kl_builder.h
 )
 target_include_directories(mld_samples_stable_diffusion_autoencoder_kl_builder PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
-target_link_libraries(mld_samples_stable_diffusion_autoencoder_kl_builder PUBLIC
+target_link_libraries(mld_samples_stable_diffusion_autoencoder_kl_builder
+  PUBLIC
     absl::status
     absl::status_macros
     absl::statusor
@@ -35,7 +36,8 @@ add_library(mld_samples_stable_diffusion_bpe_tokenizer
     bpe_tokenizer.h
 )
 target_include_directories(mld_samples_stable_diffusion_bpe_tokenizer PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
-target_link_libraries(mld_samples_stable_diffusion_bpe_tokenizer PRIVATE
+target_link_libraries(mld_samples_stable_diffusion_bpe_tokenizer
+  PRIVATE
     absl::log
     absl::strings
     re2
@@ -46,7 +48,8 @@ add_library(mld_samples_stable_diffusion_text_guidance_builder
     text_guidance_builder.h
 )
 target_include_directories(mld_samples_stable_diffusion_text_guidance_builder PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
-target_link_libraries(mld_samples_stable_diffusion_text_guidance_builder PUBLIC
+target_link_libraries(mld_samples_stable_diffusion_text_guidance_builder
+  PUBLIC
     absl::log
     absl::status
     absl::status_macros
@@ -71,7 +74,8 @@ add_library(mld_samples_stable_diffusion_unet_builder
     unet_builder.h
 )
 target_include_directories(mld_samples_stable_diffusion_unet_builder PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
-target_link_libraries(mld_samples_stable_diffusion_unet_builder PUBLIC
+target_link_libraries(mld_samples_stable_diffusion_unet_builder
+  PUBLIC
     absl::log
     absl::span
     absl::status
@@ -93,7 +97,8 @@ add_library(mld_samples_stable_diffusion_util
     util.h
 )
 target_include_directories(mld_samples_stable_diffusion_util PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
-target_link_libraries(mld_samples_stable_diffusion_util PUBLIC
+target_link_libraries(mld_samples_stable_diffusion_util
+  PUBLIC
     absl::span
     absl::status
     absl::status_macros
@@ -115,7 +120,8 @@ add_library(mld_samples_stable_diffusion_model_data_loader
     model_data_loader.h
 )
 target_include_directories(mld_samples_stable_diffusion_model_data_loader PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
-target_link_libraries(mld_samples_stable_diffusion_model_data_loader PUBLIC
+target_link_libraries(mld_samples_stable_diffusion_model_data_loader
+  PUBLIC
     absl::flat_hash_map
     absl::log
     absl::memory
@@ -133,7 +139,8 @@ target_link_libraries(mld_samples_stable_diffusion_model_data_loader PUBLIC
 add_executable(sd_gpu_opencl
     sd_gpu_opencl.cc
 )
-target_link_libraries(sd_gpu_opencl PUBLIC
+target_link_libraries(sd_gpu_opencl
+  PUBLIC
     absl::status
     absl::status_macros
     absl::statusor
