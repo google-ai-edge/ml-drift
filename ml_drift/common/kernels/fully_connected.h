@@ -108,7 +108,6 @@ class FullyConnected : public GPUOperation {
       const Tensor<Linear, DataType::FLOAT32>& biases,
       const BHWC* dst_shape_ptr, const int3* wg_size);
 
-  void AddWeightsArguments(const ExternalWeights& weights);
   template <DataType T>
   void UploadWeights(const Tensor<OHWI, T>& weights,
                      const WeightsDescription& weights_desc);

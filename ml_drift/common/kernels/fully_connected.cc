@@ -81,7 +81,7 @@ inline bool UseBufferForIntWeights(const GpuInfo& gpu_info, int int_bit_size,
   weights_desc.layout = WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4;
   weights_desc.output_group_size = DivideRoundUp(weights_shape.o, 4);
   uint2 tex_size = Get2dResourceSize(weights_desc, weights_shape);
-  tex_size.x /= 4;  // because we store 4 uint4/8 as one uint16/32
+  tex_size.x /= 4;  // because we store 4 uint2/4/8 as one uint8/16/32
   const bool can_use_textures = gpu_info.SupportsImages() &&
                                 tex_size.x <= gpu_info.GetMaxImage2DWidth() &&
                                 tex_size.y <= gpu_info.GetMaxImage2DHeight();
@@ -988,71 +988,78 @@ int3 FullyConnected::GetGridSize() const {
   return int3(dst_[0]->Slices(), work_group_size_.y * w_groups, w_batch_size);
 }
 
-void FullyConnected::AddWeightsArguments(const ExternalWeights& weights) {
+void AddWeightsArguments(const ExternalWeights& weights, int vec_size,
+                         GPUOperation* op) {
   if (weights.desc.type == DataType::FLOAT32 ||
       weights.desc.type == DataType::FLOAT16) {
     if (weights.desc.IsLinearLayout()) {
       BufferDescriptor desc;
       desc.element_type = weights.desc.type;
-      desc.element_size =
-          conv_params_.runtime_check.ring_o_offset_index.has_value() ||
-                  conv_params_.runtime_check.ring_i_offset_index.has_value()
-              ? 4
-              : 16;
-      AddSrcBuffer("weights", desc);
+      desc.element_size = vec_size;
+      op->AddSrcBuffer("weights", desc);
     } else {
-      // k2DX4I4YIsSpatialIAndXIsOOGroupO4
+      // Texture based weights, stored as 4 separate 2D textures.
       TensorDescriptor desc{weights.desc.type, TensorStorageType::TEXTURE_2D,
                             Layout::HW};
       for (int i = 0; i < 4; ++i) {
         const std::string name = "weights" + std::to_string(i);
-        AddSrcTensor(name, desc);
+        op->AddSrcTensor(name, desc);
       }
     }
   } else if (weights.desc.type == DataType::UINT8) {
     if (weights.desc.IsLinearLayout()) {
       BufferDescriptor desc;
       desc.element_type = DataType::UINT32;
-      desc.element_size = 4;
-      AddSrcBuffer("weights", desc);
+      desc.element_size = vec_size / 4;
+      op->AddSrcBuffer("weights", desc);
     } else {
       TensorDescriptor desc = TensorDescriptor(
           DataType::UINT32, TensorStorageType::TEXTURE_2D, Layout::HW);
-      AddSrcTensor("weights", desc);
+      op->AddSrcTensor("weights", desc);
     }
   } else if (weights.desc.type == DataType::UINT4) {
     if (weights.desc.IsLinearLayout()) {
       BufferDescriptor desc;
       desc.element_type = DataType::UINT32;
-      desc.element_size = 2;
-      AddSrcBuffer("weights", desc);
+      desc.element_size = vec_size / 8;
+      op->AddSrcBuffer("weights", desc);
     } else {
+      DataType texture_type = DataType::UINT16;
+      if (vec_size == 32) {
+        texture_type = DataType::UINT32;
+      }
       TensorDescriptor desc = TensorDescriptor(
-          DataType::UINT16, TensorStorageType::TEXTURE_2D, Layout::HW);
-      AddSrcTensor("weights", desc);
+          texture_type, TensorStorageType::TEXTURE_2D, Layout::HW);
+      op->AddSrcTensor("weights", desc);
     }
   } else if (weights.desc.type == DataType::UINT2) {
     if (weights.desc.IsLinearLayout()) {
       BufferDescriptor desc;
       desc.element_type = DataType::UINT32;
-      desc.element_size = 1;
-      AddSrcBuffer("weights", desc);
+      desc.element_size = vec_size / 16;
+      op->AddSrcBuffer("weights", desc);
     } else {
+      DataType texture_type = DataType::UINT8;
+      if (vec_size == 32) {
+        texture_type = DataType::UINT16;
+      } else if (vec_size == 64) {
+        texture_type = DataType::UINT32;
+      }
       TensorDescriptor desc = TensorDescriptor(
-          DataType::UINT8, TensorStorageType::TEXTURE_2D, Layout::HW);
-      AddSrcTensor("weights", desc);
+          texture_type, TensorStorageType::TEXTURE_2D, Layout::HW);
+      op->AddSrcTensor("weights", desc);
     }
   }
 
   if (weights.scale) {
-    AddSrcTensor("weights_scale", *weights.scale);
+    op->AddSrcTensor("weights_scale", *weights.scale);
   } else if (weights.scalar_scale.has_value()) {
-    args_.AddFloat("scale", *weights.scalar_scale);
+    op->args_.AddFloat("scale", *weights.scalar_scale);
   }
   if (weights.zero_point) {
-    AddSrcTensor("weights_zero_point", *weights.zero_point);
+    op->AddSrcTensor("weights_zero_point", *weights.zero_point);
   } else if (weights.scalar_zero_point.has_value()) {
-    args_.AddFloat("zero_point", *weights.scalar_zero_point);
+    op->args_.AddFloat("zero_point", *weights.scalar_zero_point);
   }
 }
 
@@ -1227,7 +1234,11 @@ absl::StatusOr<FullyConnected> CreateFullyConnectedExternalWeights(
   FullyConnected result(src, dst, precision, gpu_info, weights_shape,
                         weights_desc, conv_params);
 
-  result.AddWeightsArguments(weights);
+  const bool vec4_elements =
+      conv_params.runtime_check.ring_o_offset_index.has_value() ||
+      conv_params.runtime_check.ring_i_offset_index.has_value();
+  const int vec_size = vec4_elements ? 4 : 16;
+  AddWeightsArguments(weights, vec_size, &result);
 
   if (bias) {
     result.AddSrcTensor("biases", *bias);
@@ -1266,7 +1277,11 @@ absl::StatusOr<FullyConnected> CreateFullyConnectedWeightsBatchIds(
                         weights_desc, conv_params);
 
   result.AddSrcTensor("batch_ids", batch_ids);
-  result.AddWeightsArguments(weights);
+  const bool vec4_elements =
+      conv_params.runtime_check.ring_o_offset_index.has_value() ||
+      conv_params.runtime_check.ring_i_offset_index.has_value();
+  const int vec_size = vec4_elements ? 4 : 16;
+  AddWeightsArguments(weights, vec_size, &result);
 
   if (bias) {
     result.AddSrcTensor("biases", *bias);
