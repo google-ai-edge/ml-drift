@@ -1174,6 +1174,20 @@ WeightsDescription GetFullyConnectedWeightsDesc(DataType weights_type,
   return weights_desc;
 }
 
+WeightsDescription GetFullyConnectedWeightsDesc(const GpuInfo& gpu_info,
+                                                DataType weights_type,
+                                                const OHWI& weights_shape) {
+  WeightsDescription weights_desc;
+  weights_desc.type = weights_type;
+  weights_desc.output_group_size = DivideRoundUp(weights_shape.o, 4);
+  if (UseBufferForWeights(gpu_info, weights_shape)) {
+    weights_desc.layout = WeightsLayout::kOSpatialIOGroupI4O4;
+  } else {
+    weights_desc.layout = WeightsLayout::k2DX4I4YIsSpatialIAndXIsOOGroupO4;
+  }
+  return weights_desc;
+}
+
 absl::StatusOr<FullyConnected> CreateFullyConnectedExternalWeights(
     const GpuInfo& gpu_info, CalculationsPrecision precision,
     const TensorDescriptor& src, const TensorDescriptor& dst,

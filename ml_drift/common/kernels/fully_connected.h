@@ -186,8 +186,13 @@ absl::StatusOr<FullyConnected> CreateFullyConnectedWeightsAreSpatialTensor(
     const int3* wg_size = nullptr,
     const ConvRuntimeCheckDesc& runtime_check = {});
 
-// Returns the weights description for a fully connected operation.
+// Returns the buffer based weights description for a fully connected operation.
 WeightsDescription GetFullyConnectedWeightsDesc(DataType weights_type,
+                                                const OHWI& weights_shape);
+// Returns the weights description(buffer or texture) for a fully connected
+// operation.
+WeightsDescription GetFullyConnectedWeightsDesc(const GpuInfo& gpu_info,
+                                                DataType weights_type,
                                                 const OHWI& weights_shape);
 
 // Creates a fully connected operation with external weights.

@@ -2026,20 +2026,24 @@ GpuModelBuilder::DepthwiseConvolution(
 GpuModelBuilder::TensorHandle GpuModelBuilder::FullyConnected(
     const GpuModelBuilder::TensorHandle& src,
     const FullyConnectedAttributes& attr) {
+  const DataType float_type = src.tensor_desc.GetDataType();
+  const CalculationsPrecision precision = GetConvPrecision(float_type);
   BHWC dst_shape = CalculateOutputShape(src.tensor_desc.GetBHWCShape(), attr);
   const int total_spatial_size = dst_shape.b * dst_shape.h * dst_shape.w;
-  GpuModelBuilder::TensorHandle dst =
-      AddTensor(dst_shape, src.tensor_desc.GetDataType());
+  GpuModelBuilder::TensorHandle dst = AddTensor(dst_shape, float_type);
+
+  GpuModelBuilder::TensorHandle bias_th;
+  const TensorDescriptor* bias_td_ptr = nullptr;
+  if (!attr.bias.empty()) {
+    bias_th = AddConstantTensor(attr.bias, float_type);
+    bias_td_ptr = &bias_th.tensor_desc;
+  }
+
+  std::unique_ptr<GPUOperation> op;
+  WeightsDescription weights_desc;
+  std::string op_name;
   if (total_spatial_size >
-      GetRecommendedMaxTotalSpatialSize(
-          gpu_info_, GetConvPrecision(src.tensor_desc.GetDataType()))) {
-    WeightsDescription weights_desc;
-    TensorHandle bias_th;
-    TensorDescriptor* bias_tensor_desc_ptr = nullptr;
-    if (!attr.bias.data.empty()) {
-      bias_th = AddConstantTensor(attr.bias, dst.tensor_desc.GetDataType());
-      bias_tensor_desc_ptr = &bias_th.tensor_desc;
-    }
+      GetRecommendedMaxTotalSpatialSize(gpu_info_, precision)) {
     OperationDef op_def;
     op_def.src_tensors.push_back(src.tensor_desc);
     op_def.dst_tensors.push_back(dst.tensor_desc);
@@ -2053,40 +2057,41 @@ GpuModelBuilder::TensorHandle GpuModelBuilder::FullyConnected(
     conv_attr.padding.prepended = HW(0, 0);
     conv_attr.strides = HW(1, 1);
     conv_attr.dilations = HW(1, 1);
-    auto op = SelectConvolutionWithExternalWeights(
-        conv_attr, bias_tensor_desc_ptr, dst_shape, gpu_info_, op_def,
-        GetConvPrecision(src.tensor_desc.GetDataType()), hints_, &weights_desc,
+    op = SelectConvolutionWithExternalWeights(
+        conv_attr, bias_td_ptr, dst_shape, gpu_info_, op_def, precision, hints_,
+        &weights_desc,
         /*src_exp=*/nullptr,
         /*different_weights_for_height=*/false);
-    op->flops_ = GetConvolutionFlops(dst_shape, attr.weights.shape);
-    const auto weights_handles = GetWeights(attr.weights, weights_desc);
-    std::vector<ValueId> input_ids = {src.id};
-    for (const auto& weight : weights_handles) {
-      input_ids.push_back(weight.id);
+    op_name = "convolution1x1" + GetConvOpNameSuffix(*op);
+  } else {
+    weights_desc = ml_drift::GetFullyConnectedWeightsDesc(gpu_info_, float_type,
+                                                          attr.weights.shape);
+
+    ExternalWeights external_weights;
+    external_weights.desc = weights_desc;
+    external_weights.shape = attr.weights.shape;
+    auto fc_with_status = CreateFullyConnectedExternalWeights(
+        gpu_info_, precision, src.tensor_desc, dst.tensor_desc,
+        external_weights, bias_td_ptr, &dst_shape);
+    if (!fc_with_status.ok()) {
+      ABSL_LOG(ERROR) << fc_with_status.status().message();
+      return dst;
+    } else {
+      op = std::make_unique<ml_drift::FullyConnected>(
+          std::move(fc_with_status.value()));
     }
-    if (!attr.bias.data.empty()) {
-      input_ids.push_back(bias_th.id);
-    }
-    std::string op_name = "convolution1x1" + GetConvOpNameSuffix(*op);
-    AddGpuOperation(input_ids, {dst.id}, std::move(op), op_name);
-    return dst;
+    op_name = "fully_connected";
   }
-  gpu_model_.nodes.push_back({});
-  auto& gpu_node = gpu_model_.nodes.back();
-  gpu_node.name = "fully_connected";
-  gpu_node.op_name = absl::StrCat(attr.op_name, "_fully_connected");
-  gpu_node.inputs = {src.id};
-  gpu_node.outputs = {dst.id};
-  OperationDef op_def;
-  op_def.src_tensors.push_back(src.tensor_desc);
-  op_def.dst_tensors.push_back(dst.tensor_desc);
-  ml_drift::FullyConnected fc = CreateFullyConnected(
-      gpu_info_, op_def, GetConvPrecision(src.tensor_desc.GetDataType()), attr,
-      &dst_shape);
-  gpu_node.gpu_operation =
-      std::make_unique<ml_drift::FullyConnected>(std::move(fc));
-  gpu_node.gpu_operation->flops_ =
-      GetConvolutionFlops(dst_shape, attr.weights.shape);
+  op->flops_ = GetConvolutionFlops(dst_shape, attr.weights.shape);
+  std::vector<ValueId> input_ids = {src.id};
+  const auto weights_handles = GetWeights(attr.weights, weights_desc);
+  for (const auto& weight : weights_handles) {
+    input_ids.push_back(weight.id);
+  }
+  if (!attr.bias.empty()) {
+    input_ids.push_back(bias_th.id);
+  }
+  AddGpuOperation(input_ids, {dst.id}, std::move(op), op_name);
   return dst;
 }
 
