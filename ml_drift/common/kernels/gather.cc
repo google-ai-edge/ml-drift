@@ -53,11 +53,11 @@ std::string GetGatherCode(const OperationDef& op_def, Axis gather_axis) {
       args.src_tensor.ReadPerChannel(src_array[i], X, Y, gather_indexes_array[i], B);
     }
   }
-  args.src_tensor::type result;
-  result.x = src_array[0];
-  result.y = src_array[1];
-  result.z = src_array[2];
-  result.w = src_array[3];
+  args.dst_tensor::type result;
+  result.x = ucl::Convert<args.dst_tensor::scalar_type>(src_array[0]);
+  result.y = ucl::Convert<args.dst_tensor::scalar_type>(src_array[1]);
+  result.z = ucl::Convert<args.dst_tensor::scalar_type>(src_array[2]);
+  result.w = ucl::Convert<args.dst_tensor::scalar_type>(src_array[3]);
 )";
   } else {
     const std::vector<std::pair<Axis, std::string>> coords = {
@@ -82,8 +82,12 @@ std::string GetGatherCode(const OperationDef& op_def, Axis gather_axis) {
     c += "  int gather_index;\n";
     c += "  args.indices.ReadPerChannel<int>(gather_index, 0, 0, " +
          gather_coord + ");\n";
-    c += "  args.src_tensor::type result = args.src_tensor.Read(" + src_coords +
-         ");\n";
+    // Key the result off the destination, not the source: a folded fp16
+    // weight can feed an fp32 destination, and WGSL has no implicit numeric
+    // conversions.
+    c += "  args.dst_tensor::type result = "
+         "ucl::Convert<args.dst_tensor::type>(args.src_tensor.Read(" +
+         src_coords + "));\n";
   }
   c += "  args.dst_tensor.Write(result, X, Y, S, B);\n";
   c += "}\n";
