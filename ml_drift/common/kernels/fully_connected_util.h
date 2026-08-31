@@ -15,6 +15,12 @@
 #ifndef ML_DRIFT_COMMON_KERNELS_FULLY_CONNECTED_UTIL_H_
 #define ML_DRIFT_COMMON_KERNELS_FULLY_CONNECTED_UTIL_H_
 
+#include <string>
+
+#include "ml_drift/common/data_type.h"
+#include "ml_drift/common/gpu_info.h"
+#include "ml_drift/common/precision.h"
+#include "ml_drift/common/shape.h"
 #include "ml_drift/common/task/gpu_operation.h"
 
 namespace ml_drift {
@@ -22,6 +28,28 @@ namespace fc {
 
 void AddRuntimeParam(const ConvRuntimeCheckDesc& runtime_check,
                      GPUOperation* op);
+
+std::string ReadScaleZeroPointBlock(const OHWI& scale_zp_shape,
+                                    bool has_zero_point, DataType weights_type);
+std::string ReadScaleZeroPointLinear(const OHWI& scale_zp_shape,
+                                     bool has_zero_point,
+                                     DataType weights_type);
+std::string ReadScaleZeroPointScalar(bool has_zero_point,
+                                     DataType weights_type);
+
+std::string WeightsScaleAddBias(const std::string& w_scale,
+                                const std::string& w_bias, bool isI4O4,
+                                bool use_fma);
+
+std::string AccumulateFloat(const std::string& r_name,
+                            const std::string& src_name,
+                            CalculationsPrecision precision, bool isI4O4,
+                            bool use_fma);
+
+std::string AccumulateUint(const std::string& r_name,
+                           const std::string& src_name,
+                           const GpuInfo& gpu_info);
+std::string AdjustUintSum(const std::string& r_name, DataType weights_type);
 
 }  // namespace fc
 }  // namespace ml_drift

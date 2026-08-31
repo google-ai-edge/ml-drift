@@ -689,8 +689,12 @@ cc_library(
     hdrs = ["fully_connected_util.h"],
     deps = [
         "//ml_drift/common:data_type",
+        "//ml_drift/common:gpu_info",
+        "//ml_drift/common:precision",
+        "//ml_drift/common:shape",
         "//ml_drift/common/task:buffer_desc",
         "//ml_drift/common/task:gpu_operation",
+        "@com_google_absl//absl/strings",
     ],
 )
 

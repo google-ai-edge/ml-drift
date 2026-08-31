@@ -196,7 +196,11 @@ target_link_libraries(mld_common_kernels_fully_connected PUBLIC
 add_library(mld_common_kernels_fully_connected_util fully_connected_util.cc fully_connected_util.h)
 target_include_directories(mld_common_kernels_fully_connected_util PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_common_kernels_fully_connected_util PUBLIC
+    absl::strings
     mld_common_data_type
+    mld_common_gpu_info
+    mld_common_precision
+    mld_common_shape
     mld_common_task_buffer_desc
     mld_common_task_gpu_operation
 )
