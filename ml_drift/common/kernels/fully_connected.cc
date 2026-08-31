@@ -30,6 +30,7 @@
 #include "absl/types/span.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
+#include "ml_drift/common/kernels/fully_connected_util.h"
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/precision.h"
 #include "ml_drift/common/shape.h"
@@ -1232,38 +1233,6 @@ int GetRecommendedMaxTotalSpatialSize(const GpuInfo& gpu_info,
   return base_max_size;
 }
 
-void AddRuntimeParam(const ConvRuntimeCheckDesc& runtime_check,
-                     GPUOperation* op) {
-  bool has_runtime_check = false;
-  if (runtime_check.src_end_ch_index.has_value()) {
-    op->args_.AddInt("src_end_ch_index", *runtime_check.src_end_ch_index);
-    has_runtime_check = true;
-  }
-  if (runtime_check.dst_end_ch_index.has_value()) {
-    op->args_.AddInt("dst_end_ch_index", *runtime_check.dst_end_ch_index);
-    has_runtime_check = true;
-  }
-  if (runtime_check.packed_groups.has_value()) {
-    op->args_.AddInt("packed_params_offset",
-                     runtime_check.packed_groups->params_offset);
-    has_runtime_check = true;
-  }
-  if (runtime_check.ring_o_offset_index.has_value()) {
-    op->args_.AddInt("ring_o_offset_index", *runtime_check.ring_o_offset_index);
-    has_runtime_check = true;
-  }
-  if (runtime_check.ring_i_offset_index.has_value()) {
-    op->args_.AddInt("ring_i_offset_index", *runtime_check.ring_i_offset_index);
-    has_runtime_check = true;
-  }
-  if (has_runtime_check) {
-    BufferDescriptor desc;
-    desc.element_type = DataType::INT32;
-    desc.element_size = 1;
-    op->AddSrcBuffer("params", desc);
-  }
-}
-
 BHWC GetBlockSize(const BHWC* dst_shape_ptr, bool batched_weights) {
   if (!dst_shape_ptr) {
     return BHWC(1, 1, 1, 1);
@@ -1340,7 +1309,7 @@ absl::StatusOr<FullyConnected> CreateFullyConnectedWeightsAreSpatialTensor(
   if (bias) {
     result.AddSrcTensor("biases", *bias);
   }
-  AddRuntimeParam(runtime_check, &result);
+  fc::AddRuntimeParam(runtime_check, &result);
 
   return result;
 }
@@ -1428,7 +1397,7 @@ absl::StatusOr<FullyConnected> CreateFullyConnectedExternalWeights(
     result.AddSrcTensor("src_exp", *src_exp);
   }
 
-  AddRuntimeParam(runtime_check, &result);
+  fc::AddRuntimeParam(runtime_check, &result);
   return result;
 }
 

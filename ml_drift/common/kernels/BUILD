@@ -647,6 +647,7 @@ cc_library(
     srcs = ["fully_connected.cc"],
     hdrs = ["fully_connected.h"],
     deps = [
+        ":fully_connected_util",
         "//ml_drift/common:data_type",
         "//ml_drift/common:gpu_info",
         "//ml_drift/common:kernel_info",
@@ -679,6 +680,17 @@ exports_files(
     ],
     visibility = [
         "@//ml_drift_delegate/delegate/serialization_weight_cache:__pkg__",
+    ],
+)
+
+cc_library(
+    name = "fully_connected_util",
+    srcs = ["fully_connected_util.cc"],
+    hdrs = ["fully_connected_util.h"],
+    deps = [
+        "//ml_drift/common:data_type",
+        "//ml_drift/common/task:buffer_desc",
+        "//ml_drift/common/task:gpu_operation",
     ],
 )
 

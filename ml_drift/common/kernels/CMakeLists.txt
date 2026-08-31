@@ -178,6 +178,7 @@ target_link_libraries(mld_common_kernels_fully_connected PUBLIC
     mld_common_data_type
     mld_common_gpu_info
     mld_common_kernel_info
+    mld_common_kernels_fully_connected_util
     mld_common_operations
     mld_common_precision
     mld_common_shape
@@ -190,6 +191,14 @@ target_link_libraries(mld_common_kernels_fully_connected PUBLIC
     mld_common_tensor
     mld_common_types
     mld_common_util
+)
+
+add_library(mld_common_kernels_fully_connected_util fully_connected_util.cc fully_connected_util.h)
+target_include_directories(mld_common_kernels_fully_connected_util PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
+target_link_libraries(mld_common_kernels_fully_connected_util PUBLIC
+    mld_common_data_type
+    mld_common_task_buffer_desc
+    mld_common_task_gpu_operation
 )
 
 add_library(mld_common_kernels_mean_stddev_normalization mean_stddev_normalization.cc mean_stddev_normalization.h)
