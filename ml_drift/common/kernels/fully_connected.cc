@@ -22,6 +22,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_replace.h"
+#include "absl/strings/substitute.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/kernels/fully_connected_util.h"
@@ -385,12 +386,20 @@ FullyConnected::FullyConnected(const TensorDescriptor& src,
   }
 }
 
-std::string ReadWeightsAsFloat(const FullyConnected::ConvParams& conv_params,
-                               const WeightsDescription& weights_desc) {
+std::string AddBatchOffset(const std::string& stride) {
+  return absl::Substitute(R"(
+    a0 += weights_batch_id * $0;
+    a1 += weights_batch_id * $0;
+    a2 += weights_batch_id * $0;
+    a3 += weights_batch_id * $0;
+)",
+                          stride);
+}
+
+std::string GetRingedOAddresses(bool batched_weights) {
   std::string c;
-  if (conv_params.runtime_check.ring_o_offset_index.has_value()) {
-    // kOSpatialIOGroupO4I4 -> kBIOI4
-    c += R"(
+  // kOSpatialIOGroupO4I4 -> kBIOI4
+  c += R"(
     int o0 = (dst_s * 4 + ring_o_offset) % ring_size;
     int o1 = (dst_s * 4 + 1 + ring_o_offset) % ring_size;
     int o2 = (dst_s * 4 + 2 + ring_o_offset) % ring_size;
@@ -400,23 +409,16 @@ std::string ReadWeightsAsFloat(const FullyConnected::ConvParams& conv_params,
     int a2 = src_s * ring_size + o2;
     int a3 = src_s * ring_size + o3;
 )";
-    if (conv_params.batched_weights) {
-      c += R"(
-    a0 += weights_batch_id * ring_size * args.src_tensor.Slices();
-    a1 += weights_batch_id * ring_size * args.src_tensor.Slices();
-    a2 += weights_batch_id * ring_size * args.src_tensor.Slices();
-    a3 += weights_batch_id * ring_size * args.src_tensor.Slices();
-)";
-    }
-    c += R"(
-    w0 = args.weights.Read(a0);
-    w1 = args.weights.Read(a1);
-    w2 = args.weights.Read(a2);
-    w3 = args.weights.Read(a3);
-)";
-  } else if (conv_params.runtime_check.ring_i_offset_index.has_value()) {
-    // kOSpatialIOGroupI4O4 -> kBIOI4O4
-    c += R"(
+  if (batched_weights) {
+    c += AddBatchOffset("ring_size * args.src_tensor.Slices()");
+  }
+  return c;
+}
+
+std::string GetRingedIAddresses(bool batched_weights) {
+  std::string c;
+  // kOSpatialIOGroupI4O4 -> kBIOI4O4
+  c += R"(
     int i0 = (src_s * 4 + ring_i_offset) % ring_size;
     int i1 = (src_s * 4 + 1 + ring_i_offset) % ring_size;
     int i2 = (src_s * 4 + 2 + ring_i_offset) % ring_size;
@@ -426,21 +428,39 @@ std::string ReadWeightsAsFloat(const FullyConnected::ConvParams& conv_params,
     int a2 = ((i2 / 4) * args.dst_tensor.Slices() + dst_s) * 4 + i2 % 4;
     int a3 = ((i3 / 4) * args.dst_tensor.Slices() + dst_s) * 4 + i3 % 4;
 )";
-    if (conv_params.batched_weights) {
-      c += R"(
-    a0 += weights_batch_id * ring_size * args.dst_tensor.Slices();
-    a1 += weights_batch_id * ring_size * args.dst_tensor.Slices();
-    a2 += weights_batch_id * ring_size * args.dst_tensor.Slices();
-    a3 += weights_batch_id * ring_size * args.dst_tensor.Slices();
-)";
-    }
-    c += R"(
+  if (batched_weights) {
+    c += AddBatchOffset("ring_size * args.dst_tensor.Slices()");
+  }
+  return c;
+}
+
+// We are reading ringed weights as 4 vec4 elements with individual addresses.
+std::string ReadRingedWeightsAsFloat(
+    const FullyConnected::ConvParams& conv_params,
+    const WeightsDescription& weights_desc) {
+  std::string c;
+  if (conv_params.runtime_check.ring_o_offset_index.has_value()) {
+    c += GetRingedOAddresses(conv_params.batched_weights);
+  } else if (conv_params.runtime_check.ring_i_offset_index.has_value()) {
+    c += GetRingedIAddresses(conv_params.batched_weights);
+  }
+  c += R"(
     w0 = args.weights.Read(a0);
     w1 = args.weights.Read(a1);
     w2 = args.weights.Read(a2);
     w3 = args.weights.Read(a3);
 )";
-  } else if (weights_desc.layout == WeightsLayout::kUnknown) {
+  return c;
+}
+
+std::string ReadWeightsAsFloat(const FullyConnected::ConvParams& conv_params,
+                               const WeightsDescription& weights_desc) {
+  if (conv_params.runtime_check.ring_o_offset_index.has_value() ||
+      conv_params.runtime_check.ring_i_offset_index.has_value()) {
+    return ReadRingedWeightsAsFloat(conv_params, weights_desc);
+  }
+  std::string c;
+  if (weights_desc.layout == WeightsLayout::kUnknown) {
     const std::string h_coord =
         conv_params.batched_weights ? "weights_batch_id" : "0";
     c += "    w0 = args.weights.Read<SType>(0, " + h_coord +
