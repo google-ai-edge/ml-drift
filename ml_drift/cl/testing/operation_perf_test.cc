@@ -47,8 +47,6 @@ TEST(OpenCLOperationTest, Performance) {
   // ABSL_ASSERT_OK(FullyConnectedWeightsBatchIdsPerfTest(
   //     CalculationsPrecision::F16, DataType::INT8, BHWC(1, 1, 1, 1024), 1024,
   //     128, 8, OHWI(1024, 128, 1, 1)));
-  // ABSL_ASSERT_OK(FullyConnectedInt4Sparse2x4PerfTest(CalculationsPrecision::F16,
-  //                                               BHWC(1, 1, 1, 4096), 4096));
   // ABSL_ASSERT_OK(ConvolutionInt8PerfTest(BHWC(1, 1, 2048, 2048), 2048));
   // ABSL_ASSERT_OK(ConvolutionInt8GroupedPerfTest(BHWC(1, 1, 2048, 2048), 2048,64));
   // ABSL_ASSERT_OK(ConvolutionInt4PerfTest(BHWC(1, 1, 4096, 4096), 4096));

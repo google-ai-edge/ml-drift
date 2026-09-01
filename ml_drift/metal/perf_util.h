@@ -46,23 +46,23 @@ absl::Status ConvSoftmaxConvPerfTest();
 // if scale_zp_shape = 1x1 -> scalar quantization
 // if scale_zp_shape = Ox1 -> linear per output
 // if scale_zp_shape = OxK -> blocked/grouped
-absl::Status FullyConnectedOptimalWGSize(
-    CalculationsPrecision precision, DataType weights_type,
-    const BHWC& src_shape, int dst_channels,
-    OHWI scale_zp_shape = OHWI(1, 1, 1, 1));
+absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision,
+                                         DataType weights_type,
+                                         const BHWC& src_shape,
+                                         int dst_channels,
+                                         OHWI scale_zp_shape = OHWI(1, 1, 1, 1),
+                                         bool sparse_2x4 = false);
 
 absl::Status FullyConnectedPerfTest(CalculationsPrecision precision,
                                     DataType weights_type,
                                     const BHWC& src_shape, int dst_channels,
-                                    OHWI scale_zp_shape = OHWI(1, 1, 1, 1));
+                                    OHWI scale_zp_shape = OHWI(1, 1, 1, 1),
+                                    bool sparse_2x4 = false);
 
 absl::Status FullyConnectedWeightsBatchIdsPerfTest(
     CalculationsPrecision precision, DataType weights_type,
     const BHWC& src_shape, int dst_channels, int batch_size,
     int active_ids_size, OHWI scale_zp_shape = OHWI(1, 1, 1, 1));
-
-absl::Status FullyConnectedInt4Sparse2x4PerfTest(
-    CalculationsPrecision precision, const BHWC& src_shape, int dst_channels);
 
 // bandwidth test
 absl::Status AddScalarTest(const BHWC& shape, const DataType& data_type);

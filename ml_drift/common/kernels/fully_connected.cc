@@ -980,6 +980,30 @@ int3 FullyConnected::GetGridSize() const {
   return int3(dst_[0]->Slices(), work_group_size_.y * w_groups, w_batch_size);
 }
 
+void AddSparseWeightsArguments(const ExternalWeights& weights,
+                               GPUOperation* op) {
+  BufferDescriptor desc;
+  desc.element_type = DataType::UINT32;
+  desc.element_size = 1;
+  op->AddSrcBuffer("weights", desc);
+
+  BufferDescriptor desc_indices;
+  desc_indices.element_type = DataType::UINT32;
+  desc_indices.element_size = 1;
+  op->AddSrcBuffer("weights_indices", desc_indices);
+
+  if (weights.scale) {
+    op->AddSrcTensor("weights_scale", *weights.scale);
+  } else if (weights.scalar_scale.has_value()) {
+    op->args_.AddFloat("scale", *weights.scalar_scale);
+  }
+  if (weights.zero_point) {
+    op->AddSrcTensor("weights_zero_point", *weights.zero_point);
+  } else if (weights.scalar_zero_point.has_value()) {
+    op->args_.AddFloat("zero_point", *weights.scalar_zero_point);
+  }
+}
+
 int GetRecommendedMaxTotalSpatialSize(const GpuInfo& gpu_info,
                                       CalculationsPrecision precision) {
   int base_max_size = 4;
@@ -1272,88 +1296,33 @@ bool SupportsFullyConnectedUint8Math(const GpuInfo& gpu_info) {
 }
 
 FullyConnected CreateFullyConnectedInt4Sparse2x4(
-    const GpuInfo& gpu_info, const OperationDef& definition,
-    CalculationsPrecision precision,
-    const Tensor<OHWI, DataType::INT8>& weights,
-    const Tensor<OHWI, DataType::UINT8>& weights_indices,
-    const Tensor<OHWI, DataType::FLOAT32>& weights_scale,
-    const Tensor<OHWI, DataType::FLOAT32>& weights_zero_point,
-    const Tensor<Linear, DataType::FLOAT32>& biases, const BHWC* dst_shape_ptr,
-    const int3* wg_size) {
-  OHWI weights_shape_dense = weights.shape;
-  weights_shape_dense.i *= 2;
-  WeightsDescription weights_desc;
-  weights_desc.type = DataType::UINT4;
-  weights_desc.layout = WeightsLayout::kCustomGroups;
-  weights_desc.group_sizes = {
-      {Axis::OUTPUT_CHANNELS, 4},
-      {Axis::INPUT_CHANNELS, 2},
-      {Axis::OUTPUT_CHANNELS, DivideRoundUp(weights_shape_dense.o, 4)},
-      {Axis::INPUT_CHANNELS, 0},
-      {Axis::OUTPUT_CHANNELS, 0},
-  };
+    const GpuInfo& gpu_info, CalculationsPrecision precision,
+    const TensorDescriptor& src, const TensorDescriptor& dst,
+    const ExternalWeights& weights, const TensorDescriptor* bias,
+    const BHWC* dst_shape_ptr, const int3* wg_size) {
   FullyConnected::ConvParams conv_params;
-  conv_params.weights_type = DataType::INT4;
-  conv_params.scale_zp_shape = weights_scale.shape;
-  if (weights_scale.shape.i != 1) {
-    conv_params.has_zero_point = false;
+  conv_params.weights_type = GetDataTypeForWeights(weights.desc.type);
+  if (weights.scale) {
+    conv_params.scale_zp_shape = weights.scale_zp_shape;
   }
-  if (wg_size) {
-    conv_params.wg_size = *wg_size;
-  }
-  conv_params.has_bias = !biases.data.empty();
+  conv_params.batched_weights = weights.shape.h != 1;
+  conv_params.has_bias = bias != nullptr;
+  conv_params.has_zero_point =
+      weights.zero_point != nullptr || weights.scalar_zero_point.has_value();
   conv_params.sparse_2x4 = true;
   conv_params.block_size =
       GetBlockSize(dst_shape_ptr, conv_params.batched_weights);
-  FullyConnected result(definition.src_tensors[0], definition.dst_tensors[0],
-                        precision, gpu_info, weights_shape_dense, weights_desc,
-                        conv_params);
-  {
-    const int elements_count =
-        GetTotalElementsCountForLayout(weights_desc, weights.shape);
-    {
-      std::vector<uint8_t> weights_data(elements_count / 2);
-      RearrangeWeightsInt8AsUint4(weights, weights_desc,
-                                  absl::MakeSpan(weights_data),
-                                  /*shift_value=*/8, /*pad_value=*/8u);
-
-      BufferDescriptor buffer_desc;
-      buffer_desc.element_type = DataType::UINT32;
-      buffer_desc.element_size = 1;
-      buffer_desc.size = weights_data.size();
-      buffer_desc.data = std::move(weights_data);
-      result.args_.AddObject("weights", std::make_unique<BufferDescriptor>(
-                                            std::move(buffer_desc)));
-    }
-    {
-      weights_desc.type = DataType::UINT2;
-      std::vector<uint8_t> weights_indices_data(elements_count / 4);
-      RearrangeWeightsUint2(weights_indices, weights_desc,
-                            absl::MakeSpan(weights_indices_data));
-
-      BufferDescriptor buffer_desc;
-      buffer_desc.element_type = DataType::UINT32;
-      buffer_desc.element_size = 1;
-      buffer_desc.size = weights_indices_data.size();
-      buffer_desc.data = std::move(weights_indices_data);
-      result.args_.AddObject(
-          "weights_indices",
-          std::make_unique<BufferDescriptor>(std::move(buffer_desc)));
-    }
+  if (wg_size) {
+    conv_params.wg_size = *wg_size;
   }
-
-  {
-    const DataType type = definition.dst_tensors[0].GetDataType();
-    AddWeightsParams(gpu_info, weights_scale, weights_zero_point, type,
-                     &result.args_);
-    if (conv_params.has_bias) {
-      TensorDescriptor bias_tensor_desc =
-          CreateConstantLinearTensorDescriptor(gpu_info, type, biases);
-      result.args_.AddObject("biases", std::make_unique<TensorDescriptor>(
-                                           std::move(bias_tensor_desc)));
-    }
+  OHWI weights_shape = weights.shape;
+  weights_shape.i *= 2;
+  FullyConnected result(src, dst, precision, gpu_info, weights_shape,
+                        weights.desc, conv_params);
+  AddSparseWeightsArguments(weights, &result);
+  if (bias) {
+    result.AddSrcTensor("biases", *bias);
   }
-
   return result;
 }
 

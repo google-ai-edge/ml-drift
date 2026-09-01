@@ -24,6 +24,7 @@
 #include "xnnpack.h"  // from @XNNPACK
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
+#include "absl/types/span.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/kernels/fully_connected.h"
 #include "ml_drift/common/operations.h"
@@ -467,13 +468,71 @@ absl::Status FullyConnectedInt4Sparse2x4Test(
     }
   }
 
+  DataType type = op_def.src_tensors[0].GetDataType();
+  auto scale_desc =
+      ScaleOrZeroPointToTensorDesc(exec_env.GetGpuInfo(), weights_scale, type);
+  auto zero_point_desc = ScaleOrZeroPointToTensorDesc(exec_env.GetGpuInfo(),
+                                                      weights_zero_point, type);
+
+  ExternalWeights external_weights;
+  external_weights.desc.type = DataType::UINT4;
+  external_weights.desc.layout = WeightsLayout::kCustomGroups;
+  external_weights.desc.group_sizes = {
+      {Axis::OUTPUT_CHANNELS, 4},
+      {Axis::INPUT_CHANNELS, 2},
+      {Axis::OUTPUT_CHANNELS, DivideRoundUp(weights_i4.shape.o, 4)},
+      {Axis::INPUT_CHANNELS, 0},
+      {Axis::OUTPUT_CHANNELS, 0},
+  };
+  external_weights.shape = weights_i4.shape;
+  external_weights.scale_zp_shape = weights_scale.shape;
+  external_weights.scale = &scale_desc;
+  external_weights.zero_point = &zero_point_desc;
+
+  const int elements_count =
+      GetTotalElementsCountForLayout(external_weights.desc, weights_i4.shape);
+  TensorDescriptor weights_gpu_desc;
+  {
+    std::vector<uint8_t> weights_data(elements_count / 2);
+    RearrangeWeightsInt8AsUint4(weights_i4, external_weights.desc,
+                                absl::MakeSpan(weights_data),
+                                /*shift_value=*/8, /*pad_value=*/8u);
+
+    weights_gpu_desc = TensorDescriptor(
+        DataType::UINT32, TensorStorageType::BUFFER, Layout::LINEAR);
+    weights_gpu_desc.SetBHWCShape(BHWC(1, 1, 1, weights_data.size()));
+    weights_gpu_desc.UploadDataRaw(absl::MakeConstSpan(weights_data));
+  }
+
+  TensorDescriptor weights_indices_desc;
+  {
+    WeightsDescription indices_desc = external_weights.desc;
+    indices_desc.type = DataType::UINT2;
+    std::vector<uint8_t> weights_indices_data(elements_count / 4);
+    RearrangeWeightsUint2(weights_indices, indices_desc,
+                          absl::MakeSpan(weights_indices_data));
+
+    weights_indices_desc = TensorDescriptor(
+        DataType::UINT32, TensorStorageType::BUFFER, Layout::LINEAR);
+    weights_indices_desc.SetBHWCShape(
+        BHWC(1, 1, 1, weights_indices_data.size()));
+    weights_indices_desc.UploadDataRaw(
+        absl::MakeConstSpan(weights_indices_data));
+  }
+
   auto operation = CreateFullyConnectedInt4Sparse2x4(
-      exec_env.GetGpuInfo(), op_def, precision, weights_i4, weights_indices,
-      weights_scale, weights_zero_point, {});
-  TensorFloat32 dst_tensor;
+      exec_env.GetGpuInfo(), precision, op_def.src_tensors[0],
+      op_def.dst_tensors[0], external_weights);
+  TensorDescriptor src_desc = op_def.src_tensors[0];
+  src_desc.UploadData(src_tensor);
+  TensorDescriptor dst_desc = op_def.dst_tensors[0];
+  dst_desc.SetBHWCShape(dst_ref_tensor.shape);
   ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
-      src_tensor, std::make_unique<FullyConnected>(std::move(operation)),
-      dst_ref_tensor.shape, &dst_tensor));
+      {&src_desc, &weights_gpu_desc, &weights_indices_desc, &scale_desc,
+       &zero_point_desc},
+      {&dst_desc}, std::make_unique<FullyConnected>(std::move(operation))));
+  TensorFloat32 dst_tensor;
+  dst_desc.DownloadData(&dst_tensor);
   const float eps =
       GetEpsilon(precision, exec_env.GetGpuInfo()) * weights_i4.shape.i;
   EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), dst_ref_tensor.data));

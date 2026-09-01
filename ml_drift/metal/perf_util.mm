@@ -25,6 +25,7 @@
 #include "absl/random/random.h"
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
+#include "absl/types/span.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/flops_util.h"
 #include "ml_drift/common/kernels/conv_apple_mpp.h"
@@ -922,10 +923,11 @@ absl::Status ConvSoftmaxConvPerfTest() {
 
 absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision, DataType weights_type,
                                          const BHWC& src_shape, int dst_channels,
-                                         OHWI scale_zp_shape) {
+                                         OHWI scale_zp_shape, bool sparse_2x4) {
   const bool use_zero_point = false;
+  const OHWI weights_shape(dst_channels, scale_zp_shape.h, 1, src_shape.c / (sparse_2x4 ? 2 : 1));
   ml_drift::Tensor<OHWI, DataType::FLOAT32> weights;
-  weights.shape = OHWI(dst_channels, scale_zp_shape.h, 1, src_shape.c);
+  weights.shape = weights_shape;
   weights.data.resize(weights.shape.DimensionsProduct() + XNN_EXTRA_BYTES / sizeof(float));
   // Initialize weights with non uniform values. Uniform values can be optimized in textures and
   // show too good performance???
@@ -934,7 +936,7 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision, DataTy
   }
 
   ml_drift::Tensor<OHWI, DataType::INT8> weights_i8;
-  weights_i8.shape = OHWI(dst_channels, scale_zp_shape.h, 1, src_shape.c);
+  weights_i8.shape = weights_shape;
   weights_i8.data.resize(weights_i8.shape.DimensionsProduct() + XNN_EXTRA_BYTES / sizeof(uint8_t));
   for (int i = 0; i < weights_i8.data.size(); ++i) {
     weights_i8.data[i] = (i % 256) - 128;
@@ -996,14 +998,56 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision, DataTy
   const int64_t src_elements_alignedx4 = src.Width() * src.Height() * src.Slices() * 4;
   const double dst_gbytes = dst_elements_alignedx4 * element_size / kGByte;
   const double src_gbytes = src_elements_alignedx4 * element_size / kGByte;
-  const double weight_element_size = SizeInBitsOf(weights_type) / 8.0;
+  double weight_element_size = SizeInBitsOf(weights_type) / 8.0;
+  if (sparse_2x4) {
+    weight_element_size += 0.25;
+  }
   const double weight_gbytes = weights.shape.DimensionsProduct() * weight_element_size / kGByte;
   const double bias_gbytes = weights.shape.o * element_size / kGByte;
   const double scale_gbytes = scale_zp_shape.DimensionsProduct() * element_size / kGByte;
 
   WeightsDescription weights_desc;
   std::vector<TensorDescriptor> weights_gpu;
-  if (weights_type == DataType::FLOAT16 || weights_type == DataType::FLOAT32) {
+  if (sparse_2x4) {
+    weights_desc.type = DataType::UINT4;
+    weights_desc.layout = WeightsLayout::kCustomGroups;
+    weights_desc.group_sizes = {
+        {Axis::OUTPUT_CHANNELS, 4},
+        {Axis::INPUT_CHANNELS, 2},
+        {Axis::OUTPUT_CHANNELS, DivideRoundUp(weights_i8.shape.o, 4)},
+        {Axis::INPUT_CHANNELS, 0},
+        {Axis::OUTPUT_CHANNELS, 0},
+    };
+    ml_drift::Tensor<OHWI, DataType::UINT8> weights_indices;
+    weights_indices.shape = weights_i8.shape;
+    weights_indices.data.resize(weights_indices.shape.DimensionsProduct() +
+                                XNN_EXTRA_BYTES / sizeof(uint8_t));
+
+    const int elements_count = GetTotalElementsCountForLayout(weights_desc, weights_i8.shape);
+    {
+      std::vector<uint8_t> weights_data(elements_count / 2);
+      RearrangeWeightsInt8AsUint4(weights_i8, weights_desc, absl::MakeSpan(weights_data),
+                                  /*shift_value=*/8, /*pad_value=*/8u);
+
+      TensorDescriptor weights_gpu_desc(DataType::UINT32, TensorStorageType::BUFFER,
+                                        Layout::LINEAR);
+      weights_gpu_desc.SetBHWCShape(BHWC(1, 1, 1, weights_data.size()));
+      weights_gpu_desc.UploadDataRaw(absl::MakeConstSpan(weights_data));
+      weights_gpu.push_back(std::move(weights_gpu_desc));
+    }
+    {
+      WeightsDescription indices_desc = weights_desc;
+      indices_desc.type = DataType::UINT2;
+      std::vector<uint8_t> weights_indices_data(elements_count / 4);
+      RearrangeWeightsUint2(weights_indices, indices_desc, absl::MakeSpan(weights_indices_data));
+
+      TensorDescriptor weights_indices_desc(DataType::UINT32, TensorStorageType::BUFFER,
+                                            Layout::LINEAR);
+      weights_indices_desc.SetBHWCShape(BHWC(1, 1, 1, weights_indices_data.size()));
+      weights_indices_desc.UploadDataRaw(absl::MakeConstSpan(weights_indices_data));
+      weights_gpu.push_back(std::move(weights_indices_desc));
+    }
+  } else if (weights_type == DataType::FLOAT16 || weights_type == DataType::FLOAT32) {
     weights_desc.type = DeduceDataTypeFromPrecision(precision);
     weights_desc.layout = WeightsLayout::kOSpatialIOGroupI4O4;
     weights_desc.output_group_size = DivideRoundUp(weights.shape.o, 4);
@@ -1027,7 +1071,7 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision, DataTy
   TensorDescriptor scale_desc = ScaleOrZeroPointToTensorDesc(gpu_info, weights_scale, data_type);
   TensorDescriptor zp_desc = ScaleOrZeroPointToTensorDesc(gpu_info, weights_zp, data_type);
 
-  const bool is_quantized = SizeInBitsOf(weights_type) < 16;
+  const bool is_quantized = SizeInBitsOf(weights_type) <= 8;
 
   MetalSpatialTensor scale_tensor;
   MetalSpatialTensor zp_tensor;
@@ -1068,12 +1112,19 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision, DataTy
   }
 
   for (int i = 0; i < wg_sizes.size(); ++i) {
-    ABSL_ASSIGN_OR_RETURN(auto operation, CreateFullyConnectedExternalWeights(
-                                              gpu_info, precision, op_def.src_tensors[0],
-                                              op_def.dst_tensors[0], external_weights,
-                                              /*bias=*/nullptr, &dst_shape, /*src_exp=*/nullptr,
-                                              /*runtime_check=*/{}, &wg_sizes[i]));
-    std::unique_ptr<GPUOperation> conv = std::make_unique<FullyConnected>(std::move(operation));
+    std::unique_ptr<GPUOperation> conv;
+    if (sparse_2x4) {
+      conv = std::make_unique<FullyConnected>(CreateFullyConnectedInt4Sparse2x4(
+          gpu_info, precision, op_def.src_tensors[0], op_def.dst_tensors[0], external_weights,
+          /*bias=*/nullptr, &dst_shape, &wg_sizes[i]));
+    } else {
+      ABSL_ASSIGN_OR_RETURN(auto operation,
+                            CreateFullyConnectedExternalWeights(
+                                gpu_info, precision, op_def.src_tensors[0], op_def.dst_tensors[0],
+                                external_weights, /*bias=*/nullptr, &dst_shape, /*src_exp=*/nullptr,
+                                /*runtime_check=*/{}, &wg_sizes[i]));
+      conv = std::make_unique<FullyConnected>(std::move(operation));
+    }
     ABSL_RETURN_IF_ERROR(conv->AssembleCode(env.GetInfo()));
 
     ComputeTask gpu_kernel;
@@ -1191,10 +1242,12 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision, DataTy
 }
 
 absl::Status FullyConnectedPerfTest(CalculationsPrecision precision, DataType weights_type,
-                                    const BHWC& src_shape, int dst_channels, OHWI scale_zp_shape) {
+                                    const BHWC& src_shape, int dst_channels, OHWI scale_zp_shape,
+                                    bool sparse_2x4) {
   const bool use_zero_point = false;
+  const OHWI weights_shape(dst_channels, scale_zp_shape.h, 1, src_shape.c / (sparse_2x4 ? 2 : 1));
   ml_drift::Tensor<OHWI, DataType::FLOAT32> weights;
-  weights.shape = OHWI(dst_channels, scale_zp_shape.h, 1, src_shape.c);
+  weights.shape = weights_shape;
   weights.data.resize(weights.shape.DimensionsProduct() + XNN_EXTRA_BYTES / sizeof(float));
   // Initialize weights with non uniform values. Uniform values can be optimized in textures and
   // show too good performance???
@@ -1203,7 +1256,7 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision, DataType we
   }
 
   ml_drift::Tensor<OHWI, DataType::INT8> weights_i8;
-  weights_i8.shape = OHWI(dst_channels, scale_zp_shape.h, 1, src_shape.c);
+  weights_i8.shape = weights_shape;
   weights_i8.data.resize(weights_i8.shape.DimensionsProduct() + XNN_EXTRA_BYTES / sizeof(uint8_t));
   for (int i = 0; i < weights_i8.data.size(); ++i) {
     weights_i8.data[i] = (i % 256) - 128;
@@ -1264,7 +1317,10 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision, DataType we
   const int64_t src_elements_alignedx4 = src.Width() * src.Height() * src.Slices() * 4;
   const double dst_gbytes = dst_elements_alignedx4 * element_size / kGByte;
   const double src_gbytes = src_elements_alignedx4 * element_size / kGByte;
-  const double weight_element_size = SizeInBitsOf(weights_type) / 8.0;
+  double weight_element_size = SizeInBitsOf(weights_type) / 8.0;
+  if (sparse_2x4) {
+    weight_element_size += 0.25;
+  }
   const double weight_gbytes = weights.shape.DimensionsProduct() * weight_element_size / kGByte;
   const double scale_gbytes = scale_zp_shape.DimensionsProduct() * element_size / kGByte;
 
@@ -1272,7 +1328,46 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision, DataType we
 
   WeightsDescription weights_desc;
   std::vector<TensorDescriptor> weights_gpu;
-  if (weights_type == DataType::FLOAT16 || weights_type == DataType::FLOAT32) {
+  if (sparse_2x4) {
+    weights_desc.type = DataType::UINT4;
+    weights_desc.layout = WeightsLayout::kCustomGroups;
+    weights_desc.group_sizes = {
+        {Axis::OUTPUT_CHANNELS, 4},
+        {Axis::INPUT_CHANNELS, 2},
+        {Axis::OUTPUT_CHANNELS, DivideRoundUp(weights_i8.shape.o, 4)},
+        {Axis::INPUT_CHANNELS, 0},
+        {Axis::OUTPUT_CHANNELS, 0},
+    };
+    ml_drift::Tensor<OHWI, DataType::UINT8> weights_indices;
+    weights_indices.shape = weights_i8.shape;
+    weights_indices.data.resize(weights_indices.shape.DimensionsProduct() +
+                                XNN_EXTRA_BYTES / sizeof(uint8_t));
+
+    const int elements_count = GetTotalElementsCountForLayout(weights_desc, weights_i8.shape);
+    {
+      std::vector<uint8_t> weights_data(elements_count / 2);
+      RearrangeWeightsInt8AsUint4(weights_i8, weights_desc, absl::MakeSpan(weights_data),
+                                  /*shift_value=*/8, /*pad_value=*/8u);
+
+      TensorDescriptor weights_gpu_desc(DataType::UINT32, TensorStorageType::BUFFER,
+                                        Layout::LINEAR);
+      weights_gpu_desc.SetBHWCShape(BHWC(1, 1, 1, weights_data.size()));
+      weights_gpu_desc.UploadDataRaw(absl::MakeConstSpan(weights_data));
+      weights_gpu.push_back(std::move(weights_gpu_desc));
+    }
+    {
+      WeightsDescription indices_desc = weights_desc;
+      indices_desc.type = DataType::UINT2;
+      std::vector<uint8_t> weights_indices_data(elements_count / 4);
+      RearrangeWeightsUint2(weights_indices, indices_desc, absl::MakeSpan(weights_indices_data));
+
+      TensorDescriptor weights_indices_desc(DataType::UINT32, TensorStorageType::BUFFER,
+                                            Layout::LINEAR);
+      weights_indices_desc.SetBHWCShape(BHWC(1, 1, 1, weights_indices_data.size()));
+      weights_indices_desc.UploadDataRaw(absl::MakeConstSpan(weights_indices_data));
+      weights_gpu.push_back(std::move(weights_indices_desc));
+    }
+  } else if (weights_type == DataType::FLOAT16 || weights_type == DataType::FLOAT32) {
     weights_desc.type = DeduceDataTypeFromPrecision(precision);
     weights_desc.layout = WeightsLayout::kOSpatialIOGroupI4O4;
     weights_desc.output_group_size = DivideRoundUp(weights.shape.o, 4);
@@ -1296,7 +1391,7 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision, DataType we
   TensorDescriptor scale_desc = ScaleOrZeroPointToTensorDesc(gpu_info, weights_scale, data_type);
   TensorDescriptor zp_desc = ScaleOrZeroPointToTensorDesc(gpu_info, weights_zp, data_type);
 
-  const bool is_quantized = SizeInBitsOf(weights_type) < 16;
+  const bool is_quantized = SizeInBitsOf(weights_type) <= 8;
 
   MetalSpatialTensor scale_tensor;
   MetalSpatialTensor zp_tensor;
@@ -1316,11 +1411,18 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision, DataType we
     }
   }
 
-  ABSL_ASSIGN_OR_RETURN(auto operation, CreateFullyConnectedExternalWeights(
-                                            gpu_info, precision, op_def.src_tensors[0],
-                                            op_def.dst_tensors[0], external_weights,
-                                            /*bias=*/nullptr, &dst_shape));
-  std::unique_ptr<GPUOperation> conv = std::make_unique<FullyConnected>(std::move(operation));
+  std::unique_ptr<GPUOperation> conv;
+  if (sparse_2x4) {
+    conv = std::make_unique<FullyConnected>(CreateFullyConnectedInt4Sparse2x4(
+        gpu_info, precision, op_def.src_tensors[0], op_def.dst_tensors[0], external_weights,
+        /*bias=*/nullptr, &dst_shape));
+  } else {
+    ABSL_ASSIGN_OR_RETURN(auto operation,
+                          CreateFullyConnectedExternalWeights(
+                              gpu_info, precision, op_def.src_tensors[0], op_def.dst_tensors[0],
+                              external_weights, /*bias=*/nullptr, &dst_shape));
+    conv = std::make_unique<FullyConnected>(std::move(operation));
+  }
   ABSL_RETURN_IF_ERROR(conv->AssembleCode(gpu_info));
 
   ComputeTask gpu_task;
@@ -1681,99 +1783,7 @@ absl::Status FullyConnectedWeightsBatchIdsPerfTest(CalculationsPrecision precisi
   return absl::OkStatus();
 }
 
-absl::Status FullyConnectedInt4Sparse2x4PerfTest(CalculationsPrecision precision,
-                                                 const BHWC& src_shape, int dst_channels) {
-  ml_drift::Tensor<OHWI, DataType::FLOAT32> weights_scale;
-  weights_scale.shape = OHWI(dst_channels, 1, 1, 1);
-  weights_scale.data.resize(weights_scale.shape.DimensionsProduct(), 1.0f);
-  ml_drift::Tensor<OHWI, DataType::FLOAT32> weights_zp;
-  weights_zp.shape = OHWI(dst_channels, 1, 1, 1);
-  weights_zp.data.resize(weights_zp.shape.DimensionsProduct(), 0.0f);
-  ml_drift::Tensor<Linear, DataType::FLOAT32> bias;
-  bias.shape = Linear(dst_channels);
-  bias.data.resize(bias.shape.DimensionsProduct());
 
-  const OHWI weights_shape_dense = OHWI(dst_channels, 1, 1, src_shape.c);
-  const OHWI weights_shape_sparse = OHWI(dst_channels, 1, 1, src_shape.c / 2);
-
-  ml_drift::Tensor<OHWI, DataType::INT8> weights;
-  weights.shape = weights_shape_sparse;
-  weights.data.resize(weights.shape.DimensionsProduct());
-  ml_drift::Tensor<OHWI, DataType::UINT8> weights_indices;
-  weights_indices.shape = weights_shape_sparse;
-  weights_indices.data.resize(weights_indices.shape.DimensionsProduct());
-
-  Environment env;
-
-  OperationDef op_def;
-  auto data_type = DeduceDataTypeFromPrecision(precision);
-  Layout layout = src_shape.b == 1 ? Layout::HWC : Layout::BHWC;
-  auto storage_type = TensorStorageType::BUFFER;
-  op_def.src_tensors.push_back({data_type, storage_type, layout});
-  op_def.dst_tensors.push_back({data_type, storage_type, layout});
-
-  auto dst_shape = src_shape;
-  dst_shape.c = dst_channels;
-
-  MetalSpatialTensor src, dst;
-  TensorDescriptor descriptor_with_shape = op_def.src_tensors[0];
-  descriptor_with_shape.SetBHWCShape(src_shape);
-  ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &src));
-  descriptor_with_shape = op_def.dst_tensors[0];
-  descriptor_with_shape.SetBHWCShape(dst_shape);
-  ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &dst));
-
-  std::cout << "Src size(HWC) - " << src_shape.h << "x" << src_shape.w << "x" << src_shape.c
-            << std::endl;
-  std::cout << "Dst size(HWC) - " << dst_shape.h << "x" << dst_shape.w << "x" << dst_shape.c
-            << std::endl;
-
-  double element_size = precision == CalculationsPrecision::F32 ? 4.0 : 2.0;
-  double weight_element_size = (0.5 + 0.25) * 0.5;
-  const int64_t flops_per_element = weights_shape_dense.i * 2;
-  const int64_t dst_elements = dst.Width() * dst.Height() * dst.Channels();
-  const int64_t flops_count = dst_elements * flops_per_element;
-  const double gflops_count = flops_count * 1e-9;
-
-  const double kGByte = 1024.0 * 1024.0 * 1024.0;
-  const int64_t dst_elements_alignedx4 = dst.Width() * dst.Height() * dst.Slices() * 4;
-  const int64_t src_elements_alignedx4 = src.Width() * src.Height() * src.Slices() * 4;
-  const double dst_gbytes = dst_elements_alignedx4 * element_size / kGByte;
-  const double src_gbytes = src_elements_alignedx4 * element_size / kGByte;
-  const double weight_gbytes =
-      weights_shape_dense.DimensionsProduct() * weight_element_size / kGByte;
-  const double bias_gbytes = weights_shape_dense.o * element_size / kGByte;
-  const double scale_gbytes = weights_scale.shape.DimensionsProduct() * element_size / kGByte;
-
-  std::unique_ptr<GPUOperation> conv = std::make_unique<FullyConnected>(
-      CreateFullyConnectedInt4Sparse2x4(env.GetInfo(), op_def, precision, weights, weights_indices,
-                                        weights_scale, weights_zp, bias, &dst_shape));
-  ABSL_RETURN_IF_ERROR(conv->AssembleCode(env.GetInfo()));
-
-  ComputeTask gpu_task;
-  gpu_task.Init(std::move(conv));
-  ABSL_RETURN_IF_ERROR(gpu_task.Compile(&env));
-  gpu_task.SetSrcTensor(&src, 0);
-  gpu_task.SetDstTensor(&dst, 0);
-  ABSL_RETURN_IF_ERROR(gpu_task.UpdateParams());
-
-  id<MTLCommandQueue> command_queue = [env.device() newCommandQueue];
-  for (int i = 0; i < 10; ++i) {
-    absl::Duration gpu_task_time = gpu_task.GetTaskTime(command_queue);
-    double time_ms = absl::ToDoubleMilliseconds(gpu_task_time);
-    const double fps = 1000.0 / time_ms;
-    const double gflops_real = fps * gflops_count;
-    double gbytes_read = src_gbytes + weight_gbytes + bias_gbytes;
-    gbytes_read += scale_gbytes * 2.0;
-    double gbs_read = fps * gbytes_read;
-    const double gbs_write = fps * dst_gbytes;
-    std::cout << std::fixed << std::setprecision(4) << " Time - " << time_ms << "(ms), GFlops - "
-              << gflops_real << ", Bandwidth - " << gbs_read + gbs_write << "(GB/s), Read - "
-              << gbs_read << "(GB/s), Write - " << gbs_write << "(GB/s)" << std::endl;
-  }
-
-  return absl::OkStatus();
-}
 
 absl::Status AddScalarTest(const BHWC& shape, const DataType& data_type) {
   Environment env;

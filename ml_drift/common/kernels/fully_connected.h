@@ -99,13 +99,9 @@ class FullyConnected : public GPUOperation {
       const TensorDescriptor* bias, const BHWC* dst_shape_ptr);
 
   friend FullyConnected CreateFullyConnectedInt4Sparse2x4(
-      const GpuInfo& gpu_info, const OperationDef& definition,
-      CalculationsPrecision precision,
-      const Tensor<OHWI, DataType::INT8>& weights,
-      const Tensor<OHWI, DataType::UINT8>& weights_indices,
-      const Tensor<OHWI, DataType::FLOAT32>& weights_scale,
-      const Tensor<OHWI, DataType::FLOAT32>& weights_zero_point,
-      const Tensor<Linear, DataType::FLOAT32>& biases,
+      const GpuInfo& gpu_info, CalculationsPrecision precision,
+      const TensorDescriptor& src, const TensorDescriptor& dst,
+      const ExternalWeights& weights, const TensorDescriptor* bias,
       const BHWC* dst_shape_ptr, const int3* wg_size);
 
   template <DataType T>
@@ -249,13 +245,9 @@ WeightsDescription GetFullyConnectedInt2WeightsDesc(
 // Creates a sparse 2x4 fully connected operation with INT4 weights.
 // prototype, no correctness check, dummy values, not works for all cases
 FullyConnected CreateFullyConnectedInt4Sparse2x4(
-    const GpuInfo& gpu_info, const OperationDef& definition,
-    CalculationsPrecision precision,
-    const Tensor<OHWI, DataType::INT8>& weights,
-    const Tensor<OHWI, DataType::UINT8>& weights_indices,
-    const Tensor<OHWI, DataType::FLOAT32>& weights_scale,
-    const Tensor<OHWI, DataType::FLOAT32>& weights_zero_point,
-    const Tensor<Linear, DataType::FLOAT32>& biases,
+    const GpuInfo& gpu_info, CalculationsPrecision precision,
+    const TensorDescriptor& src, const TensorDescriptor& dst,
+    const ExternalWeights& weights, const TensorDescriptor* bias = nullptr,
     const BHWC* dst_shape_ptr = nullptr, const int3* wg_size = nullptr);
 
 }  // namespace ml_drift
