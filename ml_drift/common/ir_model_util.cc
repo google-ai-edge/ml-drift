@@ -24,7 +24,6 @@
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
-#include "absl/log/absl_check.h"
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
 #include "absl/status/statusor.h"
@@ -223,22 +222,21 @@ absl::StatusOr<TensorDescriptor> GetTensorDescForValue(
     return GetExternallyProvidedTensorDesc(create_info, gpu_info, graph,
                                            tensor);
   }
+  if (tensor->desc.GetDataType() == DataType::FLOAT32 &&
+      create_info.precision != CalculationsPrecision::F32 &&
+      !cast_graph_outputs.contains(tensor->id)) {
+    tensor->desc.SetDataType(DataType::FLOAT16);
+  }
   tensor->desc.SetStorageType(GetTensorStorageType(
       create_info, gpu_info, tensor->desc.GetBHWDCShape(),
       tensor->desc.GetDataType(), tensor->desc.GetLayout()));
-  ABSL_CHECK_OK(tensor->desc.UpdateToSupportedStorageType(
-      gpu_info, tensor->desc.GetBHWDCShape()))
-      << "Failed to update tensor storage type.";
+  ABSL_RETURN_IF_ERROR(tensor->desc.UpdateToSupportedStorageType(
+      gpu_info, tensor->desc.GetBHWDCShape()));
   if (gpu_info.IsApiMetal() &&
       tensor->desc.GetStorageType() ==
           ::ml_drift::TensorStorageType::TEXTURE_2D &&
       !gpu_info.apple_info.IsFamilyApple1()) {
     tensor->desc.SetUseBufferForWriteOnlyTexture2d(true);
-  }
-  // dtype fix for precision
-  if (tensor->desc.GetDataType() == DataType::FLOAT32 &&
-      create_info.precision != CalculationsPrecision::F32) {
-    tensor->desc.SetDataType(DataType::FLOAT16);
   }
   return tensor->desc;
 }
