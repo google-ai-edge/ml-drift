@@ -27,7 +27,6 @@
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/kernel_info.h"
-#include "ml_drift/common/operations.h"
 #include "ml_drift/common/precision.h"
 #include "ml_drift/common/shape.h"
 #include "ml_drift/common/task/buffer_desc.h"
@@ -76,10 +75,6 @@ class FullyConnected : public GPUOperation {
                  const OHWI& weights_shape,
                  const WeightsDescription& weights_desc,
                  const ConvParams& conv_params);
-  friend FullyConnected CreateFullyConnected(
-      const GpuInfo& gpu_info, const OperationDef& definition,
-      CalculationsPrecision precision, const FullyConnectedAttributes& attr,
-      const BHWC* dst_shape_ptr, const int3* wg_size);
   friend absl::StatusOr<FullyConnected>
   CreateFullyConnectedWeightsAreSpatialTensor(
       const GpuInfo& gpu_info, const OperationDef& definition,
@@ -104,10 +99,6 @@ class FullyConnected : public GPUOperation {
       const ExternalWeights& weights, const TensorDescriptor* bias,
       const BHWC* dst_shape_ptr, const int3* wg_size);
 
-  template <DataType T>
-  void UploadWeights(const Tensor<OHWI, T>& weights,
-                     const WeightsDescription& weights_desc);
-
   std::string GetFullyConnectedKernelCode(
       const TensorDescriptor& src, CalculationsPrecision precision,
       const GpuInfo& gpu_info, const WeightsDescription& weights_desc,
@@ -116,36 +107,6 @@ class FullyConnected : public GPUOperation {
   bool wg_reduction_;
   ConvParams conv_params_;
 };
-
-template <DataType T>
-void FullyConnected::UploadWeights(const Tensor<OHWI, T>& weights,
-                                   const WeightsDescription& weights_desc) {
-  const int flt_count =
-      GetTotalElementsCountForLayout(weights_desc, weights.shape);
-
-  std::vector<uint8_t> weights_data(flt_count * SizeOf(weights_desc.type));
-  RearrangeWeights(weights, weights_desc, absl::MakeSpan(weights_data));
-
-  if (weights_desc.IsLinearLayout()) {
-    BufferDescriptor desc;
-    desc.element_type = weights_desc.type;
-    desc.element_size = 16;
-    desc.size = SizeOf(weights_desc.type) * flt_count;
-    desc.data = std::move(weights_data);
-    args_.AddObject("weights",
-                    std::make_unique<BufferDescriptor>(std::move(desc)));
-  } else {
-    uint2 tex_size = Get2dResourceSize(weights_desc, weights.shape);
-    int sub_size = SizeOf(weights_desc.type) * 4 * tex_size.x * tex_size.y;
-    for (int i = 0; i < 4; ++i) {
-      TensorDescriptor desc = CreateConstantHWVec4TensorDescriptor(
-          weights_desc.type, TensorStorageType::TEXTURE_2D, tex_size.x,
-          tex_size.y, weights_data.data() + sub_size * i);
-      args_.AddObject("weights" + std::to_string(i),
-                      std::make_unique<TensorDescriptor>(std::move(desc)));
-    }
-  }
-}
 
 // Returns the recommended maximum total spatial size for the given GPU and
 // precision.
@@ -158,18 +119,6 @@ inline bool IsFullyConnectedWeightsAreSpatialTensorSupported(
   return weight_shape.o % 4 == 0 && weight_shape.i % 4 == 0 &&
          weight_shape.w == 1;
 }
-
-
-
-// Creates a fully connected operation.
-// wg_size recommended to use only in profiling/debug goals, no 100% guarantee
-// that exactly this wg_size will be used in combination with other parameters.
-FullyConnected CreateFullyConnected(const GpuInfo& gpu_info,
-                                    const OperationDef& definition,
-                                    CalculationsPrecision precision,
-                                    const FullyConnectedAttributes& attr,
-                                    const BHWC* dst_shape_ptr = nullptr,
-                                    const int3* wg_size = nullptr);
 
 // Creates a fully connected operation with weights as a spatial tensor.
 // FullyConnected with runtime(spatial) second tensor(BHWC as OHWI)

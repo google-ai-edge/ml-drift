@@ -38,33 +38,6 @@ using ::testing::ValuesIn;
 
 class FullyConnectedFloatTest : public FloatTest {};
 
-TEST_P(FullyConnectedFloatTest, FullyConnectedTest) {
-  const DataType data_type = DeduceDataTypeFromPrecision(precision());
-  if (!exec_env->IsStorageSupported(storage(), data_type)) {
-    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
-                 << " storage type: " << ToString(storage());
-  }
-  ABSL_ASSERT_OK(FullyConnectedTest(*exec_env, precision(), storage()));
-}
-
-TEST_P(FullyConnectedFloatTest, FullyConnectedLargeTest) {
-  const DataType data_type = DeduceDataTypeFromPrecision(precision());
-  if (!exec_env->IsStorageSupported(storage(), data_type)) {
-    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
-                 << " storage type: " << ToString(storage());
-  }
-  ABSL_ASSERT_OK(FullyConnectedLargeTest(*exec_env, precision(), storage()));
-}
-
-TEST_P(FullyConnectedFloatTest, FullyConnectedExtraLargeTest) {
-  const DataType data_type = DeduceDataTypeFromPrecision(precision());
-  if (!exec_env->IsStorageSupported(storage(), data_type)) {
-    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
-                 << " storage type: " << ToString(storage());
-  }
-  ABSL_ASSERT_OK(FullyConnectedExtraLargeTest(*exec_env, precision(), storage()));
-}
-
 TEST_P(FullyConnectedFloatTest, FullyConnectedInt8Test) {
   const DataType data_type = DeduceDataTypeFromPrecision(precision());
   if (!exec_env->IsStorageSupported(storage(), data_type)) {
@@ -126,25 +99,6 @@ TEST_P(FullyConnectedFloatTest, FullyConnectedInt4Sparse2x4) {
   }
   ABSL_ASSERT_OK(FullyConnectedInt4Sparse2x4Test(*exec_env, precision(), storage(),
                                             BHWC(1, 1, 1, 256), 256));
-}
-
-TEST_P(FullyConnectedFloatTest, FullyConnectedBigTest) {
-  const DataType data_type = DeduceDataTypeFromPrecision(precision());
-  if (!exec_env->IsStorageSupported(storage(), data_type)) {
-    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
-                 << " storage type: " << ToString(storage());
-  }
-  ABSL_ASSERT_OK(FullyConnectedBigTest(*exec_env, precision(), storage()));
-}
-
-TEST_P(FullyConnectedFloatTest, FullyConnectedWidth3Height2BigTest) {
-  const DataType data_type = DeduceDataTypeFromPrecision(precision());
-  if (!exec_env->IsStorageSupported(storage(), data_type)) {
-    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
-                 << " storage type: " << ToString(storage());
-  }
-  ABSL_ASSERT_OK(
-      FullyConnectedWidth3Height2BigTest(*exec_env, precision(), storage()));
 }
 
 TEST_P(FullyConnectedFloatTest, FullyConnectedExternalWeightsBigTest) {

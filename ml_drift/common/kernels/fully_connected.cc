@@ -15,9 +15,7 @@
 #include "ml_drift/common/kernels/fully_connected.h"
 
 #include <algorithm>
-#include <memory>
 #include <string>
-#include <utility>
 #include <vector>
 
 #include "absl/status/status.h"
@@ -27,7 +25,6 @@
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/kernels/fully_connected_util.h"
-#include "ml_drift/common/operations.h"
 #include "ml_drift/common/precision.h"
 #include "ml_drift/common/shape.h"
 #include "ml_drift/common/task/arguments.h"
@@ -36,7 +33,6 @@
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/task/weights_conversion.h"
 #include "ml_drift/common/task/weights_layout.h"
-#include "ml_drift/common/tensor.h"
 #include "ml_drift/common/types.h"
 #include "ml_drift/common/util.h"
 
@@ -944,44 +940,6 @@ int GetRecommendedMaxTotalSpatialSize(const GpuInfo& gpu_info,
   }
   base_max_size = std::min(base_max_size, 16);
   return base_max_size;
-}
-
-FullyConnected CreateFullyConnected(const GpuInfo& gpu_info,
-                                    const OperationDef& definition,
-                                    CalculationsPrecision precision,
-                                    const FullyConnectedAttributes& attr,
-                                    const BHWC* dst_shape_ptr,
-                                    const int3* wg_size) {
-  WeightsDescription weights_desc;
-  weights_desc.type = DeduceDataTypeFromPrecision(precision);
-  if (UseBufferForWeights(gpu_info, attr.weights.shape)) {
-    weights_desc.layout = WeightsLayout::kOSpatialIOGroupI4O4;
-    weights_desc.output_group_size = DivideRoundUp(attr.weights.shape.o, 4);
-  } else {
-    weights_desc.layout = WeightsLayout::k2DX4I4YIsSpatialIAndXIsOOGroupO4;
-    weights_desc.output_group_size = 1;
-  }
-  FullyConnected::ConvParams conv_params;
-  conv_params.weights_type = weights_desc.type;
-  if (wg_size) {
-    conv_params.wg_size = *wg_size;
-  }
-  conv_params.has_bias = !attr.bias.data.empty();
-  conv_params.block_size =
-      fc::GetBlockSize(dst_shape_ptr, conv_params.batched_weights);
-  FullyConnected result(definition.src_tensors[0], definition.dst_tensors[0],
-                        precision, gpu_info, attr.weights.shape, weights_desc,
-                        conv_params);
-
-  result.UploadWeights(attr.weights, weights_desc);
-  if (conv_params.has_bias) {
-    TensorDescriptor bias_tensor_desc = CreateConstantLinearTensorDescriptor(
-        gpu_info, definition.src_tensors[0].GetDataType(), attr.bias);
-    result.args_.AddObject("biases", std::make_unique<TensorDescriptor>(
-                                         std::move(bias_tensor_desc)));
-  }
-
-  return result;
 }
 
 absl::StatusOr<FullyConnected> CreateFullyConnectedWeightsAreSpatialTensor(

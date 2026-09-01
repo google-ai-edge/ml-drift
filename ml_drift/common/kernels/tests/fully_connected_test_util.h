@@ -23,15 +23,6 @@
 
 namespace ml_drift {
 
-absl::Status FullyConnectedTest(TestExecutionEnvironment& env,
-                                CalculationsPrecision precision,
-                                TensorStorageType storage);
-absl::Status FullyConnectedLargeTest(TestExecutionEnvironment& env,
-                                     CalculationsPrecision precision,
-                                     TensorStorageType storage);
-absl::Status FullyConnectedExtraLargeTest(TestExecutionEnvironment& env,
-                                          CalculationsPrecision precision,
-                                          TensorStorageType storage);
 absl::Status FullyConnectedInt8Test(TestExecutionEnvironment& env,
                                     CalculationsPrecision precision,
                                     TensorStorageType storage);
@@ -52,12 +43,6 @@ absl::Status FullyConnectedInt4Sparse2x4Test(TestExecutionEnvironment& env,
                                              const BHWC& src_shape,
                                              int dst_channels);
 
-absl::Status FullyConnectedBigTest(TestExecutionEnvironment& env,
-                                   CalculationsPrecision precision,
-                                   TensorStorageType storage);
-absl::Status FullyConnectedWidth3Height2BigTest(TestExecutionEnvironment& env,
-                                                CalculationsPrecision precision,
-                                                TensorStorageType storage);
 absl::Status FullyConnectedExternalWeightsBigTest(
     TestExecutionEnvironment& env, CalculationsPrecision precision,
     TensorStorageType storage);
