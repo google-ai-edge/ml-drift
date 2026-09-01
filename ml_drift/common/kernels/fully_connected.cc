@@ -15,18 +15,15 @@
 #include "ml_drift/common/kernels/fully_connected.h"
 
 #include <algorithm>
-#include <cstdint>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "absl/log/absl_check.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_replace.h"
-#include "absl/types/span.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/kernels/fully_connected_util.h"
@@ -34,7 +31,6 @@
 #include "ml_drift/common/precision.h"
 #include "ml_drift/common/shape.h"
 #include "ml_drift/common/task/arguments.h"
-#include "ml_drift/common/task/buffer_desc.h"
 #include "ml_drift/common/task/compiler_options.h"
 #include "ml_drift/common/task/gpu_operation.h"
 #include "ml_drift/common/task/tensor_desc.h"
@@ -319,47 +315,6 @@ int3 GetWorkGroupSize(const FullyConnected::ConvParams& params,
   }
   return int3(x_size, y_size, 1);
 }
-
-int3 GetBlockSpatialCoords(int linear_spatial, const BHWC& shape) {
-  int b_coord = linear_spatial % shape.b;
-  linear_spatial /= shape.b;
-  int x_coord = linear_spatial % shape.w;
-  linear_spatial /= shape.w;
-  int y_coord = linear_spatial % shape.h;
-  return int3(b_coord, y_coord, x_coord);
-}
-
-void AddWeightsParams(const GpuInfo& gpu_info,
-                      const Tensor<OHWI, DataType::FLOAT32>& weights_scale,
-                      const Tensor<OHWI, DataType::FLOAT32>& weights_zero_point,
-                      DataType dst_data_type, Arguments* args) {
-  ABSL_CHECK(!weights_scale.data.empty());
-  auto weights_scale_td =
-      ScaleOrZeroPointToTensorDesc(gpu_info, weights_scale, dst_data_type);
-  args->AddObject("weights_scale", std::make_unique<TensorDescriptor>(
-                                       std::move(weights_scale_td)));
-  if (!weights_zero_point.data.empty()) {
-    auto weights_zero_point_td = ScaleOrZeroPointToTensorDesc(
-        gpu_info, weights_zero_point, dst_data_type);
-    args->AddObject(
-        "weights_zero_point",
-        std::make_unique<TensorDescriptor>(std::move(weights_zero_point_td)));
-  }
-}
-
-DataType GetDataTypeForWeights(DataType weights_type) {
-  if (weights_type == DataType::UINT8) {
-    return DataType::INT8;
-  }
-  if (weights_type == DataType::UINT4) {
-    return DataType::INT4;
-  }
-  if (weights_type == DataType::UINT2) {
-    return DataType::INT2;
-  }
-  return weights_type;
-}
-
 }  // namespace
 
 FullyConnected::FullyConnected(const TensorDescriptor& src,
@@ -432,12 +387,6 @@ FullyConnected::FullyConnected(const TensorDescriptor& src,
       compiler_options_.push_back(CompilerOptions::kCl30);
     }
   }
-}
-
-bool UseFMA(const GpuInfo& gpu_info) {
-  return gpu_info.IsApiWebGpu() ||
-         (gpu_info.IsAMD() && gpu_info.IsApiOpenCl()) ||
-         (gpu_info.IsMaleoon() && gpu_info.IsApiOpenCl());
 }
 
 std::string ReadWeightsAsFloat(const FullyConnected::ConvParams& conv_params,
@@ -728,7 +677,7 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
   }
   if (conv_params_.softmax_input_activation) {
     for (int i = 0; i < block_spatial; ++i) {
-      const int3 bhw = GetBlockSpatialCoords(i, conv_params_.block_size);
+      const int3 bhw = fc::GetBlockSpatialCoords(i, conv_params_.block_size);
       std::string y_coord = std::to_string(bhw.y);
       if (conv_params_.batched_weights) {
         y_coord = "weights_batch_id";
@@ -788,7 +737,7 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
          "; src_s += " + slice_stride + ") {\n";
   }
   for (int i = 0; i < block_spatial; ++i) {
-    const int3 bhw = GetBlockSpatialCoords(i, conv_params_.block_size);
+    const int3 bhw = fc::GetBlockSpatialCoords(i, conv_params_.block_size);
     const std::string val_name = "v" + std::to_string(i);
     std::string y_coord = std::to_string(bhw.y);
     if (conv_params_.batched_weights) {
@@ -826,7 +775,7 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
     c += "    Type w0, w1, w2, w3;\n";
     c += ReadWeightsAsFloat(conv_params_, weights_desc);
     const bool isI4O4 = weights_desc.IsI4O4() || conv_params_.sparse_2x4;
-    const bool use_fma = UseFMA(gpu_info);
+    const bool use_fma = fc::UseFMA(gpu_info);
     if (is_quantized) {
       const std::string w_scale = "w_scale";
       const std::string w_bias = "w_bias";
@@ -933,7 +882,7 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
   }
   for (int sp_id = 0; sp_id < block_spatial; ++sp_id) {
     const std::string r_name = "r_sp" + std::to_string(sp_id);
-    const int3 bhw = GetBlockSpatialCoords(sp_id, conv_params_.block_size);
+    const int3 bhw = fc::GetBlockSpatialCoords(sp_id, conv_params_.block_size);
     std::string y_coord = std::to_string(bhw.y);
     if (conv_params_.batched_weights) {
       y_coord = "weights_batch_id";
@@ -980,30 +929,6 @@ int3 FullyConnected::GetGridSize() const {
   return int3(dst_[0]->Slices(), work_group_size_.y * w_groups, w_batch_size);
 }
 
-void AddSparseWeightsArguments(const ExternalWeights& weights,
-                               GPUOperation* op) {
-  BufferDescriptor desc;
-  desc.element_type = DataType::UINT32;
-  desc.element_size = 1;
-  op->AddSrcBuffer("weights", desc);
-
-  BufferDescriptor desc_indices;
-  desc_indices.element_type = DataType::UINT32;
-  desc_indices.element_size = 1;
-  op->AddSrcBuffer("weights_indices", desc_indices);
-
-  if (weights.scale) {
-    op->AddSrcTensor("weights_scale", *weights.scale);
-  } else if (weights.scalar_scale.has_value()) {
-    op->args_.AddFloat("scale", *weights.scalar_scale);
-  }
-  if (weights.zero_point) {
-    op->AddSrcTensor("weights_zero_point", *weights.zero_point);
-  } else if (weights.scalar_zero_point.has_value()) {
-    op->args_.AddFloat("zero_point", *weights.scalar_zero_point);
-  }
-}
-
 int GetRecommendedMaxTotalSpatialSize(const GpuInfo& gpu_info,
                                       CalculationsPrecision precision) {
   int base_max_size = 4;
@@ -1019,18 +944,6 @@ int GetRecommendedMaxTotalSpatialSize(const GpuInfo& gpu_info,
   }
   base_max_size = std::min(base_max_size, 16);
   return base_max_size;
-}
-
-BHWC GetBlockSize(const BHWC* dst_shape_ptr, bool batched_weights) {
-  if (!dst_shape_ptr) {
-    return BHWC(1, 1, 1, 1);
-  }
-  BHWC block_size = *dst_shape_ptr;
-  block_size.c = 1;
-  if (batched_weights) {
-    block_size.h = 1;
-  }
-  return block_size;
 }
 
 FullyConnected CreateFullyConnected(const GpuInfo& gpu_info,
@@ -1055,7 +968,7 @@ FullyConnected CreateFullyConnected(const GpuInfo& gpu_info,
   }
   conv_params.has_bias = !attr.bias.data.empty();
   conv_params.block_size =
-      GetBlockSize(dst_shape_ptr, conv_params.batched_weights);
+      fc::GetBlockSize(dst_shape_ptr, conv_params.batched_weights);
   FullyConnected result(definition.src_tensors[0], definition.dst_tensors[0],
                         precision, gpu_info, attr.weights.shape, weights_desc,
                         conv_params);
@@ -1088,7 +1001,7 @@ absl::StatusOr<FullyConnected> CreateFullyConnectedWeightsAreSpatialTensor(
   conv_params.has_bias = bias != nullptr;
   conv_params.runtime_check = runtime_check;
   conv_params.block_size =
-      GetBlockSize(dst_shape_ptr, conv_params.batched_weights);
+      fc::GetBlockSize(dst_shape_ptr, conv_params.batched_weights);
   WeightsDescription weights_desc;
   weights_desc.type = definition.src_tensors[1].GetDataType();
   weights_desc.layout = WeightsLayout::kUnknown;  // Using Spatial tensor as
@@ -1159,7 +1072,7 @@ absl::StatusOr<FullyConnected> CreateFullyConnectedExternalWeights(
   }
 
   FullyConnected::ConvParams conv_params;
-  conv_params.weights_type = GetDataTypeForWeights(weights_desc.type);
+  conv_params.weights_type = fc::GetDataTypeForWeights(weights_desc.type);
   if (weights.scale) {
     conv_params.scale_zp_shape = weights.scale_zp_shape;
   }
@@ -1170,7 +1083,7 @@ absl::StatusOr<FullyConnected> CreateFullyConnectedExternalWeights(
       weights.zero_point != nullptr || weights.scalar_zero_point.has_value();
   conv_params.runtime_check = runtime_check;
   conv_params.block_size =
-      GetBlockSize(dst_shape_ptr, conv_params.batched_weights);
+      fc::GetBlockSize(dst_shape_ptr, conv_params.batched_weights);
   if (runtime_check.packed_groups.has_value()) {
     conv_params.block_size = BHWC(1, 1, 1, 1);
     conv_params.block_size.w = 4;
@@ -1216,7 +1129,7 @@ absl::StatusOr<FullyConnected> CreateFullyConnectedWeightsBatchIds(
   const auto& weights_shape = weights.shape;
 
   FullyConnected::ConvParams conv_params;
-  conv_params.weights_type = GetDataTypeForWeights(weights_desc.type);
+  conv_params.weights_type = fc::GetDataTypeForWeights(weights_desc.type);
   if (weights.scale) {
     conv_params.scale_zp_shape = weights.scale_zp_shape;
   }
@@ -1226,7 +1139,7 @@ absl::StatusOr<FullyConnected> CreateFullyConnectedWeightsBatchIds(
       weights.zero_point != nullptr || weights.scalar_zero_point.has_value();
   conv_params.runtime_batch_ids = dst_shape_ptr ? dst_shape_ptr->h : 1;
   conv_params.block_size =
-      GetBlockSize(dst_shape_ptr, conv_params.batched_weights);
+      fc::GetBlockSize(dst_shape_ptr, conv_params.batched_weights);
 
   FullyConnected result(src, dst, precision, gpu_info, weights_shape,
                         weights_desc, conv_params);
@@ -1301,7 +1214,7 @@ FullyConnected CreateFullyConnectedInt4Sparse2x4(
     const ExternalWeights& weights, const TensorDescriptor* bias,
     const BHWC* dst_shape_ptr, const int3* wg_size) {
   FullyConnected::ConvParams conv_params;
-  conv_params.weights_type = GetDataTypeForWeights(weights.desc.type);
+  conv_params.weights_type = fc::GetDataTypeForWeights(weights.desc.type);
   if (weights.scale) {
     conv_params.scale_zp_shape = weights.scale_zp_shape;
   }
@@ -1311,7 +1224,7 @@ FullyConnected CreateFullyConnectedInt4Sparse2x4(
       weights.zero_point != nullptr || weights.scalar_zero_point.has_value();
   conv_params.sparse_2x4 = true;
   conv_params.block_size =
-      GetBlockSize(dst_shape_ptr, conv_params.batched_weights);
+      fc::GetBlockSize(dst_shape_ptr, conv_params.batched_weights);
   if (wg_size) {
     conv_params.wg_size = *wg_size;
   }
@@ -1319,7 +1232,7 @@ FullyConnected CreateFullyConnectedInt4Sparse2x4(
   weights_shape.i *= 2;
   FullyConnected result(src, dst, precision, gpu_info, weights_shape,
                         weights.desc, conv_params);
-  AddSparseWeightsArguments(weights, &result);
+  fc::AddSparseWeightsArguments(weights, /*vec_size=*/16, &result);
   if (bias) {
     result.AddSrcTensor("biases", *bias);
   }

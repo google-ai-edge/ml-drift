@@ -24,6 +24,7 @@
 #include "ml_drift/common/task/buffer_desc.h"
 #include "ml_drift/common/task/gpu_operation.h"
 #include "ml_drift/common/task/tensor_desc.h"
+#include "ml_drift/common/types.h"
 
 namespace ml_drift {
 namespace fc {
@@ -297,6 +298,30 @@ void AddWeightsArguments(const ExternalWeights& weights, int vec_size,
   }
 }
 
+void AddSparseWeightsArguments(const ExternalWeights& weights, int vec_size,
+                               GPUOperation* op) {
+  BufferDescriptor desc;
+  desc.element_type = DataType::UINT32;
+  desc.element_size = vec_size / 16;
+  op->AddSrcBuffer("weights", desc);
+
+  BufferDescriptor desc_indices;
+  desc_indices.element_type = DataType::UINT32;
+  desc_indices.element_size = 1;
+  op->AddSrcBuffer("weights_indices", desc_indices);
+
+  if (weights.scale) {
+    op->AddSrcTensor("weights_scale", *weights.scale);
+  } else if (weights.scalar_scale.has_value()) {
+    op->args_.AddFloat("scale", *weights.scalar_scale);
+  }
+  if (weights.zero_point) {
+    op->AddSrcTensor("weights_zero_point", *weights.zero_point);
+  } else if (weights.scalar_zero_point.has_value()) {
+    op->args_.AddFloat("zero_point", *weights.scalar_zero_point);
+  }
+}
+
 bool IsQuantized(DataType weights_type) {
   return weights_type != DataType::FLOAT32 && weights_type != DataType::FLOAT16;
 }
@@ -313,6 +338,46 @@ bool IsLinearQuantized(DataType weights_type, const OHWI& scale_zp_shape) {
 bool IsBlockQuantized(DataType weights_type, const OHWI& scale_zp_shape) {
   return IsQuantized(weights_type) && scale_zp_shape.o != 1 &&
          scale_zp_shape.i != 1;
+}
+
+int3 GetBlockSpatialCoords(int linear_spatial, const BHWC& shape) {
+  int b_coord = linear_spatial % shape.b;
+  linear_spatial /= shape.b;
+  int x_coord = linear_spatial % shape.w;
+  linear_spatial /= shape.w;
+  int y_coord = linear_spatial % shape.h;
+  return int3(b_coord, y_coord, x_coord);
+}
+
+DataType GetDataTypeForWeights(DataType weights_type) {
+  if (weights_type == DataType::UINT8) {
+    return DataType::INT8;
+  }
+  if (weights_type == DataType::UINT4) {
+    return DataType::INT4;
+  }
+  if (weights_type == DataType::UINT2) {
+    return DataType::INT2;
+  }
+  return weights_type;
+}
+
+bool UseFMA(const GpuInfo& gpu_info) {
+  return gpu_info.IsApiWebGpu() ||
+         (gpu_info.IsAMD() && gpu_info.IsApiOpenCl()) ||
+         (gpu_info.IsMaleoon() && gpu_info.IsApiOpenCl());
+}
+
+BHWC GetBlockSize(const BHWC* dst_shape_ptr, bool batched_weights) {
+  if (!dst_shape_ptr) {
+    return BHWC(1, 1, 1, 1);
+  }
+  BHWC block_size = *dst_shape_ptr;
+  block_size.c = 1;
+  if (batched_weights) {
+    block_size.h = 1;
+  }
+  return block_size;
 }
 
 }  // namespace fc

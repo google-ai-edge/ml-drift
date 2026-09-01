@@ -22,6 +22,7 @@
 #include "ml_drift/common/precision.h"
 #include "ml_drift/common/shape.h"
 #include "ml_drift/common/task/gpu_operation.h"
+#include "ml_drift/common/types.h"
 
 namespace ml_drift {
 namespace fc {
@@ -58,6 +59,13 @@ bool IsBlockQuantized(DataType weights_type, const OHWI& scale_zp_shape);
 
 void AddWeightsArguments(const ExternalWeights& weights, int vec_size,
                          GPUOperation* op);
+void AddSparseWeightsArguments(const ExternalWeights& weights, int vec_size,
+                               GPUOperation* op);
+
+int3 GetBlockSpatialCoords(int linear_spatial, const BHWC& shape);
+DataType GetDataTypeForWeights(DataType weights_type);
+bool UseFMA(const GpuInfo& gpu_info);
+BHWC GetBlockSize(const BHWC* dst_shape_ptr, bool batched_weights);
 
 }  // namespace fc
 }  // namespace ml_drift
