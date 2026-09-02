@@ -251,6 +251,45 @@ absl::Status DynamicUpdateSliceThreeDimensionSliceTest(
   return absl::OkStatus();
 }
 
+absl::Status DynamicUpdateSliceFourDimensionSliceTest(
+    TestExecutionEnvironment& env, DataType data_type,
+    TensorStorageType storage) {
+  TensorFloat32 array_to_update;
+  array_to_update.shape = BHWC(2, 2, 2, 2);
+  array_to_update.data = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+  TensorFloat32 updated_slice;
+  updated_slice.shape = BHWC(1, 1, 1, 2);
+  updated_slice.data = {1, 2};
+  TensorFloat32 start_indices;
+  start_indices.shape = BHWC(1, 1, 1, 4);
+  start_indices.data = {1, 0, 1, 0};
+
+  OperationDef op_def;
+  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
+  TensorDescriptor src_0, src_1, src_2, dst;
+  src_0 = op_def.src_tensors[0];
+  src_1 = op_def.src_tensors[1];
+  src_2 = op_def.src_tensors[2];
+  src_0.UploadData(array_to_update);
+  src_1.UploadData(updated_slice);
+  src_2.UploadData(start_indices);
+  dst.SetBHWCShape(BHWC(2, 2, 2, 2));
+  GPUOperation operation = CreateDynamicUpdateSlice(op_def, env.GetGpuInfo());
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
+      {&src_0, &src_1, &src_2}, {&dst},
+      std::make_unique<GPUOperation>(std::move(operation))));
+  TensorFloat32 dst_tensor;
+  dst.DownloadData(&dst_tensor);
+  EXPECT_THAT(dst_tensor.data,
+              Pointwise(FloatNear(0.0f),
+                        {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                         0.0f, 1.0f, 2.0f, 0.0f, 0.0f, 0.0f, 0.0f}));
+  return absl::OkStatus();
+}
+
 absl::Status DynamicUpdateSliceStartIndicesThreeValuesSliceTest(
     TestExecutionEnvironment& env, DataType data_type,
     TensorStorageType storage) {

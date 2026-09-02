@@ -116,6 +116,15 @@ TEST_P(DynamicUpdateSliceFloatTest, DynamicUpdateSliceThreeDimensionSliceTest) {
                                                       storage()));
 }
 
+TEST_P(DynamicUpdateSliceFloatTest, DynamicUpdateSliceFourDimensionSliceTest) {
+  if (!exec_env->IsStorageSupported(storage(), data_type())) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
+                 << " storage type: " << ToString(storage());
+  }
+  ABSL_ASSERT_OK(DynamicUpdateSliceFourDimensionSliceTest(*exec_env, data_type(),
+                                                     storage()));
+}
+
 TEST_P(DynamicUpdateSliceFloatTest,
        DynamicUpdateSliceStartIndicesThreeValuesSliceTest) {
   if (!exec_env->IsStorageSupported(storage(), data_type())) {

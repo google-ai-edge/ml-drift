@@ -41,6 +41,10 @@ absl::Status DynamicUpdateSliceThreeDimensionSliceTest(
     TestExecutionEnvironment& env, DataType data_type,
     TensorStorageType storage);
 
+absl::Status DynamicUpdateSliceFourDimensionSliceTest(
+    TestExecutionEnvironment& env, DataType data_type,
+    TensorStorageType storage);
+
 absl::Status DynamicUpdateSliceStartIndicesThreeValuesSliceTest(
     TestExecutionEnvironment& env, DataType data_type,
     TensorStorageType storage);
