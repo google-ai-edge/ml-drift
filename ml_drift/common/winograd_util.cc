@@ -223,14 +223,11 @@ bool IsRecommendedForWinograd3x3TileNxN(const Convolution2DAttributes& attr,
   }
   int min_tiles = 32;
   if (gpu_info.IsAdreno()) {
-    if (gpu_info.adreno_info.IsAdreno3xx()) {
-      min_tiles = 32;
-    } else if (gpu_info.adreno_info.IsAdreno4xx() ||
-               gpu_info.adreno_info.IsAdreno5xx()) {
-      min_tiles = 64;
-    } else {
-      min_tiles = 128;
-    }
+    const auto& adreno = gpu_info.adreno_info;
+    min_tiles = adreno.IsAdreno3xx()                           ? 32
+                : adreno.IsAdreno4xx() || adreno.IsAdreno5xx() ? 64
+                : adreno.IsAdreno6xx()                         ? 128
+                                                               : 64;
   }
   const bool recommended_channels = src_depth >= min_src_depth &&
                                     dst_depth >= min_dst_depth &&
