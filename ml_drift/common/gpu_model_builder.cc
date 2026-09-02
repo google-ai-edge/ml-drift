@@ -3987,6 +3987,21 @@ absl::Status GpuModelBuilder::GetGpuModel(
   ABSL_RETURN_IF_ERROR(ResolveArgs(&gpu_model_));
   ExpandSubgraphs(&gpu_model_);
   *gpu_model = std::move(gpu_model_);
+  for (const auto& node : gpu_model->nodes) {
+    if (!node.gpu_operation) {
+      continue;
+    }
+    const int num_inputs = node.inputs.size();
+    const int num_outputs = node.outputs.size();
+    const int op_num_inputs = node.gpu_operation->GetSrcTensorsNames().size();
+    const int op_num_outputs = node.gpu_operation->GetDstTensorsNames().size();
+    if (num_inputs != op_num_inputs || num_outputs != op_num_outputs) {
+      return absl::InternalError(absl::StrCat(
+          "Node ", node.name, " has ", num_inputs, " inputs and ", num_outputs,
+          " outputs, but the operation has ", op_num_inputs, " inputs and ",
+          op_num_outputs, " outputs."));
+    }
+  }
   return absl::OkStatus();
 }
 
