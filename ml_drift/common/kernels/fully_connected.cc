@@ -444,12 +444,23 @@ std::string ReadRingedWeightsAsFloat(
   } else if (conv_params.runtime_check.ring_i_offset_index.has_value()) {
     c += GetRingedIAddresses(conv_params.batched_weights);
   }
-  c += R"(
+  if (conv_params.weights_type == DataType::INT8) {
+    c += R"(
+    uint4 w;
+    w.x = args.weights.Read(a0);
+    w.y = args.weights.Read(a1);
+    w.z = args.weights.Read(a2);
+    w.w = args.weights.Read(a3);
+    ucl::U32x4ToU8x16AsVec4x4<SType>(w, w0, w1, w2, w3);
+  )";
+  } else {
+    c += R"(
     w0 = args.weights.Read(a0);
     w1 = args.weights.Read(a1);
     w2 = args.weights.Read(a2);
     w3 = args.weights.Read(a3);
-)";
+  )";
+  }
   return c;
 }
 
@@ -1029,6 +1040,17 @@ absl::StatusOr<FullyConnected> CreateFullyConnectedExternalWeights(
   const auto& weights_desc = weights.desc;
   const auto& weights_shape = weights.shape;
 
+  if (runtime_check.ring_i_offset_index.has_value() ||
+      runtime_check.ring_o_offset_index.has_value()) {
+    if (SizeInBitsOf(weights_desc.type) < 8) {
+      return absl::InvalidArgumentError(
+          "Unsupported WeightsDescription type for ringed weights.");
+    }
+    if (!weights_desc.IsLinearLayout()) {
+      return absl::InvalidArgumentError(
+          "Unsupported WeightsDescription layout for ringed weights.");
+    }
+  }
   if (weights_desc.type == DataType::FLOAT32 ||
       weights_desc.type == DataType::FLOAT16) {
     if (weights_desc.type != DeduceDataTypeFromPrecision(precision)) {

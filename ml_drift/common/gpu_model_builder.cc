@@ -1505,6 +1505,7 @@ GpuModelBuilder::FullyConnectedInt8ExternalWeights(
     const TensorHandle& src, const Weights& weights, const TensorHandle* biases,
     const TensorHandle* src_exp, const ConvRuntimeCheckDesc& runtime_check,
     const TensorHandle* runtime_check_tensor) {
+  const auto conv_precision = GetConvPrecision(src.tensor_desc.GetDataType());
   BHWC dst_shape = src.tensor_desc.GetBHWCShape();
   dst_shape.c = weights.shape.o;
   GpuModelBuilder::TensorHandle dst =
@@ -1531,9 +1532,12 @@ GpuModelBuilder::FullyConnectedInt8ExternalWeights(
       weights.zero_point ? &weights.zero_point->tensor_desc : nullptr;
   const bool grouped_quantization = weights.scale_zp_shape.i != 1;
 
+  const bool ringed_weights = runtime_check.ring_o_offset_index.has_value() ||
+                              runtime_check.ring_i_offset_index.has_value();
+
   if (total_spatial_size <=
-      GetRecommendedMaxTotalSpatialSize(
-          gpu_info_, GetConvPrecision(src.tensor_desc.GetDataType()))) {
+          GetRecommendedMaxTotalSpatialSize(gpu_info_, conv_precision) ||
+      ringed_weights) {
     gpu_model_.nodes.push_back({});
     auto& gpu_node = gpu_model_.nodes.back();
     gpu_node.name = "fc1x1_int8_weights";
@@ -1546,13 +1550,20 @@ GpuModelBuilder::FullyConnectedInt8ExternalWeights(
     ExternalWeights external_weights;
     external_weights.desc = weights.desc;
     external_weights.shape = weights.shape;
+    if (runtime_check.ring_o_offset_index.has_value() &&
+        runtime_check.ring_size.value()) {
+      external_weights.shape.o = runtime_check.ring_size.value();
+    }
+    if (runtime_check.ring_i_offset_index.has_value() &&
+        runtime_check.ring_size.value()) {
+      external_weights.shape.i = runtime_check.ring_size.value();
+    }
     external_weights.scale_zp_shape = weights.scale_zp_shape;
     external_weights.scale = &(weights.scale->tensor_desc);
     external_weights.zero_point = zero_point_desc;
     auto fc_op = CreateFullyConnectedExternalWeights(
-        gpu_info_, GetConvPrecision(src.tensor_desc.GetDataType()),
-        src.tensor_desc, dst.tensor_desc, external_weights, bias_desc,
-        &dst_shape, src_exp_td, runtime_check);
+        gpu_info_, conv_precision, src.tensor_desc, dst.tensor_desc,
+        external_weights, bias_desc, &dst_shape, src_exp_td, runtime_check);
     ABSL_QCHECK_OK(fc_op);
 
     gpu_node.gpu_operation =
@@ -1568,8 +1579,9 @@ GpuModelBuilder::FullyConnectedInt8ExternalWeights(
     if (src_exp) {
       gpu_node.inputs.push_back(src_exp->id);
     }
-    if (runtime_check_tensor && (runtime_check.src_end_ch_index.has_value() ||
-                                 runtime_check.dst_end_ch_index.has_value())) {
+    if (runtime_check_tensor &&
+        (runtime_check.src_end_ch_index.has_value() ||
+         runtime_check.dst_end_ch_index.has_value() || ringed_weights)) {
       gpu_node.inputs.push_back(runtime_check_tensor->id);
     }
     gpu_node.outputs = {dst.id};
