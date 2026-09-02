@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <chrono>  // NOLINT(build/c++11)
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <iostream>
 #include <memory>
@@ -516,7 +517,7 @@ absl::Status Diffuser::UNet::LogDebugTensor(CLCommandQueue* queue) {
   float max_v = dbg_result.data[0];
   int num_nan = 0;
   for (float v : dbg_result.data) {
-    num_nan += isnan(v) ? 1 : 0;
+    num_nan += std::isnan(v) ? 1 : 0;
     min_v = std::min(min_v, v);
     max_v = std::max(max_v, v);
   }
@@ -574,10 +575,10 @@ absl::Status Diffuser::OpHolder::InitElementwiseOneInput(
 
 absl::Status Diffuser::OpHolder::Execute(CLCommandQueue* queue,
                                          const ExecutionParams& params) {
-  for (int i = 0; i < params.src.size(); ++i) {
+  for (size_t i = 0; i < params.src.size(); ++i) {
     ABSL_RETURN_IF_ERROR(op_.SetSrcTensor(i, params.src[i]));
   }
-  for (int i = 0; i < params.dst.size(); ++i) {
+  for (size_t i = 0; i < params.dst.size(); ++i) {
     ABSL_RETURN_IF_ERROR(op_.SetDstTensor(i, params.dst[i]));
   }
   for (const auto& float_param : params.float_params) {

@@ -342,8 +342,65 @@ target_link_libraries(mld_common_memory_management
     mld_common_gpu_model
 )
 
+add_library(mld_common_demangle INTERFACE demangle.h)
+target_include_directories(mld_common_demangle INTERFACE $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
+
+add_library(mld_common_tensor_handle INTERFACE tensor_handle.h)
+target_include_directories(mld_common_tensor_handle INTERFACE $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
+target_link_libraries(mld_common_tensor_handle
+  INTERFACE
+    mld_common_task_gpu_operation
+    mld_common_types
+)
+
+add_library(mld_common_op_attrs INTERFACE op_attrs.h)
+target_include_directories(mld_common_op_attrs INTERFACE $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
+target_link_libraries(mld_common_op_attrs
+  INTERFACE
+    absl::flat_hash_map
+    absl::status
+    absl::strings
+)
+
+add_library(mld_common_op_base INTERFACE op_base.h)
+target_include_directories(mld_common_op_base INTERFACE $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
+target_link_libraries(mld_common_op_base
+  INTERFACE
+    absl::flat_hash_map
+    absl::status
+    absl::strings
+    mld_common_demangle
+    mld_common_op_attrs
+    mld_common_task_gpu_operation
+    mld_common_tensor_handle
+    mld_common_types
+)
+
+add_library(mld_common_op_registry op_registry.cc op_registry.h)
+target_include_directories(mld_common_op_registry PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
+target_link_libraries(mld_common_op_registry
+  PUBLIC
+    absl::flat_hash_map
+    absl::status
+    absl::strings
+    mld_common_op_base
+    mld_common_task_gpu_operation
+)
+
+add_library(mld_common_op_api INTERFACE op_api.h)
+target_include_directories(mld_common_op_api INTERFACE $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
+target_link_libraries(mld_common_op_api
+  INTERFACE
+    mld_common_data_type
+    mld_common_gpu_model_builder
+    mld_common_op_attrs
+    mld_common_op_base
+    mld_common_op_registry
+    mld_common_task_gpu_operation
+    mld_common_types
+)
+
 add_subdirectory(memory_management)
 add_subdirectory(task)
 add_subdirectory(kernels)
 add_subdirectory(selectors)
-

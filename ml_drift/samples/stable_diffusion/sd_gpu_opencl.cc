@@ -12,14 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <algorithm>
 #include <chrono>  // NOLINT(build/c++11)
-#include <cmath>
-#include <cstdint>
 #include <cstdlib>
 #include <iostream>
 #include <map>
 #include <memory>
+#include <optional>
 #include <ostream>
 #include <string>
 #include <utility>
@@ -27,6 +25,7 @@
 
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
+#include "absl/strings/string_view.h"
 #include "ml_drift/cl/cl_command_queue.h"
 #include "ml_drift/cl/cl_operation.h"
 #include "ml_drift/cl/environment.h"
@@ -37,7 +36,7 @@
 #include "ml_drift/common/gpu_model.h"
 #include "ml_drift/common/gpu_model_builder.h"
 #include "ml_drift/common/kernels/elementwise.h"
-#include "ml_drift/common/kernels/random_philox.h"
+#include "ml_drift/common/model.h"
 #include "ml_drift/common/model_hints.h"
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/precision.h"
@@ -48,14 +47,13 @@
 #include "ml_drift/common/tensor.h"
 #include "ml_drift/common/types.h"
 #include "ml_drift/samples/stable_diffusion/autoencoder_kl_builder.h"
-#include "ml_drift/samples/stable_diffusion/bpe_tokenizer.h"
+#include "ml_drift/samples/stable_diffusion/diffuser.h"
 #include "ml_drift/samples/stable_diffusion/text_guidance_builder.h"
 #include "ml_drift/samples/stable_diffusion/unet_builder.h"
 #include "ml_drift/samples/stable_diffusion/util.h"
 
 namespace ml_drift {
 namespace cl {
-namespace {
 
 class OpHolder {
  public:
@@ -66,7 +64,19 @@ class OpHolder {
     std::map<std::string, half> half_params;
     std::map<std::string, int> int_params;
   };
-
+  absl::Status InitElementwiseScalar(OperationType op_type,
+                                     const TensorDescriptor& src_desc,
+                                     const TensorDescriptor& dst_desc,
+                                     Environment* env) {
+    ElementwiseAttributes attr;
+    attr.param = 0.3f;
+    OperationDef op_def;
+    op_def.src_tensors.push_back(src_desc);
+    op_def.dst_tensors.push_back(dst_desc);
+    GPUOperation operation =
+        CreateElementwise(env->device().GetInfo(), op_def, op_type, attr);
+    return InitClOp(env, std::move(operation));
+  }
   absl::Status Init(Environment* env, GPUOperation&& operation) {
     return InitClOp(env, std::move(operation));
   }
@@ -80,6 +90,21 @@ class OpHolder {
     op_def.dst_tensors.push_back(dst_desc);
     GPUOperation operation =
         CreateElementwiseOneInput(env->device().GetInfo(), op_def, op_type);
+    return InitClOp(env, std::move(operation));
+  }
+
+  absl::Status InitElementwiseTwoInput(OperationType op_type,
+                                       const TensorDescriptor& src0_desc,
+                                       const TensorDescriptor& src1_desc,
+                                       const TensorDescriptor& dst_desc,
+                                       Environment* env) {
+    OperationDef op_def;
+    op_def.src_tensors.push_back(src0_desc);
+    op_def.src_tensors.push_back(src1_desc);
+    op_def.dst_tensors.push_back(dst_desc);
+    GPUOperation operation =
+        CreateElementwiseTwoInput(env->device().GetInfo(), op_def, op_type,
+                                  BHWC(2, 2, 2, 2), BHWC(2, 2, 2, 2));
     return InitClOp(env, std::move(operation));
   }
 
@@ -147,63 +172,6 @@ class OpHolder {
   ClOperation cl_op_;
 };
 
-class DiffusionStepper {
- public:
-  absl::Status Init(Environment* env,
-                    const std::string& file_folder) {
-    alphas_ = LoadF16(file_folder + "alphas_cumprod.bin", 1000);
-    alphas_prev_ = alphas_;
-    alphas_prev_.insert(alphas_prev_.begin(), half(1.0f));
-
-    TensorDescriptor desc(DataType::FLOAT16,
-                          GetFastestStorageType(env->device().GetInfo()),
-                          Layout::HWC);
-
-    ABSL_RETURN_IF_ERROR(
-        custom_op_.Init(env, CreateDiffusionStepOp(desc, desc, desc, desc)));
-    return absl::OkStatus();
-  }
-  absl::Status StepCustomOp(CLCommandQueue* queue, Tensor* xIn,
-                            Tensor* etaUncondIn, Tensor* etaCondIn, Tensor* dst,
-                            int tIn, int tPrevIn, float guidanceScaleIn) {
-    float alphaIn = alphas_[tIn];
-    int tPrevInOffset = std::max(0, tPrevIn + 1);
-    float alphaPrevIn = alphas_prev_[tPrevInOffset];
-    half sqrt_alpha = half(sqrt(alphaIn));
-    half sqrt_alpha_prev = half(sqrt(alphaPrevIn));
-    half sqrt_one_minus_alpha = half(sqrt(1.0f - alphaIn));
-    half sqrt_one_minus_alpha_prev = half(sqrt(1.0f - alphaPrevIn));
-
-    OpHolder::ExecutionParams exec_params;
-    exec_params.src = {xIn, etaUncondIn, etaCondIn};
-    exec_params.dst = {dst};
-    exec_params.half_params = {
-        {"guidance_scale", half(guidanceScaleIn)},
-        {"sqrt_alpha", half(sqrt_alpha)},
-        {"sqrt_alpha_prev", half(sqrt_alpha_prev)},
-        {"sqrt_one_minus_alpha", half(sqrt_one_minus_alpha)},
-        {"sqrt_one_minus_alpha_prev", half(sqrt_one_minus_alpha_prev)}};
-    return custom_op_.Execute(queue, exec_params);
-  }
-
- private:
-  OpHolder custom_op_;
-  std::vector<half> alphas_;
-  std::vector<half> alphas_prev_;
-};
-
-void PrintMemoryUsage(const InferenceContext& context) {
-  const uint64_t runtime_mem_bytes =
-      context.GetSizeOfMemoryAllocatedForIntermediateTensors();
-  std::cout << "Memory for intermediate tensors - "
-            << runtime_mem_bytes / 1024.0 / 1024.0 << " MB" << std::endl;
-  const uint64_t const_mem_bytes = context.GetConstantTensorsSize();
-  std::cout << "Memory for constant tensors - "
-            << const_mem_bytes / 1024.0 / 1024.0 << " MB" << std::endl;
-  std::cout << "Total tensors memory(const + intermediate) - "
-            << (const_mem_bytes + runtime_mem_bytes) / 1024.0 / 1024.0 << " MB"
-            << std::endl;
-}
 
 void PrintProfilingInfo(InferenceContext& context,
                         ProfilingCommandQueue* queue) {
@@ -221,15 +189,14 @@ void PrintProfilingInfo(InferenceContext& context,
 
 class TextGuidance {
  public:
-  absl::Status Init(Environment* env,
-                    const std::string& file_folder) {
+  absl::Status Init(Environment* env, const std::string& file_folder) {
     const auto& gpu_info = env->GetDevicePtr()->GetInfo();
 
     CreateGpuModelInfo create_info;
     create_info.precision = CalculationsPrecision::F16;
     create_info.storage_type = GetFastestStorageType(gpu_info);
     create_info.hints.Add(ModelHints::kFastTuning);
-    create_info.hints.Add(ModelHints::kNoWinogradOptimizations);
+    // create_info.hints.Add(ModelHints::kNoWinogradOptimizations);
     GpuModel gpu_model;
     TextGuidanceBuilder::Config config;
     config.embedding_size = 768;
@@ -251,12 +218,25 @@ class TextGuidance {
     if (/* DISABLES CODE */ (false)) {
       PrintProfilingInfo(inference_context_, env->profiling_queue());
     }
-    PrintMemoryUsage(inference_context_);
 
     return absl::OkStatus();
   }
 
   Tensor* GetGuidanceTensor() { return inference_context_.GetTensor(dst_.id); }
+
+  absl::Status Execute(Environment* env,
+                       const ml_drift::Tensor<BHWC, DataType::INT32>& src,
+                       TensorFloat32* dst) {
+    ABSL_RETURN_IF_ERROR(
+        inference_context_.SetInputTensor(src_.id, src, env->queue()));
+
+    ABSL_RETURN_IF_ERROR(inference_context_.AddToQueue(env->queue()));
+    ABSL_RETURN_IF_ERROR(env->queue()->WaitForCompletion());
+
+    ABSL_RETURN_IF_ERROR(
+        inference_context_.GetOutputTensor(dst_.id, env->queue(), dst));
+    return absl::OkStatus();
+  }
 
   absl::Status SetInput(Environment* env,
                         const ml_drift::Tensor<BHWC, DataType::INT32>& src) {
@@ -284,10 +264,6 @@ class UNet {
     create_info.hints.winograd_runtime_weights_conversion = false;
     // Comment out for potentially faster performance, but more memory usage.
     create_info.hints.Add(ModelHints::kNoWinogradOptimizations);
-
-    GpuModelBuilder gpu_builder(gpu_info, create_info.hints,
-                                create_info.precision,
-                                create_info.storage_type);
     UnetBuilder builder;
     UnetBuilder::Config config;
     config.in_channels = 4;
@@ -303,19 +279,59 @@ class UNet {
     config.context_dim = 768;
     config.unet_file_dir = file_folder;
 
+    GpuModelBuilderOptions options;
+    options.hints = create_info.hints;
+    options.storage = create_info.storage_type;
+    options.use_f32_accum_for_f16_convolutions =
+        (create_info.precision == CalculationsPrecision::F32_F16);
+    ml_drift::GpuModelBuilder model_builder(gpu_info, options);
+
+    index_val_ = model_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::FLOAT32);
+    ABSL_ASSIGN_OR_RETURN(
+        auto result,
+        model_builder.AppendOp(
+            "TembGeneration", {index_val_},
+            {{"channels", 320},
+             {"storage_type",
+              static_cast<int>(GetFastestStorageType(gpu_info))}}));
+    temb_ = result[0];
+
     GpuModel gpu_model;
     ABSL_RETURN_IF_ERROR(builder.Build(
-        config, gpu_info, create_info, width, height, &gpu_builder, &src_,
+        config, gpu_info, create_info, width, height, &model_builder, &src_,
         &temb_, &guidance_,
         /*text_proj_ptr=*/nullptr,
         /*masked_image_latent_ptr=*/nullptr, &eta0_, &eta1_, nullptr));
 
-    std::vector<GpuModelBuilder::ValueId> input_ids = {src_.id, temb_.id,
-                                                       guidance_.id};
-    std::vector<GpuModelBuilder::ValueId> output_ids = {eta0_.id, eta1_.id,
-                                                        src_.id, guidance_.id};
+    guidance_scale_ =
+        model_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::FLOAT32);
+    sqrt_alpha_ = model_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::FLOAT32);
+    sqrt_alpha_prev_ =
+        model_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::FLOAT32);
+    sqrt_one_minus_alpha_ =
+        model_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::FLOAT32);
+    sqrt_one_minus_alpha_prev_ =
+        model_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::FLOAT32);
+    src_input_ = src_;
+    ABSL_ASSIGN_OR_RETURN(
+        auto _step_res,
+        model_builder.AppendOp(
+            "DiffusionStep",
+            {src_, eta0_, eta1_, guidance_scale_, sqrt_alpha_, sqrt_alpha_prev_,
+             sqrt_one_minus_alpha_, sqrt_one_minus_alpha_prev_}));
+    src_ = _step_res[0];
+
+    std::vector<ValueId> in_ids = {src_input_.id,
+                                   index_val_.id,
+                                   guidance_.id,
+                                   guidance_scale_.id,
+                                   sqrt_alpha_.id,
+                                   sqrt_alpha_prev_.id,
+                                   sqrt_one_minus_alpha_.id,
+                                   sqrt_one_minus_alpha_prev_.id};
+    std::vector<ValueId> out_ids = {src_.id, eta0_.id, eta1_.id};
     ABSL_RETURN_IF_ERROR(
-        gpu_builder.GetGpuModel(input_ids, output_ids, &gpu_model));
+        model_builder.GetGpuModel(in_ids, out_ids, &gpu_model));
 
     const auto start_init = std::chrono::high_resolution_clock::now();
     ABSL_RETURN_IF_ERROR(inference_context_.InitFromGpuModel(
@@ -327,12 +343,19 @@ class UNet {
     if (/* DISABLES CODE */ (false)) {
       PrintProfilingInfo(inference_context_, env->profiling_queue());
     }
-    PrintMemoryUsage(inference_context_);
 
     return absl::OkStatus();
   }
 
-  Tensor* GetLatentTensor() { return inference_context_.GetTensor(src_.id); }
+  Tensor* GetLatentTensor() {
+    return inference_context_.GetTensor(src_input_.id);
+  }
+  Tensor* GetOutputLatentTensor() {
+    return inference_context_.GetTensor(src_.id);
+  }
+  Tensor* GetInputLatentTensor() {
+    return inference_context_.GetTensor(src_input_.id);
+  }
   Tensor* GetTembTensor() { return inference_context_.GetTensor(temb_.id); }
   Tensor* GetGuidanceTensor() {
     return inference_context_.GetTensor(guidance_.id);
@@ -342,16 +365,62 @@ class UNet {
   }
   Tensor* GetEtaCondTensor() { return inference_context_.GetTensor(eta1_.id); }
 
-  absl::Status Execute(CLCommandQueue* queue) {
+  absl::Status Execute(Environment* env, const TensorFloat32& latent,
+                       const TensorFloat32& guidance,
+                       const TensorFloat32& temb_in, TensorFloat32* eta_uncond,
+                       TensorFloat32* eta_cond) {
+    ABSL_RETURN_IF_ERROR(
+        inference_context_.SetInputTensor(src_input_.id, latent, env->queue()));
+    ABSL_RETURN_IF_ERROR(
+        inference_context_.SetInputTensor(temb_.id, temb_in, env->queue()));
+    ABSL_RETURN_IF_ERROR(inference_context_.SetInputTensor(
+        guidance_.id, guidance, env->queue()));
+
+    ABSL_RETURN_IF_ERROR(inference_context_.AddToQueue(env->queue()));
+    ABSL_RETURN_IF_ERROR(env->queue()->WaitForCompletion());
+
+    ABSL_RETURN_IF_ERROR(
+        inference_context_.GetOutputTensor(eta0_.id, env->queue(), eta_uncond));
+    ABSL_RETURN_IF_ERROR(
+        inference_context_.GetOutputTensor(eta1_.id, env->queue(), eta_cond));
+    return absl::OkStatus();
+  }
+
+  absl::Status Execute(CLCommandQueue* queue, int step_index,
+                       float guidance_scale, float sqrt_alpha,
+                       float sqrt_alpha_prev, float sqrt_one_minus_alpha,
+                       float sqrt_one_minus_alpha_prev) {
+    TensorFloat32 scalar_tensor;
+    scalar_tensor.shape = BHWC(1, 1, 1, 4);
+    scalar_tensor.data.resize(4, 0.0f);
+    scalar_tensor.data[0] = static_cast<float>(step_index);
+    ABSL_RETURN_IF_ERROR(
+        inference_context_.SetInputTensor(index_val_.id, scalar_tensor, queue));
+    scalar_tensor.data[0] = guidance_scale;
+    ABSL_RETURN_IF_ERROR(inference_context_.SetInputTensor(
+        guidance_scale_.id, scalar_tensor, queue));
+    scalar_tensor.data[0] = sqrt_alpha;
+    ABSL_RETURN_IF_ERROR(inference_context_.SetInputTensor(
+        sqrt_alpha_.id, scalar_tensor, queue));
+    scalar_tensor.data[0] = sqrt_alpha_prev;
+    ABSL_RETURN_IF_ERROR(inference_context_.SetInputTensor(
+        sqrt_alpha_prev_.id, scalar_tensor, queue));
+    scalar_tensor.data[0] = sqrt_one_minus_alpha;
+    ABSL_RETURN_IF_ERROR(inference_context_.SetInputTensor(
+        sqrt_one_minus_alpha_.id, scalar_tensor, queue));
+    scalar_tensor.data[0] = sqrt_one_minus_alpha_prev;
+    ABSL_RETURN_IF_ERROR(inference_context_.SetInputTensor(
+        sqrt_one_minus_alpha_prev_.id, scalar_tensor, queue));
     return inference_context_.AddToQueue(queue);
   }
 
  private:
-  GpuModelBuilder::TensorHandle src_, temb_, guidance_, eta0_, eta1_;
+  GpuModelBuilder::TensorHandle index_val_, guidance_scale_, sqrt_alpha_,
+      sqrt_alpha_prev_, sqrt_one_minus_alpha_, sqrt_one_minus_alpha_prev_;
+  GpuModelBuilder::TensorHandle src_, src_input_, temb_, guidance_, eta0_,
+      eta1_;
   InferenceContext inference_context_;
 };
-
-
 
 class Decoder {
  public:
@@ -364,7 +433,7 @@ class Decoder {
     create_info.storage_type = GetFastestStorageType(gpu_info);
     create_info.hints.Add(ModelHints::kFastTuning);
     create_info.hints.winograd_runtime_weights_conversion = false;
-    create_info.hints.Add(ModelHints::kNoWinogradOptimizations);
+    // create_info.hints.Add(ModelHints::kNoWinogradOptimizations);
     GpuModel gpu_model;
     AutoencoderKLBuilder builder;
     AutoencoderKLBuilder::Config config;
@@ -390,12 +459,24 @@ class Decoder {
     if (/* DISABLES CODE */ (false)) {
       PrintProfilingInfo(inference_context_, env->profiling_queue());
     }
-    PrintMemoryUsage(inference_context_);
 
     return absl::OkStatus();
   }
 
   Tensor* GetInputTensor() { return inference_context_.GetTensor(src_.id); }
+
+  absl::Status Execute(Environment* env, const TensorFloat32& src,
+                       TensorFloat32* dst) {
+    ABSL_RETURN_IF_ERROR(
+        inference_context_.SetInputTensor(src_.id, src, env->queue()));
+
+    ABSL_RETURN_IF_ERROR(inference_context_.AddToQueue(env->queue()));
+    ABSL_RETURN_IF_ERROR(env->queue()->WaitForCompletion());
+
+    ABSL_RETURN_IF_ERROR(
+        inference_context_.GetOutputTensor(dst_.id, env->queue(), dst));
+    return absl::OkStatus();
+  }
 
   absl::Status GetOutput(Environment* env, TensorFloat32* dst) {
     return inference_context_.GetOutputTensor(dst_.id, env->queue(), dst);
@@ -410,70 +491,12 @@ class Decoder {
   InferenceContext inference_context_;
 };
 
-absl::Status TestStableDiffusion(std::string weights_path) {
-  BPETokenizer bpe_tokenizer;
-  bpe_tokenizer.Init(weights_path);
+absl::Status RunStableDiffusion(absl::string_view pipeline_type) {
+  ml_drift::cl::stable_diffusion::Diffuser::Config config;
+  config.model_dir = std::string(pipeline_type);
 
-  Environment env;
-  ABSL_RETURN_IF_ERROR(CreateEnvironment(&env));
-  const auto& gpu_info = env.GetDevicePtr()->GetInfo();
-
-  TensorDescriptor default_desc(DataType::FLOAT16,
-                                GetFastestStorageType(gpu_info), Layout::HWC);
-
-  const int final_image_width = 512;
-  const int final_image_height = 512;
-
-  const int latent_image_width = final_image_width / 8;
-  const int latent_image_height = final_image_height / 8;
-
-  // For some strange reason, on Adreno 8xx, if noise_op initialized first,
-  // performance of unet/decoder is much worse. Difference is significant,
-  // ~ + 50% in total latency.
-  UNet unet;
-  ABSL_RETURN_IF_ERROR(
-      unet.Init(latent_image_width, latent_image_height, &env, weights_path));
-
-  Decoder decoder;
-  ABSL_RETURN_IF_ERROR(decoder.Init(latent_image_width, latent_image_height,
-                                    &env, weights_path));
-
-  OpHolder temb_generation_op;
-  ABSL_RETURN_IF_ERROR(temb_generation_op.Init(
-      &env, CreateTembGenerationOp(gpu_info, default_desc, weights_path)));
-
-  OpHolder noise_op;
-  {
-    OperationDef op_def;
-    op_def.dst_tensors.push_back(default_desc);
-    ABSL_RETURN_IF_ERROR(
-        noise_op.Init(&env, CreateRandomNormalPhilox(gpu_info, op_def)));
-  }
-
-  DiffusionStepper diffusion;
-  ABSL_RETURN_IF_ERROR(diffusion.Init(&env, weights_path));
-
-  TextGuidance text_guidance_graph;
-  ABSL_RETURN_IF_ERROR(text_guidance_graph.Init(&env, weights_path));
-
-  OpHolder copier;
-  ABSL_RETURN_IF_ERROR(copier.InitElementwiseOneInput(
-      OperationType::COPY, default_desc, default_desc, &env));
-
-  ml_drift::Tensor<BHWC, DataType::INT32> tokens;
-  tokens.shape = BHWC(1, 1, 2, 77);
-  tokens.data.resize(tokens.shape.DimensionsProduct());
-
-  Tensor latent_copy;
-  {
-    Tensor* unet_latent = unet.GetLatentTensor();
-    TensorDescriptor descriptor_with_shape = unet_latent->GetDescriptor();
-    descriptor_with_shape.SetBHWCShape(
-        BHWC(unet_latent->Batch(), unet_latent->Height(), unet_latent->Width(),
-             unet_latent->Channels()));
-    ABSL_RETURN_IF_ERROR(
-        CreateTensor(env.context(), descriptor_with_shape, &latent_copy));
-  }
+  ABSL_ASSIGN_OR_RETURN(
+      auto diffuser, ml_drift::cl::stable_diffusion::Diffuser::Create(config));
 
   unsigned int base_seed = 1;
   std::srand(base_seed);
@@ -481,89 +504,21 @@ absl::Status TestStableDiffusion(std::string weights_path) {
   while (true) {
     std::string prompt = "a photo of an astronaut riding a horse on mars";
     std::string negative_prompt = "";
-    std::cout << "Enter phrase: ";
-    std::getline(std::cin, prompt);
     int steps = 50;
+
+    std::cout << "Enter phrase: ";
+    if (!std::getline(std::cin, prompt)) break;
+    if (prompt.empty()) continue;
     std::cout << "Enter steps: ";
-    std::cin >> steps;
+    if (!(std::cin >> steps)) break;
     std::string dummy;
     std::getline(std::cin, dummy);
 
-    const auto p0 = std::chrono::high_resolution_clock::now();
+    int seed = std::rand() % 60000;
 
-    auto bpe_tokens = bpe_tokenizer.Encode(prompt);
-    auto bpe_base_tokens = bpe_tokenizer.Encode(negative_prompt);
-
-    for (int i = 0; i < 77; ++i) {
-      tokens.data[i] = bpe_base_tokens[i];
-      tokens.data[i + 77] = bpe_tokens[i];
-    }
-    ABSL_RETURN_IF_ERROR(text_guidance_graph.SetInput(&env, tokens));
-
-    const auto p1 = std::chrono::high_resolution_clock::now();
-
-    ABSL_RETURN_IF_ERROR(text_guidance_graph.Execute(env.queue()));
-
-    {
-      int seed = std::rand();
-      OpHolder::ExecutionParams exec_params;
-      exec_params.dst = {unet.GetLatentTensor()};
-      exec_params.int_params = {{"seed", seed}};
-      ABSL_RETURN_IF_ERROR(noise_op.Execute(env.queue(), exec_params));
-    }
-
-    ABSL_RETURN_IF_ERROR(copier.Execute(env.queue(),
-                                        text_guidance_graph.GetGuidanceTensor(),
-                                        unet.GetGuidanceTensor()));
-
-    const int stride = 1000 / steps;
-    for (int t = steps - 1; t >= 0; --t) {
-      int ts = t * stride + 1;
-      int tsPrev = ts - stride;
-
-      {
-        OpHolder::ExecutionParams exec_params;
-        exec_params.dst = {unet.GetTembTensor()};
-        exec_params.float_params = {{"index_val", ts}};
-        ABSL_RETURN_IF_ERROR(
-            temb_generation_op.Execute(env.queue(), exec_params));
-      }
-
-      ABSL_RETURN_IF_ERROR(
-          copier.Execute(env.queue(), unet.GetLatentTensor(), &latent_copy));
-
-      ABSL_RETURN_IF_ERROR(unet.Execute(env.queue()));
-
-      float guidance_scale = 7.5f;
-      ABSL_RETURN_IF_ERROR(diffusion.StepCustomOp(
-          env.queue(), &latent_copy, unet.GetEtaUncondTensor(),
-          unet.GetEtaCondTensor(), unet.GetLatentTensor(), ts, tsPrev,
-          guidance_scale));
-      std::cout << "step " << steps - t << "/" << steps << std::endl;
-    }  // loop t
-
-    ABSL_RETURN_IF_ERROR(copier.Execute(env.queue(), unet.GetLatentTensor(),
-                                        decoder.GetInputTensor()));
-
-    ABSL_RETURN_IF_ERROR(decoder.Execute(env.queue()));
-    ABSL_RETURN_IF_ERROR(env.queue()->WaitForCompletion());  // Required sync.
-
-    const auto p2 = std::chrono::high_resolution_clock::now();
-    TensorFloat32 result;
-    ABSL_RETURN_IF_ERROR(decoder.GetOutput(&env, &result));
-    const auto p3 = std::chrono::high_resolution_clock::now();
-
-    std::cout << "Cpu begin time: " << (p1 - p0).count() * 1e-6f << " ms."
-              << std::endl;
-
-    std::cout << "Gpu time: " << (p2 - p1).count() * 1e-6f << " ms."
-              << std::endl;
-
-    std::cout << "Cpu end time: " << (p3 - p2).count() * 1e-6f << " ms."
-              << std::endl;
-
-    std::cout << "Total time: " << (p3 - p0).count() * 1e-6f << " ms."
-              << std::endl;
+    ABSL_ASSIGN_OR_RETURN(
+        auto result,
+        diffuser->Diffuse(prompt, steps, seed, std::nullopt, {}, true));
 
     GenerateImage(result, "result.bmp");
     std::cout << "ready" << std::endl;
@@ -572,28 +527,20 @@ absl::Status TestStableDiffusion(std::string weights_path) {
   return absl::OkStatus();
 }
 
-}  // namespace
 }  // namespace cl
 }  // namespace ml_drift
 
-int main(int argc, char** argv) {
+int main() {
   auto load_status = ml_drift::cl::LoadOpenCL();
   if (!load_status.ok()) {
     std::cout << load_status.message();
     return -1;
   }
 
-  std::string weights_folder = "sd_1_5/";
-  if (argc >= 2) {
-    weights_folder = argv[1];
-    if (!weights_folder.empty() && weights_folder.back() != '/') {
-      weights_folder += '/';
-    }
-  }
-  auto status = ml_drift::cl::TestStableDiffusion(weights_folder);
+  auto status = ml_drift::cl::RunStableDiffusion("sd_1_5/");
   if (!status.ok()) {
-    std::cout << "Failed test." << status.message() << std::endl;
+    std::cout << status.message() << std::endl;
     return -1;
   }
-  return 0;
+  return EXIT_SUCCESS;
 }

@@ -18,7 +18,6 @@
 #include <utility>
 #include <vector>
 
-#include "absl/status/status.h"
 #include "absl/status/status_macros.h"
 #include "ml_drift/common/op_api.h"
 #include "ml_drift/common/shape.h"
