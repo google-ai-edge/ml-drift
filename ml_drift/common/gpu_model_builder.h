@@ -317,9 +317,17 @@ class GpuModelBuilder {
                        std::unique_ptr<GPUOperation>&& operation,
                        const std::string& name);
 
-  TensorHandle Concat(const std::vector<TensorHandle>& srcs, Axis axis);
+  // `dst_type` is the destination's declared data type. A node lowering
+  // should pass `op_def.dst_tensors[0].GetDataType()`: UpdateOutputTensor()
+  // rebinds this operation's output to the graph value and calls
+  // SetOutputDescriptor() with that value's descriptor, so a type inferred here
+  // would be silently replaced by it. Leave it unset only when materialising a
+  // genuinely new tensor, which falls back to srcs[0]'s type.
+  TensorHandle Concat(const std::vector<TensorHandle>& srcs, Axis axis,
+                      std::optional<DataType> dst_type = std::nullopt);
   TensorHandle Concat(const TensorHandle& first, const TensorHandle& second,
-                      Axis axis);
+                      Axis axis,
+                      std::optional<DataType> dst_type = std::nullopt);
 
   void Copy(const TensorHandle& src, const TensorHandle& dst);
 
@@ -587,7 +595,8 @@ class GpuModelBuilder {
 
   TensorHandle Mask(const TensorHandle& true_tensor, TensorHandle* mask_tensor);
 
-  TensorHandle ConcatInternal(const std::vector<TensorHandle>& srcs, Axis axis);
+  TensorHandle ConcatInternal(const std::vector<TensorHandle>& srcs, Axis axis,
+                              std::optional<DataType> dst_type = std::nullopt);
   BHWC GetOutputShapeConcat(const std::vector<TensorHandle>& srcs, Axis axis);
 
   void Split(const TensorHandle& src, Axis axis,

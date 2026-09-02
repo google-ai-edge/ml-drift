@@ -41,6 +41,30 @@ TEST_P(ConcatTypedTest, ChannelsBool) {
   MLD_ASSERT_OK(ConcatChannelsBoolTest(*exec_env, GetParam()));
 }
 
+TEST_P(ConcatTypedTest, ChannelsMixedTypes) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::FLOAT16) ||
+      !exec_env->IsStorageSupported(GetParam(), DataType::FLOAT32)) {
+    GTEST_SKIP() << "Unsupported storage: " << ToString(GetParam());
+  }
+  MLD_ASSERT_OK(ConcatChannelsMixedTypesTest(*exec_env, GetParam()));
+}
+
+TEST_P(ConcatTypedTest, ChannelsMixedTypesF16Dst) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::FLOAT16) ||
+      !exec_env->IsStorageSupported(GetParam(), DataType::FLOAT32)) {
+    GTEST_SKIP() << "Unsupported storage: " << ToString(GetParam());
+  }
+  MLD_ASSERT_OK(ConcatChannelsMixedTypesF16DstTest(*exec_env, GetParam()));
+}
+
+TEST_P(ConcatTypedTest, WidthMixedTypes) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::FLOAT16) ||
+      !exec_env->IsStorageSupported(GetParam(), DataType::FLOAT32)) {
+    GTEST_SKIP() << "Unsupported storage: " << ToString(GetParam());
+  }
+  MLD_ASSERT_OK(ConcatWidthMixedTypesTest(*exec_env, GetParam()));
+}
+
 TEST_P(ConcatTypedTest, Int8) {
   if (!exec_env->IsStorageSupported(GetParam(), DataType::INT8)) {
     GTEST_SKIP() << "Unsupported storage: " << ToString(GetParam());

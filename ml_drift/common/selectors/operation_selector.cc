@@ -717,7 +717,9 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
                               model_builder->GetTensor(inputs[i]->id));
       }
       return model_builder->UpdateOutputTensor(
-          model_builder->Concat(src_handles, attr.axis), outputs[0]->id);
+          model_builder->Concat(src_handles, attr.axis,
+                                op_def.dst_tensors[0].GetDataType()),
+          outputs[0]->id);
     }
     case OperationType::CONVOLUTION_2D: {
       const auto& attr = std::any_cast<const Convolution2DAttributes&>(
@@ -1303,7 +1305,9 @@ absl::Status GPUOperationFromNode(
                               model_builder->GetTensor(inputs[i]->id));
       }
       return model_builder->UpdateOutputTensor(
-          model_builder->Concat(src_handles, attr.axis), outputs[0]->id);
+          model_builder->Concat(src_handles, attr.axis,
+                                op_def.dst_tensors[0].GetDataType()),
+          outputs[0]->id);
     }
     case OperationType::CONVOLUTION_2D: {
       const auto& attr =
