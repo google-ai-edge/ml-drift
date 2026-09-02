@@ -633,8 +633,7 @@ ConvWaveMemory::KernelParams GetKernelParamsAdreno(
     }
   }
 
-  if (!params.src_desc.IsLinear() &&
-      (!params.x_kernel_is_1 || !params.y_kernel_is_1)) {
+  if (!params.src_desc.IsLinear() && !params.x_kernel_is_1) {
     kernel_params.slices_in = 1;
     kernel_params.slices_loop_first = false;
   }
@@ -678,6 +677,11 @@ ConvWaveMemory::KernelParams GetKernelParamsAdreno(
     if (waves_per_cu < 16.0 && kernel_params.slices_out >= 2) {
       kernel_params.slices_out = 1;
     }
+  }
+
+  if (!kernel_params.slices_loop_first && kernel_params.slices_out <= 4 &&
+      params.weights_shape.w <= 3) {
+    kernel_params.unroll_x_loop = true;
   }
 
   return kernel_params;
