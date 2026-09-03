@@ -822,11 +822,19 @@ class ConvCodeGenerator {
         } else {
           for (int kx = 0; kx < conv_params_.kernel_size.x; ++kx) {
             c += "  {\n";
-            c += "  int xck0 = " + std::to_string(kx) +
-                 " * args.dilation_x + xc0;\n";
-            if (!src_def.SupportsZeroClamp(Axis::WIDTH, gpu_info_)) {
-              c += "  bool in_x0 = xck0 >= 0 && xck0 < "
-                   "args.src_tensor.Width();\n";
+            for (int x = 0; x < block_size.x; ++x) {
+              const std::string xck = "xck" + std::to_string(x);
+              c += "    int xck" + std::to_string(x) + " = " +
+                   std::to_string(kx) + " * args.dilation_x + xc" +
+                   std::to_string(x) + ";\n";
+              if (!src_def.SupportsZeroClamp(Axis::WIDTH, gpu_info_)) {
+                c += "    bool in_x" + std::to_string(x) + " = " + xck +
+                     " >= 0 && " + xck + " < args.src_tensor.Width();\n";
+                if (!src_def.CanReadOutOfBorder(Axis::WIDTH, gpu_info_)) {
+                  c += "    " + xck + " = clamp(" + xck +
+                       ", 0, args.src_tensor.Width() - 1);\n";
+                }
+              }
             }
             c += GenerateMain(kx * kernel_params_.block_size.w * 4);
             c += "  }\n";
@@ -1190,20 +1198,8 @@ class ConvCodeGenerator {
                      ") * ucl::Convert<ScalarType>(" + check + ");\n";
               }
             } else {
-              if (kernel_params_.unroll_x_loop) {
-                std::string yc =
-                    "DST_Y * args.stride_y + args.padding_y + ky * "
-                    "args.dilation_y + " +
-                    yind + " * args.stride_y";
-                if (conv_params_.IsYKernelIs1()) {
-                  yc = "DST_Y + " + yind;
-                }
-                c += "    " + src_val + " = args.src_tensor.Read(xck0, " + yc +
-                     ", s);\n";
-              } else {
-                c += "    " + src_val + " = args.src_tensor.Read<" +
-                     read_as_type + ">(" + address + ");\n";
-              }
+              c += "    " + src_val + " = args.src_tensor.Read<" +
+                    read_as_type + ">(" + address + ");\n";
             }
             if (src_def.IsLinear()) {
               c += "    " + address + " += ds;\n";
