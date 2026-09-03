@@ -408,11 +408,17 @@ std::string GenerateConvolutionGeneric(
     }
   };
   if (kernel_params.unroll_x_loop) {
-    for (int kx = 0; kx < conv_params.weights_shape.w; ++kx) {
-      c += "    coord_x = mad24(" + std::to_string(kx) +
-           ", args.dilation_x, x_coord);\n";
-      c += "    Type src" + std::to_string(kx) + " = " + read_src();
+    for (int s = 0; s < kernel_params.slices_in; ++s) {
+      for (int kx = 0; kx < conv_params.weights_shape.w; ++kx) {
+        const std::string src_name =
+            "src_x" + std::to_string(kx) + "_s" + std::to_string(s);
+        c += "    coord_x = mad24(" + std::to_string(kx) +
+             ", args.dilation_x, x_coord);\n";
+        c += "    Type " + src_name + " = " + read_src();
+      }
+      c += "  coord_s++;\n";
     }
+    c += "  coord_s -= " + std::to_string(kernel_params.slices_in) + ";\n";
   } else if (src_type == DataType::UINT32) {
     for (int s_in = 0; s_in < kernel_params.slices_in / 4; ++s_in) {
       const std::string val_name = "src" + std::to_string(s_in);
@@ -483,16 +489,18 @@ std::string GenerateConvolutionGeneric(
     in_slices /= 4;
   }
   if (kernel_params.unroll_x_loop) {
+    int offset = 0;
     for (int kx = 0; kx < conv_params.weights_shape.w; ++kx) {
-      std::string src_name = "src" + std::to_string(kx);
-      for (int s_out = 0; s_out < kernel_params.slices_out; ++s_out) {
-        const std::string dst_name = "r" + std::to_string(s_out);
-        if (kernel_params.img_wave_dot) {
-          c += GenerateConvImg(conv_params, dst_name, src_name,
-                               kx * kernel_params.slices_out + s_out);
-        } else {
-          c += GenerateConv(conv_params, dst_name, src_name,
-                            kx * kernel_params.slices_out + s_out);
+      for (int s = 0; s < kernel_params.slices_in; ++s) {
+        std::string src_name =
+            "src_x" + std::to_string(kx) + "_s" + std::to_string(s);
+        for (int s_out = 0; s_out < kernel_params.slices_out; ++s_out) {
+          const std::string dst_name = "r" + std::to_string(s_out);
+          if (kernel_params.img_wave_dot) {
+            c += GenerateConvImg(conv_params, dst_name, src_name, offset++);
+          } else {
+            c += GenerateConv(conv_params, dst_name, src_name, offset++);
+          }
         }
       }
     }
@@ -746,10 +754,10 @@ ConvWaveMemory::KernelParams GetKernelParamsPowerVR(
         if (waves_per_cu < 256.0 && kernel_params.slices_out >= 8) {
           kernel_params.slices_out = 4;
         }
-        if (waves_per_cu < 128.0 && kernel_params.slices_out >= 4) {
+        if (waves_per_cu < 64.0 && kernel_params.slices_out >= 4) {
           kernel_params.slices_out = 2;
         }
-        if (waves_per_cu < 64.0 && kernel_params.slices_out >= 2) {
+        if (waves_per_cu < 32.0 && kernel_params.slices_out >= 2) {
           kernel_params.slices_out = 1;
         }
       }
@@ -757,14 +765,19 @@ ConvWaveMemory::KernelParams GetKernelParamsPowerVR(
         kernel_params.slices_out =
             std::min(kernel_params.slices_out, dst_slices);
       }
-      if (kernel_params.slices_loop_first) {
-        int max_slices_in = src_slices % 2 == 0 ? 2 : 1;
-        max_slices_in = src_slices % 4 == 0 ? 4 : max_slices_in;
-        if (kernel_params.slices_out <= 2) {
-          kernel_params.slices_in = std::min(max_slices_in, 4);
-        } else {
-          kernel_params.slices_in = std::min(max_slices_in, 2);
+      int max_slices_in = src_slices % 2 == 0 ? 2 : 1;
+      max_slices_in = src_slices % 4 == 0 ? 4 : max_slices_in;
+      if (!kernel_params.slices_loop_first) {
+        max_slices_in = 1;
+        if (kernel_params.unroll_x_loop &&
+            kernel_params.slices_out * params.weights_shape.w <= 3) {
+          max_slices_in = src_slices % 2 == 0 ? 2 : 1;
         }
+      }
+      if (kernel_params.slices_out <= 2) {
+        kernel_params.slices_in = std::min(max_slices_in, 4);
+      } else {
+        kernel_params.slices_in = std::min(max_slices_in, 2);
       }
     }
   }
@@ -821,6 +834,7 @@ ConvWaveMemory::ConvWaveMemory(const ConvWaveMemory::ConvParams& conv_params,
                                const OHWI& weights_shape,
                                const BHWC* dst_shape) {
   conv_params_ = conv_params;
+  conv_params_.weights_shape = weights_shape;
   const int src_slices = DivideRoundUp(weights_shape.i, 4);
   const int dst_slices = DivideRoundUp(weights_shape.o, 4);
   if (conv_params_.groups_count != 1) {
@@ -858,8 +872,6 @@ ConvWaveMemory::ConvWaveMemory(const ConvWaveMemory::ConvParams& conv_params,
   if (!conv_params.y_kernel_is_1) {
     args_.AddInt("kernel_size_y", weights_shape.h);
   }
-
-  conv_params_.weights_shape = weights_shape;
 }
 
 void ConvWaveMemory::GenerateCode(const GpuInfo& gpu_info,
