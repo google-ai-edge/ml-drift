@@ -1609,7 +1609,7 @@ class ConvCodeGenerator {
                 } else {
                   w_val = "f" + weight_id;
                 }
-                if (IsI4O4(kernel_params_.weights_layout)) {
+                if (IsI4O4(kernel_params_.weights_desc.layout)) {
                   if (use_fma) {
                     c += "    " + R + " = fma(" + w_val + ", " + S + "." +
                          channels[ch] + ", " + R + ");\n";
@@ -1650,7 +1650,7 @@ class ConvCodeGenerator {
                   F[i] = "f" + weight_id;
                 }
               }
-              if (IsI4O4(kernel_params_.weights_layout)) {
+              if (IsI4O4(kernel_params_.weights_desc.layout)) {
                 c += "    " + R + " += ucl::Convert<AccType>(" + S + ".x * " +
                      F[0] + " + " + S + ".y * " + F[1] + " + " + S + ".z * " +
                      F[2] + " + " + S + ".w * " + F[3] + ");\n";
@@ -2021,7 +2021,6 @@ ConvGeneric::KernelParams GetKernelParamsForA7A8(
   kernel_params.block_size.y = block_size.y;
   kernel_params.block_size.z = 1;
   kernel_params.block_size.w = block_size.z;
-  kernel_params.weights_layout = WeightsLayout::kOSpatialIOGroupO4I4;
 
   std::vector<WorkGroupSizeOption> options;
   options.push_back(CreateWorkGroupSizeOption(
@@ -2162,7 +2161,6 @@ ConvGeneric::KernelParams GetKernelParamsForA9AndHigher(
   kernel_params.linear_spatial = false;
   kernel_params.linear_all = false;
   kernel_params.work_group_launch_order = int3(2, 0, 1);
-  kernel_params.weights_layout = WeightsLayout::kOSpatialIOGroupO4I4;
   int g1 = GetGroupsCount(dst_shape, kernel_params.work_group_size,
                           kernel_params.block_size);
   int g2 = GetGroupsCountForLinearWH(
@@ -3171,6 +3169,107 @@ ConvGeneric::KernelParams GetKernelParamsBroadcom(
   return kernel_params;
 }
 
+WeightsDescription GetWeightsDescription(
+    const GpuInfo& gpu_info, const ConvGeneric::KernelParams& kernel_params,
+    const ConvGeneric::ConvParams& conv_params) {
+  if (kernel_params.weights_upload_type ==
+      ConvGeneric::WeightsUploadType::kIntelWave16MatMul) {
+    WeightsDescription desc;
+    desc.type = conv_params.weights_data_type;
+    desc.layout = WeightsLayout::kCustomGroups;
+    if (conv_params.Is8Bit()) {
+      desc.group_sizes.push_back({Axis::INPUT_CHANNELS, 2});
+    } else if (conv_params.Is4Bit()) {
+      desc.group_sizes.push_back({Axis::INPUT_CHANNELS, 4});
+    }
+    desc.group_sizes.push_back({Axis::OUTPUT_CHANNELS, 4});
+    if (conv_params.Is8Bit()) {
+      // keep last block in i2o4i2 layout to work with gpu conversion kernel
+      desc.group_sizes.push_back({Axis::INPUT_CHANNELS, 2});
+      desc.group_sizes.push_back({Axis::INPUT_CHANNELS, 8});
+    } else {
+      desc.group_sizes.push_back({Axis::INPUT_CHANNELS, 16});
+    }
+    desc.group_sizes.push_back(
+        {Axis::OUTPUT_CHANNELS, kernel_params.block_size.w});
+    desc.group_sizes.push_back({Axis::INPUT_CHANNELS, 0});
+    if (conv_params.kernel_size.x != 1) {
+      desc.group_sizes.push_back({Axis::WIDTH, 0});
+    }
+    if (conv_params.kernel_size.y != 1) {
+      desc.group_sizes.push_back({Axis::HEIGHT, 0});
+    }
+    if (conv_params.different_weights_for_height) {
+      desc.group_sizes.push_back({Axis::WIDTH, 0});
+      desc.group_sizes.push_back({Axis::HEIGHT, 0});
+    }
+    if (conv_params.kernel_size.z != 1) {
+      desc.group_sizes.push_back({Axis::DEPTH, 0});
+    }
+    desc.group_sizes.push_back({Axis::OUTPUT_CHANNELS, 0});
+    return desc;
+  }
+
+  WeightsDescription desc;
+  if (kernel_params.AreWeightsBuffer()) {
+    if (gpu_info.IsDotPreferred() || conv_params.Is8Bit()) {
+      desc.layout = WeightsLayout::kOSpatialIOGroupO4I4;
+    } else {
+      desc.layout = WeightsLayout::kOSpatialIOGroupI4O4;
+    }
+  } else {
+    if (gpu_info.IsDotPreferred() || conv_params.Is8Bit()) {
+      desc.layout = WeightsLayout::k2DX4O4YIsSpatialIAndXIsOOGroupI4;
+    } else {
+      desc.layout = WeightsLayout::k2DX4I4YIsSpatialIAndXIsOOGroupO4;
+    }
+  }
+  if (!kernel_params.slices_loop_first) {
+    desc.layout = WeightsLayout::kOISpatialOGroupI4O4;
+  }
+  if (SupportsImgMatMul(gpu_info, conv_params)) {
+    desc.layout = WeightsLayout::kCustomGroups;
+    if (conv_params.precision == CalculationsPrecision::F32) {
+      desc.group_sizes = {{Axis::OUTPUT_CHANNELS, 2},
+                          {Axis::INPUT_CHANNELS, 4},
+                          {Axis::OUTPUT_CHANNELS, 2}};
+    } else {
+      desc.group_sizes = {{Axis::INPUT_CHANNELS, 2},
+                          {Axis::OUTPUT_CHANNELS, 2},
+                          {Axis::INPUT_CHANNELS, 2},
+                          {Axis::OUTPUT_CHANNELS, 2}};
+    }
+    desc.group_sizes.push_back(
+        {Axis::OUTPUT_CHANNELS, kernel_params.block_size.w});
+    if (kernel_params.slices_loop_first) {
+      desc.group_sizes.push_back({Axis::INPUT_CHANNELS, 0});
+    }
+    if (conv_params.kernel_size.x != 1) {
+      desc.group_sizes.push_back({Axis::WIDTH, 0});
+    }
+    if (conv_params.kernel_size.y != 1) {
+      desc.group_sizes.push_back({Axis::HEIGHT, 0});
+    }
+    if (conv_params.different_weights_for_height) {
+      desc.group_sizes.push_back({Axis::WIDTH, 0});
+      desc.group_sizes.push_back({Axis::HEIGHT, 0});
+    }
+    if (conv_params.kernel_size.z != 1) {
+      desc.group_sizes.push_back({Axis::DEPTH, 0});
+    }
+    if (!kernel_params.slices_loop_first) {
+      desc.group_sizes.push_back({Axis::INPUT_CHANNELS, 0});
+    }
+    desc.group_sizes.push_back({Axis::OUTPUT_CHANNELS, 0});
+  }
+
+  desc.type = conv_params.weights_data_type;
+  if (desc.layout != WeightsLayout::kCustomGroups) {
+    desc.output_group_size = kernel_params.block_size.w;
+  }
+  return desc;
+}
+
 ConvGeneric::KernelParams GetKernelParams(
     const GpuInfo& gpu_info, const ConvGeneric::ConvParams& conv_params,
     const BHWC& dst_shape) {
@@ -3293,59 +3392,6 @@ ConvGeneric::KernelParams GetKernelParams(
       kernel_params.block_size.x = 4;
     }
   }
-  if (kernel_params.AreWeightsBuffer()) {
-    if (gpu_info.IsDotPreferred() || conv_params.Is8Bit()) {
-      kernel_params.weights_layout = WeightsLayout::kOSpatialIOGroupO4I4;
-    } else {
-      kernel_params.weights_layout = WeightsLayout::kOSpatialIOGroupI4O4;
-    }
-  } else {
-    if (gpu_info.IsDotPreferred() || conv_params.Is8Bit()) {
-      kernel_params.weights_layout =
-          WeightsLayout::k2DX4O4YIsSpatialIAndXIsOOGroupI4;
-    } else {
-      kernel_params.weights_layout =
-          WeightsLayout::k2DX4I4YIsSpatialIAndXIsOOGroupO4;
-    }
-  }
-  if (!kernel_params.slices_loop_first) {
-    kernel_params.weights_layout = WeightsLayout::kOISpatialOGroupI4O4;
-  }
-  if (SupportsImgMatMul(gpu_info, conv_params)) {
-    kernel_params.weights_layout = WeightsLayout::kCustomGroups;
-    if (conv_params.precision == CalculationsPrecision::F32) {
-      kernel_params.group_sizes = {{Axis::OUTPUT_CHANNELS, 2},
-                                   {Axis::INPUT_CHANNELS, 4},
-                                   {Axis::OUTPUT_CHANNELS, 2}};
-    } else {
-      kernel_params.group_sizes = {{Axis::INPUT_CHANNELS, 2},
-                                   {Axis::OUTPUT_CHANNELS, 2},
-                                   {Axis::INPUT_CHANNELS, 2},
-                                   {Axis::OUTPUT_CHANNELS, 2}};
-    }
-    kernel_params.group_sizes.push_back(
-        {Axis::OUTPUT_CHANNELS, kernel_params.block_size.w});
-    if (kernel_params.slices_loop_first) {
-      kernel_params.group_sizes.push_back({Axis::INPUT_CHANNELS, 0});
-    }
-    if (conv_params.kernel_size.x != 1) {
-      kernel_params.group_sizes.push_back({Axis::WIDTH, 0});
-    }
-    if (conv_params.kernel_size.y != 1) {
-      kernel_params.group_sizes.push_back({Axis::HEIGHT, 0});
-    }
-    if (conv_params.different_weights_for_height) {
-      kernel_params.group_sizes.push_back({Axis::WIDTH, 0});
-      kernel_params.group_sizes.push_back({Axis::HEIGHT, 0});
-    }
-    if (conv_params.kernel_size.z != 1) {
-      kernel_params.group_sizes.push_back({Axis::DEPTH, 0});
-    }
-    if (!kernel_params.slices_loop_first) {
-      kernel_params.group_sizes.push_back({Axis::INPUT_CHANNELS, 0});
-    }
-    kernel_params.group_sizes.push_back({Axis::OUTPUT_CHANNELS, 0});
-  }
 
   // TODO: b/319525628 - Fix kConstantMemory for WebGPU.
   if (gpu_info.IsApiWebGpu() &&
@@ -3368,6 +3414,9 @@ ConvGeneric::KernelParams GetKernelParams(
     kernel_params.block_size.x *= kernel_params.block_size.y;
     kernel_params.block_size.y = 1;
   }
+
+  kernel_params.weights_desc =
+      GetWeightsDescription(gpu_info, kernel_params, conv_params);
 
   return kernel_params;
 }

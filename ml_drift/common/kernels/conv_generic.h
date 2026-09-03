@@ -74,7 +74,7 @@ class ConvGeneric : public GPUOperation {
                // false.
     bool unroll_x_loop = false;  // applicable with slices_loop_first = false;
     WeightsUploadType weights_upload_type;
-    WeightsLayout weights_layout;
+    WeightsDescription weights_desc;
     // weights_type and weights_element_size is how we bind weights buffer to
     // kernel. It can differ from ConvParams.weights_data_type. For example when
     // we use int8 weights, we use INT8 as ConvParams.weights_data_type, but we
@@ -88,9 +88,6 @@ class ConvGeneric : public GPUOperation {
 
     // Must be in ascending order
     std::vector<int> simd_sizes = {1};
-
-    // for WeightsLayout::kCustomGroups;
-    std::vector<std::pair<Axis, int>> group_sizes;
 
     bool AreWeightsBuffer() const {
       return weights_upload_type != WeightsUploadType::kTexturesX4;
@@ -165,52 +162,7 @@ class ConvGeneric : public GPUOperation {
     if (conv_params_.weights_desc.layout != WeightsLayout::kUnknown) {
       return conv_params_.weights_desc;
     }
-    if (kernel_params_.weights_upload_type ==
-        ConvGeneric::WeightsUploadType::kIntelWave16MatMul) {
-      WeightsDescription desc;
-      desc.type = conv_params_.weights_data_type;
-      desc.layout = WeightsLayout::kCustomGroups;
-      if (conv_params_.Is8Bit()) {
-        desc.group_sizes.push_back({Axis::INPUT_CHANNELS, 2});
-      } else if (conv_params_.Is4Bit()) {
-        desc.group_sizes.push_back({Axis::INPUT_CHANNELS, 4});
-      }
-      desc.group_sizes.push_back({Axis::OUTPUT_CHANNELS, 4});
-      if (conv_params_.Is8Bit()) {
-        // keep last block in i2o4i2 layout to work with gpu conversion kernel
-        desc.group_sizes.push_back({Axis::INPUT_CHANNELS, 2});
-        desc.group_sizes.push_back({Axis::INPUT_CHANNELS, 8});
-      } else {
-        desc.group_sizes.push_back({Axis::INPUT_CHANNELS, 16});
-      }
-      desc.group_sizes.push_back(
-          {Axis::OUTPUT_CHANNELS, kernel_params_.block_size.w});
-      desc.group_sizes.push_back({Axis::INPUT_CHANNELS, 0});
-      if (conv_params_.kernel_size.x != 1) {
-        desc.group_sizes.push_back({Axis::WIDTH, 0});
-      }
-      if (conv_params_.kernel_size.y != 1) {
-        desc.group_sizes.push_back({Axis::HEIGHT, 0});
-      }
-      if (conv_params_.different_weights_for_height) {
-        desc.group_sizes.push_back({Axis::WIDTH, 0});
-        desc.group_sizes.push_back({Axis::HEIGHT, 0});
-      }
-      if (conv_params_.kernel_size.z != 1) {
-        desc.group_sizes.push_back({Axis::DEPTH, 0});
-      }
-      desc.group_sizes.push_back({Axis::OUTPUT_CHANNELS, 0});
-      return desc;
-    }
-    WeightsDescription desc;
-    desc.type = conv_params_.weights_data_type;
-    desc.layout = kernel_params_.weights_layout;
-    if (kernel_params_.weights_layout == WeightsLayout::kCustomGroups) {
-      desc.group_sizes = kernel_params_.group_sizes;
-    } else {
-      desc.output_group_size = kernel_params_.block_size.w;
-    }
-    return desc;
+    return kernel_params_.weights_desc;
   }
 
   std::string_view GetDebugName() const override { return "conv_generic"; }
