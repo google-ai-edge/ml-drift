@@ -42,7 +42,7 @@ std::string ToString(const WeightsDescription& desc) {
   }
 }
 
-bool IsI4O4(const WeightsLayout& layout) {
+bool WeightsDescription::IsI4O4() const {
   switch (layout) {
     case WeightsLayout::kOSpatialIOGroupI4O4:
     case WeightsLayout::kOISpatialOGroupI4O4:
@@ -55,14 +55,19 @@ bool IsI4O4(const WeightsLayout& layout) {
     case WeightsLayout::kOICustomSpatialO4I4:
     case WeightsLayout::k2DX4O4YIsSpatialIAndXIsOOGroupI4:
       return false;
-    case WeightsLayout::kUnknown:
     case WeightsLayout::kCustomGroups:
+      return group_sizes.size() >= 2 &&
+             group_sizes[0].first == Axis::OUTPUT_CHANNELS &&
+             group_sizes[0].second == 4 &&
+             group_sizes[1].first == Axis::INPUT_CHANNELS &&
+             group_sizes[1].second == 4;
+    case WeightsLayout::kUnknown:
     case WeightsLayout::kISpatialOI4O4UnalignedIO:
       return false;
   }
 }
 
-bool IsO4I4(const WeightsLayout& layout) {
+bool WeightsDescription::IsO4I4() const {
   switch (layout) {
     case WeightsLayout::kOSpatialIOGroupO4I4:
     case WeightsLayout::kOISpatialOGroupO4I4:
@@ -75,8 +80,13 @@ bool IsO4I4(const WeightsLayout& layout) {
     case WeightsLayout::k2DX4I4YIsSpatialIAndXIsOOGroupO4:
     case WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4:
       return false;
-    case WeightsLayout::kUnknown:
     case WeightsLayout::kCustomGroups:
+      return group_sizes.size() >= 2 &&
+             group_sizes[0].first == Axis::INPUT_CHANNELS &&
+             group_sizes[0].second == 4 &&
+             group_sizes[1].first == Axis::OUTPUT_CHANNELS &&
+             group_sizes[1].second == 4;
+    case WeightsLayout::kUnknown:
     case WeightsLayout::kISpatialOI4O4UnalignedIO:
       return false;
   }
@@ -101,10 +111,6 @@ int WeightsDescription::GetOutputGroupSize() const {
       return 1;
   }
 }
-
-bool WeightsDescription::IsI4O4() const { return ml_drift::IsI4O4(layout); }
-
-bool WeightsDescription::IsO4I4() const { return ml_drift::IsO4I4(layout); }
 
 bool WeightsDescription::IsCustomSpatial() const {
   return layout == WeightsLayout::kOICustomSpatialI4O4 ||

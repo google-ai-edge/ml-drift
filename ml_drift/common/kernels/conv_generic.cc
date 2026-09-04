@@ -1609,7 +1609,7 @@ class ConvCodeGenerator {
                 } else {
                   w_val = "f" + weight_id;
                 }
-                if (IsI4O4(kernel_params_.weights_desc.layout)) {
+                if (kernel_params_.weights_desc.IsI4O4()) {
                   if (use_fma) {
                     c += "    " + R + " = fma(" + w_val + ", " + S + "." +
                          channels[ch] + ", " + R + ");\n";
@@ -1650,7 +1650,7 @@ class ConvCodeGenerator {
                   F[i] = "f" + weight_id;
                 }
               }
-              if (IsI4O4(kernel_params_.weights_desc.layout)) {
+              if (kernel_params_.weights_desc.IsI4O4()) {
                 c += "    " + R + " += ucl::Convert<AccType>(" + S + ".x * " +
                      F[0] + " + " + S + ".y * " + F[1] + " + " + S + ".z * " +
                      F[2] + " + " + S + ".w * " + F[3] + ");\n";
@@ -3225,7 +3225,15 @@ WeightsDescription GetWeightsDescription(
     }
   }
   if (!kernel_params.slices_loop_first) {
-    desc.layout = WeightsLayout::kOISpatialOGroupI4O4;
+    desc.layout = WeightsLayout::kCustomGroups;
+    desc.group_sizes = {
+        {Axis::OUTPUT_CHANNELS, 4},
+        {Axis::INPUT_CHANNELS, 4},
+        {Axis::OUTPUT_CHANNELS, kernel_params.block_size.w},
+        {Axis::WIDTH, 0},
+        {Axis::HEIGHT, 0},
+        {Axis::INPUT_CHANNELS, 0},
+        {Axis::OUTPUT_CHANNELS, 0}};
   }
   if (SupportsImgMatMul(gpu_info, conv_params)) {
     desc.layout = WeightsLayout::kCustomGroups;

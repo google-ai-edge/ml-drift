@@ -61,9 +61,6 @@ struct WeightsDescription {
 };
 
 std::string ToString(const WeightsDescription& desc);
-
-bool IsI4O4(const WeightsLayout& layout);
-bool IsO4I4(const WeightsLayout& layout);
 std::string ToString(const WeightsLayout& layout);
 
 }  // namespace ml_drift
