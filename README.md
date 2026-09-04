@@ -95,9 +95,7 @@ functionality.
 * `api/`: Public API headers.
 * `common/`: Core components, UCL kernels, `GpuModel`, and platform-neutral
   logic.
-* `opencl/`, `metal/`, `webgpu/`, `vulkan/`, `opengl/`: Backend-specific
-  implementations.
-* `tflite/`: TensorFlow Lite delegate integration.
+* `cl/`, `gl/`, `metal/`, `webgpu/`: Backend-specific implementations.
 * `samples/`: Example usage and demos.
 
 ## Getting Started
