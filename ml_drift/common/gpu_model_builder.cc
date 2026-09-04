@@ -3421,16 +3421,9 @@ absl::StatusOr<GpuModelBuilder::TensorHandle> GpuModelBuilder::BatchedMatMul(
     // Add transpose for the second tensor. If we cannot use the
     // FullyConnected operation, we need to transpose the second tensor to
     // match the expected input shape of BMM.
-    const BHWC weights_input_shape(right_shape.b, right_shape.h, right_shape.c,
-                                   right_shape.w);
-    TensorDescriptor weights_input_desc = {right.tensor_desc.GetDataType(),
-                                           right.tensor_desc.GetStorageType(),
-                                           Layout::BHWC};
-
-    weights_input_desc.SetBHWCShape(weights_input_shape);
     weights_handle = Transpose(right, BHWC(0, 1, 3, 2));
-    weights_shape = OHWI(weights_input_shape.c, weights_input_shape.b,
-                         weights_input_shape.h, weights_input_shape.w);
+    weights_shape =
+        OHWI(right_shape.w, right_shape.b, right_shape.h, right_shape.c);
   }
 
   std::unique_ptr<GPUOperation> conv_op;
