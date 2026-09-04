@@ -27,6 +27,7 @@
 #include "absl/log/absl_log.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_replace.h"
+#include "absl/strings/substitute.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/kernel_info.h"
@@ -1280,6 +1281,84 @@ std::string ReadVec16AsVec4x4(const WeightsDescription& src_weights_desc,
   return c;
 }
 
+namespace {
+std::string AddBatchOffset(const std::string& stride) {
+  return absl::Substitute(R"(
+    a0 += spatial_linear * $0;
+    a1 += spatial_linear * $0;
+    a2 += spatial_linear * $0;
+    a3 += spatial_linear * $0;
+)",
+                          stride);
+}
+
+std::string GetRingedOAddresses() {
+  std::string c;
+  // kOSpatialIOGroupO4I4 -> kBIOI4
+  c += R"(    int o0 = (o_slice * 4 + ring_o_offset) % ring_size;
+    int o1 = (o_slice * 4 + 1 + ring_o_offset) % ring_size;
+    int o2 = (o_slice * 4 + 2 + ring_o_offset) % ring_size;
+    int o3 = (o_slice * 4 + 3 + ring_o_offset) % ring_size;
+    int a0 = i_slice * ring_size + o0;
+    int a1 = i_slice * ring_size + o1;
+    int a2 = i_slice * ring_size + o2;
+    int a3 = i_slice * ring_size + o3;
+)";
+  c += AddBatchOffset("ring_size * args.i_slices");
+  return c;
+}
+
+std::string GetRingedIAddresses() {
+  std::string c;
+  // kOSpatialIOGroupI4O4 -> kBIOI4O4
+  c += R"(    int i0 = (i_slice * 4 + ring_i_offset) % ring_size;
+    int i1 = (i_slice * 4 + 1 + ring_i_offset) % ring_size;
+    int i2 = (i_slice * 4 + 2 + ring_i_offset) % ring_size;
+    int i3 = (i_slice * 4 + 3 + ring_i_offset) % ring_size;
+    int a0 = ((i0 / 4) * args.o_slices + o_slice) * 4 + i0 % 4;
+    int a1 = ((i1 / 4) * args.o_slices + o_slice) * 4 + i1 % 4;
+    int a2 = ((i2 / 4) * args.o_slices + o_slice) * 4 + i2 % 4;
+    int a3 = ((i3 / 4) * args.o_slices + o_slice) * 4 + i3 % 4;
+)";
+  c += AddBatchOffset("ring_size * args.o_slices");
+  return c;
+}
+
+std::string ReadRingedWeights(const ConvRuntimeCheckDesc& runtime_check,
+                              const WeightsDescription& src_weights_desc,
+                              const DataType& dst_type,
+                              bool grouped_quantization,
+                              bool batched_quantization, bool has_zero_point) {
+  std::string c;
+  c += "  w0 = ucl::Init<Type>(0);\n";
+  c += "  w1 = ucl::Init<Type>(0);\n";
+  c += "  w2 = ucl::Init<Type>(0);\n";
+  c += "  w3 = ucl::Init<Type>(0);\n";
+  c += "  if (o_slice < args.o_slices && i_slice < args.i_slices) {\n";
+  if (runtime_check.ring_o_offset_index.has_value()) {
+    c += "    int ring_o_offset = args.params.Read(" +
+         std::to_string(runtime_check.ring_o_offset_index.value()) + ");\n";
+    c += "    int ring_size = " +
+         std::to_string(runtime_check.ring_size.value()) + ";\n";
+    c += GetRingedOAddresses();
+  } else if (runtime_check.ring_i_offset_index.has_value()) {
+    c += "    int ring_i_offset = args.params.Read(" +
+         std::to_string(runtime_check.ring_i_offset_index.value()) + ");\n";
+    c += "    int ring_size = " +
+         std::to_string(runtime_check.ring_size.value()) + ";\n";
+    c += GetRingedIAddresses();
+  }
+  c += R"(
+    w0 = args.src_buffer.Read(a0);
+    w1 = args.src_buffer.Read(a1);
+    w2 = args.src_buffer.Read(a2);
+    w3 = args.src_buffer.Read(a3);
+)";
+  c += "  }  // o_slice/i_slice bounds\n";
+  return c;
+}
+}  // namespace
+
 std::string GetWeightsConverterCode(const GpuInfo& gpu_info, DataType dst_type,
                                     const WeightsDescription& src_weights_desc,
                                     const WeightsDescription& dst_weights_desc,
@@ -1306,9 +1385,16 @@ std::string GetWeightsConverterCode(const GpuInfo& gpu_info, DataType dst_type,
     c += "  if (i_slice >= src_end_slice_runtime) return;\n";
   }
   c += "  Type w0, w1, w2, w3;\n";
-  c += ReadVec16AsVec4x4(src_weights_desc, dst_weights_desc.type,
-                         grouped_quantization, batched_quantization,
-                         has_zero_point);
+  if (runtime_check.ring_o_offset_index.has_value() ||
+      runtime_check.ring_i_offset_index.has_value()) {
+    c += ReadRingedWeights(runtime_check, src_weights_desc,
+                           dst_weights_desc.type, grouped_quantization,
+                           batched_quantization, has_zero_point);
+  } else {
+    c += ReadVec16AsVec4x4(src_weights_desc, dst_weights_desc.type,
+                           grouped_quantization, batched_quantization,
+                           has_zero_point);
+  }
 
   const auto src_layout =
       src_weights_desc.IsI4O4() ? BlockLayout::kI4O4 : BlockLayout::kO4I4;
@@ -1430,6 +1516,9 @@ WeightsConverter::WeightsConverter(const GpuInfo& gpu_info,
                                   work_group_size_);
     args_.AddInt("groups_per_x", groups_per_x_);
   }
+  const bool ringed_weights = runtime_check.ring_o_offset_index.has_value() ||
+                              runtime_check.ring_i_offset_index.has_value();
+  const int vec_size = ringed_weights ? 4 : 16;
   if (src_weights_desc.type == DataType::UINT8) {
     if (src_weights_desc.layout ==
         WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
@@ -1481,7 +1570,7 @@ WeightsConverter::WeightsConverter(const GpuInfo& gpu_info,
   } else {
     BufferDescriptor desc;
     desc.element_type = definition.src_tensors[0].GetDataType();
-    desc.element_size = 16;
+    desc.element_size = vec_size;
     AddSrcBuffer("src_buffer", desc);
   }
   if (dst_weights_desc.layout ==
@@ -1572,6 +1661,14 @@ WeightsConverter::WeightsConverter(const GpuInfo& gpu_info,
   }
   if (runtime_check.dst_end_ch_index.has_value()) {
     args_.AddInt("dst_end_ch_index", *runtime_check.dst_end_ch_index);
+    has_runtime_check = true;
+  }
+  if (runtime_check.ring_o_offset_index.has_value()) {
+    args_.AddInt("ring_o_offset_index", *runtime_check.ring_o_offset_index);
+    has_runtime_check = true;
+  }
+  if (runtime_check.ring_i_offset_index.has_value()) {
+    args_.AddInt("ring_i_offset_index", *runtime_check.ring_i_offset_index);
     has_runtime_check = true;
   }
   if (has_runtime_check) {

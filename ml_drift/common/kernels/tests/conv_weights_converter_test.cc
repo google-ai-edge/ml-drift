@@ -919,6 +919,30 @@ TEST(IntToFloatRuntimeTest, Int8ToFloatRuntimeOutput) {
   ABSL_ASSERT_OK(Int8ToFloatWeightsWithRuntimeOutputTest(*exec_env));
 }
 
+TEST(FloatWeightsRingedTest, RingedOFloat32) {
+  ABSL_ASSERT_OK(FloatWeightsWithRingedOTest(*exec_env, DataType::FLOAT32));
+}
+
+TEST(FloatWeightsRingedTest, RingedOFloat16) {
+  if (!exec_env->IsStorageSupported(TensorStorageType::BUFFER,
+                                    DataType::FLOAT16)) {
+    GTEST_SKIP() << "Unsupported data type: FLOAT16";
+  }
+  ABSL_ASSERT_OK(FloatWeightsWithRingedOTest(*exec_env, DataType::FLOAT16));
+}
+
+TEST(FloatWeightsRingedTest, RingedIFloat32) {
+  ABSL_ASSERT_OK(FloatWeightsWithRingedITest(*exec_env, DataType::FLOAT32));
+}
+
+TEST(FloatWeightsRingedTest, RingedIFloat16) {
+  if (!exec_env->IsStorageSupported(TensorStorageType::BUFFER,
+                                    DataType::FLOAT16)) {
+    GTEST_SKIP() << "Unsupported data type: FLOAT16";
+  }
+  ABSL_ASSERT_OK(FloatWeightsWithRingedITest(*exec_env, DataType::FLOAT16));
+}
+
 class I8ToUI8Test
     : public Test,
       public WithParamInterface<

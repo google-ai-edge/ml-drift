@@ -1771,6 +1771,186 @@ absl::Status FloatToFloatWeightsConverterTest(
   return absl::OkStatus();
 }
 
+absl::Status FloatWeightsWithRingedOTest(TestExecutionEnvironment& env,
+                                         DataType data_type) {
+  const int o_channels = 32;
+  const int i_channels = 24;
+  const int ring_size = 48;
+  const OHWI weights_shape(o_channels, 1, 1, i_channels);
+  const OHWI ring_weights_shape(ring_size, 1, 1, i_channels);
+
+  Tensor<OHWI, DataType::FLOAT32> ring_weights;
+  ring_weights.shape = ring_weights_shape;
+  ring_weights.data.resize(ring_weights.shape.DimensionsProduct() +
+                           XNN_EXTRA_BYTES / sizeof(float));
+  for (int i = 0; i < ring_weights.shape.DimensionsProduct(); ++i) {
+    ring_weights.data[i] = std::sin(i * 0.123f);
+  }
+
+  WeightsDescription src_weights_desc;
+  src_weights_desc.type = data_type;
+  src_weights_desc.layout = WeightsLayout::kOSpatialIOGroupO4I4;
+  src_weights_desc.output_group_size = DivideRoundUp(ring_size, 4);
+
+  WeightsDescription dst_weights_desc;
+  dst_weights_desc.type = data_type;
+  dst_weights_desc.layout = WeightsLayout::kOSpatialIOGroupI4O4;
+  dst_weights_desc.output_group_size = 1;
+
+  for (int ring_offset : {0, 7, 13, 20, 31}) {
+    TensorDescriptor weights_src_td =
+        TensorDescriptor(data_type, TensorStorageType::BUFFER, Layout::LINEAR);
+    const int flt_count =
+        GetTotalElementsCountForLayout(src_weights_desc, ring_weights.shape);
+    std::vector<uint8_t> src_data(flt_count * SizeOf(data_type));
+    RearrangeWeights(ring_weights, src_weights_desc, absl::MakeSpan(src_data));
+    weights_src_td.SetBHWCShape(BHWC(1, 1, 1, flt_count));
+    weights_src_td.UploadDataRaw(absl::MakeConstSpan(src_data));
+
+    Tensor<OHWI, DataType::FLOAT32> ref_weights;
+    ref_weights.shape = weights_shape;
+    ref_weights.data.resize(weights_shape.DimensionsProduct() +
+                            XNN_EXTRA_BYTES / sizeof(float));
+    for (int o = 0; o < o_channels; ++o) {
+      for (int i = 0; i < i_channels; ++i) {
+        const int src_o = (o + ring_offset) % ring_size;
+        ref_weights.data[ref_weights.shape.LinearIndex({o, 0, 0, i})] =
+            ring_weights.data[ring_weights.shape.LinearIndex({src_o, 0, 0, i})];
+      }
+    }
+
+    std::vector<TensorDescriptor> weights_dst_refs =
+        GetTensorDescriptorsForWeightsLayout(ref_weights, dst_weights_desc);
+    TensorDescriptor weights_dst_td =
+        TensorDescriptor(data_type, TensorStorageType::BUFFER, Layout::LINEAR);
+    weights_dst_td.SetBHWCShape(weights_dst_refs[0].GetBHWCShape());
+
+    ConvRuntimeCheckDesc runtime_check;
+    runtime_check.ring_o_offset_index = 0;
+    runtime_check.ring_size = ring_size;
+
+    TensorInt32 params;
+    params.shape = BHWC(1, 1, 1, 1);
+    params.data = {ring_offset};
+    TensorDescriptor params_td = {DataType::INT32, TensorStorageType::BUFFER,
+                                  Layout::HWC};
+    params_td.UploadData(params);
+
+    OperationDef op_def;
+    op_def.src_tensors.push_back(
+        {data_type, TensorStorageType::BUFFER, Layout::LINEAR});
+    op_def.dst_tensors.push_back(weights_dst_td);
+
+    WeightsConverter converter(env.GetGpuInfo(), op_def, weights_shape,
+                               src_weights_desc, dst_weights_desc,
+                               /*weights_scale=*/nullptr,
+                               /*weights_zero_point=*/nullptr, runtime_check);
+
+    std::vector<TensorDescriptor*> dst_ptrs = {&weights_dst_td};
+    ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
+        {&weights_src_td, &params_td}, dst_ptrs,
+        std::make_unique<WeightsConverter>(std::move(converter))));
+
+    TensorFloat32 ref_out;
+    weights_dst_refs[0].DownloadData(&ref_out);
+    TensorFloat32 gpu_out;
+    weights_dst_td.DownloadData(&gpu_out);
+    const float eps = data_type == DataType::FLOAT16 ? 1e-3f : 1e-6f;
+    EXPECT_THAT(ref_out.data, Pointwise(FloatNear(eps), gpu_out.data));
+  }
+  return absl::OkStatus();
+}
+
+absl::Status FloatWeightsWithRingedITest(TestExecutionEnvironment& env,
+                                         DataType data_type) {
+  const int o_channels = 24;
+  const int i_channels = 16;
+  const int ring_size = 40;
+  const OHWI weights_shape(o_channels, 1, 1, i_channels);
+  const OHWI ring_weights_shape(o_channels, 1, 1, ring_size);
+
+  Tensor<OHWI, DataType::FLOAT32> ring_weights;
+  ring_weights.shape = ring_weights_shape;
+  ring_weights.data.resize(ring_weights.shape.DimensionsProduct() +
+                           XNN_EXTRA_BYTES / sizeof(float));
+  for (int i = 0; i < ring_weights.shape.DimensionsProduct(); ++i) {
+    ring_weights.data[i] = std::sin(i * 0.123f);
+  }
+
+  WeightsDescription src_weights_desc;
+  src_weights_desc.type = data_type;
+  src_weights_desc.layout = WeightsLayout::kOSpatialIOGroupI4O4;
+  src_weights_desc.output_group_size = DivideRoundUp(o_channels, 4);
+
+  WeightsDescription dst_weights_desc;
+  dst_weights_desc.type = data_type;
+  dst_weights_desc.layout = WeightsLayout::kOSpatialIOGroupO4I4;
+  dst_weights_desc.output_group_size = 2;
+
+  for (int ring_offset : {0, 5, 11, 23, 31}) {
+    TensorDescriptor weights_src_td =
+        TensorDescriptor(data_type, TensorStorageType::BUFFER, Layout::LINEAR);
+    const int flt_count =
+        GetTotalElementsCountForLayout(src_weights_desc, ring_weights.shape);
+    std::vector<uint8_t> src_data(flt_count * SizeOf(data_type));
+    RearrangeWeights(ring_weights, src_weights_desc, absl::MakeSpan(src_data));
+    weights_src_td.SetBHWCShape(BHWC(1, 1, 1, flt_count));
+    weights_src_td.UploadDataRaw(absl::MakeConstSpan(src_data));
+
+    Tensor<OHWI, DataType::FLOAT32> ref_weights;
+    ref_weights.shape = weights_shape;
+    ref_weights.data.resize(weights_shape.DimensionsProduct() +
+                            XNN_EXTRA_BYTES / sizeof(float));
+    for (int o = 0; o < o_channels; ++o) {
+      for (int i = 0; i < i_channels; ++i) {
+        const int src_i = (i + ring_offset) % ring_size;
+        ref_weights.data[ref_weights.shape.LinearIndex({o, 0, 0, i})] =
+            ring_weights.data[ring_weights.shape.LinearIndex({o, 0, 0, src_i})];
+      }
+    }
+
+    std::vector<TensorDescriptor> weights_dst_refs =
+        GetTensorDescriptorsForWeightsLayout(ref_weights, dst_weights_desc);
+    TensorDescriptor weights_dst_td =
+        TensorDescriptor(data_type, TensorStorageType::BUFFER, Layout::LINEAR);
+    weights_dst_td.SetBHWCShape(weights_dst_refs[0].GetBHWCShape());
+
+    ConvRuntimeCheckDesc runtime_check;
+    runtime_check.ring_i_offset_index = 0;
+    runtime_check.ring_size = ring_size;
+
+    TensorInt32 params;
+    params.shape = BHWC(1, 1, 1, 1);
+    params.data = {ring_offset};
+    TensorDescriptor params_td = {DataType::INT32, TensorStorageType::BUFFER,
+                                  Layout::HWC};
+    params_td.UploadData(params);
+
+    OperationDef op_def;
+    op_def.src_tensors.push_back(
+        {data_type, TensorStorageType::BUFFER, Layout::LINEAR});
+    op_def.dst_tensors.push_back(weights_dst_td);
+
+    WeightsConverter converter(env.GetGpuInfo(), op_def, weights_shape,
+                               src_weights_desc, dst_weights_desc,
+                               /*weights_scale=*/nullptr,
+                               /*weights_zero_point=*/nullptr, runtime_check);
+
+    std::vector<TensorDescriptor*> dst_ptrs = {&weights_dst_td};
+    ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
+        {&weights_src_td, &params_td}, dst_ptrs,
+        std::make_unique<WeightsConverter>(std::move(converter))));
+
+    TensorFloat32 ref_out;
+    weights_dst_refs[0].DownloadData(&ref_out);
+    TensorFloat32 gpu_out;
+    weights_dst_td.DownloadData(&gpu_out);
+    const float eps = data_type == DataType::FLOAT16 ? 1e-3f : 1e-6f;
+    EXPECT_THAT(ref_out.data, Pointwise(FloatNear(eps), gpu_out.data));
+  }
+  return absl::OkStatus();
+}
+
 absl::Status Uint8ToInt8WeightsConverterTest(
     TestExecutionEnvironment& env, WeightsLayout src_layout,
     WeightsDescription& dst_weights_desc) {
