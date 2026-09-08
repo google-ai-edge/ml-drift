@@ -65,12 +65,6 @@ class ConverterToConvWeights : public GPUOperation {
   // if input_layout_ is HWIO: reinterpreting weights as HWIO-BHWC tensor
 };
 
-// Checks if the weights conversion is supported for the given shapes and
-// descriptions.
-bool IsWeightsConversionSupported(const OHWI& weights_shape,
-                                  const WeightsDescription& src_weights_desc,
-                                  const WeightsDescription& dst_weights_desc);
-
 // Can dequantize weights with int8/int4 as uint8 to float.
 class WeightsConverter : public GPUOperation {
  public:

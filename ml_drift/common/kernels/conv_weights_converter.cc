@@ -1473,22 +1473,6 @@ std::string GetWeightsConverterCodeUnalignedIO(
   return c;
 }
 
-bool IsWeightsConversionSupported(const OHWI& weights_shape,
-                                  const WeightsDescription& src_weights_desc,
-                                  const WeightsDescription& dst_weights_desc) {
-  if (weights_shape.w != 1 || weights_shape.h != 1) return false;
-  if (weights_shape.i % 4 != 0 || weights_shape.o % 4 != 0) return false;
-  if (!(dst_weights_desc.type == DataType::FLOAT32 ||
-        dst_weights_desc.type == DataType::FLOAT16)) {
-    return false;
-  }
-  if (src_weights_desc.IsCustomSpatial() ||
-      dst_weights_desc.IsCustomSpatial()) {
-    return false;
-  }
-  return true;
-}
-
 WeightsConverter::WeightsConverter(const GpuInfo& gpu_info,
                                    const OperationDef& definition,
                                    const OHWI& weights_shape,
