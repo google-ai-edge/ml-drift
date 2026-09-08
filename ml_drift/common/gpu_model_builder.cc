@@ -855,11 +855,8 @@ GpuModelBuilder::FullyConnectedExternalWeights(
 
   const TensorDescriptor* src_exp_td =
       src_exp ? &src_exp->tensor_desc : nullptr;
-  const bool ringed_weights = runtime_check.ring_o_offset_index.has_value() ||
-                              runtime_check.ring_i_offset_index.has_value();
   if (total_spatial_size <=
-          GetRecommendedMaxTotalSpatialSize(gpu_info_, conv_precision) ||
-      ringed_weights) {
+      GetRecommendedMaxTotalSpatialSize(gpu_info_, conv_precision)) {
     GpuModelBuilder::TensorHandle dst =
         AddTensor(dst_shape, src.tensor_desc.GetDataType());
     gpu_model_.nodes.push_back({});
@@ -896,7 +893,9 @@ GpuModelBuilder::FullyConnectedExternalWeights(
     }
     if (runtime_check_tensor &&
         (runtime_check.src_end_ch_index.has_value() ||
-         runtime_check.dst_end_ch_index.has_value() || ringed_weights)) {
+         runtime_check.dst_end_ch_index.has_value() ||
+         runtime_check.ring_o_offset_index.has_value() ||
+         runtime_check.ring_i_offset_index.has_value())) {
       gpu_node.inputs.push_back(runtime_check_tensor->id);
     }
     gpu_node.outputs = {dst.id};
@@ -1050,7 +1049,9 @@ std::vector<GpuModelBuilder::TensorHandle> GpuModelBuilder::WeightsConversion(
     gpu_node.inputs.push_back(weights_zero_point->id);
   }
   if (runtime_check_tensor && (runtime_check.src_end_ch_index.has_value() ||
-                               runtime_check.dst_end_ch_index.has_value())) {
+                               runtime_check.dst_end_ch_index.has_value() ||
+                               runtime_check.ring_o_offset_index.has_value() ||
+                               runtime_check.ring_i_offset_index.has_value())) {
     gpu_node.inputs.push_back(runtime_check_tensor->id);
   }
   for (auto& dst : dsts) {
@@ -1079,6 +1080,9 @@ GpuModelBuilder::FullyConnectedSrcFloatExternalWeightsWithConversion(
       conv_precision == CalculationsPrecision::F16 &&
       src.tensor_desc.GetBHWCShape().c % 32 == 0;
   auto src_handle = use_apple_mpp && !src_exp ? ToDHWBCC4(src) : src;
+
+  const bool ringed_weights = runtime_check.ring_o_offset_index.has_value() ||
+                              runtime_check.ring_i_offset_index.has_value();
 
   const uint64_t flops =
       GetConvolutionFlops(dst_shape, weights.shape) / weights.shape.h;
@@ -1121,7 +1125,7 @@ GpuModelBuilder::FullyConnectedSrcFloatExternalWeightsWithConversion(
   // recommended to use a single convolution. Convolution with weights
   // conversion is usually ~20% slower than convolution without weights
   // conversion(on Apple GPUs in MLDrift implementation).
-  const bool recommended_single_conv = conversion_cost > 20;
+  const bool recommended_single_conv = !ringed_weights && conversion_cost > 20;
 
   std::unique_ptr<GPUOperation> conv_op;
   WeightsDescription conv_weights_desc;
@@ -1196,7 +1200,7 @@ GpuModelBuilder::FullyConnectedSrcFloatExternalWeightsWithConversion(
   }
 
   std::vector<TensorHandle> conv_weights = {weights.weights};
-  if (!(conv_weights_desc == weights.desc)) {
+  if (ringed_weights || !(conv_weights_desc == weights.desc)) {
     conv_weights = WeightsConversion(
         weights.weights, weights.scale ? &*weights.scale : nullptr,
         weights.zero_point ? &*weights.zero_point : nullptr, weights.desc,
