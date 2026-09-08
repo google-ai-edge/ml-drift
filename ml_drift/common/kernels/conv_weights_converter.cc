@@ -531,8 +531,7 @@ std::string GetWeightsCoords(const WeightsDescription& dst_weights_desc,
       c += "  int spatial_linear = spatial_h * args.wshape_w + spatial_w;\n";
     }
   }
-  if (dst_weights_desc.layout == WeightsLayout::kOICustomSpatialI4O4 ||
-      dst_weights_desc.layout == WeightsLayout::kOICustomSpatialO4I4) {
+  if (!dst_weights_desc.spatial_remap.empty()) {
     c += "  int linear_remap = args.spatial_remap.Read(spatial_linear);\n";
     c += "  int W = linear_remap % args.wshape_w;\n";
     c += "  int H = linear_remap / args.wshape_w;\n";
@@ -1004,8 +1003,7 @@ std::string ConverterToConvWeights::GetConverterToConvWeightsCode(
     args_.AddInt("dst_total_size", DivideRoundUp(elements_count, 16));
   }
 
-  if (weights_desc_.layout == WeightsLayout::kOICustomSpatialI4O4 ||
-      weights_desc_.layout == WeightsLayout::kOICustomSpatialO4I4) {
+  if (!weights_desc_.spatial_remap.empty()) {
     std::vector<int32_t> remap(weights_desc_.spatial_remap.size());
     for (int i = 0; i < remap.size(); ++i) {
       remap[i] = weights_desc_.spatial_remap[i];
