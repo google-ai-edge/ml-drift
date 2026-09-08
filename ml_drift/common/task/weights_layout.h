@@ -57,6 +57,9 @@ struct WeightsDescription {
   bool IsCustomSpatial() const;
   bool IsLinearLayout() const;
 
+  bool IsOISpatialOGroupI4O4() const;
+  bool IsOISpatialOGroupO4I4() const;
+
   bool operator==(const WeightsDescription& t) const;
 };
 

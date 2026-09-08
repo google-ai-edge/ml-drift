@@ -426,6 +426,17 @@ cc_library(
     ],
 )
 
+cc_test(
+    name = "weights_layout_test",
+    srcs = ["weights_layout_test.cc"],
+    deps = [
+        ":weights_layout",
+        "//ml_drift/common:shape",
+        "@com_google_absl//absl/status:status_matchers",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
 cc_library(
     name = "work_group_picking",
     srcs = ["work_group_picking.cc"],

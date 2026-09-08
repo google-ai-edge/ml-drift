@@ -15,6 +15,8 @@
 #include "ml_drift/common/task/weights_layout.h"
 
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "absl/strings/str_cat.h"
 #include "ml_drift/common/data_type.h"
@@ -42,6 +44,56 @@ std::string ToString(const WeightsDescription& desc) {
   }
 }
 
+namespace {
+bool IsCustomGroupsI4O4(const std::vector<std::pair<Axis, int>>& group_sizes) {
+  return group_sizes.size() >= 2 &&
+         group_sizes[0].first == Axis::OUTPUT_CHANNELS &&
+         group_sizes[0].second == 4 &&
+         group_sizes[1].first == Axis::INPUT_CHANNELS &&
+         group_sizes[1].second == 4;
+}
+
+bool IsCustomGroupsO4I4(const std::vector<std::pair<Axis, int>>& group_sizes) {
+  return group_sizes.size() >= 2 &&
+         group_sizes[0].first == Axis::INPUT_CHANNELS &&
+         group_sizes[0].second == 4 &&
+         group_sizes[1].first == Axis::OUTPUT_CHANNELS &&
+         group_sizes[1].second == 4;
+}
+
+std::vector<Axis> ExtractAxisWithoutFirst4x4Block(
+    const std::vector<std::pair<Axis, int>>& group_sizes) {
+  std::vector<Axis> result;
+  for (int i = 2; i < group_sizes.size(); ++i) {
+    result.push_back(group_sizes[i].first);
+  }
+  return result;
+}
+
+template <typename T>
+bool IsSubsequence(const std::vector<T>& expected, const std::vector<T>& sub) {
+  int expected_idx = 0;
+  for (const auto& item : sub) {
+    while (expected_idx < expected.size() && expected[expected_idx] != item) {
+      ++expected_idx;
+    }
+    if (expected_idx == expected.size()) {
+      return false;
+    }
+    ++expected_idx;
+  }
+  return true;
+}
+
+bool IsOISpatialOGroup(const std::vector<Axis>& axes) {
+  const std::vector<Axis> expected_axes = {
+      Axis::OUTPUT_CHANNELS, Axis::WIDTH,          Axis::HEIGHT,
+      Axis::DEPTH,           Axis::INPUT_CHANNELS, Axis::OUTPUT_CHANNELS};
+  return IsSubsequence(expected_axes, axes);
+}
+
+}  // namespace
+
 bool WeightsDescription::IsI4O4() const {
   switch (layout) {
     case WeightsLayout::kOSpatialIOGroupI4O4:
@@ -56,11 +108,7 @@ bool WeightsDescription::IsI4O4() const {
     case WeightsLayout::k2DX4O4YIsSpatialIAndXIsOOGroupI4:
       return false;
     case WeightsLayout::kCustomGroups:
-      return group_sizes.size() >= 2 &&
-             group_sizes[0].first == Axis::OUTPUT_CHANNELS &&
-             group_sizes[0].second == 4 &&
-             group_sizes[1].first == Axis::INPUT_CHANNELS &&
-             group_sizes[1].second == 4;
+      return IsCustomGroupsI4O4(group_sizes);
     case WeightsLayout::kUnknown:
     case WeightsLayout::kISpatialOI4O4UnalignedIO:
       return false;
@@ -81,11 +129,7 @@ bool WeightsDescription::IsO4I4() const {
     case WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4:
       return false;
     case WeightsLayout::kCustomGroups:
-      return group_sizes.size() >= 2 &&
-             group_sizes[0].first == Axis::INPUT_CHANNELS &&
-             group_sizes[0].second == 4 &&
-             group_sizes[1].first == Axis::OUTPUT_CHANNELS &&
-             group_sizes[1].second == 4;
+      return IsCustomGroupsO4I4(group_sizes);
     case WeightsLayout::kUnknown:
     case WeightsLayout::kISpatialOI4O4UnalignedIO:
       return false;
@@ -128,6 +172,28 @@ bool WeightsDescription::operator==(const WeightsDescription& t) const {
       IsCustomSpatial() ? spatial_remap == t.spatial_remap : true;
   return type == t.type && layout == t.layout &&
          GetOutputGroupSize() == t.GetOutputGroupSize() && equal_spatial_remap;
+}
+
+bool WeightsDescription::IsOISpatialOGroupI4O4() const {
+  if (layout == WeightsLayout::kOISpatialOGroupI4O4) {
+    return true;
+  }
+  if (layout != WeightsLayout::kCustomGroups ||
+      !IsCustomGroupsI4O4(group_sizes)) {
+    return false;
+  }
+  return IsOISpatialOGroup(ExtractAxisWithoutFirst4x4Block(group_sizes));
+}
+
+bool WeightsDescription::IsOISpatialOGroupO4I4() const {
+  if (layout == WeightsLayout::kOISpatialOGroupO4I4) {
+    return true;
+  }
+  if (layout != WeightsLayout::kCustomGroups ||
+      !IsCustomGroupsO4I4(group_sizes)) {
+    return false;
+  }
+  return IsOISpatialOGroup(ExtractAxisWithoutFirst4x4Block(group_sizes));
 }
 
 std::string ToString(const WeightsLayout& layout) {
