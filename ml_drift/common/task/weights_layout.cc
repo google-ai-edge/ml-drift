@@ -168,10 +168,9 @@ bool WeightsDescription::IsLinearLayout() const {
 }
 
 bool WeightsDescription::operator==(const WeightsDescription& t) const {
-  const bool equal_spatial_remap =
-      IsCustomSpatial() ? spatial_remap == t.spatial_remap : true;
   return type == t.type && layout == t.layout &&
-         GetOutputGroupSize() == t.GetOutputGroupSize() && equal_spatial_remap;
+         GetOutputGroupSize() == t.GetOutputGroupSize() &&
+         spatial_remap == t.spatial_remap && group_sizes == t.group_sizes;
 }
 
 bool WeightsDescription::IsOISpatialOGroupI4O4() const {
