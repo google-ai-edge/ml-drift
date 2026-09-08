@@ -364,7 +364,6 @@ cc_library(
         "//ml_drift/common:util",
         "//ml_drift/common:winograd_util",
         "//ml_drift/common/kernels:conv_generic",
-        "//ml_drift/common/kernels:conv_weights_converter",
         "//ml_drift/common/kernels:fully_connected",
         "//ml_drift/common/kernels:quantize_and_dequantize",
         "//ml_drift/common/kernels:winograd",

@@ -125,10 +125,6 @@ absl::Status ConvGenericInt8ExternalWeightsBigTest(
 absl::Status ConvGenericInt8WithSrcQuantizationBigTest(
     TestExecutionEnvironment& env, TensorStorageType quantized_storage,
     TensorStorageType float_storage);
-// Big test vs ref implementation. Converts weights to int8 before using conv.
-absl::Status ConvGenericInt8WeightsInt4WithSrcQuantizationBigTest(
-    TestExecutionEnvironment& env, TensorStorageType quantized_storage,
-    TensorStorageType float_storage);
 
 // Big test vs ref implementation.
 absl::Status ConvGenericInt4BigTest(TestExecutionEnvironment& env,

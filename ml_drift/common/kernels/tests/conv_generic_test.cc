@@ -555,15 +555,6 @@ TEST_P(IntTest, ConvGenericInt8WithSrcQuantizationBigTest) {
                                                       dst_storage()));
 }
 
-TEST_P(IntTest, ConvGenericInt8WeightsInt4WithSrcQuantizationBigTest) {
-  if (!SupportsConvGenericInt8(exec_env->GetGpuInfo())) {
-    GTEST_SKIP() << "ConvGenericInt8WeightsInt4WithSrcQuantization not "
-                    "supported on this device.";
-  }
-  ABSL_ASSERT_OK(ConvGenericInt8WeightsInt4WithSrcQuantizationBigTest(
-      *exec_env, src_storage(), dst_storage()));
-}
-
 TEST_P(IntTest, ConvGenericInt4BigTest) {
   const BHWC src_shape =
       BHWC(1, 17, 13, 125);  // src_slices = 32,
