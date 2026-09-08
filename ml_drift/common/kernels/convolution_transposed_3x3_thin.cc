@@ -80,11 +80,7 @@ ConvolutionTransposed3x3Thin::ConvolutionTransposed3x3Thin(
     const GpuInfo& gpu_info, const OperationDef& definition,
     CalculationsPrecision precision,
     const ConvolutionTransposedAttributes& attr) {
-  if (gpu_info.IsDotPreferred()) {
-    weights_layout_ = WeightsLayout::kOICustomSpatialO4I4;
-  } else {
-    weights_layout_ = WeightsLayout::kOICustomSpatialI4O4;
-  }
+  is_dot_preferred_ = gpu_info.IsDotPreferred();
   weights_data_type_ = DeduceDataTypeFromPrecision(precision);
   code_ = GenerateConvolutionTransposedCode(
       definition, precision, gpu_info, DivideRoundUp(attr.weights.shape.i, 4),

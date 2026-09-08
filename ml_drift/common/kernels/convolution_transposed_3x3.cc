@@ -98,11 +98,7 @@ ConvolutionTransposed3x3::ConvolutionTransposed3x3(
       work_group_size_ = int3(16, 8, 1);
     }
   }
-  if (gpu_info.IsDotPreferred()) {
-    weights_layout_ = WeightsLayout::kOICustomSpatialO4I4;
-  } else {
-    weights_layout_ = WeightsLayout::kOICustomSpatialI4O4;
-  }
+  is_dot_preferred_ = gpu_info.IsDotPreferred();
   weights_data_type_ = DeduceDataTypeFromPrecision(precision);
   const int padding_x =
       padding_.x >= 1 ? (padding_.x - 1) / 2 : (padding_.x - 2) / 2;

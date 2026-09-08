@@ -100,11 +100,7 @@ ConvolutionTransposed4x4::ConvolutionTransposed4x4(
     }
   }
 
-  if (gpu_info.IsDotPreferred()) {
-    weights_layout_ = WeightsLayout::kOICustomSpatialO4I4;
-  } else {
-    weights_layout_ = WeightsLayout::kOICustomSpatialI4O4;
-  }
+  is_dot_preferred_ = gpu_info.IsDotPreferred();
   weights_data_type_ = DeduceDataTypeFromPrecision(precision);
 
   AddSrcTensor("src_tensor", definition.src_tensors[0]);

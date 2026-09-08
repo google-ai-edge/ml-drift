@@ -51,7 +51,18 @@ class ConvolutionTransposed3x3 : public GPUOperation {
   WeightsDescription GetWeightsDescription() const {
     WeightsDescription desc;
     desc.type = weights_data_type_;
-    desc.layout = weights_layout_;
+    desc.layout = WeightsLayout::kCustomGroups;
+    if (is_dot_preferred_) {
+      desc.group_sizes = {{Axis::INPUT_CHANNELS, 4},
+                          {Axis::OUTPUT_CHANNELS, 4}};
+    } else {
+      desc.group_sizes = {{Axis::OUTPUT_CHANNELS, 4},
+                          {Axis::INPUT_CHANNELS, 4}};
+    }
+    desc.group_sizes.push_back({Axis::WIDTH, 0});
+    desc.group_sizes.push_back({Axis::HEIGHT, 0});
+    desc.group_sizes.push_back({Axis::INPUT_CHANNELS, 0});
+    desc.group_sizes.push_back({Axis::OUTPUT_CHANNELS, 0});
     desc.spatial_remap = GetSpatialWeightsRemap();
     return desc;
   }
@@ -82,7 +93,7 @@ class ConvolutionTransposed3x3 : public GPUOperation {
 
   int2 padding_;
   WeightsUploadType weights_upload_type_;
-  WeightsLayout weights_layout_;
+  bool is_dot_preferred_ = false;
   DataType weights_data_type_;
   int wave_size_ = 32;  // for wave memory upload
 };
