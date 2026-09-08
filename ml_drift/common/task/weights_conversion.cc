@@ -303,158 +303,6 @@ void RearrangeWeightsToOHWIOGroupI4O4(const Tensor<OHWI, S>& weights,
 }
 
 template <DataType S, typename T>
-void RearrangeWeightsToOICustomSpatialI4O4(
-    const Tensor<OHWI, S>& weights, const std::vector<int>& spatial_remap,
-    absl::Span<T> dst, T pad_value) {
-  const int dst_slices = DivideRoundUp(weights.shape.o, 4);
-  const int src_slices = DivideRoundUp(weights.shape.i, 4);
-
-  int counter = 0;
-  const auto* src = weights.Data();
-  for (int d = 0; d < dst_slices; ++d) {
-    for (int s = 0; s < src_slices; ++s) {
-      for (int y = 0; y < weights.shape.h; ++y) {
-        for (int x = 0; x < weights.shape.w; ++x) {
-          const int kernel_index = spatial_remap[y * weights.shape.w + x];
-          const int kernel_index_x = kernel_index % weights.shape.w;
-          const int kernel_index_y = kernel_index / weights.shape.w;
-          for (int i = 0; i < 4; ++i) {
-            for (int j = 0; j < 4; ++j) {
-              const int s_ch = s * 4 + i;
-              const int d_ch = d * 4 + j;
-              if (s_ch < weights.shape.i && d_ch < weights.shape.o) {
-                const int f_index = weights.shape.LinearIndex(
-                    {d_ch, kernel_index_y, kernel_index_x, s_ch});
-                dst[counter++] = src[f_index];
-              } else {
-                dst[counter++] = pad_value;
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-}
-
-template <DataType S, typename T>
-void RearrangeWeightsToOICustomSpatialI4O4(
-    const Tensor<OHWDI, S>& weights, const std::vector<int>& spatial_remap,
-    absl::Span<T> dst, T pad_value) {
-  const int dst_slices = DivideRoundUp(weights.shape.o, 4);
-  const int src_slices = DivideRoundUp(weights.shape.i, 4);
-
-  int counter = 0;
-  const auto* src = weights.Data();
-  for (int d = 0; d < dst_slices; ++d) {
-    for (int s = 0; s < src_slices; ++s) {
-      for (int z = 0; z < weights.shape.d; ++z) {
-        for (int y = 0; y < weights.shape.h; ++y) {
-          for (int x = 0; x < weights.shape.w; ++x) {
-            int kernel_index =
-                spatial_remap[(z * weights.shape.h + y) * weights.shape.w + x];
-            const int kernel_index_x = kernel_index % weights.shape.w;
-            kernel_index /= weights.shape.w;
-            const int kernel_index_y = kernel_index % weights.shape.h;
-            const int kernel_index_z = kernel_index / weights.shape.h;
-            for (int i = 0; i < 4; ++i) {
-              for (int j = 0; j < 4; ++j) {
-                const int s_ch = s * 4 + i;
-                const int d_ch = d * 4 + j;
-                if (s_ch < weights.shape.i && d_ch < weights.shape.o) {
-                  const int f_index = weights.shape.LinearIndex(
-                      {d_ch, kernel_index_y, kernel_index_x, kernel_index_z,
-                       s_ch});
-                  dst[counter++] = src[f_index];
-                } else {
-                  dst[counter++] = pad_value;
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-}
-
-template <DataType S, typename T>
-void RearrangeWeightsToOICustomSpatialO4I4(
-    const Tensor<OHWI, S>& weights, const std::vector<int>& spatial_remap,
-    absl::Span<T> dst, T pad_value) {
-  const int dst_slices = DivideRoundUp(weights.shape.o, 4);
-  const int src_slices = DivideRoundUp(weights.shape.i, 4);
-
-  int counter = 0;
-  const auto* src = weights.Data();
-  for (int d = 0; d < dst_slices; ++d) {
-    for (int s = 0; s < src_slices; ++s) {
-      for (int y = 0; y < weights.shape.h; ++y) {
-        for (int x = 0; x < weights.shape.w; ++x) {
-          const int kernel_index = spatial_remap[y * weights.shape.w + x];
-          const int kernel_index_x = kernel_index % weights.shape.w;
-          const int kernel_index_y = kernel_index / weights.shape.w;
-          for (int i = 0; i < 4; ++i) {
-            for (int j = 0; j < 4; ++j) {
-              const int s_ch = s * 4 + j;
-              const int d_ch = d * 4 + i;
-              if (s_ch < weights.shape.i && d_ch < weights.shape.o) {
-                const int f_index = weights.shape.LinearIndex(
-                    {d_ch, kernel_index_y, kernel_index_x, s_ch});
-                dst[counter++] = src[f_index];
-              } else {
-                dst[counter++] = pad_value;
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-}
-
-template <DataType S, typename T>
-void RearrangeWeightsToOICustomSpatialO4I4(
-    const Tensor<OHWDI, S>& weights, const std::vector<int>& spatial_remap,
-    absl::Span<T> dst, T pad_value) {
-  const int dst_slices = DivideRoundUp(weights.shape.o, 4);
-  const int src_slices = DivideRoundUp(weights.shape.i, 4);
-
-  int counter = 0;
-  const auto* src = weights.Data();
-  for (int d = 0; d < dst_slices; ++d) {
-    for (int s = 0; s < src_slices; ++s) {
-      for (int z = 0; z < weights.shape.d; ++z) {
-        for (int y = 0; y < weights.shape.h; ++y) {
-          for (int x = 0; x < weights.shape.w; ++x) {
-            int kernel_index =
-                spatial_remap[(z * weights.shape.h + y) * weights.shape.w + x];
-            const int kernel_index_x = kernel_index % weights.shape.w;
-            kernel_index /= weights.shape.w;
-            const int kernel_index_y = kernel_index % weights.shape.h;
-            const int kernel_index_z = kernel_index / weights.shape.h;
-            for (int i = 0; i < 4; ++i) {
-              for (int j = 0; j < 4; ++j) {
-                const int s_ch = s * 4 + j;
-                const int d_ch = d * 4 + i;
-                if (s_ch < weights.shape.i && d_ch < weights.shape.o) {
-                  const int f_index = weights.shape.LinearIndex(
-                      {d_ch, kernel_index_y, kernel_index_x, kernel_index_z,
-                       s_ch});
-                  dst[counter++] = src[f_index];
-                } else {
-                  dst[counter++] = pad_value;
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-}
-
-template <DataType S, typename T>
 void RearrangeWeightsToISpatialOI4O4UnalignedIO(const Tensor<OHWI, S>& weights,
                                                 absl::Span<T> dst) {
   const int src_slices = DivideRoundUp(weights.shape.i, 4);
@@ -973,12 +821,6 @@ unsigned int GetTotalElementsCountForLayout(
       return AlignByN(shape.i, i_alignment) * AlignByN(shape.o, o_alignment) *
              shape.h * shape.w * shape.d;
     }
-    case WeightsLayout::kOICustomSpatialI4O4:
-    case WeightsLayout::kOICustomSpatialO4I4: {
-      unsigned int i_aligned = AlignByN(shape.i, 4);
-      unsigned int o_aligned = AlignByN(shape.o, 4);
-      return i_aligned * o_aligned * weight_desc.spatial_remap.size();
-    }
     case WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4: {
       unsigned int i_slices = DivideRoundUp(shape.i, 4);
       unsigned int o_slices = DivideRoundUp(shape.o, 4);
@@ -1105,30 +947,6 @@ void RearrangeWeights(const Tensor<OHWI, DataType::FLOAT32>& weights,
     case WeightsLayout::k2DX4O4YIsSpatialIAndXIsOOGroupI4:
       reshape_order = {2, 3, 4, 0, 1, 5};
       break;
-    case WeightsLayout::kOICustomSpatialI4O4: {
-      if (dst_weight_desc.type == DataType::FLOAT32) {
-        RearrangeWeightsToOICustomSpatialI4O4(
-            weights, dst_weight_desc.spatial_remap,
-            absl::MakeSpan(f32_ptr, flt_count), 0.0f);
-      } else if (dst_weight_desc.type == DataType::FLOAT16) {
-        RearrangeWeightsToOICustomSpatialI4O4(
-            weights, dst_weight_desc.spatial_remap,
-            absl::MakeSpan(f16_ptr, flt_count), half(0.0f));
-      }
-      return;
-    }
-    case WeightsLayout::kOICustomSpatialO4I4: {
-      if (dst_weight_desc.type == DataType::FLOAT32) {
-        RearrangeWeightsToOICustomSpatialO4I4(
-            weights, dst_weight_desc.spatial_remap,
-            absl::MakeSpan(f32_ptr, flt_count), 0.0f);
-      } else if (dst_weight_desc.type == DataType::FLOAT16) {
-        RearrangeWeightsToOICustomSpatialO4I4(
-            weights, dst_weight_desc.spatial_remap,
-            absl::MakeSpan(f16_ptr, flt_count), half(0.0f));
-      }
-      return;
-    }
     case WeightsLayout::kISpatialOI4O4UnalignedIO: {
       if (dst_weight_desc.type == DataType::FLOAT32) {
         RearrangeWeightsToISpatialOI4O4UnalignedIO(
@@ -1203,30 +1021,6 @@ void RearrangeWeights(const Tensor<OHWDI, DataType::FLOAT32>& weights,
     case WeightsLayout::k2DX4O4YIsSpatialIAndXIsOOGroupI4:
       reshape_order = {2, 3, 4, 0, 1, 5};
       break;
-    case WeightsLayout::kOICustomSpatialI4O4: {
-      if (dst_weight_desc.type == DataType::FLOAT32) {
-        RearrangeWeightsToOICustomSpatialI4O4(
-            weights, dst_weight_desc.spatial_remap,
-            absl::MakeSpan(f32_ptr, flt_count), 0.0f);
-      } else if (dst_weight_desc.type == DataType::FLOAT16) {
-        RearrangeWeightsToOICustomSpatialI4O4(
-            weights, dst_weight_desc.spatial_remap,
-            absl::MakeSpan(f16_ptr, flt_count), half(0.0f));
-      }
-      return;
-    }
-    case WeightsLayout::kOICustomSpatialO4I4: {
-      if (dst_weight_desc.type == DataType::FLOAT32) {
-        RearrangeWeightsToOICustomSpatialO4I4(
-            weights, dst_weight_desc.spatial_remap,
-            absl::MakeSpan(f32_ptr, flt_count), 0.0f);
-      } else if (dst_weight_desc.type == DataType::FLOAT16) {
-        RearrangeWeightsToOICustomSpatialO4I4(
-            weights, dst_weight_desc.spatial_remap,
-            absl::MakeSpan(f16_ptr, flt_count), half(0.0f));
-      }
-      return;
-    }
     case WeightsLayout::kCustomGroups:
       if (dst_weight_desc.type == DataType::FLOAT32) {
         RearrangeWeightsToCustom(weights, dst_weight_desc.group_sizes,
@@ -1301,18 +1095,6 @@ void RearrangeWeights(const Tensor<OHWI, DataType::INT8>& weights,
     case WeightsLayout::k2DX4O4YIsSpatialIAndXIsOOGroupI4:
       reshape_order = {2, 3, 4, 0, 1, 5};
       break;
-    case WeightsLayout::kOICustomSpatialI4O4: {
-      RearrangeWeightsToOICustomSpatialI4O4(weights,
-                                            dst_weight_desc.spatial_remap,
-                                            dst_span, static_cast<int8_t>(0));
-      return;
-    }
-    case WeightsLayout::kOICustomSpatialO4I4: {
-      RearrangeWeightsToOICustomSpatialO4I4(weights,
-                                            dst_weight_desc.spatial_remap,
-                                            dst_span, static_cast<int8_t>(0));
-      return;
-    }
     case WeightsLayout::kCustomGroups: {
       RearrangeWeightsToCustom(weights, dst_weight_desc.group_sizes,
                                dst_weight_desc.spatial_remap, dst_span,
@@ -1370,16 +1152,6 @@ void RearrangeWeights(const Tensor<OHWI, DataType::UINT8>& weights,
     case WeightsLayout::k2DX4O4YIsSpatialIAndXIsOOGroupI4:
       reshape_order = {2, 3, 4, 0, 1, 5};
       break;
-    case WeightsLayout::kOICustomSpatialI4O4: {
-      RearrangeWeightsToOICustomSpatialI4O4(
-          weights, dst_weight_desc.spatial_remap, dst, pad_value);
-      return;
-    }
-    case WeightsLayout::kOICustomSpatialO4I4: {
-      RearrangeWeightsToOICustomSpatialO4I4(
-          weights, dst_weight_desc.spatial_remap, dst, pad_value);
-      return;
-    }
     case WeightsLayout::kCustomGroups: {
       RearrangeWeightsToCustom(weights, dst_weight_desc.group_sizes,
                                dst_weight_desc.spatial_remap, dst, pad_value);

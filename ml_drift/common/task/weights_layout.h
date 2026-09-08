@@ -32,8 +32,6 @@ enum class WeightsLayout {
   kOSpatialIOGroupO4I4,
   kOISpatialOGroupI4O4,
   kOISpatialOGroupO4I4,
-  kOICustomSpatialI4O4,
-  kOICustomSpatialO4I4,
   kISpatialOI4O4UnalignedIO,
   k2DX4I4YIsSpatialIAndXIsOOGroupO4,
   k2DX4O4YIsSpatialIAndXIsOOGroupI4,
@@ -46,15 +44,13 @@ struct WeightsDescription {
   WeightsLayout layout;
   // applicable with layouts that have OGroup.
   int output_group_size;  // OGroup size
-  // applicable with layouts that have CustomSpatial
-  std::vector<int> spatial_remap;
+  std::vector<int> spatial_remap;  // optional, applicable with CustomGroups.
   // applicable with CustomGroups layout.
   std::vector<std::pair<Axis, int>> group_sizes;
 
   int GetOutputGroupSize() const;
   bool IsI4O4() const;
   bool IsO4I4() const;
-  bool IsCustomSpatial() const;
   bool IsLinearLayout() const;
 
   bool IsOISpatialOGroupI4O4() const;

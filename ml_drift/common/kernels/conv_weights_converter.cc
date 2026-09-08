@@ -459,16 +459,6 @@ std::string GetWeightsCoords(const WeightsDescription& dst_weights_desc,
       c += "  int i_slice = dst_i;\n";
       c += "  int o_slice = dst_o * args.dst_o_group_size + dst_ogroup;\n";
       c += "  int spatial_linear = dst_sp;\n";
-    } else if (dst_weights_desc.layout == WeightsLayout::kOICustomSpatialI4O4 ||
-               dst_weights_desc.layout == WeightsLayout::kOICustomSpatialO4I4) {
-      c += "  int dst_o_i_csp = linear_index;\n";
-      c += "  int dst_csp = dst_o_i_csp % args.wshape_spatial;\n";
-      c += "  int dst_o_i = dst_o_i_csp / args.wshape_spatial;\n";
-      c += "  int dst_i = dst_o_i % args.i_slices;\n";
-      c += "  int dst_o = dst_o_i / args.i_slices;\n";
-      c += "  int i_slice = dst_i;\n";
-      c += "  int o_slice = dst_o;\n";
-      c += "  int spatial_linear = dst_csp;\n";
     } else if (dst_weights_desc.layout == WeightsLayout::kCustomGroups) {
       c += "  int i_slice = 0;\n";
       c += "  int o_slice = 0;\n";

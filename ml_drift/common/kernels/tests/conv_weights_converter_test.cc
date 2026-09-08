@@ -568,34 +568,6 @@ INSTANTIATE_TEST_SUITE_P(
           {{":", ""}});
     });
 
-class X4Test : public Test,
-               public WithParamInterface<
-                   std::tuple<DataType, TensorStorageType, WeightsLayout>> {};
-
-TEST_P(X4Test, TransposedWeights4x4Test) {
-  auto [data_type, storage, weights_layout] = GetParam();
-  if (!exec_env->IsStorageSupported(storage, data_type)) {
-    GTEST_SKIP() << "Unsupported data_type " << ToString(data_type)
-                 << " and storage type: " << ToString(storage);
-  }
-  ABSL_ASSERT_OK(ConverterToConvTransposedWeights4x4Test(*exec_env, data_type,
-                                                    storage, weights_layout));
-}
-
-INSTANTIATE_TEST_SUITE_P(
-    ConvWeightsConverter4x4TestSuite, X4Test,
-    Combine(ValuesIn(GetFloatTypes()),
-            ValuesIn(GetTensorStoragesTypesWithoutSingleTexture2D()),
-            ValuesIn({WeightsLayout::kOICustomSpatialI4O4,
-                      WeightsLayout::kOICustomSpatialO4I4})),
-    [](const TestParamInfo<X4Test::ParamType>& info) {
-      return absl::StrReplaceAll(
-          absl::StrCat(ToString(std::get<0>(info.param)), "_",
-                       ToString(std::get<1>(info.param)), "_",
-                       ToString(std::get<2>(info.param))),
-          {{":", ""}});
-    });
-
 class X4TexturesTest
     : public Test,
       public WithParamInterface<
