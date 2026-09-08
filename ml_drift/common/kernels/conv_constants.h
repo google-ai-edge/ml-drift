@@ -48,8 +48,15 @@ class ConvConstants : public GPUOperation {
     WeightsDescription desc;
     desc.type = weights_data_type_;
     if (weights_shape_.i % 4 == 0 && weights_shape_.o % 4 == 0) {
-      desc.layout = WeightsLayout::kOISpatialOGroupI4O4;
-      desc.output_group_size = DivideRoundUp(weights_shape_.o, 4);
+      desc.layout = WeightsLayout::kCustomGroups;
+      desc.group_sizes = {
+          {Axis::OUTPUT_CHANNELS, 4},
+          {Axis::INPUT_CHANNELS, 4},
+          {Axis::OUTPUT_CHANNELS, DivideRoundUp(weights_shape_.o, 4)},
+          {Axis::WIDTH, 0},
+          {Axis::HEIGHT, 0},
+          {Axis::INPUT_CHANNELS, 0},
+          {Axis::OUTPUT_CHANNELS, 0}};
     } else {
       desc.layout = WeightsLayout::kISpatialOI4O4UnalignedIO;
     }

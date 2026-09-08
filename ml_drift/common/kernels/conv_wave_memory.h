@@ -126,7 +126,14 @@ class ConvWaveMemory : public GPUOperation {
       if (kernel_params_.slices_loop_first) {
         desc.layout = WeightsLayout::kOSpatialIOGroupI4O4;
       } else {
-        desc.layout = WeightsLayout::kOISpatialOGroupI4O4;
+        desc.layout = WeightsLayout::kCustomGroups;
+        desc.group_sizes = {{Axis::OUTPUT_CHANNELS, 4},
+                            {Axis::INPUT_CHANNELS, 4},
+                            {Axis::OUTPUT_CHANNELS, kernel_params_.slices_out},
+                            {Axis::WIDTH, 0},
+                            {Axis::HEIGHT, 0},
+                            {Axis::INPUT_CHANNELS, 0},
+                            {Axis::OUTPUT_CHANNELS, 0}};
       }
     }
     desc.output_group_size = kernel_params_.slices_out;
