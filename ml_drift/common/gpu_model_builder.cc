@@ -1200,7 +1200,7 @@ GpuModelBuilder::FullyConnectedSrcFloatExternalWeightsWithConversion(
   }
 
   std::vector<TensorHandle> conv_weights = {weights.weights};
-  if (ringed_weights || !(conv_weights_desc == weights.desc)) {
+  if (ringed_weights || conv_weights_desc != weights.desc) {
     conv_weights = WeightsConversion(
         weights.weights, weights.scale ? &*weights.scale : nullptr,
         weights.zero_point ? &*weights.zero_point : nullptr, weights.desc,
@@ -1353,7 +1353,7 @@ GpuModelBuilder::FullyConnectedInt8QuantizedWithSrcQuantization(
     const WeightsDescription& weights_desc = *weights_ptr->first;
     const TensorHandle& weights_handle = *weights_ptr->second;
     conv_weights = {weights_handle};
-    if (!(conv_weights_desc == weights_desc)) {
+    if (conv_weights_desc != weights_desc) {
       conv_weights =
           WeightsConversion(weights_handle, nullptr, nullptr, weights_desc,
                             conv_weights_desc, weights_shape);
@@ -1427,7 +1427,7 @@ GpuModelBuilder::FullyConnectedInt4QuantizedWithSrcQuantization(
       "dequantize_to_" + ToString(dst.tensor_desc.GetDataType());
 
   std::vector<TensorHandle> conv_weights = {weights};
-  if (!(conv_weights_desc == weights_desc)) {
+  if (conv_weights_desc != weights_desc) {
     conv_weights = WeightsConversion(weights, nullptr, nullptr, weights_desc,
                                      conv_weights_desc, weights_shape);
   }

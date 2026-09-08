@@ -61,6 +61,7 @@ struct WeightsDescription {
   bool IsOISpatialOGroupO4I4() const;
 
   bool operator==(const WeightsDescription& t) const;
+  bool operator!=(const WeightsDescription& t) const { return !(*this == t); }
 };
 
 std::string ToString(const WeightsDescription& desc);
