@@ -208,15 +208,16 @@ target_link_libraries(mld_common_kernels_fully_connected
 
 add_library(mld_common_kernels_fully_connected_util fully_connected_util.cc fully_connected_util.h)
 target_include_directories(mld_common_kernels_fully_connected_util PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
-target_link_libraries(mld_common_kernels_fully_connected_util PUBLIC
+target_link_libraries(mld_common_kernels_fully_connected_util
+  PUBLIC
     absl::strings
     mld_common_data_type
     mld_common_gpu_info
     mld_common_precision
     mld_common_shape
     mld_common_task_buffer_desc
-    mld_common_task_tensor_desc
     mld_common_task_gpu_operation
+    mld_common_task_tensor_desc
 )
 
 add_library(mld_common_kernels_mean_stddev_normalization mean_stddev_normalization.cc mean_stddev_normalization.h)
@@ -310,6 +311,22 @@ target_link_libraries(mld_common_kernels_reduce
     mld_common_task_arguments
     mld_common_task_gpu_operation
     mld_common_task_util
+    mld_common_types
+    mld_common_util
+)
+
+add_library(mld_common_kernels_conversion conversion.cc conversion.h)
+target_include_directories(mld_common_kernels_conversion PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
+target_link_libraries(mld_common_kernels_conversion
+  PUBLIC
+    mld_common_gpu_info
+    mld_common_kernel_info
+    mld_common_shape
+    mld_common_task_buffer_desc
+    mld_common_task_gpu_operation
+    mld_common_task_tensor_desc
+    mld_common_task_tuning_type
+    mld_common_task_work_group_picking
     mld_common_types
     mld_common_util
 )
@@ -492,6 +509,8 @@ add_library(mld_common_kernels_conv_wave_matrix conv_wave_matrix.cc conv_wave_ma
 target_include_directories(mld_common_kernels_conv_wave_matrix PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_common_kernels_conv_wave_matrix
   PUBLIC
+    mld_common_flops_util
+    mld_common_gpu_info
     mld_common_operations
     mld_common_shape
     mld_common_task_gpu_operation

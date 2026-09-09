@@ -12,26 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-add_library(mld_common_memory_management_impl
-    greedy_by_breadth_assignment.cc
-    greedy_by_size_assignment.cc
-    min_cost_flow_assignment.cc
-    internal.cc
-    types.cc
-)
-
-target_include_directories(mld_common_memory_management_impl PUBLIC
-    $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>
-)
-
-target_link_libraries(mld_common_memory_management_impl
-  PUBLIC
-    absl::flat_hash_map
-    absl::memory
-    absl::status
-    absl::status_macros
-    absl::statusor
-    mld_common_shape
-    mld_common_types
-    mld_common_util
-)
+include(dawn)
+if(DAWN_FOUND)
+  set(_DAWN_LIBRARY_NAMES
+    dawn
+  )
+  set(_DAWN_LIBRARIES ${_DAWN_LIBRARY_NAMES})
+  foreach(_LIBRARY ${_DAWN_LIBRARY_NAMES})
+    list(APPEND _DAWN_LIBRARIES "Dawn::${LIBRARY}")
+  endforeach()
+  set(DAWN_LIBRARIES ${DAWN_LIBRARIES} CACHE STRING "Dawn libs")
+  set(DAWN_INCLUDE_DIRS ${DAWN_INCLUDE_DIR} CACHE STRING "Dawn include dirs")
+endif()

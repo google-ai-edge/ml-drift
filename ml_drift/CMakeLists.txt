@@ -38,15 +38,32 @@ set(ABSL_USE_SYSTEM_GTEST OFF CACHE BOOL "Disable Abseil using system GTest")
 set(ABSL_BUILD_TESTING OFF CACHE BOOL "Disable Abseil's tests")
 set(BUILD_TESTING OFF CACHE BOOL "Disable tests by default")
 
+# --- ML Drift Library Backend Selection ---
+
+# Usage: -D ML_DRIFT_API=...
+set(ML_DRIFT_API "cl" CACHE STRING "Select the GPU backend API for ML Drift. Options: cl, mtl, wgpu")
+
+# Input validation
+set(VALID_APIS "cl" "wgpu")
+list(FIND VALID_APIS "${ML_DRIFT_API}" IS_VALID)
+if(IS_VALID EQUAL -1)
+    message(FATAL_ERROR "Invalid ML_DRIFT_API: ${ML_DRIFT_API}. Must be one of: ${VALID_APIS}")
+endif()
+
 # --- Find Packages ---
 find_package(GTest REQUIRED)
 find_package(absl REQUIRED)
 find_package(fp16 REQUIRED)
-find_package(opencl_headers REQUIRED)
 find_package(Flatbuffers REQUIRED)
 find_package(XNNPACK REQUIRED)
 find_package(farmhash REQUIRED)
 find_package(re2 REQUIRED)
+
+if(ML_DRIFT_API STREQUAL "cl")
+    find_package(opencl_headers REQUIRED)
+elseif(ML_DRIFT_API STREQUAL "wgpu")
+    find_package(dawn REQUIRED)
+endif()
 
 # --- Includes ---
 include(tensorflow)
@@ -55,19 +72,11 @@ include(GoogleTest)
 
 # --- Add Subdirectories ---
 add_subdirectory(common)
-add_subdirectory(cl)
-add_subdirectory(samples/stable_diffusion)
-
-# --- ML Drift Library ---
-
-# Usage: -D ML_DRIFT_API=...
-set(ML_DRIFT_API "cl" CACHE STRING "Select the GPU backend API for ML Drift. Options: cl, mtl, wgpu")
-
-# Input validation
-set(VALID_APIS "cl")
-list(FIND VALID_APIS "${ML_DRIFT_API}" IS_VALID)
-if(IS_VALID EQUAL -1)
-    message(FATAL_ERROR "Invalid ML_DRIFT_API: ${ML_DRIFT_API}. Must be one of: ${VALID_APIS}")
+if(ML_DRIFT_API STREQUAL "cl")
+    add_subdirectory(cl)
+    add_subdirectory(samples/stable_diffusion)
+elseif(ML_DRIFT_API STREQUAL "wgpu")
+    add_subdirectory(webgpu)
 endif()
 
 add_library(ml_drift INTERFACE)
@@ -108,12 +117,22 @@ if(ML_DRIFT_API STREQUAL "cl")
 #     target_link_libraries(ml_drift INTERFACE
 #         mld_metal
 #     )
-# elseif(ML_DRIFT_API STREQUAL "wgpu")
-#     message(STATUS "ML Drift: Building with WebGPU (wgpu) backend")
-#     target_compile_definitions(ml_drift INTERFACE ML_DRIFT_API_WGPU)
-#     target_link_libraries(ml_drift INTERFACE
-#         mld_wgpu
-#     )
+elseif(ML_DRIFT_API STREQUAL "wgpu")
+    message(STATUS "ML Drift: Building with WebGPU (wgpu) backend")
+    target_compile_definitions(ml_drift INTERFACE ML_DRIFT_API_WGPU)
+    target_link_libraries(ml_drift
+      INTERFACE
+        mld_webgpu_environment
+        mld_webgpu_inference_context
+        mld_webgpu_spatial_tensor
+        mld_webgpu_webgpu_api_util
+    )
+    if(TARGET mld_webgpu_api)
+      target_link_libraries(ml_drift
+        INTERFACE
+          mld_webgpu_api
+      )
+    endif()
 else()
     message(STATUS "ML Drift: No GPU backend specified.")
 endif()

@@ -195,6 +195,7 @@ target_link_libraries(mld_common_gpu_model_builder
     mld_common_kernels_reduce
     mld_common_model
     mld_common_model_hints
+    mld_common_op_registry
     mld_common_operations
     mld_common_precision
     mld_common_shape
@@ -398,6 +399,75 @@ target_link_libraries(mld_common_op_api
     mld_common_op_registry
     mld_common_task_gpu_operation
     mld_common_types
+)
+
+add_library(mld_common_api_common api_common.cc api_common.h)
+target_include_directories(mld_common_api_common PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
+target_link_libraries(mld_common_api_common
+  PUBLIC
+    absl::span
+    mld_common_util
+)
+
+add_library(mld_common_ir_model ir_model.cc ir_model.h)
+target_include_directories(mld_common_ir_model PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
+target_link_libraries(mld_common_ir_model
+  PUBLIC
+    absl::algorithm_container
+    absl::check
+    absl::flat_hash_map
+    absl::flat_hash_set
+    absl::status
+    absl::strings
+    mld_common_data_type
+    mld_common_shape
+    mld_common_task_tensor_desc
+)
+
+add_library(mld_common_ir_model_util ir_model_util.cc ir_model_util.h)
+target_include_directories(mld_common_ir_model_util PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
+target_link_libraries(mld_common_ir_model_util
+  PUBLIC
+    absl::check
+    absl::flat_hash_map
+    absl::flat_hash_set
+    absl::status
+    absl::status_macros
+    absl::statusor
+    absl::strings
+    mld_common_data_type
+    mld_common_gpu_info
+    mld_common_gpu_model
+    mld_common_gpu_model_builder
+    mld_common_ir_model
+    mld_common_model
+    mld_common_operations
+    mld_common_precision
+    mld_common_selectors_operation_selector
+    mld_common_selectors_special_selector
+    mld_common_shape
+    mld_common_task_gpu_operation
+    mld_common_task_tensor_desc
+    mld_common_tensor
+)
+
+add_library(mld_common_gpu_weights_conversion_test_util gpu_weights_conversion_test_util.cc gpu_weights_conversion_test_util.h)
+target_include_directories(mld_common_gpu_weights_conversion_test_util PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
+target_link_libraries(mld_common_gpu_weights_conversion_test_util
+  PUBLIC
+    absl::check
+    absl::log
+    absl::nullability
+    absl::span
+    absl::status_macros
+    absl::statusor
+    absl::strings
+    mld_common_data_type
+    mld_common_model
+    mld_common_operations
+    mld_common_shape
+    mld_common_tensor
+    XNNPACK
 )
 
 add_subdirectory(memory_management)

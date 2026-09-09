@@ -79,6 +79,36 @@
       "environment": {
         "PATH": "$env{ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin:$penv{PATH}"
       }
+    },
+    {
+      "name": "host-release-wgpu",
+      "displayName": "Host Release (WebGPU)",
+      "description": "Host release build with WebGPU backend",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/../build/host-release-wgpu",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "ML_DRIFT_API": "wgpu"
+      }
+    },
+    {
+      "name": "android-arm64-release-static-wgpu",
+      "displayName": "Android ARM64 Release (Static, WebGPU)",
+      "description": "64-bit ARM Android device release build (static) with WebGPU backend",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/../build/android-release-static-wgpu",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "$env{ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake",
+        "ANDROID_ABI": "arm64-v8a",
+        "ANDROID_PLATFORM": "android-24",
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_SHARED_LIBS": "OFF",
+        "CMAKE_ANDROID_STL_TYPE": "c++_static",
+        "ML_DRIFT_API": "wgpu"
+      },
+      "environment": {
+        "PATH": "$env{ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin:$penv{PATH}"
+      }
     }
   ]
 }
