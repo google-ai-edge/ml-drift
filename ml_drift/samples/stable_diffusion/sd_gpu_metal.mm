@@ -25,6 +25,7 @@
 #include "ml_drift/common/flops_util.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/gpu_model_builder.h"
+#include "ml_drift/common/kernels/cast.h"
 #include "ml_drift/common/kernels/elementwise.h"
 #include "ml_drift/common/kernels/mean_stddev_normalization.h"
 #include "ml_drift/common/kernels/random_philox.h"
@@ -52,130 +53,65 @@ namespace ml_drift {
 namespace metal {
 namespace {
 
-class OpHolder {
+class NoiseGenerator {
  public:
-  struct ExecutionParams {
-    std::vector<MetalSpatialTensor*> src;
-    std::vector<MetalSpatialTensor*> dst;
-    std::map<std::string, float> float_params;
-    std::map<std::string, half> half_params;
-    std::map<std::string, int> int_params;
-  };
-
-  absl::Status Init(MetalDevice* device, GPUOperation&& operation) {
-    return InitMetalOp(device, std::move(operation));
-  }
-
-  absl::Status InitElementwiseOneInput(OperationType op_type, const TensorDescriptor& src_desc,
-                                       const TensorDescriptor& dst_desc, MetalDevice* device) {
+  absl::Status Init(MetalDevice* env, const TensorDescriptor& dst_desc) {
     OperationDef op_def;
-    op_def.src_tensors.push_back(src_desc);
     op_def.dst_tensors.push_back(dst_desc);
-    GPUOperation operation = CreateElementwiseOneInput(device->GetInfo(), op_def, op_type);
-    return InitMetalOp(device, std::move(operation));
-  }
 
-  absl::Status Encode(id<MTLComputeCommandEncoder> encoder, float scalar, MetalSpatialTensor* src,
-                      MetalSpatialTensor* dst) {
-    metal_op_.SetSrcTensor(src, 0);
-    metal_op_.SetDstTensor(dst, 0);
-    ABSL_RETURN_IF_ERROR(metal_op_.SetHalf("scalar", scalar));
-    ABSL_RETURN_IF_ERROR(metal_op_.UpdateParams());
-    metal_op_.Encode(encoder);
+    auto gpu_op = std::make_unique<GPUOperation>(CreateRandomNormalPhilox(env->GetInfo(), op_def));
+    ABSL_RETURN_IF_ERROR(gpu_op->AssembleCode(env->GetInfo()));
+
+    metal_op_.Init(std::move(gpu_op));
+    ABSL_RETURN_IF_ERROR(metal_op_.Compile(env));
     return absl::OkStatus();
   }
 
-  absl::Status Encode(id<MTLComputeCommandEncoder> encoder, const ExecutionParams& params) {
-    for (int i = 0; i < params.src.size(); ++i) {
-      metal_op_.SetSrcTensor(params.src[i], i);
-    }
-    for (int i = 0; i < params.dst.size(); ++i) {
-      metal_op_.SetDstTensor(params.dst[i], i);
-    }
-    for (const auto& float_param : params.float_params) {
-      ABSL_RETURN_IF_ERROR(metal_op_.SetFloat(float_param.first, float_param.second));
-    }
-    for (const auto& half_param : params.half_params) {
-      ABSL_RETURN_IF_ERROR(metal_op_.SetHalf(half_param.first, half_param.second));
-    }
-    for (const auto& int_param : params.int_params) {
-      ABSL_RETURN_IF_ERROR(metal_op_.SetInt(int_param.first, int_param.second));
-    }
-    ABSL_RETURN_IF_ERROR(metal_op_.UpdateParams());
-    metal_op_.Encode(encoder);
-    return absl::OkStatus();
-  }
-
-  absl::Status Encode(id<MTLComputeCommandEncoder> encoder, MetalSpatialTensor* src,
-                      MetalSpatialTensor* dst) {
-    metal_op_.SetSrcTensor(src, 0);
+  absl::Status Execute(id<MTLCommandBuffer> command_buffer, uint32_t seed,
+                       MetalSpatialTensor* dst) {
+    ABSL_RETURN_IF_ERROR(metal_op_.SetInt("seed", seed));
+    ABSL_RETURN_IF_ERROR(metal_op_.SetInt("seed2", seed));
     metal_op_.SetDstTensor(dst, 0);
     ABSL_RETURN_IF_ERROR(metal_op_.UpdateParams());
+    id<MTLComputeCommandEncoder> encoder = [command_buffer computeCommandEncoder];
     metal_op_.Encode(encoder);
-    return absl::OkStatus();
-  }
-
-  absl::Status Encode(id<MTLComputeCommandEncoder> encoder, MetalSpatialTensor* src0,
-                      MetalSpatialTensor* src1, MetalSpatialTensor* dst) {
-    metal_op_.SetSrcTensor(src0, 0);
-    metal_op_.SetSrcTensor(src1, 1);
-    metal_op_.SetDstTensor(dst, 0);
-    ABSL_RETURN_IF_ERROR(metal_op_.UpdateParams());
-    metal_op_.Encode(encoder);
+    [encoder endEncoding];
     return absl::OkStatus();
   }
 
  private:
-  absl::Status InitMetalOp(MetalDevice* device, GPUOperation&& operation) {
-    auto gpu_op = std::make_unique<GPUOperation>(std::move(operation));
-
-    ABSL_RETURN_IF_ERROR(gpu_op->AssembleCode(device->GetInfo()));
-
-    metal_op_.Init(std::move(gpu_op));
-    ABSL_RETURN_IF_ERROR(metal_op_.Compile(device));
-    return absl::OkStatus();
-  }
   ComputeTask metal_op_;
 };
 
-class DiffusionStepper {
+class Copier {
  public:
-  absl::Status Init(MetalDevice* device, const std::string& dir_folder) {
-    alphas_ = LoadF16(dir_folder + "alphas_cumprod.bin", /*variable=*/1000);
-    alphas_prev_ = alphas_;
-    alphas_prev_.insert(alphas_prev_.begin(), half(1.0f));
+  absl::Status Init(const TensorDescriptor& src_desc, const TensorDescriptor& dst_desc,
+                    MetalDevice* env) {
+    OperationDef op_def;
+    op_def.src_tensors.push_back(src_desc);
+    op_def.dst_tensors.push_back(dst_desc);
 
-    TensorDescriptor desc(DataType::FLOAT16, GetFastestStorageType(device->GetInfo()), Layout::HWC);
+    auto gpu_op = std::make_unique<GPUOperation>(CreateCast(op_def, env->GetInfo()));
+    ABSL_RETURN_IF_ERROR(gpu_op->AssembleCode(env->GetInfo()));
 
-    ABSL_RETURN_IF_ERROR(custom_op_.Init(device, CreateDiffusionStepOp(desc, desc, desc, desc)));
+    metal_op_.Init(std::move(gpu_op));
+    ABSL_RETURN_IF_ERROR(metal_op_.Compile(env));
     return absl::OkStatus();
   }
-  absl::Status StepCustomOp(id<MTLComputeCommandEncoder> encoder, MetalSpatialTensor* xIn,
-                            MetalSpatialTensor* etaUncondIn, MetalSpatialTensor* etaCondIn,
-                            MetalSpatialTensor* dst, int tIn, int tPrevIn, float guidanceScaleIn) {
-    float alphaIn = alphas_[tIn];
-    int tPrevInOffset = std::max(0, tPrevIn + 1);
-    float alphaPrevIn = alphas_prev_[tPrevInOffset];
-    half sqrt_alpha = half(sqrt(alphaIn));
-    half sqrt_alpha_prev = half(sqrt(alphaPrevIn));
-    half sqrt_one_minus_alpha = half(sqrt(1.0f - alphaIn));
-    half sqrt_one_minus_alpha_prev = half(sqrt(1.0f - alphaPrevIn));
 
-    OpHolder::ExecutionParams exec_params;
-    exec_params.src = {xIn, etaUncondIn, etaCondIn};
-    exec_params.dst = {dst};
-    exec_params.half_params = {{"guidance_scale", half(guidanceScaleIn)},
-                               {"sqrt_alpha", half(sqrt_alpha)},
-                               {"sqrt_alpha_prev", half(sqrt_alpha_prev)},
-                               {"sqrt_one_minus_alpha", half(sqrt_one_minus_alpha)},
-                               {"sqrt_one_minus_alpha_prev", half(sqrt_one_minus_alpha_prev)}};
-    return custom_op_.Encode(encoder, exec_params);
+  absl::Status Execute(id<MTLCommandBuffer> command_buffer, MetalSpatialTensor* src,
+                       MetalSpatialTensor* dst) {
+    metal_op_.SetSrcTensor(src, 0);
+    metal_op_.SetDstTensor(dst, 0);
+    ABSL_RETURN_IF_ERROR(metal_op_.UpdateParams());
+    id<MTLComputeCommandEncoder> encoder = [command_buffer computeCommandEncoder];
+    metal_op_.Encode(encoder);
+    [encoder endEncoding];
+    return absl::OkStatus();
   }
 
  private:
-  OpHolder custom_op_;
-  std::vector<half> alphas_;
-  std::vector<half> alphas_prev_;
+  ComputeTask metal_op_;
 };
 
 class TextGuidance {
@@ -225,8 +161,8 @@ class TextGuidance {
 
 class UNet {
  public:
-  absl::Status Init(int width, int height, MetalDevice* device, const std::string& file_folder) {
-    const auto& gpu_info = device->GetInfo();
+  absl::Status Init(int width, int height, MetalDevice* env, const std::string& file_folder) {
+    const auto& gpu_info = env->GetInfo();
 
     CreateGpuModelInfo create_info;
     create_info.precision = CalculationsPrecision::F16;
@@ -234,7 +170,6 @@ class UNet {
     create_info.hints.Add(ModelHints::kFastTuning);
     create_info.hints.Add(ModelHints::kNoWinogradOptimizations);
     GpuModel gpu_model;
-    UnetBuilder builder;
     UnetBuilder::Config config;
     config.in_channels = 4;
     config.out_channels = 4;
@@ -251,18 +186,46 @@ class UNet {
     GpuModelBuilder gpu_builder(gpu_info, create_info.hints, create_info.precision,
                                 create_info.storage_type);
 
-    ABSL_RETURN_IF_ERROR(builder.Build(config, gpu_info, create_info, width, height, &gpu_builder,
-                                       &src_, &temb_, &guidance_, /*text_proj_ptr=*/nullptr,
-                                       /*masked_image_latent_ptr=*/nullptr, &eta0_, &eta1_,
-                                       nullptr));
+    index_val_ = gpu_builder.AddTensor(BHWC(1, 1, 1, 1), DataType::FLOAT32);
+    ABSL_ASSIGN_OR_RETURN(
+        auto temb_res, gpu_builder.AppendOp(
+                           "TembGeneration", {index_val_},
+                           {{"channels", 320},
+                            {"storage_type", static_cast<int>(GetFastestStorageType(gpu_info))}}));
+    temb_ = temb_res[0];
 
-    std::vector<GpuModelBuilder::ValueId> input_ids = {src_.id, temb_.id, guidance_.id};
-    std::vector<GpuModelBuilder::ValueId> output_ids = {eta0_.id, eta1_.id, src_.id, guidance_.id};
-    ABSL_RETURN_IF_ERROR(gpu_builder.GetGpuModel(input_ids, output_ids, &gpu_model));
+    UnetBuilder builder;
+    ABSL_RETURN_IF_ERROR(builder.Build(
+        config, gpu_info, create_info, width, height, &gpu_builder, &src_, &temb_, &guidance_,
+        /*text_proj_ptr=*/nullptr,
+        /*masked_image_latent_ptr=*/nullptr, &eta0_, &eta1_, nullptr));
+
+    guidance_scale_ = gpu_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::FLOAT32);
+    sqrt_alpha_ = gpu_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::FLOAT32);
+    sqrt_alpha_prev_ = gpu_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::FLOAT32);
+    sqrt_one_minus_alpha_ = gpu_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::FLOAT32);
+    sqrt_one_minus_alpha_prev_ = gpu_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::FLOAT32);
+    src_input_ = src_;
+    ABSL_ASSIGN_OR_RETURN(
+        auto _step_res,
+        gpu_builder.AppendOp("DiffusionStep",
+                             {src_, eta0_, eta1_, guidance_scale_, sqrt_alpha_, sqrt_alpha_prev_,
+                              sqrt_one_minus_alpha_, sqrt_one_minus_alpha_prev_}));
+    src_ = _step_res[0];
+
+    std::vector<ValueId> in_ids = {src_input_.id,
+                                   index_val_.id,
+                                   guidance_.id,
+                                   guidance_scale_.id,
+                                   sqrt_alpha_.id,
+                                   sqrt_alpha_prev_.id,
+                                   sqrt_one_minus_alpha_.id,
+                                   sqrt_one_minus_alpha_prev_.id};
+    std::vector<ValueId> out_ids = {src_.id, eta0_.id, eta1_.id};
+    ABSL_RETURN_IF_ERROR(gpu_builder.GetGpuModel(in_ids, out_ids, &gpu_model));
 
     const auto start_init = std::chrono::high_resolution_clock::now();
-    ABSL_RETURN_IF_ERROR(
-        inference_context_.InitFromGpuModel(create_info, &gpu_model, device->device(), nullptr));
+    ABSL_RETURN_IF_ERROR(inference_context_.InitFromGpuModel(create_info, &gpu_model, env));
     const auto end_init = std::chrono::high_resolution_clock::now();
     std::cout << "UNet initialization time: " << (end_init - start_init).count() * 1e-6f << " ms."
               << std::endl;
@@ -270,19 +233,44 @@ class UNet {
     return absl::OkStatus();
   }
 
-  MetalSpatialTensor* GetLatentTensor() { return inference_context_.GetTensor(src_.id); }
+  MetalSpatialTensor* GetLatentTensor() { return inference_context_.GetTensor(src_input_.id); }
+  MetalSpatialTensor* GetOutputLatentTensor() { return inference_context_.GetTensor(src_.id); }
+  MetalSpatialTensor* GetInputLatentTensor() { return inference_context_.GetTensor(src_input_.id); }
   MetalSpatialTensor* GetTembTensor() { return inference_context_.GetTensor(temb_.id); }
   MetalSpatialTensor* GetGuidanceTensor() { return inference_context_.GetTensor(guidance_.id); }
   MetalSpatialTensor* GetEtaUncondTensor() { return inference_context_.GetTensor(eta0_.id); }
   MetalSpatialTensor* GetEtaCondTensor() { return inference_context_.GetTensor(eta1_.id); }
 
-  absl::Status Execute(id<MTLCommandBuffer> command_buffer) {
+  absl::Status Execute(id<MTLCommandBuffer> command_buffer, int step_index, float guidance_scale,
+                       float sqrt_alpha, float sqrt_alpha_prev, float sqrt_one_minus_alpha,
+                       float sqrt_one_minus_alpha_prev) {
+    TensorFloat32 scalar_tensor;
+    scalar_tensor.shape = BHWC(1, 1, 1, 4);
+    scalar_tensor.data.resize(4, 0.0f);
+    scalar_tensor.data[0] = static_cast<float>(step_index);
+    ABSL_RETURN_IF_ERROR(inference_context_.SetInputTensor(index_val_.id, scalar_tensor));
+    scalar_tensor.data[0] = guidance_scale;
+    ABSL_RETURN_IF_ERROR(inference_context_.SetInputTensor(guidance_scale_.id, scalar_tensor));
+    scalar_tensor.data[0] = sqrt_alpha;
+    ABSL_RETURN_IF_ERROR(inference_context_.SetInputTensor(sqrt_alpha_.id, scalar_tensor));
+    scalar_tensor.data[0] = sqrt_alpha_prev;
+    ABSL_RETURN_IF_ERROR(inference_context_.SetInputTensor(sqrt_alpha_prev_.id, scalar_tensor));
+    scalar_tensor.data[0] = sqrt_one_minus_alpha;
+    ABSL_RETURN_IF_ERROR(
+        inference_context_.SetInputTensor(sqrt_one_minus_alpha_.id, scalar_tensor));
+    scalar_tensor.data[0] = sqrt_one_minus_alpha_prev;
+    ABSL_RETURN_IF_ERROR(
+        inference_context_.SetInputTensor(sqrt_one_minus_alpha_prev_.id, scalar_tensor));
+
     inference_context_.EncodeWithCommandBuffer(command_buffer);
     return absl::OkStatus();
   }
 
  private:
-  GpuModelBuilder::TensorHandle src_, temb_, guidance_, eta0_, eta1_;
+  GpuModelBuilder::TensorHandle src_, src_input_, temb_, guidance_, eta0_, eta1_;
+  GpuModelBuilder::TensorHandle index_val_, guidance_scale_;
+  GpuModelBuilder::TensorHandle sqrt_alpha_, sqrt_alpha_prev_, sqrt_one_minus_alpha_,
+      sqrt_one_minus_alpha_prev_;
   InferenceContext inference_context_;
 };
 
@@ -336,7 +324,7 @@ class Decoder {
   InferenceContext inference_context_;
 };
 
-absl::Status TestStableDiffusion(std::string weights_path) {
+absl::Status RunStableDiffusion(std::string weights_path) {
   BPETokenizer bpe_tokenizer;
   bpe_tokenizer.Init(weights_path);
 
@@ -344,20 +332,6 @@ absl::Status TestStableDiffusion(std::string weights_path) {
   const auto& gpu_info = device_.GetInfo();
 
   TensorDescriptor default_desc(DataType::FLOAT16, GetFastestStorageType(gpu_info), Layout::HWC);
-
-  OpHolder temb_generation_op;
-  ABSL_RETURN_IF_ERROR(temb_generation_op.Init(
-      &device_, CreateTembGenerationOp(gpu_info, default_desc, weights_path)));
-
-  OpHolder noise_op;
-  {
-    OperationDef op_def;
-    op_def.dst_tensors.push_back(default_desc);
-    ABSL_RETURN_IF_ERROR(noise_op.Init(&device_, CreateRandomNormalPhilox(gpu_info, op_def)));
-  }
-
-  DiffusionStepper diffusion;
-  ABSL_RETURN_IF_ERROR(diffusion.Init(&device_, weights_path));
 
   TextGuidance text_guidance_graph;
   ABSL_RETURN_IF_ERROR(text_guidance_graph.Init(&device_, weights_path));
@@ -375,22 +349,29 @@ absl::Status TestStableDiffusion(std::string weights_path) {
   ABSL_RETURN_IF_ERROR(
       decoder.Init(latent_image_width, latent_image_height, &device_, weights_path));
 
-  OpHolder copier;
+  TensorDescriptor latent_desc = default_desc;
+  latent_desc.SetBHWCShape(ml_drift::BHWC(1, latent_image_height, latent_image_width, 4));
+
+  NoiseGenerator noise_gen;
+  ABSL_RETURN_IF_ERROR(noise_gen.Init(&device_, latent_desc));
+
+  auto* text_g = text_guidance_graph.GetGuidanceTensor();
+  auto* unet_g = unet.GetGuidanceTensor();
+  auto* unet_out = unet.GetOutputLatentTensor();
+  auto* unet_in = unet.GetInputLatentTensor();
+
+  Copier copier_guidance;
   ABSL_RETURN_IF_ERROR(
-      copier.InitElementwiseOneInput(OperationType::COPY, default_desc, default_desc, &device_));
+      copier_guidance.Init(text_g->GetDescriptor(), unet_g->GetDescriptor(), &device_));
+
+  Copier copier_latent;
+  ABSL_RETURN_IF_ERROR(
+      copier_latent.Init(unet_out->GetDescriptor(), unet_in->GetDescriptor(), &device_));
 
   ml_drift::Tensor<BHWC, DataType::INT32> tokens;
   tokens.shape = BHWC(1, 1, 2, 77);
   tokens.data.resize(tokens.shape.DimensionsProduct());
 
-  MetalSpatialTensor latent_copy;
-  {
-    MetalSpatialTensor* unet_latent = unet.GetLatentTensor();
-    TensorDescriptor descriptor_with_shape = unet_latent->GetDescriptor();
-    descriptor_with_shape.SetBHWCShape(BHWC(unet_latent->Batch(), unet_latent->Height(),
-                                            unet_latent->Width(), unet_latent->Channels()));
-    ABSL_RETURN_IF_ERROR(CreateTensor(device_.device(), descriptor_with_shape, &latent_copy));
-  }
 
   id<MTLCommandQueue> command_queue = [device_.device() newCommandQueue];
 
@@ -400,7 +381,7 @@ absl::Status TestStableDiffusion(std::string weights_path) {
     std::string prompt = "a photo of an astronaut riding a horse on mars";
     std::string negative_prompt = "";
     std::cout << "Enter phrase: ";
-    std::getline(std::cin, prompt);
+    if (!std::getline(std::cin, prompt)) break;
     int steps = 50;
     std::cout << "Enter steps: ";
     std::cin >> steps;
@@ -428,79 +409,48 @@ absl::Status TestStableDiffusion(std::string weights_path) {
 
     {
       int seed = rand_r(&base_seed);
-      OpHolder::ExecutionParams exec_params;
-      exec_params.dst = {unet.GetLatentTensor()};
-      exec_params.int_params = {{"seed", seed}};
       id<MTLCommandBuffer> command_buffer = [command_queue commandBuffer];
-      id<MTLComputeCommandEncoder> encoder = [command_buffer computeCommandEncoder];
-      ABSL_RETURN_IF_ERROR(noise_op.Encode(encoder, exec_params));
-      [encoder endEncoding];
+      ABSL_RETURN_IF_ERROR(noise_gen.Execute(command_buffer, seed, unet.GetInputLatentTensor()));
       [command_buffer commit];
     }
 
     {
       id<MTLCommandBuffer> command_buffer = [command_queue commandBuffer];
-      id<MTLComputeCommandEncoder> encoder = [command_buffer computeCommandEncoder];
-      ABSL_RETURN_IF_ERROR(copier.Encode(encoder, text_guidance_graph.GetGuidanceTensor(),
-                                         unet.GetGuidanceTensor()));
-      [encoder endEncoding];
+      ABSL_RETURN_IF_ERROR(copier_guidance.Execute(
+          command_buffer, text_guidance_graph.GetGuidanceTensor(), unet.GetGuidanceTensor()));
       [command_buffer commit];
     }
+
+    auto alphas_cumprod = LoadF16(weights_path + "alphas_cumprod.bin", 1000);
 
     const int stride = 1000 / steps;
     for (int t = steps - 1; t >= 0; --t) {
       int ts = t * stride + 1;
       int tsPrev = ts - stride;
 
-      {
-        OpHolder::ExecutionParams exec_params;
-        exec_params.dst = {unet.GetTembTensor()};
-        exec_params.float_params = {{"index_val", ts}};
-        id<MTLCommandBuffer> command_buffer = [command_queue commandBuffer];
-        id<MTLComputeCommandEncoder> encoder = [command_buffer computeCommandEncoder];
-        ABSL_RETURN_IF_ERROR(temb_generation_op.Encode(encoder, exec_params));
-        [encoder endEncoding];
-        [command_buffer commit];
-      }
-
-      {
-        id<MTLCommandBuffer> command_buffer = [command_queue commandBuffer];
-        id<MTLComputeCommandEncoder> encoder = [command_buffer computeCommandEncoder];
-        ABSL_RETURN_IF_ERROR(copier.Encode(encoder, unet.GetLatentTensor(), &latent_copy));
-        [encoder endEncoding];
-        [command_buffer commit];
-      }
-
-      {
-        id<MTLCommandBuffer> command_buffer = [command_queue commandBuffer];
-        ABSL_RETURN_IF_ERROR(unet.Execute(command_buffer));
-        [command_buffer commit];
-      }
-
       float guidance_scale = 7.5f;
-      {
-        id<MTLCommandBuffer> command_buffer = [command_queue commandBuffer];
-        id<MTLComputeCommandEncoder> encoder = [command_buffer computeCommandEncoder];
-        ABSL_RETURN_IF_ERROR(diffusion.StepCustomOp(
-            encoder, &latent_copy, unet.GetEtaUncondTensor(), unet.GetEtaCondTensor(),
-            unet.GetLatentTensor(), ts, tsPrev, guidance_scale));
-        [encoder endEncoding];
-        [command_buffer commit];
-      }
-      std::cout << "step " << steps - t << "/" << steps << std::endl;
-    }  // loop t
+      float alpha_cumprod = static_cast<float>(alphas_cumprod[ts]);
+      float alpha_cumprod_prev = tsPrev >= 0 ? static_cast<float>(alphas_cumprod[tsPrev]) : 1.0f;
+      float sqrt_alpha = std::sqrt(alpha_cumprod);
+      float sqrt_alpha_prev = std::sqrt(alpha_cumprod_prev);
+      float sqrt_one_minus_alpha = std::sqrt(1.0f - alpha_cumprod);
+      float sqrt_one_minus_alpha_prev = std::sqrt(1.0f - alpha_cumprod_prev);
 
-    {
       id<MTLCommandBuffer> command_buffer = [command_queue commandBuffer];
-      id<MTLComputeCommandEncoder> encoder = [command_buffer computeCommandEncoder];
-      ABSL_RETURN_IF_ERROR(
-          copier.Encode(encoder, unet.GetLatentTensor(), decoder.GetInputTensor()));
-      [encoder endEncoding];
+      ABSL_RETURN_IF_ERROR(unet.Execute(command_buffer, ts, guidance_scale, sqrt_alpha,
+                                        sqrt_alpha_prev, sqrt_one_minus_alpha,
+                                        sqrt_one_minus_alpha_prev));
+      ABSL_RETURN_IF_ERROR(copier_latent.Execute(command_buffer, unet.GetOutputLatentTensor(),
+                                                 unet.GetInputLatentTensor()));
       [command_buffer commit];
+
+      std::cout << "step " << steps - t << "/" << steps << std::endl;
     }
 
     {
       id<MTLCommandBuffer> command_buffer = [command_queue commandBuffer];
+      ABSL_RETURN_IF_ERROR(copier_latent.Execute(command_buffer, unet.GetOutputLatentTensor(),
+                                                 decoder.GetInputTensor()));
       ABSL_RETURN_IF_ERROR(decoder.Execute(command_buffer));
       [command_buffer commit];
       [command_buffer waitUntilCompleted];  // Required sync.
@@ -539,7 +489,7 @@ int main(int argc, char** argv) {
         weights_folder += '/';
       }
     }
-    auto status = ml_drift::metal::TestStableDiffusion(weights_folder);
+    auto status = ml_drift::metal::RunStableDiffusion(weights_folder);
     if (!status.ok()) {
       std::cout << "Failed test." << status.message() << std::endl;
       return -1;
