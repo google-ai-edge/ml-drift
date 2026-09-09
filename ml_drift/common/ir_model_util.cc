@@ -278,7 +278,7 @@ absl::Status ReserveGraphTensors(const CreateGpuModelInfo& create_info,
     tensor_reserver->Add(tensor->id, tensor_desc);
     max_id = std::max(max_id, tensor->id);
   }
-  tensor_reserver->SetNext(max_id + 1);
+  tensor_reserver->SetNext(std::max(max_id + 1, ir_model.tensors().size()));
   auto& model_ops = ir_model.ops();
   // Upload constant tensors data.
   for (int i = 0; i < model_ops.size(); ++i) {

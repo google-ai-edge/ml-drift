@@ -206,6 +206,12 @@ class IrModel {
   // Returns OkStatus if the operation was successfully removed.
   absl::Status RemoveSimpleOp(IrOpId op_id);
 
+  // Removes the given op and unlinks it from its inputs and outputs.
+  // Any tensors that become orphaned (no producer and no consumers) are
+  // automatically deleted. Any surviving tensors that lost their
+  // producer/consumer are updated in graph inputs/outputs accordingly.
+  absl::Status RemoveOp(IrOpId op_id);
+
   // Returns a mutable pointer to the attribute of the specified op, if it
   // exists and the type matches. Otherwise returns nullptr. This should be used
   // safely, ensuring topology conditions are verified before mutation.

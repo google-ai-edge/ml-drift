@@ -487,5 +487,100 @@ TEST(IrModelTest, ReplaceInput_Errors) {
   EXPECT_FALSE(model.ReplaceInput(op->id, t2->id, t1->id).ok());
 }
 
+TEST(IrModelTest, RemoveOp_Success) {
+  IrModel model;
+  IrOp* op = model.add_op();
+  IrTensor* in_tensor =
+      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  IrTensor* out_tensor =
+      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+
+  model.AddConsumer(in_tensor->id, op->id);
+  model.SetProducer(out_tensor->id, op->id);
+
+  EXPECT_THAT(in_tensor->consumers, UnorderedElementsAre(op->id));
+  EXPECT_EQ(out_tensor->producer, op->id);
+  EXPECT_NE(model.op(op->id), nullptr);
+
+  // When op is removed, since both in_tensor and out_tensor have no other
+  // producer/consumers, they are automatically orphaned and deleted.
+  EXPECT_TRUE(model.RemoveOp(op->id).ok());
+  EXPECT_EQ(model.op(op->id), nullptr);
+  EXPECT_EQ(model.tensor(in_tensor->id), nullptr);
+  EXPECT_EQ(model.tensor(out_tensor->id), nullptr);
+}
+
+TEST(IrModelTest, RemoveOp_BoundaryPromotion) {
+  IrModel model;
+  IrOp* op1 = model.add_op();
+  IrOp* op2 = model.add_op();
+  IrTensor* input =
+      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  IrTensor* intermediate =
+      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  IrTensor* output =
+      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+
+  model.add_input(input->id);
+  model.add_output(output->id);
+
+  model.AddConsumer(input->id, op1->id);
+  model.SetProducer(intermediate->id, op1->id);
+  model.AddConsumer(intermediate->id, op2->id);
+  model.SetProducer(output->id, op2->id);
+
+  // Removing op2: intermediate loses its consumer but keeps producer op1,
+  // so it should be promoted to a graph output.
+  // output loses its producer and has no consumers, so it should be deleted.
+  EXPECT_TRUE(model.RemoveOp(op2->id).ok());
+  EXPECT_EQ(model.op(op2->id), nullptr);
+  EXPECT_EQ(model.tensor(output->id), nullptr);
+  EXPECT_FALSE(model.IsGraphOutput(output->id));
+  EXPECT_TRUE(model.IsGraphOutput(intermediate->id));
+}
+
+TEST(IrModelTest, RemoveOp_SequentialWithOrphanPruning) {
+  IrModel model;
+  IrOp* op1 = model.add_op();
+  IrOp* op2 = model.add_op();
+  IrOp* op3 = model.add_op();
+  IrTensor* input =
+      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  IrTensor* t1 =
+      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  IrTensor* t2 =
+      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  IrTensor* output =
+      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+
+  model.add_input(input->id);
+  model.add_output(output->id);
+
+  model.AddConsumer(input->id, op1->id);
+  model.SetProducer(t1->id, op1->id);
+  model.AddConsumer(t1->id, op2->id);
+  model.SetProducer(t2->id, op2->id);
+  model.AddConsumer(t2->id, op3->id);
+  model.SetProducer(output->id, op3->id);
+
+  // Sequentially remove op2 then op3:
+  // t1 is kept and promoted to output because it's produced by op1.
+  // t2 was between op2 and op3; it is orphaned and automatically deleted.
+  // output is orphaned and deleted.
+  EXPECT_TRUE(model.RemoveOp(op2->id).ok());
+  EXPECT_TRUE(model.RemoveOp(op3->id).ok());
+
+  EXPECT_EQ(model.op(op2->id), nullptr);
+  EXPECT_EQ(model.op(op3->id), nullptr);
+  EXPECT_EQ(model.tensor(t2->id), nullptr);
+  EXPECT_EQ(model.tensor(output->id), nullptr);
+  EXPECT_TRUE(model.IsGraphOutput(t1->id));
+}
+
+TEST(IrModelTest, RemoveOp_InvalidOpId) {
+  IrModel model;
+  EXPECT_FALSE(model.RemoveOp(999).ok());
+}
+
 }  // namespace
 }  // namespace ml_drift::ir
