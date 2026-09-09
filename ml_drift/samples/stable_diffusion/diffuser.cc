@@ -17,7 +17,6 @@
 #include <algorithm>
 #include <chrono>  // NOLINT(build/c++11)
 #include <cmath>
-#include <cstddef>
 #include <cstdint>
 #include <iostream>
 #include <memory>
@@ -43,11 +42,10 @@
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_model.h"
 #include "ml_drift/common/gpu_model_builder.h"
-#include "ml_drift/common/kernels/elementwise.h"
+#include "ml_drift/common/kernels/cast.h"
 #include "ml_drift/common/kernels/random_philox.h"
 #include "ml_drift/common/model.h"
 #include "ml_drift/common/model_hints.h"
-#include "ml_drift/common/operations.h"
 #include "ml_drift/common/precision.h"
 #include "ml_drift/common/shape.h"
 #include "ml_drift/common/task/gpu_operation.h"
@@ -115,13 +113,15 @@ absl::StatusOr<std::unique_ptr<Diffuser>> Diffuser::Create(
   ABSL_RETURN_IF_ERROR(text_guidance_graph->Init(config, env.get()));
   ABSL_LOG(INFO) << "TextGuidance is created";
 
-  auto copier = std::make_unique<Diffuser::OpHolder>();
-  ABSL_RETURN_IF_ERROR(copier->InitElementwiseOneInput(
-      OperationType::COPY, default_desc, default_desc, env.get()));
-  ABSL_LOG(INFO) << "Copier is created";
-
   int latent_image_width = config.image_width / 8;
   int latent_image_height = config.image_height / 8;
+
+  TensorDescriptor latent_desc = default_desc;
+  latent_desc.SetBHWCShape(BHWC(1, latent_image_height, latent_image_width, 4));
+
+  auto copier = std::make_unique<Diffuser::Copier>();
+  ABSL_RETURN_IF_ERROR(copier->Init(latent_desc, latent_desc, env.get()));
+  ABSL_LOG(INFO) << "Copier is created";
 
   auto decoder = std::make_unique<Decoder>();
   ABSL_RETURN_IF_ERROR(decoder->Init(config, latent_image_width,
@@ -133,30 +133,39 @@ absl::StatusOr<std::unique_ptr<Diffuser>> Diffuser::Create(
       unet->Init(config, latent_image_width, latent_image_height, env.get()));
   ABSL_LOG(INFO) << "UNet is created";
 
+  auto guidance_copier = std::make_unique<Diffuser::Copier>();
+  TensorDescriptor guidance_desc =
+      text_guidance_graph->GetGuidanceTensor()->GetDescriptor();
+  TensorDescriptor dst_guidance_desc =
+      unet->GetGuidanceTensor()->GetDescriptor();
+  ABSL_RETURN_IF_ERROR(
+      guidance_copier->Init(guidance_desc, dst_guidance_desc, env.get()));
+  ABSL_LOG(INFO) << "Guidance Copier is created";
+
   Tensor latent_copy;
   {
     Tensor* unet_latent = unet->GetLatentTensor();
     TensorDescriptor descriptor_with_shape =
         unet_latent->GetDescriptor();
     descriptor_with_shape.SetBHWCShape(
-        BHWC(unet_latent->Batch(), unet_latent->Height(), unet_latent->Width(),
-             unet_latent->Channels()));
+        BHWC(1, latent_image_height, latent_image_width, 4));
     ABSL_RETURN_IF_ERROR(
         CreateTensor(env->context(), descriptor_with_shape, &latent_copy));
   }
   ABSL_LOG(INFO) << "latent_copy is created";
 
-  return absl::WrapUnique(new Diffuser(
+  auto diffuser = absl::WrapUnique(new Diffuser(
       config, std::move(env), std::move(text_guidance_graph), std::move(unet),
       std::move(decoder), std::move(copier), std::move(latent_copy)));
+  diffuser->guidance_copier_ = std::move(guidance_copier);
+  return diffuser;
 }
 
 Diffuser::Diffuser(const Diffuser::Config& config,
                    std::unique_ptr<Environment> env,
                    std::unique_ptr<TextGuidance> text_guidance_graph,
-                   std::unique_ptr<UNet> unet,
-                   std::unique_ptr<Decoder> decoder,
-                   std::unique_ptr<OpHolder> copier, Tensor latent_copy) {
+                   std::unique_ptr<UNet> unet, std::unique_ptr<Decoder> decoder,
+                   std::unique_ptr<Copier> copier, Tensor latent_copy) {
   config_ = config;
   env_ = std::move(env);
   text_guidance_graph_ = std::move(text_guidance_graph);
@@ -259,9 +268,9 @@ absl::Status Diffuser::RunInitStep(
   }
   ABSL_RETURN_IF_ERROR(unet_->GenerateNoiseInput(
       env_->queue(), rand_seed.value_or(config_.seed)));
-  ABSL_RETURN_IF_ERROR(
-      copier_->Execute(env_->queue(), text_guidance_graph_->GetGuidanceTensor(),
-                       unet_->GetGuidanceTensor()));
+  ABSL_RETURN_IF_ERROR(guidance_copier_->Execute(
+      env_->queue(), text_guidance_graph_->GetGuidanceTensor(),
+      unet_->GetGuidanceTensor()));
 
   plugins_strength_ = plugins_strength.value_or(0.0f);
   return absl::OkStatus();
@@ -322,6 +331,63 @@ absl::StatusOr<TensorFloat32> Diffuser::RunDecodeStep() {
   TensorFloat32 result;
   ABSL_RETURN_IF_ERROR(decoder_->GetOutput(env_.get(), &result));
   return result;
+}
+
+absl::Status Diffuser::Copier::Init(const TensorDescriptor& src_desc,
+                                    const TensorDescriptor& dst_desc,
+                                    Environment* env) {
+  src_id_ = 0;
+  dst_id_ = 1;
+
+  GpuModel gpu_model;
+  GpuNode gpu_node;
+
+  OperationDef op_def;
+  op_def.src_tensors.push_back(src_desc);
+  op_def.dst_tensors.push_back(dst_desc);
+
+  gpu_node.gpu_operation = std::make_unique<GPUOperation>(
+      CreateCast(op_def, env->device().GetInfo()));
+  ABSL_RETURN_IF_ERROR(
+      gpu_node.gpu_operation->AssembleCode(env->device().GetInfo()));
+
+  gpu_node.inputs = {src_id_};
+  gpu_node.outputs = {dst_id_};
+  gpu_model.nodes.push_back(std::move(gpu_node));
+  gpu_model.tensors[src_id_] = op_def.src_tensors[0];
+  gpu_model.tensors[dst_id_] = op_def.dst_tensors[0];
+
+  CreateGpuModelInfo create_info;
+  create_info.precision = CalculationsPrecision::F16;
+  create_info.storage_type = dst_desc.GetStorageType();
+  create_info.external_mutable_tensors.insert({src_id_, src_desc});
+  create_info.external_mutable_tensors.insert({dst_id_, dst_desc});
+
+  return inference_context_.InitFromGpuModel(create_info, &gpu_model, env,
+                                             nullptr);
+}
+
+absl::Status Diffuser::UNet::InitNoiseGenerator(
+    Environment* env, const TensorDescriptor& dst_desc) {
+  OperationDef op_def;
+  op_def.dst_tensors.push_back(dst_desc);
+
+  auto gpu_op = std::make_unique<GPUOperation>(
+      CreateRandomNormalPhilox(env->device().GetInfo(), op_def));
+
+  ABSL_RETURN_IF_ERROR(gpu_op->AssembleCode(env->device().GetInfo()));
+
+  noise_op_.Init(std::move(gpu_op));
+  ABSL_RETURN_IF_ERROR(noise_op_.Compile(env->GetDevicePtr(), &env->context(),
+                                         env->program_cache()));
+  return absl::OkStatus();
+}
+
+absl::Status Diffuser::Copier::Execute(CLCommandQueue* queue, Tensor* src,
+                                       Tensor* dst) {
+  ABSL_RETURN_IF_ERROR(inference_context_.SetTensor(src_id_, src));
+  ABSL_RETURN_IF_ERROR(inference_context_.SetTensor(dst_id_, dst));
+  return inference_context_.AddToQueue(queue);
 }
 
 absl::Status Diffuser::TextGuidance::Init(const Diffuser::Config& runner_config,
@@ -485,14 +551,12 @@ absl::Status Diffuser::UNet::Init(const Diffuser::Config& runner_config,
       << std::chrono::duration<float, std::milli>(end_init - start_init).count()
       << " ms." << std::endl;
 
-  TensorDescriptor default_desc(DataType::FLOAT16,
-                                GetFastestStorageType(gpu_info), Layout::HWC);
+  TensorDescriptor latent_desc(DataType::FLOAT16,
+                               GetFastestStorageType(gpu_info), Layout::HWC);
+  latent_desc.SetBHWCShape(BHWC(1, height, width, 4));
 
   {
-    OperationDef op_def;
-    op_def.dst_tensors.push_back(default_desc);
-    ABSL_RETURN_IF_ERROR(
-        noise_op_.Init(env, CreateRandomNormalPhilox(gpu_info, op_def)));
+    ABSL_RETURN_IF_ERROR(InitNoiseGenerator(env, latent_desc));
   }
   return absl::OkStatus();
 }
@@ -500,10 +564,11 @@ absl::Status Diffuser::UNet::Init(const Diffuser::Config& runner_config,
 absl::Status Diffuser::UNet::GenerateNoiseInput(CLCommandQueue* queue,
                                                 uint32_t base_seed) {
   int seed = GetRandomInt(60000, base_seed);
-  OpHolder::ExecutionParams exec_params;
-  exec_params.dst = {GetInputLatentTensor()};
-  exec_params.int_params = {{"seed", seed}};
-  return noise_op_.Execute(queue, exec_params);
+
+  ABSL_RETURN_IF_ERROR(noise_op_.SetInt("seed", seed));
+  ABSL_RETURN_IF_ERROR(noise_op_.SetDstTensor(0, GetInputLatentTensor()));
+  ABSL_RETURN_IF_ERROR(noise_op_.UpdateParams());
+  return noise_op_.AddToQueue(queue);
 }
 
 absl::Status Diffuser::UNet::LogDebugTensor(CLCommandQueue* queue) {
@@ -560,60 +625,6 @@ absl::Status Diffuser::Decoder::Init(const Diffuser::Config& runner_config,
               << " ms." << std::endl;
 
     return absl::OkStatus();
-}
-
-absl::Status Diffuser::OpHolder::InitElementwiseOneInput(
-    OperationType op_type, const TensorDescriptor& src_desc,
-    const TensorDescriptor& dst_desc, Environment* env) {
-  OperationDef op_def;
-  op_def.src_tensors.push_back(src_desc);
-  op_def.dst_tensors.push_back(dst_desc);
-  GPUOperation operation =
-      CreateElementwiseOneInput(env->device().GetInfo(), op_def, op_type);
-  return Initialize(env, std::move(operation));
-}
-
-absl::Status Diffuser::OpHolder::Execute(CLCommandQueue* queue,
-                                         const ExecutionParams& params) {
-  for (size_t i = 0; i < params.src.size(); ++i) {
-    ABSL_RETURN_IF_ERROR(op_.SetSrcTensor(i, params.src[i]));
-  }
-  for (size_t i = 0; i < params.dst.size(); ++i) {
-    ABSL_RETURN_IF_ERROR(op_.SetDstTensor(i, params.dst[i]));
-  }
-  for (const auto& float_param : params.float_params) {
-    ABSL_RETURN_IF_ERROR(op_.SetFloat(float_param.first, float_param.second));
-  }
-  for (const auto& half_param : params.half_params) {
-    ABSL_RETURN_IF_ERROR(op_.SetHalf(half_param.first, half_param.second));
-  }
-  for (const auto& int_param : params.int_params) {
-    ABSL_RETURN_IF_ERROR(op_.SetInt(int_param.first, int_param.second));
-  }
-  ABSL_RETURN_IF_ERROR(op_.UpdateParams());
-  ABSL_RETURN_IF_ERROR(op_.AddToQueue(queue));
-  return absl::OkStatus();
-}
-
-absl::Status Diffuser::OpHolder::Execute(CLCommandQueue* queue, Tensor* src,
-                                         Tensor* dst) {
-  ABSL_RETURN_IF_ERROR(op_.SetSrcTensor(0, src));
-  ABSL_RETURN_IF_ERROR(op_.SetDstTensor(0, dst));
-  ABSL_RETURN_IF_ERROR(op_.UpdateParams());
-  ABSL_RETURN_IF_ERROR(op_.AddToQueue(queue));
-  return absl::OkStatus();
-}
-
-absl::Status Diffuser::OpHolder::Initialize(Environment* env,
-                                            GPUOperation&& operation) {
-  auto gpu_op = std::make_unique<GPUOperation>(std::move(operation));
-
-  ABSL_RETURN_IF_ERROR(gpu_op->AssembleCode(env->device().GetInfo()));
-
-  op_.Init(std::move(gpu_op));
-  ABSL_RETURN_IF_ERROR(
-      op_.Compile(env->GetDevicePtr(), &env->context(), env->program_cache()));
-  return absl::OkStatus();
 }
 
 absl::Status Diffuser::UNet::Execute(CLCommandQueue* queue, int step_index,

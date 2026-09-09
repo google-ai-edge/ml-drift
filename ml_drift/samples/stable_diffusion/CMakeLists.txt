@@ -162,6 +162,7 @@ target_link_libraries(mld_samples_stable_diffusion_diffuser
     mld_common_gpu_model
     mld_common_gpu_model_builder
     mld_common_kernels_elementwise
+    mld_common_kernels_cast
     mld_common_kernels_random_philox
     mld_common_model
     mld_common_model_hints
@@ -200,6 +201,7 @@ target_link_libraries(sd_gpu_opencl
     mld_common_gpu_model
     mld_common_gpu_model_builder
     mld_common_kernels_elementwise
+    mld_common_kernels_cast
     mld_common_kernels_random_philox
     mld_common_model_hints
     mld_common_operations

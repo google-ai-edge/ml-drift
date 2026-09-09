@@ -20,10 +20,8 @@
 #include <memory>
 #include <optional>
 #include <string>
-#include <utility>
 #include <vector>
 
-#include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
 #include "absl/status/statusor.h"
@@ -34,9 +32,8 @@
 #include "ml_drift/cl/tensor.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_model_builder.h"
-#include "ml_drift/common/operations.h"
+#include "ml_drift/common/model.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/task/gpu_operation.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/tensor.h"
 #include "ml_drift/common/types.h"
@@ -60,6 +57,11 @@ namespace stable_diffusion {
 // ABSL_ASSIGN_OR_RETURN(auto diffuser, Diffuser::Create(config));
 // ABSL_ASSIGN_OR_RETURN(auto result_image,
 //                  diffuser->Diffuse("a cat and a dog", 20, 1337);
+//
+// Note: OpenCL Diffuser is separated from the main implementation due to
+// external dependencies.
+// TODO(dlho): Move Diffuser implementation into binary source when dependency
+// issue is resolved.
 class Diffuser {
  public:
   enum class ModelType {
@@ -115,34 +117,20 @@ class Diffuser {
   absl::StatusOr<TensorFloat32> RunDecodeStep();
 
  private:
-  class OpHolder {
+  // Text embedding.
+
+  class Copier {
    public:
-    struct ExecutionParams {
-      std::vector<Tensor*> src;
-      std::vector<Tensor*> dst;
-      absl::flat_hash_map<std::string, float> float_params;
-      absl::flat_hash_map<std::string, half> half_params;
-      absl::flat_hash_map<std::string, int> int_params;
-    };
+    absl::Status Init(const TensorDescriptor& src_desc,
+                      const TensorDescriptor& dst_desc, Environment* env);
 
-    absl::Status Init(Environment* env, ml_drift::GPUOperation&& operation) {
-      return Initialize(env, std::move(operation));
-    }
-
-    absl::Status InitElementwiseOneInput(OperationType op_type,
-                                         const TensorDescriptor& src_desc,
-                                         const TensorDescriptor& dst_desc,
-                                         Environment* env);
-
-    absl::Status Execute(CLCommandQueue* queue, const ExecutionParams& params);
     absl::Status Execute(CLCommandQueue* queue, Tensor* src, Tensor* dst);
 
    private:
-    absl::Status Initialize(Environment* env, GPUOperation&& operation);
-    ClOperation op_;
+    ValueId src_id_, dst_id_;
+    InferenceContext inference_context_;
   };
 
-  // Text embedding.
   class TextGuidance {
    public:
     absl::Status Init(const Config& runner_config, Environment* env);
@@ -208,6 +196,9 @@ class Diffuser {
           inference_context_.GetTensor(plugin_tensors_[4].id),
       };
     }
+    absl::Status InitNoiseGenerator(Environment* env,
+                                    const TensorDescriptor& dst_desc);
+
     absl::Status GenerateNoiseInput(CLCommandQueue* queue, uint32_t base_seed);
     absl::Status Execute(CLCommandQueue* queue, int step_index,
                          float guidance_scale, float sqrt_alpha,
@@ -218,7 +209,8 @@ class Diffuser {
     GpuModelBuilder::TensorHandle index_val_, guidance_scale_, sqrt_alpha_,
         sqrt_alpha_prev_, sqrt_one_minus_alpha_, sqrt_one_minus_alpha_prev_;
 
-    OpHolder noise_op_;
+    ml_drift::cl::ClOperation noise_op_;
+    ValueId dst_id_, seed_id_;
     std::vector<half> alphas_;
     std::vector<half> alphas_prev_;
     InferenceContext inference_context_;
@@ -256,16 +248,16 @@ class Diffuser {
   std::unique_ptr<TextGuidance> text_guidance_graph_;
   std::unique_ptr<UNet> unet_;
   std::unique_ptr<Decoder> decoder_;
-  std::unique_ptr<OpHolder> copier_;
+  std::unique_ptr<Copier> copier_;
+  std::unique_ptr<Copier> guidance_copier_;
   ml_drift::Tensor<BHWC, DataType::INT32> tokens_;
   Tensor latent_copy_;
   float plugins_strength_;
 
   Diffuser(const Diffuser::Config& config, std::unique_ptr<Environment> env,
            std::unique_ptr<TextGuidance> text_guidance_graph,
-           std::unique_ptr<UNet> unet,
-           std::unique_ptr<Decoder> decoder, std::unique_ptr<OpHolder> copier,
-           Tensor latent_copy);
+           std::unique_ptr<UNet> unet, std::unique_ptr<Decoder> decoder,
+           std::unique_ptr<Copier> copier, Tensor latent_copy);
 };
 
 }  // namespace stable_diffusion
