@@ -355,7 +355,8 @@ GpuInfo GpuInfoFromDeviceID(cl_device_id id, cl_platform_id platform_id) {
   info.opencl_info.image_pitch_alignment = 0;
   if (info.opencl_info.cl_version == OpenClVersion::kCl2_0 ||
       info.opencl_info.cl_version == OpenClVersion::kCl2_1 ||
-      info.opencl_info.cl_version == OpenClVersion::kCl2_2) {
+      info.opencl_info.cl_version == OpenClVersion::kCl2_2 ||
+      info.opencl_info.cl_version == OpenClVersion::kCl3_0) {
     info.opencl_info.image_pitch_alignment =
         GetDeviceInfo<cl_uint>(id, CL_DEVICE_IMAGE_PITCH_ALIGNMENT);
     info.opencl_info.image_base_address_alignment =
