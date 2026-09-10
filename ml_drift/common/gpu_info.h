@@ -56,7 +56,12 @@ enum class GpuApi {
 enum class AdrenoGpu {
   // Adreno 8xx series
   kAdreno840,
+  kAdreno831,
   kAdreno830,
+  kAdreno829,
+  kAdreno825,
+  kAdreno812,
+  kAdreno810,
   // Adreno 7xx series
   kAdreno750,
   kAdreno740,
