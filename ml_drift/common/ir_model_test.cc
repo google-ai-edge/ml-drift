@@ -502,12 +502,16 @@ TEST(IrModelTest, RemoveOp_Success) {
   EXPECT_EQ(out_tensor->producer, op->id);
   EXPECT_NE(model.op(op->id), nullptr);
 
+  IrOpId op_id = op->id;
+  IrTensorId in_tensor_id = in_tensor->id;
+  IrTensorId out_tensor_id = out_tensor->id;
+
   // When op is removed, since both in_tensor and out_tensor have no other
   // producer/consumers, they are automatically orphaned and deleted.
-  EXPECT_TRUE(model.RemoveOp(op->id).ok());
-  EXPECT_EQ(model.op(op->id), nullptr);
-  EXPECT_EQ(model.tensor(in_tensor->id), nullptr);
-  EXPECT_EQ(model.tensor(out_tensor->id), nullptr);
+  EXPECT_TRUE(model.RemoveOp(op_id).ok());
+  EXPECT_EQ(model.op(op_id), nullptr);
+  EXPECT_EQ(model.tensor(in_tensor_id), nullptr);
+  EXPECT_EQ(model.tensor(out_tensor_id), nullptr);
 }
 
 TEST(IrModelTest, RemoveOp_BoundaryPromotion) {
@@ -529,14 +533,18 @@ TEST(IrModelTest, RemoveOp_BoundaryPromotion) {
   model.AddConsumer(intermediate->id, op2->id);
   model.SetProducer(output->id, op2->id);
 
+  IrOpId op2_id = op2->id;
+  IrTensorId output_id = output->id;
+  IrTensorId intermediate_id = intermediate->id;
+
   // Removing op2: intermediate loses its consumer but keeps producer op1,
   // so it should be promoted to a graph output.
   // output loses its producer and has no consumers, so it should be deleted.
-  EXPECT_TRUE(model.RemoveOp(op2->id).ok());
-  EXPECT_EQ(model.op(op2->id), nullptr);
-  EXPECT_EQ(model.tensor(output->id), nullptr);
-  EXPECT_FALSE(model.IsGraphOutput(output->id));
-  EXPECT_TRUE(model.IsGraphOutput(intermediate->id));
+  EXPECT_TRUE(model.RemoveOp(op2_id).ok());
+  EXPECT_EQ(model.op(op2_id), nullptr);
+  EXPECT_EQ(model.tensor(output_id), nullptr);
+  EXPECT_FALSE(model.IsGraphOutput(output_id));
+  EXPECT_TRUE(model.IsGraphOutput(intermediate_id));
 }
 
 TEST(IrModelTest, RemoveOp_SequentialWithOrphanPruning) {
@@ -563,18 +571,24 @@ TEST(IrModelTest, RemoveOp_SequentialWithOrphanPruning) {
   model.AddConsumer(t2->id, op3->id);
   model.SetProducer(output->id, op3->id);
 
+  IrOpId op2_id = op2->id;
+  IrOpId op3_id = op3->id;
+  IrTensorId t1_id = t1->id;
+  IrTensorId t2_id = t2->id;
+  IrTensorId output_id = output->id;
+
   // Sequentially remove op2 then op3:
   // t1 is kept and promoted to output because it's produced by op1.
   // t2 was between op2 and op3; it is orphaned and automatically deleted.
   // output is orphaned and deleted.
-  EXPECT_TRUE(model.RemoveOp(op2->id).ok());
-  EXPECT_TRUE(model.RemoveOp(op3->id).ok());
+  EXPECT_TRUE(model.RemoveOp(op2_id).ok());
+  EXPECT_TRUE(model.RemoveOp(op3_id).ok());
 
-  EXPECT_EQ(model.op(op2->id), nullptr);
-  EXPECT_EQ(model.op(op3->id), nullptr);
-  EXPECT_EQ(model.tensor(t2->id), nullptr);
-  EXPECT_EQ(model.tensor(output->id), nullptr);
-  EXPECT_TRUE(model.IsGraphOutput(t1->id));
+  EXPECT_EQ(model.op(op2_id), nullptr);
+  EXPECT_EQ(model.op(op3_id), nullptr);
+  EXPECT_EQ(model.tensor(t2_id), nullptr);
+  EXPECT_EQ(model.tensor(output_id), nullptr);
+  EXPECT_TRUE(model.IsGraphOutput(t1_id));
 }
 
 TEST(IrModelTest, RemoveOp_InvalidOpId) {
