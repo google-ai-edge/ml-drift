@@ -60,8 +60,6 @@ bool Use2DGridXisIOgroupYisO(const GpuInfo& gpu_info, const OHWI& weights_shape,
   const bool supported_src_layout =
       src_weights_desc.layout == WeightsLayout::kOSpatialIOGroupI4O4 ||
       src_weights_desc.layout == WeightsLayout::kOSpatialIOGroupO4I4 ||
-      src_weights_desc.layout == WeightsLayout::kOISpatialOGroupI4O4 ||
-      src_weights_desc.layout == WeightsLayout::kOISpatialOGroupO4I4 ||
       src_weights_desc.layout == WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4;
   const bool is_src_i_o_4x4 = supported_src_layout &&
                               src_weights_desc.GetOutputGroupSize() ==
@@ -69,9 +67,7 @@ bool Use2DGridXisIOgroupYisO(const GpuInfo& gpu_info, const OHWI& weights_shape,
                               weights_shape.w == 1 && weights_shape.h == 1;
   const bool supported_dst_layout =
       dst_weights_desc.layout == WeightsLayout::kOSpatialIOGroupI4O4 ||
-      dst_weights_desc.layout == WeightsLayout::kOSpatialIOGroupO4I4 ||
-      dst_weights_desc.layout == WeightsLayout::kOISpatialOGroupI4O4 ||
-      dst_weights_desc.layout == WeightsLayout::kOISpatialOGroupO4I4;
+      dst_weights_desc.layout == WeightsLayout::kOSpatialIOGroupO4I4;
   const bool is_dst_o_i_ogroup_4x4 =
       supported_dst_layout && dst_weights_desc.GetOutputGroupSize() <= 32 &&
       weights_shape.w == 1 && weights_shape.h == 1;
@@ -444,18 +440,6 @@ std::string GetWeightsCoords(const WeightsDescription& dst_weights_desc,
       c += "  int dst_o_sp = dst_o_sp_i / args.i_slices;\n";
       c += "  int dst_sp = dst_o_sp % args.wshape_spatial;\n";
       c += "  int dst_o = dst_o_sp / args.wshape_spatial;\n";
-      c += "  int i_slice = dst_i;\n";
-      c += "  int o_slice = dst_o * args.dst_o_group_size + dst_ogroup;\n";
-      c += "  int spatial_linear = dst_sp;\n";
-    } else if (dst_weights_desc.layout == WeightsLayout::kOISpatialOGroupI4O4 ||
-               dst_weights_desc.layout == WeightsLayout::kOISpatialOGroupO4I4) {
-      c += "  int dst_o_i_sp_ogroup = linear_index;\n";
-      c += "  int dst_ogroup = dst_o_i_sp_ogroup % args.dst_o_group_size;\n";
-      c += "  int dst_o_i_sp = dst_o_i_sp_ogroup / args.dst_o_group_size;\n";
-      c += "  int dst_sp = dst_o_i_sp % args.wshape_spatial;\n";
-      c += "  int dst_o_i = dst_o_i_sp / args.wshape_spatial;\n";
-      c += "  int dst_i = dst_o_i % args.i_slices;\n";
-      c += "  int dst_o = dst_o_i / args.i_slices;\n";
       c += "  int i_slice = dst_i;\n";
       c += "  int o_slice = dst_o * args.dst_o_group_size + dst_ogroup;\n";
       c += "  int spatial_linear = dst_sp;\n";

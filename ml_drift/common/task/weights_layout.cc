@@ -95,12 +95,10 @@ bool IsOISpatialOGroup(const std::vector<Axis>& axes) {
 bool WeightsDescription::IsI4O4() const {
   switch (layout) {
     case WeightsLayout::kOSpatialIOGroupI4O4:
-    case WeightsLayout::kOISpatialOGroupI4O4:
     case WeightsLayout::k2DX4I4YIsSpatialIAndXIsOOGroupO4:
     case WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4:
       return true;
     case WeightsLayout::kOSpatialIOGroupO4I4:
-    case WeightsLayout::kOISpatialOGroupO4I4:
     case WeightsLayout::k2DX4O4YIsSpatialIAndXIsOOGroupI4:
       return false;
     case WeightsLayout::kCustomGroups:
@@ -114,11 +112,9 @@ bool WeightsDescription::IsI4O4() const {
 bool WeightsDescription::IsO4I4() const {
   switch (layout) {
     case WeightsLayout::kOSpatialIOGroupO4I4:
-    case WeightsLayout::kOISpatialOGroupO4I4:
     case WeightsLayout::k2DX4O4YIsSpatialIAndXIsOOGroupI4:
       return true;
     case WeightsLayout::kOSpatialIOGroupI4O4:
-    case WeightsLayout::kOISpatialOGroupI4O4:
     case WeightsLayout::k2DX4I4YIsSpatialIAndXIsOOGroupO4:
     case WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4:
       return false;
@@ -134,8 +130,6 @@ int WeightsDescription::GetOutputGroupSize() const {
   switch (layout) {
     case WeightsLayout::kOSpatialIOGroupI4O4:
     case WeightsLayout::kOSpatialIOGroupO4I4:
-    case WeightsLayout::kOISpatialOGroupI4O4:
-    case WeightsLayout::kOISpatialOGroupO4I4:
     case WeightsLayout::k2DX4I4YIsSpatialIAndXIsOOGroupO4:
     case WeightsLayout::k2DX4O4YIsSpatialIAndXIsOOGroupI4:
     case WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4:
@@ -160,22 +154,16 @@ bool WeightsDescription::operator==(const WeightsDescription& t) const {
 }
 
 bool WeightsDescription::IsOISpatialOGroupI4O4() const {
-  if (layout == WeightsLayout::kOISpatialOGroupI4O4) {
-    return true;
-  }
   if (layout != WeightsLayout::kCustomGroups ||
-      !IsCustomGroupsI4O4(group_sizes)) {
+      !IsCustomGroupsI4O4(group_sizes) || !spatial_remap.empty()) {
     return false;
   }
   return IsOISpatialOGroup(ExtractAxisWithoutFirst4x4Block(group_sizes));
 }
 
 bool WeightsDescription::IsOISpatialOGroupO4I4() const {
-  if (layout == WeightsLayout::kOISpatialOGroupO4I4) {
-    return true;
-  }
   if (layout != WeightsLayout::kCustomGroups ||
-      !IsCustomGroupsO4I4(group_sizes)) {
+      !IsCustomGroupsO4I4(group_sizes) || !spatial_remap.empty()) {
     return false;
   }
   return IsOISpatialOGroup(ExtractAxisWithoutFirst4x4Block(group_sizes));
@@ -187,10 +175,6 @@ std::string ToString(const WeightsLayout& layout) {
       return "kOSpatialIOGroupI4O4";
     case WeightsLayout::kOSpatialIOGroupO4I4:
       return "kOSpatialIOGroupO4I4";
-    case WeightsLayout::kOISpatialOGroupI4O4:
-      return "kOISpatialOGroupI4O4";
-    case WeightsLayout::kOISpatialOGroupO4I4:
-      return "kOISpatialOGroupO4I4";
     case WeightsLayout::k2DX4I4YIsSpatialIAndXIsOOGroupO4:
       return "k2DX4I4YIsSpatialIAndXIsOOGroupO4";
     case WeightsLayout::k2DX4O4YIsSpatialIAndXIsOOGroupI4:

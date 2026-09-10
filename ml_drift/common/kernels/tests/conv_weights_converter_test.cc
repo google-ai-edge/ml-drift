@@ -557,9 +557,7 @@ INSTANTIATE_TEST_SUITE_P(
     Combine(ValuesIn(GetFloatTypes()),
             ValuesIn(GetTensorStoragesTypesWithoutSingleTexture2D()),
             ValuesIn({WeightsLayout::kOSpatialIOGroupI4O4,
-                      WeightsLayout::kOSpatialIOGroupO4I4,
-                      WeightsLayout::kOISpatialOGroupI4O4,
-                      WeightsLayout::kOISpatialOGroupO4I4})),
+                      WeightsLayout::kOSpatialIOGroupO4I4})),
     [](const TestParamInfo<OutTest::ParamType>& info) {
       return absl::StrReplaceAll(
           absl::StrCat(ToString(std::get<0>(info.param)), "_",
