@@ -300,14 +300,13 @@ std::string GetCode(const int3& work_group_size,
     c += "  min_value = min_max_value.x;\n";
     c += "  max_value = min_max_value.y;\n";
   }
-  c += "  float range = ucl::Convert<float>(max_value - min_value);\n";
+  c += "  float src_range = ucl::Convert<float>(max_value - min_value);\n";
+  c += "  float offset = ucl::Convert<float>(min_value);\n";
+  c += "  float scale = ucl::Convert<float>(args.dst_range) / src_range;\n";
+  c += "  float inv_scale = src_range / ucl::Convert<float>(args.dst_range);\n";
   if (IsSigned(dst_type)) {
-    c += "  float offset = ucl::Convert<float>(min_value) + range / 2.0f;\n";
-  } else {
-    c += "  float offset = ucl::Convert<float>(min_value);\n";
+    c += "  offset += src_range * args.src_range_middle;\n";
   }
-  c += "  float scale = args.scale_range / range;\n";
-  c += "  float inv_scale = range / args.scale_range;\n";
   c += "  int sum = 0;\n";
   if (dst_type == PackedType::kInt8W4C4 || dst_type == PackedType::kUint8W4C4 ||
       dst_type == PackedType::kInt8C16 || dst_type == PackedType::kUint8C16 ||
@@ -331,11 +330,15 @@ std::string GetCode(const int3& work_group_size,
     }
   }
   c += R"(
-    src = (src - offset) * scale;
-    src = min(ucl::Init<float4>(args.high_bound), src);
-    src = max(ucl::Init<float4>(args.low_bound), src);
+    src = (src - ucl::Convert<float>(min_value)) * scale;
+    src += ucl::Init<float4>(0.5f);  // ro replicate round() that used on CPU
     int4 src_quantized = ucl::Convert<int4>(src);
+    src_quantized = min(ucl::Init<int4>(args.dst_range), src_quantized);
+    src_quantized = max(ucl::Init<int4>(0), src_quantized);
 )";
+  if (IsSigned(dst_type)) {
+    c += "    src_quantized -= ucl::Init<int4>((args.dst_range + 1) / 2);\n";
+  }
   if (calculate_sum) {
     c += "    if (S < args.src_tensor.Slices()) {\n";
     if (channels % 4 == 0) {
@@ -652,11 +655,10 @@ class Quantization : public GPUOperation {
     AddDstTensor("dst_tensor", definition.dst_tensors[0]);
     AddDstTensor("dst_params", definition.dst_tensors[1]);
     const int range = 1 << GetTypeSizeInBits(dst_type);
-    const int low_bound = IsSigned(dst_type) ? -(range / 2) : 0;
-    const int high_bound = low_bound + range - 1;
-    args_.AddFloat("scale_range", range - 1);
-    args_.AddFloat("low_bound", low_bound);
-    args_.AddFloat("high_bound", high_bound);
+    args_.AddInt("dst_range", range - 1);
+    // src_range_middle should be 128 / 255 (i8) for identical results with CPU.
+    // but some existing tests expect 0.5 and failing with 128/255(0.50196078).
+    args_.AddFloat("src_range_middle", 0.5f);
     const bool is_params_fp16 =
         definition.dst_tensors[1].GetDataType() == DataType::FLOAT16;
     if (is_params_fp16) {
