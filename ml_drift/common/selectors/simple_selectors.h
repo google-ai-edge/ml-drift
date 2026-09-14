@@ -70,7 +70,8 @@ absl::Status SelectConcat(const ConcatAttributes& attr,
 
 std::unique_ptr<GPUOperation> SelectPadding(const GpuInfo& gpu_info,
                                             const PadAttributes& attr,
-                                            const OperationDef& op_def);
+                                            const OperationDef& op_def,
+                                            int src_channels);
 
 std::unique_ptr<GPUOperation> SelectReduce(const std::set<Axis>& axis_to_reduce,
                                            const BHWC& src_shape,

@@ -26,7 +26,8 @@ namespace ml_drift {
 
 namespace {
 std::string GetPaddingCode(const GpuInfo& gpu_info, const OperationDef& op_def,
-                           const PadAttributes& attr, GPUOperation* op) {
+                           const PadAttributes& attr, int src_channels,
+                           GPUOperation* op) {
   op->AddSrcTensor("src_tensor", op_def.src_tensors[0]);
   op->AddDstTensor("dst_tensor", op_def.dst_tensors[0]);
   op->args_.AddInt("prepended_x", attr.prepended.w);
@@ -114,7 +115,14 @@ std::string GetPaddingCode(const GpuInfo& gpu_info, const OperationDef& op_def,
       // optimized case
       c += "    result = args.src_tensor.Read(s_x, s_y, Z);\n";
     } else if (attr.prepended.c % 4 == 0 &&
-               attr.prepended.b == attr.appended.b) {
+               attr.prepended.b == attr.appended.b &&
+               (src_channels % 4 == 0 || attr.appended.c == 0)) {
+      // Whole-slice copy. Only valid when the source's last slice has no
+      // undefined lanes that would land on real destination channels: reading
+      // a full 4-component vector from a tensor whose channel count is not a
+      // multiple of 4 yields implementation-defined values in the trailing
+      // lanes (e.g. OpenCL read_imagef on a CL_R image returns alpha == 1.0),
+      // and appending channels would promote those lanes into valid output.
       c += "    int s_z = Z - args.prepended_z / 4;\n";
       c += "    if (s_z >= 0 && s_z < args.src_tensor.Slices()) {\n";
       c += "      result = args.src_tensor.Read(s_x, s_y, s_z);\n";
@@ -145,9 +153,9 @@ std::string GetPaddingCode(const GpuInfo& gpu_info, const OperationDef& op_def,
 
 GPUOperation CreatePadding(const GpuInfo& gpu_info,
                            const OperationDef& definition,
-                           const PadAttributes& attr) {
+                           const PadAttributes& attr, int src_channels) {
   GPUOperation op;
-  op.code_ = GetPaddingCode(gpu_info, definition, attr, &op);
+  op.code_ = GetPaddingCode(gpu_info, definition, attr, src_channels, &op);
   op.tensor_to_grid_ = TensorToGrid::kWBToX_HDToY_SToZ;
   return op;
 }

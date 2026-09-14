@@ -52,7 +52,8 @@ absl::Status PaddingAppendWidthTest(TestExecutionEnvironment& env,
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
   TensorFloat32 dst_tensor;
-  GPUOperation operation = CreatePadding(env.GetGpuInfo(), op_def, attr);
+  GPUOperation operation =
+      CreatePadding(env.GetGpuInfo(), op_def, attr, src_tensor.shape.c);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 2, 2), &dst_tensor));
@@ -79,7 +80,8 @@ absl::Status PaddingAppendWidthConstValuesTest(TestExecutionEnvironment& env,
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
   TensorFloat32 dst_tensor;
-  GPUOperation operation = CreatePadding(env.GetGpuInfo(), op_def, attr);
+  GPUOperation operation =
+      CreatePadding(env.GetGpuInfo(), op_def, attr, src_tensor.shape.c);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 2, 2), &dst_tensor));
@@ -105,7 +107,8 @@ absl::Status PaddingPrependWidthTest(TestExecutionEnvironment& env,
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
   TensorFloat32 dst_tensor;
-  GPUOperation operation = CreatePadding(env.GetGpuInfo(), op_def, attr);
+  GPUOperation operation =
+      CreatePadding(env.GetGpuInfo(), op_def, attr, src_tensor.shape.c);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 2, 2), &dst_tensor));
@@ -131,7 +134,8 @@ absl::Status PaddingAppendHeightTest(TestExecutionEnvironment& env,
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
   TensorFloat32 dst_tensor;
-  GPUOperation operation = CreatePadding(env.GetGpuInfo(), op_def, attr);
+  GPUOperation operation =
+      CreatePadding(env.GetGpuInfo(), op_def, attr, src_tensor.shape.c);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 3, 1, 2), &dst_tensor));
@@ -156,7 +160,8 @@ absl::Status PaddingPrependHeightTest(TestExecutionEnvironment& env,
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
   TensorFloat32 dst_tensor;
-  GPUOperation operation = CreatePadding(env.GetGpuInfo(), op_def, attr);
+  GPUOperation operation =
+      CreatePadding(env.GetGpuInfo(), op_def, attr, src_tensor.shape.c);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 3, 1, 2), &dst_tensor));
@@ -181,12 +186,47 @@ absl::Status PaddingAppendChannelsTest(TestExecutionEnvironment& env,
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
   TensorFloat32 dst_tensor;
-  GPUOperation operation = CreatePadding(env.GetGpuInfo(), op_def, attr);
+  GPUOperation operation =
+      CreatePadding(env.GetGpuInfo(), op_def, attr, src_tensor.shape.c);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 1, 3), &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
               Pointwise(FloatNear(eps), {0.0f, 1.0f, 0.0f, 2.0f, 3.0f, 0.0f}));
+  return absl::OkStatus();
+}
+
+// Appends channels to a source whose channel count is not a multiple of 4.
+//
+// The whole-slice fast path copies a full 4-component vector out of the
+// source's last slice, whose trailing lanes hold no data. Their contents are
+// implementation-defined -- an OpenCL read_imagef on a one-channel CL_R image,
+// for instance, returns alpha == 1.0 -- and appending channels turns those
+// lanes into real output channels, so the fast path must not be taken here.
+absl::Status PaddingAppendChannelsUnalignedSrcTest(
+    TestExecutionEnvironment& env, DataType data_type,
+    TensorStorageType storage) {
+  TensorFloat32 src_tensor;
+  src_tensor.shape = BHWC(1, 1, 2, 1);
+  src_tensor.data = {1.0f, 2.0f};
+
+  PadAttributes attr;
+  attr.prepended = BHWC(0, 0, 0, 0);
+  attr.appended = BHWC(0, 0, 0, 3);
+
+  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-3f;
+  OperationDef op_def;
+  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  TensorFloat32 dst_tensor;
+  GPUOperation operation =
+      CreatePadding(env.GetGpuInfo(), op_def, attr, src_tensor.shape.c);
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
+      src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
+      BHWC(1, 1, 2, 4), &dst_tensor));
+  EXPECT_THAT(dst_tensor.data,
+              Pointwise(FloatNear(eps),
+                        {1.0f, 0.0f, 0.0f, 0.0f, 2.0f, 0.0f, 0.0f, 0.0f}));
   return absl::OkStatus();
 }
 
@@ -206,7 +246,8 @@ absl::Status PaddingPrependChannelsTest(TestExecutionEnvironment& env,
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
   TensorFloat32 dst_tensor;
-  GPUOperation operation = CreatePadding(env.GetGpuInfo(), op_def, attr);
+  GPUOperation operation =
+      CreatePadding(env.GetGpuInfo(), op_def, attr, src_tensor.shape.c);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 1, 3), &dst_tensor));
@@ -231,7 +272,8 @@ absl::Status PaddingPrependChannelsX4Test(TestExecutionEnvironment& env,
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
   TensorFloat32 dst_tensor;
-  GPUOperation operation = CreatePadding(env.GetGpuInfo(), op_def, attr);
+  GPUOperation operation =
+      CreatePadding(env.GetGpuInfo(), op_def, attr, src_tensor.shape.c);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 1, 1, 6), &dst_tensor));
@@ -255,7 +297,8 @@ absl::Status PaddingComplexTest(TestExecutionEnvironment& env,
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
   TensorFloat32 dst_tensor;
-  GPUOperation operation = CreatePadding(env.GetGpuInfo(), op_def, attr);
+  GPUOperation operation =
+      CreatePadding(env.GetGpuInfo(), op_def, attr, src_tensor.shape.c);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 3, 3, 3), &dst_tensor));
@@ -285,7 +328,8 @@ absl::Status PaddingReflectWidthTest(TestExecutionEnvironment& env,
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
   TensorFloat32 dst_tensor;
-  GPUOperation operation = CreatePadding(env.GetGpuInfo(), op_def, attr);
+  GPUOperation operation =
+      CreatePadding(env.GetGpuInfo(), op_def, attr, src_tensor.shape.c);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 1, 7, 1), &dst_tensor));
@@ -312,7 +356,8 @@ absl::Status PaddingReflectChannelsTest(TestExecutionEnvironment& env,
   op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
   op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
   TensorFloat32 dst_tensor;
-  GPUOperation operation = CreatePadding(env.GetGpuInfo(), op_def, attr);
+  GPUOperation operation =
+      CreatePadding(env.GetGpuInfo(), op_def, attr, src_tensor.shape.c);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 1, 1, 7), &dst_tensor));
@@ -330,7 +375,8 @@ absl::Status PaddingTest(TestExecutionEnvironment& exec_env,
                          const OperationDef& op_def) {
   TensorFloat32 dst_ref_tensor = PaddingReference(attr, src_tensor);
 
-  GPUOperation operation = CreatePadding(exec_env.GetGpuInfo(), op_def, attr);
+  GPUOperation operation =
+      CreatePadding(exec_env.GetGpuInfo(), op_def, attr, src_tensor.shape.c);
 
   TensorFloat32 dst_tensor;
   ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(

@@ -170,8 +170,10 @@ void SelectSplit(const SplitAttributes& attr, const GpuInfo& gpu_info,
 
 std::unique_ptr<GPUOperation> SelectPadding(const GpuInfo& gpu_info,
                                             const PadAttributes& attr,
-                                            const OperationDef& op_def) {
-  return std::make_unique<GPUOperation>(CreatePadding(gpu_info, op_def, attr));
+                                            const OperationDef& op_def,
+                                            int src_channels) {
+  return std::make_unique<GPUOperation>(
+      CreatePadding(gpu_info, op_def, attr, src_channels));
 }
 
 std::unique_ptr<GPUOperation> SelectReduce(const std::set<Axis>& axis_to_reduce,

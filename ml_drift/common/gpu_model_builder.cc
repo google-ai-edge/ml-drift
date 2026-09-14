@@ -3706,7 +3706,8 @@ GpuModelBuilder::TensorHandle GpuModelBuilder::Padding(
   OperationDef op_def;
   op_def.src_tensors.push_back(src.tensor_desc);
   op_def.dst_tensors.push_back(dst.tensor_desc);
-  gpu_node.gpu_operation = SelectPadding(gpu_info_, attr, op_def);
+  gpu_node.gpu_operation =
+      SelectPadding(gpu_info_, attr, op_def, src.tensor_desc.GetBHWCShape().c);
   return dst;
 }
 

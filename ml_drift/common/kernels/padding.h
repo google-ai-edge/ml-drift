@@ -22,9 +22,13 @@
 namespace ml_drift {
 
 // Creates a GPU operation for the padding operation.
+//
+// `src_channels` is the channel count of the source tensor. It has to be passed
+// in because the tensor descriptors in `definition` are not required to carry a
+// shape at task creation time.
 GPUOperation CreatePadding(const GpuInfo& gpu_info,
                            const OperationDef& definition,
-                           const PadAttributes& attr);
+                           const PadAttributes& attr, int src_channels);
 
 }  // namespace ml_drift
 

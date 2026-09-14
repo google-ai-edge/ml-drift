@@ -2557,8 +2557,8 @@ absl::Status TestConvWithPaddedAdd(TestExecutionEnvironment* env) {
       src_tensor, std::make_unique<ConvGeneric>(std::move(conv_operation)),
       conv_output->tensor.shape, &interm0));
 
-  GPUOperation pad_operation =
-      CreatePadding(env->GetGpuInfo(), op_def_pad, pad_attr);
+  GPUOperation pad_operation = CreatePadding(env->GetGpuInfo(), op_def_pad,
+                                             pad_attr, input->tensor.shape.c);
   TensorFloat32 interm1;
   ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(pad_operation)),

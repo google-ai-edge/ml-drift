@@ -39,6 +39,9 @@ absl::Status PaddingPrependHeightTest(TestExecutionEnvironment& env,
 absl::Status PaddingAppendChannelsTest(TestExecutionEnvironment& env,
                                        DataType data_type,
                                        TensorStorageType storage);
+absl::Status PaddingAppendChannelsUnalignedSrcTest(
+    TestExecutionEnvironment& env, DataType data_type,
+    TensorStorageType storage);
 absl::Status PaddingPrependChannelsTest(TestExecutionEnvironment& env,
                                         DataType data_type,
                                         TensorStorageType storage);

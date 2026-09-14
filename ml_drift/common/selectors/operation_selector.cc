@@ -977,7 +977,8 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
     case OperationType::PAD: {
       const auto& attr =
           std::any_cast<const PadAttributes&>(node.operation.attributes);
-      auto gpu_op = SelectPadding(gpu_info, attr, op_def);
+      auto gpu_op =
+          SelectPadding(gpu_info, attr, op_def, inputs[0]->tensor.shape.c);
       model_builder->AddGpuOperation(src_ids, dst_ids, std::move(gpu_op),
                                      node.operation.type);
       return absl::OkStatus();
@@ -1554,7 +1555,8 @@ absl::Status GPUOperationFromNode(
     }
     case OperationType::PAD: {
       const auto& attr = std::any_cast<const PadAttributes&>(node.attr);
-      auto gpu_op = SelectPadding(gpu_info, attr, op_def);
+      auto gpu_op = SelectPadding(gpu_info, attr, op_def,
+                                  inputs[0]->desc.GetBHWDCShape().c);
       model_builder->AddGpuOperation(src_ids, dst_ids, std::move(gpu_op),
                                      node.name);
       return absl::OkStatus();
