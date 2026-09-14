@@ -407,113 +407,117 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/api.cc")
   )
 endif()
 
-add_executable(webgpu_weights_manager_test webgpu_weights_manager_test.cc)
-target_include_directories(webgpu_weights_manager_test PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
-target_link_libraries(webgpu_weights_manager_test
-  PRIVATE
-    absl::flat_hash_map
-    absl::status_matchers
-    absl::time
-    gmock
-    gtest_main
-    mld_common_data_type
-    mld_common_gpu_info
-    mld_common_gpu_model
-    mld_common_gpu_model_builder
-    mld_common_model
-    mld_common_precision
-    mld_common_shape
-    mld_common_task_tensor_desc
-    mld_common_task_weights_layout
-    mld_common_tensor
-    mld_webgpu_execution_environment
-    mld_webgpu_inference_context
-    mld_webgpu_spatial_tensor
-    mld_webgpu_webgpu_api_util
-    mld_webgpu_webgpu_headers
-    mld_webgpu_webgpu_weights_manager
-)
-
-add_executable(converter_test converter_test.cc)
-target_include_directories(converter_test PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
-target_link_libraries(converter_test
-  PRIVATE
-    gmock
-    gtest_main
-    mld_common_data_type
-    mld_common_shape
-    mld_common_task_tensor_desc
-    mld_common_tensor
-    mld_common_types
-    mld_common_util
-    mld_webgpu_buffer
-    mld_webgpu_converter
-    mld_webgpu_spatial_tensor
-    mld_webgpu_testing_webgpu_test
-    mld_webgpu_webgpu_api_util
-    mld_webgpu_webgpu_headers
-)
-
-add_executable(inference_context_test inference_context_test.cc)
-target_include_directories(inference_context_test PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
-target_link_libraries(inference_context_test
-  PRIVATE
-    absl::check
-    absl::status_macros
-    absl::statusor
-    gmock
-    gtest_main
-    mld_common_data_type
-    mld_common_gpu_model
-    mld_common_gpu_model_builder
-    mld_common_gpu_model_util
-    mld_common_model
-    mld_common_operations
-    mld_common_precision
-    mld_common_shape
-    mld_common_task_tensor_desc
-    mld_common_tensor
-    mld_webgpu_environment
-    mld_webgpu_inference_context
-    mld_webgpu_spatial_tensor
-    mld_webgpu_webgpu_headers
-    XNNPACK
-)
-
-add_executable(preprocessor_test preprocessor_test.cc)
-target_include_directories(preprocessor_test PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
-target_link_libraries(preprocessor_test
-  PRIVATE
-    gmock
-    gtest_main
-    mld_common_gpu_info
-    mld_webgpu_preprocessor
-)
-
-add_executable(spatial_tensor_test spatial_tensor_test.cc)
-target_include_directories(spatial_tensor_test PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
-target_link_libraries(spatial_tensor_test
-  PRIVATE
-    absl::check
-    absl::log
-    gmock
-    gtest_main
-    mld_common_data_type
-    mld_common_shape
-    mld_common_task_tensor_desc
-    mld_common_tensor
-    mld_webgpu_environment
-    mld_webgpu_spatial_tensor
-    mld_webgpu_webgpu_headers
-)
-
-add_executable(mld_webgpu_webgpu_weights_manager_test ALIAS webgpu_weights_manager_test)
-add_executable(mld_webgpu_converter_test ALIAS converter_test)
-add_executable(mld_webgpu_inference_context_test ALIAS inference_context_test)
-add_executable(mld_webgpu_preprocessor_test ALIAS preprocessor_test)
-add_executable(mld_webgpu_spatial_tensor_test ALIAS spatial_tensor_test)
-
+# The test executables below link real Dawn symbols. The cached Dawn tarball
+# only ships a host (Linux x86_64) libdawn, so they cannot be linked for a
+# cross-compiled build. Bazel likewise builds the ml_drift/webgpu tests for the
+# host only and cross-compiles just the sample.
 if(NOT CMAKE_CROSSCOMPILING)
+  add_executable(webgpu_weights_manager_test webgpu_weights_manager_test.cc)
+  target_include_directories(webgpu_weights_manager_test PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
+  target_link_libraries(webgpu_weights_manager_test
+    PRIVATE
+      absl::flat_hash_map
+      absl::status_matchers
+      absl::time
+      gmock
+      gtest_main
+      mld_common_data_type
+      mld_common_gpu_info
+      mld_common_gpu_model
+      mld_common_gpu_model_builder
+      mld_common_model
+      mld_common_precision
+      mld_common_shape
+      mld_common_task_tensor_desc
+      mld_common_task_weights_layout
+      mld_common_tensor
+      mld_webgpu_execution_environment
+      mld_webgpu_inference_context
+      mld_webgpu_spatial_tensor
+      mld_webgpu_webgpu_api_util
+      mld_webgpu_webgpu_headers
+      mld_webgpu_webgpu_weights_manager
+  )
+
+  add_executable(converter_test converter_test.cc)
+  target_include_directories(converter_test PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
+  target_link_libraries(converter_test
+    PRIVATE
+      gmock
+      gtest_main
+      mld_common_data_type
+      mld_common_shape
+      mld_common_task_tensor_desc
+      mld_common_tensor
+      mld_common_types
+      mld_common_util
+      mld_webgpu_buffer
+      mld_webgpu_converter
+      mld_webgpu_spatial_tensor
+      mld_webgpu_testing_webgpu_test
+      mld_webgpu_webgpu_api_util
+      mld_webgpu_webgpu_headers
+  )
+
+  add_executable(inference_context_test inference_context_test.cc)
+  target_include_directories(inference_context_test PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
+  target_link_libraries(inference_context_test
+    PRIVATE
+      absl::check
+      absl::status_macros
+      absl::statusor
+      gmock
+      gtest_main
+      mld_common_data_type
+      mld_common_gpu_model
+      mld_common_gpu_model_builder
+      mld_common_gpu_model_util
+      mld_common_model
+      mld_common_operations
+      mld_common_precision
+      mld_common_shape
+      mld_common_task_tensor_desc
+      mld_common_tensor
+      mld_webgpu_environment
+      mld_webgpu_inference_context
+      mld_webgpu_spatial_tensor
+      mld_webgpu_webgpu_headers
+      XNNPACK
+  )
+
+  add_executable(preprocessor_test preprocessor_test.cc)
+  target_include_directories(preprocessor_test PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
+  target_link_libraries(preprocessor_test
+    PRIVATE
+      gmock
+      gtest_main
+      mld_common_gpu_info
+      mld_webgpu_preprocessor
+  )
+
+  add_executable(spatial_tensor_test spatial_tensor_test.cc)
+  target_include_directories(spatial_tensor_test PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
+  target_link_libraries(spatial_tensor_test
+    PRIVATE
+      absl::check
+      absl::log
+      gmock
+      gtest_main
+      mld_common_data_type
+      mld_common_shape
+      mld_common_task_tensor_desc
+      mld_common_tensor
+      mld_webgpu_environment
+      mld_webgpu_spatial_tensor
+      mld_webgpu_webgpu_headers
+  )
+
+  add_executable(mld_webgpu_webgpu_weights_manager_test ALIAS webgpu_weights_manager_test)
+  add_executable(mld_webgpu_converter_test ALIAS converter_test)
+  add_executable(mld_webgpu_inference_context_test ALIAS inference_context_test)
+  add_executable(mld_webgpu_preprocessor_test ALIAS preprocessor_test)
+  add_executable(mld_webgpu_spatial_tensor_test ALIAS spatial_tensor_test)
+
   gtest_discover_tests(webgpu_weights_manager_test)
   gtest_discover_tests(converter_test)
   gtest_discover_tests(inference_context_test)

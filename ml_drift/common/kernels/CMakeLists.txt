@@ -774,5 +774,10 @@ target_link_libraries(mld_common_kernels_conv_apple_mpp
     mld_common_task_gpu_operation
 )
 
-add_subdirectory(tests)
+# Every test executable under tests/ is built on opencl_kernel_test.cc and links
+# the mld_cl_* targets, which only exist when the OpenCL backend is enabled.
+# Skip the directory entirely for other backends (e.g. wgpu).
+if(ML_DRIFT_API STREQUAL "cl")
+  add_subdirectory(tests)
+endif()
 add_subdirectory(special)

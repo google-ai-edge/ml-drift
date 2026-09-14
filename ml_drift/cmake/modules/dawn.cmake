@@ -129,6 +129,10 @@ else()
     "/usr"
   )
 
+  # NO_CMAKE_FIND_ROOT_PATH is required for cross-compilation (e.g. Android):
+  # the NDK toolchain sets CMAKE_FIND_ROOT_PATH_MODE_INCLUDE/LIBRARY to ONLY,
+  # which would otherwise confine the search to the NDK sysroot and hide the
+  # prebuilt Dawn tree under /tmp/dawn.
   find_path(DAWN_INCLUDE_DIR
     NAMES
       webgpu/webgpu_cpp.h
@@ -140,20 +144,27 @@ else()
       third_party/dawn/include
       out/latest/include
       webgpu-dawn-binaries/out/latest/include
+    NO_CMAKE_FIND_ROOT_PATH
   )
 
-  find_library(DAWN_LIBRARY
-    NAMES
-      dawn
-      libdawn
-      webgpu_dawn
-    PATHS ${DAWN_SEARCH_PATHS}
-    PATH_SUFFIXES
-      lib
-      lib64
-      out/latest/lib
-      webgpu-dawn-binaries/out/latest/lib
-  )
+  # The cached tarball ships a host (Linux x86_64) libdawn, so it must not be
+  # linked into a cross-compiled build. Android consumes Dawn as headers only;
+  # the WebGPU symbols are resolved at runtime on device.
+  if(NOT CMAKE_CROSSCOMPILING)
+    find_library(DAWN_LIBRARY
+      NAMES
+        dawn
+        libdawn
+        webgpu_dawn
+      PATHS ${DAWN_SEARCH_PATHS}
+      PATH_SUFFIXES
+        lib
+        lib64
+        out/latest/lib
+        webgpu-dawn-binaries/out/latest/lib
+      NO_CMAKE_FIND_ROOT_PATH
+    )
+  endif()
 
   if(DAWN_INCLUDE_DIR AND DAWN_LIBRARY)
     set(DAWN_FOUND TRUE)
