@@ -223,6 +223,67 @@ std::string AdjustUintSum(const std::string& r_name, DataType weights_type) {
       r_name);
 }
 
+std::string GetActiveDstSlices(const ConvRuntimeCheckDesc& runtime_check) {
+  std::string c;
+  if (runtime_check.dst_end_ch_index.has_value()) {
+    c += "  int dst_end_slice = " +
+         runtime_check.GetRuntimeEndSlice(
+             "args.params.Read(args.dst_end_ch_index)",
+             "args.dst_tensor.Slices()") +
+         ";\n";
+  } else {
+    c += "  int dst_end_slice = args.dst_tensor.Slices();\n";
+  }
+  return c;
+}
+
+std::string GetRingOOffset(const ConvRuntimeCheckDesc& runtime_check) {
+  std::string c;
+  c += "  int ring_o_offset = args.params.Read(" +
+       std::to_string(runtime_check.ring_o_offset_index.value()) + ");\n";
+  c += "  int ring_size = " + std::to_string(runtime_check.ring_size.value()) +
+       ";\n";
+  return c;
+}
+
+std::string GetRingIOffset(const ConvRuntimeCheckDesc& runtime_check) {
+  std::string c;
+  c += "  int ring_i_offset = args.params.Read(" +
+       std::to_string(runtime_check.ring_i_offset_index.value()) + ");\n";
+  c += "  int ring_size = " + std::to_string(runtime_check.ring_size.value()) +
+       ";\n";
+  return c;
+}
+
+std::string GetPackedGroupsParams(const ConvRuntimeCheckDesc& runtime_check,
+                                  int dim_id, int block_size) {
+  std::string c;
+  c += "  int dst_w = ucl::GetGroupId<" + std::to_string(dim_id) + ">();\n";
+  c += "  int w_group_size = args.params.Read(args.packed_params_offset + "
+       "weights_batch_id);\n";
+  c += "  int w_group_offset = args.params.Read(args.packed_params_offset + "
+       "weights_batch_id + " +
+       std::to_string(runtime_check.packed_groups->num_groups) + ");\n";
+  c += "  int wg_first_w = dst_w * " + std::to_string(block_size) + ";\n";
+  c += "  if (wg_first_w >= w_group_size) return;\n";
+  c += "  dst_w = w_group_offset + dst_w * " + std::to_string(block_size) +
+       ";\n";
+  return c;
+}
+
+std::string GetWeightsBatchId(int runtime_batch_ids) {
+  std::string c;
+  if (runtime_batch_ids) {
+    c += "  int dst_h = ucl::GetGroupId<2>();\n";
+    c += "  int weights_batch_id;\n";
+    c += "  args.batch_ids.ReadPerChannel<int>(weights_batch_id, 0, 0, "
+         "dst_h);\n";
+  } else {
+    c += "  int weights_batch_id = ucl::GetGroupId<2>();\n";
+  }
+  return c;
+}
+
 void AddWeightsArguments(const ExternalWeights& weights, int vec_size,
                          GPUOperation* op) {
   if (weights.desc.type == DataType::FLOAT32 ||

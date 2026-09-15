@@ -635,31 +635,7 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
   }
   c += "MAIN_FUNCTION($0) {\n";
   c += "  int dst_s = ucl::GetGlobalId<0>();\n";
-  if (conv_params_.runtime_check.dst_end_ch_index.has_value()) {
-    c += "  int dst_end_slice = " +
-         conv_params_.runtime_check.GetRuntimeEndSlice(
-             "args.params.Read(args.dst_end_ch_index)",
-             "args.dst_tensor.Slices()") +
-         ";\n";
-  } else {
-    c += "  int dst_end_slice = args.dst_tensor.Slices();\n";
-  }
-  if (conv_params_.runtime_check.ring_o_offset_index.has_value()) {
-    c +=
-        "  int ring_o_offset = args.params.Read(" +
-        std::to_string(conv_params_.runtime_check.ring_o_offset_index.value()) +
-        ");\n";
-    c += "  int ring_size = " +
-         std::to_string(conv_params_.runtime_check.ring_size.value()) + ";\n";
-  }
-  if (conv_params_.runtime_check.ring_i_offset_index.has_value()) {
-    c +=
-        "  int ring_i_offset = args.params.Read(" +
-        std::to_string(conv_params_.runtime_check.ring_i_offset_index.value()) +
-        ");\n";
-    c += "  int ring_size = " +
-         std::to_string(conv_params_.runtime_check.ring_size.value()) + ";\n";
-  }
+  c += fc::GetActiveDstSlices(conv_params_.runtime_check);
   if (wg_reduction_) {
     // We require uniform execution for the entire workgroup since we use a
     // memory barrier below.
@@ -669,29 +645,18 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
   } else {
     c += "  if (dst_s >= dst_end_slice) return;\n";
   }
+  if (conv_params_.runtime_check.ring_o_offset_index.has_value()) {
+    c += fc::GetRingOOffset(conv_params_.runtime_check);
+  }
+  if (conv_params_.runtime_check.ring_i_offset_index.has_value()) {
+    c += fc::GetRingIOffset(conv_params_.runtime_check);
+  }
   if (conv_params_.batched_weights) {
-    if (conv_params_.runtime_batch_ids) {
-      c += "  int dst_h = ucl::GetGroupId<2>();\n";
-      c += "  int weights_batch_id;\n";
-      c += "  args.batch_ids.ReadPerChannel<int>(weights_batch_id, 0, 0, "
-           "dst_h);\n";
-    } else {
-      c += "  int weights_batch_id = ucl::GetGroupId<2>();\n";
-    }
+    c += fc::GetWeightsBatchId(conv_params_.runtime_batch_ids);
   }
   if (conv_params_.runtime_check.packed_groups.has_value()) {
-    c += "  int dst_w = ucl::GetGroupId<1>();\n";
-    c += "  int w_group_size = args.params.Read(args.packed_params_offset + "
-         "weights_batch_id);\n";
-    c += "  int w_group_offset = args.params.Read(args.packed_params_offset + "
-         "weights_batch_id + " +
-         std::to_string(conv_params_.runtime_check.packed_groups->num_groups) +
-         ");\n";
-    c += "  int wg_first_w = dst_w * " +
-         std::to_string(conv_params_.block_size.w) + ";\n";
-    c += "  if (wg_first_w >= w_group_size) return;\n";
-    c += "  dst_w = w_group_offset + dst_w * " +
-         std::to_string(conv_params_.block_size.w) + ";\n";
+    c += fc::GetPackedGroupsParams(conv_params_.runtime_check, /*dim_id=*/1,
+                                   conv_params_.block_size.w);
   }
   for (int sp_id = 0; sp_id < block_spatial; ++sp_id) {
     const std::string r_name = "r_sp" + std::to_string(sp_id);

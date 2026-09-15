@@ -52,6 +52,18 @@ std::string AccumulateUint(const std::string& r_name,
                            const GpuInfo& gpu_info);
 std::string AdjustUintSum(const std::string& r_name, DataType weights_type);
 
+// initialize: int dst_end_slice
+std::string GetActiveDstSlices(const ConvRuntimeCheckDesc& runtime_check);
+// initialize: int ring_o_offset, int ring_size
+std::string GetRingOOffset(const ConvRuntimeCheckDesc& runtime_check);
+// initialize: int ring_i_offset, int ring_size
+std::string GetRingIOffset(const ConvRuntimeCheckDesc& runtime_check);
+// initialize: int dst_w, int w_group_size, int w_group_offset
+std::string GetPackedGroupsParams(const ConvRuntimeCheckDesc& runtime_check,
+                                  int dim_id, int block_size);
+// initialize: int weights_batch_id, optionally dst_h
+std::string GetWeightsBatchId(int runtime_batch_ids = 0);
+
 bool IsQuantized(DataType weights_type);
 bool IsScalarQuantized(DataType weights_type, const OHWI& scale_zp_shape);
 bool IsLinearQuantized(DataType weights_type, const OHWI& scale_zp_shape);
