@@ -276,6 +276,154 @@ TEST(RemoveIdentityReshape, SkipWhenProducerAlreadyFedToReshapeConsumer) {
               UnorderedElementsAre(graph_input, graph_output, value0, value1));
 }
 
+TEST(MergeConsecutiveReshapes, Smoke) {
+  GraphFloat32 graph;
+  Node* producer_node = graph.NewNode();
+  Node* reshape0 = graph.NewNode();
+  Node* reshape1 = graph.NewNode();
+  Node* consumer_node = graph.NewNode();
+  Value* graph_input = graph.NewValue();
+  Value* graph_output = graph.NewValue();
+  Value* value0 = graph.NewValue();
+  Value* value1 = graph.NewValue();
+  Value* value2 = graph.NewValue();
+
+  value0->tensor.shape = BHWC(1, 1, 1, 12);
+  value1->tensor.shape = BHWC(1, 2, 2, 3);
+  value2->tensor.shape = BHWC(1, 3, 2, 2);
+
+  reshape0->operation.type = ToString(OperationType::RESHAPE);
+  ReshapeAttributes attr0;
+  attr0.new_shape = BHWC(1, 2, 2, 3);
+  reshape0->operation.attributes = attr0;
+
+  reshape1->operation.type = ToString(OperationType::RESHAPE);
+  ReshapeAttributes attr1;
+  attr1.new_shape = BHWC(1, 3, 2, 2);
+  reshape1->operation.attributes = attr1;
+
+  graph.AddConsumer(producer_node->id, graph_input->id);
+  graph.SetProducer(producer_node->id, value0->id);
+  graph.AddConsumer(reshape0->id, value0->id);
+  graph.SetProducer(reshape0->id, value1->id);
+  graph.AddConsumer(reshape1->id, value1->id);
+  graph.SetProducer(reshape1->id, value2->id);
+  graph.AddConsumer(consumer_node->id, value2->id);
+  graph.SetProducer(consumer_node->id, graph_output->id);
+
+  auto transformation = NewMergeConsecutiveReshapes();
+  ModelTransformer transformer(&graph);
+  ASSERT_TRUE(transformer.Apply("merge_reshapes", transformation.get()));
+
+  EXPECT_THAT(graph.inputs(), UnorderedElementsAre(graph_input));
+  EXPECT_THAT(graph.outputs(), UnorderedElementsAre(graph_output));
+  EXPECT_THAT(graph.nodes(),
+              UnorderedElementsAre(producer_node, reshape0, consumer_node));
+  EXPECT_THAT(graph.values(),
+              UnorderedElementsAre(graph_input, graph_output, value0, value2));
+
+  const auto& merged_attr =
+      std::any_cast<const ReshapeAttributes&>(reshape0->operation.attributes);
+  EXPECT_EQ(merged_attr.new_shape, BHWC(1, 3, 2, 2));
+}
+
+TEST(MergeConsecutiveReshapes, CancellingReshapesWithRemoveIdentity) {
+  GraphFloat32 graph;
+  Node* producer_node = graph.NewNode();
+  Node* reshape0 = graph.NewNode();
+  Node* reshape1 = graph.NewNode();
+  Node* consumer_node = graph.NewNode();
+  Value* graph_input = graph.NewValue();
+  Value* graph_output = graph.NewValue();
+  Value* value0 = graph.NewValue();
+  Value* value1 = graph.NewValue();
+  Value* value2 = graph.NewValue();
+
+  value0->tensor.shape = BHWC(1, 12, 630, 630);
+  value1->tensor.shape = BHWC(12, 1, 630, 630);
+  value2->tensor.shape = BHWC(1, 12, 630, 630);
+
+  reshape0->operation.type = ToString(OperationType::RESHAPE);
+  ReshapeAttributes attr0;
+  attr0.new_shape = BHWC(12, 1, 630, 630);
+  reshape0->operation.attributes = attr0;
+
+  reshape1->operation.type = ToString(OperationType::RESHAPE);
+  ReshapeAttributes attr1;
+  attr1.new_shape = BHWC(1, 12, 630, 630);
+  reshape1->operation.attributes = attr1;
+
+  graph.AddConsumer(producer_node->id, graph_input->id);
+  graph.SetProducer(producer_node->id, value0->id);
+  graph.AddConsumer(reshape0->id, value0->id);
+  graph.SetProducer(reshape0->id, value1->id);
+  graph.AddConsumer(reshape1->id, value1->id);
+  graph.SetProducer(reshape1->id, value2->id);
+  graph.AddConsumer(consumer_node->id, value2->id);
+  graph.SetProducer(consumer_node->id, graph_output->id);
+
+  auto merge_transform = NewMergeConsecutiveReshapes();
+  auto remove_identity_transform = NewRemoveIdentityReshape();
+  ModelTransformer transformer(&graph);
+  ASSERT_TRUE(transformer.Apply("merge_reshapes", merge_transform.get()));
+  ASSERT_TRUE(
+      transformer.Apply("remove_identity", remove_identity_transform.get()));
+
+  EXPECT_THAT(graph.inputs(), UnorderedElementsAre(graph_input));
+  EXPECT_THAT(graph.outputs(), UnorderedElementsAre(graph_output));
+  EXPECT_THAT(graph.nodes(),
+              UnorderedElementsAre(producer_node, consumer_node));
+  EXPECT_THAT(graph.values(),
+              UnorderedElementsAre(graph_input, graph_output, value0));
+}
+
+TEST(MergeConsecutiveReshapes, SkipWhenIntermediateHasMultipleConsumers) {
+  GraphFloat32 graph;
+  Node* producer_node = graph.NewNode();
+  Node* reshape0 = graph.NewNode();
+  Node* reshape1 = graph.NewNode();
+  Node* other_consumer = graph.NewNode();
+  Node* consumer_node = graph.NewNode();
+  Value* graph_input = graph.NewValue();
+  Value* graph_output = graph.NewValue();
+  Value* other_output = graph.NewValue();
+  Value* value0 = graph.NewValue();
+  Value* value1 = graph.NewValue();
+  Value* value2 = graph.NewValue();
+
+  value0->tensor.shape = BHWC(1, 1, 1, 12);
+  value1->tensor.shape = BHWC(1, 2, 2, 3);
+  value2->tensor.shape = BHWC(1, 3, 2, 2);
+
+  reshape0->operation.type = ToString(OperationType::RESHAPE);
+  ReshapeAttributes attr0;
+  attr0.new_shape = BHWC(1, 2, 2, 3);
+  reshape0->operation.attributes = attr0;
+
+  reshape1->operation.type = ToString(OperationType::RESHAPE);
+  ReshapeAttributes attr1;
+  attr1.new_shape = BHWC(1, 3, 2, 2);
+  reshape1->operation.attributes = attr1;
+
+  graph.AddConsumer(producer_node->id, graph_input->id);
+  graph.SetProducer(producer_node->id, value0->id);
+  graph.AddConsumer(reshape0->id, value0->id);
+  graph.SetProducer(reshape0->id, value1->id);
+  graph.AddConsumer(reshape1->id, value1->id);
+  graph.SetProducer(reshape1->id, value2->id);
+  graph.AddConsumer(other_consumer->id, value1->id);
+  graph.SetProducer(other_consumer->id, other_output->id);
+  graph.AddConsumer(consumer_node->id, value2->id);
+  graph.SetProducer(consumer_node->id, graph_output->id);
+
+  auto transformation = NewMergeConsecutiveReshapes();
+  ModelTransformer transformer(&graph);
+  ASSERT_TRUE(transformer.Apply("merge_reshapes", transformation.get()));
+
+  EXPECT_THAT(graph.nodes(),
+              UnorderedElementsAre(producer_node, reshape0, reshape1,
+                                   other_consumer, consumer_node));
+}
 
 TEST(RemoveIdentityStridedSlice, Smoke) {
   GraphFloat32 graph;

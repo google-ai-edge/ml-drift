@@ -158,6 +158,69 @@ std::unique_ptr<NodeTransformation> NewRemoveIdentityReshape() {
   return std::make_unique<RemoveIdentityReshape>();
 }
 
+class MergeConsecutiveReshapes : public SequenceTransformation {
+ public:
+  int ExpectedSequenceLength() const final { return 2; }
+
+  TransformResult ApplyToNodesSequence(const std::vector<Node*>& sequence,
+                                       GraphFloat32* graph) final {
+    Node* first_node = sequence.front();
+    Node* second_node = sequence.back();
+    auto reshape_type = ToString(OperationType::RESHAPE);
+    if (first_node->operation.type != reshape_type ||
+        second_node->operation.type != reshape_type) {
+      return {TransformStatus::SKIPPED, ""};
+    }
+
+    auto first_inputs = graph->FindInputs(first_node->id);
+    auto first_outputs = graph->FindOutputs(first_node->id);
+    auto second_inputs = graph->FindInputs(second_node->id);
+    auto second_outputs = graph->FindOutputs(second_node->id);
+
+    if (first_inputs.size() != 1 || first_outputs.size() != 1 ||
+        second_inputs.size() != 1 || second_outputs.size() != 1) {
+      return {TransformStatus::SKIPPED, ""};
+    }
+
+    Value* intermediate_value = first_outputs[0];
+    if (second_inputs[0]->id != intermediate_value->id) {
+      return {TransformStatus::SKIPPED, ""};
+    }
+
+    // Make sure the intermediate value has no other consumers.
+    if (graph->FindConsumers(intermediate_value->id).size() != 1) {
+      return {TransformStatus::SKIPPED,
+              "Intermediate value between consecutive reshapes has multiple "
+              "consumers."};
+    }
+
+    // Intermediate value must not be a graph output.
+    if (graph->IsGraphOutput(intermediate_value->id)) {
+      return {TransformStatus::SKIPPED,
+              "Intermediate value between consecutive reshapes is a graph "
+              "output."};
+    }
+
+    // Update first_node's target shape to second_node's target shape.
+    const auto& second_attr = std::any_cast<const ReshapeAttributes&>(
+        second_node->operation.attributes);
+    first_node->operation.attributes = second_attr;
+
+    // Remove second_node and rewire its outputs to be produced by first_node.
+    absl::Status status = RemoveFollowingNode(graph, second_node, first_node);
+    if (!status.ok()) {
+      return {TransformStatus::INVALID,
+              "Unable to remove following reshape node: " +
+                  std::string(status.message())};
+    }
+    return {TransformStatus::APPLIED, "Merged consecutive reshapes into one."};
+  }
+};
+
+std::unique_ptr<SequenceTransformation> NewMergeConsecutiveReshapes() {
+  return std::make_unique<MergeConsecutiveReshapes>();
+}
+
 class RemoveIdentityStridedSlice : public NodeTransformation {
  public:
   TransformResult ApplyToNode(Node* node, GraphFloat32* graph) final {

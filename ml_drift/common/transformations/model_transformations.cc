@@ -45,6 +45,10 @@ bool ApplyGeneralTransformations(ModelTransformer* transformer) {
                             NewRemoveSingleInputConcat().get()) &&
          transformer->Apply("remove_identity_reshape",
                             NewRemoveIdentityReshape().get()) &&
+         transformer->Apply("merge_consecutive_reshapes",
+                            NewMergeConsecutiveReshapes().get()) &&
+         transformer->Apply("remove_identity_reshape",
+                            NewRemoveIdentityReshape().get()) &&
          transformer->Apply("remove_identity_strided_slice",
                             NewRemoveIdentityStridedSlice().get()) &&
          transformer->Apply("make_padding_from_concat",

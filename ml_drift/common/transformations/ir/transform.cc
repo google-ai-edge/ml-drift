@@ -59,6 +59,17 @@ absl::StatusOr<bool> TryRemoveNoop(IrModel* ir_model, const IrOp* op) {
       ABSL_RETURN_IF_ERROR(ir_model->RemoveSimpleOp(op->id));
       return true;
     }
+    if (op->name == ToString(::ml_drift::OperationType::RESHAPE) &&
+        output_tensor && !ir_model->IsGraphOutput(output_tensor->id) &&
+        output_tensor->consumers.size() == 1) {
+      const IrOp* consumer_op = ir_model->op(*output_tensor->consumers.begin());
+      if (consumer_op && consumer_op != op &&
+          consumer_op->name == ToString(::ml_drift::OperationType::RESHAPE) &&
+          consumer_op->inputs.size() == 1 && consumer_op->outputs.size() == 1) {
+        ABSL_RETURN_IF_ERROR(ir_model->RemoveSimpleOp(op->id));
+        return true;
+      }
+    }
   }
 
   if (op->name == ToString(::ml_drift::OperationType::ADD) &&
