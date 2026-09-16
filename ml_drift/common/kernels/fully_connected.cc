@@ -347,21 +347,13 @@ FullyConnected::FullyConnected(const TensorDescriptor& src,
       DivideRoundUp(weights_shape.i / conv_params.scale_zp_shape.i, 4);
   code_ = GetFullyConnectedKernelCode(src, precision, gpu_info, weights_desc,
                                       scale_zp_group_size);
-
-  const int wg_total_size = work_group_size_.x * work_group_size_.y;
-  const std::string scope = gpu_info.IsApiMetal() && wg_total_size == 32 &&
-                                    gpu_info.IsWaveSizeEqualTo32()
-                                ? "SubGroup"
-                                : "WorkGroup";
-  absl::StrReplaceAll(
-      {{"SType", ToUclDataType(dst.GetDataType(), 1)},
-       {"Type", ToUclDataType(dst.GetDataType(), 4)},
-       {"AccSType", ToUclDataType(acc_type, 1)},
-       {"AccType", ToUclDataType(acc_type, 4)},
-       {"WG_SIZE_X", std::to_string(work_group_size_.x)},
-       {"WG_SIZE_Y", std::to_string(work_group_size_.y)},
-       {"LOCAL_MEM_BARRIER", "ucl::SyncThreads<" + scope + ", Local>()"}},
-      &code_);
+  absl::StrReplaceAll({{"SType", ToUclDataType(dst.GetDataType(), 1)},
+                       {"Type", ToUclDataType(dst.GetDataType(), 4)},
+                       {"AccSType", ToUclDataType(acc_type, 1)},
+                       {"AccType", ToUclDataType(acc_type, 4)},
+                       {"WG_SIZE_X", std::to_string(work_group_size_.x)},
+                       {"WG_SIZE_Y", std::to_string(work_group_size_.y)}},
+                      &code_);
   if (gpu_info.IsMali()) {
     compiler_options_.push_back(CompilerOptions::kClFastRelaxedMath);
   }
@@ -849,7 +841,7 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
              std::to_string(sp_id) + ";\n";
       }
       c += "  for (int ystride = WG_SIZE_Y / 2; ystride > 0; ystride /= 2) {\n";
-      c += "    LOCAL_MEM_BARRIER;\n";
+      c += "    ucl::SyncThreads<WorkGroup, Local>();\n";
       c += "    if (tid.y < ystride) {\n";
       for (int sp_id = first; sp_id <= last; ++sp_id) {
         const std::string local_mem =
@@ -863,7 +855,7 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
       c += "    }\n";
       c += "  }\n";
       if (group != upload_groups - 1) {
-        c += "  LOCAL_MEM_BARRIER;\n";
+        c += "  ucl::SyncThreads<WorkGroup, Local>();\n";
       }
     }
     c += "  if (dst_s >= dst_end_slice) return;\n";
