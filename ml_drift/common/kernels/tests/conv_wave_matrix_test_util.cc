@@ -583,6 +583,78 @@ absl::Status ConvWaveMatrixExternalWfloatTest(TestExecutionEnvironment& env,
   return absl::OkStatus();
 }
 
+absl::Status ConvWaveMatrixExternalWi8ScalarQuantizationTest(
+    TestExecutionEnvironment& env, CalculationsPrecision precision,
+    TensorStorageType storage, const BHWC& src_shape, int dst_channels) {
+  TensorFloat32 src_tensor;
+  const int src_channels = src_shape.c;
+  src_tensor.shape = src_shape;
+  const BHWC dst_shape(1, src_shape.h, src_shape.w, dst_channels);
+  src_tensor.data.resize(src_tensor.shape.DimensionsProduct());
+  for (int i = 0; i < src_tensor.data.size(); ++i) {
+    src_tensor.data[i] = sin(0.01f * i);
+  }
+
+  ml_drift::Tensor<OHWI, DataType::INT8> weights_i8;
+  weights_i8.shape = OHWI(dst_channels, 1, 1, src_channels);
+  weights_i8.data.resize(weights_i8.shape.DimensionsProduct());
+  auto weights_f32 =
+      MakeSyntheticTensor(OHWI(dst_channels, 1, 1, src_channels));
+  for (int i = 0; i < weights_i8.data.size(); ++i) {
+    const int val = (weights_f32.data[i] + 1.0f) * 256.0f;
+    weights_i8.data[i] = std::max(std::min(val, 255), 0) - 128;
+  }
+
+  const float scale = 0.123f / 128.0f;
+  const float zero_point = 0.00123f;
+  auto weights = MakeWeightsFromInt8(weights_i8, scale, zero_point);
+  TensorFloat32 dst_ref_tensor =
+      FullyConnectedRefDifferentWeightsForHeight(weights, src_tensor);
+
+  OperationDef conv_def;
+  const DataType data_type = DeduceDataTypeFromPrecision(precision);
+  conv_def.src_tensors.push_back({data_type, storage, Layout::HWC});
+  conv_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+
+  WeightsDescription weights_desc =
+      GetFullyConnectedInt8WeightsDesc(env.GetGpuInfo(), weights_i8.shape);
+
+  ExternalWeights external_weights;
+  external_weights.desc = weights_desc;
+  external_weights.shape = weights_i8.shape;
+  external_weights.scale_zp_shape = OHWI(1, 1, 1, 1);
+  external_weights.scalar_scale = scale;
+  external_weights.scalar_zero_point = zero_point;
+
+  if (!SupportsConvWaveMatrix(env.GetGpuInfo(), precision, external_weights)) {
+    return absl::UnimplementedError(env.SkipTestMessage());
+  }
+
+  auto operation = CreateConvWaveMatrixExternalWeights(
+      conv_def, precision, dst_shape, external_weights, env.GetGpuInfo(),
+      /*bias=*/nullptr,
+      /*src_exp=*/nullptr, /*batched_weights=*/false);
+
+  TensorDescriptor weights_i8_td =
+      GetTensorDescriptorForWeightsLayout(weights_i8, weights_desc);
+
+  TensorDescriptor src_td = conv_def.src_tensors[0];
+  src_td.UploadData(src_tensor);
+
+  TensorDescriptor dst_td = conv_def.dst_tensors[0];
+  dst_td.SetBHWCShape(dst_ref_tensor.shape);
+
+  float eps =
+      GetEpsilon(precision, env.GetGpuInfo()) * weights_i8.shape.i * 8.0f;
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
+      {&src_td, &weights_i8_td}, {&dst_td},
+      std::make_unique<ConvWaveMatrix>(std::move(operation))));
+  TensorFloat32 dst_tensor;
+  dst_td.DownloadData(&dst_tensor);
+  EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), dst_ref_tensor.data));
+  return absl::OkStatus();
+}
+
 absl::Status ConvWaveMatrixExternalWi8Test(
     TestExecutionEnvironment& env, CalculationsPrecision precision,
     TensorStorageType storage, const BHWC& src_shape, int dst_channels,

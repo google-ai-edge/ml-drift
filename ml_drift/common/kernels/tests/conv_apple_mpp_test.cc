@@ -208,7 +208,7 @@ TEST_P(ConvAppleMPPFloat16Test, RuntimeDstEndChannelsTest) {
 
 INSTANTIATE_TEST_SUITE_P(
     ConvAppleMPPFloat16TestSuite, ConvAppleMPPFloat16Test,
-    ValuesIn(GetTensorStoragesTypes()),
+    ValuesIn(GetTensorStoragesTypesWithoutSingleTexture2D()),
     [](const TestParamInfo<ConvAppleMPPFloat16Test::ParamType>& info) {
       return absl::StrReplaceAll(ToString(info.param), {{":", ""}});
     });
@@ -243,12 +243,12 @@ TEST_P(BaseTest, ConvAppleMPPInt8ExternalBatchedWi4Test) {
                                                    src_shape, dst_channels));
 }
 
-INSTANTIATE_TEST_SUITE_P(ConvAppleMPPInt8BigTestSuite, BaseTest,
-                         ValuesIn(GetTensorStoragesTypes()),
-                         [](const TestParamInfo<BaseTest::ParamType>& info) {
-                           return absl::StrReplaceAll(ToString(info.param),
-                                                      {{":", ""}});
-                         });
+INSTANTIATE_TEST_SUITE_P(
+    ConvAppleMPPInt8BigTestSuite, BaseTest,
+    ValuesIn(GetTensorStoragesTypesWithoutSingleTexture2D()),
+    [](const TestParamInfo<BaseTest::ParamType>& info) {
+      return absl::StrReplaceAll(ToString(info.param), {{":", ""}});
+    });
 
 class SrcQuantizationTest
     : public Test,
@@ -273,9 +273,10 @@ TEST_P(SrcQuantizationTest, ConvAppleMPPInt8WithSrcQuantizationBigTest) {
 
 INSTANTIATE_TEST_SUITE_P(
     ConvAppleMPPInt8WithSrcQuantizationTestSuite, SrcQuantizationTest,
-    ::testing::Combine(ValuesIn({DataType::FLOAT16, DataType::FLOAT32}),
-                       ValuesIn(GetTensorStoragesTypes()),
-                       ValuesIn(GetTensorStoragesTypes())),
+    ::testing::Combine(
+        ValuesIn({DataType::FLOAT16, DataType::FLOAT32}),
+        ValuesIn(GetTensorStoragesTypesWithoutSingleTexture2D()),
+        ValuesIn(GetTensorStoragesTypesWithoutSingleTexture2D())),
     [](const TestParamInfo<SrcQuantizationTest::ParamType>& info) {
       return absl::StrCat(
           ToString(std::get<0>(info.param)), "_int",

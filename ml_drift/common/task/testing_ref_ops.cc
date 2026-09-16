@@ -2680,6 +2680,24 @@ TensorFloat32 Winograd3x3BackwardRef(TensorFloat32 src_tensor,
 }
 
 Tensor<OHWI, DataType::FLOAT32> MakeWeightsFromInt8(
+    const Tensor<OHWI, DataType::INT8>& weights_i8, const float weights_scale,
+    const float weights_zero_point) {
+  Tensor<OHWI, DataType::FLOAT32> weights;
+  weights.shape = weights_i8.shape;
+  weights.data.resize(weights.shape.DimensionsProduct() +
+                      XNN_EXTRA_BYTES / sizeof(float));
+  for (int i = 0; i < weights.shape.i; ++i) {
+    for (int o = 0; o < weights.shape.o; ++o) {
+      weights.data[weights.shape.LinearIndex({o, 0, 0, i})] =
+          (weights_i8.data[weights_i8.shape.LinearIndex({o, 0, 0, i})] -
+           weights_zero_point) *
+          weights_scale;
+    }
+  }
+  return weights;
+}
+
+Tensor<OHWI, DataType::FLOAT32> MakeWeightsFromInt8(
     const Tensor<OHWI, DataType::INT8>& weights_i8,
     const Tensor<OHWI, DataType::FLOAT32>& weights_scale,
     const Tensor<OHWI, DataType::FLOAT32>& weights_zero_point) {

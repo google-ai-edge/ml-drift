@@ -212,6 +212,10 @@ TensorFloat32 Winograd3x3BackwardRef(TensorFloat32 src_tensor,
                                      const BHWC& dst_shape, int tile_size);
 
 Tensor<OHWI, DataType::FLOAT32> MakeWeightsFromInt8(
+    const Tensor<OHWI, DataType::INT8>& weights_i8, float weights_scale,
+    float weights_zero_point);
+
+Tensor<OHWI, DataType::FLOAT32> MakeWeightsFromInt8(
     const Tensor<OHWI, DataType::INT8>& weights_i8,
     const Tensor<OHWI, DataType::FLOAT32>& weights_scale,
     const Tensor<OHWI, DataType::FLOAT32>& weights_zero_point);

@@ -250,6 +250,70 @@ bool SupportsImgMatMul(const GpuInfo& gpu_info,
          gpu_info.IsPowerVR() && gpu_info.powervr_info.IsImgCxx();
 }
 
+inline int GetRangeShift(DataType type) {
+  return 1u << (SizeInBitsOf(type) - 1);
+}
+
+std::string ReadScaleZeroPointBlock(const OHWI& scale_zp_shape,
+                                    bool has_zero_point,
+                                    DataType weights_type) {
+  std::string c;
+  const int range_shift = GetRangeShift(weights_type);
+  std::string coords = "w_o_slice, 0, src_group_id";
+  if (scale_zp_shape.h != 1) {
+    coords = "w_o_slice, w_batch_id, src_group_id";
+  }
+  c += "    w_scale = args.weights_scale.Read(" + coords + ");\n";
+  if (has_zero_point) {
+    c += "    Type w_zp = args.weights_zero_point.Read(" + coords + ");\n";
+    c += "    w_bias = -w_scale * (ucl::Init<Type>(" +
+         std::to_string(range_shift) + ") + w_zp);\n";
+  } else {
+    c += "    w_bias = -w_scale * ucl::Init<Type>(" +
+         std::to_string(range_shift) + ".0f);\n";
+  }
+  return c;
+}
+
+std::string ReadScaleZeroPointLinear(const OHWI& scale_zp_shape,
+                                     bool has_zero_point,
+                                     DataType weights_type) {
+  std::string c;
+  const int range_shift = GetRangeShift(weights_type);
+  std::string coords = "w_o_slice";
+  if (scale_zp_shape.h != 1) {
+    coords += ", w_batch_id, 0";
+  }
+  c += "  w_scale = args.weights_scale.Read(" + coords + ");\n";
+  if (has_zero_point) {
+    c += "  Type w_zp = args.weights_zero_point.Read(" + coords + ");\n";
+    c += "  w_bias = -w_scale * (ucl::Init<Type>(" +
+         std::to_string(range_shift) + ") + w_zp);\n";
+  } else {
+    c += "  w_bias = -w_scale * (ucl::Init<Type>(" +
+         std::to_string(range_shift) + ".0f));\n";
+  }
+  return c;
+}
+
+std::string ReadScaleZeroPointScalar(bool has_zero_point,
+                                     DataType weights_type) {
+  std::string c;
+  const int range_shift = GetRangeShift(weights_type);
+  c += "  w_scale = "
+       "ucl::Convert<Type>(ucl::Init<float4>(args.scale));\n";
+  if (has_zero_point) {
+    c += "  Type w_zp = "
+         "ucl::Convert<Type>(ucl::Init<float4>(args.zero_point));\n";
+    c += "  w_bias = -w_scale * (ucl::Init<Type>(" +
+         std::to_string(range_shift) + ") + w_zp);\n";
+  } else {
+    c += "  w_bias = -w_scale * (ucl::Init<Type>(" +
+         std::to_string(range_shift) + ".0f));\n";
+  }
+  return c;
+}
+
 class ConvCodeGenerator {
  public:
   ConvCodeGenerator(const GpuInfo& gpu_info,
@@ -495,23 +559,15 @@ class ConvCodeGenerator {
           if (conv_params_.scale_zp_shape.i != 1) {
             // grouped quantization
             c += "  int last_src_group_id = -1;\n";
-          } else {
+          } else if (conv_params_.scale_zp_shape.o != 1) {
             // linear quantization
-            // do not use different_weights_for_height here because with batched
-            // weights we can have non batched scale/zp.
-            const std::string coords = conv_params_.scale_zp_shape.h != 1
-                                           ? "w_o_slice, w_batch_id, 0"
-                                           : "w_o_slice";
-            c += "  w_scale = args.weights_scale.Read(" + coords + ");\n";
-            if (conv_params_.has_zero_point) {
-              c += "  Type wzp = args.weights_zero_point.Read(" + coords +
-                   ");\n";
-            } else {
-              c += "  Type wzp = ucl::Init<Type>(0.0f);\n";
-            }
-            c += "  w_bias = -w_scale * " +
-                 std::to_string(GetRangeShift(conv_params_.weights_desc.type)) +
-                 " + wzp;\n";
+            c += ReadScaleZeroPointLinear(conv_params_.scale_zp_shape,
+                                          conv_params_.has_zero_point,
+                                          conv_params_.weights_desc.type);
+          } else {
+            // scalar quantization
+            c += ReadScaleZeroPointScalar(conv_params_.has_zero_point,
+                                          conv_params_.weights_desc.type);
           }
         }
       }
@@ -1073,8 +1129,6 @@ class ConvCodeGenerator {
     return weights_vals_per_loop;
   }
 
-  int GetRangeShift(DataType type) { return 1u << (SizeInBitsOf(type) - 1); }
-
   bool NeedsLocalMemory() const {
     return kernel_params_.weights_upload_type ==
                ConvGeneric::WeightsUploadType::kLocalMemory ||
@@ -1475,22 +1529,9 @@ class ConvCodeGenerator {
              std::to_string(conv_params_.src_group_slices) + ";\n";
         c += "    if (last_src_group_id != src_group_id) {\n";
         c += "      last_src_group_id = src_group_id;\n";
-        // do not use different_weights_for_height here because with batched
-        // weights we can have non batched scale/zp.
-        const std::string scale_zp_batch_id =
-            conv_params_.scale_zp_shape.h != 1 ? "w_batch_id" : "0";
-        std::string coords =
-            "w_o_slice, " + scale_zp_batch_id + ", src_group_id";
-        c += "      w_scale = args.weights_scale.Read(" + coords + ");\n";
-        if (conv_params_.has_zero_point) {
-          c += "      Type wzp = args.weights_zero_point.Read(" + coords +
-               ");\n";
-        } else {
-          c += "      Type wzp = ucl::Init<Type>(0.0f);\n";
-        }
-        c += "      w_bias = -w_scale * " +
-             std::to_string(GetRangeShift(conv_params_.weights_desc.type)) +
-             " + wzp;\n";
+        c += ReadScaleZeroPointBlock(conv_params_.scale_zp_shape,
+                                     conv_params_.has_zero_point,
+                                     conv_params_.weights_desc.type);
         c += "    }\n";
       }
       c += "    half4 w0, w1, w2, w3;\n";
@@ -3844,9 +3885,13 @@ ConvGeneric CreateConvGenericExternalWeights(
 
   if (weights.scale) {
     result.AddSrcTensor("weights_scale", *weights.scale);
+  } else if (weights.scalar_scale.has_value()) {
+    result.args_.AddFloat("scale", *weights.scalar_scale);
   }
   if (weights.zero_point) {
     result.AddSrcTensor("weights_zero_point", *weights.zero_point);
+  } else if (weights.scalar_zero_point.has_value()) {
+    result.args_.AddFloat("zero_point", *weights.scalar_zero_point);
   }
 
   if (bias) {
