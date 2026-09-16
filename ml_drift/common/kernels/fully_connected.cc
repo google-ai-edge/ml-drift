@@ -388,10 +388,10 @@ FullyConnected::FullyConnected(const TensorDescriptor& src,
 
 std::string AddBatchOffset(const std::string& stride) {
   return absl::Substitute(R"(
-    a0 += weights_batch_id * $0;
-    a1 += weights_batch_id * $0;
-    a2 += weights_batch_id * $0;
-    a3 += weights_batch_id * $0;
+    a0 += w_batch_id * $0;
+    a1 += w_batch_id * $0;
+    a2 += w_batch_id * $0;
+    a3 += w_batch_id * $0;
 )",
                           stride);
 }
@@ -473,7 +473,7 @@ std::string ReadWeightsAsFloat(const FullyConnected::ConvParams& conv_params,
   std::string c;
   if (weights_desc.layout == WeightsLayout::kUnknown) {
     const std::string h_coord =
-        conv_params.batched_weights ? "weights_batch_id" : "0";
+        conv_params.batched_weights ? "w_batch_id" : "0";
     c += "    w0 = args.weights.Read<SType>(0, " + h_coord +
          ", src_s, dst_s * 4 + 0);\n";
     c += "    w1 = args.weights.Read<SType>(0, " + h_coord +
@@ -485,7 +485,7 @@ std::string ReadWeightsAsFloat(const FullyConnected::ConvParams& conv_params,
   } else if (weights_desc.IsLinearLayout()) {
     c += "    int linear_i4o4 = src_s * args.dst_tensor.Slices() + dst_s;\n";
     if (conv_params.batched_weights) {
-      c += "    linear_i4o4 += weights_batch_id * args.src_tensor.Slices() * "
+      c += "    linear_i4o4 += w_batch_id * args.src_tensor.Slices() * "
            "args.dst_tensor.Slices();\n";
     }
     if (conv_params.sparse_2x4) {
@@ -512,7 +512,7 @@ std::string ReadWeightsAsFloat(const FullyConnected::ConvParams& conv_params,
     std::string x_c = "dst_s";
     std::string y_c = "src_s";
     if (conv_params.batched_weights) {
-      y_c = "weights_batch_id * args.src_tensor.Slices() + src_s";
+      y_c = "w_batch_id * args.src_tensor.Slices() + src_s";
     }
     if (weights_desc.layout ==
         WeightsLayout::k2DX4I4YIsSpatialIAndXIsOOGroupO4) {
@@ -541,14 +541,14 @@ std::string ReadWeightsAs4Uint8x4(const FullyConnected::ConvParams& conv_params,
   if (weights_desc.IsLinearLayout()) {
     c += "    int linear_i4o4 = src_s * args.dst_tensor.Slices() + dst_s;\n";
     if (conv_params.batched_weights) {
-      c += "    linear_i4o4 += weights_batch_id * args.src_tensor.Slices() * "
+      c += "    linear_i4o4 += w_batch_id * args.src_tensor.Slices() * "
            "args.dst_tensor.Slices();\n";
     }
   } else {
     std::string x_c = "dst_s";
     std::string y_c = "src_s";
     if (conv_params.batched_weights) {
-      y_c = "weights_batch_id * args.src_tensor.Slices() + src_s";
+      y_c = "w_batch_id * args.src_tensor.Slices() + src_s";
     }
     coords_2d = x_c + ", " + y_c;
   }
@@ -672,7 +672,7 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
       const int3 bhw = fc::GetBlockSpatialCoords(i, conv_params_.block_size);
       std::string y_coord = std::to_string(bhw.y);
       if (conv_params_.batched_weights) {
-        y_coord = "weights_batch_id";
+        y_coord = "w_batch_id";
         if (conv_params_.runtime_batch_ids) {
           y_coord = "0";
         }
@@ -696,14 +696,15 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
   }
   const bool is_block_quantized = fc::IsBlockQuantized(
       conv_params_.weights_type, conv_params_.scale_zp_shape);
+  const std::string o_slice = "dst_s";
   if (is_quantized && !int8_math) {
+    c += "  Type w_scale;\n";
+    c += "  Type w_bias;\n";
     if (is_block_quantized) {
       // block-wise quantization handled later
-      c += "  Type w_scale;\n";
-      c += "  Type w_bias;\n";
     } else if (fc::IsLinearQuantized(conv_params_.weights_type,
                                      conv_params_.scale_zp_shape)) {
-      c += fc::ReadScaleZeroPointLinear(conv_params_.scale_zp_shape,
+      c += fc::ReadScaleZeroPointLinear(o_slice, conv_params_.scale_zp_shape,
                                         conv_params_.has_zero_point,
                                         conv_params_.weights_type);
     } else if (fc::IsScalarQuantized(conv_params_.weights_type,
@@ -715,15 +716,15 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
   const std::string start_slice = wg_reduction_ ? "tid.y" : "0";
   const std::string slice_stride = wg_reduction_ ? "WG_SIZE_Y" : "1";
   if (is_block_quantized) {
-    c += "  for (int src_group = " + start_slice +
-         "; src_group < args.src_groups; src_group += " + slice_stride +
+    c += "  for (int src_group_id = " + start_slice +
+         "; src_group_id < args.src_groups; src_group_id += " + slice_stride +
          ") {\n";
-    c += fc::ReadScaleZeroPointBlock(conv_params_.scale_zp_shape,
+    c += fc::ReadScaleZeroPointBlock(o_slice, conv_params_.scale_zp_shape,
                                      conv_params_.has_zero_point,
                                      conv_params_.weights_type);
     c += "  for (int src_sub_id = 0; src_sub_id < args.src_group_size; "
          "src_sub_id += 1) {\n";
-    c += "    int src_s = src_group * args.src_group_size + src_sub_id;\n";
+    c += "    int src_s = src_group_id * args.src_group_size + src_sub_id;\n";
   } else {
     c += "  for (int src_s = " + start_slice + "; src_s < " + src_end_slices +
          "; src_s += " + slice_stride + ") {\n";
@@ -733,7 +734,7 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
     const std::string val_name = "v" + std::to_string(i);
     std::string y_coord = std::to_string(bhw.y);
     if (conv_params_.batched_weights) {
-      y_coord = "weights_batch_id";
+      y_coord = "w_batch_id";
       if (conv_params_.runtime_batch_ids) {
         y_coord = "min(dst_h, args.src_tensor.Height() - 1)";
       }

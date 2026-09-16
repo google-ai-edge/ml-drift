@@ -30,9 +30,11 @@ namespace fc {
 void AddRuntimeParam(const ConvRuntimeCheckDesc& runtime_check,
                      GPUOperation* op);
 
-std::string ReadScaleZeroPointBlock(const OHWI& scale_zp_shape,
+std::string ReadScaleZeroPointBlock(const std::string& o_slice,
+                                    const OHWI& scale_zp_shape,
                                     bool has_zero_point, DataType weights_type);
-std::string ReadScaleZeroPointLinear(const OHWI& scale_zp_shape,
+std::string ReadScaleZeroPointLinear(const std::string& o_slice,
+                                     const OHWI& scale_zp_shape,
                                      bool has_zero_point,
                                      DataType weights_type);
 std::string ReadScaleZeroPointScalar(bool has_zero_point,
@@ -61,7 +63,7 @@ std::string GetRingIOffset(const ConvRuntimeCheckDesc& runtime_check);
 // initialize: int dst_w, int w_group_size, int w_group_offset
 std::string GetPackedGroupsParams(const ConvRuntimeCheckDesc& runtime_check,
                                   int dim_id, int block_size);
-// initialize: int weights_batch_id, optionally dst_h
+// initialize: int w_batch_id, optionally dst_h
 std::string GetWeightsBatchId(int runtime_batch_ids = 0);
 
 std::string GenerateDstWrite(const BHWC& block_size,

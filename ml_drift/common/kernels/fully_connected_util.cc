@@ -74,14 +74,15 @@ void AddRuntimeParam(const ConvRuntimeCheckDesc& runtime_check,
   }
 }
 
-std::string ReadScaleZeroPointBlock(const OHWI& scale_zp_shape,
+std::string ReadScaleZeroPointBlock(const std::string& o_slice,
+                                    const OHWI& scale_zp_shape,
                                     bool has_zero_point,
                                     DataType weights_type) {
   std::string c;
   const int range_shift = GetRangeShift(weights_type);
-  std::string coords = "dst_s, 0, src_group";
+  std::string coords = o_slice + ", 0, src_group_id";
   if (scale_zp_shape.h != 1) {
-    coords = "dst_s, weights_batch_id, src_group";
+    coords = o_slice + ", w_batch_id, src_group_id";
   }
   c += "    w_scale = args.weights_scale.Read(" + coords + ");\n";
   if (has_zero_point) {
@@ -95,22 +96,23 @@ std::string ReadScaleZeroPointBlock(const OHWI& scale_zp_shape,
   return c;
 }
 
-std::string ReadScaleZeroPointLinear(const OHWI& scale_zp_shape,
+std::string ReadScaleZeroPointLinear(const std::string& o_slice,
+                                     const OHWI& scale_zp_shape,
                                      bool has_zero_point,
                                      DataType weights_type) {
   std::string c;
   const int range_shift = GetRangeShift(weights_type);
-  std::string coords = "dst_s";
+  std::string coords = o_slice;
   if (scale_zp_shape.h != 1) {
-    coords += ", weights_batch_id, 0";
+    coords += ", w_batch_id, 0";
   }
-  c += "  Type w_scale = args.weights_scale.Read(" + coords + ");\n";
+  c += "  w_scale = args.weights_scale.Read(" + coords + ");\n";
   if (has_zero_point) {
     c += "  Type w_zp = args.weights_zero_point.Read(" + coords + ");\n";
-    c += "  Type w_bias = -w_scale * (ucl::Init<Type>(" +
+    c += "  w_bias = -w_scale * (ucl::Init<Type>(" +
          std::to_string(range_shift) + ") + w_zp);\n";
   } else {
-    c += "  Type w_bias = -w_scale * (ucl::Init<Type>(" +
+    c += "  w_bias = -w_scale * (ucl::Init<Type>(" +
          std::to_string(range_shift) + ".0f));\n";
   }
   return c;
@@ -120,15 +122,15 @@ std::string ReadScaleZeroPointScalar(bool has_zero_point,
                                      DataType weights_type) {
   std::string c;
   const int range_shift = GetRangeShift(weights_type);
-  c += "  Type w_scale = "
+  c += "  w_scale = "
        "ucl::Convert<Type>(ucl::Init<float4>(args.scale));\n";
   if (has_zero_point) {
     c += "  Type w_zp = "
          "ucl::Convert<Type>(ucl::Init<float4>(args.zero_point));\n";
-    c += "  Type w_bias = -w_scale * (ucl::Init<Type>(" +
+    c += "  w_bias = -w_scale * (ucl::Init<Type>(" +
          std::to_string(range_shift) + ") + w_zp);\n";
   } else {
-    c += "  Type w_bias = -w_scale * (ucl::Init<Type>(" +
+    c += "  w_bias = -w_scale * (ucl::Init<Type>(" +
          std::to_string(range_shift) + ".0f));\n";
   }
   return c;
@@ -260,9 +262,9 @@ std::string GetPackedGroupsParams(const ConvRuntimeCheckDesc& runtime_check,
   std::string c;
   c += "  int dst_w = ucl::GetGroupId<" + std::to_string(dim_id) + ">();\n";
   c += "  int w_group_size = args.params.Read(args.packed_params_offset + "
-       "weights_batch_id);\n";
+       "w_batch_id);\n";
   c += "  int w_group_offset = args.params.Read(args.packed_params_offset + "
-       "weights_batch_id + " +
+       "w_batch_id + " +
        std::to_string(runtime_check.packed_groups->num_groups) + ");\n";
   c += "  int wg_first_w = dst_w * " + std::to_string(block_size) + ";\n";
   c += "  if (wg_first_w >= w_group_size) return;\n";
@@ -275,11 +277,11 @@ std::string GetWeightsBatchId(int runtime_batch_ids) {
   std::string c;
   if (runtime_batch_ids) {
     c += "  int dst_h = ucl::GetGroupId<2>();\n";
-    c += "  int weights_batch_id;\n";
-    c += "  args.batch_ids.ReadPerChannel<int>(weights_batch_id, 0, 0, "
+    c += "  int w_batch_id;\n";
+    c += "  args.batch_ids.ReadPerChannel<int>(w_batch_id, 0, 0, "
          "dst_h);\n";
   } else {
-    c += "  int weights_batch_id = ucl::GetGroupId<2>();\n";
+    c += "  int w_batch_id = ucl::GetGroupId<2>();\n";
   }
   return c;
 }
@@ -298,7 +300,7 @@ std::string GenerateDstWrite(const BHWC& block_size,
     const int3 bhw = GetBlockSpatialCoords(sp_id, block_size);
     std::string y_coord = std::to_string(bhw.y);
     if (batched_weights) {
-      y_coord = "weights_batch_id";
+      y_coord = "w_batch_id";
       if (runtime_batch_ids) {
         y_coord = "dst_h";
       }
