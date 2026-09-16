@@ -868,38 +868,9 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
     c += "  if (dst_s >= dst_end_slice) return;\n";
     c += "  if (tid.y != 0) return;\n";
   }
-  if (conv_params_.has_bias) {
-    c += "  Type bias_value = args.biases.Read(dst_s);\n";
-  }
-  c += "  args.dst_tensor::type res_value;\n";
-  for (int sp_id = 0; sp_id < block_spatial; ++sp_id) {
-    const int3 bhw = fc::GetBlockSpatialCoords(sp_id, conv_params_.block_size);
-    std::string y_coord = std::to_string(bhw.y);
-    if (conv_params_.batched_weights) {
-      y_coord = "weights_batch_id";
-      if (conv_params_.runtime_batch_ids) {
-        y_coord = "dst_h";
-      }
-    }
-    std::string x_coord = std::to_string(bhw.z);
-    if (conv_params_.runtime_check.packed_groups.has_value()) {
-      x_coord = "dst_w + " + x_coord;
-      y_coord = "0";
-      c += "  if (" + x_coord + " < w_group_offset + w_group_size) {\n";
-    }
-    const std::string r_name = "r_sp" + std::to_string(sp_id);
-    c += "  res_value = "
-         "ucl::Convert<args.dst_tensor::type>(" +
-         r_name + ");\n";
-    if (conv_params_.has_bias) {
-      c += "  res_value += bias_value;\n";
-    }
-    c += "  args.dst_tensor.Write(res_value, " + x_coord + ", " + y_coord +
-         ", dst_s, " + std::to_string(bhw.x) + ");\n";
-    if (conv_params_.runtime_check.packed_groups.has_value()) {
-      c += "  }\n";
-    }
-  }
+  c += fc::GenerateDstWrite(conv_params_.block_size, conv_params_.runtime_check,
+                            conv_params_.has_bias, conv_params_.batched_weights,
+                            conv_params_.runtime_batch_ids);
   c += "}\n";
   return c;
 }

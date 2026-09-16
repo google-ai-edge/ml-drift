@@ -64,6 +64,11 @@ std::string GetPackedGroupsParams(const ConvRuntimeCheckDesc& runtime_check,
 // initialize: int weights_batch_id, optionally dst_h
 std::string GetWeightsBatchId(int runtime_batch_ids = 0);
 
+std::string GenerateDstWrite(const BHWC& block_size,
+                             const ConvRuntimeCheckDesc& runtime_check,
+                             bool has_bias, bool batched_weights,
+                             int runtime_batch_ids);
+
 bool IsQuantized(DataType weights_type);
 bool IsScalarQuantized(DataType weights_type, const OHWI& scale_zp_shape);
 bool IsLinearQuantized(DataType weights_type, const OHWI& scale_zp_shape);

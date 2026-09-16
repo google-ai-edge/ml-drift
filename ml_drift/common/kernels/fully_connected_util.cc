@@ -284,6 +284,47 @@ std::string GetWeightsBatchId(int runtime_batch_ids) {
   return c;
 }
 
+std::string GenerateDstWrite(const BHWC& block_size,
+                             const ConvRuntimeCheckDesc& runtime_check,
+                             bool has_bias, bool batched_weights,
+                             int runtime_batch_ids) {
+  std::string c;
+  if (has_bias) {
+    c += "  Type bias_value = args.biases.Read(dst_s);\n";
+  }
+  c += "  args.dst_tensor::type res_value;\n";
+  const int block_spatial = block_size.b * block_size.w * block_size.h;
+  for (int sp_id = 0; sp_id < block_spatial; ++sp_id) {
+    const int3 bhw = GetBlockSpatialCoords(sp_id, block_size);
+    std::string y_coord = std::to_string(bhw.y);
+    if (batched_weights) {
+      y_coord = "weights_batch_id";
+      if (runtime_batch_ids) {
+        y_coord = "dst_h";
+      }
+    }
+    std::string x_coord = std::to_string(bhw.z);
+    if (runtime_check.packed_groups.has_value()) {
+      x_coord = "dst_w + " + x_coord;
+      y_coord = "0";
+      c += "  if (" + x_coord + " < w_group_offset + w_group_size) {\n";
+    }
+    const std::string r_name = "r_sp" + std::to_string(sp_id);
+    c += "  res_value = "
+         "ucl::Convert<args.dst_tensor::type>(" +
+         r_name + ");\n";
+    if (has_bias) {
+      c += "  res_value += bias_value;\n";
+    }
+    c += "  args.dst_tensor.Write(res_value, " + x_coord + ", " + y_coord +
+         ", dst_s, " + std::to_string(bhw.x) + ");\n";
+    if (runtime_check.packed_groups.has_value()) {
+      c += "  }\n";
+    }
+  }
+  return c;
+}
+
 void AddWeightsArguments(const ExternalWeights& weights, int vec_size,
                          GPUOperation* op) {
   if (weights.desc.type == DataType::FLOAT32 ||
