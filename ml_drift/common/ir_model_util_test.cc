@@ -283,6 +283,169 @@ TEST(IrModelUtilTest, TryResizeAddConvLocalMemoryFuser) {
   EXPECT_EQ(gpu_model.nodes.size(), 1);
 }
 
+// Regression test for b/542718690: a RESIZE -> ADD -> CONVOLUTION_2D chain in
+// which the ADD has its second operand folded into its attributes, so it only
+// has a single runtime input. The fuser used to unconditionally read
+// add_op->inputs[1], running off the end of the vector.
+TEST(IrModelUtilTest, ResizeAddConvLocalMemoryFuserSkipsSingleInputAdd) {
+  IrModel ir_model;
+  IrTensor* input1 = ir_model.add_tensor(DataType::FLOAT32, BHWC(1, 2, 2, 4));
+  ir_model.add_input(input1->id);
+
+  IrOp* resize_op = ir_model.add_op();
+  resize_op->name = ToString(OperationType::RESIZE);
+  Resize2DAttributes resize_attr;
+  resize_attr.new_shape = HW(4, 4);
+  resize_attr.type = SamplingType::BILINEAR;
+  resize_op->attr = resize_attr;
+  ir_model.AddConsumer(input1->id, resize_op->id);
+  IrTensor* resize_out =
+      ir_model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 4));
+  ir_model.SetProducer(resize_out->id, resize_op->id);
+
+  // The ADD adds a constant scalar, so the resize output is its only input.
+  IrOp* add_op = ir_model.add_op();
+  add_op->name = ToString(OperationType::ADD);
+  ElementwiseAttributes add_attr;
+  add_attr.param = 1.0f;
+  add_op->attr = add_attr;
+  ir_model.AddConsumer(resize_out->id, add_op->id);
+  IrTensor* add_out = ir_model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 4));
+  ir_model.SetProducer(add_out->id, add_op->id);
+
+  IrOp* conv_op = ir_model.add_op();
+  conv_op->name = ToString(OperationType::CONVOLUTION_2D);
+  Convolution2DAttributes conv_attr;
+  conv_attr.padding.prepended = HW(1, 1);
+  conv_attr.padding.appended = HW(1, 1);
+  conv_attr.strides = HW(1, 1);
+  conv_attr.dilations = HW(1, 1);
+  Tensor<OHWI, DataType::FLOAT32> weights;
+  weights.shape = OHWI(1, 3, 3, 4);
+  // Add 16 elements for XNN_EXTRA_BYTES
+  weights.data.resize(1 * 3 * 3 * 4 + 16, 1.0f);
+  conv_attr.weights = std::move(weights);
+  Tensor<Linear, DataType::FLOAT32> bias;
+  bias.shape = Linear(1);
+  bias.data.resize(1, 0.0f);
+  conv_attr.bias = std::move(bias);
+  conv_op->attr = conv_attr;
+  ir_model.AddConsumer(add_out->id, conv_op->id);
+
+  IrTensor* conv_out = ir_model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 1));
+  ir_model.SetProducer(conv_out->id, conv_op->id);
+  ir_model.add_output(conv_out->id);
+
+  CreateGpuModelInfo create_info;
+  create_info.precision = CalculationsPrecision::F32;
+  create_info.storage_type = TensorStorageType::TEXTURE_2D;
+  // LocalMemory fusers require special kernel hints
+  create_info.hints.Add(ModelHints::kAllowSpecialKernels);
+  GpuInfo gpu_info = GetTestGpuInfo();  // Faked Mali
+
+  // Must not read out of bounds; the fuser simply declines to fuse.
+  GpuModel gpu_model;
+  ABSL_ASSERT_OK(IrModelToGpuModel(ir_model, create_info, gpu_info, &gpu_model));
+  for (const auto& node : gpu_model.nodes) {
+    EXPECT_THAT(node.name, ::testing::Not(::testing::HasSubstr(
+                               "convolution_2d (+ resize input + add)")));
+  }
+}
+
+// A RESIZE -> ADD -> CONVOLUTION_2D chain in which the ADD output is consumed
+// by the CONVOLUTION_2D *and* is a graph output. The fuser collapses all three
+// ops into one that only produces the conv output, so the ADD output is dropped
+// from the GpuModel even though it is still advertised as a model output.
+TEST(IrModelUtilTest, ResizeAddConvLocalMemoryFuserPreservesGraphOutput) {
+  IrModel ir_model;
+  IrTensor* input1 = ir_model.add_tensor(DataType::FLOAT32, BHWC(1, 2, 2, 4));
+  IrTensor* input2 = ir_model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 4));
+  ir_model.add_input(input1->id);
+  ir_model.add_input(input2->id);
+
+  IrOp* resize_op = ir_model.add_op();
+  resize_op->name = ToString(OperationType::RESIZE);
+  Resize2DAttributes resize_attr;
+  resize_attr.new_shape = HW(4, 4);
+  resize_attr.type = SamplingType::BILINEAR;
+  resize_op->attr = resize_attr;
+  ir_model.AddConsumer(input1->id, resize_op->id);
+  IrTensor* resize_out =
+      ir_model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 4));
+  ir_model.SetProducer(resize_out->id, resize_op->id);
+
+  IrOp* add_op = ir_model.add_op();
+  add_op->name = ToString(OperationType::ADD);
+  add_op->attr = ElementwiseAttributes{};
+  ir_model.AddConsumer(resize_out->id, add_op->id);
+  ir_model.AddConsumer(input2->id, add_op->id);
+  IrTensor* add_out = ir_model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 4));
+  ir_model.SetProducer(add_out->id, add_op->id);
+
+  IrOp* conv_op = ir_model.add_op();
+  conv_op->name = ToString(OperationType::CONVOLUTION_2D);
+  Convolution2DAttributes conv_attr;
+  conv_attr.padding.prepended = HW(1, 1);
+  conv_attr.padding.appended = HW(1, 1);
+  conv_attr.strides = HW(1, 1);
+  conv_attr.dilations = HW(1, 1);
+  Tensor<OHWI, DataType::FLOAT32> weights;
+  weights.shape = OHWI(1, 3, 3, 4);
+  // Add 16 elements for XNN_EXTRA_BYTES
+  weights.data.resize(1 * 3 * 3 * 4 + 16, 1.0f);
+  conv_attr.weights = std::move(weights);
+  Tensor<Linear, DataType::FLOAT32> bias;
+  bias.shape = Linear(1);
+  bias.data.resize(1, 0.0f);
+  conv_attr.bias = std::move(bias);
+  conv_op->attr = conv_attr;
+  ir_model.AddConsumer(add_out->id, conv_op->id);
+
+  IrTensor* conv_out = ir_model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 1));
+  ir_model.SetProducer(conv_out->id, conv_op->id);
+
+  // Both the intermediate ADD output and the final CONV output are model
+  // outputs. This is legal in TFLite and common in graphs that expose an
+  // auxiliary/debug head.
+  ir_model.add_output(add_out->id);
+  ir_model.add_output(conv_out->id);
+
+  CreateGpuModelInfo create_info;
+  create_info.precision = CalculationsPrecision::F32;
+  create_info.storage_type = TensorStorageType::TEXTURE_2D;
+  create_info.hints.Add(ModelHints::kAllowSpecialKernels);
+  GpuInfo gpu_info = GetTestGpuInfo();  // Faked Mali
+
+  GpuModel gpu_model;
+  ABSL_ASSERT_OK(IrModelToGpuModel(ir_model, create_info, gpu_info, &gpu_model));
+
+  bool advertised_as_output = false;
+  for (const auto& [id, ref] : gpu_model.output_ids_and_refs) {
+    if (id == add_out->id) advertised_as_output = true;
+  }
+  ASSERT_TRUE(advertised_as_output)
+      << "Precondition: add_out should be advertised as a model output.";
+
+  // A backing tensor must exist, otherwise the delegate dereferences a null
+  // GpuSpatialTensor. (This part currently holds.)
+  EXPECT_TRUE(gpu_model.tensors.contains(add_out->id))
+      << "Graph output " << add_out->id << " has no tensor in the GpuModel.";
+
+  // ...and some node must actually write it, otherwise the caller reads
+  // uninitialized GPU memory.
+  bool produced_by_some_node = false;
+  for (const auto& node : gpu_model.nodes) {
+    for (const auto& out_id : node.outputs) {
+      if (out_id == add_out->id) produced_by_some_node = true;
+    }
+  }
+  EXPECT_TRUE(produced_by_some_node)
+      << "Graph output " << add_out->id
+      << " is advertised as a model output but no node produces it; the "
+         "fuser collapsed its producer away. nodes="
+      << gpu_model.nodes.size();
+}
+
 TEST(IrModelUtilTest, HandlesTombstonedOpsAndTensors) {
   IrModel ir_model;
   IrTensor* input1 = ir_model.add_tensor(DataType::FLOAT32, BHWC(1, 2, 2, 4));

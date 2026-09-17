@@ -669,6 +669,12 @@ absl::Status TryConcatConvLocalMemoryFuser(
     return absl::NotFoundError("ConcatConv not suitable.");
   }
   auto concat_output = graph.FindOutputs(concat_node->id)[0];
+  // The fused kernel only writes the convolution output, so the CONCAT output
+  // disappears from the model. Being a graph output does not add a consumer, so
+  // the consumer check below does not catch this.
+  if (graph.IsGraphOutput(concat_output->id)) {
+    return absl::NotFoundError("ConcatConv not suitable.");
+  }
   auto concat_consumers = graph.FindConsumers(concat_output->id);
   if (concat_consumers.size() != 1) {
     return absl::NotFoundError("ConcatConv not suitable.");
@@ -825,11 +831,25 @@ absl::Status TryResizeAddConvLocalMemoryFuser(
     return absl::NotFoundError("ThinLocalMemoryFuser not suitable.");
   }
   auto add_inputs = graph.FindInputs(add_node->id);
+  // The fused kernel reads two runtime tensors. An ADD whose second operand was
+  // folded into its attributes (e.g. a broadcast constant) only has one input,
+  // so the pattern does not apply.
+  if (add_inputs.size() != 2) {
+    return absl::NotFoundError("ThinLocalMemoryFuser not suitable.");
+  }
   auto add_second_input =
       add_inputs[0]->id == resize_output->id ? add_inputs[1] : add_inputs[0];
   auto add_output_id = graph.FindOutputs(add_node->id)[0]->id;
   auto add_consumers = graph.FindConsumers(add_output_id);
   if (add_consumers.size() != 1) {
+    return absl::NotFoundError("ThinLocalMemoryFuser not suitable.");
+  }
+  // The fused kernel only writes the convolution output, so the RESIZE and ADD
+  // outputs disappear from the model. Being a graph output does not add a
+  // consumer, so the consumer checks above do not catch this: bail out or the
+  // model would advertise an output that no kernel ever writes.
+  if (graph.IsGraphOutput(resize_output->id) ||
+      graph.IsGraphOutput(add_output_id)) {
     return absl::NotFoundError("ThinLocalMemoryFuser not suitable.");
   }
   auto* conv_node = add_consumers[0];
@@ -1108,6 +1128,12 @@ absl::Status TryConcatConvLocalMemoryFuser(
     return absl::NotFoundError("ConcatConv not suitable.");
   }
   auto concat_output = concat_op->outputs[0];
+  // The fused kernel only writes the convolution output, so the CONCAT output
+  // disappears from the model. Being a graph output does not add a consumer, so
+  // the consumer check below does not catch this.
+  if (ir_model.IsGraphOutput(concat_output)) {
+    return absl::NotFoundError("ConcatConv not suitable.");
+  }
   auto concat_consumers = ir_model.FindConsumers(concat_output);
   if (concat_consumers.size() != 1) {
     return absl::NotFoundError("ConcatConv not suitable.");
@@ -1264,12 +1290,26 @@ absl::Status TryResizeAddConvLocalMemoryFuser(
     return absl::NotFoundError("ThinLocalMemoryFuser not suitable. 3");
   }
   auto add_inputs = add_op->inputs;
+  // The fused kernel reads two runtime tensors. An ADD whose second operand was
+  // folded into its attributes (e.g. a broadcast constant) only has one input,
+  // so the pattern does not apply.
+  if (add_inputs.size() != 2) {
+    return absl::NotFoundError("ThinLocalMemoryFuser not suitable. 3.1");
+  }
   auto add_second_input =
       add_inputs[0] == resize_output ? add_inputs[1] : add_inputs[0];
   auto add_output_id = add_op->outputs[0];
   auto add_consumers = ir_model.FindConsumers(add_output_id);
   if (add_consumers.size() != 1) {
     return absl::NotFoundError("ThinLocalMemoryFuser not suitable. 4");
+  }
+  // The fused kernel only writes the convolution output, so the RESIZE and ADD
+  // outputs disappear from the model. Being a graph output does not add a
+  // consumer, so the consumer checks above do not catch this: bail out or the
+  // model would advertise an output that no kernel ever writes.
+  if (ir_model.IsGraphOutput(resize_output) ||
+      ir_model.IsGraphOutput(add_output_id)) {
+    return absl::NotFoundError("ThinLocalMemoryFuser not suitable. 4.1");
   }
   auto* conv_op = add_consumers[0];
   if (conv_op == nullptr ||
