@@ -294,7 +294,6 @@ std::string GenerateDstWrite(const BHWC& block_size,
   if (has_bias) {
     c += "  Type bias_value = args.biases.Read(dst_s);\n";
   }
-  c += "  args.dst_tensor::type res_value;\n";
   const int block_spatial = block_size.b * block_size.w * block_size.h;
   for (int sp_id = 0; sp_id < block_spatial; ++sp_id) {
     const int3 bhw = GetBlockSpatialCoords(sp_id, block_size);
@@ -310,9 +309,14 @@ std::string GenerateDstWrite(const BHWC& block_size,
       x_coord = "dst_w + " + x_coord;
       y_coord = "0";
       c += "  if (" + x_coord + " < w_group_offset + w_group_size) {\n";
+    } else if (block_spatial != 1) {
+      // without this fake if causing(Adreno 830, OpenCL):
+      // Failed to clEnqueueNDRangeKernel - Invalid work group size: {64, 4, 1}
+      c +=
+          "  if (" + std::to_string(-sp_id) + " < args.dst_tensor.Width()) {\n";
     }
     const std::string r_name = "r_sp" + std::to_string(sp_id);
-    c += "  res_value = "
+    c += "  args.dst_tensor::type res_value = "
          "ucl::Convert<args.dst_tensor::type>(" +
          r_name + ");\n";
     if (has_bias) {
@@ -320,7 +324,7 @@ std::string GenerateDstWrite(const BHWC& block_size,
     }
     c += "  args.dst_tensor.Write(res_value, " + x_coord + ", " + y_coord +
          ", dst_s, " + std::to_string(bhw.x) + ");\n";
-    if (runtime_check.packed_groups.has_value()) {
+    if (runtime_check.packed_groups.has_value() || block_spatial != 1) {
       c += "  }\n";
     }
   }
