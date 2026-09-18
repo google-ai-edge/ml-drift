@@ -686,6 +686,7 @@ AppleInfo::AppleInfo(const std::string& gpu_description) {
       {"apple a18 pro", AppleGpu::kA18Pro},
       {"apple a19", AppleGpu::kA19},
       {"apple a19 pro", AppleGpu::kA19Pro},
+      {"apple a20 pro", AppleGpu::kA20Pro},
       {"apple m1", AppleGpu::kM1},
       {"apple m1 pro", AppleGpu::kM1Pro},
       {"apple m1 max", AppleGpu::kM1Max},
@@ -743,7 +744,7 @@ AppleInfo::Family AppleInfo::GetGpuFamily() const {
              gpu_type == AppleGpu::kA18Pro || IsM3Series() || IsM4Series()) {
     return AppleInfo::Family::kApple9;
   } else if (gpu_type == AppleGpu::kA19 || gpu_type == AppleGpu::kA19Pro ||
-             IsM5Series() || IsM6Series()) {
+             gpu_type == AppleGpu::kA20Pro || IsM5Series() || IsM6Series()) {
     return AppleInfo::Family::kApple10;
   }
   return AppleInfo::Family::kApple1;
@@ -890,6 +891,8 @@ int AppleInfo::GetComputeUnitsCount() const {
       return 5;
     case AppleGpu::kA19Pro:
       return 6;
+    case AppleGpu::kA20Pro:
+      return 7;
     case AppleGpu::kM1:
       // approximate, can be 7 or 8
       return 8;

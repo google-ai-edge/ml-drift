@@ -245,6 +245,7 @@ enum class AppleGpu {
   kA18Pro,
   kA19,
   kA19Pro,
+  kA20Pro,
   kM1,
   kM1Pro,
   kM1Max,
