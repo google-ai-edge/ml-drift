@@ -16,6 +16,7 @@
 
 #include <string>
 
+#include "absl/strings/str_replace.h"
 #include "absl/strings/substitute.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
@@ -284,6 +285,59 @@ std::string GetWeightsBatchId(int runtime_batch_ids) {
     c += "  int w_batch_id = ucl::GetGroupId<2>();\n";
   }
   return c;
+}
+
+int GetLocalBatchSize(const GpuInfo& gpu_info, CalculationsPrecision precision,
+                      int block_spatial, const int3& work_group_size) {
+  int local_batch_size = block_spatial;
+  int data_type_size =
+      precision == CalculationsPrecision::F16 && gpu_info.SupportsFP16() ? 2
+                                                                         : 4;
+  int workgroup_storage_size = work_group_size.x * work_group_size.y *
+                               local_batch_size * data_type_size * 4;
+  if (local_batch_size > 8 ||
+      (gpu_info.IsApiWebGpu() &&
+       workgroup_storage_size >
+           gpu_info.webgpu_info.max_compute_workgroup_storage_size)) {
+    local_batch_size = 1;
+  }
+  if (gpu_info.IsAdreno() && gpu_info.adreno_info.IsLowEnd()) {
+    local_batch_size = 1;
+  }
+  return local_batch_size;
+}
+
+std::string GetReductionCode(int first, int last, int local_batch_size,
+                             const std::string& thread_id,
+                             const std::string& reduction_local_id,
+                             const std::string& reduction_size,
+                             const std::string& mem_name) {
+  std::string c;
+  for (int sp_id = first; sp_id <= last; ++sp_id) {
+    const std::string local_mem =
+        local_batch_size == 1 ? "MEM_NAME"
+                              : "MEM_NAME[" + std::to_string(sp_id) + "]";
+    c += "  " + local_mem + "[T_ID * R_SIZE + R_ID] = r_sp" +
+         std::to_string(sp_id) + ";\n";
+  }
+  c += "  for (int stride = R_SIZE / 2; stride > 0; stride /= 2) {\n";
+  c += "    ucl::SyncThreads<WorkGroup, Local>();\n";
+  c += "    if (R_ID < stride) {\n";
+  for (int sp_id = first; sp_id <= last; ++sp_id) {
+    const std::string local_mem =
+        local_batch_size == 1 ? "MEM_NAME"
+                              : "MEM_NAME[" + std::to_string(sp_id) + "]";
+    c += "      r_sp" + std::to_string(sp_id) + " += " + local_mem +
+         "[T_ID * R_SIZE + R_ID + stride];\n";
+    c += "      " + local_mem + "[T_ID * R_SIZE + R_ID] = r_sp" +
+         std::to_string(sp_id) + ";\n";
+  }
+  c += "    }\n";
+  c += "  }\n";
+  return absl::StrReplaceAll(c, {{"MEM_NAME", mem_name},
+                                 {"R_SIZE", reduction_size},
+                                 {"T_ID", thread_id},
+                                 {"R_ID", reduction_local_id}});
 }
 
 std::string GenerateDstWrite(const BHWC& block_size,

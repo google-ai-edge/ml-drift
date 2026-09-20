@@ -803,57 +803,25 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
   }
   if (wg_reduction_) {
     c += "  } // end if condition\n";
-    int local_patch_size = block_spatial;
-    int data_type_size =
-        precision == CalculationsPrecision::F16 && gpu_info.SupportsFP16() ? 2
-                                                                           : 4;
-    int workgroup_storage_size = work_group_size_.x * work_group_size_.y *
-                                 local_patch_size * data_type_size * 4;
-    if (local_patch_size > 8 ||
-        (gpu_info.IsApiWebGpu() &&
-         workgroup_storage_size >
-             gpu_info.webgpu_info.max_compute_workgroup_storage_size)) {
-      local_patch_size = 1;
-    }
-    if (gpu_info.IsAdreno() && gpu_info.adreno_info.IsLowEnd()) {
-      local_patch_size = 1;
-    }
+    const int local_batch_size = fc::GetLocalBatchSize(
+        gpu_info, precision, block_spatial, work_group_size_);
     if (int8_math) {
       c += "  __local int4 temp";
     } else {
       c += "  __local AccType temp";
     }
-    if (local_patch_size != 1) {
-      c += "[" + std::to_string(local_patch_size) + "]";
+    if (local_batch_size != 1) {
+      c += "[" + std::to_string(local_batch_size) + "]";
     }
     c += "[" + std::to_string(work_group_size_.x * work_group_size_.y) + "];\n";
 
-    const int upload_groups = DivideRoundUp(block_spatial, local_patch_size);
+    const int upload_groups = DivideRoundUp(block_spatial, local_batch_size);
     for (int group = 0; group < upload_groups; ++group) {
-      const int first = group * local_patch_size;
+      const int first = group * local_batch_size;
       const int last =
-          std::min(block_spatial - 1, first + local_patch_size - 1);
-      for (int sp_id = first; sp_id <= last; ++sp_id) {
-        const std::string local_mem =
-            local_patch_size == 1 ? "temp"
-                                  : "temp[" + std::to_string(sp_id) + "]";
-        c += "  " + local_mem + "[tid.x * WG_SIZE_Y + tid.y] = r_sp" +
-             std::to_string(sp_id) + ";\n";
-      }
-      c += "  for (int ystride = WG_SIZE_Y / 2; ystride > 0; ystride /= 2) {\n";
-      c += "    ucl::SyncThreads<WorkGroup, Local>();\n";
-      c += "    if (tid.y < ystride) {\n";
-      for (int sp_id = first; sp_id <= last; ++sp_id) {
-        const std::string local_mem =
-            local_patch_size == 1 ? "temp"
-                                  : "temp[" + std::to_string(sp_id) + "]";
-        c += "      r_sp" + std::to_string(sp_id) + " += " + local_mem +
-             "[tid.x * WG_SIZE_Y + tid.y + ystride];\n";
-        c += "      " + local_mem + "[tid.x * WG_SIZE_Y + tid.y] = r_sp" +
-             std::to_string(sp_id) + ";\n";
-      }
-      c += "    }\n";
-      c += "  }\n";
+          std::min(block_spatial - 1, first + local_batch_size - 1);
+      c += fc::GetReductionCode(first, last, local_batch_size, "tid.x", "tid.y",
+                                "WG_SIZE_Y", "temp");
       if (group != upload_groups - 1) {
         c += "  ucl::SyncThreads<WorkGroup, Local>();\n";
       }

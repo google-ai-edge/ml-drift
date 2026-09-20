@@ -66,6 +66,15 @@ std::string GetPackedGroupsParams(const ConvRuntimeCheckDesc& runtime_check,
 // initialize: int w_batch_id, optionally dst_h
 std::string GetWeightsBatchId(int runtime_batch_ids = 0);
 
+int GetLocalBatchSize(const GpuInfo& gpu_info, CalculationsPrecision precision,
+                      int block_spatial, const int3& work_group_size);
+
+std::string GetReductionCode(int first, int last, int local_batch_size,
+                             const std::string& thread_id,
+                             const std::string& reduction_local_id,
+                             const std::string& reduction_size,
+                             const std::string& mem_name);
+
 std::string GenerateDstWrite(const BHWC& block_size,
                              const ConvRuntimeCheckDesc& runtime_check,
                              bool has_bias, bool batched_weights,
