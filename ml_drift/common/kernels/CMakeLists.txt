@@ -183,7 +183,6 @@ add_library(mld_common_kernels_fully_connected fully_connected.cc fully_connecte
 target_include_directories(mld_common_kernels_fully_connected PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_common_kernels_fully_connected
   PUBLIC
-    absl::span
     absl::status
     absl::status_macros
     absl::statusor
@@ -196,12 +195,11 @@ target_link_libraries(mld_common_kernels_fully_connected
     mld_common_precision
     mld_common_shape
     mld_common_task_arguments
-    mld_common_task_buffer_desc
+    mld_common_task_util
     mld_common_task_gpu_operation
     mld_common_task_tensor_desc
     mld_common_task_weights_conversion
     mld_common_task_weights_layout
-    mld_common_tensor
     mld_common_types
     mld_common_util
 )

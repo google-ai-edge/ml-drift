@@ -32,6 +32,7 @@
 #include "ml_drift/common/task/compiler_options.h"
 #include "ml_drift/common/task/gpu_operation.h"
 #include "ml_drift/common/task/tensor_desc.h"
+#include "ml_drift/common/task/util.h"
 #include "ml_drift/common/task/weights_conversion.h"
 #include "ml_drift/common/task/weights_layout.h"
 #include "ml_drift/common/types.h"
@@ -93,8 +94,7 @@ inline bool UseBufferForIntWeights(const GpuInfo& gpu_info, int int_bit_size,
 }
 
 int3 GetWorkGroupSize(const FullyConnected::ConvParams& params,
-                      const GpuInfo& gpu_info, DataType acc_type,
-                      const OHWI& weights_shape) {
+                      const GpuInfo& gpu_info, const OHWI& weights_shape) {
   const bool is_quantized = fc::IsQuantized(params.weights_type);
   const int dst_slices = DivideRoundUp(weights_shape.o, 4);
   if (gpu_info.IsApple() && gpu_info.IsApiMetal() &&
@@ -334,26 +334,16 @@ FullyConnected::FullyConnected(const TensorDescriptor& src,
     args_.AddInt("src_groups", src_groups);
     args_.AddInt("src_group_size", src_slices / src_groups);
   }
-  const DataType acc_type = precision == CalculationsPrecision::F16
-                                ? DataType::FLOAT16
-                                : DataType::FLOAT32;
 
   work_group_size_ =
       conv_params_.wg_size.x != 0
           ? conv_params_.wg_size
-          : GetWorkGroupSize(conv_params_, gpu_info, acc_type, weights_shape);
+          : GetWorkGroupSize(conv_params_, gpu_info, weights_shape);
   wg_reduction_ = work_group_size_.y != 1;
   const int scale_zp_group_size =
       DivideRoundUp(weights_shape.i / conv_params.scale_zp_shape.i, 4);
-  code_ = GetFullyConnectedKernelCode(src, precision, gpu_info, weights_desc,
-                                      scale_zp_group_size);
-  absl::StrReplaceAll({{"SType", ToUclDataType(dst.GetDataType(), 1)},
-                       {"Type", ToUclDataType(dst.GetDataType(), 4)},
-                       {"AccSType", ToUclDataType(acc_type, 1)},
-                       {"AccType", ToUclDataType(acc_type, 4)},
-                       {"WG_SIZE_X", std::to_string(work_group_size_.x)},
-                       {"WG_SIZE_Y", std::to_string(work_group_size_.y)}},
-                      &code_);
+  code_ = GetFullyConnectedKernelCode(src, dst, precision, gpu_info,
+                                      weights_desc, scale_zp_group_size);
   if (gpu_info.IsMali()) {
     compiler_options_.push_back(CompilerOptions::kClFastRelaxedMath);
   }
@@ -607,9 +597,9 @@ std::string ReadWeightsAs4Uint8x4(const FullyConnected::ConvParams& conv_params,
 }
 
 std::string FullyConnected::GetFullyConnectedKernelCode(
-    const TensorDescriptor& src, CalculationsPrecision precision,
-    const GpuInfo& gpu_info, const WeightsDescription& weights_desc,
-    int scale_zp_group_size) {
+    const TensorDescriptor& src, const TensorDescriptor& dst,
+    CalculationsPrecision precision, const GpuInfo& gpu_info,
+    const WeightsDescription& weights_desc, int scale_zp_group_size) {
   const int block_spatial = conv_params_.block_size.b *
                             conv_params_.block_size.w *
                             conv_params_.block_size.h;
@@ -650,13 +640,18 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
     c += fc::GetPackedGroupsParams(conv_params_.runtime_check, /*dim_id=*/1,
                                    conv_params_.block_size.w);
   }
+  DataType acc_type = precision == CalculationsPrecision::F16
+                          ? DataType::FLOAT16
+                          : DataType::FLOAT32;
+  if (src.GetDataType() == DataType::INT8) {
+    acc_type = DataType::INT32;
+  }
+  const std::string zero_value = GetZeroValue(acc_type);
   for (int sp_id = 0; sp_id < block_spatial; ++sp_id) {
     const std::string r_name = "r_sp" + std::to_string(sp_id);
+    c += "  AccType " + r_name + " = ucl::Init<AccType>(" + zero_value + ");\n";
     if (int8_math) {
-      c += "  int4 " + r_name + " = ucl::Init<int4>(0);\n";
       c += "  int " + r_name + "_sum = 0;\n";
-    } else {
-      c += "  AccType " + r_name + " = ucl::Init<AccType>(0.0f);\n";
     }
   }
   if (conv_params_.softmax_input_activation) {
@@ -805,11 +800,7 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
     c += "  } // end if condition\n";
     const int local_batch_size = fc::GetLocalBatchSize(
         gpu_info, precision, block_spatial, work_group_size_);
-    if (int8_math) {
-      c += "  __local int4 temp";
-    } else {
-      c += "  __local AccType temp";
-    }
+    c += "  __local AccType temp";
     if (local_batch_size != 1) {
       c += "[" + std::to_string(local_batch_size) + "]";
     }
@@ -833,6 +824,14 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
                             conv_params_.has_bias, conv_params_.batched_weights,
                             conv_params_.runtime_batch_ids);
   c += "}\n";
+
+  absl::StrReplaceAll({{"SType", ToUclDataType(dst.GetDataType(), 1)},
+                       {"Type", ToUclDataType(dst.GetDataType(), 4)},
+                       {"AccSType", ToUclDataType(acc_type, 1)},
+                       {"AccType", ToUclDataType(acc_type, 4)},
+                       {"WG_SIZE_X", std::to_string(work_group_size_.x)},
+                       {"WG_SIZE_Y", std::to_string(work_group_size_.y)}},
+                      &c);
   return c;
 }
 

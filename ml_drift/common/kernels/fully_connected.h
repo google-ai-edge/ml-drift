@@ -17,25 +17,19 @@
 
 #include <stdint.h>
 
-#include <memory>
 #include <string>
-#include <utility>
 #include <vector>
 
 #include "absl/status/statusor.h"
-#include "absl/types/span.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/kernel_info.h"
 #include "ml_drift/common/precision.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/task/buffer_desc.h"
 #include "ml_drift/common/task/gpu_operation.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/task/tuning_type.h"
-#include "ml_drift/common/task/weights_conversion.h"
 #include "ml_drift/common/task/weights_layout.h"
-#include "ml_drift/common/tensor.h"
 #include "ml_drift/common/types.h"
 
 namespace ml_drift {
@@ -100,9 +94,9 @@ class FullyConnected : public GPUOperation {
       const BHWC* dst_shape_ptr, const int3* wg_size);
 
   std::string GetFullyConnectedKernelCode(
-      const TensorDescriptor& src, CalculationsPrecision precision,
-      const GpuInfo& gpu_info, const WeightsDescription& weights_desc,
-      int scale_zp_group_size);
+      const TensorDescriptor& src, const TensorDescriptor& dst,
+      CalculationsPrecision precision, const GpuInfo& gpu_info,
+      const WeightsDescription& weights_desc, int scale_zp_group_size);
 
   bool wg_reduction_;
   ConvParams conv_params_;
