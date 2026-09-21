@@ -957,6 +957,47 @@ mld_kernel_test(
 )
 
 cc_library(
+    name = "fully_connected_oi_test_util",
+    testonly = 1,
+    srcs = ["fully_connected_oi_test_util.cc"],
+    hdrs = ["fully_connected_oi_test_util.h"],
+    deps = [
+        "//ml_drift/common:data_type",
+        "//ml_drift/common:operations",
+        "//ml_drift/common:precision",
+        "//ml_drift/common:shape",
+        "//ml_drift/common:tensor",
+        "//ml_drift/common:types",
+        "//ml_drift/common:util",
+        "//ml_drift/common/kernels:fully_connected_oi",
+        "//ml_drift/common/task:gpu_operation",
+        "//ml_drift/common/task:tensor_desc",
+        "//ml_drift/common/task:testing_ref_ops",
+        "//ml_drift/common/task:testing_util",
+        "//ml_drift/common/task:weights_conversion",
+        "//ml_drift/common/task:weights_layout",
+        "@XNNPACK",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
+        "@com_google_absl//absl/status:status_matchers",
+        "@com_google_absl//absl/types:span",
+        "@com_google_googletest//:gtest",
+    ],
+)
+
+mld_kernel_test(
+    name = "fully_connected_oi_test",
+    srcs = ["fully_connected_oi_test.cc"],
+    deps = [
+        ":fully_connected_oi_test_util",
+        "//ml_drift/common:data_type",
+        "//ml_drift/common:precision",
+        "//ml_drift/common/task:tensor_desc",
+        "//ml_drift/common/task:testing_util",
+    ],
+)
+
+cc_library(
     name = "fully_connected_test_util",
     testonly = 1,
     srcs = ["fully_connected_test_util.cc"],

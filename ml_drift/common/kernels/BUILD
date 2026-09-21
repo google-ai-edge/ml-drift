@@ -683,6 +683,28 @@ exports_files(
 )
 
 cc_library(
+    name = "fully_connected_oi",
+    srcs = ["fully_connected_oi.cc"],
+    hdrs = ["fully_connected_oi.h"],
+    deps = [
+        ":fully_connected_util",
+        "//ml_drift/common:data_type",
+        "//ml_drift/common:gpu_info",
+        "//ml_drift/common:kernel_info",
+        "//ml_drift/common:precision",
+        "//ml_drift/common:shape",
+        "//ml_drift/common:types",
+        "//ml_drift/common:util",
+        "//ml_drift/common/task:compiler_options",
+        "//ml_drift/common/task:gpu_operation",
+        "//ml_drift/common/task:tensor_desc",
+        "//ml_drift/common/task:tuning_type",
+        "//ml_drift/common/task:weights_layout",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_library(
     name = "fully_connected_util",
     srcs = ["fully_connected_util.cc"],
     hdrs = ["fully_connected_util.h"],

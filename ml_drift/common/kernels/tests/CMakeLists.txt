@@ -1015,6 +1015,64 @@ target_link_libraries(embedding_lookup_test_opencl
     opencl_headers
 )
 
+add_library(mld_common_kernels_tests_fully_connected_oi_test_util fully_connected_oi_test_util.cc fully_connected_oi_test_util.h)
+target_include_directories(mld_common_kernels_tests_fully_connected_oi_test_util PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
+target_link_libraries(mld_common_kernels_tests_fully_connected_oi_test_util
+  PUBLIC
+    absl::span
+    absl::status
+    absl::status_macros
+    absl::status_matchers
+    absl::statusor
+    gmock
+    gtest
+    mld_common_data_type
+    mld_common_kernels_fully_connected_oi
+    mld_common_operations
+    mld_common_precision
+    mld_common_shape
+    mld_common_task_gpu_operation
+    mld_common_task_tensor_desc
+    mld_common_task_testing_ref_ops
+    mld_common_task_testing_util
+    mld_common_task_weights_conversion
+    mld_common_task_weights_layout
+    mld_common_tensor
+    mld_common_types
+    mld_common_util
+    XNNPACK
+)
+
+add_executable(fully_connected_oi_test_opencl opencl_kernel_test.cc fully_connected_oi_test.cc)
+target_link_libraries(fully_connected_oi_test_opencl
+  PUBLIC
+    absl::status_matchers
+    absl::strings
+    benchmark
+    gmock
+    gtest
+    mld_cl_cl_command_queue
+    mld_cl_cl_context
+    mld_cl_cl_event
+    mld_cl_cl_kernel
+    mld_cl_cl_program
+    mld_cl_cl_program_cache
+    mld_cl_default_util
+    mld_cl_environment
+    mld_cl_opencl_wrapper
+    mld_cl_testing_cl_test
+    mld_cl_util_types
+    mld_common_data_type
+    mld_common_kernels_tests_fully_connected_oi_test_util
+    mld_common_operations
+    mld_common_precision
+    mld_common_task_tensor_desc
+    mld_common_task_testing_util
+    mld_common_task_util
+    mld_common_util
+    opencl_headers
+)
+
 add_library(mld_common_kernels_tests_fully_connected_test_util fully_connected_test_util.cc fully_connected_test_util.h)
 target_include_directories(mld_common_kernels_tests_fully_connected_test_util PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_common_kernels_tests_fully_connected_test_util

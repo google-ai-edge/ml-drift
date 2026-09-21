@@ -205,6 +205,26 @@ target_link_libraries(mld_common_kernels_fully_connected
     mld_common_util
 )
 
+add_library(mld_common_kernels_fully_connected_oi fully_connected_oi.cc fully_connected_oi.h)
+target_include_directories(mld_common_kernels_fully_connected_oi PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
+target_link_libraries(mld_common_kernels_fully_connected_oi
+  PUBLIC
+    absl::strings
+    mld_common_data_type
+    mld_common_gpu_info
+    mld_common_kernel_info
+    mld_common_kernels_fully_connected_util
+    mld_common_precision
+    mld_common_shape
+    mld_common_task_compiler_options
+    mld_common_task_gpu_operation
+    mld_common_task_tensor_desc
+    mld_common_task_tuning_type
+    mld_common_task_weights_layout
+    mld_common_types
+    mld_common_util
+)
+
 add_library(mld_common_kernels_fully_connected_util fully_connected_util.cc fully_connected_util.h)
 target_include_directories(mld_common_kernels_fully_connected_util PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_common_kernels_fully_connected_util
