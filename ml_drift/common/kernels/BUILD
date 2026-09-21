@@ -114,6 +114,7 @@ cc_library(
     srcs = ["conv_apple_mpp.cc"],
     hdrs = ["conv_apple_mpp.h"],
     deps = [
+        ":fully_connected_util",
         "//ml_drift/common:data_type",
         "//ml_drift/common:gpu_info",
         "//ml_drift/common:kernel_info",
@@ -167,6 +168,7 @@ cc_library(
     srcs = ["conv_generic.cc"],
     hdrs = ["conv_generic.h"],
     deps = [
+        ":fully_connected_util",
         "//ml_drift/common:data_type",
         "//ml_drift/common:gpu_info",
         "//ml_drift/common:kernel_info",
@@ -200,6 +202,7 @@ cc_library(
     srcs = ["conv_wave_matrix.cc"],
     hdrs = ["conv_wave_matrix.h"],
     deps = [
+        ":fully_connected_util",
         "//ml_drift/common:data_type",
         "//ml_drift/common:flops_util",
         "//ml_drift/common:gpu_info",

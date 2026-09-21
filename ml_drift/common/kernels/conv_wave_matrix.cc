@@ -29,6 +29,7 @@
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/flops_util.h"
 #include "ml_drift/common/gpu_info.h"
+#include "ml_drift/common/kernels/fully_connected_util.h"
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/precision.h"
 #include "ml_drift/common/shape.h"
@@ -223,70 +224,6 @@ void AddLinearizeWGReplacements(
   replacements["LINEAR_WG_ID"] = patch;
 }
 
-inline int GetRangeShift(DataType type) {
-  return 1u << (SizeInBitsOf(type) - 1);
-}
-
-std::string ReadScaleZeroPointBlock(const OHWI& scale_zp_shape,
-                                    bool has_zero_point,
-                                    DataType weights_type) {
-  std::string c;
-  const int range_shift = GetRangeShift(weights_type);
-  std::string coords = "w_o_slice, 0, src_group_id";
-  if (scale_zp_shape.h != 1) {
-    coords = "w_o_slice, w_batch_id, src_group_id";
-  }
-  c += "    w_scale = args.weights_scale.Read(" + coords + ");\n";
-  if (has_zero_point) {
-    c += "    Type w_zp = args.weights_zero_point.Read(" + coords + ");\n";
-    c += "    w_bias = -w_scale * (ucl::Init<Type>(" +
-         std::to_string(range_shift) + ") + w_zp);\n";
-  } else {
-    c += "    w_bias = -w_scale * ucl::Init<Type>(" +
-         std::to_string(range_shift) + ".0f);\n";
-  }
-  return c;
-}
-
-std::string ReadScaleZeroPointLinear(const OHWI& scale_zp_shape,
-                                     bool has_zero_point,
-                                     DataType weights_type) {
-  std::string c;
-  const int range_shift = GetRangeShift(weights_type);
-  std::string coords = "w_o_slice";
-  if (scale_zp_shape.h != 1) {
-    coords += ", w_batch_id, 0";
-  }
-  c += "  w_scale = args.weights_scale.Read(" + coords + ");\n";
-  if (has_zero_point) {
-    c += "  Type w_zp = args.weights_zero_point.Read(" + coords + ");\n";
-    c += "  w_bias = -w_scale * (ucl::Init<Type>(" +
-         std::to_string(range_shift) + ") + w_zp);\n";
-  } else {
-    c += "  w_bias = -w_scale * (ucl::Init<Type>(" +
-         std::to_string(range_shift) + ".0f));\n";
-  }
-  return c;
-}
-
-std::string ReadScaleZeroPointScalar(bool has_zero_point,
-                                     DataType weights_type) {
-  std::string c;
-  const int range_shift = GetRangeShift(weights_type);
-  c += "  w_scale = "
-       "ucl::Convert<Type>(ucl::Init<float4>(args.scale));\n";
-  if (has_zero_point) {
-    c += "  Type w_zp = "
-         "ucl::Convert<Type>(ucl::Init<float4>(args.zero_point));\n";
-    c += "  w_bias = -w_scale * (ucl::Init<Type>(" +
-         std::to_string(range_shift) + ") + w_zp);\n";
-  } else {
-    c += "  w_bias = -w_scale * (ucl::Init<Type>(" +
-         std::to_string(range_shift) + ".0f));\n";
-  }
-  return c;
-}
-
 std::string ReadWeights(const ConvWaveMatrix::ConvParams& conv_params,
                         int src_x4_slices) {
   const bool weights_conversion =
@@ -304,9 +241,9 @@ std::string ReadWeights(const ConvWaveMatrix::ConvParams& conv_params,
          std::to_string(conv_params.src_group_slices) + +";\n";
     c += "    if (last_src_group_id != src_group_id) {\n";
     c += "      last_src_group_id = src_group_id;\n";
-    c += ReadScaleZeroPointBlock(conv_params.scale_zp_shape,
-                                 conv_params.has_zero_point,
-                                 conv_params.weights_desc.type);
+    c += fc::ReadScaleZeroPointBlock(
+        "w_o_slice", conv_params.scale_zp_shape, conv_params.has_zero_point,
+        fc::GetDataTypeForWeights(conv_params.weights_desc.type));
     c += "    }\n";
   }
   c += "    Type w0, w1, w2, w3;\n";
@@ -602,8 +539,9 @@ std::string GenerateConvolution(
     if (quantized_weights && conv_params.scale_zp_shape.i == 1 &&
         conv_params.scale_zp_shape.o == 1) {
       // scalar quantization
-      c += ReadScaleZeroPointScalar(conv_params.has_zero_point,
-                                    conv_params.weights_desc.type);
+      c += fc::ReadScaleZeroPointScalar(
+          conv_params.has_zero_point,
+          fc::GetDataTypeForWeights(conv_params.weights_desc.type));
     }
     if (i4o4_blocks < kernel_params.wave_size) {
       c += "  if (spatial_id < " + std::to_string(i4o4_blocks) + ") {\n";
@@ -622,9 +560,9 @@ std::string GenerateConvolution(
     if (quantized_weights && conv_params.scale_zp_shape.i == 1 &&
         conv_params.scale_zp_shape.o != 1) {
       // linear quantization
-      c += ReadScaleZeroPointLinear(conv_params.scale_zp_shape,
-                                    conv_params.has_zero_point,
-                                    conv_params.weights_desc.type);
+      c += fc::ReadScaleZeroPointLinear(
+          "w_o_slice", conv_params.scale_zp_shape, conv_params.has_zero_point,
+          fc::GetDataTypeForWeights(conv_params.weights_desc.type));
     }
     c += "  o1 = sub_o % " + std::to_string(wm_n_slices) + ";\n";
     c += "  o2 = sub_o / " + std::to_string(wm_n_slices) + ";\n";
@@ -1382,16 +1320,7 @@ ConvWaveMatrix CreateConvWaveMatrixExternalWeights(
   buffer_desc.memory_type = MemoryType::GLOBAL;
   desc.AddSrcBuffer("weights", buffer_desc);
 
-  if (weights.scale) {
-    desc.AddSrcTensor("weights_scale", *weights.scale);
-  } else if (weights.scalar_scale.has_value()) {
-    desc.args_.AddFloat("scale", *weights.scalar_scale);
-  }
-  if (weights.zero_point) {
-    desc.AddSrcTensor("weights_zero_point", *weights.zero_point);
-  } else if (weights.scalar_zero_point.has_value()) {
-    desc.args_.AddFloat("zero_point", *weights.scalar_zero_point);
-  }
+  fc::AddWeightsScaleZeroPointArguments(weights, &desc);
 
   if (bias) {
     desc.AddSrcTensor("biases", *bias);

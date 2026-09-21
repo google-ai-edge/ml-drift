@@ -140,6 +140,7 @@ target_link_libraries(mld_common_kernels_conv_generic
     absl::statusor
     flatbuffers
     mld_common_data_type
+    mld_common_kernels_fully_connected_util
     mld_common_operations
     mld_common_shape
     mld_common_task_gpu_object_desc
@@ -509,6 +510,7 @@ target_link_libraries(mld_common_kernels_conv_wave_matrix
   PUBLIC
     mld_common_flops_util
     mld_common_gpu_info
+    mld_common_kernels_fully_connected_util
     mld_common_operations
     mld_common_shape
     mld_common_task_gpu_operation
@@ -767,6 +769,7 @@ add_library(mld_common_kernels_conv_apple_mpp conv_apple_mpp.cc conv_apple_mpp.h
 target_include_directories(mld_common_kernels_conv_apple_mpp PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_common_kernels_conv_apple_mpp
   PUBLIC
+    mld_common_kernels_fully_connected_util
     mld_common_operations
     mld_common_shape
     mld_common_task_gpu_operation

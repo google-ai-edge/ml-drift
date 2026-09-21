@@ -385,6 +385,20 @@ std::string GenerateDstWrite(const BHWC& block_size,
   return c;
 }
 
+void AddWeightsScaleZeroPointArguments(const ExternalWeights& weights,
+                                       GPUOperation* op) {
+  if (weights.scale) {
+    op->AddSrcTensor("weights_scale", *weights.scale);
+  } else if (weights.scalar_scale.has_value()) {
+    op->args_.AddFloat("scale", *weights.scalar_scale);
+  }
+  if (weights.zero_point) {
+    op->AddSrcTensor("weights_zero_point", *weights.zero_point);
+  } else if (weights.scalar_zero_point.has_value()) {
+    op->args_.AddFloat("zero_point", *weights.scalar_zero_point);
+  }
+}
+
 void AddWeightsArguments(const ExternalWeights& weights, int vec_size,
                          GPUOperation* op) {
   if (weights.desc.type == DataType::FLOAT32 ||
@@ -448,16 +462,7 @@ void AddWeightsArguments(const ExternalWeights& weights, int vec_size,
     }
   }
 
-  if (weights.scale) {
-    op->AddSrcTensor("weights_scale", *weights.scale);
-  } else if (weights.scalar_scale.has_value()) {
-    op->args_.AddFloat("scale", *weights.scalar_scale);
-  }
-  if (weights.zero_point) {
-    op->AddSrcTensor("weights_zero_point", *weights.zero_point);
-  } else if (weights.scalar_zero_point.has_value()) {
-    op->args_.AddFloat("zero_point", *weights.scalar_zero_point);
-  }
+  AddWeightsScaleZeroPointArguments(weights, op);
 }
 
 void AddSparseWeightsArguments(const ExternalWeights& weights, int vec_size,
@@ -472,16 +477,7 @@ void AddSparseWeightsArguments(const ExternalWeights& weights, int vec_size,
   desc_indices.element_size = 1;
   op->AddSrcBuffer("weights_indices", desc_indices);
 
-  if (weights.scale) {
-    op->AddSrcTensor("weights_scale", *weights.scale);
-  } else if (weights.scalar_scale.has_value()) {
-    op->args_.AddFloat("scale", *weights.scalar_scale);
-  }
-  if (weights.zero_point) {
-    op->AddSrcTensor("weights_zero_point", *weights.zero_point);
-  } else if (weights.scalar_zero_point.has_value()) {
-    op->args_.AddFloat("zero_point", *weights.scalar_zero_point);
-  }
+  AddWeightsScaleZeroPointArguments(weights, op);
 }
 
 bool IsQuantized(DataType weights_type) {

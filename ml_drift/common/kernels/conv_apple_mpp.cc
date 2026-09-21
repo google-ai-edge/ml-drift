@@ -20,6 +20,7 @@
 #include "absl/strings/str_replace.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
+#include "ml_drift/common/kernels/fully_connected_util.h"
 #include "ml_drift/common/shape.h"
 #include "ml_drift/common/task/buffer_desc.h"
 #include "ml_drift/common/task/gpu_object_desc.h"
@@ -57,70 +58,6 @@ void AddRuntimeParams(GPUOperation& op,
   }
 }
 
-inline int GetRangeShift(DataType type) {
-  return 1u << (SizeInBitsOf(type) - 1);
-}
-
-std::string ReadScaleZeroPointBlock(const OHWI& scale_zp_shape,
-                                    bool has_zero_point,
-                                    DataType weights_type) {
-  std::string c;
-  const int range_shift = GetRangeShift(weights_type);
-  std::string coords = "w_o_slice, 0, src_group_id";
-  if (scale_zp_shape.h != 1) {
-    coords = "w_o_slice, w_batch_id, src_group_id";
-  }
-  c += "    w_scale = args.weights_scale.Read(" + coords + ");\n";
-  if (has_zero_point) {
-    c += "    Type w_zp = args.weights_zero_point.Read(" + coords + ");\n";
-    c += "    w_bias = -w_scale * (ucl::Init<Type>(" +
-         std::to_string(range_shift) + ") + w_zp);\n";
-  } else {
-    c += "    w_bias = -w_scale * ucl::Init<Type>(" +
-         std::to_string(range_shift) + ".0f);\n";
-  }
-  return c;
-}
-
-std::string ReadScaleZeroPointLinear(const OHWI& scale_zp_shape,
-                                     bool has_zero_point,
-                                     DataType weights_type) {
-  std::string c;
-  const int range_shift = GetRangeShift(weights_type);
-  std::string coords = "w_o_slice";
-  if (scale_zp_shape.h != 1) {
-    coords += ", w_batch_id, 0";
-  }
-  c += "  w_scale = args.weights_scale.Read(" + coords + ");\n";
-  if (has_zero_point) {
-    c += "  Type w_zp = args.weights_zero_point.Read(" + coords + ");\n";
-    c += "  w_bias = -w_scale * (ucl::Init<Type>(" +
-         std::to_string(range_shift) + ") + w_zp);\n";
-  } else {
-    c += "  w_bias = -w_scale * (ucl::Init<Type>(" +
-         std::to_string(range_shift) + ".0f));\n";
-  }
-  return c;
-}
-
-std::string ReadScaleZeroPointScalar(bool has_zero_point,
-                                     DataType weights_type) {
-  std::string c;
-  const int range_shift = GetRangeShift(weights_type);
-  c += "  w_scale = "
-       "ucl::Convert<Type>(ucl::Init<float4>(args.scale));\n";
-  if (has_zero_point) {
-    c += "  Type w_zp = "
-         "ucl::Convert<Type>(ucl::Init<float4>(args.zero_point));\n";
-    c += "  w_bias = -w_scale * (ucl::Init<Type>(" +
-         std::to_string(range_shift) + ") + w_zp);\n";
-  } else {
-    c += "  w_bias = -w_scale * (ucl::Init<Type>(" +
-         std::to_string(range_shift) + ".0f));\n";
-  }
-  return c;
-}
-
 std::string ReadFloatWeights(
     const ConvAppleMPP::ExternalWeightsParams& params) {
   const bool weights_conversion =
@@ -134,8 +71,9 @@ std::string ReadFloatWeights(
          std::to_string(params.src_group_slices) + +";\n";
     c += "    if (last_src_group_id != src_group_id) {\n";
     c += "      last_src_group_id = src_group_id;\n";
-    c += ReadScaleZeroPointBlock(params.scale_zp_shape, params.has_zero_point,
-                                 params.weights_desc.type);
+    c += fc::ReadScaleZeroPointBlock(
+        "w_o_slice", params.scale_zp_shape, params.has_zero_point,
+        fc::GetDataTypeForWeights(params.weights_desc.type));
     c += "    }\n";
   }
   if (params.weights_desc.type == DataType::UINT8) {
@@ -264,15 +202,17 @@ MAIN_FUNCTION($0) {
         c += "  int last_src_group_id = -1;\n";
       } else if (external_weights_params_.scale_zp_shape.o != 1) {
         // linear quantization
-        c += ReadScaleZeroPointLinear(
-            external_weights_params_.scale_zp_shape,
+        c += fc::ReadScaleZeroPointLinear(
+            "w_o_slice", external_weights_params_.scale_zp_shape,
             external_weights_params_.has_zero_point,
-            external_weights_params_.weights_desc.type);
+            fc::GetDataTypeForWeights(
+                external_weights_params_.weights_desc.type));
       } else {
         // scalar quantization
-        c += ReadScaleZeroPointScalar(
+        c += fc::ReadScaleZeroPointScalar(
             external_weights_params_.has_zero_point,
-            external_weights_params_.weights_desc.type);
+            fc::GetDataTypeForWeights(
+                external_weights_params_.weights_desc.type));
       }
     }
   } else {
@@ -608,16 +548,7 @@ ConvAppleMPP CreateConvAppleMPPExternalWeights(
   buffer_desc.memory_type = MemoryType::GLOBAL;
   conv.AddSrcBuffer("weights", buffer_desc);
 
-  if (weights.scale) {
-    conv.AddSrcTensor("weights_scale", *weights.scale);
-  } else if (weights.scalar_scale.has_value()) {
-    conv.args_.AddFloat("scale", *weights.scalar_scale);
-  }
-  if (weights.zero_point) {
-    conv.AddSrcTensor("weights_zero_point", *weights.zero_point);
-  } else if (weights.scalar_zero_point.has_value()) {
-    conv.args_.AddFloat("zero_point", *weights.scalar_zero_point);
-  }
+  fc::AddWeightsScaleZeroPointArguments(weights, &conv);
 
   if (bias) {
     conv.AddSrcTensor("biases", *bias);
