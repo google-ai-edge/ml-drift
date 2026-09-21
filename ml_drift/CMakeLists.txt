@@ -41,7 +41,7 @@ set(BUILD_TESTING OFF CACHE BOOL "Disable tests by default")
 # --- ML Drift Library Backend Selection ---
 
 # Usage: -D ML_DRIFT_API=...
-set(ML_DRIFT_API "cl" CACHE STRING "Select the GPU backend API for ML Drift. Options: cl, mtl, wgpu")
+set(ML_DRIFT_API "" CACHE STRING "Select the GPU backend API for ML Drift. Options: cl, mtl, wgpu")
 
 # Input validation
 set(VALID_APIS "cl" "wgpu")
