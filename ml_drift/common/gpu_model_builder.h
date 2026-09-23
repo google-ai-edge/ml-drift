@@ -598,20 +598,14 @@ class GpuModelBuilder {
                                        const TensorHandle& position,
                                        const RoPEAttributes& attr);
 
-  using FcInt8Weights =
-      std::variant<std::pair<const WeightsDescription*, const TensorHandle*>,
-                   const Tensor<OHWI, DataType::INT8>*>;
   TensorHandle FullyConnectedInt8QuantizedWithSrcQuantization(
-      const TensorHandle& src, const OHWI& weights_shape,
-      const FcInt8Weights& weights, const TensorHandle& weights_scale,
-      const TensorHandle* weights_zero_point, const TensorHandle& weights_sum_i,
-      const TensorHandle* biases);
+      const TensorHandle& src, const Weights& weights,
+      const TensorHandle* biases,
+      WeightsDescription* conv_weights_desc_ptr = nullptr);
 
   TensorHandle FullyConnectedInt4QuantizedWithSrcQuantization(
-      const TensorHandle& src, const OHWI& weights_shape,
-      const WeightsDescription& weights_desc, const TensorHandle& weights,
-      const TensorHandle& weights_scale, const TensorHandle* weights_zero_point,
-      const TensorHandle& weights_sum_i, const TensorHandle* biases);
+      const TensorHandle& src, const Weights& weights,
+      const TensorHandle* biases);
 
   // src_exp - the reduced softmax tensor from src to optimize attention
   // calculations.
