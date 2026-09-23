@@ -35,6 +35,7 @@
 #include "ml_drift/common/kernels/depthwise_conv_tiled.h"
 #include "ml_drift/common/kernels/elementwise.h"
 #include "ml_drift/common/kernels/fully_connected.h"
+#include "ml_drift/common/kernels/fully_connected_oi.h"
 #include "ml_drift/common/kernels/quantize_and_dequantize.h"
 #include "ml_drift/common/kernels/softmax.h"
 #include "ml_drift/common/kernels/special/conv_softmax_conv.h"
@@ -1783,7 +1784,479 @@ absl::Status FullyConnectedWeightsBatchIdsPerfTest(CalculationsPrecision precisi
   return absl::OkStatus();
 }
 
+absl::Status FullyConnectedOIPerfTest(const BHWC& src_shape, int dst_channels, int src_group_size,
+                                      DataType weights_type) {
+  if (src_group_size <= 0) {
+    src_group_size = src_shape.c;
+  }
+  const bool use_zero_point = true;
 
+  Environment env;
+
+  const OHWI weights_shape(dst_channels, 1, 1, src_shape.c);
+
+  Tensor<OHWI, DataType::FLOAT32> weights = MakeSyntheticTensor(weights_shape);
+  weights.data.resize(weights_shape.DimensionsProduct() + XNN_EXTRA_BYTES / sizeof(float));
+  Tensor<Linear, DataType::FLOAT32> bias = MakeSyntheticTensor(Linear(dst_channels));
+
+  Tensor<OHWI, DataType::INT8> weights_i8;
+  weights_i8.shape = weights_shape;
+  weights_i8.data.resize(weights_shape.DimensionsProduct() + XNN_EXTRA_BYTES / sizeof(uint8_t));
+  for (int i = 0; i < weights_i8.data.size(); ++i) {
+    weights_i8.data[i] = i % 256;
+  }
+
+  OHWI scale_zp_shape(dst_channels, 1, 1, src_shape.c / src_group_size);
+  auto weights_scales = MakeSyntheticTensor(scale_zp_shape);
+  auto weights_zero_point = MakeSyntheticTensor(scale_zp_shape);
+
+  OperationDef op_def;
+  auto data_type = DataType::FLOAT16;
+  Layout layout = src_shape.b == 1 ? Layout::HWC : Layout::BHWC;
+  auto storage_type = GetFastestStorageType(env.GetInfo());
+  op_def.src_tensors.push_back({data_type, storage_type, layout});
+  op_def.dst_tensors.push_back({data_type, storage_type, layout});
+
+  auto dst_shape = src_shape;
+  dst_shape.c = dst_channels;
+
+  MetalSpatialTensor src, dst;
+  TensorDescriptor descriptor_with_shape = op_def.src_tensors[0];
+  descriptor_with_shape.SetBHWCShape(src_shape);
+  ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &src));
+  descriptor_with_shape = op_def.dst_tensors[0];
+  descriptor_with_shape.SetBHWCShape(dst_shape);
+  ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &dst));
+
+  std::cout << "Src size(HWC) - " << src_shape.h << "x" << src_shape.w << "x" << src_shape.c
+            << std::endl;
+  std::cout << "Dst size(HWC) - " << dst_shape.h << "x" << dst_shape.w << "x" << dst_shape.c
+            << std::endl;
+
+  double element_size = SizeOf(data_type);
+  double weight_element_size = element_size;
+  if (weights_type == DataType::INT8) {
+    weight_element_size = 1.0;
+  } else if (weights_type == DataType::INT4) {
+    weight_element_size = 0.5;
+  } else if (weights_type == DataType::INT2) {
+    weight_element_size = 0.25;
+  }
+  const int64_t flops_per_element = src_shape.c * 2;
+  const int64_t dst_elements = dst.Width() * dst.Height() * dst.Channels();
+  const int64_t flops_count = dst_elements * flops_per_element;
+  const double gflops_count = flops_count * 1e-9;
+
+  const double kGByte = 1024.0 * 1024.0 * 1024.0;
+  const int64_t dst_elements_alignedx4 = dst.Width() * dst.Height() * dst.Slices() * 4;
+  const int64_t src_elements_alignedx4 = src.Width() * src.Height() * src.Slices() * 4;
+  const double dst_gbytes = dst_elements_alignedx4 * element_size / kGByte;
+  const double src_gbytes = src_elements_alignedx4 * element_size / kGByte;
+  const double weight_gbytes = weights_shape.DimensionsProduct() * weight_element_size / kGByte;
+  const double scale_gbytes = weights_scales.shape.DimensionsProduct() * element_size / kGByte;
+
+  DataType type = op_def.src_tensors[0].GetDataType();
+  auto scale_desc = ScaleOrZeroPointToTensorDesc(env.GetInfo(), weights_scales, type);
+  auto zero_point_desc = ScaleOrZeroPointToTensorDesc(env.GetInfo(), weights_zero_point, type);
+
+  ExternalWeights external_weights;
+  external_weights.desc.layout = WeightsLayout::kOSpatialIOGroupI4O4;
+  external_weights.desc.output_group_size = 1;
+  external_weights.shape = weights_shape;
+  if (SizeInBitsOf(weights_type) <= 8) {
+    external_weights.scale_zp_shape = weights_scales.shape;
+    external_weights.scale = &scale_desc;
+    if (use_zero_point) {
+      external_weights.zero_point = &zero_point_desc;
+    }
+  }
+
+  TensorDescriptor weights_desc;
+
+  if (weights_type == DataType::INT8) {
+    external_weights.desc.type = DataType::UINT8;
+    TensorDescriptor weights_desc_buffer =
+        GetTensorDescriptorForWeightsLayout(weights_i8, external_weights.desc);
+    int width = DivideRoundUp(weights_i8.shape.i, 4);
+    int height = DivideRoundUp(weights_i8.shape.o, 4);
+    weights_desc =
+        CreateConstantHWVec4TensorDescriptor(DataType::UINT32, TensorStorageType::TEXTURE_2D, width,
+                                             height, weights_desc_buffer.GetData().data());
+    external_weights.desc.layout = WeightsLayout::k2DX4I4YIsSpatialIAndXIsOOGroupO4;
+  } else if (weights_type == DataType::INT4) {
+    external_weights.desc.type = DataType::UINT4;
+    TensorDescriptor weights_desc_buffer =
+        GetTensorDescriptorForWeightsLayout(weights_i8, external_weights.desc);
+    weights_desc = weights_desc_buffer;
+
+    // int width = DivideRoundUp(weights_i8.shape.i, 4);
+    // int height = DivideRoundUp(weights_i8.shape.o, 4);
+    // weights_desc =
+    //     CreateConstantHWVec4TensorDescriptor(DataType::UINT16, TensorStorageType::TEXTURE_2D,
+    //     width,
+    //                                          height, weights_desc_buffer.GetData().data());
+    //  external_weights.desc.layout = WeightsLayout::k2DX4I4YIsSpatialIAndXIsOOGroupO4;
+  } else if (weights_type == DataType::INT2) {
+    external_weights.desc.type = DataType::UINT2;
+    TensorDescriptor weights_desc_buffer =
+        GetTensorDescriptorForWeightsLayout(weights_i8, external_weights.desc);
+    weights_desc = weights_desc_buffer;
+
+    // int width = DivideRoundUp(weights_i8.shape.i, 4);
+    // int height = DivideRoundUp(weights_i8.shape.o, 4);
+    // weights_desc =
+    //     CreateConstantHWVec4TensorDescriptor(DataType::UINT8, TensorStorageType::TEXTURE_2D,
+    //     width,
+    //                                          height, weights_desc_buffer.GetData().data());
+    // external_weights.desc.layout = WeightsLayout::k2DX4I4YIsSpatialIAndXIsOOGroupO4;
+  } else {
+    external_weights.desc.type = data_type;
+    auto weights_descs = GetTensorDescriptorsForWeightsLayout(weights, external_weights.desc);
+    weights_desc = weights_descs[0];
+  }
+  auto conv = std::make_unique<FullyConnectedOI>(
+      CreateFullyConnectedOI(env.GetInfo(), CalculationsPrecision::F16, op_def.src_tensors[0],
+                             op_def.dst_tensors[0], external_weights));
+  ABSL_RETURN_IF_ERROR(conv->AssembleCode(env.GetInfo()));
+
+  MetalSpatialTensor weights_gpu_tensor;
+  MetalSpatialTensor scale_gpu_tensor;
+  MetalSpatialTensor zero_point_gpu_tensor;
+
+  ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), weights_desc, &weights_gpu_tensor));
+  if (SizeInBitsOf(weights_type) <= 8) {
+    ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), scale_desc, &scale_gpu_tensor));
+    if (use_zero_point) {
+      ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), zero_point_desc, &zero_point_gpu_tensor));
+    }
+  }
+
+  ComputeTask gpu_task;
+  gpu_task.Init(std::move(conv));
+  ABSL_RETURN_IF_ERROR(gpu_task.Compile(&env));
+  gpu_task.SetSrcTensor(&src, 0);
+  gpu_task.SetDstTensor(&dst, 0);
+  gpu_task.SetSrcTensor(&weights_gpu_tensor, 1);
+  if (SizeInBitsOf(weights_type) <= 8) {
+    gpu_task.SetSrcTensor(&scale_gpu_tensor, 2);
+    if (use_zero_point) {
+      gpu_task.SetSrcTensor(&zero_point_gpu_tensor, 3);
+    }
+  }
+  ABSL_RETURN_IF_ERROR(gpu_task.UpdateParams());
+
+  double gbytes_read = src_gbytes + weight_gbytes;
+  if (SizeInBitsOf(weights_type) <= 8) {
+    gbytes_read += scale_gbytes;
+    if (use_zero_point) {
+      gbytes_read += scale_gbytes;
+    }
+  }
+
+  id<MTLCommandQueue> command_queue = [env.device() newCommandQueue];
+  absl::Duration min_duration = absl::InfiniteDuration();
+  for (int i = 0; i < 10; ++i) {
+    absl::Duration gpu_task_time = gpu_task.GetTaskTime(command_queue);
+    min_duration = std::min(min_duration, gpu_task_time);
+    double time_ms = absl::ToDoubleMilliseconds(gpu_task_time);
+    const double fps = 1000.0 / time_ms;
+    const double gflops_real = fps * gflops_count;
+    const double gbs_read = fps * gbytes_read;
+    const double gbs_write = fps * dst_gbytes;
+    std::cout << std::fixed << std::setprecision(4) << " Time - " << time_ms << "(ms), GFlops - "
+              << gflops_real << ", Bandwidth - " << gbs_read + gbs_write << "(GB/s), Read - "
+              << gbs_read << "(GB/s), Write - " << gbs_write << "(GB/s)" << std::endl;
+  }
+
+  const bool is_quantized = SizeInBitsOf(weights_type) <= 8;
+  const bool kUseMultipleWeights = false;
+  if (kUseMultipleWeights) {
+    const int kMultiplier = 32;
+    int inferences = 1000.0 / absl::ToDoubleMilliseconds(min_duration);
+    inferences = AlignByN(inferences, kMultiplier);
+    std::vector<MetalSpatialTensor> weights_tensors_multiple(kMultiplier);
+    std::vector<MetalSpatialTensor> scale_tensors_multiple(kMultiplier);
+    std::vector<MetalSpatialTensor> zp_tensors_multiple(kMultiplier);
+    for (int k = 0; k < kMultiplier; ++k) {
+      ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), weights_desc, &weights_tensors_multiple[k]));
+      if (is_quantized) {
+        ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), scale_desc, &scale_tensors_multiple[k]));
+        ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), zero_point_desc, &zp_tensors_multiple[k]));
+      }
+    }
+    std::cout << "Weight total size: " << weight_gbytes * kMultiplier * 1024.0 << " MB"
+              << std::endl;
+    for (int i = 0; i < 10; ++i) {
+      @autoreleasepool {
+        id<MTLCommandBuffer> command_buffer = [command_queue commandBuffer];
+        id<MTLComputeCommandEncoder> encoder = [command_buffer computeCommandEncoder];
+        for (int j = 0; j < inferences; ++j) {
+          int w_id = j % kMultiplier;
+          gpu_task.SetSrcTensor(&weights_tensors_multiple[w_id], 1);
+          if (is_quantized) {
+            gpu_task.SetSrcTensor(&scale_tensors_multiple[w_id], 2);
+            if (use_zero_point) {
+              gpu_task.SetSrcTensor(&zp_tensors_multiple[w_id], 3);
+            }
+          }
+          ABSL_RETURN_IF_ERROR(gpu_task.UpdateParams());
+          gpu_task.Encode(encoder);
+        }
+        [encoder endEncoding];
+        auto start = absl::Now();
+        [command_buffer commit];
+        [command_buffer waitUntilCompleted];
+        auto end = absl::Now();
+        double time_ms =
+            static_cast<double>((end - start) / absl::Nanoseconds(1)) / inferences * 1e-6;
+        const double fps = 1000.0 / time_ms;
+        const double gflops_real = fps * gflops_count;
+        const double gbs_read = fps * gbytes_read;
+        const double gbs_write = fps * dst_gbytes;
+        std::cout << std::fixed << std::setprecision(4) << " Time - " << time_ms
+                  << "(ms), GFlops - " << gflops_real << ", Bandwidth - " << gbs_read + gbs_write
+                  << "(GB/s), Read - " << gbs_read << "(GB/s), Write - " << gbs_write << "(GB/s)"
+                  << std::endl;
+      }
+    }
+  }
+  return absl::OkStatus();
+}
+
+absl::Status FullyConnectedOIWeightsBatchIdsPerfTest(CalculationsPrecision precision,
+                                                     DataType weights_type, const BHWC& src_shape,
+                                                     int dst_channels, int batch_size,
+                                                     int active_ids_size, OHWI scale_zp_shape) {
+  const bool use_zero_point = false;
+  Environment env;
+
+  ml_drift::Tensor<OHWI, DataType::FLOAT32> weights;
+  weights.shape = OHWI(dst_channels, batch_size, 1, src_shape.c);
+  weights.data.resize(weights.shape.DimensionsProduct() + XNN_EXTRA_BYTES / sizeof(float));
+
+  ml_drift::Tensor<OHWI, DataType::INT8> weights_i8;
+  weights_i8.shape = OHWI(dst_channels, batch_size, 1, src_shape.c);
+  weights_i8.data.resize(weights_i8.shape.DimensionsProduct() + XNN_EXTRA_BYTES / sizeof(uint8_t));
+
+  ml_drift::Tensor<OHWI, DataType::FLOAT32> weights_scale;
+  weights_scale.shape = scale_zp_shape;
+  weights_scale.data.resize(weights_scale.shape.DimensionsProduct(), 1.0f);
+  ml_drift::Tensor<OHWI, DataType::FLOAT32> weights_zp;
+  weights_zp.shape = scale_zp_shape;
+  weights_zp.data.resize(weights_zp.shape.DimensionsProduct(), 0.0f);
+
+  OperationDef op_def;
+  auto data_type = DeduceDataTypeFromPrecision(precision);
+  Layout layout = src_shape.b == 1 ? Layout::HWC : Layout::BHWC;
+  auto storage_type = GetFastestStorageType(env.GetInfo());
+  op_def.src_tensors.push_back({data_type, storage_type, layout});
+  op_def.dst_tensors.push_back({data_type, storage_type, layout});
+
+  auto dst_shape = src_shape;
+  dst_shape.c = dst_channels;
+  dst_shape.h = active_ids_size;
+
+  MetalSpatialTensor src, dst;
+  TensorDescriptor descriptor_with_shape = op_def.src_tensors[0];
+  descriptor_with_shape.SetBHWCShape(src_shape);
+  ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &src));
+  descriptor_with_shape = op_def.dst_tensors[0];
+  descriptor_with_shape.SetBHWCShape(dst_shape);
+  ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), descriptor_with_shape, &dst));
+
+  ml_drift::Tensor<BHWC, DataType::INT32> ids_data;
+  ids_data.shape = BHWC(1, 1, 1, active_ids_size);
+  ids_data.data.resize(ids_data.shape.DimensionsProduct(), 0);
+  for (int i = 0; i < active_ids_size; ++i) {
+    ids_data.data[i] = i;  // rand() % batch_size;
+  }
+  TensorDescriptor ids_desc = TensorDescriptor(DataType::INT32, storage_type, Layout::HWC);
+  TensorDescriptor ids_desc_with_data = ids_desc;
+  ids_desc_with_data.SetBHWCShape(ids_data.shape);
+  ids_desc_with_data.UploadData(ids_data);
+
+  MetalSpatialTensor ids;
+  ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), ids_desc_with_data, &ids));
+  ABSL_RETURN_IF_ERROR(ids.UploadDescriptorData(ids_desc_with_data, env.device()));
+
+  ExternalWeights external_weights;
+  external_weights.desc.layout = WeightsLayout::kOSpatialIOGroupI4O4;
+  external_weights.desc.output_group_size = 1;
+  external_weights.shape = weights.shape;
+
+  TensorDescriptor weights_desc;
+
+  if (weights_type == DataType::INT8) {
+    external_weights.desc.type = DataType::UINT8;
+    TensorDescriptor weights_desc_buffer =
+        GetTensorDescriptorForWeightsLayout(weights_i8, external_weights.desc);
+    int width = DivideRoundUp(weights_i8.shape.i, 4);
+    int height = DivideRoundUp(weights_i8.shape.o, 4);
+    weights_desc =
+        CreateConstantHWVec4TensorDescriptor(DataType::UINT32, TensorStorageType::TEXTURE_2D, width,
+                                             height, weights_desc_buffer.GetData().data());
+
+    external_weights.desc.layout = WeightsLayout::k2DX4I4YIsSpatialIAndXIsOOGroupO4;
+  } else if (weights_type == DataType::INT4) {
+    external_weights.desc.type = DataType::UINT4;
+    TensorDescriptor weights_desc_buffer =
+        GetTensorDescriptorForWeightsLayout(weights_i8, external_weights.desc);
+    weights_desc = weights_desc_buffer;
+  } else if (weights_type == DataType::INT2) {
+    external_weights.desc.type = DataType::UINT2;
+    TensorDescriptor weights_desc_buffer =
+        GetTensorDescriptorForWeightsLayout(weights_i8, external_weights.desc);
+    weights_desc = weights_desc_buffer;
+  } else {
+    external_weights.desc.type = data_type;
+    auto weights_descs = GetTensorDescriptorsForWeightsLayout(weights, external_weights.desc);
+    weights_desc = weights_descs[0];
+  }
+
+  MetalSpatialTensor weights_gpu_tensor;
+  ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), weights_desc, &weights_gpu_tensor));
+
+  TensorDescriptor scale_desc =
+      ScaleOrZeroPointToTensorDesc(env.GetInfo(), weights_scale, data_type);
+  TensorDescriptor zp_desc = ScaleOrZeroPointToTensorDesc(env.GetInfo(), weights_zp, data_type);
+
+  const bool is_quantized = weights_type != DataType::FLOAT16 && weights_type != DataType::FLOAT32;
+
+  MetalSpatialTensor scale_tensor;
+  MetalSpatialTensor zp_tensor;
+  if (is_quantized) {
+    ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), scale_desc, &scale_tensor));
+    if (use_zero_point) {
+      ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), zp_desc, &zp_tensor));
+    }
+  }
+
+  if (is_quantized) {
+    external_weights.scale_zp_shape = scale_zp_shape;
+    external_weights.scale = &scale_desc;
+    if (use_zero_point) {
+      external_weights.zero_point = &zp_desc;
+    }
+  }
+
+  auto operation = CreateFullyConnectedOIWeightsBatchIds(
+      env.GetInfo(), precision, op_def.src_tensors[0], ids_desc, op_def.dst_tensors[0],
+      external_weights, nullptr, &dst_shape);
+  std::unique_ptr<GPUOperation> conv = std::make_unique<FullyConnectedOI>(std::move(operation));
+  ABSL_RETURN_IF_ERROR(conv->AssembleCode(env.GetInfo()));
+
+  ComputeTask gpu_task;
+  gpu_task.Init(std::move(conv));
+  ABSL_RETURN_IF_ERROR(gpu_task.Compile(&env));
+
+  gpu_task.SetSrcTensor(&src, 0);
+  gpu_task.SetDstTensor(&dst, 0);
+  gpu_task.SetSrcTensor(&ids, 1);
+  gpu_task.SetSrcTensor(&weights_gpu_tensor, 2);
+  if (is_quantized) {
+    gpu_task.SetSrcTensor(&scale_tensor, 3);
+    if (use_zero_point) {
+      gpu_task.SetSrcTensor(&zp_tensor, 4);
+    }
+  }
+  ABSL_RETURN_IF_ERROR(gpu_task.UpdateParams());
+
+  double element_size = precision == CalculationsPrecision::F32 ? 4.0 : 2.0;
+  const int64_t flops_per_element = weights.shape.i * 2;
+  const int64_t dst_elements = dst.Width() * dst.Height() * dst.Channels();
+  const int64_t flops_count = dst_elements * flops_per_element;
+  const double gflops_count = flops_count * 1e-9;
+
+  const double kGByte = 1024.0 * 1024.0 * 1024.0;
+  const int64_t dst_elements_alignedx4 = dst.Width() * dst.Height() * dst.Slices() * 4;
+  const int64_t src_elements_alignedx4 = src.Width() * src.Height() * src.Slices() * 4;
+  const double dst_gbytes = dst_elements_alignedx4 * element_size / kGByte;
+  const double src_gbytes = src_elements_alignedx4 * element_size / kGByte;
+  const double weight_element_size = SizeInBitsOf(weights_type) / 8.0;
+  const double weight_gbytes = weights.shape.DimensionsProduct() * weight_element_size / kGByte;
+  const double scale_gbytes = scale_zp_shape.DimensionsProduct() * element_size / kGByte;
+  const double runtime_read_fraction = 1.0 / batch_size * active_ids_size;
+
+  double gbytes_read = src_gbytes + weight_gbytes * runtime_read_fraction;
+  if (is_quantized) {
+    gbytes_read += scale_gbytes * runtime_read_fraction;
+    if (use_zero_point) {
+      gbytes_read += scale_gbytes * runtime_read_fraction;
+    }
+  }
+
+  id<MTLCommandQueue> command_queue = [env.device() newCommandQueue];
+  absl::Duration min_duration = absl::InfiniteDuration();
+  for (int i = 0; i < 10; ++i) {
+    absl::Duration gpu_task_time = gpu_task.GetTaskTime(command_queue);
+    min_duration = std::min(min_duration, gpu_task_time);
+    double time_ms = absl::ToDoubleMilliseconds(gpu_task_time);
+    const double fps = 1000.0 / time_ms;
+    const double gflops_real = fps * gflops_count;
+    const double gbs_read = fps * gbytes_read;
+    const double gbs_write = fps * dst_gbytes;
+    std::cout << std::fixed << std::setprecision(4) << " Time - " << time_ms << "(ms), GFlops - "
+              << gflops_real << ", Bandwidth - " << gbs_read + gbs_write << "(GB/s), Read - "
+              << gbs_read << "(GB/s), Write - " << gbs_write << "(GB/s)" << std::endl;
+  }
+
+  const bool kUseMultipleWeights = false;
+  if (kUseMultipleWeights) {
+    const int kMultiplier = 32;
+    double min_duration_ms = absl::ToDoubleMilliseconds(min_duration);
+    int inferences = 1000.0 / min_duration_ms;
+    inferences = AlignByN(inferences, kMultiplier);
+    std::vector<MetalSpatialTensor> weights_tensors_multiple(kMultiplier);
+    std::vector<MetalSpatialTensor> scale_tensors_multiple(kMultiplier);
+    std::vector<MetalSpatialTensor> zp_tensors_multiple(kMultiplier);
+    for (int k = 0; k < kMultiplier; ++k) {
+      ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), weights_desc, &weights_tensors_multiple[k]));
+      if (is_quantized) {
+        ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), scale_desc, &scale_tensors_multiple[k]));
+        if (use_zero_point) {
+          ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), zp_desc, &zp_tensors_multiple[k]));
+        }
+      }
+    }
+    std::cout << "Weight total size: " << weight_gbytes * kMultiplier * 1024.0 << " MB"
+              << std::endl;
+    for (int i = 0; i < 10; ++i) {
+      @autoreleasepool {
+        id<MTLCommandBuffer> command_buffer = [command_queue commandBuffer];
+        id<MTLComputeCommandEncoder> encoder = [command_buffer computeCommandEncoder];
+        for (int j = 0; j < inferences; ++j) {
+          int w_id = j % kMultiplier;
+          gpu_task.SetSrcTensor(&weights_tensors_multiple[w_id], 2);
+          if (is_quantized) {
+            gpu_task.SetSrcTensor(&scale_tensors_multiple[w_id], 3);
+            if (use_zero_point) {
+              gpu_task.SetSrcTensor(&zp_tensors_multiple[w_id], 4);
+            }
+          }
+          ABSL_RETURN_IF_ERROR(gpu_task.UpdateParams());
+          gpu_task.Encode(encoder);
+        }
+        [encoder endEncoding];
+        auto start = absl::Now();
+        [command_buffer commit];
+        [command_buffer waitUntilCompleted];
+        auto end = absl::Now();
+        double time_ms =
+            static_cast<double>((end - start) / absl::Nanoseconds(1)) / inferences * 1e-6;
+        const double fps = 1000.0 / time_ms;
+        const double gflops_real = fps * gflops_count;
+        const double gbs_read = fps * gbytes_read;
+        const double gbs_write = fps * dst_gbytes;
+        std::cout << std::fixed << std::setprecision(4) << " Time - " << time_ms
+                  << "(ms), GFlops - " << gflops_real << ", Bandwidth - " << gbs_read + gbs_write
+                  << "(GB/s), Read - " << gbs_read << "(GB/s), Write - " << gbs_write << "(GB/s)"
+                  << std::endl;
+      }
+    }
+  }
+
+  return absl::OkStatus();
+}
 
 absl::Status AddScalarTest(const BHWC& shape, const DataType& data_type) {
   Environment env;

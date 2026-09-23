@@ -64,6 +64,15 @@ absl::Status FullyConnectedWeightsBatchIdsPerfTest(
     const BHWC& src_shape, int dst_channels, int batch_size,
     int active_ids_size, OHWI scale_zp_shape = OHWI(1, 1, 1, 1));
 
+absl::Status FullyConnectedOIPerfTest(const BHWC& src_shape, int dst_channels,
+                                      int src_group_size,
+                                      DataType weights_type);
+
+absl::Status FullyConnectedOIWeightsBatchIdsPerfTest(
+    CalculationsPrecision precision, DataType weights_type,
+    const BHWC& src_shape, int dst_channels, int batch_size,
+    int active_ids_size, OHWI scale_zp_shape = OHWI(1, 1, 1, 1));
+
 // bandwidth test
 absl::Status AddScalarTest(const BHWC& shape, const DataType& data_type);
 

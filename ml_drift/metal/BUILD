@@ -390,6 +390,7 @@ objc_library(
         "//ml_drift/common/kernels:depthwise_conv_tiled",
         "//ml_drift/common/kernels:elementwise",
         "//ml_drift/common/kernels:fully_connected",
+        "//ml_drift/common/kernels:fully_connected_oi",
         "//ml_drift/common/kernels:quantize_and_dequantize",
         "//ml_drift/common/kernels:softmax",
         "//ml_drift/common/kernels:winograd",
