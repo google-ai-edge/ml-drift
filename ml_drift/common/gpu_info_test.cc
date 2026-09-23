@@ -279,30 +279,5 @@ TEST(GpuInfoTest, DefaultInitialization) {
   EXPECT_EQ(gpu_info.maleoon_info.gpu, MaleoonGpu::kUnknown);
 }
 
-TEST(PowerVRInfoTest, TestGpuVersionParsing) {
-  EXPECT_EQ(PowerVRInfo("PowerVR Rogue GE8320").gpu_version,
-            PowerVRGpu::kRogueGe8xxx);
-  EXPECT_EQ(PowerVRInfo("PowerVR Rogue GM9446").gpu_version,
-            PowerVRGpu::kRogueGm9xxx);
-  EXPECT_EQ(PowerVRInfo("PowerVR Rogue G6430").gpu_version, PowerVRGpu::kRogue);
-  EXPECT_EQ(PowerVRInfo("PowerVR B-Series BXM-8-256").gpu_version,
-            PowerVRGpu::kBXM);
-
-  PowerVRInfo ge8(PowerVRInfo("PowerVR Rogue GE8320"));
-  EXPECT_TRUE(ge8.IsRogue());
-  EXPECT_FALSE(ge8.IsBetterThan(PowerVRGpu::kRogueGm9xxx));
-  EXPECT_TRUE(ge8.IsBetterThan(PowerVRGpu::kRogueGe8xxx));
-
-  PowerVRInfo gm9(PowerVRInfo("PowerVR Rogue GM9446"));
-  EXPECT_TRUE(gm9.IsRogue());
-  EXPECT_TRUE(gm9.IsBetterThan(PowerVRGpu::kRogueGm9xxx));
-  EXPECT_TRUE(gm9.IsBetterThan(PowerVRGpu::kRogueGe8xxx));
-
-  PowerVRInfo bxm(PowerVRInfo("PowerVR B-Series BXM-8-256"));
-  EXPECT_FALSE(bxm.IsRogue());
-  EXPECT_TRUE(bxm.IsImgBxx());
-  EXPECT_TRUE(bxm.IsBetterThan(PowerVRGpu::kRogueGm9xxx));
-}
-
 }  // namespace
 }  // namespace ml_drift
