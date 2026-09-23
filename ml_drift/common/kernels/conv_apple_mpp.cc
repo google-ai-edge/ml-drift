@@ -58,8 +58,7 @@ void AddRuntimeParams(GPUOperation& op,
   }
 }
 
-std::string ReadFloatWeights(
-    const ConvAppleMPP::ExternalWeightsParams& params) {
+std::string ReadFloatWeights(const ConvAppleMPP::ConvParams& params) {
   const bool weights_conversion =
       params.weights_desc.layout == WeightsLayout::kOSpatialIOGroupI4O4;
   const bool quantized_weights =
@@ -100,23 +99,23 @@ std::string ReadFloatWeights(
 }
 }  // namespace
 
-std::string ConvAppleMPP::GetKernelCode(bool has_batch, bool has_bias) const {
+std::string ConvAppleMPP::GetKernelCode(const TensorDescriptor& src) const {
   const bool weights_conversion =
-      external_weights_params_.weights_desc.layout ==
-      WeightsLayout::kOSpatialIOGroupI4O4;
+      params_.weights_desc.layout == WeightsLayout::kOSpatialIOGroupI4O4;
   const bool quantized_weights =
-      weights_conversion &&
-      SizeInBitsOf(external_weights_params_.weights_desc.type) <= 8;
+      weights_conversion && SizeInBitsOf(params_.weights_desc.type) <= 8;
   const bool manual_src_reading =
-      softmax_input_activation_ ||
-      src_desc_.GetStorageType() != TensorStorageType::BUFFER ||
-      !src_desc_.IsCC4Layout();
-  const bool manual_k_tiling = runtime_check_.src_end_ch_index.has_value() ||
-                               manual_src_reading || weights_conversion;
-  const int k_tile = manual_k_tiling ? 32 : AlignByN(weights_shape_.i, 4);
+      params_.softmax_input_activation ||
+      src.GetStorageType() != TensorStorageType::BUFFER || !src.IsCC4Layout();
+  const bool manual_k_tiling =
+      params_.runtime_check.src_end_ch_index.has_value() ||
+      manual_src_reading || weights_conversion;
+  const int k_tile =
+      manual_k_tiling ? 32 : AlignByN(params_.weights_shape.i, 4);
+  const bool has_batch = src.HasAxis(Axis::BATCH);
   std::string c;
   c += "#include <MetalPerformancePrimitives/MetalPerformancePrimitives.h>\n";
-  if (weights_conversion && weights_data_type_ != DataType::FLOAT16) {
+  if (weights_conversion && params_.weights_data_type != DataType::FLOAT16) {
     c += R"(
 uint32_t expand_int4_to_int8(uint32_t val) {
   uint32_t x = val & 0xFFFF;
@@ -141,30 +140,31 @@ MAIN_FUNCTION($0) {
     c += "  int dst_b = spatial_id % args.dst.Batch();\n";
     c += "  spatial_id = spatial_id / args.dst.Batch();\n";
   }
-  if (batched_weights_) {
+  if (params_.batched_weights) {
     c += "  int dst_w = spatial_id;\n";
     c += "  int dst_h = ucl::GetGroupId<2>();\n";
   } else {
     c += "  int dst_w = spatial_id % args.dst.Width();\n";
     c += "  int dst_h = spatial_id / args.dst.Width();\n";
   }
-  if (runtime_check_.packed_groups.has_value()) {
+  if (params_.runtime_check.packed_groups.has_value()) {
     c += "  int w_batch_id = dst_h;\n";
     c += "  dst_h = 0;\n";
     c += "  int w_group_size = args.params.Read(args.packed_params_offset + "
          "w_batch_id);\n";
     c += "  int w_group_offset = args.params.Read(args.packed_params_offset + "
          "w_batch_id + " +
-         std::to_string(runtime_check_.packed_groups->num_groups) + ");\n";
+         std::to_string(params_.runtime_check.packed_groups->num_groups) +
+         ");\n";
     c += "  int wg_first_w = spatial_tile_id * M_TILE;\n";
     c += "  if (wg_first_w >= w_group_size) return;\n";
     c += "  dst_w = w_group_offset + dst_w;\n";
-  } else if (batched_weights_) {
+  } else if (params_.batched_weights) {
     c += "  int w_batch_id = dst_h;\n";
   }
-  if (runtime_check_.dst_end_ch_index.has_value()) {
+  if (params_.runtime_check.dst_end_ch_index.has_value()) {
     c += "  int dst_end_slice_runtime = " +
-         runtime_check_.GetRuntimeEndSlice(
+         params_.runtime_check.GetRuntimeEndSlice(
              "args.params.Read(args.dst_end_ch_index)", "args.dst.Slices()") +
          ";\n";
     c += "  if (slice_tile_id * N_TILE_SLICES >= dst_end_slice_runtime) "
@@ -175,9 +175,9 @@ MAIN_FUNCTION($0) {
     ABSL_CHECK(k_tile == 32);
     ABSL_CHECK(simdgroups_ == 4);
     const std::string w_loc_type =
-        weights_data_type_ == DataType::FLOAT16 ? "half" : "int8_t";
+        params_.weights_data_type == DataType::FLOAT16 ? "half" : "int8_t";
     const std::string w_loc_x4_type =
-        weights_data_type_ == DataType::FLOAT16 ? "half4" : "uint";
+        params_.weights_data_type == DataType::FLOAT16 ? "half4" : "uint";
     c += "  threadgroup " + w_loc_type + " w_loc[K_TILE * N_TILE];\n";
     c += "  threadgroup " + w_loc_x4_type + "* w_loc_x4 = (threadgroup " +
          w_loc_x4_type + "*)(w_loc);\n";
@@ -192,27 +192,24 @@ MAIN_FUNCTION($0) {
   int w_stride = args.dst.Slices() * 8;
 )";
     const std::string batch_part =
-        batched_weights_ ? "w_batch_id * args.src.Slices()" : "0";
+        params_.batched_weights ? "w_batch_id * args.src.Slices()" : "0";
     c += "  int w_wg_offset = (" + batch_part +
          " + sub_i) * args.dst.Slices() + w_o_slice;\n";
-    if (quantized_weights && weights_data_type_ == DataType::FLOAT16) {
+    if (quantized_weights && params_.weights_data_type == DataType::FLOAT16) {
       c += "  half4 w_scale, w_bias;\n";
-      if (external_weights_params_.scale_zp_shape.i != 1) {
+      if (params_.scale_zp_shape.i != 1) {
         // grouped quantization
         c += "  int last_src_group_id = -1;\n";
-      } else if (external_weights_params_.scale_zp_shape.o != 1) {
+      } else if (params_.scale_zp_shape.o != 1) {
         // linear quantization
         c += fc::ReadScaleZeroPointLinear(
-            "w_o_slice", external_weights_params_.scale_zp_shape,
-            external_weights_params_.has_zero_point,
-            fc::GetDataTypeForWeights(
-                external_weights_params_.weights_desc.type));
+            "w_o_slice", params_.scale_zp_shape, params_.has_zero_point,
+            fc::GetDataTypeForWeights(params_.weights_desc.type));
       } else {
         // scalar quantization
         c += fc::ReadScaleZeroPointScalar(
-            external_weights_params_.has_zero_point,
-            fc::GetDataTypeForWeights(
-                external_weights_params_.weights_desc.type));
+            params_.has_zero_point,
+            fc::GetDataTypeForWeights(params_.weights_desc.type));
       }
     }
   } else {
@@ -221,7 +218,7 @@ MAIN_FUNCTION($0) {
   int b_rows = args.src.Slices() * 4;
   int b_cols = args.dst.Slices() * 4;
 )";
-    if (batched_weights_) {
+    if (params_.batched_weights) {
       c += "  w_ptr += w_batch_id * b_rows * b_cols;\n";
     }
     c += "  auto b_tensor = tensor(w_ptr, dextents<int, 2>(b_cols, b_rows));\n";
@@ -235,7 +232,7 @@ MAIN_FUNCTION($0) {
   int src_w = min(dst_w, args.src.Width() - 1);
   int src_h = min(dst_h, args.src.Height() - 1);
 )";
-    if (softmax_input_activation_) {
+    if (params_.softmax_input_activation) {
       c += "  half2 exp_val = args.src_exp.Read(src_w, src_h, 0).xy;\n";
     }
   } else {
@@ -244,10 +241,10 @@ MAIN_FUNCTION($0) {
   int a_rows = SPATIAL_SIZE;
   int a_cols = args.src.Slices() * 4;
 )";
-    if (runtime_check_.packed_groups.has_value()) {
+    if (params_.runtime_check.packed_groups.has_value()) {
       c += "  s_ptr += w_group_offset * a_cols;\n";
     } else {
-      if (batched_weights_) {
+      if (params_.batched_weights) {
         c += "  s_ptr += w_batch_id * a_rows * a_cols;\n";
       }
     }
@@ -265,9 +262,9 @@ MAIN_FUNCTION($0) {
   }
 )";
   std::string src_end_slice = "args.src.Slices()";
-  if (runtime_check_.src_end_ch_index.has_value()) {
+  if (params_.runtime_check.src_end_ch_index.has_value()) {
     c += "  int src_slices_dynamic = " +
-         runtime_check_.GetRuntimeEndSlice(
+         params_.runtime_check.GetRuntimeEndSlice(
              "args.params.Read(args.src_end_ch_index)", "args.src.Slices()") +
          ";\n";
     src_end_slice = "src_slices_dynamic";
@@ -275,9 +272,9 @@ MAIN_FUNCTION($0) {
   if (manual_k_tiling) {
     c += "  for (int k = 0; k < " + src_end_slice + "; k += K_TILE_SLICES) {\n";
     if (weights_conversion) {
-      if (weights_data_type_ == DataType::FLOAT16) {
+      if (params_.weights_data_type == DataType::FLOAT16) {
         c += "    half4 w0, w1, w2, w3;\n";
-        c += ReadFloatWeights(external_weights_params_);
+        c += ReadFloatWeights(params_);
       } else {
         c += R"(
     uint2 u4_i4o4 = args.weights.Read(w_wg_offset);
@@ -311,7 +308,7 @@ MAIN_FUNCTION($0) {
       int slice_id = min(k + tile_k_id, args.src.Slices() - 1);
       half4 src = args.src.Read(src_w, src_h, slice_id);
 )";
-      if (softmax_input_activation_) {
+      if (params_.softmax_input_activation) {
         c += "      src = exp(src - exp_val.y) * exp_val.x;\n";
       }
       c += R"(
@@ -335,10 +332,11 @@ MAIN_FUNCTION($0) {
 
   threadgroup args.dst::type* tmp_x4 = (threadgroup args.dst::type*)(tmp);
 )";
-  const std::string oob_check = batched_weights_ ? "dst_w >= args.dst.Width()"
-                                                 : "dst_h >= args.dst.Height()";
+  const std::string oob_check = params_.batched_weights
+                                    ? "dst_w >= args.dst.Width()"
+                                    : "dst_h >= args.dst.Height()";
   c += "  if (" + oob_check + ") return;\n";
-  if (runtime_check_.packed_groups.has_value()) {
+  if (params_.runtime_check.packed_groups.has_value()) {
     c += "  if (dst_w >= w_group_offset + w_group_size) return;\n";
   }
   c += R"(
@@ -350,7 +348,7 @@ MAIN_FUNCTION($0) {
   c += "      args.dst::type res_value = tmp_x4[sub_spatial_id * N_TILE_SLICES "
        "+ "
        "tile_n_id];\n";
-  if (has_bias) {
+  if (params_.has_bias) {
     c += "      res_value += args.biases.Read(slice_id);\n";
   }
   std::string coords = "dst_w, dst_h, slice_id";
@@ -362,15 +360,15 @@ MAIN_FUNCTION($0) {
   c += "  }\n";
   c += "}\n";
   const std::string type =
-      weights_data_type_ == DataType::FLOAT16 ? "half" : "int8_t";
+      params_.weights_data_type == DataType::FLOAT16 ? "half" : "int8_t";
   std::string spatial_size = "args.dst.Width()";
-  if (!batched_weights_) {
+  if (!params_.batched_weights) {
     spatial_size += " * args.dst.Height()";
   }
   if (has_batch) {
     spatial_size += " * args.dst.Batch()";
   }
-  if (runtime_check_.packed_groups.has_value()) {
+  if (params_.runtime_check.packed_groups.has_value()) {
     spatial_size = "w_group_size";
   }
   const std::string mat_mul_mode =
@@ -401,39 +399,27 @@ MAIN_FUNCTION($0) {
 //   longer src_ch (src_ch > dst_ch) (1024x(1536 * 8) -> 1024x1536)
 //   longer dst_ch (dst_ch > src_ch) (1024x1536 -> 1024x(1536 * 8))
 ConvAppleMPP::ConvAppleMPP(const TensorDescriptor& src,
-                           const OHWI& weights_shape,
-                           DataType weights_data_type,
-                           bool different_weights_for_height,
-                           bool softmax_input_activation,
-                           const ConvRuntimeCheckDesc& runtime_check)
-    : src_desc_(src),
-      m_tile_(64),
-      n_tile_(128),
-      simdgroups_(4),
-      weights_shape_(weights_shape),
-      weights_data_type_(weights_data_type),
-      batched_weights_(different_weights_for_height),
-      softmax_input_activation_(softmax_input_activation),
-      runtime_check_(runtime_check) {
+                           const ConvParams& params, int m_tile, int n_tile)
+    : params_(params), m_tile_(m_tile), n_tile_(n_tile), simdgroups_(4) {
   work_group_size_ = int3(32 * simdgroups_, 1, 1);
-  if (weights_shape.o % 128 != 0) {
+  if (params_.weights_shape.o % 128 != 0) {
     n_tile_ = 64;
   }
-  external_weights_params_.weights_desc.layout = WeightsLayout::kUnknown;
+  code_ = GetKernelCode(src);
 }
 
 int3 ConvAppleMPP::GetGridSize() const {
   const int groups_x = DivideRoundUp(dst_[0]->Channels(), n_tile_);
   int spatial_size = dst_[0]->Width() * dst_[0]->Batch();
   int groups_z = 1;
-  if (batched_weights_) {
+  if (params_.batched_weights) {
     groups_z = dst_[0]->Height();
   } else {
     spatial_size *= dst_[0]->Height();
   }
-  if (runtime_check_.packed_groups.has_value()) {
-    spatial_size = runtime_check_.packed_groups->max_group_size;
-    groups_z = runtime_check_.packed_groups->num_groups;
+  if (params_.runtime_check.packed_groups.has_value()) {
+    spatial_size = params_.runtime_check.packed_groups->max_group_size;
+    groups_z = params_.runtime_check.packed_groups->num_groups;
   }
   const int groups_y = DivideRoundUp(spatial_size, m_tile_);
   return int3(groups_x * work_group_size_.x, groups_y, groups_z);
@@ -467,8 +453,13 @@ ConvAppleMPP CreateConvAppleMPP(const TensorDescriptor& src,
                                 const TensorDescriptor& dst,
                                 const Tensor<OHWI, DataType::FLOAT32>& weights,
                                 const Tensor<Linear, DataType::FLOAT32>& bias) {
-  ConvAppleMPP conv(src, weights.shape, DataType::FLOAT16);
-  conv.code_ = conv.GetKernelCode(dst.HasAxis(Axis::BATCH), !bias.data.empty());
+  ConvAppleMPP::ConvParams params;
+  params.weights_desc.layout = WeightsLayout::kUnknown;
+  params.weights_data_type = DataType::FLOAT16;
+  params.weights_shape = weights.shape;
+  params.has_bias = !bias.data.empty();
+
+  ConvAppleMPP conv(src, params);
   conv.AddSrcTensor("src", src);
   conv.AddDstTensor("dst", dst);
 
@@ -484,10 +475,16 @@ ConvAppleMPP CreateConvAppleMPPExternalWeights(
     const OHWI& weights_shape, const TensorDescriptor* bias,
     const TensorDescriptor* src_exp, bool different_weights_for_height,
     const ConvRuntimeCheckDesc& runtime_check) {
-  ConvAppleMPP conv(src, weights_shape, DataType::FLOAT16,
-                    different_weights_for_height, src_exp != nullptr,
-                    runtime_check);
-  conv.code_ = conv.GetKernelCode(dst.HasAxis(Axis::BATCH), bias != nullptr);
+  ConvAppleMPP::ConvParams params;
+  params.weights_desc.layout = WeightsLayout::kUnknown;
+  params.weights_data_type = DataType::FLOAT16;
+  params.weights_shape = weights_shape;
+  params.has_bias = bias != nullptr;
+  params.batched_weights = different_weights_for_height;
+  params.runtime_check = runtime_check;
+  params.softmax_input_activation = src_exp != nullptr;
+
+  ConvAppleMPP conv(src, params);
   conv.AddSrcTensor("src", src);
   conv.AddDstTensor("dst", dst);
 
@@ -513,25 +510,30 @@ ConvAppleMPP CreateConvAppleMPPExternalWeights(
     const ExternalWeights& weights, const TensorDescriptor* bias,
     const TensorDescriptor* src_exp, bool different_weights_for_height,
     const ConvRuntimeCheckDesc& runtime_check, const BHWC* dst_shape) {
-  ConvAppleMPP conv(src, weights.shape, DataType::FLOAT16,
-                    different_weights_for_height, src_exp != nullptr,
-                    runtime_check);
-  ConvAppleMPP::ExternalWeightsParams params;
+  ConvAppleMPP::ConvParams params;
+  params.weights_desc.layout = WeightsLayout::kUnknown;
+  params.weights_data_type = DataType::FLOAT16;
+  params.weights_shape = weights.shape;
+  params.has_bias = bias != nullptr;
+  params.batched_weights = different_weights_for_height;
+  params.runtime_check = runtime_check;
+  params.softmax_input_activation = src_exp != nullptr;
+
   params.weights_desc = weights.desc;
   params.scale_zp_shape = weights.scale_zp_shape;
   params.has_zero_point = weights.zero_point != nullptr;
   params.src_group_slices =
       DivideRoundUp(weights.shape.i, 4) / weights.scale_zp_shape.i;
-  conv.SetExternalWeightsParams(params);
-  conv.SetNTile(64);
+
+  int m_tile = 64;
   if (runtime_check.packed_groups.has_value() && dst_shape) {
     const int average_task_size =
         DivideRoundUp(dst_shape->w, runtime_check.packed_groups->num_groups);
     if (average_task_size <= 32) {
-      conv.SetMTile(32);
+      m_tile = 32;
     }
   }
-  conv.code_ = conv.GetKernelCode(dst.HasAxis(Axis::BATCH), bias != nullptr);
+  ConvAppleMPP conv(src, params, m_tile, /*n_tile=*/64);
   conv.AddSrcTensor("src", src);
   conv.AddDstTensor("dst", dst);
 
@@ -565,8 +567,13 @@ ConvAppleMPP CreateConvAppleMPPExternalWeights(
 ConvAppleMPP CreateConvAppleMPPInt8(
     const TensorDescriptor& src, const TensorDescriptor& dst,
     const Tensor<OHWI, DataType::INT8>& weights) {
-  ConvAppleMPP conv(src, weights.shape, DataType::INT8);
-  conv.code_ = conv.GetKernelCode(dst.HasAxis(Axis::BATCH));
+  ConvAppleMPP::ConvParams params;
+  params.weights_desc.layout = WeightsLayout::kUnknown;
+  params.weights_data_type = DataType::INT8;
+  params.weights_shape = weights.shape;
+  params.has_bias = false;
+
+  ConvAppleMPP conv(src, params);
   conv.AddSrcTensor("src", src);
   conv.AddDstTensor("dst", dst);
   conv.UploadWeights(weights);
@@ -576,8 +583,14 @@ ConvAppleMPP CreateConvAppleMPPInt8(
 ConvAppleMPP CreateConvAppleMPPInt8(const TensorDescriptor& src,
                                     const TensorDescriptor& dst,
                                     const OHWI& weights_shape) {
-  ConvAppleMPP conv(src, weights_shape, DataType::INT8, weights_shape.h != 1);
-  conv.code_ = conv.GetKernelCode(dst.HasAxis(Axis::BATCH));
+  ConvAppleMPP::ConvParams params;
+  params.weights_desc.layout = WeightsLayout::kUnknown;
+  params.weights_data_type = DataType::INT8;
+  params.weights_shape = weights_shape;
+  params.has_bias = false;
+  params.batched_weights = weights_shape.h != 1;
+
+  ConvAppleMPP conv(src, params);
   conv.AddSrcTensor("src", src);
   conv.AddDstTensor("dst", dst);
 
@@ -592,12 +605,15 @@ ConvAppleMPP CreateConvAppleMPPInt8(const TensorDescriptor& src,
 ConvAppleMPP CreateConvAppleMPPInt8(const TensorDescriptor& src,
                                     const TensorDescriptor& dst,
                                     const ExternalWeights& weights) {
-  ConvAppleMPP conv(src, weights.shape, DataType::INT8, weights.shape.h != 1);
-  ConvAppleMPP::ExternalWeightsParams params;
+  ConvAppleMPP::ConvParams params;
+  params.weights_desc.layout = WeightsLayout::kUnknown;
+  params.weights_data_type = DataType::INT8;
+  params.weights_shape = weights.shape;
+  params.has_bias = false;
+  params.batched_weights = weights.shape.h != 1;
   params.weights_desc = weights.desc;
-  conv.SetExternalWeightsParams(params);
-  conv.SetNTile(64);
-  conv.code_ = conv.GetKernelCode(dst.HasAxis(Axis::BATCH));
+
+  ConvAppleMPP conv(src, params, /*m_tile=*/64, /*n_tile=*/64);
   conv.AddSrcTensor("src", src);
   conv.AddDstTensor("dst", dst);
 
