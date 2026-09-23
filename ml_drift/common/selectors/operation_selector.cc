@@ -529,6 +529,11 @@ absl::Status MakeRuntimeBatchedMatMul(
                                          runtime_check, &runtime_check_tensor));
   return model_builder->UpdateOutputTensor(output, output_id);
 }
+
+inline bool UseFp32ForQuantizeAndDequantize(const GpuInfo& gpu_info) {
+  return gpu_info.IsApple() && gpu_info.IsApiMetal();
+}
+
 }  // namespace
 
 absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
@@ -1010,7 +1015,16 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
       const auto& attr = std::any_cast<const QuantizeAndDequantizeAttributes&>(
           node.operation.attributes);
       ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
-      auto output = model_builder->QuantizeAndDequantize(src, attr);
+      GpuModelBuilder::TensorHandle output;
+      if (src.tensor_desc.GetDataType() == DataType::FLOAT16 &&
+          UseFp32ForQuantizeAndDequantize(gpu_info)) {
+        output = model_builder->Cast(
+            model_builder->QuantizeAndDequantize(
+                model_builder->Cast(src, DataType::FLOAT32), attr),
+            DataType::FLOAT16);
+      } else {
+        output = model_builder->QuantizeAndDequantize(src, attr);
+      }
       return model_builder->UpdateOutputTensor(output, outputs[0]->id);
     }
     case OperationType::RELU: {
@@ -1595,7 +1609,16 @@ absl::Status GPUOperationFromNode(
       const auto& attr =
           std::any_cast<const QuantizeAndDequantizeAttributes&>(node.attr);
       ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
-      auto output = model_builder->QuantizeAndDequantize(src, attr);
+      GpuModelBuilder::TensorHandle output;
+      if (src.tensor_desc.GetDataType() == DataType::FLOAT16 &&
+          UseFp32ForQuantizeAndDequantize(gpu_info)) {
+        output = model_builder->Cast(
+            model_builder->QuantizeAndDequantize(
+                model_builder->Cast(src, DataType::FLOAT32), attr),
+            DataType::FLOAT16);
+      } else {
+        output = model_builder->QuantizeAndDequantize(src, attr);
+      }
       return model_builder->UpdateOutputTensor(output, outputs[0]->id);
     }
     case OperationType::RELU: {

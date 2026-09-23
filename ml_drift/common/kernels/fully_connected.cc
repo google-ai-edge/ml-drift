@@ -97,8 +97,7 @@ int3 GetWorkGroupSize(const FullyConnected::ConvParams& params,
                       const GpuInfo& gpu_info, const OHWI& weights_shape) {
   const bool is_quantized = fc::IsQuantized(params.weights_type);
   const int dst_slices = DivideRoundUp(weights_shape.o, 4);
-  if (gpu_info.IsApple() && gpu_info.IsApiMetal() &&
-      gpu_info.apple_info.IsMSeries()) {
+  if (gpu_info.IsApple() && gpu_info.IsApiMetal()) {
     int total_task_size = dst_slices;
     if (params.batched_weights) {
       if (params.runtime_batch_ids) {
