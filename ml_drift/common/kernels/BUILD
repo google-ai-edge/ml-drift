@@ -1028,6 +1028,17 @@ cc_library(
 )
 
 cc_library(
+    name = "scatter_nd",
+    srcs = ["scatter_nd.cc"],
+    hdrs = ["scatter_nd.h"],
+    deps = [
+        "//ml_drift/common:data_type",
+        "//ml_drift/common:operations",
+        "//ml_drift/common/task:gpu_operation",
+    ],
+)
+
+cc_library(
     name = "select_v2",
     srcs = ["select_v2.cc"],
     hdrs = ["select_v2.h"],

@@ -159,6 +159,7 @@ target_link_libraries(mld_common_selectors_simple_selectors
     mld_common_kernels_reshapex4
     mld_common_kernels_resize
     mld_common_kernels_reverse
+    mld_common_kernels_scatter_nd
     mld_common_kernels_select_v2
     mld_common_kernels_softmax
     mld_common_kernels_softmax1x1

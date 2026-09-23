@@ -830,6 +830,12 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
                                      node.operation.type);
       return absl::OkStatus();
     }
+    case OperationType::SCATTER_ND: {
+      auto gpu_op = SelectScatterNd(op_def);
+      model_builder->AddGpuOperation(src_ids, dst_ids, std::move(gpu_op),
+                                     node.operation.type);
+      return absl::OkStatus();
+    }
     case OperationType::EMBEDDING_LOOKUP: {
       const auto& attr = std::any_cast<const EmbeddingLookupAttributes&>(
           node.operation.attributes);
@@ -1425,6 +1431,12 @@ absl::Status GPUOperationFromNode(
     }
     case OperationType::DYNAMIC_UPDATE_SLICE: {
       auto gpu_op = SelectDynamicUpdateSlice(op_def, gpu_info);
+      model_builder->AddGpuOperation(src_ids, dst_ids, std::move(gpu_op),
+                                     node.name);
+      return absl::OkStatus();
+    }
+    case OperationType::SCATTER_ND: {
+      auto gpu_op = SelectScatterNd(op_def);
       model_builder->AddGpuOperation(src_ids, dst_ids, std::move(gpu_op),
                                      node.name);
       return absl::OkStatus();

@@ -1976,6 +1976,51 @@ target_link_libraries(rope_test_opencl
     opencl_headers
 )
 
+add_library(mld_common_kernels_tests_scatter_nd_test_util scatter_nd_test_util.cc scatter_nd_test_util.h)
+target_include_directories(mld_common_kernels_tests_scatter_nd_test_util PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
+target_link_libraries(mld_common_kernels_tests_scatter_nd_test_util PUBLIC
+  gtest
+  gmock
+  mld_common_data_type
+  mld_common_kernels_scatter_nd
+  mld_common_operations
+  mld_common_shape
+  mld_common_status
+  mld_common_tensor
+  mld_common_types
+  mld_common_task_gpu_operation
+  mld_common_task_tensor_desc
+  mld_common_task_testing_util
+)
+
+add_executable(scatter_nd_test_opencl opencl_kernel_test.cc scatter_nd_test.cc)
+target_link_libraries(scatter_nd_test_opencl PUBLIC
+  mld_common_task_util
+  mld_common_kernels_tests_scatter_nd_test_util
+  mld_common_data_type
+  mld_common_status_matchers
+  mld_common_task_tensor_desc
+  mld_common_task_testing_util
+  absl::strings
+  gtest
+  gmock
+  benchmark
+  opencl_headers
+  mld_cl_environment
+  mld_cl_opencl_wrapper
+  mld_cl_cl_command_queue
+  mld_cl_cl_context
+  mld_cl_cl_program_cache
+  mld_cl_util_types
+  mld_common_operations
+  mld_common_util
+  mld_cl_cl_event
+  mld_cl_cl_kernel
+  mld_cl_cl_program
+  mld_cl_default_util
+  mld_cl_testing_cl_test
+)
+
 add_executable(sdpa_test_opencl opencl_kernel_test.cc sdpa_test.cc)
 target_link_libraries(sdpa_test_opencl
   PUBLIC

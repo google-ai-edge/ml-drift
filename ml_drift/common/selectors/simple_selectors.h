@@ -130,6 +130,8 @@ std::unique_ptr<GPUOperation> SelectConverterToConvWeights(
 std::unique_ptr<GPUOperation> SelectDynamicUpdateSlice(
     const OperationDef& op_def, const GpuInfo& gpu_info);
 
+std::unique_ptr<GPUOperation> SelectScatterNd(const OperationDef& op_def);
+
 }  // namespace ml_drift
 
 #endif  // ML_DRIFT_COMMON_SELECTORS_SIMPLE_SELECTORS_H_
