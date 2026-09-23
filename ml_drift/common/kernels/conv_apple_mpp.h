@@ -19,12 +19,14 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "absl/types/span.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/kernel_info.h"
+#include "ml_drift/common/operations.h"
 #include "ml_drift/common/shape.h"
 #include "ml_drift/common/task/buffer_desc.h"
 #include "ml_drift/common/task/gpu_operation.h"
@@ -47,11 +49,24 @@ class ConvAppleMPP : public GPUOperation {
     bool has_zero_point = false;             // only used for ExternalWeights
     int src_group_slices = 0;                // only used for ExternalWeights
     DataType weights_data_type;
+    bool x_kernel_is_1 = true;
+    bool y_kernel_is_1 = true;
     OHWI weights_shape;
     bool softmax_input_activation = false;
     bool batched_weights = false;
     bool has_bias = true;
     ConvRuntimeCheckDesc runtime_check;
+
+    void InitKernelXY(const Convolution2DAttributes& attr) {
+      const auto& weights_shape =
+          std::visit([](const auto& w) { return w.shape; }, attr.weights);
+      x_kernel_is_1 = weights_shape.w == 1 && attr.strides.w == 1 &&
+                      attr.dilations.w == 1 && attr.padding.prepended.w == 0 &&
+                      attr.padding.appended.w == 0;
+      y_kernel_is_1 = weights_shape.h == 1 && attr.strides.h == 1 &&
+                      attr.dilations.h == 1 && attr.padding.prepended.h == 0 &&
+                      attr.padding.appended.h == 0;
+    }
   };
 
   ConvAppleMPP(const TensorDescriptor& src, const ConvParams& params,
@@ -79,6 +94,12 @@ class ConvAppleMPP : public GPUOperation {
         {Axis::OUTPUT_CHANNELS, AlignByN(params_.weights_shape.o, 4)},
         {Axis::INPUT_CHANNELS, AlignByN(params_.weights_shape.i, 4)}};
     if (params_.batched_weights) {
+      weights_desc.group_sizes.push_back({Axis::HEIGHT, 0});
+    }
+    if (!params_.x_kernel_is_1) {
+      weights_desc.group_sizes.push_back({Axis::WIDTH, 0});
+    }
+    if (!params_.y_kernel_is_1) {
       weights_desc.group_sizes.push_back({Axis::HEIGHT, 0});
     }
     return weights_desc;
@@ -129,6 +150,10 @@ void ConvAppleMPP::UploadBias(const Tensor<Linear, T>& bias) {
 bool SupportsConvAppleMPP(const GpuInfo& gpu_info);
 bool SupportsConvAppleMPP(const GpuInfo& gpu_info,
                           const ExternalWeights& weights);
+
+ConvAppleMPP CreateConvAppleMPP(const TensorDescriptor& src,
+                                const TensorDescriptor& dst,
+                                const Convolution2DAttributes& attr);
 
 // Creates an Apple MPP convolution operation with the given attributes.
 ConvAppleMPP CreateConvAppleMPP(

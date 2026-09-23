@@ -45,6 +45,42 @@
 #include "ml_drift/common/util.h"
 
 namespace ml_drift {
+
+absl::Status ConvAppleMPPTest(TestExecutionEnvironment& env,
+                              TensorStorageType storage, const BHWC& shape,
+                              int dst_channels) {
+  const int src_channels = shape.c;
+  Convolution2DAttributes attr;
+  attr.padding.prepended = HW(1, 0);
+  attr.padding.appended = HW(0, 1);
+  attr.strides = HW(1, 2);
+  attr.dilations = HW(2, 1);
+  auto synthetic_weights =
+      MakeSyntheticTensor(OHWI(dst_channels, 2, 3, src_channels));
+  auto& attr_weights = attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>(
+      std::move(synthetic_weights));
+  attr_weights.data.resize(attr_weights.data.size() +
+                           XNN_EXTRA_BYTES / sizeof(float));
+  attr.bias = MakeSyntheticTensor(Linear(dst_channels));
+
+  TensorFloat32 src_tensor = MakeSyntheticTensor(shape);
+  TensorFloat32 dst_ref_tensor = ConvolutionReference(attr, src_tensor);
+
+  const Layout layout = shape.b == 1 ? Layout::HWC : Layout::BHWC;
+  TensorDescriptor src_tensor_desc{DataType::FLOAT16, storage, layout};
+  TensorDescriptor dst_tensor_desc{DataType::FLOAT16, storage, layout};
+
+  auto conv = CreateConvAppleMPP(src_tensor_desc, dst_tensor_desc, attr);
+  TensorFloat32 dst_tensor;
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
+      src_tensor, std::make_unique<ConvAppleMPP>(std::move(conv)),
+      dst_ref_tensor.shape, &dst_tensor));
+  float eps = GetEpsilon(CalculationsPrecision::F16, env.GetGpuInfo(), attr);
+  EXPECT_THAT(dst_tensor.data,
+              testing::Pointwise(testing::FloatNear(eps), dst_ref_tensor.data));
+  return absl::OkStatus();
+}
+
 absl::Status ConvAppleMPPBigTest(TestExecutionEnvironment& env,
                                  TensorStorageType dst_storage,
                                  const BHWC& src_shape, int dst_channels) {

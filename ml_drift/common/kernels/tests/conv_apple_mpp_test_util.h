@@ -23,6 +23,10 @@
 
 namespace ml_drift {
 
+absl::Status ConvAppleMPPTest(TestExecutionEnvironment& env,
+                              TensorStorageType storage, const BHWC& shape,
+                              int dst_channels);
+
 absl::Status ConvAppleMPPBigTest(TestExecutionEnvironment& env,
                                  TensorStorageType dst_storage,
                                  const BHWC& src_shape, int dst_channels);

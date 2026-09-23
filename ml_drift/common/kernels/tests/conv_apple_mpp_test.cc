@@ -45,6 +45,14 @@ class ConvAppleMPPFloat16Test : public Test,
   }
 };
 
+TEST_P(ConvAppleMPPFloat16Test, SmallTest) {
+  ABSL_ASSERT_OK(ConvAppleMPPTest(*exec_env, GetParam(), BHWC(1, 7, 4, 32), 13));
+}
+
+TEST_P(ConvAppleMPPFloat16Test, ConvAppleMPPBatchedTest) {
+  ABSL_ASSERT_OK(ConvAppleMPPTest(*exec_env, GetParam(), BHWC(5, 7, 4, 32), 13));
+}
+
 TEST_P(ConvAppleMPPFloat16Test, BigTest) {
   const BHWC src_shape(1, 1, 128, 128);
   const int dst_channels = 128;

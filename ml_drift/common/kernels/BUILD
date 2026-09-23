@@ -118,6 +118,7 @@ cc_library(
         "//ml_drift/common:data_type",
         "//ml_drift/common:gpu_info",
         "//ml_drift/common:kernel_info",
+        "//ml_drift/common:operations",
         "//ml_drift/common:shape",
         "//ml_drift/common:tensor",
         "//ml_drift/common:types",

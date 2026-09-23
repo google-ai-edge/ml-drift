@@ -15,12 +15,14 @@
 #include "ml_drift/common/kernels/conv_apple_mpp.h"
 
 #include <string>
+#include <variant>
 
 #include "absl/log/absl_check.h"
 #include "absl/strings/str_replace.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/kernels/fully_connected_util.h"
+#include "ml_drift/common/operations.h"
 #include "ml_drift/common/shape.h"
 #include "ml_drift/common/task/buffer_desc.h"
 #include "ml_drift/common/task/gpu_object_desc.h"
@@ -97,6 +99,24 @@ std::string ReadFloatWeights(const ConvAppleMPP::ConvParams& params) {
   }
   return c;
 }
+
+void AddXKernelParams(const Convolution2DAttributes& attr, GPUOperation* op) {
+  const OHWI& weights_shape =
+      std::visit([](const auto& w) { return w.shape; }, attr.weights);
+  op->args_.AddInt("stride_x", attr.strides.w);
+  op->args_.AddInt("padding_x", -attr.padding.prepended.w);
+  op->args_.AddInt("kernel_size_x", weights_shape.w);
+  op->args_.AddInt("dilation_x", attr.dilations.w);
+}
+
+void AddYKernelParams(const Convolution2DAttributes& attr, GPUOperation* op) {
+  const OHWI& weights_shape =
+      std::visit([](const auto& w) { return w.shape; }, attr.weights);
+  op->args_.AddInt("stride_y", attr.strides.h);
+  op->args_.AddInt("padding_y", -attr.padding.prepended.h);
+  op->args_.AddInt("kernel_size_y", weights_shape.h);
+  op->args_.AddInt("dilation_y", attr.dilations.h);
+}
 }  // namespace
 
 std::string ConvAppleMPP::GetKernelCode(const TensorDescriptor& src) const {
@@ -106,7 +126,8 @@ std::string ConvAppleMPP::GetKernelCode(const TensorDescriptor& src) const {
       weights_conversion && SizeInBitsOf(params_.weights_desc.type) <= 8;
   const bool manual_src_reading =
       params_.softmax_input_activation ||
-      src.GetStorageType() != TensorStorageType::BUFFER || !src.IsCC4Layout();
+      src.GetStorageType() != TensorStorageType::BUFFER || !src.IsCC4Layout() ||
+      !params_.x_kernel_is_1 || !params_.y_kernel_is_1;
   const bool manual_k_tiling =
       params_.runtime_check.src_end_ch_index.has_value() ||
       manual_src_reading || weights_conversion;
@@ -218,6 +239,16 @@ MAIN_FUNCTION($0) {
   int b_rows = args.src.Slices() * 4;
   int b_cols = args.dst.Slices() * 4;
 )";
+    std::string spatial_size;
+    if (!params_.x_kernel_is_1) {
+      spatial_size += " * args.kernel_size_x";
+    }
+    if (!params_.y_kernel_is_1) {
+      spatial_size += " * args.kernel_size_y";
+    }
+    if (!spatial_size.empty()) {
+      c += "  b_rows = b_rows" + spatial_size + ";\n";
+    }
     if (params_.batched_weights) {
       c += "  w_ptr += w_batch_id * b_rows * b_cols;\n";
     }
@@ -225,16 +256,14 @@ MAIN_FUNCTION($0) {
     c += "  auto b_tile = b_tensor.slice(slice_tile_id * N_TILE, 0);\n";
   }
   if (manual_src_reading) {
+    if (has_batch) {
+      c += "  args.src.SetBatchRef(dst_b);\n";
+    }
     c += R"(
   threadgroup half a_loc[K_TILE * M_TILE];
   threadgroup half4* a_loc_x4 = (threadgroup half4*)(a_loc);
   auto a_tile = tensor(a_loc, dextents<int, 2>(K_TILE, M_TILE));
-  int src_w = min(dst_w, args.src.Width() - 1);
-  int src_h = min(dst_h, args.src.Height() - 1);
 )";
-    if (params_.softmax_input_activation) {
-      c += "  half2 exp_val = args.src_exp.Read(src_w, src_h, 0).xy;\n";
-    }
   } else {
     c += R"(
   device SType* s_ptr = reinterpret_cast<device SType*>(args.src.GetHandle());
@@ -269,6 +298,30 @@ MAIN_FUNCTION($0) {
          ";\n";
     src_end_slice = "src_slices_dynamic";
   }
+  if (!params_.x_kernel_is_1 || !params_.y_kernel_is_1) {
+    c += "  int w_offset = 0;\n";
+  }
+  if (!params_.y_kernel_is_1) {
+    c += "  for (int ky = 0; ky < args.kernel_size_y; ++ky) {\n";
+    c += "  int temp_y = dst_h * args.stride_y + args.padding_y;\n";
+    c += "  int src_y = ky * args.dilation_y + temp_y;\n";
+    c += "  bool in_y = src_y >= 0 && src_y < args.src.Height();\n";
+    c += "  src_y = clamp(src_y, 0, args.src.Height() - 1);\n";
+  } else {
+    c += "  int src_y = min(dst_h, args.src.Height() - 1);\n";
+  }
+  if (!params_.x_kernel_is_1) {
+    c += "  for (int kx = 0; kx < args.kernel_size_x; ++kx) {\n";
+    c += "  int temp_x = dst_w * args.stride_x + args.padding_x;\n";
+    c += "  int src_x = kx * args.dilation_x + temp_x;\n";
+    c += "  bool in_x = src_x >= 0 && src_x < args.src.Width();\n";
+    c += "  src_x = clamp(src_x, 0, args.src.Width() - 1);\n";
+  } else {
+    c += "  int src_x = min(dst_w, args.src.Width() - 1);\n";
+  }
+  if (params_.softmax_input_activation) {
+    c += "  half2 exp_val = args.src_exp.Read(src_x, src_y, 0).xy;\n";
+  }
   if (manual_k_tiling) {
     c += "  for (int k = 0; k < " + src_end_slice + "; k += K_TILE_SLICES) {\n";
     if (weights_conversion) {
@@ -297,7 +350,12 @@ MAIN_FUNCTION($0) {
     threadgroup_barrier(mem_flags::mem_threadgroup);
 )";
     } else {
-      c += "    b_tile = b_tensor.slice(slice_tile_id * N_TILE, k * 4);\n";
+      if (!params_.x_kernel_is_1 || !params_.y_kernel_is_1) {
+        c += "    b_tile = b_tensor.slice(slice_tile_id * N_TILE, w_offset);\n";
+        c += "    w_offset += K_TILE_SLICES * 4;\n";
+      } else {
+        c += "    b_tile = b_tensor.slice(slice_tile_id * N_TILE, k * 4);\n";
+      }
     }
     if (manual_src_reading) {
       c += R"(
@@ -306,8 +364,21 @@ MAIN_FUNCTION($0) {
     for (uint16_t i = 0; i < K_TILE_SLICES / slices_per_wg; ++i) {
       int tile_k_id = i * slices_per_wg + sub_slice_id;
       int slice_id = min(k + tile_k_id, args.src.Slices() - 1);
-      half4 src = args.src.Read(src_w, src_h, slice_id);
+      half4 src = args.src.Read(src_x, src_y, slice_id);
 )";
+      std::string check;
+      if (!params_.x_kernel_is_1) {
+        check += "in_x";
+      }
+      if (!params_.y_kernel_is_1) {
+        if (!check.empty()) {
+          check += " && ";
+        }
+        check += "in_y";
+      }
+      if (!check.empty()) {
+        c += "      src *= ucl::Convert<half>((" + check + "));\n";
+      }
       if (params_.softmax_input_activation) {
         c += "      src = exp(src - exp_val.y) * exp_val.x;\n";
       }
@@ -323,6 +394,12 @@ MAIN_FUNCTION($0) {
     c += "  }\n";
   } else {
     c += "  matmul_op.run(a_tile, b_tile, c_tile);\n";
+  }
+  if (!params_.x_kernel_is_1) {
+    c += "  }\n";
+  }
+  if (!params_.y_kernel_is_1) {
+    c += "  }\n";
   }
   c += R"(
   threadgroup args.dst::scalar_type tmp[N_TILE * M_TILE];
@@ -447,6 +524,36 @@ bool SupportsConvAppleMPP(const GpuInfo& gpu_info,
     return false;
   }
   return true;
+}
+
+ConvAppleMPP CreateConvAppleMPP(const TensorDescriptor& src,
+                                const TensorDescriptor& dst,
+                                const Convolution2DAttributes& attr) {
+  const OHWI& weights_shape =
+      std::visit([](const auto& w) { return w.shape; }, attr.weights);
+
+  ConvAppleMPP::ConvParams params;
+  params.weights_desc.layout = WeightsLayout::kUnknown;
+  params.weights_data_type = DataType::FLOAT16;
+  params.weights_shape = weights_shape;
+  params.has_bias = !attr.bias.data.empty();
+  params.InitKernelXY(attr);
+
+  ConvAppleMPP conv(src, params);
+  conv.AddSrcTensor("src", src);
+  conv.AddDstTensor("dst", dst);
+  if (!params.x_kernel_is_1) {
+    AddXKernelParams(attr, &conv);
+  }
+  if (!params.y_kernel_is_1) {
+    AddYKernelParams(attr, &conv);
+  }
+
+  conv.UploadWeights(GetFloatWeights(attr));
+  if (!attr.bias.data.empty()) {
+    conv.UploadBias(attr.bias);
+  }
+  return conv;
 }
 
 ConvAppleMPP CreateConvAppleMPP(const TensorDescriptor& src,
