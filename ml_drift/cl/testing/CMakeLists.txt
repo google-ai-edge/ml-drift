@@ -40,6 +40,7 @@ target_link_libraries(mld_cl_testing_perf_util
     mld_common_kernels_depthwise_conv_tiled
     mld_common_kernels_depthwise_conv_wave_memory
     mld_common_kernels_fully_connected
+    mld_common_kernels_fully_connected_oi
     mld_common_kernels_quantize_and_dequantize
     mld_common_kernels_softmax
     mld_common_kernels_special_conv_softmax_conv

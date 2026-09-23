@@ -82,6 +82,15 @@ absl::Status FullyConnectedWeightsBatchIdsPerfTest(
     const BHWC& src_shape, int dst_channels, int batch_size,
     int active_ids_size, OHWI scale_zp_shape = OHWI(1, 1));
 
+absl::Status FullyConnectedOIPerfTest(const BHWC& src_shape, int dst_channels,
+                                      int src_group_size, DataType weights_type,
+                                      bool sparse_2x4 = false);
+
+absl::Status FullyConnectedOIWeightsBatchIdsPerfTest(
+    CalculationsPrecision precision, DataType weights_type,
+    const BHWC& src_shape, int dst_channels, int batch_size,
+    int active_ids_size, OHWI scale_zp_shape = OHWI(1, 1));
+
 absl::Status DepthwiseConvPerfTest(const BHWC& src_shape,
                                    const HW& kernel_size = HW(3, 3),
                                    const HW& strides = HW(1, 1),
