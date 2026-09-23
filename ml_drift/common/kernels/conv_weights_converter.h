@@ -69,11 +69,8 @@ class ConverterToConvWeights : public GPUOperation {
 class WeightsConverter : public GPUOperation {
  public:
   WeightsConverter(const GpuInfo& gpu_info, const OperationDef& definition,
-                   const OHWI& weights_shape,
-                   const WeightsDescription& src_weights_desc,
+                   const ExternalWeights& src_weights,
                    const WeightsDescription& dst_weights_desc,
-                   const TensorDescriptor* weights_scale = nullptr,
-                   const TensorDescriptor* weights_zero_point = nullptr,
                    const ConvRuntimeCheckDesc& runtime_check = {});
   int3 GetGridSize() const override;
   std::vector<int3> GetPossibleKernelWorkGroups(

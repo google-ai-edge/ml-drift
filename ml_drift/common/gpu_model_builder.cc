@@ -1027,12 +1027,19 @@ std::vector<GpuModelBuilder::TensorHandle> GpuModelBuilder::WeightsConversion(
     op_def.dst_tensors.push_back(dst.tensor_desc);
   }
 
-  const TensorDescriptor* weights_scale_td =
-      weights_scale ? &weights_scale->tensor_desc : nullptr;
-  const TensorDescriptor* weights_zero_point_td =
-      weights_zero_point ? &weights_zero_point->tensor_desc : nullptr;
-  WeightsConverter converter(gpu_info_, op_def, weights_shape, src_desc,
-                             dst_desc, weights_scale_td, weights_zero_point_td,
+  ExternalWeights external_weights;
+  external_weights.desc = src_desc;
+  external_weights.shape = weights_shape;
+  if (weights_scale) {
+    // Propagate scale_zp_shape and use it in the converter.
+    // external_weights.scale_zp_shape = scale_zp_shape;
+    external_weights.scale = &(weights_scale->tensor_desc);
+  }
+  if (weights_zero_point) {
+    external_weights.zero_point = &(weights_zero_point->tensor_desc);
+  }
+
+  WeightsConverter converter(gpu_info_, op_def, external_weights, dst_desc,
                              runtime_check);
 
   gpu_model_.nodes.push_back({});

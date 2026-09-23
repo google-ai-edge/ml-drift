@@ -1449,17 +1449,14 @@ std::string GetWeightsConverterCodeUnalignedIO(
 
 WeightsConverter::WeightsConverter(const GpuInfo& gpu_info,
                                    const OperationDef& definition,
-                                   const OHWI& weights_shape,
-                                   const WeightsDescription& src_weights_desc,
+                                   const ExternalWeights& src_weights,
                                    const WeightsDescription& dst_weights_desc,
-                                   const TensorDescriptor* weights_scale,
-                                   const TensorDescriptor* weights_zero_point,
                                    const ConvRuntimeCheckDesc& runtime_check)
     : GPUOperation(),
-      weights_shape_(weights_shape),
+      weights_shape_(src_weights.shape),
       dst_weights_desc_(dst_weights_desc),
       use_2d_grid_x_is_i_ogroup_y_is_o_(Use2DGridXisIOgroupYisO(
-          gpu_info, weights_shape, src_weights_desc, dst_weights_desc)) {
+          gpu_info, src_weights.shape, src_weights.desc, dst_weights_desc)) {
   args_.AddInt("wshape_o", weights_shape_.o);
   args_.AddInt("wshape_h", weights_shape_.h);
   args_.AddInt("wshape_w", weights_shape_.w);
@@ -1475,8 +1472,8 @@ WeightsConverter::WeightsConverter(const GpuInfo& gpu_info,
   const bool ringed_weights = runtime_check.ring_o_offset_index.has_value() ||
                               runtime_check.ring_i_offset_index.has_value();
   const int vec_size = ringed_weights ? 4 : 16;
-  if (src_weights_desc.type == DataType::UINT8) {
-    if (src_weights_desc.layout ==
+  if (src_weights.desc.type == DataType::UINT8) {
+    if (src_weights.desc.layout ==
         WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
       TensorDescriptor desc = TensorDescriptor(
           DataType::UINT32, TensorStorageType::TEXTURE_2D, Layout::HW);
@@ -1487,8 +1484,8 @@ WeightsConverter::WeightsConverter(const GpuInfo& gpu_info,
       desc.element_size = 4;
       AddSrcBuffer("src_buffer", desc);
     }
-  } else if (src_weights_desc.type == DataType::UINT4) {
-    if (src_weights_desc.layout ==
+  } else if (src_weights.desc.type == DataType::UINT4) {
+    if (src_weights.desc.layout ==
         WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
       TensorDescriptor desc = TensorDescriptor(
           DataType::UINT16, TensorStorageType::TEXTURE_2D, Layout::HW);
@@ -1499,8 +1496,8 @@ WeightsConverter::WeightsConverter(const GpuInfo& gpu_info,
       desc.element_size = 2;
       AddSrcBuffer("src_buffer", desc);
     }
-  } else if (src_weights_desc.type == DataType::UINT2) {
-    if (src_weights_desc.layout ==
+  } else if (src_weights.desc.type == DataType::UINT2) {
+    if (src_weights.desc.layout ==
         WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
       TensorDescriptor desc = TensorDescriptor(
           DataType::UINT8, TensorStorageType::TEXTURE_2D, Layout::HW);
@@ -1511,8 +1508,8 @@ WeightsConverter::WeightsConverter(const GpuInfo& gpu_info,
       desc.element_size = 1;
       AddSrcBuffer("src_buffer", desc);
     }
-  } else if (src_weights_desc.type == DataType::INT8) {
-    if (src_weights_desc.layout ==
+  } else if (src_weights.desc.type == DataType::INT8) {
+    if (src_weights.desc.layout ==
         WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
       TensorDescriptor desc = TensorDescriptor(
           DataType::INT32, TensorStorageType::TEXTURE_2D, Layout::HW);
@@ -1537,13 +1534,13 @@ WeightsConverter::WeightsConverter(const GpuInfo& gpu_info,
     AddDstTensor("dst_tensor1", definition.dst_tensors[1]);
     AddDstTensor("dst_tensor2", definition.dst_tensors[2]);
     AddDstTensor("dst_tensor3", definition.dst_tensors[3]);
-    uint2 tex_size = Get2dResourceSize(dst_weights_desc, weights_shape);
+    uint2 tex_size = Get2dResourceSize(dst_weights_desc, src_weights.shape);
     args_.AddInt("dst_x_size", tex_size.x);
     args_.AddInt("dst_y_size", tex_size.y);
   } else if (dst_weights_desc.layout ==
              WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
     TensorDescriptor desc;
-    uint2 tex_size = Get2dResourceSize(dst_weights_desc, weights_shape);
+    uint2 tex_size = Get2dResourceSize(dst_weights_desc, src_weights.shape);
     if (dst_weights_desc.type == DataType::UINT8) {
       tex_size.x /= sizeof(uint32_t) / sizeof(uint8_t);
       desc = TensorDescriptor(DataType::UINT32, TensorStorageType::TEXTURE_2D,
@@ -1579,18 +1576,18 @@ WeightsConverter::WeightsConverter(const GpuInfo& gpu_info,
     }
     if (dst_weights_desc_.layout == WeightsLayout::kISpatialOI4O4UnalignedIO) {
       args_.AddInt("task_size",
-                   DivideRoundUp(weights_shape.DimensionsProduct(), 4));
+                   DivideRoundUp(src_weights.shape.DimensionsProduct(), 4));
       args_.AddInt("wshape_total", weights_shape_.DimensionsProduct());
     } else {
       int elements_count =
-          GetTotalElementsCountForLayout(dst_weights_desc, weights_shape);
+          GetTotalElementsCountForLayout(dst_weights_desc, src_weights.shape);
       args_.AddInt("dst_total_size", DivideRoundUp(elements_count, 16));
     }
   }
   bool grouped_quantization = false;
   bool batched_quantization = false;
-  if (weights_scale && weights_scale->GetLayout() != Layout::LINEAR) {
-    auto scale_shape = weights_scale->GetBHWCShape();
+  if (src_weights.scale && src_weights.scale->GetLayout() != Layout::LINEAR) {
+    auto scale_shape = src_weights.scale->GetBHWCShape();
     const int scale_i_groups = DivideRoundUp(scale_shape.c, 4);
     const int batch_size = scale_shape.h;
     if (batch_size > 1) {
@@ -1602,12 +1599,12 @@ WeightsConverter::WeightsConverter(const GpuInfo& gpu_info,
                    DivideRoundUp(weights_shape_.i / scale_i_groups, 4));
     }
   }
-  if (weights_scale) {
-    AddSrcTensor("weights_scale", *weights_scale);
+  if (src_weights.scale) {
+    AddSrcTensor("weights_scale", *src_weights.scale);
   }
-  const bool has_zero_point = weights_zero_point != nullptr;
-  if (weights_zero_point) {
-    AddSrcTensor("weights_zero_point", *weights_zero_point);
+  const bool has_zero_point = src_weights.zero_point != nullptr;
+  if (src_weights.zero_point) {
+    AddSrcTensor("weights_zero_point", *src_weights.zero_point);
   }
 
   bool has_runtime_check = false;
@@ -1634,11 +1631,11 @@ WeightsConverter::WeightsConverter(const GpuInfo& gpu_info,
     AddSrcBuffer("params", desc);
   }
 
-  AddCommonArgs(dst_weights_desc, weights_shape, args_);
-  args_.AddInt("src_o_group_size", src_weights_desc.GetOutputGroupSize());
-  const int o_slices = DivideRoundUp(weights_shape.o, 4);
+  AddCommonArgs(dst_weights_desc, src_weights.shape, args_);
+  args_.AddInt("src_o_group_size", src_weights.desc.GetOutputGroupSize());
+  const int o_slices = DivideRoundUp(src_weights.shape.o, 4);
   args_.AddInt("src_o_groups",
-               DivideRoundUp(o_slices, src_weights_desc.GetOutputGroupSize()));
+               DivideRoundUp(o_slices, src_weights.desc.GetOutputGroupSize()));
   if (dst_weights_desc.layout == WeightsLayout::kISpatialOI4O4UnalignedIO) {
     if (has_runtime_check) {
       ABSL_LOG(FATAL)
@@ -1646,11 +1643,11 @@ WeightsConverter::WeightsConverter(const GpuInfo& gpu_info,
              "layout.";
     }
     code_ = GetWeightsConverterCodeUnalignedIO(
-        gpu_info, src_weights_desc, dst_weights_desc, grouped_quantization,
+        gpu_info, src_weights.desc, dst_weights_desc, grouped_quantization,
         batched_quantization, has_zero_point);
   } else {
     code_ = GetWeightsConverterCode(
-        gpu_info, definition.dst_tensors[0].GetDataType(), src_weights_desc,
+        gpu_info, definition.dst_tensors[0].GetDataType(), src_weights.desc,
         dst_weights_desc, grouped_quantization, batched_quantization,
         has_zero_point, use_2d_grid_x_is_i_ogroup_y_is_o_, runtime_check);
   }

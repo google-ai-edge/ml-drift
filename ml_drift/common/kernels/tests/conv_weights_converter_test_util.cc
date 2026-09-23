@@ -31,7 +31,6 @@
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/kernels/conv_weights_converter.h"
-#include "ml_drift/common/kernels/fully_connected.h"
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/shape.h"
 #include "ml_drift/common/task/gpu_operation.h"
@@ -1157,9 +1156,13 @@ absl::Status Int8ToFloatWeightsConverterTest(
   for (int i = 0; i < weights_f32_td.size(); ++i) {
     op_def.dst_tensors.push_back(weights_f32_td[i]);
   }
-  WeightsConverter int8_to_float_converter(
-      env.GetGpuInfo(), op_def, weights_i8.shape, src_weights_desc,
-      dst_weights_desc, &scale_desc, &zp_desc);
+  ExternalWeights src_weights;
+  src_weights.desc = src_weights_desc;
+  src_weights.shape = weights_i8.shape;
+  src_weights.scale = &scale_desc;
+  src_weights.zero_point = &zp_desc;
+  WeightsConverter int8_to_float_converter(env.GetGpuInfo(), op_def,
+                                           src_weights, dst_weights_desc);
 
   std::vector<TensorDescriptor*> dst_ptrs(weights_f32_td.size());
   for (int i = 0; i < dst_ptrs.size(); ++i) {
@@ -1264,9 +1267,13 @@ absl::Status Int4ToFloatWeightsConverterTest(
   for (int i = 0; i < weights_f32_td.size(); ++i) {
     op_def.dst_tensors.push_back(weights_f32_td[i]);
   }
-  WeightsConverter int4_to_float_converter(
-      env.GetGpuInfo(), op_def, weights_i4.shape, src_weights_desc,
-      dst_weights_desc, &scale_desc, &zp_desc);
+  ExternalWeights src_weights;
+  src_weights.desc = src_weights_desc;
+  src_weights.shape = weights_i4.shape;
+  src_weights.scale = &scale_desc;
+  src_weights.zero_point = &zp_desc;
+  WeightsConverter int4_to_float_converter(env.GetGpuInfo(), op_def,
+                                           src_weights, dst_weights_desc);
 
   std::vector<TensorDescriptor*> dst_ptrs(weights_f32_td.size());
   for (int i = 0; i < dst_ptrs.size(); ++i) {
@@ -1371,9 +1378,13 @@ absl::Status Int2ToFloatWeightsConverterTest(
   for (int i = 0; i < weights_f32_td.size(); ++i) {
     op_def.dst_tensors.push_back(weights_f32_td[i]);
   }
-  WeightsConverter int2_to_float_converter(
-      env.GetGpuInfo(), op_def, weights_i2.shape, src_weights_desc,
-      dst_weights_desc, &scale_desc, &zp_desc);
+  ExternalWeights src_weights;
+  src_weights.desc = src_weights_desc;
+  src_weights.shape = weights_i2.shape;
+  src_weights.scale = &scale_desc;
+  src_weights.zero_point = &zp_desc;
+  WeightsConverter int2_to_float_converter(env.GetGpuInfo(), op_def,
+                                           src_weights, dst_weights_desc);
 
   std::vector<TensorDescriptor*> dst_ptrs(weights_f32_td.size());
   for (int i = 0; i < dst_ptrs.size(); ++i) {
@@ -1470,9 +1481,13 @@ absl::Status Int8ToFloatWeightsWithRuntimeInputTest(
   op_def.src_tensors.push_back(
       {src_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR});
   op_def.dst_tensors.push_back(weights_f32_td);
+  ExternalWeights src_weights;
+  src_weights.desc = src_weights_desc;
+  src_weights.shape = weights_i8.shape;
+  src_weights.scale = &scale_desc;
+  src_weights.zero_point = &zp_desc;
   WeightsConverter int8_to_float_converter(
-      env.GetGpuInfo(), op_def, weights_i8.shape, src_weights_desc,
-      dst_weights_desc, &scale_desc, &zp_desc, runtime_check);
+      env.GetGpuInfo(), op_def, src_weights, dst_weights_desc, runtime_check);
 
   TensorFloat32 zero_tensor =
       MakeZeroTensor(weights_f32_refs[0].GetBHWCShape());
@@ -1586,9 +1601,13 @@ absl::Status Int8ToFloatWeightsWithRuntimeOutputTest(
   op_def.src_tensors.push_back(
       {src_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR});
   op_def.dst_tensors.push_back(weights_f32_td);
+  ExternalWeights src_weights;
+  src_weights.desc = src_weights_desc;
+  src_weights.shape = weights_i8.shape;
+  src_weights.scale = &scale_desc;
+  src_weights.zero_point = &zp_desc;
   WeightsConverter int8_to_float_converter(
-      env.GetGpuInfo(), op_def, weights_i8.shape, src_weights_desc,
-      dst_weights_desc, &scale_desc, &zp_desc, runtime_check);
+      env.GetGpuInfo(), op_def, src_weights, dst_weights_desc, runtime_check);
 
   TensorFloat32 zero_tensor =
       MakeZeroTensor(weights_f32_refs[0].GetBHWCShape());
@@ -1687,9 +1706,11 @@ absl::Status Int8ToUint8WeightsConverterTest(
       {src_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR});
   op_def.dst_tensors.push_back(
       {dst_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR});
+  ExternalWeights src_weights;
+  src_weights.desc = src_weights_desc;
+  src_weights.shape = weights_i8.shape;
   WeightsConverter int8_to_uint8_converter(env.GetGpuInfo(), op_def,
-                                           weights_i8.shape, src_weights_desc,
-                                           dst_weights_desc);
+                                           src_weights, dst_weights_desc);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_weights_i8_td}, {&dst_weights_ui8_td},
       std::make_unique<WeightsConverter>(std::move(int8_to_uint8_converter))));
@@ -1748,8 +1769,11 @@ absl::Status FloatToFloatWeightsConverterTest(
   for (int i = 0; i < weights_f32_td.size(); ++i) {
     op_def.dst_tensors.push_back(weights_f32_td[i]);
   }
-  WeightsConverter converter(env.GetGpuInfo(), op_def, weights.shape,
-                             src_weights_desc, dst_weights_desc);
+  ExternalWeights src_weights;
+  src_weights.desc = src_weights_desc;
+  src_weights.shape = weights.shape;
+  WeightsConverter converter(env.GetGpuInfo(), op_def, src_weights,
+                             dst_weights_desc);
 
   std::vector<TensorDescriptor*> dst_ptrs(weights_f32_td.size());
   for (int i = 0; i < dst_ptrs.size(); ++i) {
@@ -1841,10 +1865,11 @@ absl::Status FloatWeightsWithRingedOTest(TestExecutionEnvironment& env,
         {data_type, TensorStorageType::BUFFER, Layout::LINEAR});
     op_def.dst_tensors.push_back(weights_dst_td);
 
-    WeightsConverter converter(env.GetGpuInfo(), op_def, weights_shape,
-                               src_weights_desc, dst_weights_desc,
-                               /*weights_scale=*/nullptr,
-                               /*weights_zero_point=*/nullptr, runtime_check);
+    ExternalWeights src_weights;
+    src_weights.desc = src_weights_desc;
+    src_weights.shape = weights_shape;
+    WeightsConverter converter(env.GetGpuInfo(), op_def, src_weights,
+                               dst_weights_desc, runtime_check);
 
     std::vector<TensorDescriptor*> dst_ptrs = {&weights_dst_td};
     ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
@@ -1931,10 +1956,11 @@ absl::Status FloatWeightsWithRingedITest(TestExecutionEnvironment& env,
         {data_type, TensorStorageType::BUFFER, Layout::LINEAR});
     op_def.dst_tensors.push_back(weights_dst_td);
 
-    WeightsConverter converter(env.GetGpuInfo(), op_def, weights_shape,
-                               src_weights_desc, dst_weights_desc,
-                               /*weights_scale=*/nullptr,
-                               /*weights_zero_point=*/nullptr, runtime_check);
+    ExternalWeights src_weights;
+    src_weights.desc = src_weights_desc;
+    src_weights.shape = weights_shape;
+    WeightsConverter converter(env.GetGpuInfo(), op_def, src_weights,
+                               dst_weights_desc, runtime_check);
 
     std::vector<TensorDescriptor*> dst_ptrs = {&weights_dst_td};
     ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
@@ -2003,9 +2029,11 @@ absl::Status Uint8ToInt8WeightsConverterTest(
       {src_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR});
   op_def.dst_tensors.push_back(
       {dst_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR});
+  ExternalWeights src_weights;
+  src_weights.desc = src_weights_desc;
+  src_weights.shape = weights_i8.shape;
   WeightsConverter uint8_to_int8_converter(env.GetGpuInfo(), op_def,
-                                           weights_i8.shape, src_weights_desc,
-                                           dst_weights_desc);
+                                           src_weights, dst_weights_desc);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&weights_ui8_td}, {&weights_dst_i8_td},
       std::make_unique<WeightsConverter>(std::move(uint8_to_int8_converter))));
@@ -2066,9 +2094,11 @@ absl::Status Uint4ToInt8WeightsConverterTest(
       {src_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR});
   op_def.dst_tensors.push_back(
       {dst_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR});
+  ExternalWeights src_weights;
+  src_weights.desc = src_weights_desc;
+  src_weights.shape = weights_i4.shape;
   WeightsConverter uint4_to_int8_converter(env.GetGpuInfo(), op_def,
-                                           weights_i4.shape, src_weights_desc,
-                                           dst_weights_desc);
+                                           src_weights, dst_weights_desc);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&weights_ui4_td}, {&weights_dst_i8_td},
       std::make_unique<WeightsConverter>(std::move(uint4_to_int8_converter))));
@@ -2129,9 +2159,11 @@ absl::Status Uint2ToInt8WeightsConverterTest(
       {src_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR});
   op_def.dst_tensors.push_back(
       {dst_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR});
+  ExternalWeights src_weights;
+  src_weights.desc = src_weights_desc;
+  src_weights.shape = weights_i2.shape;
   WeightsConverter uint2_to_int8_converter(env.GetGpuInfo(), op_def,
-                                           weights_i2.shape, src_weights_desc,
-                                           dst_weights_desc);
+                                           src_weights, dst_weights_desc);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&weights_ui2_td}, {&weights_dst_i8_td},
       std::make_unique<WeightsConverter>(std::move(uint2_to_int8_converter))));
@@ -2192,9 +2224,11 @@ absl::Status Uint8ToUint8WeightsConverterTest(
       {src_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR});
   op_def.dst_tensors.push_back(
       {dst_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR});
+  ExternalWeights src_weights;
+  src_weights.desc = src_weights_desc;
+  src_weights.shape = weights_i8.shape;
   WeightsConverter uint8_to_uint8_converter(env.GetGpuInfo(), op_def,
-                                            weights_i8.shape, src_weights_desc,
-                                            dst_weights_desc);
+                                            src_weights, dst_weights_desc);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&weights_ui8_td}, {&weights_dst_ui8_td},
       std::make_unique<WeightsConverter>(std::move(uint8_to_uint8_converter))));
@@ -2256,9 +2290,11 @@ absl::Status Uint4ToUint8WeightsConverterTest(
       {src_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR});
   op_def.dst_tensors.push_back(
       {dst_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR});
+  ExternalWeights src_weights;
+  src_weights.desc = src_weights_desc;
+  src_weights.shape = weights_i4.shape;
   WeightsConverter uint4_to_uint8_converter(env.GetGpuInfo(), op_def,
-                                            weights_i4.shape, src_weights_desc,
-                                            dst_weights_desc);
+                                            src_weights, dst_weights_desc);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&weights_ui4_td}, {&weights_dst_ui8_td},
       std::make_unique<WeightsConverter>(std::move(uint4_to_uint8_converter))));
@@ -2320,9 +2356,11 @@ absl::Status Uint2ToUint8WeightsConverterTest(
       {src_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR});
   op_def.dst_tensors.push_back(
       {dst_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR});
+  ExternalWeights src_weights;
+  src_weights.desc = src_weights_desc;
+  src_weights.shape = weights_i2.shape;
   WeightsConverter uint2_to_int8_converter(env.GetGpuInfo(), op_def,
-                                           weights_i2.shape, src_weights_desc,
-                                           dst_weights_desc);
+                                           src_weights, dst_weights_desc);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&weights_ui2_td}, {&weights_dst_ui8_td},
       std::make_unique<WeightsConverter>(std::move(uint2_to_int8_converter))));
@@ -2384,9 +2422,11 @@ absl::Status Uint4ToInt4WeightsConverterTest(
       {src_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR});
   op_def.dst_tensors.push_back(
       {dst_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR});
+  ExternalWeights src_weights;
+  src_weights.desc = src_weights_desc;
+  src_weights.shape = weights_i4.shape;
   WeightsConverter uint4_to_int4_converter(env.GetGpuInfo(), op_def,
-                                           weights_i4.shape, src_weights_desc,
-                                           dst_weights_desc);
+                                           src_weights, dst_weights_desc);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&weights_ui4_td}, {&weights_dst_i4_td},
       std::make_unique<WeightsConverter>(std::move(uint4_to_int4_converter))));
@@ -2448,9 +2488,11 @@ absl::Status Uint2ToInt4WeightsConverterTest(
       {src_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR});
   op_def.dst_tensors.push_back(
       {dst_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR});
+  ExternalWeights src_weights;
+  src_weights.desc = src_weights_desc;
+  src_weights.shape = weights_i2.shape;
   WeightsConverter uint2_to_int4_converter(env.GetGpuInfo(), op_def,
-                                           weights_i2.shape, src_weights_desc,
-                                           dst_weights_desc);
+                                           src_weights, dst_weights_desc);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&weights_ui2_td}, {&weights_dst_i4_td},
       std::make_unique<WeightsConverter>(std::move(uint2_to_int4_converter))));
