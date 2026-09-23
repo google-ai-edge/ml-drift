@@ -1024,8 +1024,7 @@ Tensor<OHWI, DataType::FLOAT32> DequantizeImpl(
       op_params.zero_point = zero_points.data();
     }
     op_params.scale = scale.Data();
-    // We assume it's always the first dimension to be quantized, when building
-    // the ML Drift tensors of the scale and zero_point from the tflite tensor.
+    // We assume the first dimension is to be quantized.
     op_params.quantized_dimension = 0;
     PerChannelDequantize(op_params, runtime_shape, input_data, runtime_shape,
                          flt_tensor.data.data());

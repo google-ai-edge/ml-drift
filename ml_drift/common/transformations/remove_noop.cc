@@ -24,8 +24,6 @@
 #include <vector>
 
 #include "absl/status/status.h"
-#include "absl/strings/string_view.h"
-#include "ml_drift/common/data_type.h"
 #include "ml_drift/common/model.h"
 #include "ml_drift/common/model_transformer.h"
 #include "ml_drift/common/operations.h"
@@ -126,7 +124,7 @@ class RemoveIdentityReshape : public NodeTransformation {
                          [&input_id](const Value* value) {
                            return value != nullptr && value->id == input_id;
                          }) != consumer_inputs.end()) {
-          // The reshape node might doubles as a broadcast op in TFLite.
+          // The reshape node might double as a broadcast op,
           // e.g. x is a tensor with shape [2]
           //   mul(x, reshape(x, [1, 2]))
           // Not skipping it will crash RemoveSimpleNodeKeepInput as it assumes

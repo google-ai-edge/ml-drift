@@ -37,8 +37,6 @@ functionality.
 * **Large Generative Model Capabilities:** Specially designed to run large
   workloads, features stage-aware execution (prefill vs. decode) and supports
   optimizations like FP16/INT8/INT4 quantization.
-* **TFLite Delegate:** Can be used as a highly capable GPU delegate within
-  the TensorFlow Lite ecosystem.
 * **Custom Workloads:** ML Drift's `GpuModel` graphs can be hand-tailored to
   fit any ML model.
 
@@ -51,7 +49,6 @@ functionality.
 
 ## Architecture Highlights
 
-* **Model Ingestion:** Parses models from formats like TFLite and StableHLO.
 * **Model Abstraction:** Uses a central, backend-agnostic in-memory
   representation of a machine learning model's compute graph called
   `GpuModel`.

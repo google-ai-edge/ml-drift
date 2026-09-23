@@ -405,8 +405,7 @@ TEST(IrModelUtilTest, ResizeAddConvLocalMemoryFuserPreservesGraphOutput) {
   ir_model.SetProducer(conv_out->id, conv_op->id);
 
   // Both the intermediate ADD output and the final CONV output are model
-  // outputs. This is legal in TFLite and common in graphs that expose an
-  // auxiliary/debug head.
+  // outputs.
   ir_model.add_output(add_out->id);
   ir_model.add_output(conv_out->id);
 

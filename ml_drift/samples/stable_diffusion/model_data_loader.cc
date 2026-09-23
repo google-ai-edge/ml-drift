@@ -22,7 +22,6 @@
 #include <utility>
 #include <vector>
 
-#include "absl/log/log.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -47,9 +46,7 @@ absl::StatusOr<absl::Span<const half>> ModelDataLoader::GetData(
     }
     return LoadF16Ex(weights_dir_ + weights_name, count, buffers_[0].data());
   }
-  return absl::FailedPreconditionError(
-      "TFLite loading not supported in this target. Weights directory must be "
-      "set.");
+  return absl::FailedPreconditionError("Weights directory must be set.");
 }
 
 absl::StatusOr<std::pair<absl::Span<const half>, absl::Span<const half>>>
@@ -58,9 +55,7 @@ ModelDataLoader::GetData(const std::string& weights1_name,
                          int count2) {
   absl::Span<const half> data1, data2;
   if (weights_dir_.empty()) {
-    return absl::FailedPreconditionError(
-        "TFLite loading not supported in this target. Weights directory must "
-        "be set.");
+    return absl::FailedPreconditionError("Weights directory must be set.");
   }
 
   if (buffers_[0].size() < count1) {

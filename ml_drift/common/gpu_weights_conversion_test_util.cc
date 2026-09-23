@@ -169,11 +169,11 @@ absl::StatusOr<GraphFloat32> CreateConvGraph(const BHWC& input_shape,
   // TODO: b/410586700 - Remove the following workaround once the bug is fixed,
   // and only set one field for the weights.
   // The weights.spanned_data field is designed to be a view of an external
-  // memory (eg. a TfLiteTensor), so the unit tests should maintain a
-  // memory for it. At the same time, computing without WeightsManager (for
-  // result reference) requires allocating memory for the weights.data. As a
-  // result, we have the spanned_data be a view onto the allocated
-  // weights.data, rather than maintaining a duplicate copy.
+  // memory, so the unit tests should maintain a memory for it. At the same
+  // time, computing without WeightsManager (for result reference) requires
+  // allocating memory for the weights.data. As a result, we have the
+  // spanned_data be a view onto the allocated weights.data, rather than
+  // maintaining a duplicate copy.
   conv_weights.spanned_data = absl::MakeSpan(conv_weights.data);
   InitWithSinValues(conv_weights.data);
   conv_attr.bias.shape = Linear(output_shape.c);

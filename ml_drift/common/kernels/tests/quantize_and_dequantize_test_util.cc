@@ -13,6 +13,8 @@
 // limitations under the License.
 
 #include <algorithm>
+#include <cmath>
+#include <cstdint>
 #include <cstdlib>
 #include <memory>
 #include <utility>
@@ -32,144 +34,11 @@
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/task/testing_util.h"
 #include "ml_drift/common/tensor.h"
-#include "tensorflow/lite/kernels/internal/quantization_util.h"
 
 namespace ml_drift {
 
 using ::testing::FloatNear;
 using ::testing::Pointwise;
-
-absl::Status QuantAndDequant_Dim2Bits8Test(TestExecutionEnvironment& env,
-                                           CalculationsPrecision precision,
-                                           TensorStorageType storage) {
-  TensorFloat32 src_tensor;
-  src_tensor.shape = BHWC(1, 3, 2, 1);
-  src_tensor.data = {0.0f, 1.0f, 0.25f, 0.50f, 0.4444444f, 0.00001f};
-
-  // Unlike TFLite's FakeQuant kernel, we assume that the incoming values are
-  // pre-nudged, since this should be done during model conversion.
-  const int num_bits = 8;
-  const int quant_min = 0;
-  const int quant_max = (1 << num_bits) - 1;
-  QuantizeAndDequantizeAttributes attr;
-  tflite::NudgeQuantizationRange(/**original_min**/ 0.0, /**original_max**/ 1.0,
-                                 quant_min, quant_max, &attr.min, &attr.max,
-                                 &attr.scale);
-
-  const float eps = precision == CalculationsPrecision::F32 ? 1e-6f : 1e-2f;
-  OperationDef op_def;
-  const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  TensorFloat32 dst_tensor;
-  GPUOperation operation = CreateQuantizeAndDequantize(op_def, attr);
-  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
-      src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
-      BHWC(1, 3, 2, 1), &dst_tensor));
-  EXPECT_THAT(dst_tensor.data,
-              Pointwise(FloatNear(eps),
-                        {0.0f, 1.0f, 0.25098f, 0.498039f, 0.443137f, 0.0f}));
-  return absl::OkStatus();
-}
-
-absl::Status QuantAndDequant_Dim3Bits8_NegativeRangeTest(
-    TestExecutionEnvironment& env, CalculationsPrecision precision,
-    TensorStorageType storage) {
-  TensorFloat32 src_tensor;
-  src_tensor.shape = BHWC(1, 3, 1, 2);
-  src_tensor.data = {0.0f, -0.9f, 0.25f, 0.50f, 0.4444444f, -0.00001f};
-
-  // Unlike TFLite's FakeQuant kernel, we assume that the incoming values are
-  // pre-nudged, since this should be done during model conversion.
-  const int num_bits = 8;
-  const int quant_min = 0;
-  const int quant_max = (1 << num_bits) - 1;
-  QuantizeAndDequantizeAttributes attr;
-  tflite::NudgeQuantizationRange(/**original_min**/ -0.9,
-                                 /**original_max**/ 0.9, quant_min, quant_max,
-                                 &attr.min, &attr.max, &attr.scale);
-
-  const float eps = precision == CalculationsPrecision::F32 ? 1e-6f : 1e-2f;
-  OperationDef op_def;
-  const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  TensorFloat32 dst_tensor;
-  GPUOperation operation = CreateQuantizeAndDequantize(op_def, attr);
-  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
-      src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
-      BHWC(1, 3, 1, 2), &dst_tensor));
-  EXPECT_THAT(dst_tensor.data,
-              Pointwise(FloatNear(eps), {0.0f, -0.896471f, 0.247059f, 0.501176f,
-                                         0.444706f, 0.0f}));
-  return absl::OkStatus();
-}
-
-absl::Status QuantAndDequant_Dim3Bits16Test(TestExecutionEnvironment& env,
-                                            CalculationsPrecision precision,
-                                            TensorStorageType storage) {
-  TensorFloat32 src_tensor;
-  src_tensor.shape = BHWC(1, 3, 1, 2);
-  src_tensor.data = {0.0f, 1.0f, 0.25f, 0.50f, 0.4444444f, 0.00001f};
-
-  // Unlike TFLite's FakeQuant kernel, we assume that the incoming values are
-  // pre-nudged, since this should be done during model conversion.
-  const int num_bits = 16;
-  const int quant_min = 0;
-  const int quant_max = (1 << num_bits) - 1;
-  QuantizeAndDequantizeAttributes attr;
-  tflite::NudgeQuantizationRange(/**original_min**/ 0.0, /**original_max**/ 1.0,
-                                 quant_min, quant_max, &attr.min, &attr.max,
-                                 &attr.scale);
-
-  const float eps = precision == CalculationsPrecision::F32 ? 1e-6f : 1e-3f;
-  OperationDef op_def;
-  const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  TensorFloat32 dst_tensor;
-  GPUOperation operation = CreateQuantizeAndDequantize(op_def, attr);
-  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
-      src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
-      BHWC(1, 3, 1, 2), &dst_tensor));
-  EXPECT_THAT(dst_tensor.data,
-              Pointwise(FloatNear(eps), {0.0f, 1.0f, 0.250004f, 0.500008f,
-                                         0.44445f, 1.5259e-05f}));
-  return absl::OkStatus();
-}
-
-absl::Status QuantAndDequant_Dim2Bits16_NegativeRangeTest(
-    TestExecutionEnvironment& env, CalculationsPrecision precision,
-    TensorStorageType storage) {
-  TensorFloat32 src_tensor;
-  src_tensor.shape = BHWC(1, 3, 2, 1);
-  src_tensor.data = {0.0f, -0.9f, 0.25f, 0.50f, 0.4444444f, -0.00001f};
-
-  // Unlike TFLite's FakeQuant kernel, we assume that the incoming values are
-  // pre-nudged, since this should be done during model conversion.
-  const int num_bits = 16;
-  const int quant_min = 0;
-  const int quant_max = (1 << num_bits) - 1;
-  QuantizeAndDequantizeAttributes attr;
-  tflite::NudgeQuantizationRange(/**original_min**/ -0.9,
-                                 /**original_max**/ 0.9, quant_min, quant_max,
-                                 &attr.min, &attr.max, &attr.scale);
-
-  const float eps = precision == CalculationsPrecision::F32 ? 1e-6f : 1e-2f;
-  OperationDef op_def;
-  const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  TensorFloat32 dst_tensor;
-  GPUOperation operation = CreateQuantizeAndDequantize(op_def, attr);
-  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
-      src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
-      BHWC(1, 3, 2, 1), &dst_tensor));
-  EXPECT_THAT(dst_tensor.data,
-              Pointwise(FloatNear(eps), {0.0f, -0.900014f, 0.249998f, 0.499995f,
-                                         0.444431f, 0.0f}));
-  return absl::OkStatus();
-}
 
 namespace {
 absl::Status QuantizationUint8Test(TestExecutionEnvironment& exec_env,
@@ -379,7 +248,160 @@ absl::Status QuantizationInt8Test(TestExecutionEnvironment& exec_env,
   EXPECT_LE(max_diff, 1);
   return absl::OkStatus();
 }
+
+void NudgeQuantizationRange(const float min, const float max,
+                            const int quant_min, const int quant_max,
+                            float* nudged_min, float* nudged_max,
+                            float* nudged_scale) {
+  const float quant_min_float = static_cast<float>(quant_min);
+  const float quant_max_float = static_cast<float>(quant_max);
+  *nudged_scale = (max - min) / (quant_max_float - quant_min_float);
+  const float zero_point_from_min = quant_min_float - min / *nudged_scale;
+  uint16_t nudged_zero_point;
+  if (zero_point_from_min < quant_min_float) {
+    nudged_zero_point = static_cast<uint16_t>(quant_min);
+  } else if (zero_point_from_min > quant_max_float) {
+    nudged_zero_point = static_cast<uint16_t>(quant_max);
+  } else {
+    nudged_zero_point = static_cast<uint16_t>(std::round(zero_point_from_min));
+  }
+  *nudged_min = (quant_min_float - nudged_zero_point) * (*nudged_scale);
+  *nudged_max = (quant_max_float - nudged_zero_point) * (*nudged_scale);
+}
+
 }  // namespace
+
+absl::Status QuantAndDequant_Dim2Bits8Test(TestExecutionEnvironment& env,
+                                           CalculationsPrecision precision,
+                                           TensorStorageType storage) {
+  TensorFloat32 src_tensor;
+  src_tensor.shape = BHWC(1, 3, 2, 1);
+  src_tensor.data = {0.0f, 1.0f, 0.25f, 0.50f, 0.4444444f, 0.00001f};
+
+  // Unlike TFLite's FakeQuant kernel, we assume that the incoming values are
+  // pre-nudged, since this should be done during model conversion.
+  const int num_bits = 8;
+  const int quant_min = 0;
+  const int quant_max = (1 << num_bits) - 1;
+  QuantizeAndDequantizeAttributes attr;
+  NudgeQuantizationRange(/**original_min**/ 0.0, /**original_max**/ 1.0,
+                         quant_min, quant_max, &attr.min, &attr.max,
+                         &attr.scale);
+
+  const float eps = precision == CalculationsPrecision::F32 ? 1e-6f : 1e-2f;
+  OperationDef op_def;
+  const DataType data_type = DeduceDataTypeFromPrecision(precision);
+  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  TensorFloat32 dst_tensor;
+  GPUOperation operation = CreateQuantizeAndDequantize(op_def, attr);
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
+      src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
+      BHWC(1, 3, 2, 1), &dst_tensor));
+  EXPECT_THAT(dst_tensor.data,
+              Pointwise(FloatNear(eps),
+                        {0.0f, 1.0f, 0.25098f, 0.498039f, 0.443137f, 0.0f}));
+  return absl::OkStatus();
+}
+
+absl::Status QuantAndDequant_Dim3Bits8_NegativeRangeTest(
+    TestExecutionEnvironment& env, CalculationsPrecision precision,
+    TensorStorageType storage) {
+  TensorFloat32 src_tensor;
+  src_tensor.shape = BHWC(1, 3, 1, 2);
+  src_tensor.data = {0.0f, -0.9f, 0.25f, 0.50f, 0.4444444f, -0.00001f};
+
+  // Unlike TFLite's FakeQuant kernel, we assume that the incoming values are
+  // pre-nudged, since this should be done during model conversion.
+  const int num_bits = 8;
+  const int quant_min = 0;
+  const int quant_max = (1 << num_bits) - 1;
+  QuantizeAndDequantizeAttributes attr;
+  NudgeQuantizationRange(/**original_min**/ -0.9,
+                         /**original_max**/ 0.9, quant_min, quant_max,
+                         &attr.min, &attr.max, &attr.scale);
+
+  const float eps = precision == CalculationsPrecision::F32 ? 1e-6f : 1e-2f;
+  OperationDef op_def;
+  const DataType data_type = DeduceDataTypeFromPrecision(precision);
+  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  TensorFloat32 dst_tensor;
+  GPUOperation operation = CreateQuantizeAndDequantize(op_def, attr);
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
+      src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
+      BHWC(1, 3, 1, 2), &dst_tensor));
+  EXPECT_THAT(dst_tensor.data,
+              Pointwise(FloatNear(eps), {0.0f, -0.896471f, 0.247059f, 0.501176f,
+                                         0.444706f, 0.0f}));
+  return absl::OkStatus();
+}
+
+absl::Status QuantAndDequant_Dim3Bits16Test(TestExecutionEnvironment& env,
+                                            CalculationsPrecision precision,
+                                            TensorStorageType storage) {
+  TensorFloat32 src_tensor;
+  src_tensor.shape = BHWC(1, 3, 1, 2);
+  src_tensor.data = {0.0f, 1.0f, 0.25f, 0.50f, 0.4444444f, 0.00001f};
+
+  // Unlike TFLite's FakeQuant kernel, we assume that the incoming values are
+  // pre-nudged, since this should be done during model conversion.
+  const int num_bits = 16;
+  const int quant_min = 0;
+  const int quant_max = (1 << num_bits) - 1;
+  QuantizeAndDequantizeAttributes attr;
+  NudgeQuantizationRange(/**original_min**/ 0.0, /**original_max**/ 1.0,
+                         quant_min, quant_max, &attr.min, &attr.max,
+                         &attr.scale);
+
+  const float eps = precision == CalculationsPrecision::F32 ? 1e-6f : 1e-3f;
+  OperationDef op_def;
+  const DataType data_type = DeduceDataTypeFromPrecision(precision);
+  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  TensorFloat32 dst_tensor;
+  GPUOperation operation = CreateQuantizeAndDequantize(op_def, attr);
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
+      src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
+      BHWC(1, 3, 1, 2), &dst_tensor));
+  EXPECT_THAT(dst_tensor.data,
+              Pointwise(FloatNear(eps), {0.0f, 1.0f, 0.250004f, 0.500008f,
+                                         0.44445f, 1.5259e-05f}));
+  return absl::OkStatus();
+}
+
+absl::Status QuantAndDequant_Dim2Bits16_NegativeRangeTest(
+    TestExecutionEnvironment& env, CalculationsPrecision precision,
+    TensorStorageType storage) {
+  TensorFloat32 src_tensor;
+  src_tensor.shape = BHWC(1, 3, 2, 1);
+  src_tensor.data = {0.0f, -0.9f, 0.25f, 0.50f, 0.4444444f, -0.00001f};
+
+  // Unlike TFLite's FakeQuant kernel, we assume that the incoming values are
+  // pre-nudged, since this should be done during model conversion.
+  const int num_bits = 16;
+  const int quant_min = 0;
+  const int quant_max = (1 << num_bits) - 1;
+  QuantizeAndDequantizeAttributes attr;
+  NudgeQuantizationRange(/**original_min**/ -0.9,
+                         /**original_max**/ 0.9, quant_min, quant_max,
+                         &attr.min, &attr.max, &attr.scale);
+
+  const float eps = precision == CalculationsPrecision::F32 ? 1e-6f : 1e-2f;
+  OperationDef op_def;
+  const DataType data_type = DeduceDataTypeFromPrecision(precision);
+  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  TensorFloat32 dst_tensor;
+  GPUOperation operation = CreateQuantizeAndDequantize(op_def, attr);
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
+      src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
+      BHWC(1, 3, 2, 1), &dst_tensor));
+  EXPECT_THAT(dst_tensor.data,
+              Pointwise(FloatNear(eps), {0.0f, -0.900014f, 0.249998f, 0.499995f,
+                                         0.444431f, 0.0f}));
+  return absl::OkStatus();
+}
 
 absl::Status QuantizationUint8Test(TestExecutionEnvironment& env,
                                    TensorStorageType float_storage,
