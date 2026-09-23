@@ -1400,6 +1400,8 @@ TensorDescriptor GetTensorDescriptorForWeightsLayout(
   } else if (weights_desc.type == DataType::UINT2) {
     RearrangeWeightsInt8AsUint2(weights, weights_desc, absl::MakeSpan(data), 2,
                                 2u);
+  } else if (weights_desc.type == DataType::INT8) {
+    RearrangeWeights(weights, weights_desc, absl::MakeSpan(data));
   }
 
   TensorDescriptor weights_td;
