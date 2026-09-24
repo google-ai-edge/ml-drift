@@ -157,6 +157,24 @@ http_archive(
     urls = ["https://github.com/bazelbuild/rules_android/archive/v0.1.1.zip"],
 )
 
+EGL_HEADERS_COMMIT = "db3425b8246136faccb5e2782b5694960bd6edf1"
+
+http_archive(
+    name = "egl_headers",
+    build_file = "//third_party/egl_headers:egl_headers.BUILD",
+    strip_prefix = "EGL-Registry-{commit}/api".format(commit = EGL_HEADERS_COMMIT),
+    urls = ["https://github.com/KhronosGroup/EGL-Registry/archive/{commit}.tar.gz".format(commit = EGL_HEADERS_COMMIT)],
+)
+
+OPENGL_HEADERS_COMMIT = "1cdd228e34966dd6b95bd203e9f84faba0f371a1"
+
+http_archive(
+    name = "opengl_headers",
+    build_file = "//third_party/opengl_headers:opengl_headers.BUILD",
+    strip_prefix = "OpenGL-Registry-{commit}/api".format(commit = OPENGL_HEADERS_COMMIT),
+    urls = ["https://github.com/KhronosGroup/OpenGL-Registry/archive/{commit}.tar.gz".format(commit = OPENGL_HEADERS_COMMIT)],
+)
+
 flatbuffers = use_extension("//third_party/flatbuffers:workspace.bzl", "flatbuffers")
 flatbuffers.build(
     build_file = "//third_party/flatbuffers:BUILD.bazel",

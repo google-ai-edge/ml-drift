@@ -579,7 +579,7 @@ mld_kernel_test(
     ],
     platforms = [
         "opencl",
-        "pelong",
+        "gl",
         "vulkan",
         "webgpu",
         "mac",
