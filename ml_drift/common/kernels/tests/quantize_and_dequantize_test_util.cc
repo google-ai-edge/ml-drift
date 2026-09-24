@@ -278,8 +278,7 @@ absl::Status QuantAndDequant_Dim2Bits8Test(TestExecutionEnvironment& env,
   src_tensor.shape = BHWC(1, 3, 2, 1);
   src_tensor.data = {0.0f, 1.0f, 0.25f, 0.50f, 0.4444444f, 0.00001f};
 
-  // Unlike TFLite's FakeQuant kernel, we assume that the incoming values are
-  // pre-nudged, since this should be done during model conversion.
+  // Assume pre-nudged values as this should be done during model conversion.
   const int num_bits = 8;
   const int quant_min = 0;
   const int quant_max = (1 << num_bits) - 1;
@@ -311,8 +310,7 @@ absl::Status QuantAndDequant_Dim3Bits8_NegativeRangeTest(
   src_tensor.shape = BHWC(1, 3, 1, 2);
   src_tensor.data = {0.0f, -0.9f, 0.25f, 0.50f, 0.4444444f, -0.00001f};
 
-  // Unlike TFLite's FakeQuant kernel, we assume that the incoming values are
-  // pre-nudged, since this should be done during model conversion.
+  // Assume pre-nudged values as this should be done during model conversion.
   const int num_bits = 8;
   const int quant_min = 0;
   const int quant_max = (1 << num_bits) - 1;
@@ -344,8 +342,7 @@ absl::Status QuantAndDequant_Dim3Bits16Test(TestExecutionEnvironment& env,
   src_tensor.shape = BHWC(1, 3, 1, 2);
   src_tensor.data = {0.0f, 1.0f, 0.25f, 0.50f, 0.4444444f, 0.00001f};
 
-  // Unlike TFLite's FakeQuant kernel, we assume that the incoming values are
-  // pre-nudged, since this should be done during model conversion.
+  // Assume pre-nudged values as this should be done during model conversion.
   const int num_bits = 16;
   const int quant_min = 0;
   const int quant_max = (1 << num_bits) - 1;
@@ -377,8 +374,7 @@ absl::Status QuantAndDequant_Dim2Bits16_NegativeRangeTest(
   src_tensor.shape = BHWC(1, 3, 2, 1);
   src_tensor.data = {0.0f, -0.9f, 0.25f, 0.50f, 0.4444444f, -0.00001f};
 
-  // Unlike TFLite's FakeQuant kernel, we assume that the incoming values are
-  // pre-nudged, since this should be done during model conversion.
+  // Assume pre-nudged values as this should be done during model conversion.
   const int num_bits = 16;
   const int quant_min = 0;
   const int quant_max = (1 << num_bits) - 1;
