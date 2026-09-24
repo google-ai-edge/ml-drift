@@ -367,11 +367,20 @@ MaliInfo GetMaliInfo(const std::string& gpu_description) {
 PowerVRGpu GetPowerVRGpuVersion(const std::string& gpu_description) {
   // Order must be preserved
   const std::vector<std::pair<std::string, PowerVRGpu>> kMapping = {
-      {"rogue", PowerVRGpu::kRogue},     {"axe", PowerVRGpu::kAXE},
-      {"axm", PowerVRGpu::kAXM},         {"axt", PowerVRGpu::kAXT},
-      {"bxe", PowerVRGpu::kBXE},         {"bxm", PowerVRGpu::kBXM},
-      {"bxs", PowerVRGpu::kBXS},         {"bxt", PowerVRGpu::kBXT},
-      {"cxt", PowerVRGpu::kCXT},         {"dxt", PowerVRGpu::kDXT},
+      {"rogue gm9", PowerVRGpu::kRogueGm9xxx},    // From OpenGL
+      {"powervr gm9", PowerVRGpu::kRogueGm9xxx},  // From OpenCL
+      {"rogue ge8", PowerVRGpu::kRogueGe8xxx},    // From OpenGL
+      {"powervr ge8", PowerVRGpu::kRogueGe8xxx},  // From OpenCL
+      {"rogue", PowerVRGpu::kRogue},
+      {"axe", PowerVRGpu::kAXE},
+      {"axm", PowerVRGpu::kAXM},
+      {"axt", PowerVRGpu::kAXT},
+      {"bxe", PowerVRGpu::kBXE},
+      {"bxm", PowerVRGpu::kBXM},
+      {"bxs", PowerVRGpu::kBXS},
+      {"bxt", PowerVRGpu::kBXT},
+      {"cxt", PowerVRGpu::kCXT},
+      {"dxt", PowerVRGpu::kDXT},
       {"powervr g", PowerVRGpu::kRogue},
   };
   for (const auto& v : kMapping) {
@@ -1071,10 +1080,17 @@ int MaliInfo::GetApproximateComputeUnitsCount() const {
   return 4;
 }
 
-PowerVRInfo::PowerVRInfo(const std::string& gpu_description)
-    : gpu_version(GetPowerVRGpuVersion(gpu_description)) {}
+PowerVRInfo::PowerVRInfo(const std::string& gpu_description) {
+  std::string lowered = gpu_description;
+  absl::AsciiStrToLower(&lowered);
+  gpu_version = GetPowerVRGpuVersion(lowered);
+}
 
-bool PowerVRInfo::IsRogue() const { return gpu_version == PowerVRGpu::kRogue; }
+bool PowerVRInfo::IsRogue() const {
+  return gpu_version == PowerVRGpu::kRogue ||
+         gpu_version == PowerVRGpu::kRogueGe8xxx ||
+         gpu_version == PowerVRGpu::kRogueGm9xxx;
+}
 
 bool PowerVRInfo::IsImgAxx() const {
   return gpu_version == PowerVRGpu::kAXE || gpu_version == PowerVRGpu::kAXM ||
@@ -1089,6 +1105,13 @@ bool PowerVRInfo::IsImgBxx() const {
 bool PowerVRInfo::IsImgCxx() const { return gpu_version == PowerVRGpu::kCXT; }
 
 bool PowerVRInfo::IsImgDxx() const { return gpu_version == PowerVRGpu::kDXT; }
+
+bool PowerVRInfo::IsBetterThan(PowerVRGpu gpu) const {
+  if (gpu_version == PowerVRGpu::kUnknown) {
+    return false;
+  }
+  return (gpu_version >= gpu);
+}
 
 NvidiaInfo::NvidiaInfo(const std::string& gpu_description) {
   std::string lowered = gpu_description;
@@ -1331,7 +1354,7 @@ void GetGpuInfoFromDeviceDescription(const std::string& gpu_description,
   } else if (gpu_info->IsPowerVR()) {
     gpu_info->powervr_info = PowerVRInfo(lowered);
     const int wave_size =
-        gpu_info->powervr_info.gpu_version <= PowerVRGpu::kRogue ? 32 : 128;
+        gpu_info->powervr_info.IsRogue() ? 32 : 128;
     gpu_info->supported_wave_sizes = {wave_size};
   } else if (gpu_info->IsIntel()) {
     gpu_info->intel_info = IntelInfo(lowered);

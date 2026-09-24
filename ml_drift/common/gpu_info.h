@@ -427,8 +427,12 @@ struct MaliInfo {
 
 enum class PowerVRGpu {
   kUnknown,
+  // Older generation of rogue IMG GPUs - all RTZ (GE8xxx and older have FP16
+  // precision issues; GM9xxx has improved accuracy):
   kRogue,
-  // New generation of IMG gpus after 2019:
+  kRogueGe8xxx,
+  kRogueGm9xxx,
+  // New generation of IMG GPUs after 2019:
   kAXE,
   kAXM,
   kAXT,
@@ -463,6 +467,8 @@ struct PowerVRInfo {
   bool IsImgBxx() const;
   bool IsImgCxx() const;
   bool IsImgDxx() const;
+
+  bool IsBetterThan(PowerVRGpu gpu) const;
 };
 
 enum class NvidiaArchitecture {
