@@ -143,6 +143,20 @@ inline size_t GetElementsCountForDataType(const DataType& data_type,
   }
 }
 
+ExternalWeights ToExternalWeights(const GpuModelBuilder::Weights& weights) {
+  ExternalWeights external_weights;
+  external_weights.desc = weights.desc;
+  external_weights.shape = weights.shape;
+  if (weights.scale) {
+    external_weights.scale_zp_shape = weights.scale_zp_shape;
+    external_weights.scale = &(weights.scale->tensor_desc);
+  }
+  if (weights.zero_point) {
+    external_weights.zero_point = &(weights.zero_point->tensor_desc);
+  }
+  return external_weights;
+}
+
 }  // namespace
 
 GpuModelBuilder GpuModelBuilder::CreateBuilder() const {
@@ -866,9 +880,7 @@ GpuModelBuilder::FullyConnectedExternalWeights(
       gpu_node.name += " + src softmax";
     }
 
-    ExternalWeights external_weights;
-    external_weights.desc = weights.desc;
-    external_weights.shape = weights.shape;
+    ExternalWeights external_weights = ToExternalWeights(weights);
     if (runtime_check.ring_o_offset_index.has_value() &&
         runtime_check.ring_size.value()) {
       external_weights.shape.o = runtime_check.ring_size.value();
@@ -1155,16 +1167,7 @@ GpuModelBuilder::FullyConnectedSrcFloatExternalWeightsWithConversion(
         src_exp ? &src_exp->tensor_desc : nullptr;
     const TensorDescriptor* bias_td = biases ? &biases->tensor_desc : nullptr;
 
-    ExternalWeights external_weights;
-    external_weights.desc = weights.desc;
-    external_weights.shape = weights.shape;
-    if (weights.scale) {
-      external_weights.scale_zp_shape = weights.scale_zp_shape;
-      external_weights.scale = &(weights.scale->tensor_desc);
-    }
-    if (weights.zero_point) {
-      external_weights.zero_point = &(weights.zero_point->tensor_desc);
-    }
+    ExternalWeights external_weights = ToExternalWeights(weights);
 
     if (recommended_single_conv && use_apple_mpp &&
         SupportsConvAppleMPP(gpu_info_, external_weights)) {
@@ -1524,8 +1527,6 @@ GpuModelBuilder::FullyConnectedInt8ExternalWeights(
   }
 
   const TensorDescriptor* bias_desc = biases ? &biases->tensor_desc : nullptr;
-  const TensorDescriptor* zero_point_desc =
-      weights.zero_point ? &weights.zero_point->tensor_desc : nullptr;
   const bool grouped_quantization = weights.scale_zp_shape.i != 1;
 
   const bool ringed_weights = runtime_check.ring_o_offset_index.has_value() ||
@@ -1543,9 +1544,7 @@ GpuModelBuilder::FullyConnectedInt8ExternalWeights(
 
     const TensorDescriptor* src_exp_td =
         src_exp ? &src_exp->tensor_desc : nullptr;
-    ExternalWeights external_weights;
-    external_weights.desc = weights.desc;
-    external_weights.shape = weights.shape;
+    ExternalWeights external_weights = ToExternalWeights(weights);
     if (runtime_check.ring_o_offset_index.has_value() &&
         runtime_check.ring_size.value()) {
       external_weights.shape.o = runtime_check.ring_size.value();
@@ -1554,9 +1553,6 @@ GpuModelBuilder::FullyConnectedInt8ExternalWeights(
         runtime_check.ring_size.value()) {
       external_weights.shape.i = runtime_check.ring_size.value();
     }
-    external_weights.scale_zp_shape = weights.scale_zp_shape;
-    external_weights.scale = &(weights.scale->tensor_desc);
-    external_weights.zero_point = zero_point_desc;
     auto fc_op = CreateFullyConnectedExternalWeights(
         gpu_info_, conv_precision, src.tensor_desc, dst.tensor_desc,
         external_weights, bias_desc, &dst_shape, src_exp_td, runtime_check);
@@ -1625,8 +1621,6 @@ GpuModelBuilder::FullyConnectedInt4ExternalWeights(const TensorHandle& src,
 
   const int total_spatial_size = dst_shape.b * dst_shape.h * dst_shape.w;
   const TensorDescriptor* bias_desc = biases ? &biases->tensor_desc : nullptr;
-  const TensorDescriptor* zero_point_desc =
-      weights.zero_point ? &weights.zero_point->tensor_desc : nullptr;
   const bool grouped_quantization = weights.scale_zp_shape.i != 1;
 
   if (total_spatial_size <=
@@ -1636,12 +1630,7 @@ GpuModelBuilder::FullyConnectedInt4ExternalWeights(const TensorHandle& src,
     auto& gpu_node = gpu_model_.nodes.back();
     gpu_node.name = "fc1x1_int4_weights";
 
-    ExternalWeights external_weights;
-    external_weights.desc = weights.desc;
-    external_weights.shape = weights.shape;
-    external_weights.scale_zp_shape = weights.scale_zp_shape;
-    external_weights.scale = &weights.scale->tensor_desc;
-    external_weights.zero_point = zero_point_desc;
+    ExternalWeights external_weights = ToExternalWeights(weights);
     auto fc_op = CreateFullyConnectedExternalWeights(
         gpu_info_, GetConvPrecision(src.tensor_desc.GetDataType()),
         src.tensor_desc, dst.tensor_desc, external_weights, bias_desc,
@@ -1705,8 +1694,6 @@ GpuModelBuilder::FullyConnectedInt2ExternalWeights(const TensorHandle& src,
 
   const int total_spatial_size = dst_shape.b * dst_shape.h * dst_shape.w;
   const TensorDescriptor* bias_desc = biases ? &biases->tensor_desc : nullptr;
-  const TensorDescriptor* zero_point_desc =
-      weights.zero_point ? &weights.zero_point->tensor_desc : nullptr;
   const bool grouped_quantization = weights.scale_zp_shape.i != 1;
 
   if (total_spatial_size <=
@@ -1716,12 +1703,7 @@ GpuModelBuilder::FullyConnectedInt2ExternalWeights(const TensorHandle& src,
     auto& gpu_node = gpu_model_.nodes.back();
     gpu_node.name = "fc1x1_int2_weights";
 
-    ExternalWeights external_weights;
-    external_weights.desc = weights.desc;
-    external_weights.shape = weights.shape;
-    external_weights.scale_zp_shape = weights.scale_zp_shape;
-    external_weights.scale = &weights.scale->tensor_desc;
-    external_weights.zero_point = zero_point_desc;
+    ExternalWeights external_weights = ToExternalWeights(weights);
     auto fc_op = CreateFullyConnectedExternalWeights(
         gpu_info_, GetConvPrecision(src.tensor_desc.GetDataType()),
         src.tensor_desc, dst.tensor_desc, external_weights, bias_desc,
