@@ -50,16 +50,28 @@
 namespace ml_drift {
 
 enum class ObjectType {
-  UNKNOWN,
+  kUnknown,
 #ifndef CL_DELEGATE_NO_GL
-  OPENGL_SSBO,
-  OPENGL_TEXTURE,
+  kOpenGlSsbo,
+  kOpenGlTexture,
 #endif
-  CPU_MEMORY,
-  OPENCL_TEXTURE,
-  OPENCL_BUFFER,
-  VULKAN_BUFFER,
-  VULKAN_TEXTURE
+  kCpuMemory,
+  kOpenClTexture,
+  kOpenClBuffer,
+  kVulkanBuffer,
+  kVulkanTexture,
+
+  // Deprecated aliases:
+  UNKNOWN = kUnknown,
+#ifndef CL_DELEGATE_NO_GL
+  OPENGL_SSBO = kOpenGlSsbo,
+  OPENGL_TEXTURE = kOpenGlTexture,
+#endif
+  CPU_MEMORY = kCpuMemory,
+  OPENCL_TEXTURE = kOpenClTexture,
+  OPENCL_BUFFER = kOpenClBuffer,
+  VULKAN_BUFFER = kVulkanBuffer,
+  VULKAN_TEXTURE = kVulkanTexture,
 };
 
 #ifndef CL_DELEGATE_NO_GL

@@ -39,13 +39,22 @@
 namespace ml_drift {
 
 enum class TensorStorageType {
-  UNKNOWN = 0,
-  BUFFER = 1,
-  IMAGE_BUFFER = 2,
-  TEXTURE_2D = 3,
-  TEXTURE_3D = 4,
-  TEXTURE_ARRAY = 5,
-  SINGLE_TEXTURE_2D = 6,
+  kUnknown = 0,
+  kBuffer = 1,
+  kImageBuffer = 2,
+  kTexture2D = 3,
+  kTexture3D = 4,
+  kTextureArray = 5,
+  kSingleTexture2D = 6,
+
+  // Deprecated aliases:
+  UNKNOWN = kUnknown,
+  BUFFER = kBuffer,
+  IMAGE_BUFFER = kImageBuffer,
+  TEXTURE_2D = kTexture2D,
+  TEXTURE_3D = kTexture3D,
+  TEXTURE_ARRAY = kTextureArray,
+  SINGLE_TEXTURE_2D = kSingleTexture2D,
 };
 
 class TensorDescriptor : public GPUObjectDescriptor {

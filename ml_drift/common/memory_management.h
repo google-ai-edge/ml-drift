@@ -38,36 +38,45 @@ OffsetsAssignment ObjectsToOffsets(
 enum class MemoryStrategy {
   // Naive strategy is to allocate each object separately.
   // Can be useful for debugging to see all intermediate outputs.
-  NAIVE,
+  kNaive,
 
   // Equality strategy allows to reuse the same part of memory for several
   // tensors with the same size, but non-intersecting usage intervals.
-  EQUALITY,
+  kEquality,
 
   // Greedy strategy uses greedy algorithm, iterating through all the tensors in
   // order of their first_task, to reuse memory from tensors, that
   // won't be used anymore, for new ones.
-  GREEDY_IN_ORDER,
+  kGreedyInOrder,
 
   // Greedy by size strategy uses greedy algorithm, iterating through all the
   // kernels in non-increasing of their breadth, and calculating allocations for
   // tensors used in these kernels. By breadth of the task we understand sum of
   // sizes of all tensors in its TaskProfile.
-  GREEDY_BY_BREADTH,
+  kGreedyByBreadth,
 
   // Greedy by size strategy uses greedy algorithm, iterating through all the
   // tensors in non-increasing of their size, to reuse memory from tensors, that
   // won't be used anymore, for new ones.
-  GREEDY_BY_SIZE,
+  kGreedyBySize,
 
   // Choose greedy strategy from several fast algorithms, that provides best
   // memory allocation for the given usage records.
-  GREEDY_BEST,
+  kGreedyBest,
 
   // Mincostflow strategy consists of building auxiliary flow graph and solving
   // the minimum-cost flow problem in it. In the end edges with zero residual
   // capacity determine assignment of shared objects to tensors.
-  MINCOSTFLOW,
+  kMinCostFlow,
+
+  // Deprecated aliases:
+  NAIVE = kNaive,
+  EQUALITY = kEquality,
+  GREEDY_IN_ORDER = kGreedyInOrder,
+  GREEDY_BY_BREADTH = kGreedyByBreadth,
+  GREEDY_BY_SIZE = kGreedyBySize,
+  GREEDY_BEST = kGreedyBest,
+  MINCOSTFLOW = kMinCostFlow,
 };
 
 // Chooses greedy algorithm with the lowest memory consumption for given usage

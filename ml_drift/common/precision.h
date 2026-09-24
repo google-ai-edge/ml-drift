@@ -22,7 +22,16 @@
 
 namespace ml_drift {
 
-enum class CalculationsPrecision { F32, F32_F16, F16 };
+enum class CalculationsPrecision {
+  kF32,
+  kF32F16,
+  kF16,
+
+  // Deprecated aliases:
+  F32 = kF32,
+  F32_F16 = kF32F16,
+  F16 = kF16,
+};
 // F32 - all data and all math ops in F32
 // F16 - all data and all math ops in F16
 // F32_F16 - as F16, but some operations (Convolution,

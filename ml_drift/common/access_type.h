@@ -18,9 +18,14 @@
 namespace ml_drift {
 
 enum class AccessType {
-  READ,
-  WRITE,
-  READ_WRITE,
+  kRead,
+  kWrite,
+  kReadWrite,
+
+  // Deprecated aliases:
+  READ = kRead,
+  WRITE = kWrite,
+  READ_WRITE = kReadWrite,
 };
 
 }  // namespace ml_drift

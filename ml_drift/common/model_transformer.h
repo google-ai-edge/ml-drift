@@ -35,17 +35,23 @@ enum class TransformStatus {
   // This is different from DECLINED code below that provides in-depth
   // explanation why a transformation that could have been applied but was not
   // due to some issues.
-  SKIPPED,
+  kSkipped,
 
   // Transformation was declined, therefore, a model was not modified.
-  DECLINED,
+  kDeclined,
 
   // Transformation was applied successfully
-  APPLIED,
+  kApplied,
 
   // Transformation may partially be applied, but left a model in an invalid
   // state. This error should be considered unrecoverable.
-  INVALID,
+  kInvalid,
+
+  // Deprecated aliases:
+  SKIPPED = kSkipped,
+  DECLINED = kDeclined,
+  APPLIED = kApplied,
+  INVALID = kInvalid,
 };
 
 struct TransformResult {

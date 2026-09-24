@@ -62,7 +62,16 @@ struct GPUCustomMemoryDescriptor {
   std::string type_name;
 };
 
-enum class MemoryType { GLOBAL, CONSTANT, LOCAL };
+enum class MemoryType {
+  kGlobal,
+  kConstant,
+  kLocal,
+
+  // Deprecated aliases:
+  GLOBAL = kGlobal,
+  CONSTANT = kConstant,
+  LOCAL = kLocal,
+};
 
 struct GPUBufferDescriptor {
   DataType data_type;

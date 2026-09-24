@@ -31,11 +31,18 @@ namespace ml_drift {
 //   D  - depth := DivideRoundUp(C, 4)
 //   C4 - is the constant = 4.
 enum class DataLayout {
-  UNKNOWN,
-  BHWC,
-  DHWC4,
-  HWDC4,
-  HDWC4,
+  kUnknown,
+  kBHWC,
+  kDHWC4,
+  kHWDC4,
+  kHDWC4,
+
+  // Deprecated aliases:
+  UNKNOWN = kUnknown,
+  BHWC = kBHWC,
+  DHWC4 = kDHWC4,
+  HWDC4 = kHWDC4,
+  HDWC4 = kHDWC4,
 };
 
 struct CpuMemory {
@@ -85,29 +92,42 @@ struct Dimensions {
 
 // Encapsulated compilation/runtime tradeoffs.
 enum class InferenceUsage {
-  UNKNOWN,
+  kUnknown,
 
   // InferenceRunner will be used only once. Therefore, it is important to
   // minimize bootstrap time as well.
-  FAST_SINGLE_ANSWER,
+  kFastSingleAnswer,
 
   // Prefer maximizing the throughput. Same inference runner will be used
   // repeatedly on different inputs.
-  SUSTAINED_SPEED,
+  kSustainedSpeed,
 
   // Balance init latency and throughput. This option will result in slightly
   // higher init latency than FAST_SINGLE_ANSWER but should have inference
   // latency closer to SUSTAINED_SPEED.
-  BALANCED,
+  kBalanced,
+
+  // Deprecated aliases:
+  UNKNOWN = kUnknown,
+  FAST_SINGLE_ANSWER = kFastSingleAnswer,
+  SUSTAINED_SPEED = kSustainedSpeed,
+  BALANCED = kBalanced,
 };
 
 // Defines aspects to control while instantiating a runner.
 enum class InferencePriority {
-  UNKNOWN,
-  AUTO,
-  MIN_LATENCY,
-  MAX_PRECISION,
-  MIN_MEMORY_USAGE,
+  kUnknown,
+  kAuto,
+  kMinLatency,
+  kMaxPrecision,
+  kMinMemoryUsage,
+
+  // Deprecated aliases:
+  UNKNOWN = kUnknown,
+  AUTO = kAuto,
+  MIN_LATENCY = kMinLatency,
+  MAX_PRECISION = kMaxPrecision,
+  MIN_MEMORY_USAGE = kMinMemoryUsage,
 };
 
 struct InferenceOptions {
@@ -148,9 +168,14 @@ bool IsValid(const InferenceOptions& options);
 void ResolveAutoPriority(InferenceOptions* options);
 
 enum class PriorityImportance {
-  UNKNOWN,
-  HIGHER,
-  LOWER,
+  kUnknown,
+  kHigher,
+  kLower,
+
+  // Deprecated aliases:
+  UNKNOWN = kUnknown,
+  HIGHER = kHigher,
+  LOWER = kLower,
 };
 
 // If both p1 and p2 are not present in options, return UNKNOWN
