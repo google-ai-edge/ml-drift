@@ -1030,42 +1030,50 @@ std::vector<GpuModelBuilder::TensorHandle> GpuModelBuilder::WeightsConversion(
     const WeightsDescription& dst_desc, const OHWI& weights_shape,
     const ConvRuntimeCheckDesc& runtime_check,
     const TensorHandle* runtime_check_tensor) {
+  Weights weights;
+  weights.weights = src_weights;
+  weights.desc = src_desc;
+  weights.shape = weights_shape;
+  if (weights_scale) {
+    weights.scale = *weights_scale;
+  }
+  if (weights_zero_point) {
+    weights.zero_point = *weights_zero_point;
+  }
+  return WeightsConversion(weights, dst_desc, runtime_check,
+                           runtime_check_tensor);
+}
+
+std::vector<GpuModelBuilder::TensorHandle> GpuModelBuilder::WeightsConversion(
+    const Weights& weights, const WeightsDescription& dst_desc,
+    const ConvRuntimeCheckDesc& runtime_check,
+    const TensorHandle* runtime_check_tensor) {
   const auto dsts =
-      AddTensors(GetTensorDescriptorsForWeightsLayout(weights_shape, dst_desc));
+      AddTensors(GetTensorDescriptorsForWeightsLayout(weights.shape, dst_desc));
 
   OperationDef op_def;
-  op_def.src_tensors.push_back(src_weights.tensor_desc);
+  op_def.src_tensors.push_back(weights.weights.tensor_desc);
   for (auto& dst : dsts) {
     op_def.dst_tensors.push_back(dst.tensor_desc);
   }
 
-  ExternalWeights external_weights;
-  external_weights.desc = src_desc;
-  external_weights.shape = weights_shape;
-  if (weights_scale) {
-    // Propagate scale_zp_shape and use it in the converter.
-    // external_weights.scale_zp_shape = scale_zp_shape;
-    external_weights.scale = &(weights_scale->tensor_desc);
-  }
-  if (weights_zero_point) {
-    external_weights.zero_point = &(weights_zero_point->tensor_desc);
-  }
+  ExternalWeights external_weights = ToExternalWeights(weights);
 
   WeightsConverter converter(gpu_info_, op_def, external_weights, dst_desc,
                              runtime_check);
 
   gpu_model_.nodes.push_back({});
   auto& gpu_node = gpu_model_.nodes.back();
-  gpu_node.name = "weights_convert_" + ToString(src_desc.type) + "_to_" +
+  gpu_node.name = "weights_convert_" + ToString(weights.desc.type) + "_to_" +
                   ToString(dst_desc.type);
   gpu_node.gpu_operation =
       std::make_unique<WeightsConverter>(std::move(converter));
-  gpu_node.inputs = {src_weights.id};
-  if (weights_scale) {
-    gpu_node.inputs.push_back(weights_scale->id);
+  gpu_node.inputs = {weights.weights.id};
+  if (weights.scale) {
+    gpu_node.inputs.push_back(weights.scale->id);
   }
-  if (weights_zero_point) {
-    gpu_node.inputs.push_back(weights_zero_point->id);
+  if (weights.zero_point) {
+    gpu_node.inputs.push_back(weights.zero_point->id);
   }
   if (runtime_check_tensor && (runtime_check.src_end_ch_index.has_value() ||
                                runtime_check.dst_end_ch_index.has_value() ||
@@ -1211,10 +1219,8 @@ GpuModelBuilder::FullyConnectedSrcFloatExternalWeightsWithConversion(
 
   std::vector<TensorHandle> conv_weights = {weights.weights};
   if (ringed_weights || conv_weights_desc != weights.desc) {
-    conv_weights = WeightsConversion(
-        weights.weights, weights.scale ? &*weights.scale : nullptr,
-        weights.zero_point ? &*weights.zero_point : nullptr, weights.desc,
-        conv_weights_desc, weights.shape, runtime_check, runtime_check_tensor);
+    conv_weights = WeightsConversion(weights, conv_weights_desc, runtime_check,
+                                     runtime_check_tensor);
   }
 
   gpu_model_.nodes.push_back({});
@@ -1349,9 +1355,7 @@ GpuModelBuilder::FullyConnectedInt8QuantizedWithSrcQuantization(
   conv_weights = {weights.weights};
   if (weights.desc.layout != WeightsLayout::kUnknown) {
     if (conv_weights_desc != weights.desc) {
-      conv_weights =
-          WeightsConversion(weights.weights, nullptr, nullptr, weights.desc,
-                            conv_weights_desc, weights.shape);
+      conv_weights = WeightsConversion(weights, conv_weights_desc);
     }
   } else if (conv_weights_desc_ptr != nullptr) {
     *conv_weights_desc_ptr = conv_weights_desc;
@@ -1422,9 +1426,7 @@ GpuModelBuilder::FullyConnectedInt4QuantizedWithSrcQuantization(
 
   std::vector<TensorHandle> conv_weights = {weights.weights};
   if (conv_weights_desc != weights.desc) {
-    conv_weights =
-        WeightsConversion(weights.weights, nullptr, nullptr, weights.desc,
-                          conv_weights_desc, weights.shape);
+    conv_weights = WeightsConversion(weights, conv_weights_desc);
   }
 
   gpu_model_.nodes.push_back({});
