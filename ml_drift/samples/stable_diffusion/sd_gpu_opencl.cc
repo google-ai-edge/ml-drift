@@ -193,7 +193,7 @@ class TextGuidance {
     const auto& gpu_info = env->GetDevicePtr()->GetInfo();
 
     CreateGpuModelInfo create_info;
-    create_info.precision = CalculationsPrecision::F16;
+    create_info.precision = CalculationsPrecision::kF16;
     create_info.storage_type = GetFastestStorageType(gpu_info);
     create_info.hints.Add(ModelHints::kFastTuning);
     // create_info.hints.Add(ModelHints::kNoWinogradOptimizations);
@@ -225,7 +225,7 @@ class TextGuidance {
   Tensor* GetGuidanceTensor() { return inference_context_.GetTensor(dst_.id); }
 
   absl::Status Execute(Environment* env,
-                       const ml_drift::Tensor<BHWC, DataType::INT32>& src,
+                       const ml_drift::Tensor<BHWC, DataType::kInt32>& src,
                        TensorFloat32* dst) {
     ABSL_RETURN_IF_ERROR(
         inference_context_.SetInputTensor(src_.id, src, env->queue()));
@@ -239,7 +239,7 @@ class TextGuidance {
   }
 
   absl::Status SetInput(Environment* env,
-                        const ml_drift::Tensor<BHWC, DataType::INT32>& src) {
+                        const ml_drift::Tensor<BHWC, DataType::kInt32>& src) {
     return inference_context_.SetInputTensor(src_.id, src, env->queue());
   }
   absl::Status Execute(CLCommandQueue* queue) {
@@ -258,7 +258,7 @@ class UNet {
     const auto& gpu_info = env->GetDevicePtr()->GetInfo();
 
     CreateGpuModelInfo create_info;
-    create_info.precision = CalculationsPrecision::F16;
+    create_info.precision = CalculationsPrecision::kF16;
     create_info.storage_type = GetFastestStorageType(gpu_info);
     create_info.hints.Add(ModelHints::kFastTuning);
     create_info.hints.winograd_runtime_weights_conversion = false;
@@ -283,10 +283,10 @@ class UNet {
     options.hints = create_info.hints;
     options.storage = create_info.storage_type;
     options.use_f32_accum_for_f16_convolutions =
-        (create_info.precision == CalculationsPrecision::F32_F16);
+        (create_info.precision == CalculationsPrecision::kF32F16);
     ml_drift::GpuModelBuilder model_builder(gpu_info, options);
 
-    index_val_ = model_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::FLOAT32);
+    index_val_ = model_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::kFloat32);
     ABSL_ASSIGN_OR_RETURN(
         auto result,
         model_builder.AppendOp(
@@ -304,14 +304,14 @@ class UNet {
         /*masked_image_latent_ptr=*/nullptr, &eta0_, &eta1_, nullptr));
 
     guidance_scale_ =
-        model_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::FLOAT32);
-    sqrt_alpha_ = model_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::FLOAT32);
+        model_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::kFloat32);
+    sqrt_alpha_ = model_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::kFloat32);
     sqrt_alpha_prev_ =
-        model_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::FLOAT32);
+        model_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::kFloat32);
     sqrt_one_minus_alpha_ =
-        model_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::FLOAT32);
+        model_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::kFloat32);
     sqrt_one_minus_alpha_prev_ =
-        model_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::FLOAT32);
+        model_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::kFloat32);
     src_input_ = src_;
     ABSL_ASSIGN_OR_RETURN(
         auto _step_res,
@@ -429,7 +429,7 @@ class Decoder {
     const auto& gpu_info = env->GetDevicePtr()->GetInfo();
 
     CreateGpuModelInfo create_info;
-    create_info.precision = CalculationsPrecision::F16;
+    create_info.precision = CalculationsPrecision::kF16;
     create_info.storage_type = GetFastestStorageType(gpu_info);
     create_info.hints.Add(ModelHints::kFastTuning);
     create_info.hints.winograd_runtime_weights_conversion = false;

@@ -140,7 +140,7 @@ class Diffuser {
     }
 
     absl::Status SetInput(Environment* env,
-                          const ml_drift::Tensor<BHWC, DataType::INT32>& src);
+                          const ml_drift::Tensor<BHWC, DataType::kInt32>& src);
 
     absl::Status Execute(CLCommandQueue* queue) {
       return inference_context_.AddToQueue(queue);
@@ -250,7 +250,7 @@ class Diffuser {
   std::unique_ptr<Decoder> decoder_;
   std::unique_ptr<Copier> copier_;
   std::unique_ptr<Copier> guidance_copier_;
-  ml_drift::Tensor<BHWC, DataType::INT32> tokens_;
+  ml_drift::Tensor<BHWC, DataType::kInt32> tokens_;
   Tensor latent_copy_;
   float plugins_strength_;
 

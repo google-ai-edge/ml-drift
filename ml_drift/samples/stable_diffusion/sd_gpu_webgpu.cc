@@ -63,7 +63,7 @@ absl::Status WaitUntilCompleted(Environment* env) {
 
 // Hardcoded to Texture2D on web for now.
 TensorStorageType GetFastestStorageType(GpuInfo const& info) {
-  return TensorStorageType::TEXTURE_2D;
+  return TensorStorageType::kTexture2D;
 }
 
 // Helper class for running the one-off ops
@@ -160,7 +160,7 @@ class TextGuidance {
     const auto& gpu_info = env->GetInfo();
 
     CreateGpuModelInfo create_info;
-    create_info.precision = CalculationsPrecision::F16;
+    create_info.precision = CalculationsPrecision::kF16;
     create_info.storage_type = GetFastestStorageType(gpu_info);
     create_info.hints.Add(ModelHints::kFastTuning);
     create_info.hints.Add(ModelHints::kNoWinogradOptimizations);
@@ -191,7 +191,7 @@ class TextGuidance {
   }
 
   absl::Status SetInput(Environment* env,
-                        const ml_drift::Tensor<BHWC, DataType::INT32>& src) {
+                        const ml_drift::Tensor<BHWC, DataType::kInt32>& src) {
     return inference_context_.SetInputTensor(*env, src_.id, src);
   }
   absl::Status Execute(Environment* env) {
@@ -210,7 +210,7 @@ class UNet {
     const auto& gpu_info = env->GetInfo();
 
     CreateGpuModelInfo create_info;
-    create_info.precision = CalculationsPrecision::F16;
+    create_info.precision = CalculationsPrecision::kF16;
     create_info.storage_type = GetFastestStorageType(gpu_info);
     create_info.hints.Add(ModelHints::kFastTuning);
     create_info.hints.Add(ModelHints::kNoWinogradOptimizations);
@@ -232,7 +232,7 @@ class UNet {
                                 create_info.precision,
                                 create_info.storage_type);
 
-    index_val_ = gpu_builder.AddTensor(BHWC(1, 1, 1, 1), DataType::FLOAT32);
+    index_val_ = gpu_builder.AddTensor(BHWC(1, 1, 1, 1), DataType::kFloat32);
     ABSL_ASSIGN_OR_RETURN(
         auto temb_res,
         gpu_builder.AppendOp(
@@ -250,14 +250,14 @@ class UNet {
         /*masked_image_latent_ptr=*/nullptr, &eta0_, &eta1_, nullptr));
 
     guidance_scale_ =
-        gpu_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::FLOAT32);
-    sqrt_alpha_ = gpu_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::FLOAT32);
+        gpu_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::kFloat32);
+    sqrt_alpha_ = gpu_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::kFloat32);
     sqrt_alpha_prev_ =
-        gpu_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::FLOAT32);
+        gpu_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::kFloat32);
     sqrt_one_minus_alpha_ =
-        gpu_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::FLOAT32);
+        gpu_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::kFloat32);
     sqrt_one_minus_alpha_prev_ =
-        gpu_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::FLOAT32);
+        gpu_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::kFloat32);
     src_input_ = src_;
     ABSL_ASSIGN_OR_RETURN(
         auto _step_res,
@@ -354,7 +354,7 @@ class Decoder {
     const auto& gpu_info = env->GetInfo();
 
     CreateGpuModelInfo create_info;
-    create_info.precision = CalculationsPrecision::F16;
+    create_info.precision = CalculationsPrecision::kF16;
     create_info.storage_type = GetFastestStorageType(gpu_info);
     create_info.hints.Add(ModelHints::kFastTuning);
     create_info.hints.Add(ModelHints::kNoWinogradOptimizations);
@@ -410,8 +410,8 @@ absl::Status RunStableDiffusion(std::string weights_path) {
   ABSL_RETURN_IF_ERROR(env.Initialize());
   const auto& gpu_info = env.GetInfo();
 
-  TensorDescriptor default_desc(DataType::FLOAT16,
-                                GetFastestStorageType(gpu_info), Layout::HWC);
+  TensorDescriptor default_desc(DataType::kFloat16,
+                                GetFastestStorageType(gpu_info), Layout::kHWC);
 
   const int final_image_width = 512;
   const int final_image_height = 512;
@@ -449,7 +449,7 @@ absl::Status RunStableDiffusion(std::string weights_path) {
   ABSL_RETURN_IF_ERROR(copier_latent.Init(unet_out->GetDescriptor(),
                                           unet_in->GetDescriptor(), &env));
 
-  ml_drift::Tensor<BHWC, DataType::INT32> tokens;
+  ml_drift::Tensor<BHWC, DataType::kInt32> tokens;
   tokens.shape = BHWC(1, 1, 2, 77);
   tokens.data.resize(tokens.shape.DimensionsProduct());
 

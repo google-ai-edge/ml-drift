@@ -47,7 +47,7 @@ std::vector<half> LoadF16(const std::string& path, int count);
 absl::Span<const half> LoadF16Ex(const std::string& path, int count,
                                  half* buffer);
 
-Tensor<Linear, DataType::FLOAT32> CreateLinearTensor(
+Tensor<Linear, DataType::kFloat32> CreateLinearTensor(
     absl::Span<const half> data);
 
 GPUOperation CreateTembGenerationOp(const GpuInfo& gpu_info,
@@ -72,7 +72,7 @@ DepthwiseConvolution2DAttributes MakeDwConvAttributes(
     const OHWI& shape, const HW& stride, const std::string& name);
 
 absl::StatusOr<TensorFloat32> GenerateOpenClipMaskTensor(
-    const Tensor<BHWC, DataType::INT32>& prompt_tensor);
+    const Tensor<BHWC, DataType::kInt32>& prompt_tensor);
 
 // Do not use; for unit testing only.
 namespace internal {

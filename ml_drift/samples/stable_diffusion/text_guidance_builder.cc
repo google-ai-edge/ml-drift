@@ -57,18 +57,18 @@ absl::Status TextGuidanceBuilder::Build(
                              create_info.storage_type);
   const DataType float_type =
       DeduceDataTypeFromPrecision(create_info.precision);
-  auto src_tensor = builder_.AddTensor(BHWC(1, 1, 2, 77), DataType::INT32);
+  auto src_tensor = builder_.AddTensor(BHWC(1, 1, 2, 77), DataType::kInt32);
   std::vector<GpuModelBuilder::TensorHandle> input_tensors;
   input_tensors.push_back(std::move(src_tensor));
 
   if (mask_ptr) {
     GpuModelBuilder::TensorHandle mask_tensor =
         builder_.AddTensor(BHWC(1, 2, 77, 77), float_type);
-    auto split_masks = builder_.Split(mask_tensor, Axis::HEIGHT, 1);
+    auto split_masks = builder_.Split(mask_tensor, Axis::kHeight, 1);
     for (int i = 0; i < 2; ++i) {
-      split_masks[i] = builder_.Tile(split_masks[i], Axis::HEIGHT, 16);
+      split_masks[i] = builder_.Tile(split_masks[i], Axis::kHeight, 16);
     }
-    mask_ = builder_.Concat(split_masks[0], split_masks[1], Axis::HEIGHT);
+    mask_ = builder_.Concat(split_masks[0], split_masks[1], Axis::kHeight);
     input_tensors.push_back(std::move(mask_tensor));
   } else {
     TensorFloat32 causal_mask_tensor;
@@ -179,16 +179,16 @@ TextGuidanceBuilder::MakeTextGuidanceWithTextProjection(
     final_norm = MakeLayerNorm(outputs[0], name + ".final_layer_norm");
   }
   auto argmax =
-      builder_.Reduce(x_in, Reduce::Type::kMaximumIndex, {Axis::CHANNELS});
+      builder_.Reduce(x_in, Reduce::Type::kMaximumIndex, {Axis::kChannels});
   auto inds = builder_.Reshape(argmax, BHWC(1, 1, 2, 1));
   auto text_proj = AddCustomGather(final_norm, inds);
-  auto text_proj_split = builder_.Split(text_proj, Axis::HEIGHT, 1);
+  auto text_proj_split = builder_.Split(text_proj, Axis::kHeight, 1);
   for (int i = 0; i < 2; ++i) {
     text_proj_split[i] = MakeLinear(
         text_proj_split[i], name + ".text_projection", config_.embedding_size);
   }
   outputs[1] =
-      builder_.Concat(text_proj_split[0], text_proj_split[1], Axis::BATCH);
+      builder_.Concat(text_proj_split[0], text_proj_split[1], Axis::kBatch);
   return outputs;
 }
 
@@ -205,7 +205,7 @@ TextGuidanceBuilder::MakeTextEncoderLayer(
 
   // To match JAX's quick_gelu function: x * jax.nn.sigmoid(1.702 * x)
   auto quick_gelu = builder_.Multiplication(x, 1.702f);
-  quick_gelu = builder_.Elementwise(quick_gelu, OperationType::SIGMOID);
+  quick_gelu = builder_.Elementwise(quick_gelu, OperationType::kSigmoid);
   x = builder_.Multiplication(x, quick_gelu);
 
   x = MakeLinear(x, name + ".mlp.fc2", config_.embedding_size);
@@ -229,19 +229,19 @@ GpuModelBuilder::TensorHandle TextGuidanceBuilder::AddCustomGather(
   std::vector<GpuModelBuilder::TensorHandle> src_split = {src};
   std::vector<GpuModelBuilder::TensorHandle> indices_split = {indices};
   if (src.tensor_desc.GetBHWCShape().h != 1) {
-    src_split = builder_.Split(src, Axis::HEIGHT, /*tile_size=*/1);
+    src_split = builder_.Split(src, Axis::kHeight, /*tile_size=*/1);
   }
   if (indices.tensor_desc.GetBHWCShape().w != 1) {
-    indices_split = builder_.Split(indices, Axis::WIDTH, /*tile_size=*/1);
+    indices_split = builder_.Split(indices, Axis::kWidth, /*tile_size=*/1);
   }
   const size_t num_splits = std::max(src_split.size(), indices_split.size());
   std::vector<GpuModelBuilder::TensorHandle> dst_split(num_splits);
   for (size_t i = 0; i < num_splits; ++i) {
     auto src_i = src_split[std::min(i, src_split.size() - 1)];
     auto indices_i = indices_split[std::min(i, indices_split.size() - 1)];
-    dst_split[i] = builder_.Gather(src_i, indices_i, Axis::WIDTH);
+    dst_split[i] = builder_.Gather(src_i, indices_i, Axis::kWidth);
   }
-  return builder_.Concat(dst_split, Axis::HEIGHT);
+  return builder_.Concat(dst_split, Axis::kHeight);
 }
 
 absl::StatusOr<GpuModelBuilder::TensorHandle>
@@ -316,7 +316,7 @@ TextGuidanceBuilder::MakeTextAttention(const GpuModelBuilder::TensorHandle& xIn,
 
   ABSL_ASSIGN_OR_RETURN(auto att, builder_.BatchedMatMul(q, k));
   att = builder_.Multiplication(att, 1.0f / sqrt(static_cast<float>(dHead)));
-  att = builder_.Elementwise(att, mask_, OperationType::MINIMUM);
+  att = builder_.Elementwise(att, mask_, OperationType::kMinimum);
   att = builder_.Softmax(att);
   ABSL_ASSIGN_OR_RETURN(att, builder_.BatchedMatMul(att, v));
 

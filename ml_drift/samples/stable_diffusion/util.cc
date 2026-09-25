@@ -223,7 +223,7 @@ absl::Span<const half> LoadF16Ex(const std::string& path, int count,
   return absl::MakeConstSpan(buffer, count);
 }
 
-Tensor<Linear, DataType::FLOAT32> CreateLinearTensor(
+Tensor<Linear, DataType::kFloat32> CreateLinearTensor(
     absl::Span<const half> data) {
   return {
       .shape = Linear(data.size()),
@@ -237,7 +237,7 @@ GPUOperation CreateTembGenerationOp(const GpuInfo& gpu_info,
   GPUOperation op;
   op.AddDstTensor("dst", dst);
   op.args_.AddFloat("index_val", 1.0f);
-  Tensor<Linear, DataType::FLOAT32> coeffs_tensor;
+  Tensor<Linear, DataType::kFloat32> coeffs_tensor;
   coeffs_tensor.shape = Linear(160);
   coeffs_tensor.data.resize(coeffs_tensor.shape.DimensionsProduct());
   // th.exp(-th.log(th.tensor([10000])) * th.arange(0, 160) / 160)
@@ -246,7 +246,7 @@ GPUOperation CreateTembGenerationOp(const GpuInfo& gpu_info,
     coeffs_tensor.data[i] = value;
   }
   TensorDescriptor coeffs_tensor_desc = CreateConstantLinearTensorDescriptor(
-      gpu_info, DataType::FLOAT32, coeffs_tensor);
+      gpu_info, DataType::kFloat32, coeffs_tensor);
   op.args_.AddObject("coeffs", std::make_unique<TensorDescriptor>(
                                    std::move(coeffs_tensor_desc)));
 
@@ -324,7 +324,7 @@ Convolution2DAttributes MakeConvAttributes(absl::Span<const half> weights,
   attr.padding.appended = HW(padding_h, padding_w);
   attr.strides = stride;
   attr.dilations = HW(1, 1);
-  auto& attr_weights = attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
+  auto& attr_weights = attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = shape;
   attr_weights.data = internal::ConvertOihwFp16ToOhwiFp32(weights, shape);
   if (!bias.empty()) {
@@ -344,7 +344,7 @@ std::pair<Convolution2DAttributes, Convolution2DAttributes> SplitAttributes(
   const int biases_size = attributes.bias.data.size() / 2 * sizeof(float);
   Convolution2DAttributes attr0 = attributes;
   auto& attr0_weights =
-      attr0.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
+      attr0.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
   attr0_weights.shape = attributes_weights.shape;
   attr0_weights.shape.o /= 2;
   attr0_weights.data.resize(attr0_weights.shape.DimensionsProduct() +
@@ -356,7 +356,7 @@ std::pair<Convolution2DAttributes, Convolution2DAttributes> SplitAttributes(
   std::memcpy(attr0.bias.data.data(), attributes.bias.data.data(), biases_size);
   Convolution2DAttributes attr1 = attributes;
   auto& attr1_weights =
-      attr1.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
+      attr1.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
   attr1_weights.shape = attributes_weights.shape;
   attr1_weights.shape.o /= 2;
   attr1_weights.data.resize(attr1_weights.shape.DimensionsProduct() +
@@ -384,7 +384,7 @@ DepthwiseConvolution2DAttributes MakeDwConvAttributes(
   attr.padding.appended = HW(padding_h, padding_w);
   attr.strides = stride;
   attr.dilations = HW(1, 1);
-  auto& attr_weights = attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
+  auto& attr_weights = attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = shape;
   attr_weights.data = internal::ConvertOihwFp16ToOhwiFp32(weights, shape);
   if (!bias.empty()) {
@@ -397,7 +397,7 @@ DepthwiseConvolution2DAttributes MakeDwConvAttributes(
 }
 
 absl::StatusOr<TensorFloat32> GenerateOpenClipMaskTensor(
-    const Tensor<BHWC, DataType::INT32>& prompt_tensor) {
+    const Tensor<BHWC, DataType::kInt32>& prompt_tensor) {
   if (prompt_tensor.shape.b != 1 || prompt_tensor.shape.h != 1 ||
       prompt_tensor.shape.w != 2 || prompt_tensor.shape.c != 77) {
     return absl::InvalidArgumentError(

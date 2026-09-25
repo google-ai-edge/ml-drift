@@ -71,7 +71,7 @@ absl::Status UnetBuilder::Build(
       builder_ptr_->AddTensor(BHWC(1, height, width, 9), float_type);
   if (masked_image_latent_ptr) {
     input_tensor = builder_ptr_->Concat(src_tensor, masked_image_latent_tensor,
-                                        Axis::CHANNELS);
+                                        Axis::kChannels);
   }
   GpuModelBuilder::TensorHandle temb_tensor;
   if (temb_ptr && temb_ptr->tensor_desc.GetBHWCShape().c > 0) {
@@ -90,7 +90,7 @@ absl::Status UnetBuilder::Build(
     auto pooled_text_proj_tensor = MakePooledTextProjection(
         text_proj_tensor, "model.diffusion_model.pooled_text_embedding.linear",
         emb.tensor_desc.GetBHWCShape().c);
-    emb = builder_ptr_->Tile(emb, Axis::BATCH);
+    emb = builder_ptr_->Tile(emb, Axis::kBatch);
     emb = builder_ptr_->Add(emb, pooled_text_proj_tensor);
   }
   emb = builder_ptr_->SiLU(emb);
@@ -99,7 +99,7 @@ absl::Status UnetBuilder::Build(
                        "model.diffusion_model", /*plugins=*/{},
                        /*plugins_strength=*/nullptr, /*control=*/nullptr,
                        /*only_mid_control=*/false, debug_tensor_ptr));
-  auto etas = builder_ptr_->Split(t, Axis::BATCH, 1);
+  auto etas = builder_ptr_->Split(t, Axis::kBatch, 1);
 
   if (latent_ptr) {
     *latent_ptr = src_tensor;
@@ -182,7 +182,7 @@ absl::Status UnetBuilder::BuildControlNet(
                        /*plugins=*/{}, /*plugins_strength=*/nullptr,
                        /*control=*/&control_tensors, /*only_mid_control=*/false,
                        debug_tensor_ptr));
-  auto etas = builder_ptr_->Split(t, Axis::BATCH, 1);
+  auto etas = builder_ptr_->Split(t, Axis::kBatch, 1);
 
   if (latent_ptr) {
     *latent_ptr = src_tensor;
@@ -254,7 +254,7 @@ absl::Status UnetBuilder::BuildUNetWithPlugins(
                        /*plugins_strength=*/&plugins_strength_tensor,
                        /*control=*/nullptr, /*only_mid_control=*/false,
                        debug_tensor_ptr));
-  auto etas = builder_ptr_->Split(t, Axis::BATCH, 1);
+  auto etas = builder_ptr_->Split(t, Axis::kBatch, 1);
 
   if (latent_ptr) {
     *latent_ptr = src_tensor;
@@ -496,11 +496,11 @@ GpuModelBuilder::TensorHandle UnetBuilder::MakeFeedForward(
   auto proj1 = builder_ptr_->Convolution(src, attrs.second);
   GpuModelBuilder::TensorHandle x;
   if (config_.activation_function == Config::ActivationFunction::kGatedSiLU) {
-    auto gated_val = builder_ptr_->Elementwise(proj1, OperationType::SIGMOID);
+    auto gated_val = builder_ptr_->Elementwise(proj1, OperationType::kSigmoid);
     gated_val = builder_ptr_->Multiplication(gated_val, proj1);
     x = builder_ptr_->Multiplication(gated_val, proj0);
   } else {
-    auto gated_val = builder_ptr_->Elementwise(proj1, OperationType::GELU);
+    auto gated_val = builder_ptr_->Elementwise(proj1, OperationType::kGelu);
     x = builder_ptr_->Multiplication(gated_val, proj0);
   }
   return MakeLinear(x, name + ".2", dim);
@@ -591,13 +591,13 @@ absl::StatusOr<GpuModelBuilder::TensorHandle> UnetBuilder::MakeUNet(
 
   bool resblock_updown = false;
 
-  x = builder_ptr_->Tile(x, Axis::BATCH);
+  x = builder_ptr_->Tile(x, Axis::kBatch);
 
   std::vector<GpuModelBuilder::TensorHandle> tiled_plugins;
   bool use_plugins = !plugins.empty();
   if (use_plugins) {
     for (const auto& elem : plugins) {
-      tiled_plugins.push_back(builder_ptr_->Tile(elem, Axis::BATCH));
+      tiled_plugins.push_back(builder_ptr_->Tile(elem, Axis::kBatch));
     }
   }
   int ch = config.model_channels * config.channel_mult[0];
@@ -699,7 +699,7 @@ absl::StatusOr<GpuModelBuilder::TensorHandle> UnetBuilder::MakeUNet(
       }
       if (!config_.skip_middle_blocks ||
           level != config.channel_mult.size() - 1) {
-        x = builder_ptr_->Concat(x, tensor_to_concat, Axis::CHANNELS);
+        x = builder_ptr_->Concat(x, tensor_to_concat, Axis::kChannels);
       }
       x = MakeUNetResBlock(x, emb,
                            name_block + "." + std::to_string(sub_block_id++),
@@ -776,10 +776,10 @@ UnetBuilder::MakeControlNet(const Config& config,
     hint = builder_ptr_->SiLU(hint);
     hint = MakeConv(hint, name + ".input_hint_block.14", 320, 3);
   }
-  hint = builder_ptr_->Tile(hint, Axis::BATCH);
+  hint = builder_ptr_->Tile(hint, Axis::kBatch);
 
   auto x = src;
-  x = builder_ptr_->Tile(x, Axis::BATCH);
+  x = builder_ptr_->Tile(x, Axis::kBatch);
   std::vector<GpuModelBuilder::TensorHandle> outs;
 
   // input blocks

@@ -106,8 +106,8 @@ absl::StatusOr<std::unique_ptr<Diffuser>> Diffuser::Create(
   ABSL_LOG(INFO) << "Environment created";
 
   const auto& gpu_info = env->GetDevicePtr()->GetInfo();
-  TensorDescriptor default_desc(DataType::FLOAT16,
-                                GetFastestStorageType(gpu_info), Layout::HWC);
+  TensorDescriptor default_desc(DataType::kFloat16,
+                                GetFastestStorageType(gpu_info), Layout::kHWC);
 
   auto text_guidance_graph = std::make_unique<TextGuidance>();
   ABSL_RETURN_IF_ERROR(text_guidance_graph->Init(config, env.get()));
@@ -358,7 +358,7 @@ absl::Status Diffuser::Copier::Init(const TensorDescriptor& src_desc,
   gpu_model.tensors[dst_id_] = op_def.dst_tensors[0];
 
   CreateGpuModelInfo create_info;
-  create_info.precision = CalculationsPrecision::F16;
+  create_info.precision = CalculationsPrecision::kF16;
   create_info.storage_type = dst_desc.GetStorageType();
   create_info.external_mutable_tensors.insert({src_id_, src_desc});
   create_info.external_mutable_tensors.insert({dst_id_, dst_desc});
@@ -395,7 +395,7 @@ absl::Status Diffuser::TextGuidance::Init(const Diffuser::Config& runner_config,
   const auto& gpu_info = env->GetDevicePtr()->GetInfo();
 
   CreateGpuModelInfo create_info;
-  create_info.precision = CalculationsPrecision::F32;
+  create_info.precision = CalculationsPrecision::kF32;
   create_info.storage_type = GetFastestStorageType(gpu_info);
   create_info.hints.Add(ModelHints::kFastTuning);
   GpuModel gpu_model;
@@ -427,7 +427,7 @@ absl::Status Diffuser::TextGuidance::Init(const Diffuser::Config& runner_config,
 }
 
 absl::Status Diffuser::TextGuidance::SetInput(
-    Environment* env, const ml_drift::Tensor<BHWC, DataType::INT32>& src) {
+    Environment* env, const ml_drift::Tensor<BHWC, DataType::kInt32>& src) {
   return inference_context_.SetInputTensor(src_.id, src, env->queue());
 }
 
@@ -440,7 +440,7 @@ absl::Status Diffuser::UNet::Init(const Diffuser::Config& runner_config,
   const auto& gpu_info = env->GetDevicePtr()->GetInfo();
 
   CreateGpuModelInfo create_info;
-  create_info.precision = CalculationsPrecision::F16;
+  create_info.precision = CalculationsPrecision::kF16;
   create_info.storage_type = GetFastestStorageType(gpu_info);
   create_info.hints.Add(ModelHints::kFastTuning);
   GpuModel gpu_model;
@@ -475,10 +475,10 @@ absl::Status Diffuser::UNet::Init(const Diffuser::Config& runner_config,
   options.hints = create_info.hints;
   options.storage = create_info.storage_type;
   options.use_f32_accum_for_f16_convolutions =
-      (create_info.precision == CalculationsPrecision::F32_F16);
+      (create_info.precision == CalculationsPrecision::kF32F16);
   ml_drift::GpuModelBuilder step_builder(gpu_info, options);
 
-  index_val_ = step_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::FLOAT32);
+  index_val_ = step_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::kFloat32);
   ABSL_ASSIGN_OR_RETURN(
       auto result_or,
       step_builder.AppendOp(
@@ -488,14 +488,15 @@ absl::Status Diffuser::UNet::Init(const Diffuser::Config& runner_config,
             static_cast<int>(GetFastestStorageType(gpu_info))}}));
   temb_ = result_or[0];
 
-  guidance_scale_ = step_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::FLOAT32);
-  sqrt_alpha_ = step_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::FLOAT32);
+  guidance_scale_ =
+      step_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::kFloat32);
+  sqrt_alpha_ = step_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::kFloat32);
   sqrt_alpha_prev_ =
-      step_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::FLOAT32);
+      step_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::kFloat32);
   sqrt_one_minus_alpha_ =
-      step_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::FLOAT32);
+      step_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::kFloat32);
   sqrt_one_minus_alpha_prev_ =
-      step_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::FLOAT32);
+      step_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::kFloat32);
   if (runner_config.run_unet_with_plugins) {
     ABSL_RETURN_IF_ERROR(builder.BuildUNetWithPlugins(
         config, gpu_info, create_info, width, height, &step_builder, &src_,
@@ -551,8 +552,8 @@ absl::Status Diffuser::UNet::Init(const Diffuser::Config& runner_config,
       << std::chrono::duration<float, std::milli>(end_init - start_init).count()
       << " ms." << std::endl;
 
-  TensorDescriptor latent_desc(DataType::FLOAT16,
-                               GetFastestStorageType(gpu_info), Layout::HWC);
+  TensorDescriptor latent_desc(DataType::kFloat16,
+                               GetFastestStorageType(gpu_info), Layout::kHWC);
   latent_desc.SetBHWCShape(BHWC(1, height, width, 4));
 
   {
@@ -596,7 +597,7 @@ absl::Status Diffuser::Decoder::Init(const Diffuser::Config& runner_config,
   const auto& gpu_info = env->GetDevicePtr()->GetInfo();
 
   CreateGpuModelInfo create_info;
-  create_info.precision = CalculationsPrecision::F16;
+  create_info.precision = CalculationsPrecision::kF16;
   create_info.storage_type = GetFastestStorageType(gpu_info);
   create_info.hints.Add(ModelHints::kFastTuning);
   GpuModel gpu_model;

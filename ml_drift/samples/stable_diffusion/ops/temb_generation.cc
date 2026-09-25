@@ -70,17 +70,17 @@ class TembGeneration : public OpBase {
     int half_channels = channels / 2;
     int half_slices = half_channels / 4;
 
-    TensorDescriptor dst_desc(DataType::FLOAT16,
+    TensorDescriptor dst_desc(DataType::kFloat16,
                               static_cast<TensorStorageType>(
                                   attrs.Get<int>("storage_type").value_or(0)),
-                              Layout::HWC);
+                              Layout::kHWC);
     dst_desc.SetBHWCShape(BHWC(1, 1, 1, channels));
     outputs = graph.AddTensors({dst_desc});
 
     auto* op = AppendNewOp(graph, attrs);
     if (!op) return absl::InternalError("Failed to append new op");
 
-    Tensor<Linear, DataType::FLOAT32> coeffs_tensor;
+    Tensor<Linear, DataType::kFloat32> coeffs_tensor;
     coeffs_tensor.shape = Linear(half_channels);
     coeffs_tensor.data.resize(coeffs_tensor.shape.DimensionsProduct());
     for (int i = 0; i < coeffs_tensor.shape.v; ++i) {
@@ -89,7 +89,7 @@ class TembGeneration : public OpBase {
       coeffs_tensor.data[i] = value;
     }
     TensorDescriptor coeffs_tensor_desc = CreateConstantLinearTensorDescriptor(
-        graph.gpu_info(), DataType::FLOAT32, coeffs_tensor);
+        graph.gpu_info(), DataType::kFloat32, coeffs_tensor);
     op->args_.AddObject("coeffs", std::make_unique<TensorDescriptor>(
                                       std::move(coeffs_tensor_desc)));
     op->args_.AddInt("half_slices", half_slices);
