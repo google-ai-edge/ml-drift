@@ -130,7 +130,6 @@ TEST_F(OpenGlOperationTest, BHWCBufferToTensorConverterTest) {
         src_desc.memory_type = MemoryType::GLOBAL;
 
         BHWCBufferToTensorConverter converter;
-        auto s = converter.Init(exec_env_.GetGpuInfo(), src_desc, dst_desc);
         ASSERT_TRUE(
             converter.Init(exec_env_.GetGpuInfo(), src_desc, dst_desc).ok());
 
