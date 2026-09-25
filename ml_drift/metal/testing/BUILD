@@ -16,7 +16,6 @@ objc_library(
         "-ObjC++",
     ],
     deps = [
-        "//ml_drift/common:convert",
         "//ml_drift/common:data_type",
         "//ml_drift/common:gpu_info",
         "//ml_drift/common:shape",

@@ -25,23 +25,6 @@ package(
     licenses = ["notice"],
 )
 
-cc_library(
-    name = "convert",
-    srcs = ["convert.cc"],
-    hdrs = ["convert.h"],
-    deps = [
-        ":data_type",
-        ":shape",
-        ":tensor",
-        ":types",
-        ":util",
-        "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:status_macros",
-        "@com_google_absl//absl/strings",
-        "@com_google_absl//absl/types:span",
-    ],
-)
-
 exports_files(["custom_transformations.h"])
 
 cc_library(
