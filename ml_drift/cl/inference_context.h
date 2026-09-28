@@ -167,7 +167,7 @@ class InferenceContext {
   absl::Status SetTensor(const ValueId& tensor_id, Tensor* tensor_ptr);
 
  private:
-  flatbuffers::Offset<data::InferenceContext> Encode(
+  absl::StatusOr<flatbuffers::Offset<data::InferenceContext>> Encode(
       const CLDevice& device, const ProgramCache& program_cache,
       flatbuffers::Offset<ml_drift::data::GpuModel> gpu_model_fb,
       flatbuffers::FlatBufferBuilder* builder);

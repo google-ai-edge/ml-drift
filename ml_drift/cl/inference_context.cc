@@ -271,8 +271,9 @@ absl::Status InferenceContext::InitFromGpuModel(
   }
 
   if (serialized_model) {
-    auto encoded_fb = Encode(*env->GetDevicePtr(), *env->program_cache(),
-                             gpu_model_fb, &builder);
+    ABSL_ASSIGN_OR_RETURN(auto encoded_fb,
+                          Encode(*env->GetDevicePtr(), *env->program_cache(),
+                                 gpu_model_fb, &builder));
     data::FinishInferenceContextBuffer(builder, encoded_fb);
     serialized_model->resize(builder.GetSize());
     std::memcpy(serialized_model->data(), builder.GetBufferPointer(),
@@ -880,7 +881,8 @@ absl::Status InferenceContext::GetOutputTensor(ValueId id,
   return absl::OkStatus();
 }
 
-flatbuffers::Offset<data::InferenceContext> InferenceContext::Encode(
+absl::StatusOr<flatbuffers::Offset<data::InferenceContext>>
+InferenceContext::Encode(
     const CLDevice& device, const ProgramCache& program_cache,
     flatbuffers::Offset<ml_drift::data::GpuModel> gpu_model_fb,
     flatbuffers::FlatBufferBuilder* builder) {
@@ -904,7 +906,8 @@ flatbuffers::Offset<data::InferenceContext> InferenceContext::Encode(
   std::vector<flatbuffers::Offset<data::BinaryProgram>> binary_programs_fb;
   for (auto fingerprint : fingerprints) {
     std::vector<uint8_t> program_binary;
-    program_cache.GetProgramBinary(fingerprint, &program_binary).IgnoreError();
+    ABSL_RETURN_IF_ERROR(
+        program_cache.GetProgramBinary(fingerprint, &program_binary));
     auto binary_fb = builder->CreateVector(program_binary);
     data::BinaryProgramBuilder program_builder(*builder);
     program_builder.add_fingerprint(fingerprint);
