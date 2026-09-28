@@ -39,7 +39,7 @@ void TensorToBHWCBufferConverterTest(const TensorDescriptor& src_desc, const Dat
 
   TensorDescriptor src_desc_copy = src_desc;
   BHWC shape(1, 18, 37, 17);
-  if (src_desc.GetStorageType() == TensorStorageType::SINGLE_TEXTURE_2D) {
+  if (src_desc.GetStorageType() == TensorStorageType::kSingleTexture2D) {
     shape.c = 1;
   }
   TensorFloat32 src_tensor;
@@ -65,7 +65,7 @@ void TensorToBHWCBufferConverterTest(const TensorDescriptor& src_desc, const Dat
   [command_buffer commit];
   [command_buffer waitUntilCompleted];
   std::vector<float> dst_data;
-  if (dst_type == DataType::FLOAT16) {
+  if (dst_type == DataType::kFloat16) {
     std::vector<ml_drift::half> gpu_data_half;
     XCTAssertTrue(dst.ReadData(&gpu_data_half).ok());
     for (int i = 0; i < gpu_data_half.size(); ++i) {
@@ -87,7 +87,7 @@ void BHWCBufferToTensorConverterTes(const DataType& src_type, const TensorDescri
   XCTAssertTrue(converter.Init(&env, src_type, dst_desc).ok());
 
   BHWC shape(1, 18, 37, 17);
-  if (dst_desc.GetStorageType() == TensorStorageType::SINGLE_TEXTURE_2D) {
+  if (dst_desc.GetStorageType() == TensorStorageType::kSingleTexture2D) {
     shape.c = 2;
   }
   TensorFloat32 src_tensor;
@@ -98,7 +98,7 @@ void BHWCBufferToTensorConverterTes(const DataType& src_type, const TensorDescri
   }
 
   Buffer src;
-  if (src_type == DataType::FLOAT16) {
+  if (src_type == DataType::kFloat16) {
     std::vector<ml_drift::half> gpu_data_half(src_tensor.data.size());
     for (int i = 0; i < src_tensor.data.size(); ++i) {
       gpu_data_half[i] = src_tensor.data[i];
@@ -139,24 +139,24 @@ void BHWCBufferToTensorConverterTes(const DataType& src_type, const TensorDescri
 }  // namespace ml_drift
 
 - (void)testTensorToBHWCBufferConverter {
-  for (auto src_type : {ml_drift::DataType::FLOAT32, ml_drift::DataType::FLOAT16}) {
+  for (auto src_type : {ml_drift::DataType::kFloat32, ml_drift::DataType::kFloat16}) {
     auto src_storages = exec_env_.GetSupportedStorages(src_type);
-    src_storages.push_back(ml_drift::TensorStorageType::SINGLE_TEXTURE_2D);
+    src_storages.push_back(ml_drift::TensorStorageType::kSingleTexture2D);
     for (auto src_storage : src_storages) {
-      for (auto dst_type : {ml_drift::DataType::FLOAT32, ml_drift::DataType::FLOAT16}) {
-        ml_drift::TensorDescriptor src_desc(src_type, src_storage, ml_drift::Layout::HWC);
+      for (auto dst_type : {ml_drift::DataType::kFloat32, ml_drift::DataType::kFloat16}) {
+        ml_drift::TensorDescriptor src_desc(src_type, src_storage, ml_drift::Layout::kHWC);
         ml_drift::metal::TensorToBHWCBufferConverterTest(src_desc, dst_type);
       }
     }
   }
 }
 - (void)testBHWCBufferToTensorConverter {
-  for (auto src_type : {ml_drift::DataType::FLOAT32, ml_drift::DataType::FLOAT16}) {
-    for (auto dst_type : {ml_drift::DataType::FLOAT32, ml_drift::DataType::FLOAT16}) {
+  for (auto src_type : {ml_drift::DataType::kFloat32, ml_drift::DataType::kFloat16}) {
+    for (auto dst_type : {ml_drift::DataType::kFloat32, ml_drift::DataType::kFloat16}) {
       auto dst_storages = exec_env_.GetSupportedStorages(dst_type);
-      dst_storages.push_back(ml_drift::TensorStorageType::SINGLE_TEXTURE_2D);
+      dst_storages.push_back(ml_drift::TensorStorageType::kSingleTexture2D);
       for (auto dst_storage : dst_storages) {
-        ml_drift::TensorDescriptor dst_desc(dst_type, dst_storage, ml_drift::Layout::HWC);
+        ml_drift::TensorDescriptor dst_desc(dst_type, dst_storage, ml_drift::Layout::kHWC);
         ml_drift::metal::BHWCBufferToTensorConverterTes(src_type, dst_desc);
       }
     }

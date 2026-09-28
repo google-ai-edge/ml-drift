@@ -48,24 +48,24 @@ double GenerateDouble(int i, int i_max, const ml_drift::TensorDescriptor& descri
   const double val = static_cast<double>(i) / static_cast<double>(i_max);
   double transformed_val = sin(val * 2.0 * M_PI);
   auto data_type = descriptor.GetDataType();
-  if (data_type == ml_drift::DataType::UINT16) {
+  if (data_type == ml_drift::DataType::kUint16) {
     transformed_val = (transformed_val + 1) / 2;
     transformed_val *= std::numeric_limits<uint16_t>::max();
   }
-  if (data_type == ml_drift::DataType::UINT32) {
+  if (data_type == ml_drift::DataType::kUint32) {
     transformed_val = (transformed_val + 1) / 2;
     transformed_val *= std::numeric_limits<uint32_t>::max();
   }
-  if (data_type == ml_drift::DataType::INT16) {
+  if (data_type == ml_drift::DataType::kInt16) {
     transformed_val *= std::numeric_limits<int16_t>::max();
   }
-  if (data_type == ml_drift::DataType::INT32) {
+  if (data_type == ml_drift::DataType::kInt32) {
     transformed_val *= std::numeric_limits<int32_t>::max();
   }
-  if (data_type == ml_drift::DataType::FLOAT16) {
+  if (data_type == ml_drift::DataType::kFloat16) {
     transformed_val = ml_drift::half(transformed_val * 128.0);
   }
-  if (data_type == ml_drift::DataType::BOOL) {
+  if (data_type == ml_drift::DataType::kBool) {
     transformed_val = i % 2;
   }
   return transformed_val;
@@ -105,35 +105,35 @@ absl::Status TensorBHWCTest(const BHWC& shape, const TensorDescriptor& descripto
   return absl::OkStatus();
 }
 
-template absl::Status TensorBHWCTest<DataType::FLOAT32>(const BHWC& shape,
+template absl::Status TensorBHWCTest<DataType::kFloat32>(const BHWC& shape,
+                                                         const TensorDescriptor& descriptor,
+                                                         id<MTLDevice> device);
+template absl::Status TensorBHWCTest<DataType::kInt32>(const BHWC& shape,
+                                                       const TensorDescriptor& descriptor,
+                                                       id<MTLDevice> device);
+
+template absl::Status TensorBHWCTest<DataType::kInt16>(const BHWC& shape,
+                                                       const TensorDescriptor& descriptor,
+                                                       id<MTLDevice> device);
+
+template absl::Status TensorBHWCTest<DataType::kInt8>(const BHWC& shape,
+                                                      const TensorDescriptor& descriptor,
+                                                      id<MTLDevice> device);
+template absl::Status TensorBHWCTest<DataType::kUint32>(const BHWC& shape,
                                                         const TensorDescriptor& descriptor,
                                                         id<MTLDevice> device);
-template absl::Status TensorBHWCTest<DataType::INT32>(const BHWC& shape,
-                                                      const TensorDescriptor& descriptor,
-                                                      id<MTLDevice> device);
 
-template absl::Status TensorBHWCTest<DataType::INT16>(const BHWC& shape,
-                                                      const TensorDescriptor& descriptor,
-                                                      id<MTLDevice> device);
+template absl::Status TensorBHWCTest<DataType::kUint16>(const BHWC& shape,
+                                                        const TensorDescriptor& descriptor,
+                                                        id<MTLDevice> device);
 
-template absl::Status TensorBHWCTest<DataType::INT8>(const BHWC& shape,
-                                                     const TensorDescriptor& descriptor,
-                                                     id<MTLDevice> device);
-template absl::Status TensorBHWCTest<DataType::UINT32>(const BHWC& shape,
+template absl::Status TensorBHWCTest<DataType::kUint8>(const BHWC& shape,
                                                        const TensorDescriptor& descriptor,
                                                        id<MTLDevice> device);
 
-template absl::Status TensorBHWCTest<DataType::UINT16>(const BHWC& shape,
-                                                       const TensorDescriptor& descriptor,
-                                                       id<MTLDevice> device);
-
-template absl::Status TensorBHWCTest<DataType::UINT8>(const BHWC& shape,
+template absl::Status TensorBHWCTest<DataType::kBool>(const BHWC& shape,
                                                       const TensorDescriptor& descriptor,
                                                       id<MTLDevice> device);
-
-template absl::Status TensorBHWCTest<DataType::BOOL>(const BHWC& shape,
-                                                     const TensorDescriptor& descriptor,
-                                                     id<MTLDevice> device);
 
 template <DataType T>
 absl::Status TensorBHWDCTest(const BHWDC& shape, const TensorDescriptor& descriptor,
@@ -167,317 +167,321 @@ absl::Status TensorBHWDCTest(const BHWDC& shape, const TensorDescriptor& descrip
   return absl::OkStatus();
 }
 
-template absl::Status TensorBHWDCTest<DataType::FLOAT32>(const BHWDC& shape,
+template absl::Status TensorBHWDCTest<DataType::kFloat32>(const BHWDC& shape,
+                                                          const TensorDescriptor& descriptor,
+                                                          id<MTLDevice> device);
+template absl::Status TensorBHWDCTest<DataType::kInt32>(const BHWDC& shape,
+                                                        const TensorDescriptor& descriptor,
+                                                        id<MTLDevice> device);
+
+template absl::Status TensorBHWDCTest<DataType::kInt16>(const BHWDC& shape,
+                                                        const TensorDescriptor& descriptor,
+                                                        id<MTLDevice> device);
+
+template absl::Status TensorBHWDCTest<DataType::kInt8>(const BHWDC& shape,
+                                                       const TensorDescriptor& descriptor,
+                                                       id<MTLDevice> device);
+template absl::Status TensorBHWDCTest<DataType::kUint32>(const BHWDC& shape,
                                                          const TensorDescriptor& descriptor,
                                                          id<MTLDevice> device);
-template absl::Status TensorBHWDCTest<DataType::INT32>(const BHWDC& shape,
-                                                       const TensorDescriptor& descriptor,
-                                                       id<MTLDevice> device);
 
-template absl::Status TensorBHWDCTest<DataType::INT16>(const BHWDC& shape,
-                                                       const TensorDescriptor& descriptor,
-                                                       id<MTLDevice> device);
+template absl::Status TensorBHWDCTest<DataType::kUint16>(const BHWDC& shape,
+                                                         const TensorDescriptor& descriptor,
+                                                         id<MTLDevice> device);
 
-template absl::Status TensorBHWDCTest<DataType::INT8>(const BHWDC& shape,
-                                                      const TensorDescriptor& descriptor,
-                                                      id<MTLDevice> device);
-template absl::Status TensorBHWDCTest<DataType::UINT32>(const BHWDC& shape,
+template absl::Status TensorBHWDCTest<DataType::kUint8>(const BHWDC& shape,
                                                         const TensorDescriptor& descriptor,
                                                         id<MTLDevice> device);
 
-template absl::Status TensorBHWDCTest<DataType::UINT16>(const BHWDC& shape,
-                                                        const TensorDescriptor& descriptor,
-                                                        id<MTLDevice> device);
-
-template absl::Status TensorBHWDCTest<DataType::UINT8>(const BHWDC& shape,
+template absl::Status TensorBHWDCTest<DataType::kBool>(const BHWDC& shape,
                                                        const TensorDescriptor& descriptor,
                                                        id<MTLDevice> device);
-
-template absl::Status TensorBHWDCTest<DataType::BOOL>(const BHWDC& shape,
-                                                      const TensorDescriptor& descriptor,
-                                                      id<MTLDevice> device);
 
 template <DataType T>
 absl::Status TensorTests(DataType data_type, TensorStorageType storage_type) {
   id<MTLDevice> device = MTLCreateSystemDefaultDevice();
   ABSL_RETURN_IF_ERROR(
-      TensorBHWCTest<T>(BHWC(1, 6, 7, 3), {data_type, storage_type, Layout::HWC}, device));
+      TensorBHWCTest<T>(BHWC(1, 6, 7, 3), {data_type, storage_type, Layout::kHWC}, device));
   ABSL_RETURN_IF_ERROR(
-      TensorBHWCTest<T>(BHWC(1, 1, 4, 12), {data_type, storage_type, Layout::HWC}, device));
+      TensorBHWCTest<T>(BHWC(1, 1, 4, 12), {data_type, storage_type, Layout::kHWC}, device));
   ABSL_RETURN_IF_ERROR(
-      TensorBHWCTest<T>(BHWC(1, 6, 1, 7), {data_type, storage_type, Layout::HWC}, device));
+      TensorBHWCTest<T>(BHWC(1, 6, 1, 7), {data_type, storage_type, Layout::kHWC}, device));
 
   // Batch tests
   ABSL_RETURN_IF_ERROR(
-      TensorBHWCTest<T>(BHWC(2, 6, 7, 3), {data_type, storage_type, Layout::BHWC}, device));
+      TensorBHWCTest<T>(BHWC(2, 6, 7, 3), {data_type, storage_type, Layout::kBHWC}, device));
   ABSL_RETURN_IF_ERROR(
-      TensorBHWCTest<T>(BHWC(4, 1, 4, 12), {data_type, storage_type, Layout::BHWC}, device));
+      TensorBHWCTest<T>(BHWC(4, 1, 4, 12), {data_type, storage_type, Layout::kBHWC}, device));
   ABSL_RETURN_IF_ERROR(
-      TensorBHWCTest<T>(BHWC(7, 6, 1, 7), {data_type, storage_type, Layout::BHWC}, device));
+      TensorBHWCTest<T>(BHWC(7, 6, 1, 7), {data_type, storage_type, Layout::kBHWC}, device));
   ABSL_RETURN_IF_ERROR(
-      TensorBHWCTest<T>(BHWC(13, 7, 3, 3), {data_type, storage_type, Layout::BHWC}, device));
+      TensorBHWCTest<T>(BHWC(13, 7, 3, 3), {data_type, storage_type, Layout::kBHWC}, device));
 
   // 5D tests with batch = 1
   ABSL_RETURN_IF_ERROR(
-      TensorBHWDCTest<T>(BHWDC(1, 6, 7, 4, 3), {data_type, storage_type, Layout::HWDC}, device));
+      TensorBHWDCTest<T>(BHWDC(1, 6, 7, 4, 3), {data_type, storage_type, Layout::kHWDC}, device));
   ABSL_RETURN_IF_ERROR(
-      TensorBHWDCTest<T>(BHWDC(1, 1, 4, 3, 12), {data_type, storage_type, Layout::HWDC}, device));
+      TensorBHWDCTest<T>(BHWDC(1, 1, 4, 3, 12), {data_type, storage_type, Layout::kHWDC}, device));
   ABSL_RETURN_IF_ERROR(
-      TensorBHWDCTest<T>(BHWDC(1, 6, 1, 7, 7), {data_type, storage_type, Layout::HWDC}, device));
+      TensorBHWDCTest<T>(BHWDC(1, 6, 1, 7, 7), {data_type, storage_type, Layout::kHWDC}, device));
 
   // 5D tests
   ABSL_RETURN_IF_ERROR(
-      TensorBHWDCTest<T>(BHWDC(2, 6, 7, 1, 3), {data_type, storage_type, Layout::BHWDC}, device));
+      TensorBHWDCTest<T>(BHWDC(2, 6, 7, 1, 3), {data_type, storage_type, Layout::kBHWDC}, device));
   ABSL_RETURN_IF_ERROR(
-      TensorBHWDCTest<T>(BHWDC(4, 1, 4, 2, 12), {data_type, storage_type, Layout::BHWDC}, device));
+      TensorBHWDCTest<T>(BHWDC(4, 1, 4, 2, 12), {data_type, storage_type, Layout::kBHWDC}, device));
   ABSL_RETURN_IF_ERROR(
-      TensorBHWDCTest<T>(BHWDC(7, 6, 1, 3, 7), {data_type, storage_type, Layout::BHWDC}, device));
+      TensorBHWDCTest<T>(BHWDC(7, 6, 1, 3, 7), {data_type, storage_type, Layout::kBHWDC}, device));
   ABSL_RETURN_IF_ERROR(
-      TensorBHWDCTest<T>(BHWDC(13, 7, 3, 4, 3), {data_type, storage_type, Layout::BHWDC}, device));
+      TensorBHWDCTest<T>(BHWDC(13, 7, 3, 4, 3), {data_type, storage_type, Layout::kBHWDC}, device));
   return absl::OkStatus();
 }
 
-template absl::Status TensorTests<DataType::FLOAT32>(DataType data_type,
+template absl::Status TensorTests<DataType::kFloat32>(DataType data_type,
+                                                      TensorStorageType storage_type);
+template absl::Status TensorTests<DataType::kInt32>(DataType data_type,
+                                                    TensorStorageType storage_type);
+template absl::Status TensorTests<DataType::kInt16>(DataType data_type,
+                                                    TensorStorageType storage_type);
+template absl::Status TensorTests<DataType::kInt8>(DataType data_type,
+                                                   TensorStorageType storage_type);
+template absl::Status TensorTests<DataType::kUint32>(DataType data_type,
                                                      TensorStorageType storage_type);
-template absl::Status TensorTests<DataType::INT32>(DataType data_type,
-                                                   TensorStorageType storage_type);
-template absl::Status TensorTests<DataType::INT16>(DataType data_type,
-                                                   TensorStorageType storage_type);
-template absl::Status TensorTests<DataType::INT8>(DataType data_type,
-                                                  TensorStorageType storage_type);
-template absl::Status TensorTests<DataType::UINT32>(DataType data_type,
+template absl::Status TensorTests<DataType::kUint16>(DataType data_type,
+                                                     TensorStorageType storage_type);
+template absl::Status TensorTests<DataType::kUint8>(DataType data_type,
                                                     TensorStorageType storage_type);
-template absl::Status TensorTests<DataType::UINT16>(DataType data_type,
-                                                    TensorStorageType storage_type);
-template absl::Status TensorTests<DataType::UINT8>(DataType data_type,
+template absl::Status TensorTests<DataType::kBool>(DataType data_type,
                                                    TensorStorageType storage_type);
-template absl::Status TensorTests<DataType::BOOL>(DataType data_type,
-                                                  TensorStorageType storage_type);
 
 }  // namespace
 
 - (void)testBufferF32 {
-  auto status = TensorTests<DataType::FLOAT32>(DataType::FLOAT32, TensorStorageType::BUFFER);
+  auto status = TensorTests<DataType::kFloat32>(DataType::kFloat32, TensorStorageType::kBuffer);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testBufferF16 {
-  auto status = TensorTests<DataType::FLOAT32>(DataType::FLOAT16, TensorStorageType::BUFFER);
+  auto status = TensorTests<DataType::kFloat32>(DataType::kFloat16, TensorStorageType::kBuffer);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testBufferInt32 {
-  auto status = TensorTests<DataType::INT32>(DataType::INT32, TensorStorageType::BUFFER);
+  auto status = TensorTests<DataType::kInt32>(DataType::kInt32, TensorStorageType::kBuffer);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testBufferInt16 {
-  auto status = TensorTests<DataType::INT16>(DataType::INT16, TensorStorageType::BUFFER);
+  auto status = TensorTests<DataType::kInt16>(DataType::kInt16, TensorStorageType::kBuffer);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testBufferInt8 {
-  auto status = TensorTests<DataType::INT8>(DataType::INT8, TensorStorageType::BUFFER);
+  auto status = TensorTests<DataType::kInt8>(DataType::kInt8, TensorStorageType::kBuffer);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testBufferUint32 {
-  auto status = TensorTests<DataType::UINT32>(DataType::UINT32, TensorStorageType::BUFFER);
+  auto status = TensorTests<DataType::kUint32>(DataType::kUint32, TensorStorageType::kBuffer);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testBufferUint16 {
-  auto status = TensorTests<DataType::UINT16>(DataType::UINT16, TensorStorageType::BUFFER);
+  auto status = TensorTests<DataType::kUint16>(DataType::kUint16, TensorStorageType::kBuffer);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testBufferUint8 {
-  auto status = TensorTests<DataType::UINT8>(DataType::UINT8, TensorStorageType::BUFFER);
+  auto status = TensorTests<DataType::kUint8>(DataType::kUint8, TensorStorageType::kBuffer);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testBufferBool {
-  auto status = TensorTests<DataType::BOOL>(DataType::BOOL, TensorStorageType::BUFFER);
+  auto status = TensorTests<DataType::kBool>(DataType::kBool, TensorStorageType::kBuffer);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testTexture2DF32 {
-  auto status = TensorTests<DataType::FLOAT32>(DataType::FLOAT32, TensorStorageType::TEXTURE_2D);
+  auto status = TensorTests<DataType::kFloat32>(DataType::kFloat32, TensorStorageType::kTexture2D);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testTexture2DF16 {
-  auto status = TensorTests<DataType::FLOAT32>(DataType::FLOAT16, TensorStorageType::TEXTURE_2D);
+  auto status = TensorTests<DataType::kFloat32>(DataType::kFloat16, TensorStorageType::kTexture2D);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testTexture2DInt32 {
-  auto status = TensorTests<DataType::INT32>(DataType::INT32, TensorStorageType::TEXTURE_2D);
+  auto status = TensorTests<DataType::kInt32>(DataType::kInt32, TensorStorageType::kTexture2D);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testTexture2DInt16 {
-  auto status = TensorTests<DataType::INT16>(DataType::INT16, TensorStorageType::TEXTURE_2D);
+  auto status = TensorTests<DataType::kInt16>(DataType::kInt16, TensorStorageType::kTexture2D);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testTexture2DInt8 {
-  auto status = TensorTests<DataType::INT8>(DataType::INT8, TensorStorageType::TEXTURE_2D);
+  auto status = TensorTests<DataType::kInt8>(DataType::kInt8, TensorStorageType::kTexture2D);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testTexture2DUint32 {
-  auto status = TensorTests<DataType::UINT32>(DataType::UINT32, TensorStorageType::TEXTURE_2D);
+  auto status = TensorTests<DataType::kUint32>(DataType::kUint32, TensorStorageType::kTexture2D);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testTexture2DUint16 {
-  auto status = TensorTests<DataType::UINT16>(DataType::UINT16, TensorStorageType::TEXTURE_2D);
+  auto status = TensorTests<DataType::kUint16>(DataType::kUint16, TensorStorageType::kTexture2D);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testTexture2DUint8 {
-  auto status = TensorTests<DataType::UINT8>(DataType::UINT8, TensorStorageType::TEXTURE_2D);
+  auto status = TensorTests<DataType::kUint8>(DataType::kUint8, TensorStorageType::kTexture2D);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testTexture2DBool {
-  auto status = TensorTests<DataType::BOOL>(DataType::BOOL, TensorStorageType::TEXTURE_2D);
+  auto status = TensorTests<DataType::kBool>(DataType::kBool, TensorStorageType::kTexture2D);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testTexture3DF32 {
-  auto status = TensorTests<DataType::FLOAT32>(DataType::FLOAT32, TensorStorageType::TEXTURE_3D);
+  auto status = TensorTests<DataType::kFloat32>(DataType::kFloat32, TensorStorageType::kTexture3D);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testTexture3DF16 {
-  auto status = TensorTests<DataType::FLOAT32>(DataType::FLOAT16, TensorStorageType::TEXTURE_3D);
+  auto status = TensorTests<DataType::kFloat32>(DataType::kFloat16, TensorStorageType::kTexture3D);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testTexture3DInt32 {
-  auto status = TensorTests<DataType::INT32>(DataType::INT32, TensorStorageType::TEXTURE_3D);
+  auto status = TensorTests<DataType::kInt32>(DataType::kInt32, TensorStorageType::kTexture3D);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testTexture3DInt16 {
-  auto status = TensorTests<DataType::INT16>(DataType::INT16, TensorStorageType::TEXTURE_3D);
+  auto status = TensorTests<DataType::kInt16>(DataType::kInt16, TensorStorageType::kTexture3D);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testTexture3DInt8 {
-  auto status = TensorTests<DataType::INT8>(DataType::INT8, TensorStorageType::TEXTURE_3D);
+  auto status = TensorTests<DataType::kInt8>(DataType::kInt8, TensorStorageType::kTexture3D);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testTexture3DUint32 {
-  auto status = TensorTests<DataType::UINT32>(DataType::UINT32, TensorStorageType::TEXTURE_3D);
+  auto status = TensorTests<DataType::kUint32>(DataType::kUint32, TensorStorageType::kTexture3D);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testTexture3DUint16 {
-  auto status = TensorTests<DataType::UINT16>(DataType::UINT16, TensorStorageType::TEXTURE_3D);
+  auto status = TensorTests<DataType::kUint16>(DataType::kUint16, TensorStorageType::kTexture3D);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testTexture3DUint8 {
-  auto status = TensorTests<DataType::UINT8>(DataType::UINT8, TensorStorageType::TEXTURE_3D);
+  auto status = TensorTests<DataType::kUint8>(DataType::kUint8, TensorStorageType::kTexture3D);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testTexture3DBool {
-  auto status = TensorTests<DataType::BOOL>(DataType::BOOL, TensorStorageType::TEXTURE_3D);
+  auto status = TensorTests<DataType::kBool>(DataType::kBool, TensorStorageType::kTexture3D);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testTexture2DArrayF32 {
-  auto status = TensorTests<DataType::FLOAT32>(DataType::FLOAT32, TensorStorageType::TEXTURE_ARRAY);
+  auto status =
+      TensorTests<DataType::kFloat32>(DataType::kFloat32, TensorStorageType::kTextureArray);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testTexture2DArrayF16 {
-  auto status = TensorTests<DataType::FLOAT32>(DataType::FLOAT16, TensorStorageType::TEXTURE_ARRAY);
+  auto status =
+      TensorTests<DataType::kFloat32>(DataType::kFloat16, TensorStorageType::kTextureArray);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testTexture2DArrayInt32 {
-  auto status = TensorTests<DataType::INT32>(DataType::INT32, TensorStorageType::TEXTURE_ARRAY);
+  auto status = TensorTests<DataType::kInt32>(DataType::kInt32, TensorStorageType::kTextureArray);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testTexture2DArrayInt16 {
-  auto status = TensorTests<DataType::INT16>(DataType::INT16, TensorStorageType::TEXTURE_ARRAY);
+  auto status = TensorTests<DataType::kInt16>(DataType::kInt16, TensorStorageType::kTextureArray);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testTexture2DArrayInt8 {
-  auto status = TensorTests<DataType::INT8>(DataType::INT8, TensorStorageType::TEXTURE_ARRAY);
+  auto status = TensorTests<DataType::kInt8>(DataType::kInt8, TensorStorageType::kTextureArray);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testTexture2DArrayUint32 {
-  auto status = TensorTests<DataType::UINT32>(DataType::UINT32, TensorStorageType::TEXTURE_ARRAY);
+  auto status = TensorTests<DataType::kUint32>(DataType::kUint32, TensorStorageType::kTextureArray);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testTexture2DArrayUint16 {
-  auto status = TensorTests<DataType::UINT16>(DataType::UINT16, TensorStorageType::TEXTURE_ARRAY);
+  auto status = TensorTests<DataType::kUint16>(DataType::kUint16, TensorStorageType::kTextureArray);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testTexture2DArrayUint8 {
-  auto status = TensorTests<DataType::UINT8>(DataType::UINT8, TensorStorageType::TEXTURE_ARRAY);
+  auto status = TensorTests<DataType::kUint8>(DataType::kUint8, TensorStorageType::kTextureArray);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testTexture2DArrayBool {
-  auto status = TensorTests<DataType::BOOL>(DataType::BOOL, TensorStorageType::TEXTURE_ARRAY);
+  auto status = TensorTests<DataType::kBool>(DataType::kBool, TensorStorageType::kTextureArray);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testTextureBufferF32 {
-  auto status = TensorTests<DataType::FLOAT32>(DataType::FLOAT32, TensorStorageType::IMAGE_BUFFER);
+  auto status =
+      TensorTests<DataType::kFloat32>(DataType::kFloat32, TensorStorageType::kImageBuffer);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testTextureBufferF16 {
-  auto status = TensorTests<DataType::FLOAT32>(DataType::FLOAT16, TensorStorageType::IMAGE_BUFFER);
+  auto status =
+      TensorTests<DataType::kFloat32>(DataType::kFloat16, TensorStorageType::kImageBuffer);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testTextureBufferInt32 {
-  auto status = TensorTests<DataType::INT32>(DataType::INT32, TensorStorageType::IMAGE_BUFFER);
+  auto status = TensorTests<DataType::kInt32>(DataType::kInt32, TensorStorageType::kImageBuffer);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testTextureBufferInt16 {
-  auto status = TensorTests<DataType::INT16>(DataType::INT16, TensorStorageType::IMAGE_BUFFER);
+  auto status = TensorTests<DataType::kInt16>(DataType::kInt16, TensorStorageType::kImageBuffer);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testTextureBufferInt8 {
-  auto status = TensorTests<DataType::INT8>(DataType::INT8, TensorStorageType::IMAGE_BUFFER);
+  auto status = TensorTests<DataType::kInt8>(DataType::kInt8, TensorStorageType::kImageBuffer);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testTextureBufferUint32 {
-  auto status = TensorTests<DataType::UINT32>(DataType::UINT32, TensorStorageType::IMAGE_BUFFER);
+  auto status = TensorTests<DataType::kUint32>(DataType::kUint32, TensorStorageType::kImageBuffer);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testTextureBufferUint16 {
-  auto status = TensorTests<DataType::UINT16>(DataType::UINT16, TensorStorageType::IMAGE_BUFFER);
+  auto status = TensorTests<DataType::kUint16>(DataType::kUint16, TensorStorageType::kImageBuffer);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testTextureBufferUint8 {
-  auto status = TensorTests<DataType::UINT8>(DataType::UINT8, TensorStorageType::IMAGE_BUFFER);
+  auto status = TensorTests<DataType::kUint8>(DataType::kUint8, TensorStorageType::kImageBuffer);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testTextureBufferBool {
-  auto status = TensorTests<DataType::BOOL>(DataType::BOOL, TensorStorageType::IMAGE_BUFFER);
+  auto status = TensorTests<DataType::kBool>(DataType::kBool, TensorStorageType::kImageBuffer);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
@@ -485,79 +489,79 @@ template <DataType T>
 absl::Status SingleTextureTests(DataType data_type) {
   id<MTLDevice> device = MTLCreateSystemDefaultDevice();
   ABSL_RETURN_IF_ERROR(TensorBHWCTest<T>(
-      BHWC(1, 6, 14, 1), {data_type, TensorStorageType::SINGLE_TEXTURE_2D, Layout::HWC}, device));
+      BHWC(1, 6, 14, 1), {data_type, TensorStorageType::kSingleTexture2D, Layout::kHWC}, device));
   ABSL_RETURN_IF_ERROR(TensorBHWCTest<T>(
-      BHWC(1, 6, 14, 2), {data_type, TensorStorageType::SINGLE_TEXTURE_2D, Layout::HWC}, device));
+      BHWC(1, 6, 14, 2), {data_type, TensorStorageType::kSingleTexture2D, Layout::kHWC}, device));
 
   // Batch tests
   ABSL_RETURN_IF_ERROR(TensorBHWCTest<T>(
-      BHWC(7, 6, 14, 1), {data_type, TensorStorageType::SINGLE_TEXTURE_2D, Layout::BHWC}, device));
+      BHWC(7, 6, 14, 1), {data_type, TensorStorageType::kSingleTexture2D, Layout::kBHWC}, device));
   ABSL_RETURN_IF_ERROR(TensorBHWCTest<T>(
-      BHWC(3, 6, 14, 2), {data_type, TensorStorageType::SINGLE_TEXTURE_2D, Layout::BHWC}, device));
+      BHWC(3, 6, 14, 2), {data_type, TensorStorageType::kSingleTexture2D, Layout::kBHWC}, device));
 
   // 5D tests with batch = 1
   ABSL_RETURN_IF_ERROR(
       TensorBHWDCTest<T>(BHWDC(1, 6, 14, 7, 1),
-                         {data_type, TensorStorageType::SINGLE_TEXTURE_2D, Layout::HWDC}, device));
+                         {data_type, TensorStorageType::kSingleTexture2D, Layout::kHWDC}, device));
   ABSL_RETURN_IF_ERROR(
       TensorBHWDCTest<T>(BHWDC(1, 6, 14, 4, 2),
-                         {data_type, TensorStorageType::SINGLE_TEXTURE_2D, Layout::HWDC}, device));
+                         {data_type, TensorStorageType::kSingleTexture2D, Layout::kHWDC}, device));
 
   // 5D tests
   ABSL_RETURN_IF_ERROR(
       TensorBHWDCTest<T>(BHWDC(7, 6, 14, 5, 1),
-                         {data_type, TensorStorageType::SINGLE_TEXTURE_2D, Layout::BHWDC}, device));
+                         {data_type, TensorStorageType::kSingleTexture2D, Layout::kBHWDC}, device));
   ABSL_RETURN_IF_ERROR(
       TensorBHWDCTest<T>(BHWDC(3, 6, 14, 3, 2),
-                         {data_type, TensorStorageType::SINGLE_TEXTURE_2D, Layout::BHWDC}, device));
+                         {data_type, TensorStorageType::kSingleTexture2D, Layout::kBHWDC}, device));
   return absl::OkStatus();
 }
 
-template absl::Status SingleTextureTests<DataType::FLOAT32>(DataType data_type);
-template absl::Status SingleTextureTests<DataType::INT32>(DataType data_type);
-template absl::Status SingleTextureTests<DataType::INT16>(DataType data_type);
-template absl::Status SingleTextureTests<DataType::INT8>(DataType data_type);
-template absl::Status SingleTextureTests<DataType::UINT32>(DataType data_type);
-template absl::Status SingleTextureTests<DataType::UINT16>(DataType data_type);
-template absl::Status SingleTextureTests<DataType::UINT8>(DataType data_type);
+template absl::Status SingleTextureTests<DataType::kFloat32>(DataType data_type);
+template absl::Status SingleTextureTests<DataType::kInt32>(DataType data_type);
+template absl::Status SingleTextureTests<DataType::kInt16>(DataType data_type);
+template absl::Status SingleTextureTests<DataType::kInt8>(DataType data_type);
+template absl::Status SingleTextureTests<DataType::kUint32>(DataType data_type);
+template absl::Status SingleTextureTests<DataType::kUint16>(DataType data_type);
+template absl::Status SingleTextureTests<DataType::kUint8>(DataType data_type);
 
 - (void)testSingleTextureFloat32 {
-  auto status = SingleTextureTests<DataType::FLOAT32>(DataType::FLOAT32);
+  auto status = SingleTextureTests<DataType::kFloat32>(DataType::kFloat32);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testSingleTextureFloat16 {
-  auto status = SingleTextureTests<DataType::FLOAT32>(DataType::FLOAT16);
+  auto status = SingleTextureTests<DataType::kFloat32>(DataType::kFloat16);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testSingleTextureInt32 {
-  auto status = SingleTextureTests<DataType::INT32>(DataType::INT32);
+  auto status = SingleTextureTests<DataType::kInt32>(DataType::kInt32);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testSingleTextureInt16 {
-  auto status = SingleTextureTests<DataType::INT16>(DataType::INT16);
+  auto status = SingleTextureTests<DataType::kInt16>(DataType::kInt16);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testSingleTextureInt8 {
-  auto status = SingleTextureTests<DataType::INT8>(DataType::INT8);
+  auto status = SingleTextureTests<DataType::kInt8>(DataType::kInt8);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testSingleTextureUint32 {
-  auto status = SingleTextureTests<DataType::UINT32>(DataType::UINT32);
+  auto status = SingleTextureTests<DataType::kUint32>(DataType::kUint32);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testSingleTextureUint16 {
-  auto status = SingleTextureTests<DataType::UINT16>(DataType::UINT16);
+  auto status = SingleTextureTests<DataType::kUint16>(DataType::kUint16);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 
 - (void)testSingleTextureUint8 {
-  auto status = SingleTextureTests<DataType::UINT8>(DataType::UINT8);
+  auto status = SingleTextureTests<DataType::kUint8>(DataType::kUint8);
   XCTAssertTrue(status.ok(), @"%s", std::string(status.message()).c_str());
 }
 

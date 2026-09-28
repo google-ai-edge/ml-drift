@@ -27,7 +27,7 @@ absl::Status TensorToBHWCBufferConverter::Init(Environment* env,
   BufferDescriptor dst_desc;
   dst_desc.element_type = buffer_type;
   dst_desc.element_size = 1;
-  dst_desc.memory_type = MemoryType::GLOBAL;
+  dst_desc.memory_type = MemoryType::kGlobal;
 
   const auto& gpu_info = env->GetInfo();
   TensorToBhwcBuffer gpu_op =
@@ -60,7 +60,7 @@ absl::Status BHWCBufferToTensorConverter::Init(
   BufferDescriptor src_desc;
   src_desc.element_type = buffer_type;
   src_desc.element_size = 1;
-  src_desc.memory_type = MemoryType::GLOBAL;
+  src_desc.memory_type = MemoryType::kGlobal;
 
   const auto& gpu_info = env->GetInfo();
   BhwcBufferToTensor gpu_op =

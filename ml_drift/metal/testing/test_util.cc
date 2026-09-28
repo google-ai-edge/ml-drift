@@ -40,16 +40,16 @@ namespace ml_drift {
 namespace metal {
 
 std::vector<DataType> MetalExecutionEnvironment::GetSupportedDataTypes() const {
-  return {DataType::FLOAT32, DataType::FLOAT16};
+  return {DataType::kFloat32, DataType::kFloat16};
 }
 
 std::vector<TensorStorageType> MetalExecutionEnvironment::GetSupportedStorages(
     DataType data_type) const {
   std::vector<TensorStorageType> storages = {
-      TensorStorageType::BUFFER, TensorStorageType::TEXTURE_2D,
-      TensorStorageType::TEXTURE_3D, TensorStorageType::TEXTURE_ARRAY};
+      TensorStorageType::kBuffer, TensorStorageType::kTexture2D,
+      TensorStorageType::kTexture3D, TensorStorageType::kTextureArray};
   if (GetGpuInfo().SupportsImageBuffer()) {
-    storages.push_back(TensorStorageType::IMAGE_BUFFER);
+    storages.push_back(TensorStorageType::kImageBuffer);
   }
   return storages;
 }

@@ -51,12 +51,11 @@ constexpr uint64_t kMaxTotalOffsetSizeToEnableOffsetAssignment = 128L * 1024 * 1
 bool IsBufferBased(const GpuInfo& gpu_info, const TensorStorageType& type) {
   const bool family_apple1 =
       gpu_info.IsApple() && gpu_info.apple_info.IsFamilyApple1();
-  if (!family_apple1 && (type == TensorStorageType::TEXTURE_2D ||
-                         type == TensorStorageType::SINGLE_TEXTURE_2D)) {
+  if (!family_apple1 &&
+      (type == TensorStorageType::kTexture2D || type == TensorStorageType::kSingleTexture2D)) {
     return true;
   }
-  return type == TensorStorageType::BUFFER ||
-         type == TensorStorageType::IMAGE_BUFFER;
+  return type == TensorStorageType::kBuffer || type == TensorStorageType::kImageBuffer;
 }
 
 void AddUsage(ValueId id, int task_index,
@@ -296,16 +295,15 @@ absl::Status MemoryManager::AllocateMemoryForBuffers(ModelId model_id, const Env
     const auto& storage_dims = td.GetStorageDims();
     const size_t element_size = SizeOf(td.GetDataType());
     size_t buffer_size;
-    if (td.GetStorageType() == TensorStorageType::TEXTURE_2D ||
-        td.GetStorageType() == TensorStorageType::SINGLE_TEXTURE_2D) {
+    if (td.GetStorageType() == TensorStorageType::kTexture2D ||
+        td.GetStorageType() == TensorStorageType::kSingleTexture2D) {
       const size_t row_bytes_alignment = [env.device()
           minimumLinearTextureAlignmentForPixelFormat:DataTypeToPixelFormat(td.GetDataType(),
                                                                             td.GetElementSize(),
                                                                             false)];
       min_common_alignment =
           std::lcm(min_common_alignment, row_bytes_alignment);
-      const int vec_size =
-          td.GetStorageType() == TensorStorageType::TEXTURE_2D ? 4 : shape.c;
+      const int vec_size = td.GetStorageType() == TensorStorageType::kTexture2D ? 4 : shape.c;
       const size_t bytes_per_row = storage_dims[0] * vec_size * element_size;
       buffer_size =
           AlignByN(bytes_per_row, row_bytes_alignment) * storage_dims[1];
@@ -320,11 +318,11 @@ absl::Status MemoryManager::AllocateMemoryForBuffers(ModelId model_id, const Env
   }
 
   ObjectsAssignment<size_t> buffer_assignment;
-  ABSL_RETURN_IF_ERROR(AssignObjectsToTensors(buffer_usage_records, MemoryStrategy::GREEDY_BEST,
+  ABSL_RETURN_IF_ERROR(AssignObjectsToTensors(buffer_usage_records, MemoryStrategy::kGreedyBest,
                                               &buffer_assignment));
 
   OffsetsAssignment offset_assignment;
-  ABSL_RETURN_IF_ERROR(AssignOffsetsToTensors(buffer_usage_records, MemoryStrategy::GREEDY_BY_SIZE,
+  ABSL_RETURN_IF_ERROR(AssignOffsetsToTensors(buffer_usage_records, MemoryStrategy::kGreedyBySize,
                                               &offset_assignment, min_common_alignment));
 
   bool use_offset_assignment = false;
@@ -385,8 +383,8 @@ absl::Status MemoryManager::AllocateMemoryForBuffers(ModelId model_id, const Env
       selected_buffer = mtl_buffers[buffer_index];
       base_buffer_offset = 0;
     }
-    if (td.GetStorageType() == TensorStorageType::TEXTURE_2D ||
-        td.GetStorageType() == TensorStorageType::SINGLE_TEXTURE_2D) {
+    if (td.GetStorageType() == TensorStorageType::kTexture2D ||
+        td.GetStorageType() == TensorStorageType::kSingleTexture2D) {
       size_t row_bytes_alignment = [env.device()
           minimumLinearTextureAlignmentForPixelFormat:DataTypeToPixelFormat(td.GetDataType(),
                                                                             td.GetElementSize(),
@@ -430,7 +428,7 @@ absl::Status MemoryManager::AllocateMemoryForTextures(
 
   ObjectsAssignment<TensorDescComparator> assignment;
   ABSL_RETURN_IF_ERROR(
-      AssignObjectsToTensors(usage_records, MemoryStrategy::EQUALITY, &assignment));
+      AssignObjectsToTensors(usage_records, MemoryStrategy::kEquality, &assignment));
 
   std::vector<const MetalSpatialTensor*> mtl_textures(assignment.object_sizes.size(), nullptr);
   std::vector<std::unique_ptr<MetalSpatialTensor>> new_textures;
