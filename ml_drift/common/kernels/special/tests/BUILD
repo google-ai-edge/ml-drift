@@ -12,14 +12,46 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@rules_cc//cc:defs.bzl", "cc_test")
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 load("//ml_drift/common:build_config.bzl", "mld_gpu_tests_tags")
+load("//ml_drift/common/kernels/tests:mld_kernel_test.bzl", "mld_kernel_test")
 
 package(
     default_hdrs_check = "strict",
     default_testonly = 1,
     default_visibility = ["//visibility:public"],
     licenses = ["notice"],
+)
+
+cc_library(
+    name = "experts_remap_test_util",
+    testonly = True,
+    srcs = ["experts_remap_test_util.cc"],
+    hdrs = ["experts_remap_test_util.h"],
+    deps = [
+        "//ml_drift/common:data_type",
+        "//ml_drift/common:shape",
+        "//ml_drift/common:tensor",
+        "//ml_drift/common:util",
+        "//ml_drift/common/kernels/special:experts_remap",
+        "//ml_drift/common/task:tensor_desc",
+        "//ml_drift/common/task:testing_ref_ops",
+        "//ml_drift/common/task:testing_util",
+        "@com_google_absl//absl/random",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
+        "@com_google_absl//absl/status:status_matchers",
+        "@com_google_googletest//:gtest",
+    ],
+)
+
+mld_kernel_test(
+    name = "experts_remap_test",
+    srcs = ["experts_remap_test.cc"],
+    deps = [
+        ":experts_remap_test_util",
+        "//ml_drift/common/task:testing_util",
+    ],
 )
 
 cc_test(
