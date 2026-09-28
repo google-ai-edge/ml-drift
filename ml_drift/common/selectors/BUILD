@@ -161,6 +161,7 @@ cc_library(
         "//ml_drift/common/task:tensor_desc",
         "//ml_drift/common/task:weights_layout",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
     ],
 )
 

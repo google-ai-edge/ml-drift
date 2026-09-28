@@ -72,8 +72,8 @@ absl::Status EmbeddingLookupTest(TestExecutionEnvironment& env,
   src_0 = op_def.src_tensors[0];
   src_0.UploadData(id);
   dst.SetBHWCShape(BHWC(1, 1, 1, 4));
-  GPUOperation operation =
-      CreateEmbeddingLookup(op_def, env.GetGpuInfo(), attr);
+  ABSL_ASSIGN_OR_RETURN(GPUOperation operation,
+                        CreateEmbeddingLookup(op_def, env.GetGpuInfo(), attr));
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_0}, {&dst}, std::make_unique<GPUOperation>(std::move(operation))));
   TensorFloat32 dst_tensor;
@@ -118,8 +118,8 @@ absl::Status EmbeddingLookupSeqLen2Test(TestExecutionEnvironment& env,
   src.UploadData(id);
   src.SetBHWCShape(BHWC(1, 1, 1, 2));
   dst.SetBHWCShape(BHWC(1, 1, 2, 4));
-  GPUOperation operation =
-      CreateEmbeddingLookup(op_def, env.GetGpuInfo(), attr);
+  ABSL_ASSIGN_OR_RETURN(GPUOperation operation,
+                        CreateEmbeddingLookup(op_def, env.GetGpuInfo(), attr));
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src}, {&dst}, std::make_unique<GPUOperation>(std::move(operation))));
   TensorFloat32 dst_tensor;
@@ -174,8 +174,8 @@ absl::Status EmbeddingLookupInt8Test(TestExecutionEnvironment& env,
   src_0 = op_def.src_tensors[0];
   src_0.UploadData(id);
   dst.SetBHWCShape(BHWC(1, 1, 1, 4));
-  GPUOperation operation =
-      CreateEmbeddingLookup(op_def, env.GetGpuInfo(), attr);
+  ABSL_ASSIGN_OR_RETURN(GPUOperation operation,
+                        CreateEmbeddingLookup(op_def, env.GetGpuInfo(), attr));
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_0}, {&dst}, std::make_unique<GPUOperation>(std::move(operation))));
   TensorFloat32 dst_tensor;
@@ -236,8 +236,8 @@ absl::Status EmbeddingLookupInt4Test(TestExecutionEnvironment& env,
   src_0 = op_def.src_tensors[0];
   src_0.UploadData(Ids);
   dst.SetBHWCShape(BHWC(1, 1, 1, 4));
-  GPUOperation operation =
-      CreateEmbeddingLookup(op_def, env.GetGpuInfo(), attr);
+  ABSL_ASSIGN_OR_RETURN(GPUOperation operation,
+                        CreateEmbeddingLookup(op_def, env.GetGpuInfo(), attr));
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_0}, {&dst}, std::make_unique<GPUOperation>(std::move(operation))));
   TensorFloat32 dst_tensor;
@@ -297,8 +297,8 @@ absl::Status EmbeddingLookupInt4NegativeTest(TestExecutionEnvironment& env,
   src_0 = op_def.src_tensors[0];
   src_0.UploadData(Ids);
   dst.SetBHWCShape(BHWC(1, 1, 1, 4));
-  GPUOperation operation =
-      CreateEmbeddingLookup(op_def, env.GetGpuInfo(), attr);
+  ABSL_ASSIGN_OR_RETURN(GPUOperation operation,
+                        CreateEmbeddingLookup(op_def, env.GetGpuInfo(), attr));
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_0}, {&dst}, std::make_unique<GPUOperation>(std::move(operation))));
   TensorFloat32 dst_tensor;

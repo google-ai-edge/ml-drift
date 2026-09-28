@@ -20,6 +20,8 @@
 #include <utility>
 #include <vector>
 
+#include "absl/status/status_macros.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/str_replace.h"
 #include "absl/types/span.h"
 #include "ml_drift/common/data_type.h"
@@ -197,9 +199,9 @@ std::string GetCreateEmbeddingLookupCode(bool is_weights_texture,
 
 }  // namespace
 
-GPUOperation EmbeddingLookup(const OperationDef& op_def,
-                             const GpuInfo& gpu_info,
-                             const EmbeddingLookupAttributes& attr) {
+absl::StatusOr<GPUOperation> EmbeddingLookup(
+    const OperationDef& op_def, const GpuInfo& gpu_info,
+    const EmbeddingLookupAttributes& attr) {
   GPUOperation op;
   op.AddSrcTensor("src_tensor", op_def.src_tensors[0]);
   op.AddDstTensor("dst_tensor", op_def.dst_tensors[0]);
@@ -275,12 +277,10 @@ GPUOperation EmbeddingLookup(const OperationDef& op_def,
       std::vector<int32_t> weights_sum_i(attr.original_weights_shape.o);
       Tensor<OHWI, DataType::kUint8> int4_weights =
           std::get<Tensor<OHWI, DataType::kUint8>>(attr.weights);
-      // TODO: b/423950292 - Remove this ignore error.
-      RearrangeWeightsUInt4Packed(int4_weights, weights_desc,
-                                  absl::MakeSpan(weights_data),
-                                  absl::MakeSpan(weights_sum_i),
-                                  /*pad_value=*/8u, /*swap_dims=*/false)
-          .IgnoreError();
+      ABSL_RETURN_IF_ERROR(RearrangeWeightsUInt4Packed(
+          int4_weights, weights_desc, absl::MakeSpan(weights_data),
+          absl::MakeSpan(weights_sum_i),
+          /*pad_value=*/8u, /*swap_dims=*/false));
       uint2 tex_size =
           Get2dResourceSize(weights_desc, attr.original_weights_shape);
       tex_size.x /= 4;  // because we store 4 uint4 as one uint16
@@ -297,12 +297,10 @@ GPUOperation EmbeddingLookup(const OperationDef& op_def,
       std::vector<int32_t> weights_sum_i(attr.original_weights_shape.o);
       Tensor<OHWI, DataType::kUint8> int4_weights =
           std::get<Tensor<OHWI, DataType::kUint8>>(attr.weights);
-      // TODO: b/423950292 - Remove this ignore error.
-      RearrangeWeightsUInt4Packed(int4_weights, weights_desc,
-                                  absl::MakeSpan(weights_data),
-                                  absl::MakeSpan(weights_sum_i),
-                                  /*pad_value=*/8u, /*swap_dims=*/false)
-          .IgnoreError();
+      ABSL_RETURN_IF_ERROR(RearrangeWeightsUInt4Packed(
+          int4_weights, weights_desc, absl::MakeSpan(weights_data),
+          absl::MakeSpan(weights_sum_i),
+          /*pad_value=*/8u, /*swap_dims=*/false));
       BufferDescriptor desc;
       desc.element_type = DataType::kUint32;
       desc.element_size = 2;
@@ -323,12 +321,10 @@ GPUOperation EmbeddingLookup(const OperationDef& op_def,
       std::vector<int32_t> weights_sum_i(attr.original_weights_shape.o);
       Tensor<OHWI, DataType::kUint8> int2_weights =
           std::get<Tensor<OHWI, DataType::kUint8>>(attr.weights);
-      // TODO: b/423950292 - Remove this ignore error.
-      RearrangeWeightsUInt2Packed(int2_weights, weights_desc,
-                                  absl::MakeSpan(weights_data),
-                                  absl::MakeSpan(weights_sum_i),
-                                  /*pad_value=*/2u, /*swap_dims=*/false)
-          .IgnoreError();
+      ABSL_RETURN_IF_ERROR(RearrangeWeightsUInt2Packed(
+          int2_weights, weights_desc, absl::MakeSpan(weights_data),
+          absl::MakeSpan(weights_sum_i),
+          /*pad_value=*/2u, /*swap_dims=*/false));
       uint2 tex_size =
           Get2dResourceSize(weights_desc, attr.original_weights_shape);
       tex_size.x /= 4;  // because we store 4 uint2 as one uint8
@@ -345,12 +341,10 @@ GPUOperation EmbeddingLookup(const OperationDef& op_def,
       std::vector<int32_t> weights_sum_i(attr.original_weights_shape.o);
       Tensor<OHWI, DataType::kUint8> int2_weights =
           std::get<Tensor<OHWI, DataType::kUint8>>(attr.weights);
-      // TODO: b/423950292 - Remove this ignore error.
-      RearrangeWeightsUInt2Packed(int2_weights, weights_desc,
-                                  absl::MakeSpan(weights_data),
-                                  absl::MakeSpan(weights_sum_i),
-                                  /*pad_value=*/2u, /*swap_dims=*/false)
-          .IgnoreError();
+      ABSL_RETURN_IF_ERROR(RearrangeWeightsUInt2Packed(
+          int2_weights, weights_desc, absl::MakeSpan(weights_data),
+          absl::MakeSpan(weights_sum_i),
+          /*pad_value=*/2u, /*swap_dims=*/false));
       BufferDescriptor desc;
       desc.element_type = DataType::kUint32;
       desc.element_size = 1;
@@ -454,9 +448,9 @@ GPUOperation EmbeddingLookupExternalWeights(
 }
 
 // Assume src tensor's BHWC shape is [Batch, 1, 1, SequenceLength].
-GPUOperation CreateEmbeddingLookup(const OperationDef& op_def,
-                                   const GpuInfo& gpu_info,
-                                   const EmbeddingLookupAttributes& attr) {
+absl::StatusOr<GPUOperation> CreateEmbeddingLookup(
+    const OperationDef& op_def, const GpuInfo& gpu_info,
+    const EmbeddingLookupAttributes& attr) {
   return EmbeddingLookup(op_def, gpu_info, attr);
 }
 

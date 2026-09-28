@@ -1232,6 +1232,8 @@ cc_library(
         "//ml_drift/common/task:tensor_desc",
         "//ml_drift/common/task:weights_conversion",
         "//ml_drift/common/task:weights_layout",
+        "@com_google_absl//absl/status:status_macros",
+        "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:span",
     ],

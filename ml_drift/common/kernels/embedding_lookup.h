@@ -15,6 +15,7 @@
 #ifndef ML_DRIFT_COMMON_KERNELS_EMBEDDING_LOOKUP_H_
 #define ML_DRIFT_COMMON_KERNELS_EMBEDDING_LOOKUP_H_
 
+#include "absl/status/statusor.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/shape.h"
@@ -25,9 +26,9 @@
 namespace ml_drift {
 
 // Creates an embedding lookup operation.
-GPUOperation CreateEmbeddingLookup(const OperationDef& op_def,
-                                   const GpuInfo& gpu_info,
-                                   const EmbeddingLookupAttributes& attr);
+absl::StatusOr<GPUOperation> CreateEmbeddingLookup(
+    const OperationDef& op_def, const GpuInfo& gpu_info,
+    const EmbeddingLookupAttributes& attr);
 
 // Creates an embedding lookup operation with external weights.
 GPUOperation CreateEmbeddingLookupExternalWeights(

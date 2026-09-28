@@ -839,7 +839,8 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
                                             outputs, attr, model_builder);
       }
       std::unique_ptr<GPUOperation> gpu_op;
-      SelectEmbeddingLookup(attr, op_def, gpu_info, &gpu_op);
+      ABSL_RETURN_IF_ERROR(
+          SelectEmbeddingLookup(attr, op_def, gpu_info, &gpu_op));
       model_builder->AddGpuOperation(src_ids, dst_ids, std::move(gpu_op),
                                      node.operation.type);
       return absl::OkStatus();
@@ -1438,7 +1439,8 @@ absl::Status GPUOperationFromNode(
                                             outputs, attr, model_builder);
       }
       std::unique_ptr<GPUOperation> gpu_op;
-      SelectEmbeddingLookup(attr, op_def, gpu_info, &gpu_op);
+      ABSL_RETURN_IF_ERROR(
+          SelectEmbeddingLookup(attr, op_def, gpu_info, &gpu_op));
       model_builder->AddGpuOperation(src_ids, dst_ids, std::move(gpu_op),
                                      node.name);
       return absl::OkStatus();

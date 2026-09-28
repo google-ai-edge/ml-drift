@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "absl/status/status.h"
+#include "absl/status/status_macros.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/kernels/add.h"
@@ -154,11 +155,14 @@ void SelectDepthToSpace(const SpaceToDepthAttributes& attr,
   *ptr = std::make_unique<GPUOperation>(std::move(operation));
 }
 
-void SelectEmbeddingLookup(const EmbeddingLookupAttributes& attr,
-                           const OperationDef& op_def, const GpuInfo& gpu_info,
-                           std::unique_ptr<GPUOperation>* ptr) {
-  GPUOperation operation = CreateEmbeddingLookup(op_def, gpu_info, attr);
+absl::Status SelectEmbeddingLookup(const EmbeddingLookupAttributes& attr,
+                                   const OperationDef& op_def,
+                                   const GpuInfo& gpu_info,
+                                   std::unique_ptr<GPUOperation>* ptr) {
+  ABSL_ASSIGN_OR_RETURN(GPUOperation operation,
+                        CreateEmbeddingLookup(op_def, gpu_info, attr));
   *ptr = std::make_unique<GPUOperation>(std::move(operation));
+  return absl::OkStatus();
 }
 
 void SelectSplit(const SplitAttributes& attr, const GpuInfo& gpu_info,
