@@ -52,7 +52,6 @@ cc_library(
     hdrs = ["buffer.h"],
     deps = [
         ":gpu_object",
-        ":webgpu_api_util",
         ":webgpu_headers",
         "//ml_drift/common:util",
         "//ml_drift/common/task:buffer_desc",
@@ -448,7 +447,6 @@ cc_library(
     deps = [
         ":environment",
         ":gpu_object",
-        ":instance",
         ":webgpu_api_util",
         ":webgpu_headers",
         "//ml_drift/common:data_type",

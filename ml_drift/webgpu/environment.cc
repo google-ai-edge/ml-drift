@@ -203,19 +203,19 @@ void AddGpuLimits(wgpu::Device device, WebGpuInfo& webgpu_info) {
 DataType ToDataType(wgpu::SubgroupMatrixComponentType component_type) {
   switch (component_type) {
     case wgpu::SubgroupMatrixComponentType::F32:
-      return DataType::FLOAT32;
+      return DataType::kFloat32;
     case wgpu::SubgroupMatrixComponentType::F16:
-      return DataType::FLOAT16;
+      return DataType::kFloat16;
     case wgpu::SubgroupMatrixComponentType::I32:
-      return DataType::INT32;
+      return DataType::kInt32;
     case wgpu::SubgroupMatrixComponentType::U32:
-      return DataType::UINT32;
+      return DataType::kUint32;
     case wgpu::SubgroupMatrixComponentType::I8:
-      return DataType::INT8;
+      return DataType::kInt8;
     case wgpu::SubgroupMatrixComponentType::U8:
-      return DataType::UINT8;
+      return DataType::kUint8;
     default:
-      return DataType::UNKNOWN;
+      return DataType::kUnknown;
   }
 }
 
@@ -272,8 +272,8 @@ std::string ToString(const wgpu::Adapter& adapter) {
 TensorStorageType GetFastestStorageType(const GpuInfo& gpu_info) {
   return !gpu_info.SupportsImages() || gpu_info.IsApple() ||
                  gpu_info.IsNvidia() || gpu_info.IsAMD()
-             ? TensorStorageType::BUFFER
-             : TensorStorageType::TEXTURE_2D;
+             ? TensorStorageType::kBuffer
+             : TensorStorageType::kTexture2D;
 }
 
 Environment::ErrorFn Environment::error_fn_ = &DefaultError;

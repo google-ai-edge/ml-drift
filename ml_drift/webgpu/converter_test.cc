@@ -41,12 +41,12 @@ namespace ml_drift {
 namespace webgpu {
 
 TEST_F(WebGpuOperationTest, TensorToTensorConverterTest) {
-  for (auto src_type : {DataType::FLOAT32, DataType::FLOAT16}) {
+  for (auto src_type : {DataType::kFloat32, DataType::kFloat16}) {
     for (auto src_storage : exec_env_.GetSupportedStorages(src_type)) {
-      for (auto dst_type : {DataType::FLOAT32, DataType::FLOAT16}) {
+      for (auto dst_type : {DataType::kFloat32, DataType::kFloat16}) {
         for (auto dst_storage : exec_env_.GetSupportedStorages(dst_type)) {
-          TensorDescriptor src_desc(src_type, src_storage, Layout::HWC);
-          TensorDescriptor dst_desc(dst_type, dst_storage, Layout::HWC);
+          TensorDescriptor src_desc(src_type, src_storage, Layout::kHWC);
+          TensorDescriptor dst_desc(dst_type, dst_storage, Layout::kHWC);
           TensorToTensorConverter converter;
           ABSL_ASSERT_OK(converter.Init(exec_env_.GetEnv(), src_desc, dst_desc));
 
@@ -88,10 +88,10 @@ TEST_F(WebGpuOperationTest, TensorToTensorConverterTest) {
 }
 
 TEST_F(WebGpuOperationTest, FloatTensorToFloatBHWCBufferConverterTest) {
-  for (auto src_type : {DataType::FLOAT32, DataType::FLOAT16}) {
+  for (auto src_type : {DataType::kFloat32, DataType::kFloat16}) {
     for (auto src_storage : exec_env_.GetSupportedStorages(src_type)) {
-      for (auto dst_type : {DataType::FLOAT32, DataType::FLOAT16}) {
-        TensorDescriptor src_desc(src_type, src_storage, Layout::BHWC);
+      for (auto dst_type : {DataType::kFloat32, DataType::kFloat16}) {
+        TensorDescriptor src_desc(src_type, src_storage, Layout::kBHWC);
 
         TensorToBHWCBufferConverter converter;
         ABSL_ASSERT_OK(converter.Init(exec_env_.GetEnv(), src_desc, dst_type));
@@ -126,7 +126,7 @@ TEST_F(WebGpuOperationTest, FloatTensorToFloatBHWCBufferConverterTest) {
         exec_env_.GetEnv().queue().Submit(1, &cb);
 
         std::vector<float> dst_data(shape.DimensionsProduct());
-        if (dst_type == DataType::FLOAT16) {
+        if (dst_type == DataType::kFloat16) {
           std::vector<half> dst_data_f16(shape.DimensionsProduct());
           ABSL_ASSERT_OK(ReadDataFromBuffer(
               exec_env_.GetEnv().device(), exec_env_.GetEnv().queue(),
@@ -147,10 +147,10 @@ TEST_F(WebGpuOperationTest, FloatTensorToFloatBHWCBufferConverterTest) {
 }
 
 TEST_F(WebGpuOperationTest, BoolTensorToBoolBHWCBufferConverterTest) {
-  const auto src_type = DataType::BOOL;
-  const auto dst_type = DataType::BOOL;
+  const auto src_type = DataType::kBool;
+  const auto dst_type = DataType::kBool;
   for (auto src_storage : exec_env_.GetSupportedStorages(src_type)) {
-    TensorDescriptor src_desc(src_type, src_storage, Layout::BHWC);
+    TensorDescriptor src_desc(src_type, src_storage, Layout::kBHWC);
 
     TensorToBHWCBufferConverter converter;
     ABSL_ASSERT_OK(converter.Init(exec_env_.GetEnv(), src_desc, dst_type));
@@ -191,10 +191,10 @@ TEST_F(WebGpuOperationTest, BoolTensorToBoolBHWCBufferConverterTest) {
 }
 
 TEST_F(WebGpuOperationTest, FloatBHWCBufferToFloatTensorConverterTest) {
-  for (auto src_type : {DataType::FLOAT32, DataType::FLOAT16}) {
-    for (auto dst_type : {DataType::FLOAT32, DataType::FLOAT16}) {
+  for (auto src_type : {DataType::kFloat32, DataType::kFloat16}) {
+    for (auto dst_type : {DataType::kFloat32, DataType::kFloat16}) {
       for (auto dst_storage : exec_env_.GetSupportedStorages(src_type)) {
-        TensorDescriptor dst_desc(dst_type, dst_storage, Layout::HWC);
+        TensorDescriptor dst_desc(dst_type, dst_storage, Layout::kHWC);
 
         BHWCBufferToTensorConverter converter;
         ABSL_ASSERT_OK(converter.Init(exec_env_.GetEnv(), src_type, dst_desc));
@@ -210,7 +210,7 @@ TEST_F(WebGpuOperationTest, FloatBHWCBufferToFloatTensorConverterTest) {
             AlignByN(src_buf_size, SizeOf(src_type) * 4);
         Buffer src = CreateBufferStorage(exec_env_.GetEnv().device(),
                                          src_buf_size_aligned);
-        if (src_type == DataType::FLOAT16) {
+        if (src_type == DataType::kFloat16) {
           std::vector<half> src_data_f16(shape.DimensionsProduct());
           for (int i = 0; i < src_data_f16.size(); ++i) {
             src_data_f16[i] = src_data[i];
@@ -247,10 +247,10 @@ TEST_F(WebGpuOperationTest, FloatBHWCBufferToFloatTensorConverterTest) {
 }
 
 TEST_F(WebGpuOperationTest, Int32BHWCBufferToInt32TensorConverterTest) {
-  const auto src_type = DataType::INT32;
-  const auto dst_type = DataType::INT32;
+  const auto src_type = DataType::kInt32;
+  const auto dst_type = DataType::kInt32;
   for (auto dst_storage : exec_env_.GetSupportedStorages(src_type)) {
-    TensorDescriptor dst_desc(dst_type, dst_storage, Layout::HWC);
+    TensorDescriptor dst_desc(dst_type, dst_storage, Layout::kHWC);
 
     BHWCBufferToTensorConverter converter;
     ABSL_ASSERT_OK(converter.Init(exec_env_.GetEnv(), src_type, dst_desc));
@@ -291,10 +291,10 @@ TEST_F(WebGpuOperationTest, Int32BHWCBufferToInt32TensorConverterTest) {
 }
 
 TEST_F(WebGpuOperationTest, Int16BHWCBufferToInt16TensorConverterTest) {
-  const auto src_type = DataType::INT16;
-  const auto dst_type = DataType::INT16;
+  const auto src_type = DataType::kInt16;
+  const auto dst_type = DataType::kInt16;
   for (auto dst_storage : exec_env_.GetSupportedStorages(src_type)) {
-    TensorDescriptor dst_desc(dst_type, dst_storage, Layout::HWC);
+    TensorDescriptor dst_desc(dst_type, dst_storage, Layout::kHWC);
 
     BHWCBufferToTensorConverter converter;
     ABSL_ASSERT_OK(converter.Init(exec_env_.GetEnv(), src_type, dst_desc));
@@ -327,7 +327,7 @@ TEST_F(WebGpuOperationTest, Int16BHWCBufferToInt16TensorConverterTest) {
     exec_env_.GetEnv().queue().Submit(1, &cb);
 
     ABSL_ASSERT_OK(dst.ToDescriptor(exec_env_.GetEnv().device(), &dst_desc));
-    Tensor<BHWC, DataType::INT16> dst_tensor;
+    Tensor<BHWC, DataType::kInt16> dst_tensor;
     dst_desc.DownloadData(&dst_tensor);
 
     EXPECT_EQ(src_data, dst_tensor.data);
@@ -335,10 +335,10 @@ TEST_F(WebGpuOperationTest, Int16BHWCBufferToInt16TensorConverterTest) {
 }
 
 TEST_F(WebGpuOperationTest, BoolBHWCBufferToBoolTensorConverterTest) {
-  const auto src_type = DataType::BOOL;
-  const auto dst_type = DataType::BOOL;
+  const auto src_type = DataType::kBool;
+  const auto dst_type = DataType::kBool;
   for (auto dst_storage : exec_env_.GetSupportedStorages(src_type)) {
-    TensorDescriptor dst_desc(dst_type, dst_storage, Layout::HWC);
+    TensorDescriptor dst_desc(dst_type, dst_storage, Layout::kHWC);
 
     BHWCBufferToTensorConverter converter;
     ABSL_ASSERT_OK(converter.Init(exec_env_.GetEnv(), src_type, dst_desc));
@@ -371,7 +371,7 @@ TEST_F(WebGpuOperationTest, BoolBHWCBufferToBoolTensorConverterTest) {
     exec_env_.GetEnv().queue().Submit(1, &cb);
 
     ABSL_ASSERT_OK(dst.ToDescriptor(exec_env_.GetEnv().device(), &dst_desc));
-    Tensor<BHWC, DataType::BOOL> dst_tensor;
+    Tensor<BHWC, DataType::kBool> dst_tensor;
     dst_desc.DownloadData(&dst_tensor);
 
     EXPECT_EQ(src_data, dst_tensor.data);

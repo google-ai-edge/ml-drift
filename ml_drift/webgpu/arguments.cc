@@ -91,7 +91,7 @@ absl::Status CreateWebGpuObject(const wgpu::Device& device,
 
 std::string DataTypeToWgslType(DataType data_type, int vec_size,
                                bool supports_fp16) {
-  if (data_type == DataType::FLOAT32) {
+  if (data_type == DataType::kFloat32) {
     if (vec_size == 1) {
       return "f32";
     } else if (vec_size == 2) {
@@ -101,7 +101,7 @@ std::string DataTypeToWgslType(DataType data_type, int vec_size,
     } else if (vec_size == 16) {
       return "mat4x4<f32>";
     }
-  } else if (data_type == DataType::FLOAT16) {
+  } else if (data_type == DataType::kFloat16) {
     if (supports_fp16) {
       if (vec_size == 1) {
         return "f16";
@@ -123,7 +123,7 @@ std::string DataTypeToWgslType(DataType data_type, int vec_size,
         return "vec4<u32>";
       }
     }
-  } else if (data_type == DataType::INT32) {
+  } else if (data_type == DataType::kInt32) {
     if (vec_size == 1) {
       return "i32";
     } else if (vec_size == 2) {
@@ -131,7 +131,7 @@ std::string DataTypeToWgslType(DataType data_type, int vec_size,
     } else if (vec_size == 4) {
       return "vec4<i32>";
     }
-  } else if (data_type == DataType::INT16) {
+  } else if (data_type == DataType::kInt16) {
     if (vec_size == 2) {
       return "i32";
     } else if (vec_size == 4) {
@@ -139,7 +139,7 @@ std::string DataTypeToWgslType(DataType data_type, int vec_size,
     } else if (vec_size == 8) {
       return "vec4<i32>";
     }
-  } else if (data_type == DataType::INT8) {
+  } else if (data_type == DataType::kInt8) {
     if (vec_size == 4) {
       return "i32";
     } else if (vec_size == 8) {
@@ -147,7 +147,7 @@ std::string DataTypeToWgslType(DataType data_type, int vec_size,
     } else if (vec_size == 16) {
       return "vec4<i32>";
     }
-  } else if (data_type == DataType::UINT32) {
+  } else if (data_type == DataType::kUint32) {
     if (vec_size == 1) {
       return "u32";
     } else if (vec_size == 2) {
@@ -155,7 +155,8 @@ std::string DataTypeToWgslType(DataType data_type, int vec_size,
     } else if (vec_size == 4) {
       return "vec4<u32>";
     }
-  } else if (data_type == DataType::UINT16 || data_type == DataType::BFLOAT16) {
+  } else if (data_type == DataType::kUint16 ||
+             data_type == DataType::kBfloat16) {
     if (vec_size == 2) {
       return "u32";
     } else if (vec_size == 4) {
@@ -163,7 +164,7 @@ std::string DataTypeToWgslType(DataType data_type, int vec_size,
     } else if (vec_size == 8) {
       return "vec4<u32>";
     }
-  } else if (data_type == DataType::UINT8 || data_type == DataType::BOOL) {
+  } else if (data_type == DataType::kUint8 || data_type == DataType::kBool) {
     if (vec_size == 4) {
       return "u32";
     } else if (vec_size == 8) {
@@ -177,24 +178,24 @@ std::string DataTypeToWgslType(DataType data_type, int vec_size,
 
 std::string DataTypeToTextureShaderType(DataType data_type) {
   switch (data_type) {
-    case DataType::FLOAT32:
+    case DataType::kFloat32:
       return "rgba32float";
-    case DataType::FLOAT16:
+    case DataType::kFloat16:
       return "rgba16float";
-    case DataType::UINT32:
+    case DataType::kUint32:
       return "rgba32uint";
-    case DataType::BFLOAT16:
-    case DataType::UINT16:
+    case DataType::kBfloat16:
+    case DataType::kUint16:
       return "rgba16uint";
-    case DataType::UINT8:
+    case DataType::kUint8:
       return "rgba8uint";
-    case DataType::INT32:
+    case DataType::kInt32:
       return "rgba32sint";
-    case DataType::INT16:
+    case DataType::kInt16:
       return "rgba16sint";
-    case DataType::INT8:
+    case DataType::kInt8:
       return "rgba8sint";
-    case DataType::BOOL:
+    case DataType::kBool:
       return "rgba8uint";
     default:
       return "";
@@ -203,32 +204,32 @@ std::string DataTypeToTextureShaderType(DataType data_type) {
 
 wgpu::TextureSampleType DataTypeToTextureSampleType(DataType data_type) {
   switch (data_type) {
-    case ml_drift::DataType::UNKNOWN:
-    case ml_drift::DataType::UINT4:
-    case ml_drift::DataType::UINT3:
-    case ml_drift::DataType::UINT2:
-    case ml_drift::DataType::UINT1:
-    case ml_drift::DataType::INT4:
-    case ml_drift::DataType::INT3:
-    case ml_drift::DataType::INT2:
-    case ml_drift::DataType::INT1:
+    case ml_drift::DataType::kUnknown:
+    case ml_drift::DataType::kUint4:
+    case ml_drift::DataType::kUint3:
+    case ml_drift::DataType::kUint2:
+    case ml_drift::DataType::kUint1:
+    case ml_drift::DataType::kInt4:
+    case ml_drift::DataType::kInt3:
+    case ml_drift::DataType::kInt2:
+    case ml_drift::DataType::kInt1:
       return wgpu::TextureSampleType::BindingNotUsed;
-    case ml_drift::DataType::BOOL:
+    case ml_drift::DataType::kBool:
       return wgpu::TextureSampleType::Uint;
-    case ml_drift::DataType::FLOAT16:
-    case ml_drift::DataType::FLOAT32:
-    case ml_drift::DataType::FLOAT64:
+    case ml_drift::DataType::kFloat16:
+    case ml_drift::DataType::kFloat32:
+    case ml_drift::DataType::kFloat64:
       return wgpu::TextureSampleType::UnfilterableFloat;
-    case ml_drift::DataType::BFLOAT16:
-    case ml_drift::DataType::UINT8:
-    case ml_drift::DataType::UINT16:
-    case ml_drift::DataType::UINT32:
-    case ml_drift::DataType::UINT64:
+    case ml_drift::DataType::kBfloat16:
+    case ml_drift::DataType::kUint8:
+    case ml_drift::DataType::kUint16:
+    case ml_drift::DataType::kUint32:
+    case ml_drift::DataType::kUint64:
       return wgpu::TextureSampleType::Uint;
-    case ml_drift::DataType::INT8:
-    case ml_drift::DataType::INT16:
-    case ml_drift::DataType::INT32:
-    case ml_drift::DataType::INT64:
+    case ml_drift::DataType::kInt8:
+    case ml_drift::DataType::kInt16:
+    case ml_drift::DataType::kInt32:
+    case ml_drift::DataType::kInt64:
       return wgpu::TextureSampleType::Sint;
   }
   return wgpu::TextureSampleType::Undefined;
@@ -449,7 +450,7 @@ std::string WebGpuArguments::ScalarArgumentsToStructWithVec4Fields(
 std::string WebGpuArguments::ToWgslArguments(bool supports_fp16) {
   std::string result;
   for (auto& t : images2d_) {
-    if (t.second.desc.access_type == AccessType::WRITE) {
+    if (t.second.desc.access_type == AccessType::kWrite) {
       wgpu::TextureFormat texture_format =
           DataTypeToTextureFormat(t.second.desc.data_type);
       wgpu::TextureViewDimension view_dimension =
@@ -474,7 +475,7 @@ std::string WebGpuArguments::ToWgslArguments(bool supports_fp16) {
     }
   }
   for (auto& t : images3d_) {
-    if (t.second.desc.access_type == AccessType::WRITE) {
+    if (t.second.desc.access_type == AccessType::kWrite) {
       wgpu::TextureFormat texture_format =
           DataTypeToTextureFormat(t.second.desc.data_type);
       wgpu::TextureViewDimension view_dimension =
@@ -499,7 +500,7 @@ std::string WebGpuArguments::ToWgslArguments(bool supports_fp16) {
     }
   }
   for (auto& t : image2d_arrays_) {
-    if (t.second.desc.access_type == AccessType::WRITE) {
+    if (t.second.desc.access_type == AccessType::kWrite) {
       wgpu::TextureFormat texture_format =
           DataTypeToTextureFormat(t.second.desc.data_type);
       wgpu::TextureViewDimension view_dimension =
@@ -524,7 +525,7 @@ std::string WebGpuArguments::ToWgslArguments(bool supports_fp16) {
     }
   }
   for (auto& b : buffers_) {
-    if (b.second.desc.memory_type == MemoryType::CONSTANT) {
+    if (b.second.desc.memory_type == MemoryType::kConstant) {
       const int binding_index =
           pipeline_layout_.AddUniformBufferBinding(b.first);
       const std::string wgsl_type = DataTypeToWgslType(
@@ -537,11 +538,12 @@ std::string WebGpuArguments::ToWgslArguments(bool supports_fp16) {
                 ") var<uniform> " + b.first + " : " + b.first + "_vector;\n";
     } else {
       const int binding_index = pipeline_layout_.AddStorageBufferBinding(
-          b.first, b.second.desc.access_type == AccessType::READ);
+          b.first, b.second.desc.access_type == AccessType::kRead);
       const std::string wgsl_type = DataTypeToWgslType(
           b.second.desc.data_type, b.second.desc.element_size, supports_fp16);
       const std::string access_type =
-          b.second.desc.access_type == AccessType::READ ? "read" : "read_write";
+          b.second.desc.access_type == AccessType::kRead ? "read"
+                                                         : "read_write";
       result += "struct " + b.first + "_vector {\n";
       result += "  data: array<" + wgsl_type + ">,\n";
       result += "};\n";
@@ -778,7 +780,7 @@ absl::Status WebGpuArguments::SetObjectsResources(const Arguments& args) {
 
 bool WebGpuArguments::HasFloat16Buffers() const {
   for (const auto& t : buffers_) {
-    if (t.second.desc.data_type == DataType::FLOAT16) {
+    if (t.second.desc.data_type == DataType::kFloat16) {
       return true;
     }
   }

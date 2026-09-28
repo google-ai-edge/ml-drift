@@ -641,7 +641,7 @@ absl::Status InferenceContext::SetInputTensor(const Environment& environment,
 
 absl::Status InferenceContext::SetInputTensor(
     const Environment& environment, ValueId id,
-    const ml_drift::Tensor<BHWC, DataType::INT32>& tensor) {
+    const ml_drift::Tensor<BHWC, DataType::kInt32>& tensor) {
   SpatialTensor* gpu_tensor = memory_manager_.GetSpatialTensor(GetKey(id));
   if (!gpu_tensor) {
     return absl::InternalError(absl::StrCat("Can not find tensor.", id));

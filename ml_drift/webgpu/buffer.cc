@@ -14,11 +14,16 @@
 
 #include "ml_drift/webgpu/buffer.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
 #include <utility>
 
 #include "absl/status/status.h"
+#include "ml_drift/common/task/buffer_desc.h"
+#include "ml_drift/common/task/gpu_object_desc.h"
 #include "ml_drift/webgpu/gpu_object.h"
-#include "ml_drift/webgpu/webgpu_api_util.h"
+#include "ml_drift/webgpu/webgpu_headers.h"
 
 namespace ml_drift {
 namespace webgpu {
@@ -63,7 +68,7 @@ void Buffer::CreateFromBufferDescriptor(const wgpu::Device& device,
                                         const BufferDescriptor& desc) {
   uint8_t* data_ptr =
       desc.data.empty() ? nullptr : const_cast<uint8_t*>(desc.data.data());
-  if (desc.memory_type == MemoryType::CONSTANT) {
+  if (desc.memory_type == MemoryType::kConstant) {
     wgpu::BufferUsage usage = wgpu::BufferUsage::Uniform;
     *this = CreateBuffer(device, usage, desc.size, data_ptr);
   } else {

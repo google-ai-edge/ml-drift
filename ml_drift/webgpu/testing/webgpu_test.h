@@ -58,12 +58,12 @@ class WebGpuExecutionEnvironment : public TestExecutionEnvironment {
 #endif  // __EMSCRIPTEN__
 
   std::vector<DataType> GetSupportedDataTypes() const override {
-    return {DataType::FLOAT32, DataType::FLOAT16};
+    return {DataType::kFloat32, DataType::kFloat16};
   }
   std::vector<TensorStorageType> GetSupportedStorages(
       DataType data_type) const override {
-    return {TensorStorageType::BUFFER, TensorStorageType::TEXTURE_2D,
-            TensorStorageType::TEXTURE_ARRAY, TensorStorageType::TEXTURE_3D};
+    return {TensorStorageType::kBuffer, TensorStorageType::kTexture2D,
+            TensorStorageType::kTextureArray, TensorStorageType::kTexture3D};
   }
 
   const GpuInfo& GetGpuInfo() const override { return env_.GetInfo(); }

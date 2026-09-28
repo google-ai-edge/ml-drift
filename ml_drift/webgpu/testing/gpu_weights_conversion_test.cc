@@ -63,7 +63,7 @@ using ::testing::WithParamInterface;
 absl::StatusOr<TensorFloat32> GetOutput(
     const webgpu::ExecutionEnvironment& exec_env,
     webgpu::InferenceContext& context,
-    ml_drift::Tensor<BHWC, DataType::FLOAT32>& input_tensor) {
+    ml_drift::Tensor<BHWC, DataType::kFloat32>& input_tensor) {
   ABSL_CHECK_EQ(context.GetInputIds().size(), 1);
   ABSL_CHECK_EQ(context.GetOutputIds().size(), 1);
   ValueId input_id = context.GetInputIds()[0];
@@ -119,7 +119,7 @@ absl::Status ConvFloatTest(const webgpu::ExecutionEnvironment& exec_env,
                            const int kernel_size) {
   // cl::Environment* env = exec_env;
   CreateGpuModelInfo create_info;
-  create_info.storage_type = TensorStorageType::BUFFER;
+  create_info.storage_type = TensorStorageType::kBuffer;
   create_info.precision = precision;
 
   ABSL_ASSIGN_OR_RETURN(
@@ -127,7 +127,7 @@ absl::Status ConvFloatTest(const webgpu::ExecutionEnvironment& exec_env,
       CreateConvGraph(input_shape, output_shape, kernel_size));
 
   // Initialize input tensor.
-  ml_drift::Tensor<BHWC, DataType::FLOAT32> input_tensor;
+  ml_drift::Tensor<BHWC, DataType::kFloat32> input_tensor;
   input_tensor.shape = input_shape;
   input_tensor.data.resize(input_shape.DimensionsProduct());
   InitWithSinValues(input_tensor.data);
@@ -157,11 +157,11 @@ absl::Status FullyConnectedInt8Test(
     const webgpu::ExecutionEnvironment& exec_env, const BHWC input_shape,
     const BHWC output_shape) {
   CreateGpuModelInfo create_info;
-  create_info.storage_type = TensorStorageType::BUFFER;
-  create_info.precision = CalculationsPrecision::F16;
+  create_info.storage_type = TensorStorageType::kBuffer;
+  create_info.precision = CalculationsPrecision::kF16;
 
   // Initialize input tensor.
-  ml_drift::Tensor<BHWC, DataType::FLOAT32> input_tensor;
+  ml_drift::Tensor<BHWC, DataType::kFloat32> input_tensor;
   input_tensor.shape = input_shape;
   input_tensor.data.resize(input_shape.DimensionsProduct());
   InitWithSinValues(input_tensor.data);
@@ -198,13 +198,13 @@ absl::Status FullyConnectedFloat32VSInt8Test(
     const webgpu::ExecutionEnvironment& exec_env, const BHWC input_shape,
     const BHWC output_shape) {
   CreateGpuModelInfo create_info;
-  create_info.storage_type = TensorStorageType::BUFFER;
-  create_info.precision = CalculationsPrecision::F16;
+  create_info.storage_type = TensorStorageType::kBuffer;
+  create_info.precision = CalculationsPrecision::kF16;
 
   FCInt8TestGraph fc_int8_test_graph(input_shape, output_shape);
 
   // Initialize input tensor.
-  ml_drift::Tensor<BHWC, DataType::FLOAT32> input_tensor;
+  ml_drift::Tensor<BHWC, DataType::kFloat32> input_tensor;
   input_tensor.shape = input_shape;
   input_tensor.data.resize(input_shape.DimensionsProduct());
   InitWithSinValues(input_tensor.data);
@@ -244,7 +244,7 @@ absl::Status QuantizedConvTest(const webgpu::ExecutionEnvironment& exec_env,
                                const BHWC input_shape, const BHWC output_shape,
                                const int kernel_size) {
   CreateGpuModelInfo create_info;
-  create_info.storage_type = TensorStorageType::BUFFER;
+  create_info.storage_type = TensorStorageType::kBuffer;
   create_info.precision = precision;
 
   ABSL_ASSIGN_OR_RETURN(GraphFloat32 graph,
@@ -252,7 +252,7 @@ absl::Status QuantizedConvTest(const webgpu::ExecutionEnvironment& exec_env,
                             input_shape, output_shape, kernel_size));
 
   // Initialize input tensor.
-  ml_drift::Tensor<BHWC, DataType::FLOAT32> input_tensor;
+  ml_drift::Tensor<BHWC, DataType::kFloat32> input_tensor;
   input_tensor.shape = input_shape;
   input_tensor.data.resize(input_shape.DimensionsProduct());
   InitWithSinValues(input_tensor.data);
@@ -286,7 +286,7 @@ class WeightsManagerConvTest
 TEST_P(WeightsManagerConvTest, Conv1x1Float32) {
   auto [precision, input_shape, output_shape, kernel_size] = GetParam();
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  const TensorStorageType storage_type = TensorStorageType::BUFFER;
+  const TensorStorageType storage_type = TensorStorageType::kBuffer;
   if (!exec_env_.IsStorageSupported(storage_type, data_type)) {
     GTEST_SKIP() << "Unsupported storage " << ToString(storage_type)
                  << " with data type " << ToString(data_type);
@@ -298,30 +298,31 @@ TEST_P(WeightsManagerConvTest, Conv1x1Float32) {
 TEST_P(WeightsManagerConvTest, Conv3x3Int4) {
   auto [precision, input_shape, output_shape, kernel_size] = GetParam();
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  const TensorStorageType storage_type = TensorStorageType::BUFFER;
+  const TensorStorageType storage_type = TensorStorageType::kBuffer;
   if (!exec_env_.IsStorageSupported(storage_type, data_type)) {
     GTEST_SKIP() << "Unsupported storage " << ToString(storage_type)
                  << " with data type " << ToString(data_type);
   }
-  ABSL_EXPECT_OK(QuantizedConvTest<DataType::INT4>(
+  ABSL_EXPECT_OK(QuantizedConvTest<DataType::kInt4>(
       exec_env_.GetEnv(), precision, input_shape, output_shape, kernel_size));
 }
 
 TEST_P(WeightsManagerConvTest, Conv3x3Int8) {
   auto [precision, input_shape, output_shape, kernel_size] = GetParam();
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  const TensorStorageType storage_type = TensorStorageType::BUFFER;
+  const TensorStorageType storage_type = TensorStorageType::kBuffer;
   if (!exec_env_.IsStorageSupported(storage_type, data_type)) {
     GTEST_SKIP() << "Unsupported storage " << ToString(storage_type)
                  << " with data type " << ToString(data_type);
   }
-  ABSL_EXPECT_OK(QuantizedConvTest<DataType::INT8>(
+  ABSL_EXPECT_OK(QuantizedConvTest<DataType::kInt8>(
       exec_env_.GetEnv(), precision, input_shape, output_shape, kernel_size));
 }
 
 INSTANTIATE_TEST_SUITE_P(
     WeightsManagerConvTestSuite, WeightsManagerConvTest,
-    Combine(ValuesIn({CalculationsPrecision::F32, CalculationsPrecision::F16}),
+    Combine(ValuesIn({CalculationsPrecision::kF32,
+                      CalculationsPrecision::kF16}),
             ValuesIn({BHWC(1, 128, 72, 8)}), ValuesIn({BHWC(1, 128, 72, 224)}),
             ValuesIn({3})),
     [](const TestParamInfo<WeightsManagerConvTest::ParamType>& info) {
@@ -374,14 +375,14 @@ class WeightsManagerWeightsSumITest
 
 TEST_P(WeightsManagerWeightsSumITest, WeightsSumI) {
   auto& [weights_shape, input_data_type] = GetParam();
-  if (!exec_env_.IsStorageSupported(TensorStorageType::BUFFER,
-                                    DataType::INT8)) {
+  if (!exec_env_.IsStorageSupported(TensorStorageType::kBuffer,
+                                    DataType::kInt8)) {
     GTEST_SKIP() << "Buffer storage with Int8 data type is not supported.";
   }
 
   CreateGpuModelInfo create_info;
-  create_info.storage_type = TensorStorageType::BUFFER;
-  create_info.precision = CalculationsPrecision::F32;
+  create_info.storage_type = TensorStorageType::kBuffer;
+  create_info.precision = CalculationsPrecision::kF32;
 
   // Initialize weight data and prepare reference output.
   std::vector<int8_t> weights_data;
@@ -432,7 +433,7 @@ TEST_P(WeightsManagerWeightsSumITest, WeightsSumI) {
 INSTANTIATE_TEST_SUITE_P(
     WeightsManagerWeightsSumITestSuite, WeightsManagerWeightsSumITest,
     Combine(ValuesIn({OHWI(16, 1, 1, 16)}),
-            ValuesIn({DataType::INT4, DataType::INT8})),
+            ValuesIn({DataType::kInt4, DataType::kInt8})),
     [](const TestParamInfo<WeightsManagerWeightsSumITest::ParamType>& info) {
       return absl::StrCat(
           "weights_shape_", GetShapeName(std::get<0>(info.param)),
@@ -446,16 +447,16 @@ class WeightsManagerGpuMemoryUsageTest
 
 TEST_P(WeightsManagerGpuMemoryUsageTest, Int4WeightsConversion) {
   auto [weights_shape, weights_desc, input_data_type] = GetParam();
-  if (input_data_type == DataType::INT4) {
-    weights_desc.type = DataType::UINT4;
-  } else if (input_data_type == DataType::INT8) {
-    weights_desc.type = DataType::UINT8;
+  if (input_data_type == DataType::kInt4) {
+    weights_desc.type = DataType::kUint4;
+  } else if (input_data_type == DataType::kInt8) {
+    weights_desc.type = DataType::kUint8;
   } else {
     AssertionFailure() << absl::StrCat("Unsupported input data type: ",
                                        ToString(input_data_type));
   }
-  if (!exec_env_.IsStorageSupported(TensorStorageType::BUFFER,
-                                    DataType::INT8)) {
+  if (!exec_env_.IsStorageSupported(TensorStorageType::kBuffer,
+                                    DataType::kInt8)) {
     GTEST_SKIP() << "Buffer storage with Int8 data type is not supported.";
   }
 
@@ -463,7 +464,7 @@ TEST_P(WeightsManagerGpuMemoryUsageTest, Int4WeightsConversion) {
       expected_output_gpu_memory_size;
   const size_t output_elements_count =
       GetTotalElementsCountForLayout(weights_desc, weights_shape);
-  if (input_data_type == DataType::INT4) {
+  if (input_data_type == DataType::kInt4) {
     raw_weights_size = DivideRoundUp(weights_shape.DimensionsProduct(), 2);
     const size_t input_elements_count =
         DivideRoundUp(weights_shape.DimensionsProduct(), 2);
@@ -526,7 +527,7 @@ INSTANTIATE_TEST_SUITE_P(
     WeightsManagerGpuMemoryUsageTestSuite, WeightsManagerGpuMemoryUsageTest,
     Combine(ValuesIn({OHWI(16, 1, 1, 16), OHWI(3, 1, 1, 8)}),
             ValuesIn(DstWeightsDescsToTest()),
-            ValuesIn({DataType::INT4, DataType::INT8})),
+            ValuesIn({DataType::kInt4, DataType::kInt8})),
     [](const TestParamInfo<WeightsManagerGpuMemoryUsageTest::ParamType>& info) {
       return absl::StrCat(
           "weights_shape_", GetShapeName(std::get<0>(info.param)),

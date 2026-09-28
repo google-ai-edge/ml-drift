@@ -54,10 +54,10 @@ class InferenceContextTest : public testing::Test {
 
   GpuModelBuilder::TensorHandle InitOptionalModel() {
     CreateGpuModelInfo create_info{
-        .precision = CalculationsPrecision::F32,
-        .storage_type = TensorStorageType::BUFFER,
+        .precision = CalculationsPrecision::kF32,
+        .storage_type = TensorStorageType::kBuffer,
     };
-    const DataType float_type = DataType::FLOAT32;
+    const DataType float_type = DataType::kFloat32;
 
     GpuModelBuilder model_builder(env_.GetInfo(), create_info.hints,
                                   create_info.precision,
@@ -106,10 +106,10 @@ class InferenceContextTest : public testing::Test {
 
   absl::StatusOr<GpuModelBuilder::TensorHandle> InitSubgraphModel() {
     CreateGpuModelInfo create_info{
-        .precision = CalculationsPrecision::F32,
-        .storage_type = TensorStorageType::BUFFER,
+        .precision = CalculationsPrecision::kF32,
+        .storage_type = TensorStorageType::kBuffer,
     };
-    const DataType float_type = DataType::FLOAT32;
+    const DataType float_type = DataType::kFloat32;
 
     GpuModelBuilder model_builder(env_.GetInfo(), create_info.hints,
                                   create_info.precision,
@@ -168,7 +168,7 @@ class InferenceContextTest : public testing::Test {
                                   create_info.storage_type);
 
     GpuModelBuilder::TensorHandle in =
-        model_builder.AddTensor(BHWC{1, 1, 1, 1}, DataType::FLOAT32);
+        model_builder.AddTensor(BHWC{1, 1, 1, 1}, DataType::kFloat32);
     GpuModelBuilder::TensorHandle out = model_builder.Multiplication(in, 3);
     out = model_builder.Add(out, 2);
 
@@ -264,21 +264,21 @@ TEST_F(InferenceContextTest, Subgraph) {
 
 TEST_F(InferenceContextTest, F16ModelWithF32PredefinedInput) {
   CreateGpuModelInfo create_info;
-  create_info.precision = CalculationsPrecision::F16;
-  create_info.storage_type = TensorStorageType::TEXTURE_2D;
+  create_info.precision = CalculationsPrecision::kF16;
+  create_info.storage_type = TensorStorageType::kTexture2D;
 
   const BHWC input_shape = BHWC(1, 32, 32, 4);
   const BHWC output_shape = BHWC(1, 32, 32, 16);
   Convolution2DAttributes conv_attr;
   auto& attr_weights =
-      conv_attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
+      conv_attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
   GraphFloat32 graph;
   auto input = graph.NewValue();
-  input->tensor.type = DataType::FLOAT32;
+  input->tensor.type = DataType::kFloat32;
   input->tensor.shape = input_shape;
 
   auto conv_node = graph.NewNode();
-  conv_node->operation.type = ToString(OperationType::CONVOLUTION_2D);
+  conv_node->operation.type = ToString(OperationType::kConvolution2D);
 
   conv_attr.padding.prepended = HW(0, 0);
   conv_attr.padding.appended = HW(0, 0);
@@ -299,13 +299,13 @@ TEST_F(InferenceContextTest, F16ModelWithF32PredefinedInput) {
   graph.AddConsumer(conv_node->id, input->id);
   Value* conv_output = nullptr;
   ABSL_CHECK_OK(AddOutput(&graph, conv_node, &conv_output));
-  conv_output->tensor.type = DataType::FLOAT32;
+  conv_output->tensor.type = DataType::kFloat32;
   conv_output->tensor.shape = output_shape;
 
   create_info.predefined[input->id] = TensorDescriptor{
-      DataType::FLOAT32,
-      TensorStorageType::TEXTURE_2D,
-      Layout::HWC,
+      DataType::kFloat32,
+      TensorStorageType::kTexture2D,
+      Layout::kHWC,
   };
   GpuModel gpu_model;
   ABSL_CHECK_OK(
@@ -329,8 +329,8 @@ TEST_F(InferenceContextTest, F16ModelWithF32PredefinedInput) {
 // operation code, so this also guards against the two drifting apart.
 TEST_F(InferenceContextTest, RestoreDeserializedMatchesOriginalContext) {
   CreateGpuModelInfo create_info = {
-      .precision = CalculationsPrecision::F32,
-      .storage_type = TensorStorageType::BUFFER,
+      .precision = CalculationsPrecision::kF32,
+      .storage_type = TensorStorageType::kBuffer,
   };
   GpuModel gpu_model;
   auto [in, out] = BuildLinearModel(create_info, &gpu_model);

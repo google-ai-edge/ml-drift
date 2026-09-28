@@ -56,8 +56,8 @@ void AddUsage(ValueId id, int task_index,
 }
 
 bool IsBufferBased(const TensorStorageType& type) {
-  return type == TensorStorageType::BUFFER ||
-         type == TensorStorageType::IMAGE_BUFFER;
+  return type == TensorStorageType::kBuffer ||
+         type == TensorStorageType::kImageBuffer;
 }
 
 // Returns a vector of T* sorted in increasing memory size.
@@ -294,7 +294,7 @@ absl::Status MemoryManager::AllocateMemoryForBuffers(
 
   ObjectsAssignment<size_t> assignment;
   ABSL_RETURN_IF_ERROR(AssignObjectsToTensors(
-      usage_records, MemoryStrategy::GREEDY_BEST, &assignment));
+      usage_records, MemoryStrategy::kGreedyBest, &assignment));
 
   std::vector<wgpu::Buffer> buffers(assignment.object_sizes.size());
   std::vector<const Buffer*> available_buffers =
@@ -349,7 +349,7 @@ absl::Status MemoryManager::AllocateMemoryForTextures(
 
   ObjectsAssignment<TensorDescComparator> assignment;
   ABSL_RETURN_IF_ERROR(AssignObjectsToTensors(
-      usage_records, MemoryStrategy::EQUALITY, &assignment));
+      usage_records, MemoryStrategy::kEquality, &assignment));
 
   std::vector<std::pair<wgpu::Texture, wgpu::TextureView>> textures(
       assignment.object_sizes.size());

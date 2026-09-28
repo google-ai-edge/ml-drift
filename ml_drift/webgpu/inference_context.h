@@ -107,7 +107,7 @@ class InferenceContext {
                               const TensorFloat32& tensor);
   absl::Status SetInputTensor(
       const Environment& environment, ValueId id,
-      const ml_drift::Tensor<BHWC, DataType::INT32>& tensor);
+      const ml_drift::Tensor<BHWC, DataType::kInt32>& tensor);
   absl::Status GetOutputTensor(const Environment& environment, ValueId id,
                                TensorFloat32* result);
   absl::Status GetOutputTensor(const Environment& environment, ValueId id,

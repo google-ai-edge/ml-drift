@@ -23,7 +23,7 @@ namespace ml_drift {
 namespace webgpu {
 
 TEST(WebGpuOperationTest, Performance) {
-  ABSL_ASSERT_OK(ConvolutionPerfTest(CalculationsPrecision::F16,
+  ABSL_ASSERT_OK(ConvolutionPerfTest(CalculationsPrecision::kF16,
                                 BHWC(1, 32, 32, 1024), 1024, HW(1, 1)));
   // ABSL_ASSERT_OK(ConvolutionInt8PerfTest(BHWC(1, 1, 1024, 1024), 1024));
 

@@ -125,7 +125,7 @@ absl::Status TestConvolutionPerformance(const Convolution2DAttributes& attr,
 
   ABSL_RETURN_IF_ERROR(conv->AssembleCode(gpu_info));
 
-  const int float_size = precision == CalculationsPrecision::F32 ? 4 : 2;
+  const int float_size = precision == CalculationsPrecision::kF32 ? 4 : 2;
   const int64_t flops_per_element = w_shape.i * w_shape.h * w_shape.w * 2;
   const int64_t dst_elements = dst.Width() * dst.Height() * dst.Channels();
   const int64_t flops_count = dst_elements * flops_per_element;
@@ -178,7 +178,7 @@ absl::Status ConvolutionPerfTest(CalculationsPrecision precision,
   attr.padding.appended = HW(kernel_size.h / 2, kernel_size.w / 2);
   attr.strides = HW(1, 1);
   attr.dilations = HW(1, 1);
-  auto& attr_weights = attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
+  auto& attr_weights = attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape =
       OHWI(dst_channels, kernel_size.h, kernel_size.w, src_shape.c);
   attr_weights.data.resize(attr_weights.shape.DimensionsProduct() +
@@ -188,8 +188,8 @@ absl::Status ConvolutionPerfTest(CalculationsPrecision precision,
 
   OperationDef op_def;
   auto data_type = DeduceDataTypeFromPrecision(precision);
-  Layout layout = src_shape.b == 1 ? Layout::HWC : Layout::BHWC;
-  auto storage_type = TensorStorageType::BUFFER;
+  Layout layout = src_shape.b == 1 ? Layout::kHWC : Layout::kBHWC;
+  auto storage_type = TensorStorageType::kBuffer;
   TensorDescriptor src_tensor_desc{data_type, storage_type, layout};
   ABSL_RETURN_IF_ERROR(
       src_tensor_desc.UpdateToSupportedStorageType(gpu_info, src_shape));
@@ -235,18 +235,18 @@ absl::Status ConvolutionInt8PerfTest(const BHWC& src_shape, int dst_channels) {
     attr.strides = HW(1, 1);
     attr.dilations = HW(1, 1);
     auto& attr_weights =
-        attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
+        attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
     attr_weights.shape = OHWI(dst_channels, 1, 1, src_shape.c);
     attr.bias.shape = Linear(dst_channels);
     dst_shape = CalculateOutputShape(src_shape, attr);
   }
 
   const bool dequantize = true;
-  const auto precision = CalculationsPrecision::F16;
+  const auto precision = CalculationsPrecision::kF16;
   OperationDef op_def;
-  auto dst_data_type =
-      UseUint8MathForInt8Weights(gpu_info) ? DataType::UINT32 : DataType::INT32;
-  Layout layout = src_shape.b == 1 ? Layout::HWC : Layout::BHWC;
+  auto dst_data_type = UseUint8MathForInt8Weights(gpu_info) ? DataType::kUint32
+                                                            : DataType::kInt32;
+  Layout layout = src_shape.b == 1 ? Layout::kHWC : Layout::kBHWC;
   auto src_storage_type = GetFastestStorageType(gpu_info);
   auto dst_storage_type = src_storage_type;
 
@@ -256,14 +256,14 @@ absl::Status ConvolutionInt8PerfTest(const BHWC& src_shape, int dst_channels) {
 
   op_def.dst_tensors.push_back(dst_tensor_desc);
 
-  ml_drift::Tensor<OHWI, DataType::INT8> weights;
+  ml_drift::Tensor<OHWI, DataType::kInt8> weights;
   weights.shape = OHWI(dst_channels, 1, 1, src_shape.c);
   weights.data.resize(weights.shape.DimensionsProduct() +
                       XNN_EXTRA_BYTES / sizeof(int8_t));
-  ml_drift::Tensor<Linear, DataType::FLOAT32> weights_scale;
+  ml_drift::Tensor<Linear, DataType::kFloat32> weights_scale;
   weights_scale.shape = Linear(dst_channels);
   weights_scale.data.resize(weights_scale.shape.DimensionsProduct());
-  ml_drift::Tensor<Linear, DataType::FLOAT32> weights_zero_point;
+  ml_drift::Tensor<Linear, DataType::kFloat32> weights_zero_point;
   weights_zero_point.shape = Linear(dst_channels);
   weights_zero_point.data.resize(weights_zero_point.shape.DimensionsProduct());
 
@@ -303,7 +303,7 @@ absl::Status ConvolutionInt8PerfTest(const BHWC& src_shape, int dst_channels) {
     src_params.shape = BHWC(src_shape.b, src_shape.h, src_shape.w, 3);
     src_params.data.resize(src_params.shape.DimensionsProduct());
     src_params_td =
-        TensorDescriptor{DataType::FLOAT32, src_storage_type, layout};
+        TensorDescriptor{DataType::kFloat32, src_storage_type, layout};
     src_params_td.UploadData(src_params);
 
     weights_scale_td = CreateConstantLinearTensorDescriptor(
@@ -410,20 +410,20 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision,
                                     DataType weights_type,
                                     const BHWC& src_shape, int dst_channels,
                                     OHWI scale_zp_shape) {
-  ml_drift::Tensor<OHWI, DataType::FLOAT32> weights;
+  ml_drift::Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = OHWI(dst_channels, 1, 1, src_shape.c);
   weights.data.resize(weights.shape.DimensionsProduct() +
                       XNN_EXTRA_BYTES / sizeof(float));
 
-  ml_drift::Tensor<OHWI, DataType::INT8> weights_i8;
+  ml_drift::Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(dst_channels, 1, 1, src_shape.c);
   weights_i8.data.resize(weights_i8.shape.DimensionsProduct() +
                          XNN_EXTRA_BYTES / sizeof(uint8_t));
 
-  ml_drift::Tensor<OHWI, DataType::FLOAT32> weights_scale;
+  ml_drift::Tensor<OHWI, DataType::kFloat32> weights_scale;
   weights_scale.shape = scale_zp_shape;
   weights_scale.data.resize(weights_scale.shape.DimensionsProduct(), 1.0f);
-  ml_drift::Tensor<OHWI, DataType::FLOAT32> weights_zp;
+  ml_drift::Tensor<OHWI, DataType::kFloat32> weights_zp;
   weights_zp.shape = scale_zp_shape;
   weights_zp.data.resize(weights_zp.shape.DimensionsProduct(), 0.0f);
 
@@ -433,7 +433,7 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision,
 
   OperationDef op_def;
   auto data_type = DeduceDataTypeFromPrecision(precision);
-  Layout layout = src_shape.b == 1 ? Layout::HWC : Layout::BHWC;
+  Layout layout = src_shape.b == 1 ? Layout::kHWC : Layout::kBHWC;
   auto storage_type = GetFastestStorageType(gpu_info);
   op_def.src_tensors.push_back({data_type, storage_type, layout});
   op_def.dst_tensors.push_back({data_type, storage_type, layout});
@@ -456,13 +456,13 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision,
   std::cout << "Dst size(HWC) - " << dst_shape.h << "x" << dst_shape.w << "x"
             << dst_shape.c << std::endl;
 
-  double element_size = precision == CalculationsPrecision::F32 ? 4.0 : 2.0;
+  double element_size = precision == CalculationsPrecision::kF32 ? 4.0 : 2.0;
   double weight_element_size = element_size;
-  if (weights_type == DataType::INT8) {
+  if (weights_type == DataType::kInt8) {
     weight_element_size = 1.0;
-  } else if (weights_type == DataType::INT4) {
+  } else if (weights_type == DataType::kInt4) {
     weight_element_size = 0.5;
-  } else if (weights_type == DataType::INT2) {
+  } else if (weights_type == DataType::kInt2) {
     weight_element_size = 0.25;
   }
   const int64_t flops_per_element = w_shape.i * w_shape.h * w_shape.w * 2;
@@ -486,20 +486,21 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision,
 
   WeightsDescription weights_desc;
   std::vector<TensorDescriptor> weights_gpu;
-  if (weights_type == DataType::FLOAT16 || weights_type == DataType::FLOAT32) {
+  if (weights_type == DataType::kFloat16 ||
+      weights_type == DataType::kFloat32) {
     weights_desc.type = DeduceDataTypeFromPrecision(precision);
     weights_desc.layout = WeightsLayout::kOSpatialIOGroupI4O4;
     weights_desc.output_group_size = DivideRoundUp(weights.shape.o, 4);
     weights_gpu = GetTensorDescriptorsForWeightsLayout(weights, weights_desc);
-  } else if (weights_type == DataType::INT8) {
+  } else if (weights_type == DataType::kInt8) {
     weights_desc = GetFullyConnectedInt8WeightsDesc(gpu_info, weights_i8.shape);
     weights_gpu.push_back(
         GetTensorDescriptorForWeightsLayout(weights_i8, weights_desc));
-  } else if (weights_type == DataType::INT4) {
+  } else if (weights_type == DataType::kInt4) {
     weights_desc = GetFullyConnectedInt4WeightsDesc(gpu_info, weights_i8.shape);
     weights_gpu.push_back(
         GetTensorDescriptorForWeightsLayout(weights_i8, weights_desc));
-  } else if (weights_type == DataType::INT2) {
+  } else if (weights_type == DataType::kInt2) {
     weights_desc = GetFullyConnectedInt2WeightsDesc(gpu_info, weights_i8.shape);
     weights_gpu.push_back(
         GetTensorDescriptorForWeightsLayout(weights_i8, weights_desc));
@@ -517,7 +518,7 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision,
       ScaleOrZeroPointToTensorDesc(gpu_info, weights_zp, data_type);
 
   const bool is_qunatized =
-      weights_type != DataType::FLOAT16 && weights_type != DataType::FLOAT32;
+      weights_type != DataType::kFloat16 && weights_type != DataType::kFloat32;
 
   SpatialTensor scale_tensor;
   SpatialTensor zp_tensor;
@@ -567,8 +568,8 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision,
     const double fps = 1000.0 / time_ms;
     const double gflops_real = fps * gflops_count;
     double gbytes_read = src_gbytes + weight_gbytes;
-    if (weights_type != DataType::FLOAT16 &&
-        weights_type != DataType::FLOAT32) {
+    if (weights_type != DataType::kFloat16 &&
+        weights_type != DataType::kFloat32) {
       gbytes_read += scale_gbytes * 2.0;
     }
     double gbs_read = fps * gbytes_read;
