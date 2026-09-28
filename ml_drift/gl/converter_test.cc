@@ -40,12 +40,12 @@ using ::testing::Pointwise;
 namespace gl {
 
 TEST_F(OpenGlOperationTest, TensorToTensorConverterTest) {
-  for (auto src_type : {DataType::FLOAT32, DataType::FLOAT16}) {
+  for (auto src_type : {DataType::kFloat32, DataType::kFloat16}) {
     for (auto src_storage : exec_env_.GetSupportedStorages(src_type)) {
-      for (auto dst_type : {DataType::FLOAT32, DataType::FLOAT16}) {
+      for (auto dst_type : {DataType::kFloat32, DataType::kFloat16}) {
         for (auto dst_storage : exec_env_.GetSupportedStorages(dst_type)) {
-          TensorDescriptor src_desc(src_type, src_storage, Layout::HWC);
-          TensorDescriptor dst_desc(dst_type, dst_storage, Layout::HWC);
+          TensorDescriptor src_desc(src_type, src_storage, Layout::kHWC);
+          TensorDescriptor dst_desc(dst_type, dst_storage, Layout::kHWC);
           TensorToTensorConverter converter;
           ASSERT_TRUE(
               converter.Init(exec_env_.GetGpuInfo(), src_desc, dst_desc).ok());
@@ -78,15 +78,15 @@ TEST_F(OpenGlOperationTest, TensorToTensorConverterTest) {
 }
 
 TEST_F(OpenGlOperationTest, TensorToBHWCBufferConverterTest) {
-  for (auto src_type : {DataType::FLOAT32, DataType::FLOAT16}) {
+  for (auto src_type : {DataType::kFloat32, DataType::kFloat16}) {
     for (auto src_storage : exec_env_.GetSupportedStorages(src_type)) {
-      for (auto dst_type : {DataType::FLOAT32}) {
-        TensorDescriptor src_desc(src_type, src_storage, Layout::HWC);
+      for (auto dst_type : {DataType::kFloat32}) {
+        TensorDescriptor src_desc(src_type, src_storage, Layout::kHWC);
 
         BufferDescriptor dst_desc;
         dst_desc.element_type = dst_type;
         dst_desc.element_size = 1;
-        dst_desc.memory_type = MemoryType::GLOBAL;
+        dst_desc.memory_type = MemoryType::kGlobal;
 
         TensorToBHWCBufferConverter converter;
         ASSERT_TRUE(
@@ -119,15 +119,15 @@ TEST_F(OpenGlOperationTest, TensorToBHWCBufferConverterTest) {
 }
 
 TEST_F(OpenGlOperationTest, BHWCBufferToTensorConverterTest) {
-  for (auto src_type : {DataType::FLOAT32}) {
-    for (auto dst_type : {DataType::FLOAT32, DataType::FLOAT16}) {
+  for (auto src_type : {DataType::kFloat32}) {
+    for (auto dst_type : {DataType::kFloat32, DataType::kFloat16}) {
       for (auto dst_storage : exec_env_.GetSupportedStorages(src_type)) {
-        TensorDescriptor dst_desc(dst_type, dst_storage, Layout::HWC);
+        TensorDescriptor dst_desc(dst_type, dst_storage, Layout::kHWC);
 
         BufferDescriptor src_desc;
         src_desc.element_type = src_type;
         src_desc.element_size = 1;
-        src_desc.memory_type = MemoryType::GLOBAL;
+        src_desc.memory_type = MemoryType::kGlobal;
 
         BHWCBufferToTensorConverter converter;
         ASSERT_TRUE(

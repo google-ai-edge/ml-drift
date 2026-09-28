@@ -105,7 +105,7 @@ absl::Status TestConvolutionPerformance(const Convolution2DAttributes& attr,
 
   ABSL_RETURN_IF_ERROR(conv->AssembleCode(gpu_info));
 
-  const int float_size = precision == CalculationsPrecision::F32 ? 4 : 2;
+  const int float_size = precision == CalculationsPrecision::kF32 ? 4 : 2;
   const int64_t flops_per_element = w_shape.i * w_shape.h * w_shape.w * 2;
   const int64_t dst_elements = dst.Width() * dst.Height() * dst.Channels();
   const int64_t flops_count = dst_elements * flops_per_element;
@@ -165,7 +165,7 @@ absl::Status ConvolutionPerfTest(CalculationsPrecision precision,
   attr.padding.appended = HW(kernel_size.h / 2, kernel_size.w / 2);
   attr.strides = HW(1, 1);
   attr.dilations = HW(1, 1);
-  auto& attr_weights = attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
+  auto& attr_weights = attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape =
       OHWI(dst_channels, kernel_size.h, kernel_size.w, src_shape.c);
   attr_weights.data.resize(attr_weights.shape.DimensionsProduct() +
@@ -175,8 +175,8 @@ absl::Status ConvolutionPerfTest(CalculationsPrecision precision,
 
   OperationDef op_def;
   auto data_type = DeduceDataTypeFromPrecision(precision);
-  Layout layout = src_shape.b == 1 ? Layout::HWC : Layout::BHWC;
-  auto storage_type = TensorStorageType::TEXTURE_2D;
+  Layout layout = src_shape.b == 1 ? Layout::kHWC : Layout::kBHWC;
+  auto storage_type = TensorStorageType::kTexture2D;
   TensorDescriptor src_tensor_desc{data_type, storage_type, layout};
   ABSL_RETURN_IF_ERROR(
       src_tensor_desc.UpdateToSupportedStorageType(gpu_info, src_shape));
@@ -239,7 +239,7 @@ absl::Status TestDepthwiseConvPerformance(
       dst.Width() * dst.Height() * dst.Slices() * 4;
   const int64_t src_elements_alignedx4 =
       src.Width() * src.Height() * src.Slices() * 4;
-  const int float_size = precision == CalculationsPrecision::F32 ? 4 : 2;
+  const int float_size = precision == CalculationsPrecision::kF32 ? 4 : 2;
   const double dst_gbytes = dst_elements_alignedx4 * float_size / kGByte;
   const double src_gbytes = src_elements_alignedx4 * float_size / kGByte;
   const double weight_gbytes =
@@ -289,7 +289,7 @@ absl::Status DepthwiseConvPerfTest(CalculationsPrecision precision,
   attr.padding.appended = HW(kernel_size.h / 2, kernel_size.w / 2);
   attr.strides = strides;
   attr.dilations = dilation;
-  auto& attr_weights = attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
+  auto& attr_weights = attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(1, kernel_size.h, kernel_size.w, src_shape.c);
   attr_weights.data.resize(attr_weights.shape.DimensionsProduct());
   attr.bias.shape = Linear(src_shape.c);
@@ -297,8 +297,8 @@ absl::Status DepthwiseConvPerfTest(CalculationsPrecision precision,
 
   OperationDef op_def;
   auto data_type = DeduceDataTypeFromPrecision(precision);
-  Layout layout = src_shape.b == 1 ? Layout::HWC : Layout::BHWC;
-  auto storage_type = TensorStorageType::TEXTURE_2D;
+  Layout layout = src_shape.b == 1 ? Layout::kHWC : Layout::kBHWC;
+  auto storage_type = TensorStorageType::kTexture2D;
   TensorDescriptor src_tensor_desc{data_type, storage_type, layout};
   ABSL_RETURN_IF_ERROR(
       src_tensor_desc.UpdateToSupportedStorageType(gpu_info, src_shape));

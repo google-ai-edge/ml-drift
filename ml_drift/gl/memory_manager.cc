@@ -47,8 +47,8 @@ void AddUsage(ValueId id, int task_index,
 // returns true if actual memory for this storage type will be allocated with
 // clCreateBuffer.
 bool IsBufferBased(const TensorStorageType& type) {
-  return type == TensorStorageType::BUFFER ||
-         type == TensorStorageType::IMAGE_BUFFER;
+  return type == TensorStorageType::kBuffer ||
+         type == TensorStorageType::kImageBuffer;
 }
 }  // namespace
 
@@ -154,7 +154,7 @@ absl::Status MemoryManager::AllocateMemoryForBuffers(
 
   ObjectsAssignment<size_t> buffer_assignment;
   ABSL_RETURN_IF_ERROR(AssignObjectsToTensors(
-      buffer_usage_records, MemoryStrategy::GREEDY_BEST, &buffer_assignment));
+      buffer_usage_records, MemoryStrategy::kGreedyBest, &buffer_assignment));
 
   shared_buffers_.resize(buffer_assignment.object_sizes.size());
   for (int i = 0; i < buffer_assignment.object_sizes.size(); ++i) {
@@ -196,7 +196,7 @@ absl::Status MemoryManager::AllocateMemoryForTextures(
 
   ObjectsAssignment<TensorDescComparator> assignment;
   ABSL_RETURN_IF_ERROR(AssignObjectsToTensors(
-      usage_records, MemoryStrategy::EQUALITY, &assignment));
+      usage_records, MemoryStrategy::kEquality, &assignment));
 
   shared_texture_tensors_.resize(assignment.object_sizes.size());
   for (int i = 0; i < assignment.object_sizes.size(); ++i) {

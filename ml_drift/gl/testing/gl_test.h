@@ -62,18 +62,18 @@ class GlExecutionEnvironment : public ml_drift::TestExecutionEnvironment {
   }
 
   std::vector<ml_drift::DataType> GetSupportedDataTypes() const override {
-    return {ml_drift::DataType::FLOAT32, ml_drift::DataType::FLOAT16};
+    return {ml_drift::DataType::kFloat32, ml_drift::DataType::kFloat16};
   }
 
   std::vector<ml_drift::TensorStorageType> GetSupportedStorages(
       ml_drift::DataType data_type) const override {
     std::vector<ml_drift::TensorStorageType> storages = {
-        ml_drift::TensorStorageType::TEXTURE_2D,
-        ml_drift::TensorStorageType::BUFFER,
-        ml_drift::TensorStorageType::TEXTURE_ARRAY,
-        ml_drift::TensorStorageType::TEXTURE_3D};
+        ml_drift::TensorStorageType::kTexture2D,
+        ml_drift::TensorStorageType::kBuffer,
+        ml_drift::TensorStorageType::kTextureArray,
+        ml_drift::TensorStorageType::kTexture3D};
     if (gpu_info_.opengl_info.IsApiOpenGl32OrAbove()) {
-      storages.push_back(ml_drift::TensorStorageType::IMAGE_BUFFER);
+      storages.push_back(ml_drift::TensorStorageType::kImageBuffer);
     }
     return storages;
   }

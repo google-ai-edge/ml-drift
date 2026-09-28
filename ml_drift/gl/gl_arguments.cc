@@ -98,7 +98,7 @@ absl::Status CreateGlObject(ml_drift::GPUObjectDescriptor* desc,
 }
 
 std::string DataTypeToGLType(ml_drift::DataType data_type, int vec_size) {
-  if (data_type == ml_drift::DataType::FLOAT32) {
+  if (data_type == ml_drift::DataType::kFloat32) {
     if (vec_size == 1) {
       return "float";
     } else if (vec_size == 2) {
@@ -110,7 +110,7 @@ std::string DataTypeToGLType(ml_drift::DataType data_type, int vec_size) {
     } else if (vec_size == 16) {
       return "mat4x4";
     }
-  } else if (data_type == ml_drift::DataType::FLOAT16) {
+  } else if (data_type == ml_drift::DataType::kFloat16) {
     if (vec_size == 2) {
       return "uint";
     } else if (vec_size == 4) {
@@ -120,7 +120,7 @@ std::string DataTypeToGLType(ml_drift::DataType data_type, int vec_size) {
     } else if (vec_size == 16) {
       return "uvec8";
     }
-  } else if (data_type == ml_drift::DataType::INT32) {
+  } else if (data_type == ml_drift::DataType::kInt32) {
     if (vec_size == 1) {
       return "int";
     } else if (vec_size == 2) {
@@ -128,7 +128,7 @@ std::string DataTypeToGLType(ml_drift::DataType data_type, int vec_size) {
     } else if (vec_size == 4) {
       return "ivec4";
     }
-  } else if (data_type == ml_drift::DataType::INT16) {
+  } else if (data_type == ml_drift::DataType::kInt16) {
     if (vec_size == 1) {
       return "no_type";
     } else if (vec_size == 2) {
@@ -136,7 +136,7 @@ std::string DataTypeToGLType(ml_drift::DataType data_type, int vec_size) {
     } else if (vec_size == 4) {
       return "ivec2";
     }
-  } else if (data_type == ml_drift::DataType::INT8) {
+  } else if (data_type == ml_drift::DataType::kInt8) {
     if (vec_size == 1) {
       return "no_type";
     } else if (vec_size == 2) {
@@ -144,7 +144,7 @@ std::string DataTypeToGLType(ml_drift::DataType data_type, int vec_size) {
     } else if (vec_size == 4) {
       return "int";
     }
-  } else if (data_type == ml_drift::DataType::UINT32) {
+  } else if (data_type == ml_drift::DataType::kUint32) {
     if (vec_size == 1) {
       return "uint";
     } else if (vec_size == 2) {
@@ -152,8 +152,8 @@ std::string DataTypeToGLType(ml_drift::DataType data_type, int vec_size) {
     } else if (vec_size == 4) {
       return "uvec4";
     }
-  } else if (data_type == ml_drift::DataType::UINT16 ||
-             data_type == ml_drift::DataType::BFLOAT16) {
+  } else if (data_type == ml_drift::DataType::kUint16 ||
+             data_type == ml_drift::DataType::kBfloat16) {
     if (vec_size == 1) {
       return "no_type";
     } else if (vec_size == 2) {
@@ -161,7 +161,7 @@ std::string DataTypeToGLType(ml_drift::DataType data_type, int vec_size) {
     } else if (vec_size == 4) {
       return "uvec2";
     }
-  } else if (data_type == ml_drift::DataType::UINT8) {
+  } else if (data_type == ml_drift::DataType::kUint8) {
     if (vec_size == 1) {
       return "no_type";
     } else if (vec_size == 2) {
@@ -169,7 +169,7 @@ std::string DataTypeToGLType(ml_drift::DataType data_type, int vec_size) {
     } else if (vec_size == 4) {
       return "uint";
     }
-  } else if (data_type == ml_drift::DataType::BOOL) {
+  } else if (data_type == ml_drift::DataType::kBool) {
     if (vec_size == 1) {
       return "no_type";
     } else if (vec_size == 2) {
@@ -182,15 +182,15 @@ std::string DataTypeToGLType(ml_drift::DataType data_type, int vec_size) {
 }
 
 std::string GetTypePrefix(ml_drift::DataType data_type) {
-  if (data_type == ml_drift::DataType::INT32 ||
-      data_type == ml_drift::DataType::INT16 ||
-      data_type == ml_drift::DataType::INT8) {
+  if (data_type == ml_drift::DataType::kInt32 ||
+      data_type == ml_drift::DataType::kInt16 ||
+      data_type == ml_drift::DataType::kInt8) {
     return "i";
-  } else if (data_type == ml_drift::DataType::UINT32 ||
-             data_type == ml_drift::DataType::BFLOAT16 ||
-             data_type == ml_drift::DataType::UINT16 ||
-             data_type == ml_drift::DataType::UINT8 ||
-             data_type == ml_drift::DataType::BOOL) {
+  } else if (data_type == ml_drift::DataType::kUint32 ||
+             data_type == ml_drift::DataType::kBfloat16 ||
+             data_type == ml_drift::DataType::kUint16 ||
+             data_type == ml_drift::DataType::kUint8 ||
+             data_type == ml_drift::DataType::kBool) {
     return "u";
   } else {
     return "";
@@ -198,18 +198,18 @@ std::string GetTypePrefix(ml_drift::DataType data_type) {
 }
 
 std::string GetPrecisionModifier(ml_drift::DataType data_type) {
-  if (data_type == ml_drift::DataType::INT32 ||
-      data_type == ml_drift::DataType::UINT32 ||
-      data_type == ml_drift::DataType::FLOAT32) {
+  if (data_type == ml_drift::DataType::kInt32 ||
+      data_type == ml_drift::DataType::kUint32 ||
+      data_type == ml_drift::DataType::kFloat32) {
     return "highp";
-  } else if (data_type == ml_drift::DataType::BFLOAT16 ||
-             data_type == ml_drift::DataType::INT16 ||
-             data_type == ml_drift::DataType::UINT16 ||
-             data_type == ml_drift::DataType::FLOAT16) {
+  } else if (data_type == ml_drift::DataType::kBfloat16 ||
+             data_type == ml_drift::DataType::kInt16 ||
+             data_type == ml_drift::DataType::kUint16 ||
+             data_type == ml_drift::DataType::kFloat16) {
     return "mediump";
-  } else if (data_type == ml_drift::DataType::INT8 ||
-             data_type == ml_drift::DataType::UINT8 ||
-             data_type == ml_drift::DataType::BOOL) {
+  } else if (data_type == ml_drift::DataType::kInt8 ||
+             data_type == ml_drift::DataType::kUint8 ||
+             data_type == ml_drift::DataType::kBool) {
     return "lowp";
   } else {
     return "highp";
@@ -218,24 +218,24 @@ std::string GetPrecisionModifier(ml_drift::DataType data_type) {
 
 std::string GetShaderImageType(ml_drift::DataType data_type) {
   switch (data_type) {
-    case ml_drift::DataType::FLOAT32:
+    case ml_drift::DataType::kFloat32:
       return "rgba32f";
-    case ml_drift::DataType::FLOAT16:
+    case ml_drift::DataType::kFloat16:
       return "rgba16f";
-    case ml_drift::DataType::INT32:
+    case ml_drift::DataType::kInt32:
       return "rgba32i";
-    case ml_drift::DataType::INT16:
+    case ml_drift::DataType::kInt16:
       return "rgba16i";
-    case ml_drift::DataType::INT8:
+    case ml_drift::DataType::kInt8:
       return "rgba8i";
-    case ml_drift::DataType::UINT32:
+    case ml_drift::DataType::kUint32:
       return "rgba32ui";
-    case ml_drift::DataType::BFLOAT16:
-    case ml_drift::DataType::UINT16:
+    case ml_drift::DataType::kBfloat16:
+    case ml_drift::DataType::kUint16:
       return "rgba16ui";
-    case ml_drift::DataType::UINT8:
+    case ml_drift::DataType::kUint8:
       return "rgba8ui";
-    case ml_drift::DataType::BOOL:
+    case ml_drift::DataType::kBool:
       return "rgba8ui";
     default:
       return "unknown";
@@ -471,7 +471,7 @@ std::string GlArguments::ToGLSLUniforms() {
   std::string result;
   int image_slot = 0;
   for (auto& t : textures2d_) {
-    if (t.second.desc.access_type == ml_drift::AccessType::WRITE) {
+    if (t.second.desc.access_type == ml_drift::AccessType::kWrite) {
       result +=
           "layout(" + GetShaderImageType(t.second.desc.data_type) +
           ", binding = " + std::to_string(image_slot) + ") writeonly uniform " +
@@ -481,7 +481,7 @@ std::string GlArguments::ToGLSLUniforms() {
     }
   }
   for (auto& t : texture2d_arrays_) {
-    if (t.second.desc.access_type == ml_drift::AccessType::WRITE) {
+    if (t.second.desc.access_type == ml_drift::AccessType::kWrite) {
       result += "layout(" + GetShaderImageType(t.second.desc.data_type) +
                 ", binding = " + std::to_string(image_slot) +
                 ") writeonly uniform " +
@@ -492,7 +492,7 @@ std::string GlArguments::ToGLSLUniforms() {
     }
   }
   for (auto& t : images3d_) {
-    if (t.second.desc.access_type == ml_drift::AccessType::WRITE) {
+    if (t.second.desc.access_type == ml_drift::AccessType::kWrite) {
       result +=
           "layout(" + GetShaderImageType(t.second.desc.data_type) +
           ", binding = " + std::to_string(image_slot) + ") writeonly uniform " +
@@ -503,12 +503,12 @@ std::string GlArguments::ToGLSLUniforms() {
   }
   int ssbo_slot = 0;
   for (auto& b : buffers_) {
-    if (b.second.desc.memory_type == ml_drift::MemoryType::CONSTANT) {
+    if (b.second.desc.memory_type == ml_drift::MemoryType::kConstant) {
       result += "layout(std140) uniform " + b.first + "_ubo {\n";
-      if (b.second.desc.data_type == ml_drift::DataType::FLOAT32) {
+      if (b.second.desc.data_type == ml_drift::DataType::kFloat32) {
         result +=
             "  vec4 " + b.first + "[" + b.second.desc.attributes[0] + "];\n";
-      } else if (b.second.desc.data_type == ml_drift::DataType::FLOAT16) {
+      } else if (b.second.desc.data_type == ml_drift::DataType::kFloat16) {
         const int elements_count = std::stoi(b.second.desc.attributes[0]);
         result += "  uvec4 " + b.first + "[" +
                   std::to_string(ml_drift::DivideRoundUp(elements_count, 2)) +
@@ -526,28 +526,28 @@ std::string GlArguments::ToGLSLUniforms() {
     }
   }
   for (auto& t : textures2d_) {
-    if (t.second.desc.access_type == ml_drift::AccessType::READ) {
+    if (t.second.desc.access_type == ml_drift::AccessType::kRead) {
       result += "uniform " + GetPrecisionModifier(t.second.desc.data_type) +
                 " " + GetTypePrefix(t.second.desc.data_type) + "sampler2D " +
                 t.first + ";\n";
     }
   }
   for (auto& t : texture2d_arrays_) {
-    if (t.second.desc.access_type == ml_drift::AccessType::READ) {
+    if (t.second.desc.access_type == ml_drift::AccessType::kRead) {
       result += "uniform " + GetPrecisionModifier(t.second.desc.data_type) +
                 " " + GetTypePrefix(t.second.desc.data_type) +
                 "sampler2DArray " + t.first + ";\n";
     }
   }
   for (auto& t : images3d_) {
-    if (t.second.desc.access_type == ml_drift::AccessType::READ) {
+    if (t.second.desc.access_type == ml_drift::AccessType::kRead) {
       result += "uniform " + GetPrecisionModifier(t.second.desc.data_type) +
                 " " + GetTypePrefix(t.second.desc.data_type) + "sampler3D " +
                 t.first + ";\n";
     }
   }
   for (auto& t : image_buffers_) {
-    if (t.second.desc.access_type == ml_drift::AccessType::READ) {
+    if (t.second.desc.access_type == ml_drift::AccessType::kRead) {
       result += "uniform " + GetPrecisionModifier(t.second.desc.data_type) +
                 " " + GetTypePrefix(t.second.desc.data_type) +
                 "samplerBuffer " + t.first + ";\n";
@@ -572,7 +572,7 @@ std::string GlArguments::ToGLSLUniforms() {
 void GlArguments::GetLocations(GLuint pipeline) {
   int ubo_slot = 0;
   for (auto& b : buffers_) {
-    if (b.second.desc.memory_type == ml_drift::MemoryType::CONSTANT) {
+    if (b.second.desc.memory_type == ml_drift::MemoryType::kConstant) {
       GLuint loc = glGetUniformBlockIndex(pipeline, (b.first + "_ubo").c_str());
       glUniformBlockBinding(pipeline, loc, ubo_slot);
       ubo_slots_[b.first] = ubo_slot++;
@@ -580,28 +580,28 @@ void GlArguments::GetLocations(GLuint pipeline) {
   }
   int slot = 0;
   for (auto& t : textures2d_) {
-    if (t.second.desc.access_type == ml_drift::AccessType::READ) {
+    if (t.second.desc.access_type == ml_drift::AccessType::kRead) {
       GLuint loc = glGetUniformLocation(pipeline, t.first.c_str());
       glUniform1i(loc, slot);
       texture_slots_[t.first] = slot++;
     }
   }
   for (auto& t : texture2d_arrays_) {
-    if (t.second.desc.access_type == ml_drift::AccessType::READ) {
+    if (t.second.desc.access_type == ml_drift::AccessType::kRead) {
       GLuint loc = glGetUniformLocation(pipeline, t.first.c_str());
       glUniform1i(loc, slot);
       texture_slots_[t.first] = slot++;
     }
   }
   for (auto& t : images3d_) {
-    if (t.second.desc.access_type == ml_drift::AccessType::READ) {
+    if (t.second.desc.access_type == ml_drift::AccessType::kRead) {
       GLuint loc = glGetUniformLocation(pipeline, t.first.c_str());
       glUniform1i(loc, slot);
       texture_slots_[t.first] = slot++;
     }
   }
   for (auto& t : image_buffers_) {
-    if (t.second.desc.access_type == ml_drift::AccessType::READ) {
+    if (t.second.desc.access_type == ml_drift::AccessType::kRead) {
       GLuint loc = glGetUniformLocation(pipeline, t.first.c_str());
       glUniform1i(loc, slot);
       texture_slots_[t.first] = slot++;
@@ -620,7 +620,7 @@ void GlArguments::GetLocations(GLuint pipeline) {
 
 void GlArguments::Bind() {
   for (auto& b : buffers_) {
-    if (b.second.desc.memory_type == ml_drift::MemoryType::CONSTANT) {
+    if (b.second.desc.memory_type == ml_drift::MemoryType::kConstant) {
       glBindBufferBase(GL_UNIFORM_BUFFER, ubo_slots_[b.first], b.second.id);
     } else {
       glBindBufferBase(GL_SHADER_STORAGE_BUFFER, ssbo_slots_[b.first],
@@ -628,10 +628,10 @@ void GlArguments::Bind() {
     }
   }
   for (auto& t : textures2d_) {
-    if (t.second.desc.access_type == ml_drift::AccessType::READ) {
+    if (t.second.desc.access_type == ml_drift::AccessType::kRead) {
       glActiveTexture(GL_TEXTURE0 + texture_slots_[t.first]);
       glBindTexture(GL_TEXTURE_2D, t.second.id);
-    } else if (t.second.desc.access_type == ml_drift::AccessType::WRITE) {
+    } else if (t.second.desc.access_type == ml_drift::AccessType::kWrite) {
       GLenum format =
           ml_drift::gl::ToTextureInternalFormat(t.second.desc.data_type);
       glBindImageTexture(image_slots_[t.first], t.second.id, 0, GL_FALSE, 0,
@@ -639,10 +639,10 @@ void GlArguments::Bind() {
     }
   }
   for (auto& t : texture2d_arrays_) {
-    if (t.second.desc.access_type == ml_drift::AccessType::READ) {
+    if (t.second.desc.access_type == ml_drift::AccessType::kRead) {
       glActiveTexture(GL_TEXTURE0 + texture_slots_[t.first]);
       glBindTexture(GL_TEXTURE_2D_ARRAY, t.second.id);
-    } else if (t.second.desc.access_type == ml_drift::AccessType::WRITE) {
+    } else if (t.second.desc.access_type == ml_drift::AccessType::kWrite) {
       GLenum format =
           ml_drift::gl::ToTextureInternalFormat(t.second.desc.data_type);
       glBindImageTexture(image_slots_[t.first], t.second.id, 0, GL_TRUE, 0,
@@ -650,10 +650,10 @@ void GlArguments::Bind() {
     }
   }
   for (auto& t : images3d_) {
-    if (t.second.desc.access_type == ml_drift::AccessType::READ) {
+    if (t.second.desc.access_type == ml_drift::AccessType::kRead) {
       glActiveTexture(GL_TEXTURE0 + texture_slots_[t.first]);
       glBindTexture(GL_TEXTURE_3D, t.second.id);
-    } else if (t.second.desc.access_type == ml_drift::AccessType::WRITE) {
+    } else if (t.second.desc.access_type == ml_drift::AccessType::kWrite) {
       GLenum format =
           ml_drift::gl::ToTextureInternalFormat(t.second.desc.data_type);
       glBindImageTexture(image_slots_[t.first], t.second.id, 0, GL_TRUE, 0,
@@ -661,19 +661,19 @@ void GlArguments::Bind() {
     }
   }
   for (auto& t : image_buffers_) {
-    if (t.second.desc.access_type == ml_drift::AccessType::READ) {
+    if (t.second.desc.access_type == ml_drift::AccessType::kRead) {
       glActiveTexture(GL_TEXTURE0 + texture_slots_[t.first]);
       glBindTexture(GL_TEXTURE_BUFFER, t.second.id);
     }
   }
   for (auto& t : images3d_) {
-    if (t.second.desc.access_type == ml_drift::AccessType::READ) {
+    if (t.second.desc.access_type == ml_drift::AccessType::kRead) {
       glActiveTexture(GL_TEXTURE0 + texture_slots_[t.first]);
       glBindTexture(GL_TEXTURE_3D, t.second.id);
     }
   }
   for (auto& t : image_buffers_) {
-    if (t.second.desc.access_type == ml_drift::AccessType::READ) {
+    if (t.second.desc.access_type == ml_drift::AccessType::kRead) {
       glActiveTexture(GL_TEXTURE0 + texture_slots_[t.first]);
       glBindTexture(GL_TEXTURE_BUFFER, t.second.id);
     }

@@ -22,19 +22,19 @@ namespace gl {
 
 GLenum ToTextureFormat(DataType type, bool normalized) {
   switch (type) {
-    case DataType::INT8:
-    case DataType::UINT8:
+    case DataType::kInt8:
+    case DataType::kUint8:
       return normalized ? GL_RGBA : GL_RGBA_INTEGER;
-    case DataType::BOOL:
+    case DataType::kBool:
       return GL_RGBA_INTEGER;
-    case DataType::BFLOAT16:
-    case DataType::UINT16:
-    case DataType::UINT32:
-    case DataType::INT16:
-    case DataType::INT32:
+    case DataType::kBfloat16:
+    case DataType::kUint16:
+    case DataType::kUint32:
+    case DataType::kInt16:
+    case DataType::kInt32:
       return GL_RGBA_INTEGER;
-    case DataType::FLOAT16:
-    case DataType::FLOAT32:
+    case DataType::kFloat16:
+    case DataType::kFloat32:
       return GL_RGBA;
     default:
       return 0;
@@ -43,24 +43,24 @@ GLenum ToTextureFormat(DataType type, bool normalized) {
 
 GLenum ToTextureInternalFormat(DataType type, bool normalized) {
   switch (type) {
-    case DataType::UINT8:
+    case DataType::kUint8:
       return normalized ? GL_RGBA8 : GL_RGBA8UI;
-    case DataType::BOOL:
+    case DataType::kBool:
       return GL_RGBA8UI;
-    case DataType::INT8:
+    case DataType::kInt8:
       return normalized ? GL_RGBA8_SNORM : GL_RGBA8I;
-    case DataType::BFLOAT16:
-    case DataType::UINT16:
+    case DataType::kBfloat16:
+    case DataType::kUint16:
       return GL_RGBA16UI;
-    case DataType::UINT32:
+    case DataType::kUint32:
       return GL_RGBA32UI;
-    case DataType::INT16:
+    case DataType::kInt16:
       return GL_RGBA16I;
-    case DataType::INT32:
+    case DataType::kInt32:
       return GL_RGBA32I;
-    case DataType::FLOAT16:
+    case DataType::kFloat16:
       return GL_RGBA16F;
-    case DataType::FLOAT32:
+    case DataType::kFloat32:
       return GL_RGBA32F;
     default:
       return 0;
@@ -69,24 +69,24 @@ GLenum ToTextureInternalFormat(DataType type, bool normalized) {
 
 GLenum ToTextureDataType(DataType type) {
   switch (type) {
-    case DataType::UINT8:
+    case DataType::kUint8:
       return GL_UNSIGNED_BYTE;
-    case DataType::BOOL:
+    case DataType::kBool:
       return GL_UNSIGNED_BYTE;
-    case DataType::INT8:
+    case DataType::kInt8:
       return GL_BYTE;
-    case DataType::BFLOAT16:
-    case DataType::UINT16:
+    case DataType::kBfloat16:
+    case DataType::kUint16:
       return GL_UNSIGNED_SHORT;
-    case DataType::UINT32:
+    case DataType::kUint32:
       return GL_UNSIGNED_INT;
-    case DataType::INT16:
+    case DataType::kInt16:
       return GL_SHORT;
-    case DataType::INT32:
+    case DataType::kInt32:
       return GL_INT;
-    case DataType::FLOAT16:
+    case DataType::kFloat16:
       return GL_HALF_FLOAT;
-    case DataType::FLOAT32:
+    case DataType::kFloat32:
       return GL_FLOAT;
     default:
       return 0;

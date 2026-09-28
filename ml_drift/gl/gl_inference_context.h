@@ -77,7 +77,7 @@ class GlInferenceContext {
   absl::Status SetInputTensor(ValueId id, const TensorFloat32& tensor);
 
   absl::Status SetInputTensor(ValueId id,
-                              const Tensor<BHWC, DataType::INT32>& tensor);
+                              const Tensor<BHWC, DataType::kInt32>& tensor);
 
   // It will work only with input/output tensor ids. For all other ids we don't
   // have any guarantees.

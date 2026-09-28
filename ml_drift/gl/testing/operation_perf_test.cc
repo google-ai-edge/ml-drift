@@ -23,7 +23,7 @@ namespace ml_drift {
 namespace gl {
 
 TEST(OpenGlOperationTest, Performance) {
-  ABSL_ASSERT_OK(ConvolutionPerfTest(CalculationsPrecision::F16,
+  ABSL_ASSERT_OK(ConvolutionPerfTest(CalculationsPrecision::kF16,
                                 BHWC(1, 32, 32, 1024), 1024, HW(1, 1)));
   // ABSL_ASSERT_OK(DepthwiseConvPerfTest(BHWC(1, 16, 16, 768), HW(5, 5)));
 }

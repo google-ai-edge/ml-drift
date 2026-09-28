@@ -90,7 +90,7 @@ void GlBuffer::CreateFromBufferDescriptor(
   uint8_t* data_ptr =
       desc.data.empty() ? nullptr : const_cast<uint8_t*>(desc.data.data());
 
-  buffer_type_ = desc.memory_type == ml_drift::MemoryType::CONSTANT
+  buffer_type_ = desc.memory_type == ml_drift::MemoryType::kConstant
                      ? GL_UNIFORM_BUFFER
                      : GL_SHADER_STORAGE_BUFFER;
   glGenBuffers(1, &buffer_id_);

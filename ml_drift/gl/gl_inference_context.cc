@@ -298,17 +298,17 @@ void GlInferenceContext::InitBarriers() {
   in_barrier_ = 0;
   for (auto id : input_ids_) {
     const auto storage_type = GetTensor(id)->GetDescriptor().GetStorageType();
-    if (storage_type == TensorStorageType::BUFFER) {
+    if (storage_type == TensorStorageType::kBuffer) {
       in_barrier_ = in_barrier_ | GL_SHADER_STORAGE_BARRIER_BIT;
       if (add_texture_fetch_barrier_for_buffer_) {
         in_barrier_ = in_barrier_ | GL_TEXTURE_FETCH_BARRIER_BIT;
       }
-    } else if (storage_type == TensorStorageType::TEXTURE_2D ||
-               storage_type == TensorStorageType::TEXTURE_3D ||
-               storage_type == TensorStorageType::TEXTURE_ARRAY) {
+    } else if (storage_type == TensorStorageType::kTexture2D ||
+               storage_type == TensorStorageType::kTexture3D ||
+               storage_type == TensorStorageType::kTextureArray) {
       in_barrier_ = in_barrier_ | GL_TEXTURE_FETCH_BARRIER_BIT;
       in_barrier_ = in_barrier_ | GL_SHADER_IMAGE_ACCESS_BARRIER_BIT;
-    } else if (storage_type == TensorStorageType::IMAGE_BUFFER) {
+    } else if (storage_type == TensorStorageType::kImageBuffer) {
       in_barrier_ = in_barrier_ | GL_SHADER_STORAGE_BARRIER_BIT;
       in_barrier_ = in_barrier_ | GL_TEXTURE_FETCH_BARRIER_BIT;
       in_barrier_ = in_barrier_ | GL_SHADER_IMAGE_ACCESS_BARRIER_BIT;
@@ -320,17 +320,17 @@ void GlInferenceContext::InitBarriers() {
     barriers_[i] = 0;
     for (auto id : nodes_[i].outputs) {
       const auto storage_type = GetTensor(id)->GetDescriptor().GetStorageType();
-      if (storage_type == TensorStorageType::BUFFER) {
+      if (storage_type == TensorStorageType::kBuffer) {
         barriers_[i] = barriers_[i] | GL_SHADER_STORAGE_BARRIER_BIT;
         if (add_texture_fetch_barrier_for_buffer_) {
           barriers_[i] = barriers_[i] | GL_TEXTURE_FETCH_BARRIER_BIT;
         }
-      } else if (storage_type == TensorStorageType::TEXTURE_2D ||
-                 storage_type == TensorStorageType::TEXTURE_3D ||
-                 storage_type == TensorStorageType::TEXTURE_ARRAY) {
+      } else if (storage_type == TensorStorageType::kTexture2D ||
+                 storage_type == TensorStorageType::kTexture3D ||
+                 storage_type == TensorStorageType::kTextureArray) {
         barriers_[i] = barriers_[i] | GL_TEXTURE_FETCH_BARRIER_BIT;
         barriers_[i] = barriers_[i] | GL_SHADER_IMAGE_ACCESS_BARRIER_BIT;
-      } else if (storage_type == TensorStorageType::IMAGE_BUFFER) {
+      } else if (storage_type == TensorStorageType::kImageBuffer) {
         barriers_[i] = barriers_[i] | GL_SHADER_STORAGE_BARRIER_BIT;
         barriers_[i] = barriers_[i] | GL_TEXTURE_FETCH_BARRIER_BIT;
         barriers_[i] = barriers_[i] | GL_SHADER_IMAGE_ACCESS_BARRIER_BIT;
@@ -452,7 +452,7 @@ absl::Status GlInferenceContext::SetInputTensor(ValueId id,
 }
 
 absl::Status GlInferenceContext::SetInputTensor(
-    ValueId id, const Tensor<BHWC, DataType::INT32>& tensor) {
+    ValueId id, const Tensor<BHWC, DataType::kInt32>& tensor) {
   GlSpatialTensor* gpu_tensor = GetTensor(id);
   TensorDescriptor descriptor_with_data = gpu_tensor->GetDescriptor();
   descriptor_with_data.UploadData(tensor);
@@ -489,9 +489,9 @@ absl::Status GlInferenceContext::GetOutputTensor(ValueId id,
 
 TensorStorageType GetFastestStorageType(const GpuInfo& gpu_info) {
   if (gpu_info.IsMali()) {
-    return TensorStorageType::BUFFER;
+    return TensorStorageType::kBuffer;
   } else {
-    return TensorStorageType::TEXTURE_2D;
+    return TensorStorageType::kTexture2D;
   }
 }
 

@@ -16,16 +16,18 @@
 
 #include <cstdint>
 #include <cstring>
-#include <memory>
 #include <utility>
 #include <vector>
 
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
-#include "absl/strings/str_cat.h"
+#include "ml_drift/common/access_type.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/task/buffer_desc.h"
+#include "ml_drift/common/task/gpu_object_desc.h"
 #include "ml_drift/common/task/tensor_desc.h"
+#include "ml_drift/gl/gl_texture_helper.h"
+#include "ml_drift/gl/gpu_object.h"
 
 namespace ml_drift {
 namespace gl {
@@ -34,8 +36,8 @@ absl::Status AllocateTensorMemory(const ml_drift::TensorDescriptor& descriptor,
                                   const void* data_ptr, GLuint* result) {
   std::vector<uint64_t> storage_dims = descriptor.GetStorageDims();
   switch (descriptor.GetStorageType()) {
-    case ml_drift::TensorStorageType::BUFFER:
-    case ml_drift::TensorStorageType::IMAGE_BUFFER: {
+    case ml_drift::TensorStorageType::kBuffer:
+    case ml_drift::TensorStorageType::kImageBuffer: {
       const size_t data_size = storage_dims[0] * descriptor.GetElementSize() *
                                SizeOf(descriptor.GetDataType());
       GLuint ssbo;
@@ -47,7 +49,7 @@ absl::Status AllocateTensorMemory(const ml_drift::TensorDescriptor& descriptor,
       *result = ssbo;
       return absl::OkStatus();
     }
-    case ml_drift::TensorStorageType::TEXTURE_2D: {
+    case ml_drift::TensorStorageType::kTexture2D: {
       int tex_width = storage_dims[0];
       int tex_height = storage_dims[1];
       GLuint texture;
@@ -72,7 +74,7 @@ absl::Status AllocateTensorMemory(const ml_drift::TensorDescriptor& descriptor,
       *result = texture;
       return absl::OkStatus();
     }
-    case ml_drift::TensorStorageType::TEXTURE_3D: {
+    case ml_drift::TensorStorageType::kTexture3D: {
       int tex_width = storage_dims[0];
       int tex_height = storage_dims[1];
       int tex_depth = storage_dims[2];
@@ -99,7 +101,7 @@ absl::Status AllocateTensorMemory(const ml_drift::TensorDescriptor& descriptor,
       *result = texture;
       return absl::OkStatus();
     }
-    case ml_drift::TensorStorageType::TEXTURE_ARRAY: {
+    case ml_drift::TensorStorageType::kTextureArray: {
       int tex_width = storage_dims[0];
       int tex_height = storage_dims[1];
       int layers = storage_dims[2];
@@ -160,9 +162,9 @@ GlSpatialTensor::GlSpatialTensor(GLuint memory, bool memory_owner,
       memory_owner_(memory_owner),
       descriptor_(descriptor) {
   if (image_buffer_memory &&
-      (descriptor.GetStorageType() == ml_drift::TensorStorageType::TEXTURE_2D ||
+      (descriptor.GetStorageType() == ml_drift::TensorStorageType::kTexture2D ||
        descriptor.GetStorageType() ==
-           ml_drift::TensorStorageType::SINGLE_TEXTURE_2D)) {
+           ml_drift::TensorStorageType::kSingleTexture2D)) {
     buffer_based_ = true;
   }
 }
@@ -196,9 +198,9 @@ void GlSpatialTensor::Release() {
     image_buffer_memory_ = -1;
   }
   if (memory_owner_ && memory_) {
-    if (descriptor_.GetStorageType() == ml_drift::TensorStorageType::BUFFER ||
+    if (descriptor_.GetStorageType() == ml_drift::TensorStorageType::kBuffer ||
         descriptor_.GetStorageType() ==
-            ml_drift::TensorStorageType::IMAGE_BUFFER) {
+            ml_drift::TensorStorageType::kImageBuffer) {
       glDeleteBuffers(1, &memory_);
     } else {
       glDeleteTextures(1, &memory_);
@@ -213,7 +215,7 @@ absl::Status GlSpatialTensor::GetGPUResources(
   const auto* buffer_desc =
       dynamic_cast<const ml_drift::BufferDescriptor*>(obj_ptr);
   if (buffer_desc) {
-    if (descriptor_.GetStorageType() != ml_drift::TensorStorageType::BUFFER) {
+    if (descriptor_.GetStorageType() != ml_drift::TensorStorageType::kBuffer) {
       return absl::InvalidArgumentError(
           "Tensor can be used with BufferDescriptor only with "
           "TensorStorageType::BUFFER.");
@@ -229,23 +231,23 @@ absl::Status GlSpatialTensor::GetGPUResources(
   tensor_desc->GetGpuResources(descriptor_.GetBHWDCShape(),
                                &resources->generic);
 
-  if (descriptor_.GetStorageType() == ml_drift::TensorStorageType::BUFFER) {
+  if (descriptor_.GetStorageType() == ml_drift::TensorStorageType::kBuffer) {
     resources->buffers.push_back({"buffer", memory_});
   } else if (descriptor_.GetStorageType() ==
-                 ml_drift::TensorStorageType::TEXTURE_2D ||
+                 ml_drift::TensorStorageType::kTexture2D ||
              descriptor_.GetStorageType() ==
-                 ml_drift::TensorStorageType::SINGLE_TEXTURE_2D) {
+                 ml_drift::TensorStorageType::kSingleTexture2D) {
     GLuint mem = buffer_based_ ? image_buffer_memory_ : memory_;
     resources->images2d.push_back({"image2d", mem});
   } else if (descriptor_.GetStorageType() ==
-             ml_drift::TensorStorageType::TEXTURE_ARRAY) {
+             ml_drift::TensorStorageType::kTextureArray) {
     resources->image2d_arrays.push_back({"image2d_array", memory_});
   } else if (descriptor_.GetStorageType() ==
-             ml_drift::TensorStorageType::TEXTURE_3D) {
+             ml_drift::TensorStorageType::kTexture3D) {
     resources->images3d.push_back({"image3d", memory_});
   } else if (descriptor_.GetStorageType() ==
-             ml_drift::TensorStorageType::IMAGE_BUFFER) {
-    if (obj_ptr->GetAccess() == ml_drift::AccessType::READ) {
+             ml_drift::TensorStorageType::kImageBuffer) {
+    if (obj_ptr->GetAccess() == ml_drift::AccessType::kRead) {
       resources->image_buffers.push_back(
           {"image_buffer", image_buffer_memory_});
     } else {
@@ -261,7 +263,7 @@ GLuint GlSpatialTensor::GetMemoryPtr() const {
     return image_buffer_memory_;
   } else {
     return descriptor_.GetStorageType() ==
-                   ml_drift::TensorStorageType::IMAGE_BUFFER
+                   ml_drift::TensorStorageType::kImageBuffer
                ? image_buffer_memory_
                : memory_;
   }
@@ -284,7 +286,7 @@ absl::Status GlSpatialTensor::CreateFromDescriptor(
       desc.GetData().empty() ? nullptr : desc.GetData().data();
   ABSL_RETURN_IF_ERROR(AllocateTensorMemory(descriptor_, data_ptr, &memory));
   memory_ = memory;
-  if (desc.GetStorageType() == ml_drift::TensorStorageType::IMAGE_BUFFER) {
+  if (desc.GetStorageType() == ml_drift::TensorStorageType::kImageBuffer) {
     std::vector<uint64_t> storage_dims = descriptor_.GetStorageDims();
     ABSL_RETURN_IF_ERROR(CreateImageBufferFromBuffer(
         memory_, desc.GetDataType(), storage_dims[0], &image_buffer_memory_));
@@ -309,13 +311,13 @@ absl::Status GlSpatialTensor::ToDescriptor(
 absl::Status GlSpatialTensor::WriteData(const uint8_t* ptr) {
   auto region = descriptor_.GetFullTensorRegion();
   switch (descriptor_.GetStorageType()) {
-    case ml_drift::TensorStorageType::BUFFER:
-    case ml_drift::TensorStorageType::IMAGE_BUFFER:
+    case ml_drift::TensorStorageType::kBuffer:
+    case ml_drift::TensorStorageType::kImageBuffer:
       glBindBuffer(GL_SHADER_STORAGE_BUFFER, memory_);
       glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, GetMemorySizeInBytes(), ptr);
       glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
       break;
-    case ml_drift::TensorStorageType::TEXTURE_ARRAY:
+    case ml_drift::TensorStorageType::kTextureArray:
       glBindTexture(GL_TEXTURE_2D_ARRAY, memory_);
       glTexSubImage3D(
           GL_TEXTURE_2D_ARRAY, 0, 0, 0, 0, region.x, region.y, region.z,
@@ -323,7 +325,7 @@ absl::Status GlSpatialTensor::WriteData(const uint8_t* ptr) {
           ml_drift::gl::ToTextureDataType(descriptor_.GetDataType()), ptr);
       glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
       break;
-    case ml_drift::TensorStorageType::TEXTURE_3D:
+    case ml_drift::TensorStorageType::kTexture3D:
       glBindTexture(GL_TEXTURE_3D, memory_);
       glTexSubImage3D(
           GL_TEXTURE_3D, 0, 0, 0, 0, region.x, region.y, region.z,
@@ -331,8 +333,8 @@ absl::Status GlSpatialTensor::WriteData(const uint8_t* ptr) {
           ml_drift::gl::ToTextureDataType(descriptor_.GetDataType()), ptr);
       glBindTexture(GL_TEXTURE_3D, 0);
       break;
-    case ml_drift::TensorStorageType::TEXTURE_2D:
-    case ml_drift::TensorStorageType::SINGLE_TEXTURE_2D: {
+    case ml_drift::TensorStorageType::kTexture2D:
+    case ml_drift::TensorStorageType::kSingleTexture2D: {
       glBindTexture(GL_TEXTURE_2D, memory_);
       glTexSubImage2D(
           GL_TEXTURE_2D, 0, 0, 0, region.x, region.y,
@@ -351,8 +353,8 @@ absl::Status GlSpatialTensor::WriteData(const uint8_t* ptr) {
 absl::Status GlSpatialTensor::ReadData(uint8_t* ptr) const {
   auto region = descriptor_.GetFullTensorRegion();
   switch (descriptor_.GetStorageType()) {
-    case ml_drift::TensorStorageType::BUFFER:
-    case ml_drift::TensorStorageType::IMAGE_BUFFER: {
+    case ml_drift::TensorStorageType::kBuffer:
+    case ml_drift::TensorStorageType::kImageBuffer: {
       glBindBuffer(GL_SHADER_STORAGE_BUFFER, memory_);
       void* mapped_ptr = glMapBufferRange(
           GL_SHADER_STORAGE_BUFFER, 0, GetMemorySizeInBytes(), GL_MAP_READ_BIT);
@@ -361,8 +363,8 @@ absl::Status GlSpatialTensor::ReadData(uint8_t* ptr) const {
       glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
       break;
     }
-    case ml_drift::TensorStorageType::SINGLE_TEXTURE_2D:
-    case ml_drift::TensorStorageType::TEXTURE_2D: {
+    case ml_drift::TensorStorageType::kSingleTexture2D:
+    case ml_drift::TensorStorageType::kTexture2D: {
       GLint draw_fbo_id = 0, read_fbo_id = 0;
       glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &draw_fbo_id);
       glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &read_fbo_id);
@@ -385,8 +387,8 @@ absl::Status GlSpatialTensor::ReadData(uint8_t* ptr) const {
       glBindFramebuffer(GL_READ_FRAMEBUFFER, read_fbo_id);
       break;
     }
-    case ml_drift::TensorStorageType::TEXTURE_3D:
-    case ml_drift::TensorStorageType::TEXTURE_ARRAY: {
+    case ml_drift::TensorStorageType::kTexture3D:
+    case ml_drift::TensorStorageType::kTextureArray: {
       GLint draw_fbo_id = 0, read_fbo_id = 0;
       glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &draw_fbo_id);
       glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &read_fbo_id);
@@ -425,7 +427,7 @@ absl::Status CreateTensor(const ml_drift::TensorDescriptor& descriptor,
   GLuint memory;
   ABSL_RETURN_IF_ERROR(AllocateTensorMemory(descriptor, nullptr, &memory));
   if (descriptor.GetStorageType() ==
-      ml_drift::TensorStorageType::IMAGE_BUFFER) {
+      ml_drift::TensorStorageType::kImageBuffer) {
     std::vector<uint64_t> storage_dims = descriptor.GetStorageDims();
     GLuint image_memory;
     ABSL_RETURN_IF_ERROR(CreateImageBufferFromBuffer(
@@ -442,7 +444,7 @@ absl::Status CreateTensorShared(GLuint memory,
                                 const ml_drift::TensorDescriptor& descriptor,
                                 GlSpatialTensor* result) {
   if (descriptor.GetStorageType() ==
-      ml_drift::TensorStorageType::IMAGE_BUFFER) {
+      ml_drift::TensorStorageType::kImageBuffer) {
     GLuint image_memory;
     std::vector<uint64_t> storage_dims = descriptor.GetStorageDims();
     ABSL_RETURN_IF_ERROR(CreateImageBufferFromBuffer(
