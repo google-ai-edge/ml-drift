@@ -3422,8 +3422,17 @@ absl::StatusOr<GpuModelBuilder::TensorHandle> GpuModelBuilder::BatchedMatMul(
         /*different_weights_for_height=*/true, runtime_check);
   }
 
+  // The dwfh conv kernel (this BMM-as-conv path always uses
+  // different_weights_for_height=true) indexes weights by output row
+  // (0..dst height-1) and broadcasts the right-batch over the dst height,
+  // so the layout's spatial extent (H*W) must be dst_shape.h, not the right
+  // tensor's H*W. The converter derives its source-row divisor from W
+  // (sp % W), which must stay the right tensor's batch, so grow H instead:
+  // H*W = dst_shape.h with W unchanged.
+  OHWI layout_weights_shape = weights_shape;
+  layout_weights_shape.h = DivideRoundUp(dst_shape.h, weights_shape.w);
   std::vector<TensorHandle> conv_weights = WeightsConversion(
-      weights_handle, Layout::HWIO, conv_weights_desc, weights_shape);
+      weights_handle, Layout::HWIO, conv_weights_desc, layout_weights_shape);
 
   gpu_model_.nodes.push_back({});
   auto& conv_node = gpu_model_.nodes.back();
