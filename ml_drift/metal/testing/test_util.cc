@@ -75,10 +75,10 @@ absl::Status MetalExecutionEnvironment::ExecuteGpuOperationInternal(
     gpu_task.Init(std::move(operation));
     ABSL_RETURN_IF_ERROR(gpu_task.Compile(&device_));
     for (int i = 0; i < src_cpu.size(); ++i) {
-      gpu_task.SetSrcTensor(&src[i], i);
+      ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&src[i], i));
     }
     for (int i = 0; i < dst_cpu.size(); ++i) {
-      gpu_task.SetDstTensor(&dst[i], i);
+      ABSL_RETURN_IF_ERROR(gpu_task.SetDstTensor(&dst[i], i));
     }
     ABSL_RETURN_IF_ERROR(gpu_task.UpdateParams());
 

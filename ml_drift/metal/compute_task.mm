@@ -256,30 +256,34 @@ void ComputeTask::Encode(id<MTLComputeCommandEncoder> encoder) {
   [encoder dispatchThreadgroups:groupsCount threadsPerThreadgroup:groupsSize];
 }
 
-void ComputeTask::SetSrcTensor(MetalSpatialTensor* tensor, int index) {
+absl::Status ComputeTask::SetSrcTensor(MetalSpatialTensor* tensor, int index) {
   operation_->SetSrc(tensor, index);
-  auto status = metal_args_.SetObjectRef(
-      operation_->GetSrcTensorsNames()[index], *tensor);
+  ABSL_RETURN_IF_ERROR(metal_args_.SetObjectRef(
+      operation_->GetSrcTensorsNames()[index], *tensor));
   UpdateArgumentBuffer();
+  return absl::OkStatus();
 }
 
-void ComputeTask::SetDstTensor(MetalSpatialTensor* tensor, int index) {
+absl::Status ComputeTask::SetDstTensor(MetalSpatialTensor* tensor, int index) {
   operation_->SetDst(tensor, index);
-  auto status = metal_args_.SetObjectRef(
-      operation_->GetDstTensorsNames()[index], *tensor);
+  ABSL_RETURN_IF_ERROR(metal_args_.SetObjectRef(
+      operation_->GetDstTensorsNames()[index], *tensor));
   UpdateArgumentBuffer();
+  return absl::OkStatus();
 }
 
-void ComputeTask::SetSrcBuffer(Buffer* buffer, int index) {
-  auto status = metal_args_.SetObjectRef(
-      operation_->GetSrcTensorsNames()[index], *buffer);
+absl::Status ComputeTask::SetSrcBuffer(Buffer* buffer, int index) {
+  ABSL_RETURN_IF_ERROR(metal_args_.SetObjectRef(
+      operation_->GetSrcTensorsNames()[index], *buffer));
   UpdateArgumentBuffer();
+  return absl::OkStatus();
 }
 
-void ComputeTask::SetDstBuffer(Buffer* buffer, int index) {
-  auto status = metal_args_.SetObjectRef(
-      operation_->GetDstTensorsNames()[index], *buffer);
+absl::Status ComputeTask::SetDstBuffer(Buffer* buffer, int index) {
+  ABSL_RETURN_IF_ERROR(metal_args_.SetObjectRef(
+      operation_->GetDstTensorsNames()[index], *buffer));
   UpdateArgumentBuffer();
+  return absl::OkStatus();
 }
 
 absl::Status ComputeTask::Tune(TuningType tuning_type, Environment* env) {

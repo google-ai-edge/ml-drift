@@ -41,8 +41,8 @@ absl::Status TensorToBHWCBufferConverter::Init(Environment* env,
 absl::Status TensorToBHWCBufferConverter::Encode(
     id<MTLComputeCommandEncoder> encoder, MetalSpatialTensor* src,
     Buffer* dst) {
-  task_.SetSrcTensor(src, 0);
-  task_.SetDstBuffer(dst, 0);
+  ABSL_RETURN_IF_ERROR(task_.SetSrcTensor(src, 0));
+  ABSL_RETURN_IF_ERROR(task_.SetDstBuffer(dst, 0));
   ABSL_RETURN_IF_ERROR(task_.UpdateParams());
   task_.Encode(encoder);
   return absl::OkStatus();
@@ -74,8 +74,8 @@ absl::Status BHWCBufferToTensorConverter::Init(
 absl::Status BHWCBufferToTensorConverter::Encode(
     id<MTLComputeCommandEncoder> encoder, Buffer* src,
     MetalSpatialTensor* dst) {
-  task_.SetSrcBuffer(src, 0);
-  task_.SetDstTensor(dst, 0);
+  ABSL_RETURN_IF_ERROR(task_.SetSrcBuffer(src, 0));
+  ABSL_RETURN_IF_ERROR(task_.SetDstTensor(dst, 0));
   ABSL_RETURN_IF_ERROR(task_.UpdateParams());
   task_.Encode(encoder);
   return absl::OkStatus();

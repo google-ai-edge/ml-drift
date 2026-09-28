@@ -119,8 +119,8 @@ absl::Status TestConvolutionPerformance(const Convolution2DAttributes& attr, con
   ComputeTask gpu_task;
   gpu_task.Init(std::move(conv));
   ABSL_RETURN_IF_ERROR(gpu_task.Compile(&env));
-  gpu_task.SetSrcTensor(&src, 0);
-  gpu_task.SetDstTensor(&dst, 0);
+  ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&src, 0));
+  ABSL_RETURN_IF_ERROR(gpu_task.SetDstTensor(&dst, 0));
   ABSL_RETURN_IF_ERROR(gpu_task.UpdateParams());
 
   id<MTLCommandQueue> command_queue = [env.device() newCommandQueue];
@@ -199,8 +199,8 @@ absl::Status TestConvSoftmaxConvPerformance(const BHWC& dst_shape, int src_ch0, 
   ComputeTask gpu_task;
   gpu_task.Init(std::move(conv));
   ABSL_RETURN_IF_ERROR(gpu_task.Compile(&device));
-  gpu_task.SetSrcTensor(&src, 0);
-  gpu_task.SetDstTensor(&dst, 0);
+  ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&src, 0));
+  ABSL_RETURN_IF_ERROR(gpu_task.SetDstTensor(&dst, 0));
   ABSL_RETURN_IF_ERROR(gpu_task.UpdateParams());
 
   id<MTLCommandQueue> command_queue = [device.device() newCommandQueue];
@@ -268,8 +268,8 @@ absl::Status TestDepthwiseConvPerformance(const DepthwiseConvolution2DAttributes
   ComputeTask gpu_task;
   gpu_task.Init(std::move(conv));
   ABSL_RETURN_IF_ERROR(gpu_task.Compile(&env));
-  gpu_task.SetSrcTensor(&src, 0);
-  gpu_task.SetDstTensor(&dst, 0);
+  ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&src, 0));
+  ABSL_RETURN_IF_ERROR(gpu_task.SetDstTensor(&dst, 0));
   ABSL_RETURN_IF_ERROR(gpu_task.UpdateParams());
 
   id<MTLCommandQueue> command_queue = [env.device() newCommandQueue];
@@ -416,14 +416,14 @@ absl::Status ConvolutionInt8PerfTest(const BHWC& src_shape, int dst_channels) {
   ComputeTask gpu_task;
   gpu_task.Init(std::move(conv));
   ABSL_RETURN_IF_ERROR(gpu_task.Compile(&env));
-  gpu_task.SetSrcTensor(&src, 0);
+  ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&src, 0));
   if (dequantize) {
-    gpu_task.SetSrcTensor(&src_params_tensor, 1);
-    gpu_task.SetSrcTensor(&weights_sum_i_tensor, 2);
-    gpu_task.SetSrcTensor(&weights_scale_tensor, 3);
-    gpu_task.SetSrcTensor(&weights_zero_point_tensor, 4);
+    ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&src_params_tensor, 1));
+    ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&weights_sum_i_tensor, 2));
+    ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&weights_scale_tensor, 3));
+    ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&weights_zero_point_tensor, 4));
   }
-  gpu_task.SetDstTensor(&dst, 0);
+  ABSL_RETURN_IF_ERROR(gpu_task.SetDstTensor(&dst, 0));
   ABSL_RETURN_IF_ERROR(gpu_task.UpdateParams());
 
   id<MTLCommandQueue> command_queue = [env.device() newCommandQueue];
@@ -549,13 +549,13 @@ absl::Status ConvolutionSf16Wi4BatchedPerfTest(const BHWC& src_shape, int dst_ch
   ComputeTask gpu_task;
   gpu_task.Init(std::move(conv));
   ABSL_RETURN_IF_ERROR(gpu_task.Compile(&env));
-  gpu_task.SetSrcTensor(&src, 0);
-  gpu_task.SetSrcTensor(&weights_i4_tensor, 1);
-  gpu_task.SetSrcTensor(&weights_scale_tensor, 2);
+  ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&src, 0));
+  ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&weights_i4_tensor, 1));
+  ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&weights_scale_tensor, 2));
   if (use_zero_point) {
-    gpu_task.SetSrcTensor(&weights_zero_point_tensor, 3);
+    ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&weights_zero_point_tensor, 3));
   }
-  gpu_task.SetDstTensor(&dst, 0);
+  ABSL_RETURN_IF_ERROR(gpu_task.SetDstTensor(&dst, 0));
   ABSL_RETURN_IF_ERROR(gpu_task.UpdateParams());
 
   id<MTLCommandQueue> command_queue = [env.device() newCommandQueue];
@@ -696,15 +696,15 @@ absl::Status ConvolutionSi8Wi4PerfTest(const BHWC& src_shape, int dst_channels) 
   ComputeTask gpu_task;
   gpu_task.Init(std::move(conv));
   ABSL_RETURN_IF_ERROR(gpu_task.Compile(&env));
-  gpu_task.SetSrcTensor(&src, 0);
-  gpu_task.SetSrcTensor(&weights_i4_tensor, 1);
+  ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&src, 0));
+  ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&weights_i4_tensor, 1));
   if (dequantize) {
-    gpu_task.SetSrcTensor(&src_params_tensor, 2);
-    gpu_task.SetSrcTensor(&weights_sum_i_tensor, 3);
-    gpu_task.SetSrcTensor(&weights_scale_tensor, 4);
-    gpu_task.SetSrcTensor(&weights_zero_point_tensor, 5);
+    ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&src_params_tensor, 2));
+    ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&weights_sum_i_tensor, 3));
+    ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&weights_scale_tensor, 4));
+    ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&weights_zero_point_tensor, 5));
   }
-  gpu_task.SetDstTensor(&dst, 0);
+  ABSL_RETURN_IF_ERROR(gpu_task.SetDstTensor(&dst, 0));
   ABSL_RETURN_IF_ERROR(gpu_task.UpdateParams());
 
   id<MTLCommandQueue> command_queue = [env.device() newCommandQueue];
@@ -876,16 +876,16 @@ absl::Status ConvMoEPerfTest(int seq_size, int src_channels, int dst_channels, i
   gpu_task.Init(std::move(conv));
   ABSL_RETURN_IF_ERROR(gpu_task.Compile(&env));
   int index = 0;
-  gpu_task.SetSrcTensor(&src, index++);
+  ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&src, index++));
   for (int i = 0; i < weights_tensors.size(); ++i) {
-    gpu_task.SetSrcTensor(&weights_tensors[i], index++);
+    ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&weights_tensors[i], index++));
   }
   if (is_quantized) {
-    gpu_task.SetSrcTensor(&scale_tensor, index++);
-    gpu_task.SetSrcTensor(&zp_tensor, index++);
+    ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&scale_tensor, index++));
+    ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&zp_tensor, index++));
   }
-  gpu_task.SetSrcTensor(&runtime_params, index++);
-  gpu_task.SetDstTensor(&dst, 0);
+  ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&runtime_params, index++));
+  ABSL_RETURN_IF_ERROR(gpu_task.SetDstTensor(&dst, 0));
   ABSL_RETURN_IF_ERROR(gpu_task.UpdateParams());
 
   id<MTLCommandQueue> command_queue = [env.device() newCommandQueue];
@@ -1132,17 +1132,17 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision, DataTy
     gpu_kernel.Init(std::move(conv));
     ABSL_RETURN_IF_ERROR(gpu_kernel.Compile(&env));
     int index = 0;
-    gpu_kernel.SetSrcTensor(&src, index++);
+    ABSL_RETURN_IF_ERROR(gpu_kernel.SetSrcTensor(&src, index++));
     for (int i = 0; i < weights_tensors.size(); ++i) {
-      gpu_kernel.SetSrcTensor(&weights_tensors[i], index++);
+      ABSL_RETURN_IF_ERROR(gpu_kernel.SetSrcTensor(&weights_tensors[i], index++));
     }
     if (is_quantized) {
-      gpu_kernel.SetSrcTensor(&scale_tensor, index++);
+      ABSL_RETURN_IF_ERROR(gpu_kernel.SetSrcTensor(&scale_tensor, index++));
       if (use_zero_point) {
-        gpu_kernel.SetSrcTensor(&zp_tensor, index++);
+        ABSL_RETURN_IF_ERROR(gpu_kernel.SetSrcTensor(&zp_tensor, index++));
       }
     }
-    gpu_kernel.SetDstTensor(&dst, 0);
+    ABSL_RETURN_IF_ERROR(gpu_kernel.SetDstTensor(&dst, 0));
     ABSL_RETURN_IF_ERROR(gpu_kernel.UpdateParams());
 
     time_ms[i] = absl::ToDoubleMilliseconds(gpu_kernel.GetTaskTime(command_queue));
@@ -1174,13 +1174,13 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision, DataTy
           int w_id = j % kMultiplier;
           int index = 1;
           for (int k = 0; k < weights_gpu.size(); ++k) {
-            gpu_kernel.SetSrcTensor(&weights_tensors_multiple[w_id * weights_gpu.size() + k],
-                                    index++);
+            ABSL_RETURN_IF_ERROR(gpu_kernel.SetSrcTensor(
+                &weights_tensors_multiple[w_id * weights_gpu.size() + k], index++));
           }
           if (is_quantized) {
-            gpu_kernel.SetSrcTensor(&scale_tensors_multiple[w_id], index++);
+            ABSL_RETURN_IF_ERROR(gpu_kernel.SetSrcTensor(&scale_tensors_multiple[w_id], index++));
             if (use_zero_point) {
-              gpu_kernel.SetSrcTensor(&zp_tensors_multiple[w_id], index++);
+              ABSL_RETURN_IF_ERROR(gpu_kernel.SetSrcTensor(&zp_tensors_multiple[w_id], index++));
             }
           }
           ABSL_RETURN_IF_ERROR(gpu_kernel.UpdateParams());
@@ -1429,19 +1429,19 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision, DataType we
   ComputeTask gpu_task;
   gpu_task.Init(std::move(conv));
   ABSL_RETURN_IF_ERROR(gpu_task.Compile(&env));
-  gpu_task.SetSrcTensor(&src, 0);
+  ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&src, 0));
   int index = 0;
-  gpu_task.SetSrcTensor(&src, index++);
+  ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&src, index++));
   for (int i = 0; i < weights_tensors.size(); ++i) {
-    gpu_task.SetSrcTensor(&weights_tensors[i], index++);
+    ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&weights_tensors[i], index++));
   }
   if (is_quantized) {
-    gpu_task.SetSrcTensor(&scale_tensor, index++);
+    ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&scale_tensor, index++));
     if (use_zero_point) {
-      gpu_task.SetSrcTensor(&zp_tensor, index++);
+      ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&zp_tensor, index++));
     }
   }
-  gpu_task.SetDstTensor(&dst, 0);
+  ABSL_RETURN_IF_ERROR(gpu_task.SetDstTensor(&dst, 0));
   ABSL_RETURN_IF_ERROR(gpu_task.UpdateParams());
 
   double gbytes_read = src_gbytes + weight_gbytes;
@@ -1501,13 +1501,13 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision, DataType we
           int w_id = j % kMultiplier;
           int index = 1;
           for (int k = 0; k < weights_gpu.size(); ++k) {
-            gpu_task.SetSrcTensor(&weights_tensors_multiple[w_id * weights_gpu.size() + k],
-                                  index++);
+            ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(
+                &weights_tensors_multiple[w_id * weights_gpu.size() + k], index++));
           }
           if (is_quantized) {
-            gpu_task.SetSrcTensor(&scale_tensors_multiple[w_id], index++);
+            ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&scale_tensors_multiple[w_id], index++));
             if (use_zero_point) {
-              gpu_task.SetSrcTensor(&zp_tensors_multiple[w_id], index++);
+              ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&zp_tensors_multiple[w_id], index++));
             }
           }
           ABSL_RETURN_IF_ERROR(gpu_task.UpdateParams());
@@ -1683,18 +1683,18 @@ absl::Status FullyConnectedWeightsBatchIdsPerfTest(CalculationsPrecision precisi
   ABSL_RETURN_IF_ERROR(gpu_task.Compile(&env));
 
   int index = 0;
-  gpu_task.SetSrcTensor(&src, index++);
-  gpu_task.SetSrcTensor(&ids, index++);
+  ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&src, index++));
+  ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&ids, index++));
   for (int i = 0; i < weights_tensors.size(); ++i) {
-    gpu_task.SetSrcTensor(&weights_tensors[i], index++);
+    ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&weights_tensors[i], index++));
   }
   if (is_quantized) {
-    gpu_task.SetSrcTensor(&scale_tensor, index++);
+    ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&scale_tensor, index++));
     if (use_zero_point) {
-      gpu_task.SetSrcTensor(&zp_tensor, index++);
+      ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&zp_tensor, index++));
     }
   }
-  gpu_task.SetDstTensor(&dst, 0);
+  ABSL_RETURN_IF_ERROR(gpu_task.SetDstTensor(&dst, 0));
   ABSL_RETURN_IF_ERROR(gpu_task.UpdateParams());
 
   double gbytes_read = src_gbytes + weight_gbytes * runtime_read_fraction;
@@ -1750,13 +1750,13 @@ absl::Status FullyConnectedWeightsBatchIdsPerfTest(CalculationsPrecision precisi
           int w_id = j % kMultiplier;
           int index = 2;  // Skip src and ids
           for (int k = 0; k < weights_gpu.size(); ++k) {
-            gpu_task.SetSrcTensor(&weights_tensors_multiple[w_id * weights_gpu.size() + k],
-                                  index++);
+            ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(
+                &weights_tensors_multiple[w_id * weights_gpu.size() + k], index++));
           }
           if (is_quantized) {
-            gpu_task.SetSrcTensor(&scale_tensors_multiple[w_id], index++);
+            ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&scale_tensors_multiple[w_id], index++));
             if (use_zero_point) {
-              gpu_task.SetSrcTensor(&zp_tensors_multiple[w_id], index++);
+              ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&zp_tensors_multiple[w_id], index++));
             }
           }
           ABSL_RETURN_IF_ERROR(gpu_task.UpdateParams());
@@ -1934,13 +1934,13 @@ absl::Status FullyConnectedOIPerfTest(const BHWC& src_shape, int dst_channels, i
   ComputeTask gpu_task;
   gpu_task.Init(std::move(conv));
   ABSL_RETURN_IF_ERROR(gpu_task.Compile(&env));
-  gpu_task.SetSrcTensor(&src, 0);
-  gpu_task.SetDstTensor(&dst, 0);
-  gpu_task.SetSrcTensor(&weights_gpu_tensor, 1);
+  ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&src, 0));
+  ABSL_RETURN_IF_ERROR(gpu_task.SetDstTensor(&dst, 0));
+  ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&weights_gpu_tensor, 1));
   if (SizeInBitsOf(weights_type) <= 8) {
-    gpu_task.SetSrcTensor(&scale_gpu_tensor, 2);
+    ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&scale_gpu_tensor, 2));
     if (use_zero_point) {
-      gpu_task.SetSrcTensor(&zero_point_gpu_tensor, 3);
+      ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&zero_point_gpu_tensor, 3));
     }
   }
   ABSL_RETURN_IF_ERROR(gpu_task.UpdateParams());
@@ -1992,11 +1992,11 @@ absl::Status FullyConnectedOIPerfTest(const BHWC& src_shape, int dst_channels, i
         id<MTLComputeCommandEncoder> encoder = [command_buffer computeCommandEncoder];
         for (int j = 0; j < inferences; ++j) {
           int w_id = j % kMultiplier;
-          gpu_task.SetSrcTensor(&weights_tensors_multiple[w_id], 1);
+          ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&weights_tensors_multiple[w_id], 1));
           if (is_quantized) {
-            gpu_task.SetSrcTensor(&scale_tensors_multiple[w_id], 2);
+            ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&scale_tensors_multiple[w_id], 2));
             if (use_zero_point) {
-              gpu_task.SetSrcTensor(&zp_tensors_multiple[w_id], 3);
+              ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&zp_tensors_multiple[w_id], 3));
             }
           }
           ABSL_RETURN_IF_ERROR(gpu_task.UpdateParams());
@@ -2149,14 +2149,14 @@ absl::Status FullyConnectedOIWeightsBatchIdsPerfTest(CalculationsPrecision preci
   gpu_task.Init(std::move(conv));
   ABSL_RETURN_IF_ERROR(gpu_task.Compile(&env));
 
-  gpu_task.SetSrcTensor(&src, 0);
-  gpu_task.SetDstTensor(&dst, 0);
-  gpu_task.SetSrcTensor(&ids, 1);
-  gpu_task.SetSrcTensor(&weights_gpu_tensor, 2);
+  ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&src, 0));
+  ABSL_RETURN_IF_ERROR(gpu_task.SetDstTensor(&dst, 0));
+  ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&ids, 1));
+  ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&weights_gpu_tensor, 2));
   if (is_quantized) {
-    gpu_task.SetSrcTensor(&scale_tensor, 3);
+    ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&scale_tensor, 3));
     if (use_zero_point) {
-      gpu_task.SetSrcTensor(&zp_tensor, 4);
+      ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&zp_tensor, 4));
     }
   }
   ABSL_RETURN_IF_ERROR(gpu_task.UpdateParams());
@@ -2226,11 +2226,11 @@ absl::Status FullyConnectedOIWeightsBatchIdsPerfTest(CalculationsPrecision preci
         id<MTLComputeCommandEncoder> encoder = [command_buffer computeCommandEncoder];
         for (int j = 0; j < inferences; ++j) {
           int w_id = j % kMultiplier;
-          gpu_task.SetSrcTensor(&weights_tensors_multiple[w_id], 2);
+          ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&weights_tensors_multiple[w_id], 2));
           if (is_quantized) {
-            gpu_task.SetSrcTensor(&scale_tensors_multiple[w_id], 3);
+            ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&scale_tensors_multiple[w_id], 3));
             if (use_zero_point) {
-              gpu_task.SetSrcTensor(&zp_tensors_multiple[w_id], 4);
+              ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&zp_tensors_multiple[w_id], 4));
             }
           }
           ABSL_RETURN_IF_ERROR(gpu_task.UpdateParams());
@@ -2290,8 +2290,8 @@ absl::Status AddScalarTest(const BHWC& shape, const DataType& data_type) {
   ComputeTask gpu_task;
   gpu_task.Init(std::move(add));
   ABSL_RETURN_IF_ERROR(gpu_task.Compile(&env));
-  gpu_task.SetSrcTensor(&src, 0);
-  gpu_task.SetDstTensor(&dst, 0);
+  ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&src, 0));
+  ABSL_RETURN_IF_ERROR(gpu_task.SetDstTensor(&dst, 0));
   ABSL_RETURN_IF_ERROR(gpu_task.UpdateParams());
 
   id<MTLCommandQueue> command_queue = [env.device() newCommandQueue];
@@ -2359,8 +2359,8 @@ absl::Status WinogradForwardTest(const BHWC& src_shape, const DataType& data_typ
   ComputeTask gpu_task;
   gpu_task.Init(std::move(operation));
   ABSL_RETURN_IF_ERROR(gpu_task.Compile(&env));
-  gpu_task.SetSrcTensor(&src, 0);
-  gpu_task.SetDstTensor(&dst, 0);
+  ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&src, 0));
+  ABSL_RETURN_IF_ERROR(gpu_task.SetDstTensor(&dst, 0));
   ABSL_RETURN_IF_ERROR(gpu_task.UpdateParams());
 
   id<MTLCommandQueue> command_queue = [env.device() newCommandQueue];
@@ -2429,8 +2429,8 @@ absl::Status WinogradBackwardTest(const BHWC& dst_shape, const DataType& data_ty
   ComputeTask gpu_task;
   gpu_task.Init(std::move(operation));
   ABSL_RETURN_IF_ERROR(gpu_task.Compile(&env));
-  gpu_task.SetSrcTensor(&src, 0);
-  gpu_task.SetDstTensor(&dst, 0);
+  ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&src, 0));
+  ABSL_RETURN_IF_ERROR(gpu_task.SetDstTensor(&dst, 0));
   ABSL_RETURN_IF_ERROR(gpu_task.UpdateParams());
 
   id<MTLCommandQueue> command_queue = [env.device() newCommandQueue];
@@ -2517,9 +2517,9 @@ absl::Status QuantizationPerfTest(const BHWC& src_shape, DataType src_type, Pack
   ComputeTask gpu_task;
   gpu_task.Init(std::move(quant_op));
   ABSL_RETURN_IF_ERROR(gpu_task.Compile(&env));
-  gpu_task.SetSrcTensor(&src, 0);
-  gpu_task.SetDstTensor(&dst, 0);
-  gpu_task.SetDstTensor(&params, 1);
+  ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&src, 0));
+  ABSL_RETURN_IF_ERROR(gpu_task.SetDstTensor(&dst, 0));
+  ABSL_RETURN_IF_ERROR(gpu_task.SetDstTensor(&params, 1));
   ABSL_RETURN_IF_ERROR(gpu_task.UpdateParams());
 
   id<MTLCommandQueue> command_queue = [env.device() newCommandQueue];
@@ -2587,8 +2587,8 @@ absl::Status SoftmaxPerfTest(const BHWC& shape, bool reduce_only) {
   ComputeTask gpu_task;
   gpu_task.Init(std::move(softmax));
   ABSL_RETURN_IF_ERROR(gpu_task.Compile(&env));
-  gpu_task.SetSrcTensor(&src, 0);
-  gpu_task.SetDstTensor(&dst, 0);
+  ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&src, 0));
+  ABSL_RETURN_IF_ERROR(gpu_task.SetDstTensor(&dst, 0));
   ABSL_RETURN_IF_ERROR(gpu_task.UpdateParams());
 
   id<MTLCommandQueue> command_queue = [env.device() newCommandQueue];

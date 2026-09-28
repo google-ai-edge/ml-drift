@@ -141,7 +141,7 @@ absl::Status InferenceContext::InitFromGpuModel(
 
   GetMutableNodes(create_info.external_mutable_tensors);
   ABSL_RETURN_IF_ERROR(CompileOperations(environment));
-  BindTensorsToOperations();
+  ABSL_RETURN_IF_ERROR(BindTensorsToOperations());
   ABSL_RETURN_IF_ERROR(UpdateParams(environment->GetInfo()));
   ABSL_RETURN_IF_ERROR(Tune(TuningType::kFast, environment));
 
@@ -220,7 +220,7 @@ absl::Status InferenceContext::RestoreDeserialized(
     ABSL_RETURN_IF_ERROR(node.task.RestoreDeserialized(&environment));
   }
 
-  BindTensorsToOperations();
+  ABSL_RETURN_IF_ERROR(BindTensorsToOperations());
 
   ABSL_RETURN_IF_ERROR(UpdateParams(environment.GetInfo()));
   for (auto& external_tensor : create_info_ref.external_mutable_tensors) {
@@ -330,17 +330,18 @@ absl::Status InferenceContext::GetOutputTensor(ValueId id,
   return absl::OkStatus();
 }
 
-void InferenceContext::BindTensorsToOperations() {
+absl::Status InferenceContext::BindTensorsToOperations() {
   for (auto& node : nodes_) {
     const auto& src_ids = node.inputs;
     for (int i = 0; i < src_ids.size(); ++i) {
-      node.task.SetSrcTensor(GetTensor(src_ids[i]), i);
+      ABSL_RETURN_IF_ERROR(node.task.SetSrcTensor(GetTensor(src_ids[i]), i));
     }
     const auto& dst_ids = node.outputs;
     for (int i = 0; i < dst_ids.size(); ++i) {
-      node.task.SetDstTensor(GetTensor(dst_ids[i]), i);
+      ABSL_RETURN_IF_ERROR(node.task.SetDstTensor(GetTensor(dst_ids[i]), i));
     }
   }
+  return absl::OkStatus();
 }
 
 absl::Status InferenceContext::UpdateParams(const GpuInfo& gpu_info) {
@@ -618,12 +619,12 @@ absl::Status InferenceContext::SetTensor(const ValueId& tensor_id,
     auto& node = nodes_[node_index];
     for (int i = 0; i < node.inputs.size(); ++i) {
       if (node.inputs[i] == tensor_id) {
-        node.task.SetSrcTensor(tensor_ptr, i);
+        ABSL_RETURN_IF_ERROR(node.task.SetSrcTensor(tensor_ptr, i));
       }
     }
     for (int i = 0; i < node.outputs.size(); ++i) {
       if (node.outputs[i] == tensor_id) {
-        node.task.SetDstTensor(tensor_ptr, i);
+        ABSL_RETURN_IF_ERROR(node.task.SetDstTensor(tensor_ptr, i));
       }
     }
   }

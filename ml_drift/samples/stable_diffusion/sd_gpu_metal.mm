@@ -71,7 +71,7 @@ class NoiseGenerator {
                        MetalSpatialTensor* dst) {
     ABSL_RETURN_IF_ERROR(metal_op_.SetInt("seed", seed));
     ABSL_RETURN_IF_ERROR(metal_op_.SetInt("seed2", seed));
-    metal_op_.SetDstTensor(dst, 0);
+    ABSL_RETURN_IF_ERROR(metal_op_.SetDstTensor(dst, 0));
     ABSL_RETURN_IF_ERROR(metal_op_.UpdateParams());
     id<MTLComputeCommandEncoder> encoder = [command_buffer computeCommandEncoder];
     metal_op_.Encode(encoder);
@@ -101,8 +101,8 @@ class Copier {
 
   absl::Status Execute(id<MTLCommandBuffer> command_buffer, MetalSpatialTensor* src,
                        MetalSpatialTensor* dst) {
-    metal_op_.SetSrcTensor(src, 0);
-    metal_op_.SetDstTensor(dst, 0);
+    ABSL_RETURN_IF_ERROR(metal_op_.SetSrcTensor(src, 0));
+    ABSL_RETURN_IF_ERROR(metal_op_.SetDstTensor(dst, 0));
     ABSL_RETURN_IF_ERROR(metal_op_.UpdateParams());
     id<MTLComputeCommandEncoder> encoder = [command_buffer computeCommandEncoder];
     metal_op_.Encode(encoder);

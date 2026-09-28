@@ -59,8 +59,8 @@ absl::Status SubmitGpuOperations(
       ComputeTask metal_op;
       metal_op.Init(std::move(operation));
       ABSL_RETURN_IF_ERROR(metal_op.Compile(&env));
-      metal_op.SetSrcTensor(src, 0);
-      metal_op.SetDstTensor(dst, 0);
+      ABSL_RETURN_IF_ERROR(metal_op.SetSrcTensor(src, 0));
+      ABSL_RETURN_IF_ERROR(metal_op.SetDstTensor(dst, 0));
       ABSL_RETURN_IF_ERROR(metal_op.UpdateParams());
       metal_op.Encode(compute_encoder);
     }

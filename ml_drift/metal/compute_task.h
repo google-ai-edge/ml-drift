@@ -81,10 +81,10 @@ class ComputeTask {
   void EncodeToICB(id<MTLIndirectComputeCommand> icb_command);
   void AddResourcesToEncoder(id<MTLComputeCommandEncoder> encoder) const;
 
-  void SetSrcTensor(MetalSpatialTensor* tensor, int index);
-  void SetDstTensor(MetalSpatialTensor* tensor, int index);
-  void SetSrcBuffer(Buffer* buffer, int index);
-  void SetDstBuffer(Buffer* buffer, int index);
+  absl::Status SetSrcTensor(MetalSpatialTensor* tensor, int index);
+  absl::Status SetDstTensor(MetalSpatialTensor* tensor, int index);
+  absl::Status SetSrcBuffer(Buffer* buffer, int index);
+  absl::Status SetDstBuffer(Buffer* buffer, int index);
 
   absl::Status Tune(TuningType tuning_type, Environment* env);
 
