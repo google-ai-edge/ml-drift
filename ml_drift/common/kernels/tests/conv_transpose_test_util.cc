@@ -139,11 +139,11 @@ absl::Status ConvTransposedSimpleWeightsTest(TestExecutionEnvironment& env,
   attr.bias.shape = Linear(2);
   attr.bias.data = {0.0f, 0.0f};
 
-  const float eps = precision == CalculationsPrecision::F32 ? 1e-6f : 1e-3f;
+  const float eps = precision == CalculationsPrecision::kF32 ? 1e-6f : 1e-3f;
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   ConvolutionTransposed operation =
       CreateConvolutionTransposed(env.GetGpuInfo(), op_def, precision, attr);
@@ -179,11 +179,11 @@ absl::Status ConvTransposedTest(TestExecutionEnvironment& env,
   attr.bias.shape = Linear(1);
   attr.bias.data = {0.5f};
 
-  const float eps = precision == CalculationsPrecision::F32 ? 1e-6f : 1e-3f;
+  const float eps = precision == CalculationsPrecision::kF32 ? 1e-6f : 1e-3f;
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   ConvolutionTransposed operation =
       CreateConvolutionTransposed(env.GetGpuInfo(), op_def, precision, attr);
@@ -217,8 +217,8 @@ absl::Status ConvTransposedBigTest(TestExecutionEnvironment& env,
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   return ConvolutionTransposedTest(env, attr, src_tensor, op_def, precision);
 }
 
@@ -242,8 +242,8 @@ absl::Status ConvTransposedBatchedBigTest(TestExecutionEnvironment& env,
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
   return ConvolutionTransposedTest(env, attr, src_tensor, op_def, precision);
 }
 
@@ -268,8 +268,8 @@ absl::Status ConvTransposed3DBigTest(TestExecutionEnvironment& env,
   Tensor5DFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWDC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWDC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWDC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWDC});
   return ConvolutionTransposed3DTest(env, attr, src_tensor, op_def, precision);
 }
 
@@ -294,8 +294,8 @@ absl::Status ConvTransposed3DBatchedBigTest(TestExecutionEnvironment& env,
   Tensor5DFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWDC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWDC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWDC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWDC});
   return ConvolutionTransposed3DTest(env, attr, src_tensor, op_def, precision);
 }
 
@@ -319,9 +319,9 @@ absl::Status ConvTransposedExternalWeightsBigTest(
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   return ConvolutionTransposedDynamicWeightsTest(env, attr, src_tensor, op_def,
                                                  precision);
 }
@@ -406,8 +406,8 @@ absl::Status ConvolutionTransposed2x2Test(TestExecutionEnvironment& env,
 
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   ABSL_RETURN_IF_ERROR(
       ConvolutionTransposed2x2Test(env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();
@@ -434,8 +434,8 @@ absl::Status ConvolutionTransposed2x2BatchedTest(
 
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
   ABSL_RETURN_IF_ERROR(
       ConvolutionTransposed2x2Test(env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();
@@ -462,10 +462,10 @@ absl::Status ConvolutionTransposed2x2DynamicWeightsTest(
 
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
   op_def.src_tensors.push_back(
-      {data_type, TensorStorageType::BUFFER, Layout::UNKNOWN});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+      {data_type, TensorStorageType::kBuffer, Layout::kUnknown});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   ABSL_RETURN_IF_ERROR(ConvolutionTransposed2x2DynamicWeightsTest(
       env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();
@@ -548,11 +548,11 @@ absl::Status ConvolutionTransposed3x3SimpleWeightsTest(
   attr.bias.shape = Linear(1);
   attr.bias.data = {0.0f};
 
-  const float eps = precision == CalculationsPrecision::F32 ? 1e-6f : 1e-3f;
+  const float eps = precision == CalculationsPrecision::kF32 ? 1e-6f : 1e-3f;
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   ConvolutionTransposed3x3 operation =
       CreateConvolutionTransposed3x3(env.GetGpuInfo(), op_def, precision, attr);
@@ -588,8 +588,8 @@ absl::Status ConvolutionTransposed3x3Test(TestExecutionEnvironment& env,
 
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   ABSL_RETURN_IF_ERROR(
       ConvolutionTransposed3x3Test(env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();
@@ -616,8 +616,8 @@ absl::Status ConvolutionTransposed3x3BatchedTest(
 
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
   ABSL_RETURN_IF_ERROR(
       ConvolutionTransposed3x3Test(env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();
@@ -644,10 +644,10 @@ absl::Status ConvolutionTransposed3x3ExternalWeightsTest(
 
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
   op_def.src_tensors.push_back(
-      {data_type, TensorStorageType::BUFFER, Layout::UNKNOWN});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+      {data_type, TensorStorageType::kBuffer, Layout::kUnknown});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   ABSL_RETURN_IF_ERROR(ConvolutionTransposed3x3ExternalWeightsTest(
       env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();
@@ -732,11 +732,11 @@ absl::Status ConvolutionTransposed4x4SimpleWeightsTest(
   attr.bias.shape = Linear(1);
   attr.bias.data = {0.0f};
 
-  const float eps = precision == CalculationsPrecision::F32 ? 1e-6f : 1e-3f;
+  const float eps = precision == CalculationsPrecision::kF32 ? 1e-6f : 1e-3f;
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   ConvolutionTransposed4x4 operation =
       CreateConvolutionTransposed4x4(env.GetGpuInfo(), op_def, precision, attr);
@@ -772,8 +772,8 @@ absl::Status ConvolutionTransposed4x4Test(TestExecutionEnvironment& env,
 
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   ABSL_RETURN_IF_ERROR(
       ConvolutionTransposed4x4Test(env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();
@@ -800,8 +800,8 @@ absl::Status ConvolutionTransposed4x4BatchedTest(
 
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
   ABSL_RETURN_IF_ERROR(
       ConvolutionTransposed4x4Test(env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();
@@ -828,10 +828,10 @@ absl::Status ConvolutionTransposed4x4ExternalWeightsTest(
 
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
   op_def.src_tensors.push_back(
-      {data_type, TensorStorageType::BUFFER, Layout::UNKNOWN});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+      {data_type, TensorStorageType::kBuffer, Layout::kUnknown});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   ABSL_RETURN_IF_ERROR(ConvolutionTransposed4x4ExternalWeightsTest(
       env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();

@@ -57,8 +57,8 @@ std::string GenerateConv(const GpuInfo& gpu_info,
   std::string code;
   const bool use_fma = gpu_info.IsAMD() && gpu_info.IsApiOpenCl();
   switch (precision) {
-    case CalculationsPrecision::F32:
-    case CalculationsPrecision::F16:
+    case CalculationsPrecision::kF32:
+    case CalculationsPrecision::kF16:
       if (dot_conv) {
         code += "    $0.x += dot($1, $2);\n";
         code += "    $0.y += dot($1, $3);\n";
@@ -76,7 +76,7 @@ std::string GenerateConv(const GpuInfo& gpu_info,
         code += "    $0 += $1.w * $5;\n";
       }
       return absl::Substitute(code, dst, src, w0, w1, w2, w3);
-    case CalculationsPrecision::F32_F16:
+    case CalculationsPrecision::kF32F16:
       if (dot_conv) {
         code += "    $0.x += dot($1, $2);\n";
         code += "    $0.y += dot($1, $3);\n";
@@ -452,9 +452,9 @@ std::string GenerateCode(const GpuInfo& gpu_info, const OperationDef& op_def,
   }
   c += "}\n";
 
-  const DataType acc_type = precision == CalculationsPrecision::F16
-                                ? DataType::FLOAT16
-                                : DataType::FLOAT32;
+  const DataType acc_type = precision == CalculationsPrecision::kF16
+                                ? DataType::kFloat16
+                                : DataType::kFloat32;
   const DataType type = op_def.src_tensors[0].GetDataType();
   absl::StrReplaceAll({{"SType", ToUclDataType(type, 1)},
                        {"Type", ToUclDataType(type, 4)},
@@ -581,26 +581,26 @@ std::vector<WeightsDescription> GetWeightsDescsForConvSoftmaxConv(
     desc.layout = WeightsLayout::kCustomGroups;
     if (params.weights_upload_type ==
         ConvSoftmaxConv::WeightsUploadType::kIntelWaveMatmul) {
-      desc.group_sizes.push_back({Axis::OUTPUT_CHANNELS, 4});
-      desc.group_sizes.push_back({Axis::INPUT_CHANNELS, 16});
-      desc.group_sizes.push_back({Axis::OUTPUT_CHANNELS, 4});
+      desc.group_sizes.push_back({Axis::kOutputChannels, 4});
+      desc.group_sizes.push_back({Axis::kInputChannels, 16});
+      desc.group_sizes.push_back({Axis::kOutputChannels, 4});
     } else if (params.dot_conv) {
-      desc.group_sizes.push_back({Axis::INPUT_CHANNELS, 4});
-      desc.group_sizes.push_back({Axis::OUTPUT_CHANNELS, 4});
+      desc.group_sizes.push_back({Axis::kInputChannels, 4});
+      desc.group_sizes.push_back({Axis::kOutputChannels, 4});
     } else {
-      desc.group_sizes.push_back({Axis::OUTPUT_CHANNELS, 4});
-      desc.group_sizes.push_back({Axis::INPUT_CHANNELS, 4});
+      desc.group_sizes.push_back({Axis::kOutputChannels, 4});
+      desc.group_sizes.push_back({Axis::kInputChannels, 4});
     }
-    desc.group_sizes.push_back({Axis::INPUT_CHANNELS, 0});
+    desc.group_sizes.push_back({Axis::kInputChannels, 0});
     if (params.weights_upload_type !=
         ConvSoftmaxConv::WeightsUploadType::kIntelWaveMatmul) {
-          desc.group_sizes.push_back({Axis::OUTPUT_CHANNELS, 0});
+      desc.group_sizes.push_back({Axis::kOutputChannels, 0});
     }
-    desc.group_sizes.push_back({Axis::WIDTH, 0});
-    desc.group_sizes.push_back({Axis::HEIGHT, 0});
+    desc.group_sizes.push_back({Axis::kWidth, 0});
+    desc.group_sizes.push_back({Axis::kHeight, 0});
     if (params.weights_upload_type ==
         ConvSoftmaxConv::WeightsUploadType::kIntelWaveMatmul) {
-          desc.group_sizes.push_back({Axis::OUTPUT_CHANNELS, 0});
+      desc.group_sizes.push_back({Axis::kOutputChannels, 0});
     }
   }
   {
@@ -609,21 +609,21 @@ std::vector<WeightsDescription> GetWeightsDescsForConvSoftmaxConv(
     desc.layout = WeightsLayout::kCustomGroups;
     if (params.weights_upload_type ==
         ConvSoftmaxConv::WeightsUploadType::kIntelWaveMatmul) {
-      desc.group_sizes.push_back({Axis::OUTPUT_CHANNELS, 4});
-      desc.group_sizes.push_back({Axis::INPUT_CHANNELS, 16});
+      desc.group_sizes.push_back({Axis::kOutputChannels, 4});
+      desc.group_sizes.push_back({Axis::kInputChannels, 16});
     } else if (params.dot_conv) {
-      desc.group_sizes.push_back({Axis::INPUT_CHANNELS, 4});
-      desc.group_sizes.push_back({Axis::OUTPUT_CHANNELS, 4});
+      desc.group_sizes.push_back({Axis::kInputChannels, 4});
+      desc.group_sizes.push_back({Axis::kOutputChannels, 4});
     } else {
-      desc.group_sizes.push_back({Axis::OUTPUT_CHANNELS, 4});
-      desc.group_sizes.push_back({Axis::INPUT_CHANNELS, 4});
+      desc.group_sizes.push_back({Axis::kOutputChannels, 4});
+      desc.group_sizes.push_back({Axis::kInputChannels, 4});
     }
     desc.group_sizes.push_back(
-        {Axis::OUTPUT_CHANNELS, params.block_slices_out});
-    desc.group_sizes.push_back({Axis::INPUT_CHANNELS, 0});
-    desc.group_sizes.push_back({Axis::WIDTH, 0});
-    desc.group_sizes.push_back({Axis::HEIGHT, 0});
-    desc.group_sizes.push_back({Axis::OUTPUT_CHANNELS, 0});
+        {Axis::kOutputChannels, params.block_slices_out});
+    desc.group_sizes.push_back({Axis::kInputChannels, 0});
+    desc.group_sizes.push_back({Axis::kWidth, 0});
+    desc.group_sizes.push_back({Axis::kHeight, 0});
+    desc.group_sizes.push_back({Axis::kOutputChannels, 0});
   }
   return result;
 }
@@ -647,7 +647,7 @@ bool IsConvSoftmaxConvSupported(const GpuInfo& gpu_info,
   }
   const int src_slices = DivideRoundUp(src_ch, 4);
   const int dst_slices = DivideRoundUp(dst_ch, 4);
-  return supported_gpu && precision == CalculationsPrecision::F16 &&
+  return supported_gpu && precision == CalculationsPrecision::kF16 &&
          src_slices == dst_slices && dst_slices <= 10 && interm_ch % 4 == 0;
 }
 

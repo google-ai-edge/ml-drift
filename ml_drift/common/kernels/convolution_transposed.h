@@ -127,7 +127,7 @@ void ConvolutionTransposed::UploadWeights(const Tensor<OHWI, T>& weights,
     int sub_size = SizeOf(weights_desc.type) * 4 * tex_size.x * tex_size.y;
     for (int i = 0; i < 4; ++i) {
       TensorDescriptor desc = CreateConstantHWVec4TensorDescriptor(
-          weights_desc.type, TensorStorageType::TEXTURE_2D, tex_size.x,
+          weights_desc.type, TensorStorageType::kTexture2D, tex_size.x,
           tex_size.y, weights_data.data() + sub_size * i);
       args_.AddObject("weights" + std::to_string(i),
                       std::make_unique<TensorDescriptor>(std::move(desc)));
@@ -158,7 +158,7 @@ void ConvolutionTransposed::UploadWeights(const Tensor<OHWDI, T>& weights,
     int sub_size = SizeOf(weights_desc.type) * 4 * tex_size.x * tex_size.y;
     for (int i = 0; i < 4; ++i) {
       TensorDescriptor desc = CreateConstantHWVec4TensorDescriptor(
-          weights_desc.type, TensorStorageType::TEXTURE_2D, tex_size.x,
+          weights_desc.type, TensorStorageType::kTexture2D, tex_size.x,
           tex_size.y, weights_data.data() + sub_size * i);
       args_.AddObject("weights" + std::to_string(i),
                       std::make_unique<TensorDescriptor>(std::move(desc)));

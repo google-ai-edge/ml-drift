@@ -57,7 +57,7 @@ class ConvWaveMemory : public GPUOperation {
   };
   struct ConvParams {
     TensorDescriptor src_desc;
-    CalculationsPrecision precision = CalculationsPrecision::F32;
+    CalculationsPrecision precision = CalculationsPrecision::kF32;
     DataType weights_data_type;  // used for weights and biases
     int groups_count = 1;
     bool x_kernel_is_1 = false;
@@ -72,7 +72,7 @@ class ConvWaveMemory : public GPUOperation {
     OHWI weights_shape = OHWI(1, 1, 1, 1);
     ConvRuntimeCheckDesc runtime_check;
 
-    bool Is8Bit() const { return weights_data_type == DataType::INT8; }
+    bool Is8Bit() const { return weights_data_type == DataType::kInt8; }
   };
 
   ConvWaveMemory() = default;
@@ -87,53 +87,53 @@ class ConvWaveMemory : public GPUOperation {
     if (kernel_params_.img_wave_dot) {
       desc.layout = WeightsLayout::kCustomGroups;
       if (conv_params_.Is8Bit()) {
-        desc.type = DataType::UINT8;
-        desc.group_sizes = {{Axis::INPUT_CHANNELS, 16},
-                            {Axis::OUTPUT_CHANNELS, 4}};
-      } else if (conv_params_.precision == CalculationsPrecision::F32) {
-        desc.group_sizes = {{Axis::INPUT_CHANNELS, 4},
-                            {Axis::OUTPUT_CHANNELS, 4}};
+        desc.type = DataType::kUint8;
+        desc.group_sizes = {{Axis::kInputChannels, 16},
+                            {Axis::kOutputChannels, 4}};
+      } else if (conv_params_.precision == CalculationsPrecision::kF32) {
+        desc.group_sizes = {{Axis::kInputChannels, 4},
+                            {Axis::kOutputChannels, 4}};
       } else {
-        desc.group_sizes = {{Axis::OUTPUT_CHANNELS, 2},
-                            {Axis::INPUT_CHANNELS, 4},
-                            {Axis::OUTPUT_CHANNELS, 2}};
+        desc.group_sizes = {{Axis::kOutputChannels, 2},
+                            {Axis::kInputChannels, 4},
+                            {Axis::kOutputChannels, 2}};
       }
       if (kernel_params_.slices_out != 1) {
         desc.group_sizes.push_back(
-            {Axis::OUTPUT_CHANNELS, kernel_params_.slices_out});
+            {Axis::kOutputChannels, kernel_params_.slices_out});
       }
       if (kernel_params_.slices_loop_first) {
-        desc.group_sizes.push_back({Axis::INPUT_CHANNELS, 0});
+        desc.group_sizes.push_back({Axis::kInputChannels, 0});
       } else {
         if (kernel_params_.slices_in != 1) {
           desc.group_sizes.push_back(
-              {Axis::INPUT_CHANNELS, kernel_params_.slices_in});
+              {Axis::kInputChannels, kernel_params_.slices_in});
         }
       }
       if (!conv_params_.Is8Bit()) {
-        desc.group_sizes.push_back({Axis::WIDTH, 0});
-        desc.group_sizes.push_back({Axis::HEIGHT, 0});
+        desc.group_sizes.push_back({Axis::kWidth, 0});
+        desc.group_sizes.push_back({Axis::kHeight, 0});
       }
       if (!kernel_params_.slices_loop_first) {
-        desc.group_sizes.push_back({Axis::INPUT_CHANNELS, 0});
+        desc.group_sizes.push_back({Axis::kInputChannels, 0});
       }
-      desc.group_sizes.push_back({Axis::OUTPUT_CHANNELS, 0});
+      desc.group_sizes.push_back({Axis::kOutputChannels, 0});
       return desc;
     }
-    if (conv_params_.weights_data_type == DataType::INT8) {
+    if (conv_params_.weights_data_type == DataType::kInt8) {
       desc.layout = WeightsLayout::kOSpatialIOGroupO4I4;
     } else {
       if (kernel_params_.slices_loop_first) {
         desc.layout = WeightsLayout::kOSpatialIOGroupI4O4;
       } else {
         desc.layout = WeightsLayout::kCustomGroups;
-        desc.group_sizes = {{Axis::OUTPUT_CHANNELS, 4},
-                            {Axis::INPUT_CHANNELS, 4},
-                            {Axis::OUTPUT_CHANNELS, kernel_params_.slices_out},
-                            {Axis::WIDTH, 0},
-                            {Axis::HEIGHT, 0},
-                            {Axis::INPUT_CHANNELS, 0},
-                            {Axis::OUTPUT_CHANNELS, 0}};
+        desc.group_sizes = {{Axis::kOutputChannels, 4},
+                            {Axis::kInputChannels, 4},
+                            {Axis::kOutputChannels, kernel_params_.slices_out},
+                            {Axis::kWidth, 0},
+                            {Axis::kHeight, 0},
+                            {Axis::kInputChannels, 0},
+                            {Axis::kOutputChannels, 0}};
       }
     }
     desc.output_group_size = kernel_params_.slices_out;
@@ -169,13 +169,13 @@ class ConvWaveMemory : public GPUOperation {
       const TensorDescriptor* src_exp);
   friend ConvWaveMemory CreateConvWaveMemoryInt8(
       const GpuInfo& gpu_info, const OperationDef& definition,
-      const Tensor<OHWI, DataType::INT8>& weights, const BHWC* dst_shape);
+      const Tensor<OHWI, DataType::kInt8>& weights, const BHWC* dst_shape);
   friend ConvWaveMemory CreateConvWaveMemoryInt8ExternalWeights(
       const GpuInfo& gpu_info, const OperationDef& definition,
       const OHWI& weights_shape, const BHWC* dst_shape);
   friend ConvWaveMemory CreateConvWaveMemoryInt8Grouped(
       const GpuInfo& gpu_info, const OperationDef& definition,
-      const Tensor<OHWI, DataType::INT8>& weights, int group_size,
+      const Tensor<OHWI, DataType::kInt8>& weights, int group_size,
       const TensorDescriptor& src_params, const BHWC* dst_shape);
 
   ConvWaveMemory(const ConvParams& conv_params, const GpuInfo& gpu_info,
@@ -202,7 +202,7 @@ void ConvWaveMemory::UploadWeights(const GpuInfo& gpu_info,
   const WeightsDescription weights_desc = GetWeightsDescription();
   BufferDescriptor buffer_desc =
       GetBufferDescForWaveMemoryUpload(gpu_info, weights_desc, weights.shape);
-  if constexpr (T == DataType::INT8) {
+  if constexpr (T == DataType::kInt8) {
     if (conv_params_.Is8Bit() && kernel_params_.img_wave_dot) {
       RearrangeWeightsInt8AsUint8(weights, weights_desc,
                                   absl::MakeSpan(buffer_desc.data), 128, 128u);
@@ -261,7 +261,7 @@ PackedType GetConvWaveMemoryInt8SrcType(const GpuInfo& gpu_info,
 // Creates an INT8 convolution operation with wave memory.
 ConvWaveMemory CreateConvWaveMemoryInt8(
     const GpuInfo& gpu_info, const OperationDef& definition,
-    const Tensor<OHWI, DataType::INT8>& weights,
+    const Tensor<OHWI, DataType::kInt8>& weights,
     const BHWC* dst_shape = nullptr);
 
 // Creates an INT8 convolution operation with wave memory and external weights.
@@ -273,7 +273,7 @@ ConvWaveMemory CreateConvWaveMemoryInt8ExternalWeights(
 // Creates an INT8 grouped convolution operation with wave memory.
 ConvWaveMemory CreateConvWaveMemoryInt8Grouped(
     const GpuInfo& gpu_info, const OperationDef& definition,
-    const Tensor<OHWI, DataType::INT8>& weights, int group_size,
+    const Tensor<OHWI, DataType::kInt8>& weights, int group_size,
     const TensorDescriptor& src_params, const BHWC* dst_shape = nullptr);
 
 }  // namespace ml_drift

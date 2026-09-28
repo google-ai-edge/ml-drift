@@ -45,7 +45,7 @@ namespace {
 absl::Status DW7x7Conv2To6ConcatConv8to8Test(TestExecutionEnvironment* exec_env,
                                              const OperationDef& op_def) {
   ConcatAttributes concat_attr;
-  concat_attr.axis = Axis::CHANNELS;
+  concat_attr.axis = Axis::kChannels;
 
   DepthwiseConvolution2DAttributes dw_attr;
   dw_attr.padding.prepended = HW(2, 2);
@@ -82,7 +82,7 @@ absl::Status DW7x7Conv2To6ConcatConv8to8Test(TestExecutionEnvironment* exec_env,
   pool_attr.padding.appended = HW(0, 0);
   pool_attr.strides = HW(2, 2);
   pool_attr.kernel = HW(2, 2);
-  pool_attr.type = PoolingType::MAX;
+  pool_attr.type = PoolingType::kMax;
 
   auto src_shape = BHWC(1, 14, 16, 2);
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
@@ -116,7 +116,7 @@ TEST_P(StorageTest, DW7x7Conv2To6ConcatConv8to8Test) {
   if (!IsDW7x7Conv2To6ConcatConv8to8Supported(exec_env->GetGpuInfo())) {
     GTEST_SKIP() << "Skipped unsupported DW7x7Conv2To6ConcatConv8to8 Test.";
   }
-  const DataType data_type = DataType::FLOAT16;
+  const DataType data_type = DataType::kFloat16;
   const TensorStorageType storage = GetParam();
   if (!exec_env->IsStorageSupported(storage, data_type)) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
@@ -124,9 +124,9 @@ TEST_P(StorageTest, DW7x7Conv2To6ConcatConv8to8Test) {
   }
   OperationDef op_def;
   op_def.src_tensors.push_back(
-      {DataType::FLOAT16, TensorStorageType::SINGLE_TEXTURE_2D, Layout::HWC});
-  op_def.dst_tensors.push_back({DataType::FLOAT16, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({DataType::FLOAT16, storage, Layout::HWC});
+      {DataType::kFloat16, TensorStorageType::kSingleTexture2D, Layout::kHWC});
+  op_def.dst_tensors.push_back({DataType::kFloat16, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({DataType::kFloat16, storage, Layout::kHWC});
   ABSL_EXPECT_OK(DW7x7Conv2To6ConcatConv8to8Test(exec_env, op_def));
 }
 

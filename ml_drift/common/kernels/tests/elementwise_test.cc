@@ -35,174 +35,174 @@ using ::testing::ValuesIn;
 using ElementwiseTypedTest = TestWithParam<TensorStorageType>;
 
 TEST_P(ElementwiseTypedTest, CosIntTest) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::INT32)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kInt32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
   ABSL_ASSERT_OK(CosIntTest(*exec_env, GetParam()));
 }
 
 TEST_P(ElementwiseTypedTest, FloorDivIntTest) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::INT32)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kInt32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
   ABSL_ASSERT_OK(FloorDivIntTest(*exec_env, GetParam()));
 }
 
 TEST_P(ElementwiseTypedTest, FloorModIntTest) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::INT32)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kInt32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
   ABSL_ASSERT_OK(FloorModIntTest(*exec_env, GetParam()));
 }
 
 TEST_P(ElementwiseTypedTest, SignInt8Test) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::INT8)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kInt8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
   ABSL_ASSERT_OK(SignInt8Test(*exec_env, GetParam()));
 }
 
 TEST_P(ElementwiseTypedTest, ShiftLeftTest) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::INT32)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kInt32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
   ABSL_ASSERT_OK(ShiftLeftTest(*exec_env, GetParam()));
 }
 
 TEST_P(ElementwiseTypedTest, ShiftRightTest) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::INT32)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kInt32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
   ABSL_ASSERT_OK(ShiftRightTest(*exec_env, GetParam()));
 }
 
 TEST_P(ElementwiseTypedTest, Atan2IntTest) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::INT32)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kInt32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
   ABSL_ASSERT_OK(Atan2IntTest(*exec_env, GetParam()));
 }
 
 TEST_P(ElementwiseTypedTest, MaximumInt8Test) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::INT8)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kInt8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
   ABSL_ASSERT_OK(MaximumInt8Test(*exec_env, GetParam()));
 }
 
 TEST_P(ElementwiseTypedTest, MaximumWithIntScalarTest) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::INT32)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kInt32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
   ABSL_ASSERT_OK(MaximumWithIntScalarTest(*exec_env, GetParam()));
 }
 
 TEST_P(ElementwiseTypedTest, MaximumWithUintScalarTest) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT32)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kUint32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
   ABSL_ASSERT_OK(MaximumWithUintScalarTest(*exec_env, GetParam()));
 }
 
 TEST_P(ElementwiseTypedTest, MinimumInt8Test) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::INT8)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kInt8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
   ABSL_ASSERT_OK(MinimumInt8Test(*exec_env, GetParam()));
 }
 
 TEST_P(ElementwiseTypedTest, LessTest) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::BOOL)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kBool)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
   ABSL_ASSERT_OK(LessTest(*exec_env, GetParam()));
 }
 
 TEST_P(ElementwiseTypedTest, LessEqualTest) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::BOOL)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kBool)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
   ABSL_ASSERT_OK(LessEqualTest(*exec_env, GetParam()));
 }
 
 TEST_P(ElementwiseTypedTest, GreaterTest) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::BOOL)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kBool)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
   ABSL_ASSERT_OK(GreaterTest(*exec_env, GetParam()));
 }
 
 TEST_P(ElementwiseTypedTest, GreaterEqualTest) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::BOOL)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kBool)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
   ABSL_ASSERT_OK(GreaterEqualTest(*exec_env, GetParam()));
 }
 
 TEST_P(ElementwiseTypedTest, EqualTest) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::BOOL)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kBool)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
   ABSL_ASSERT_OK(EqualTest(*exec_env, GetParam()));
 }
 
 TEST_P(ElementwiseTypedTest, NotEqualTest) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::BOOL)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kBool)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
   ABSL_ASSERT_OK(NotEqualTest(*exec_env, GetParam()));
 }
 
 TEST_P(ElementwiseTypedTest, LogicalAndTest) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::BOOL)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kBool)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
   ABSL_ASSERT_OK(LogicalAndTest(*exec_env, GetParam()));
 }
 
 TEST_P(ElementwiseTypedTest, LogicalAndInt8Test) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::BOOL)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kBool)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
   ABSL_ASSERT_OK(LogicalAndInt8Test(*exec_env, GetParam()));
 }
 TEST_P(ElementwiseTypedTest, LogicalOrTest) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::BOOL)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kBool)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
   ABSL_ASSERT_OK(LogicalOrTest(*exec_env, GetParam()));
 }
 
 TEST_P(ElementwiseTypedTest, LogicalOrInt8Test) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::BOOL)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kBool)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
   ABSL_ASSERT_OK(LogicalOrInt8Test(*exec_env, GetParam()));
 }
 
 TEST_P(ElementwiseTypedTest, LogicalNotTest) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::BOOL)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kBool)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
   ABSL_ASSERT_OK(LogicalNotTest(*exec_env, GetParam()));
 }
 
 TEST_P(ElementwiseTypedTest, LogicalNotInt8Test) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::BOOL)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kBool)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
   ABSL_ASSERT_OK(LogicalNotInt8Test(*exec_env, GetParam()));
 }
 
 TEST_P(ElementwiseTypedTest, LogicalXorTest) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::BOOL)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kBool)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
   ABSL_ASSERT_OK(LogicalXorTest(*exec_env, GetParam()));
 }
 
 TEST_P(ElementwiseTypedTest, LogicalXorInt8Test) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::BOOL)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kBool)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
   ABSL_ASSERT_OK(LogicalXorInt8Test(*exec_env, GetParam()));

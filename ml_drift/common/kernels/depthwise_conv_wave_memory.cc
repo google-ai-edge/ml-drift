@@ -47,15 +47,15 @@ std::string GenerateDepthwiseConvCode(const GpuInfo& gpu_info,
                                       bool has_bias) {
   const auto src_tensor_type = op_def.src_tensors[0].GetStorageType();
   const bool is_src_image_buffer =
-      src_tensor_type == TensorStorageType::IMAGE_BUFFER;
+      src_tensor_type == TensorStorageType::kImageBuffer;
   const bool manual_clamp =
-      src_tensor_type == TensorStorageType::BUFFER || is_src_image_buffer;
+      src_tensor_type == TensorStorageType::kBuffer || is_src_image_buffer;
   const bool late_xy_check = !gpu_info.IsAdreno();
 
   std::string c;
   c += "#pragma OPENCL EXTENSION ucl_wave_memory: enable\n";
   c += "MAIN_FUNCTION($0) {\n";
-  if (op_def.dst_tensors[0].HasAxis(Axis::BATCH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kBatch)) {
     c += "  int linear_id = ucl::GetGlobalId<0>();\n";
     c += "  int X = linear_id / args.dst_tensor.Batch();\n";
     c += "  int B = linear_id % args.dst_tensor.Batch();\n";
@@ -186,9 +186,9 @@ std::string GenerateDepthwiseConvCode(const GpuInfo& gpu_info,
   }
   c += "  args.dst_tensor.Write(res0, X, Y, Z);\n";
   c += "}\n";
-  const DataType acc_type = precision == CalculationsPrecision::F16
-                                ? DataType::FLOAT16
-                                : DataType::FLOAT32;
+  const DataType acc_type = precision == CalculationsPrecision::kF16
+                                ? DataType::kFloat16
+                                : DataType::kFloat32;
   const DataType type = op_def.src_tensors[0].GetDataType();
   absl::StrReplaceAll({{"SType", ToUclDataType(type, 1)},
                        {"Type", ToUclDataType(type, 4)},
@@ -216,7 +216,7 @@ DepthwiseConvWaveMemory::DepthwiseConvWaveMemory(
     work_group_size_ = int3(8, 4, 1);
   }
   weights_cache_size_flt4_ = 8;
-  if (precision != CalculationsPrecision::F32) {
+  if (precision != CalculationsPrecision::kF32) {
     weights_cache_size_flt4_ *= 2;
   }
   if (!gpu_info.IsAdreno()) {
@@ -286,9 +286,9 @@ DepthwiseConvWaveMemory CreateDepthwiseConvWaveMemory(
     CalculationsPrecision precision,
     const DepthwiseConvolution2DAttributes& attr) {
   DepthwiseConvWaveMemory result(definition, precision, attr, gpu_info);
-  const DataType weights_data_type = precision == CalculationsPrecision::F32
-                                         ? DataType::FLOAT32
-                                         : DataType::FLOAT16;
+  const DataType weights_data_type = precision == CalculationsPrecision::kF32
+                                         ? DataType::kFloat32
+                                         : DataType::kFloat16;
   result.UploadWeights(gpu_info, GetFloatWeights(attr), weights_data_type);
   if (!attr.bias.data.empty()) {
     TensorDescriptor bias_tensor_desc = CreateConstantLinearTensorDescriptor(

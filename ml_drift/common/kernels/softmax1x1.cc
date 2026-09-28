@@ -88,7 +88,7 @@ Softmax1x1 CreateSoftmax1x1Impl(const OperationDef& definition,
   if (runtime_check.end_ch_index.has_value()) {
     softmax1x1.args_.AddInt("end_ch_index", *runtime_check.end_ch_index);
     BufferDescriptor buffer_desc;
-    buffer_desc.element_type = DataType::INT32;
+    buffer_desc.element_type = DataType::kInt32;
     buffer_desc.element_size = 1;
     softmax1x1.AddSrcBuffer("params", buffer_desc);
   }
@@ -145,7 +145,7 @@ std::string Softmax1x1::GetSoftmaxKernelCode(const OperationDef& op_def,
 
   std::string c;
   c += "MAIN_FUNCTION($0) {\n";
-  if (op_def.dst_tensors[0].HasAxis(Axis::BATCH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kBatch)) {
     c += "  int linear_id = ucl::GetGroupId<1>();\n";
     c += "  int X = linear_id / args.dst_tensor.Batch();\n";
     c += "  int B = linear_id % args.dst_tensor.Batch();\n";
@@ -156,7 +156,7 @@ std::string Softmax1x1::GetSoftmaxKernelCode(const OperationDef& op_def,
     c += "  int X = ucl::GetGroupId<1>();\n";
   }
   std::string coords = "X, Y";
-  if (op_def.dst_tensors[0].HasAxis(Axis::DEPTH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kDepth)) {
     c += "  int linear_y = ucl::GetGroupId<2>();\n";
     c += "  int Y = linear_y / args.dst_tensor.Depth();\n";
     c += "  int Z = linear_y % args.dst_tensor.Depth();\n";
@@ -173,7 +173,7 @@ std::string Softmax1x1::GetSoftmaxKernelCode(const OperationDef& op_def,
   std::string coords_s0 = coords + ", 0";
   std::string coords_s = coords + ", s";
   std::string coords_dst_s = coords + ", dst_s";
-  if (op_def.dst_tensors[0].HasAxis(Axis::BATCH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kBatch)) {
     coords_s0 += ", B";
     coords_s += ", B";
     coords_dst_s += ", B";

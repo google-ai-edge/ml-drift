@@ -60,10 +60,10 @@ absl::Status CreateGraph(const BHWC& src_shape,
   concat_input2->tensor.shape = src_shape;
 
   ConcatAttributes concat_attr;
-  concat_attr.axis = Axis::CHANNELS;
+  concat_attr.axis = Axis::kChannels;
 
   auto concat_node = graph->NewNode();
-  concat_node->operation.type = ToString(OperationType::CONCAT);
+  concat_node->operation.type = ToString(OperationType::kConcat);
   concat_node->operation.attributes = concat_attr;
   graph->AddConsumer(concat_node->id, concat_input0->id);
   graph->AddConsumer(concat_node->id, concat_input1->id);
@@ -73,7 +73,7 @@ absl::Status CreateGraph(const BHWC& src_shape,
   graph->SetProducer(concat_node->id, concat_output->id);
 
   auto conv_node = graph->NewNode();
-  conv_node->operation.type = ToString(OperationType::CONVOLUTION_2D);
+  conv_node->operation.type = ToString(OperationType::kConvolution2D);
   conv_node->operation.attributes = conv_attr;
   graph->AddConsumer(conv_node->id, concat_output->id);
   Value* conv_output = nullptr;
@@ -94,7 +94,7 @@ absl::flat_hash_map<ValueId, TensorDescriptor> GetTensorDescriptors(
     TensorStorageType storage_type) {
   absl::flat_hash_map<ValueId, TensorDescriptor> result;
   for (Value* value : graph.values()) {
-    Layout layout = value->tensor.shape.b == 1 ? Layout::HWC : Layout::BHWC;
+    Layout layout = value->tensor.shape.b == 1 ? Layout::kHWC : Layout::kBHWC;
     DataType data_type = DeduceDataTypeFromPrecision(precision);
     auto tensor_desc = TensorDescriptor{data_type, storage_type, layout};
     tensor_desc.SetBHWCShape(value->tensor.shape);
@@ -109,7 +109,7 @@ absl::Status ConcatConvTest(TestExecutionEnvironment* exec_env,
                             bool use_thin_local_memory_fuser = false,
                             bool perf_test = false) {
   ConcatAttributes concat_attr;
-  concat_attr.axis = Axis::CHANNELS;
+  concat_attr.axis = Axis::kChannels;
 
   Convolution2DAttributes conv_attr;
   conv_attr.padding.prepended = HW(1, 1);
@@ -132,7 +132,7 @@ absl::Status ConcatConvTest(TestExecutionEnvironment* exec_env,
         .hints = {},
         .storage = op_def.dst_tensors[0].GetStorageType(),
         .use_f32_accum_for_f16_convolutions =
-            precision == CalculationsPrecision::F32_F16,
+            precision == CalculationsPrecision::kF32F16,
     };
     GpuModelBuilder model_builder = GpuModelBuilder(
         exec_env->GetGpuInfo(), options,
@@ -194,34 +194,34 @@ TEST_F(Test, ConcatConv4x3x3x3) {
     GTEST_SKIP() << "ConcatConv not suitable.";
   }
   OperationDef op_def;
-  const DataType data_type = DataType::FLOAT32;
-  const TensorStorageType storage = TensorStorageType::TEXTURE_2D;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  const DataType data_type = DataType::kFloat32;
+  const TensorStorageType storage = TensorStorageType::kTexture2D;
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   ABSL_EXPECT_OK(ConcatConvTest(exec_env, BHWC(1, 31, 49, 1), op_def,
-                           CalculationsPrecision::F32,
+                           CalculationsPrecision::kF32,
                            /*use_thin_local_memory_fuser=*/false));
 }
 
 TEST_F(Test, ConcatConv4x3x3x3Perf) {
-  if (!exec_env->IsStorageSupported(TensorStorageType::SINGLE_TEXTURE_2D,
-                                    DataType::FLOAT16)) {
+  if (!exec_env->IsStorageSupported(TensorStorageType::kSingleTexture2D,
+                                    DataType::kFloat16)) {
     GTEST_SKIP() << "ConcatConv4x3x3x3Perf not suitable.";
   }
-  const DataType data_type = DataType::FLOAT16;
+  const DataType data_type = DataType::kFloat16;
   OperationDef op_def;
   op_def.src_tensors.push_back(
-      {data_type, TensorStorageType::SINGLE_TEXTURE_2D, Layout::HWC});
+      {data_type, TensorStorageType::kSingleTexture2D, Layout::kHWC});
   op_def.src_tensors.push_back(
-      {data_type, TensorStorageType::SINGLE_TEXTURE_2D, Layout::HWC});
+      {data_type, TensorStorageType::kSingleTexture2D, Layout::kHWC});
   op_def.src_tensors.push_back(
-      {data_type, TensorStorageType::SINGLE_TEXTURE_2D, Layout::HWC});
+      {data_type, TensorStorageType::kSingleTexture2D, Layout::kHWC});
   op_def.dst_tensors.push_back(
-      {data_type, TensorStorageType::TEXTURE_2D, Layout::HWC});
+      {data_type, TensorStorageType::kTexture2D, Layout::kHWC});
   ABSL_EXPECT_OK(ConcatConvTest(exec_env, BHWC(1, 3024, 4032, 1), op_def,
-                           CalculationsPrecision::F16,
+                           CalculationsPrecision::kF16,
                            /*use_thin_local_memory_fuser=*/false,
                            /*perf_test=*/true));
 }
@@ -231,14 +231,14 @@ TEST_F(Test, ConcatConv4x3x3x3LocalMemory) {
     GTEST_SKIP() << "ThinLocalMemoryFuser not suitable.";
   }
   OperationDef op_def;
-  const DataType data_type = DataType::FLOAT32;
-  const TensorStorageType storage = TensorStorageType::TEXTURE_2D;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  const DataType data_type = DataType::kFloat32;
+  const TensorStorageType storage = TensorStorageType::kTexture2D;
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   ABSL_EXPECT_OK(ConcatConvTest(exec_env, BHWC(1, 31, 49, 1), op_def,
-                           CalculationsPrecision::F32,
+                           CalculationsPrecision::kF32,
                            /*use_thin_local_memory_fuser=*/true));
 }
 
@@ -246,18 +246,18 @@ TEST_F(Test, ConcatConv4x3x3x3LocalMemoryPerf) {
   if (!IsThinLocalMemoryFuserRecommended(exec_env->GetGpuInfo())) {
     GTEST_SKIP() << "ThinLocalMemoryFuser not suitable.";
   }
-  const DataType data_type = DataType::FLOAT16;
+  const DataType data_type = DataType::kFloat16;
   OperationDef op_def;
   op_def.src_tensors.push_back(
-      {data_type, TensorStorageType::SINGLE_TEXTURE_2D, Layout::HWC});
+      {data_type, TensorStorageType::kSingleTexture2D, Layout::kHWC});
   op_def.src_tensors.push_back(
-      {data_type, TensorStorageType::SINGLE_TEXTURE_2D, Layout::HWC});
+      {data_type, TensorStorageType::kSingleTexture2D, Layout::kHWC});
   op_def.src_tensors.push_back(
-      {data_type, TensorStorageType::SINGLE_TEXTURE_2D, Layout::HWC});
+      {data_type, TensorStorageType::kSingleTexture2D, Layout::kHWC});
   op_def.dst_tensors.push_back(
-      {data_type, TensorStorageType::TEXTURE_2D, Layout::HWC});
+      {data_type, TensorStorageType::kTexture2D, Layout::kHWC});
   ABSL_EXPECT_OK(ConcatConvTest(exec_env, BHWC(1, 3024, 4032, 1), op_def,
-                           CalculationsPrecision::F16,
+                           CalculationsPrecision::kF16,
                            /*use_thin_local_memory_fuser=*/true,
                            /*perf_test=*/true));
 }

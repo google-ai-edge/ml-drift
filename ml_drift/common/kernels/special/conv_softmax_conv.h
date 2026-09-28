@@ -40,8 +40,8 @@ class ConvSoftmaxConv : public GPUOperation {
     // if constant, weights0 and weights1 must be initialized
     // if non constant, src_ch, interm_ch and dst_ch must be initialized
     bool constant = true;
-    Tensor<OHWI, DataType::FLOAT32>* weights0 = nullptr;
-    Tensor<OHWI, DataType::FLOAT32>* weights1 = nullptr;
+    Tensor<OHWI, DataType::kFloat32>* weights0 = nullptr;
+    Tensor<OHWI, DataType::kFloat32>* weights1 = nullptr;
     int src_ch = 0;
     int interm_ch = 0;
     int dst_ch = 0;
@@ -73,7 +73,7 @@ class ConvSoftmaxConv : public GPUOperation {
       if (weights_upload_type == WeightsUploadType::kWaveMemory) {
         desc = GetBufferDescForWaveMemoryUpload(gpu_info, weights_data_type);
       } else {
-        desc.memory_type = MemoryType::GLOBAL;
+        desc.memory_type = MemoryType::kGlobal;
       }
       return desc;
     }

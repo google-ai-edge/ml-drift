@@ -139,7 +139,7 @@ std::string GetCode(const GpuInfo& gpu_info, const OperationDef& definition,
     }
   }
   for (int b_x = 0; b_x < kernel_params.dst_w4_block_size; b_x++) {
-    if (src_desc.CanReadOutOfBorder(Axis::WIDTH, gpu_info)) {
+    if (src_desc.CanReadOutOfBorder(Axis::kWidth, gpu_info)) {
       c += "  int src_x" + std::to_string(b_x) + " = x" + std::to_string(b_x) +
            "_w0123;\n";
     } else {
@@ -213,7 +213,7 @@ void ConvWaveMatrixMali::InitBase(const GpuInfo& gpu_info,
                                   const OperationDef& definition,
                                   const OHWI& weights_shape) {
   work_group_size_ = int3(16, 1, 1);
-  conv_params_.weights_type = DataType::INT8;
+  conv_params_.weights_type = DataType::kInt8;
   kernel_params_ = GetKernelParams(gpu_info.mali_info, weights_shape);
   code_ = GetCode(gpu_info, definition, conv_params_, kernel_params_);
   work_group_launch_order_ =
@@ -226,7 +226,7 @@ void ConvWaveMatrixMali::InitBase(const GpuInfo& gpu_info,
 
 ConvWaveMatrixMali::ConvWaveMatrixMali(
     const GpuInfo& gpu_info, const OperationDef& definition,
-    const ml_drift::Tensor<OHWI, DataType::INT8>& weights_i8) {
+    const ml_drift::Tensor<OHWI, DataType::kInt8>& weights_i8) {
   InitBase(gpu_info, definition, weights_i8.shape);
 
   const WeightsDescription weights_desc = GetWeightsDescription();
@@ -234,9 +234,9 @@ ConvWaveMatrixMali::ConvWaveMatrixMali(
       GetTotalElementsCountForLayout(weights_desc, weights_i8.shape);
 
   BufferDescriptor buffer_desc;
-  buffer_desc.element_type = DataType::INT8;
+  buffer_desc.element_type = DataType::kInt8;
   buffer_desc.element_size = 16;
-  buffer_desc.memory_type = MemoryType::GLOBAL;
+  buffer_desc.memory_type = MemoryType::kGlobal;
   buffer_desc.size = elements_count * SizeOf(weights_desc.type);
   buffer_desc.data.resize(buffer_desc.size);
   RearrangeWeights(weights_i8, weights_desc, absl::MakeSpan(buffer_desc.data));
@@ -250,7 +250,7 @@ ConvWaveMatrixMali::ConvWaveMatrixMali(const GpuInfo& gpu_info,
   InitBase(gpu_info, definition, weights_shape);
 
   BufferDescriptor weights_desc;
-  weights_desc.element_type = DataType::INT8;
+  weights_desc.element_type = DataType::kInt8;
   weights_desc.element_size = 16;
   AddSrcBuffer("weights", weights_desc);
 }

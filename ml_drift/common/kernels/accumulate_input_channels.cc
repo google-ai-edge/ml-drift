@@ -30,7 +30,7 @@ namespace {
 std::string GetSrcReader(const DataType src_data_type,
                          const TensorStorageType storage_type,
                          std::string linear_index) {
-  if (src_data_type == DataType::INT4) {
+  if (src_data_type == DataType::kInt4) {
     return absl::Substitute(R"(
   int i32_value = ucl::Init<int>(0);
   args.src_tensor.ReadPerChannel(i32_value, ($0));
@@ -38,7 +38,7 @@ std::string GetSrcReader(const DataType src_data_type,
   src_value += ucl::I16ToVec4I4<int>((i32_value >> 16u));
 )",
                             linear_index);
-  } else if (src_data_type == DataType::INT2) {
+  } else if (src_data_type == DataType::kInt2) {
     return absl::Substitute(R"(
   char i8_value = ucl::Init<char>(0);
   args.src_tensor.ReadPerChannel(i8_value, ($0));
@@ -118,31 +118,31 @@ GPUOperation CreateAccumulateInputChannels(const OperationDef& definition,
   const TensorDescriptor& src_desc = definition.src_tensors[0];
   const TensorDescriptor& dst_desc = definition.dst_tensors[0];
 
-  if (src_desc.GetLayout() != Layout::LINEAR ||
-      dst_desc.GetLayout() != Layout::LINEAR) {
+  if (src_desc.GetLayout() != Layout::kLinear ||
+      dst_desc.GetLayout() != Layout::kLinear) {
     ABSL_LOG(FATAL) << "Only linear layout is supported for accumulate input "
                        "channels operation.";
   }
-  if (input_data_type != DataType::INT8 &&
-      input_data_type != DataType::INT4 &&
-      input_data_type != DataType::INT2) {
+  if (input_data_type != DataType::kInt8 &&
+      input_data_type != DataType::kInt4 &&
+      input_data_type != DataType::kInt2) {
     ABSL_LOG(FATAL) << "Only int8, int4 and int2 input data types are "
                        "supported for accumulate input channels operation.";
   }
-  if (dst_desc.GetDataType() != DataType::INT32) {
+  if (dst_desc.GetDataType() != DataType::kInt32) {
     ABSL_LOG(FATAL) << "Only int32 output data type is supported for accumulate"
                        "input channels operation.";
   }
 
   GPUOperation op;
   int input_channel_slices;
-  if (input_data_type == DataType::INT4) {
+  if (input_data_type == DataType::kInt4) {
     if (input_shape.i % 8 != 0) {
       ABSL_LOG(FATAL)
           << "Input channels must be a multiple of 8 for int4 data type.";
     }
     input_channel_slices = input_shape.i / 8;
-  } else if (input_data_type == DataType::INT2) {
+  } else if (input_data_type == DataType::kInt2) {
     if (input_shape.i % 4 != 0) {
       ABSL_LOG(FATAL)
           << "Input channels must be a multiple of 16 for int2 data type.";

@@ -127,9 +127,9 @@ absl::Status AddTwoEqualIntTensorsTest(TestExecutionEnvironment& env,
   ref_tensor.data = {-1, 16, 22, 4};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorDescriptor src_0, src_1, dst;
   src_0 = op_def.src_tensors[0];
   src_1 = op_def.src_tensors[1];
@@ -146,11 +146,11 @@ absl::Status AddTwoEqualIntTensorsTest(TestExecutionEnvironment& env,
   return absl::OkStatus();
 }
 
-template absl::Status AddTwoEqualIntTensorsTest<DataType::INT8>(
+template absl::Status AddTwoEqualIntTensorsTest<DataType::kInt8>(
     TestExecutionEnvironment& env, TensorStorageType storage);
-template absl::Status AddTwoEqualIntTensorsTest<DataType::INT16>(
+template absl::Status AddTwoEqualIntTensorsTest<DataType::kInt16>(
     TestExecutionEnvironment& env, TensorStorageType storage);
-template absl::Status AddTwoEqualIntTensorsTest<DataType::INT32>(
+template absl::Status AddTwoEqualIntTensorsTest<DataType::kInt32>(
     TestExecutionEnvironment& env, TensorStorageType storage);
 
 template <DataType data_type>
@@ -167,9 +167,9 @@ absl::Status AddTwoEqualUintTensorsTest(TestExecutionEnvironment& env,
   ref_tensor.data = {7, 16, 22, 8};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorDescriptor src_0, src_1, dst;
   src_0 = op_def.src_tensors[0];
   src_1 = op_def.src_tensors[1];
@@ -186,16 +186,16 @@ absl::Status AddTwoEqualUintTensorsTest(TestExecutionEnvironment& env,
   return absl::OkStatus();
 }
 
-template absl::Status AddTwoEqualUintTensorsTest<DataType::UINT8>(
+template absl::Status AddTwoEqualUintTensorsTest<DataType::kUint8>(
     TestExecutionEnvironment& env, TensorStorageType storage);
-template absl::Status AddTwoEqualUintTensorsTest<DataType::UINT16>(
+template absl::Status AddTwoEqualUintTensorsTest<DataType::kUint16>(
     TestExecutionEnvironment& env, TensorStorageType storage);
-template absl::Status AddTwoEqualUintTensorsTest<DataType::UINT32>(
+template absl::Status AddTwoEqualUintTensorsTest<DataType::kUint32>(
     TestExecutionEnvironment& env, TensorStorageType storage);
 
 absl::Status AddTwoEqualTensorsBFloatTest(TestExecutionEnvironment& env,
                                           TensorStorageType storage) {
-  Tensor<BHWC, DataType::BFLOAT16> src0, src1;
+  Tensor<BHWC, DataType::kBfloat16> src0, src1;
   src0.shape = BHWC(1, 2, 1, 2);
   src0.data = FloatToBFloat({1.0f, 2.0f, 16.0625f, 16.1875f});
   src1.shape = BHWC(1, 2, 1, 2);
@@ -203,9 +203,9 @@ absl::Status AddTwoEqualTensorsBFloatTest(TestExecutionEnvironment& env,
 
   std::vector<int> channels = {2, 2};
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::BFLOAT16, storage, Layout::HWC});
-  op_def.src_tensors.push_back({DataType::BFLOAT16, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({DataType::BFLOAT16, storage, Layout::HWC});
+  op_def.src_tensors.push_back({DataType::kBfloat16, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({DataType::kBfloat16, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({DataType::kBfloat16, storage, Layout::kHWC});
   TensorDescriptor src_0, src_1, dst;
   src_0 = op_def.src_tensors[0];
   src_1 = op_def.src_tensors[1];
@@ -216,7 +216,7 @@ absl::Status AddTwoEqualTensorsBFloatTest(TestExecutionEnvironment& env,
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_0, &src_1}, {&dst},
       std::make_unique<GPUOperation>(std::move(operation))));
-  Tensor<BHWC, DataType::BFLOAT16> dst_tensor;
+  Tensor<BHWC, DataType::kBfloat16> dst_tensor;
   dst.DownloadData(&dst_tensor);
   // Not exact values to check for correct rounding. (Float->Bfloat rte)
   EXPECT_THAT(BFloatToFloat(dst_tensor.data),
@@ -234,11 +234,11 @@ absl::Status AddTwoEqualTensorsTest(TestExecutionEnvironment& env,
   src1.data = {0.0f, 1.0f, -0.05f, -0.045f};
   std::vector<int> channels = {2, 2};
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-3f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-3f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateAdd(op_def, channels, channels[0]);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
@@ -259,11 +259,11 @@ absl::Status AddFirstTensorHasMoreChannelsThanSecondTest(
   src1.shape = BHWC(1, 2, 1, 2);
   src1.data = {0.0f, 1.0f, -0.05f, -0.045f};
   std::vector<int> channels = {6, 2};
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-3f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-3f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateAdd(op_def, channels, channels[0]);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
@@ -286,11 +286,11 @@ absl::Status AddFirstTensorHasLessChannelsThanSecondTest(
   src0.shape = BHWC(1, 2, 1, 2);
   src0.data = {0.0f, 1.0f, -0.05f, -0.045f};
   std::vector<int> channels = {2, 6};
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-3f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-3f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateAdd(op_def, channels, 6);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
@@ -313,9 +313,9 @@ absl::Status AddBigTest(TestExecutionEnvironment& env, DataType data_type,
 
   OperationDef op_def;
   for (size_t i = 0; i < src_tensors.size(); ++i) {
-    op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
+    op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
   }
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   return AddTest(env, src_tensors, op_def);
 }
 
@@ -329,9 +329,9 @@ absl::Status AddBatchedBigTest(TestExecutionEnvironment& env,
 
   OperationDef op_def;
   for (size_t i = 0; i < src_tensors.size(); ++i) {
-    op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
+    op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
   }
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
   return AddTest(env, src_tensors, op_def);
 }
 
@@ -346,9 +346,9 @@ absl::Status AddNotEqualBigTest(TestExecutionEnvironment& env,
   TensorFloat32 src_tensor1 = MakeSyntheticTensor(src_shape1);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   return AddNotEqualTest(env, attr, src_tensor0, src_tensor1, op_def);
 }
 
@@ -364,9 +364,9 @@ absl::Status AddNotEqualBatchedBigTest(TestExecutionEnvironment& env,
   TensorFloat32 src_tensor1 = MakeSyntheticTensor(src_shape1);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
   return AddNotEqualTest(env, attr, src_tensor0, src_tensor1, op_def);
 }
 
@@ -382,9 +382,9 @@ absl::Status AddNotEqualFirstTensorBigTest(TestExecutionEnvironment& env,
   TensorFloat32 src_tensor1 = MakeSyntheticTensor(src_shape1);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   return AddNotEqualFirstTensorTest(env, attr, src_tensor0, src_tensor1,
                                     op_def);
 }
@@ -401,25 +401,25 @@ absl::Status AddNotEqualFirstTensorBatchedBigTest(TestExecutionEnvironment& env,
   TensorFloat32 src_tensor1 = MakeSyntheticTensor(src_shape1);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
   return AddNotEqualFirstTensorTest(env, attr, src_tensor0, src_tensor1,
                                     op_def);
 }
 
 absl::Status AddBroadcast5DTest(TestExecutionEnvironment& env,
                                 DataType data_type, TensorStorageType storage) {
-  Tensor<BHWDC, DataType::FLOAT32> src0;
+  Tensor<BHWDC, DataType::kFloat32> src0;
   src0.shape = BHWDC(1, 2, 1, 2, 2);
   src0.data = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
 
-  Tensor<BHWDC, DataType::FLOAT32> src1;
+  Tensor<BHWDC, DataType::kFloat32> src1;
   src1.shape = BHWDC(1, 2, 1, 2, 4);
   src1.data = {0.5f, 2.0f, 1.0f, 1.5f, 2.0f, 3.0f, 1.0f, 1.0f,
                0.5f, 2.0f, 1.0f, 1.5f, 2.0f, 3.0f, 1.0f, 1.0f};
 
-  Tensor<BHWDC, DataType::FLOAT32> ref_tensor;
+  Tensor<BHWDC, DataType::kFloat32> ref_tensor;
   ref_tensor.shape = BHWDC(1, 2, 1, 2, 4);
   ref_tensor.data = {1.5f, 4.0f,  1.0f, 1.5f,   // h=0, d=0  (1.0+0.5, 2.0+2.0)
                      5.0f, 7.0f,  1.0f, 1.0f,   // h=0, d=1  (3.0+2.0, 4.0+3.0)
@@ -427,9 +427,9 @@ absl::Status AddBroadcast5DTest(TestExecutionEnvironment& env,
                      9.0f, 11.0f, 1.0f, 1.0f};  // h=1, d=1 (7.0+2.0, 8.0+3.0)
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWDC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWDC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWDC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWDC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWDC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWDC});
 
   std::vector<int> channels = {src0.shape.c, src1.shape.c};
   GPUOperation operation = CreateAdd(op_def, channels, src1.shape.c);
@@ -445,10 +445,10 @@ absl::Status AddBroadcast5DTest(TestExecutionEnvironment& env,
       {&src_0, &src_1}, {&dst},
       std::make_unique<GPUOperation>(std::move(operation))));
 
-  Tensor<BHWDC, DataType::FLOAT32> dst_tensor;
+  Tensor<BHWDC, DataType::kFloat32> dst_tensor;
   dst.DownloadData(&dst_tensor);
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-3f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-3f;
   EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), ref_tensor.data));
   return absl::OkStatus();
 }

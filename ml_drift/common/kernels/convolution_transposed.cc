@@ -71,7 +71,7 @@ ConvolutionTransposed::ConvolutionTransposed(
     : stride_(attr.stride.w, attr.stride.h, 1, 1), block_size_(2, 2, 1, 2) {
   weights_layout_ = GetLayout(gpu_info);
   weights_data_type_ = DeduceDataTypeFromPrecision(precision);
-  const bool is_f16 = precision == CalculationsPrecision::F16;
+  const bool is_f16 = precision == CalculationsPrecision::kF16;
   if (gpu_info.IsMali()) {
     if (gpu_info.mali_info.IsMidgard()) {
       block_size_ = is_f16 ? int4(2, 1, 1, 2) : int4(2, 1, 1, 1);
@@ -106,7 +106,7 @@ ConvolutionTransposed::ConvolutionTransposed(
       block_size_(2, 2, 1, 2) {
   weights_layout_ = GetLayout(gpu_info);
   weights_data_type_ = DeduceDataTypeFromPrecision(precision);
-  const bool is_f16 = precision == CalculationsPrecision::F16;
+  const bool is_f16 = precision == CalculationsPrecision::kF16;
   if (gpu_info.IsMali()) {
     if (gpu_info.mali_info.IsMidgard()) {
       block_size_ = is_f16 ? int4(2, 1, 1, 2) : int4(2, 1, 1, 1);
@@ -150,7 +150,7 @@ std::string ConvolutionTransposed::GenerateConvolutionTransposedCode(
       BufferDescriptor desc;
       desc.element_type = op_def.src_tensors[1].GetDataType();
       desc.element_size = 16;
-      desc.memory_type = MemoryType::GLOBAL;
+      desc.memory_type = MemoryType::kGlobal;
       AddSrcBuffer("weights", desc);
     } else {
       for (int i = 0; i < 4; ++i) {
@@ -168,8 +168,8 @@ std::string ConvolutionTransposed::GenerateConvolutionTransposedCode(
   bool use_fma = gpu_info.IsAMD() && gpu_info.IsApiOpenCl();
   if (GetWeightsDescription().IsI4O4()) {
     switch (precision) {
-      case CalculationsPrecision::F32:
-      case CalculationsPrecision::F16:
+      case CalculationsPrecision::kF32:
+      case CalculationsPrecision::kF16:
         if (use_fma) {
           c += "#define CONV(R, S)    \\\n";
           c += "R = fma(w0, S.x, R); \\\n";
@@ -184,7 +184,7 @@ std::string ConvolutionTransposed::GenerateConvolutionTransposedCode(
           c += "R += S.w * w3;   \n";
         }
         break;
-      case CalculationsPrecision::F32_F16:
+      case CalculationsPrecision::kF32F16:
         c += "#define CONV(R, S) \\\n";
         c += "R += ucl::Convert<AccType>(S.x * w0 + S.y * w1 + S.z * w2 + S.w "
              "* w3);\n";
@@ -202,13 +202,13 @@ std::string ConvolutionTransposed::GenerateConvolutionTransposedCode(
   auto generate_id = [&](const std::string& x, const std::string& y,
                          const std::string& z) {
     std::string id;
-    if (src_def.HasAxis(Axis::WIDTH)) {
+    if (src_def.HasAxis(Axis::kWidth)) {
       id += "_w" + x;
     }
-    if (src_def.HasAxis(Axis::HEIGHT)) {
+    if (src_def.HasAxis(Axis::kHeight)) {
       id += "_h" + y;
     }
-    if (src_def.HasAxis(Axis::DEPTH)) {
+    if (src_def.HasAxis(Axis::kDepth)) {
       id += "_d" + z;
     }
     return id;
@@ -222,7 +222,7 @@ std::string ConvolutionTransposed::GenerateConvolutionTransposedCode(
   auto generate_check = [&](const std::string& x, const std::string& y,
                             const std::string& z) {
     std::string check;
-    const std::vector<Axis> axes{Axis::WIDTH, Axis::HEIGHT, Axis::DEPTH};
+    const std::vector<Axis> axes{Axis::kWidth, Axis::kHeight, Axis::kDepth};
     const std::vector<std::string> names{"in_x", "in_y", "in_z"};
     const std::vector<std::string> coords{x, y, z};
     for (int i = 0; i < axes.size(); ++i) {
@@ -239,17 +239,17 @@ std::string ConvolutionTransposed::GenerateConvolutionTransposedCode(
   };
 
   switch (precision) {
-    case CalculationsPrecision::F32:
+    case CalculationsPrecision::kF32:
       c += "#define FLT16 float16\n";
       break;
-    case CalculationsPrecision::F32_F16:
-    case CalculationsPrecision::F16:
+    case CalculationsPrecision::kF32F16:
+    case CalculationsPrecision::kF16:
       c += "#define FLT16 half16\n";
       break;
   }
 
   c += "MAIN_FUNCTION($0) {\n";
-  if (op_def.dst_tensors[0].HasAxis(Axis::BATCH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kBatch)) {
     c += "  int linear_id = ucl::GetGlobalId<0>();\n";
     c += "  int dst_x = (linear_id / args.dst_tensor.Batch());\n";
     c += "  int B = linear_id % args.dst_tensor.Batch();\n";
@@ -262,7 +262,7 @@ std::string ConvolutionTransposed::GenerateConvolutionTransposedCode(
   c += "  int ceil_x = dst_x / args.stride_x;\n";
   c += "  dst_x = ceil_x * args.stride_x * " + std::to_string(block_size.x) +
        " + rem_x;\n";
-  if (src_def.HasAxis(Axis::DEPTH)) {
+  if (src_def.HasAxis(Axis::kDepth)) {
     c += "  int linear_id_y = ucl::GetGlobalId<1>();\n";
     c += "  int dst_y = linear_id_y % args.grid_size_y;\n";
     c += "  int dst_z = linear_id_y / args.grid_size_y;\n";
@@ -286,7 +286,7 @@ std::string ConvolutionTransposed::GenerateConvolutionTransposedCode(
   if (weights_are_buffer) {
     c += "  int f_base = dst_s * args.src_tensor.Slices() * args.kernel_size_x "
          "* args.kernel_size_y";
-    if (src_def.HasAxis(Axis::DEPTH)) {
+    if (src_def.HasAxis(Axis::kDepth)) {
       c += " * args.kernel_size_z";
     }
     c += ";\n";
@@ -319,7 +319,7 @@ std::string ConvolutionTransposed::GenerateConvolutionTransposedCode(
   c +=
       "  int src_y = (kernel_first_dst_y + offset_y_strided) / args.stride_y - "
       "offset_y;\n";
-  if (src_def.HasAxis(Axis::DEPTH)) {
+  if (src_def.HasAxis(Axis::kDepth)) {
     c += "  int kernel_first_dst_z = dst_z + args.padding_z;\n";
     c += "  int kernel_last_dst_z = kernel_first_dst_z - args.kernel_size_z;\n";
     c += "  int offset_z = abs(args.padding_z);\n";
@@ -333,17 +333,17 @@ std::string ConvolutionTransposed::GenerateConvolutionTransposedCode(
     for (int z = 0; z < block_size.z; ++z) {
       const std::string zindex = std::to_string(z);
       c += "    int sz" + zindex + " = src_z + " + zindex + ";\n";
-      if (!src_def.SupportsZeroClamp(Axis::DEPTH, gpu_info)) {
+      if (!src_def.SupportsZeroClamp(Axis::kDepth, gpu_info)) {
         c += "    bool in_z" + zindex + " = sz" + zindex + " >= 0 && sz" +
              zindex + " < args.src_tensor.Depth();\n";
-        if (!src_def.CanReadOutOfBorder(Axis::DEPTH, gpu_info)) {
+        if (!src_def.CanReadOutOfBorder(Axis::kDepth, gpu_info)) {
           c += "    sz" + zindex + " = clamp(sz" + zindex +
                ", 0, args.src_tensor.Depth() - 1);\n";
         }
       }
     }
     if (block_size.z == 1 &&
-        !src_def.SupportsZeroClamp(Axis::DEPTH, gpu_info)) {
+        !src_def.SupportsZeroClamp(Axis::kDepth, gpu_info)) {
       c += "    if (!in_z0) continue;\n";
     }
     c += "    int kernel_z = kernel_first_dst_z - src_as_dst_z;\n";
@@ -359,18 +359,19 @@ std::string ConvolutionTransposed::GenerateConvolutionTransposedCode(
   for (int y = 0; y < block_size.y; ++y) {
     const std::string yindex = std::to_string(y);
     const std::string src_y =
-        src_def.HasAxis(Axis::DEPTH) ? "src_y_copy" : "src_y";
+        src_def.HasAxis(Axis::kDepth) ? "src_y_copy" : "src_y";
     c += "    int sy" + yindex + " = " + src_y + " + " + yindex + ";\n";
-    if (!src_def.SupportsZeroClamp(Axis::HEIGHT, gpu_info)) {
+    if (!src_def.SupportsZeroClamp(Axis::kHeight, gpu_info)) {
       c += "    bool in_y" + yindex + " = sy" + yindex + " >= 0 && sy" +
            yindex + " < args.src_tensor.Height();\n";
-      if (!src_def.CanReadOutOfBorder(Axis::HEIGHT, gpu_info)) {
+      if (!src_def.CanReadOutOfBorder(Axis::kHeight, gpu_info)) {
         c += "    sy" + yindex + " = clamp(sy" + yindex +
              ", 0, args.src_tensor.Height() - 1);\n";
       }
     }
   }
-  if (block_size.y == 1 && !src_def.SupportsZeroClamp(Axis::HEIGHT, gpu_info)) {
+  if (block_size.y == 1 &&
+      !src_def.SupportsZeroClamp(Axis::kHeight, gpu_info)) {
     c += "      if (!in_y0) continue;\n";
   }
   c += "    int kernel_y = kernel_first_dst_y - src_as_dst_y;\n";
@@ -382,16 +383,16 @@ std::string ConvolutionTransposed::GenerateConvolutionTransposedCode(
   for (int x = 0; x < block_size.x; ++x) {
     const std::string xindex = std::to_string(x);
     c += "      int sx" + xindex + " = src_x_copy + " + xindex + ";\n";
-    if (!src_def.SupportsZeroClamp(Axis::WIDTH, gpu_info)) {
+    if (!src_def.SupportsZeroClamp(Axis::kWidth, gpu_info)) {
       c += "      bool in_x" + xindex + " = sx" + xindex + " >= 0 && sx" +
            xindex + " < args.src_tensor.Width();\n";
-      if (!src_def.CanReadOutOfBorder(Axis::WIDTH, gpu_info)) {
+      if (!src_def.CanReadOutOfBorder(Axis::kWidth, gpu_info)) {
         c += "      sx" + xindex + " = clamp(sx" + xindex +
              ", 0, args.src_tensor.Width() - 1);\n";
       }
     }
   }
-  if (block_size.x == 1 && !src_def.SupportsZeroClamp(Axis::WIDTH, gpu_info)) {
+  if (block_size.x == 1 && !src_def.SupportsZeroClamp(Axis::kWidth, gpu_info)) {
     c += "      if (!in_x0) continue;\n";
   }
   for (int z = 0; z < block_size.z; ++z) {
@@ -403,7 +404,7 @@ std::string ConvolutionTransposed::GenerateConvolutionTransposedCode(
         const std::string id = generate_id(xind, yind, zind);
         const std::string check = generate_check(xind, yind, zind);
         std::string coords = "sx" + xind + ", sy" + yind;
-        if (src_def.HasAxis(Axis::DEPTH)) {
+        if (src_def.HasAxis(Axis::kDepth)) {
           coords += ", sz" + zind;
         }
         if (src_def.IsLinear()) {
@@ -424,7 +425,7 @@ std::string ConvolutionTransposed::GenerateConvolutionTransposedCode(
     c += "      int ds = args.src_tensor.SliceStride();\n";
   }
   c += "      int kernel_x = kernel_first_dst_x - src_as_dst_x;\n";
-  if (src_def.HasAxis(Axis::DEPTH)) {
+  if (src_def.HasAxis(Axis::kDepth)) {
     c += "      int kernel_index = (kernel_z * args.kernel_size_y + kernel_y) "
          "*  args.kernel_size_x + kernel_x;\n";
   } else {
@@ -450,7 +451,7 @@ std::string ConvolutionTransposed::GenerateConvolutionTransposedCode(
           address = "addr" + id;
         } else {
           address = "sx" + xind + ", sy" + yind;
-          if (src_def.HasAxis(Axis::DEPTH)) {
+          if (src_def.HasAxis(Axis::kDepth)) {
             address += ", sz" + zind;
           }
           address += ", s";
@@ -511,7 +512,7 @@ std::string ConvolutionTransposed::GenerateConvolutionTransposedCode(
   c += "      }\n";
   c += "    }\n";
   c += "  }\n";
-  if (src_def.HasAxis(Axis::DEPTH)) {
+  if (src_def.HasAxis(Axis::kDepth)) {
     c += "  }\n";
   }
   for (int s = 0; s < block_size.w; ++s) {
@@ -535,7 +536,7 @@ std::string ConvolutionTransposed::GenerateConvolutionTransposedCode(
           c += "    {\n";
           c += "      int xc = dst_x + args.stride_x * " + xind + ";\n";
           c += "      int yc = dst_y + args.stride_y * " + yind + ";\n";
-          if (src_def.HasAxis(Axis::DEPTH)) {
+          if (src_def.HasAxis(Axis::kDepth)) {
             c += "      int zc = dst_z + args.stride_z * " + zind + ";\n";
             checks += " && zc < args.dst_tensor.Depth()";
             coords += ", zc";
@@ -553,9 +554,9 @@ std::string ConvolutionTransposed::GenerateConvolutionTransposedCode(
     c += "  dst_s++;\n";
   }
   c += "}\n";
-  const DataType acc_type = precision == CalculationsPrecision::F16
-                                ? DataType::FLOAT16
-                                : DataType::FLOAT32;
+  const DataType acc_type = precision == CalculationsPrecision::kF16
+                                ? DataType::kFloat16
+                                : DataType::kFloat32;
   const DataType type = op_def.src_tensors[0].GetDataType();
   absl::StrReplaceAll({{"SType", ToUclDataType(type, 1)},
                        {"Type", ToUclDataType(type, 4)},
@@ -633,17 +634,17 @@ ConvolutionTransposed CreateConvolutionTransposedDynamicWeights(
   if (UseBufferForWeights(gpu_info)) {
     // add 1 src_tensor(buffer) for weights
     new_def.src_tensors.push_back(
-        {weights_type, TensorStorageType::BUFFER, Layout::HWC});
+        {weights_type, TensorStorageType::kBuffer, Layout::kHWC});
   } else {
     // add 4 src_tensors(4X textures 2d) for weights
     new_def.src_tensors.push_back(
-        {weights_type, TensorStorageType::TEXTURE_2D, Layout::HW});
+        {weights_type, TensorStorageType::kTexture2D, Layout::kHW});
     new_def.src_tensors.push_back(
-        {weights_type, TensorStorageType::TEXTURE_2D, Layout::HW});
+        {weights_type, TensorStorageType::kTexture2D, Layout::kHW});
     new_def.src_tensors.push_back(
-        {weights_type, TensorStorageType::TEXTURE_2D, Layout::HW});
+        {weights_type, TensorStorageType::kTexture2D, Layout::kHW});
     new_def.src_tensors.push_back(
-        {weights_type, TensorStorageType::TEXTURE_2D, Layout::HW});
+        {weights_type, TensorStorageType::kTexture2D, Layout::kHW});
   }
   ConvolutionTransposed result(new_def, precision, attr, gpu_info);
 

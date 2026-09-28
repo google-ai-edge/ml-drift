@@ -51,7 +51,7 @@ using ::testing::Pointwise;
 namespace {
 
 absl::Status ConvolutionWeightsConverterTest(
-    const Tensor<OHWI, DataType::FLOAT32>& weights,
+    const Tensor<OHWI, DataType::kFloat32>& weights,
     const WeightsDescription& weight_desc, TestExecutionEnvironment& env,
     const OperationDef& op_def) {
   const GpuInfo& gpu_info = env.GetGpuInfo();
@@ -84,10 +84,10 @@ absl::Status ConvolutionWeightsConverterTest(
   }
 
   WeightsDescription weight_desc_copy = weight_desc;
-  weight_desc_copy.type = DataType::FLOAT32;
+  weight_desc_copy.type = DataType::kFloat32;
   const int flt_count =
       GetTotalElementsCountForLayout(weight_desc_copy, weights.shape);
-  DataType weights_type = DataType::FLOAT32;
+  DataType weights_type = DataType::kFloat32;
 
   std::vector<uint8_t> weights_data(flt_count * SizeOf(weights_type));
   RearrangeWeights(weights, weight_desc_copy, absl::MakeSpan(weights_data));
@@ -132,7 +132,7 @@ absl::Status ConvolutionWeightsConverterTest(
   dst_weights_desc.type = op_def.dst_tensors[0].GetDataType();
   auto converter_from_ohwi =
       ConverterToConvWeights(gpu_info, op_def, weights.shape, dst_weights_desc,
-                             /*input layout*/ Layout::OHWI);
+                             /*input layout*/ Layout::kOHWI);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor_as_ohwi},
       std::make_unique<ConverterToConvWeights>(std::move(converter_from_ohwi)),
@@ -144,7 +144,7 @@ absl::Status ConvolutionWeightsConverterTest(
 
   auto converter_from_hwio =
       ConverterToConvWeights(gpu_info, op_def, weights.shape, dst_weights_desc,
-                             /*input layout*/ Layout::HWIO);
+                             /*input layout*/ Layout::kHWIO);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor_as_hwio},
       std::make_unique<ConverterToConvWeights>(std::move(converter_from_hwio)),
@@ -157,7 +157,7 @@ absl::Status ConvolutionWeightsConverterTest(
 }
 
 absl::Status ConvolutionWeightsConverterRawInputTest(
-    const Tensor<OHWI, DataType::FLOAT32>& weights,
+    const Tensor<OHWI, DataType::kFloat32>& weights,
     const WeightsDescription& weight_desc, TestExecutionEnvironment& env,
     DataType data_type, OperationDef& op_def) {
   const GpuInfo& gpu_info = env.GetGpuInfo();
@@ -172,7 +172,7 @@ absl::Status ConvolutionWeightsConverterRawInputTest(
   TensorFloat32 reference_tensor;
   reference_tensor.shape = BHWC(1, 1, 1, flt_count);
   reference_tensor.data.resize(flt_count);
-  if (weight_desc.type == DataType::FLOAT16) {
+  if (weight_desc.type == DataType::kFloat16) {
     // Convert fp16 data to fp32 for comparison.
     const half* weights_data_half =
         reinterpret_cast<const half*>(weights_data.data());
@@ -191,7 +191,7 @@ absl::Status ConvolutionWeightsConverterRawInputTest(
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_cpu_desc_ptrs, dst_cpu_desc_ptrs,
       std::make_unique<ConverterToConvWeights>(gpu_info, op_def, weights.shape,
-                                               weight_desc, Layout::OHWI)));
+                                               weight_desc, Layout::kOHWI)));
   TensorFloat32 gpu_output;
   dst_cpu_desc.DownloadData(&gpu_output);
   EXPECT_THAT(reference_tensor.data, gpu_output.data);
@@ -210,7 +210,7 @@ absl::Status ConverterToConvWeights1x1OutX4Test(TestExecutionEnvironment& env,
   WeightsDescription conv_weight_desc;
   conv_weight_desc.output_group_size = 4;
 
-  Tensor<OHWI, DataType::FLOAT32> weights;
+  Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = weights_shape;
   weights.data.resize(weights_shape.DimensionsProduct() +
                       XNN_EXTRA_BYTES / sizeof(float));
@@ -220,9 +220,9 @@ absl::Status ConverterToConvWeights1x1OutX4Test(TestExecutionEnvironment& env,
 
   conv_weight_desc.layout = weights_layout;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
   op_def.dst_tensors.push_back(
-      {data_type, TensorStorageType::BUFFER, Layout::UNKNOWN});
+      {data_type, TensorStorageType::kBuffer, Layout::kUnknown});
   ABSL_RETURN_IF_ERROR(
       ConvolutionWeightsConverterTest(weights, conv_weight_desc, env, op_def));
   return absl::OkStatus();
@@ -237,7 +237,7 @@ absl::Status ConverterToConvWeights1x1OutX4UnalignedTest(
   WeightsDescription conv_weight_desc;
   conv_weight_desc.output_group_size = 4;
 
-  Tensor<OHWI, DataType::FLOAT32> weights;
+  Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = weights_shape;
   weights.data.resize(weights_shape.DimensionsProduct() +
                       XNN_EXTRA_BYTES / sizeof(float));
@@ -247,9 +247,9 @@ absl::Status ConverterToConvWeights1x1OutX4UnalignedTest(
 
   conv_weight_desc.layout = weights_layout;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
   op_def.dst_tensors.push_back(
-      {data_type, TensorStorageType::BUFFER, Layout::UNKNOWN});
+      {data_type, TensorStorageType::kBuffer, Layout::kUnknown});
   ABSL_RETURN_IF_ERROR(
       ConvolutionWeightsConverterTest(weights, conv_weight_desc, env, op_def));
   return absl::OkStatus();
@@ -265,7 +265,7 @@ absl::Status ConverterToConvWeights1x1OutX2Test(TestExecutionEnvironment& env,
   WeightsDescription conv_weight_desc;
   conv_weight_desc.output_group_size = 2;
 
-  Tensor<OHWI, DataType::FLOAT32> weights;
+  Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = weights_shape;
   weights.data.resize(weights_shape.DimensionsProduct() +
                       XNN_EXTRA_BYTES / sizeof(float));
@@ -275,9 +275,9 @@ absl::Status ConverterToConvWeights1x1OutX2Test(TestExecutionEnvironment& env,
 
   conv_weight_desc.layout = weights_layout;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
   op_def.dst_tensors.push_back(
-      {data_type, TensorStorageType::BUFFER, Layout::UNKNOWN});
+      {data_type, TensorStorageType::kBuffer, Layout::kUnknown});
   ABSL_RETURN_IF_ERROR(
       ConvolutionWeightsConverterTest(weights, conv_weight_desc, env, op_def));
   return absl::OkStatus();
@@ -293,7 +293,7 @@ absl::Status ConverterToConvWeightsOutX2Test(TestExecutionEnvironment& env,
   WeightsDescription conv_weight_desc;
   conv_weight_desc.output_group_size = 2;
 
-  Tensor<OHWI, DataType::FLOAT32> weights;
+  Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = weights_shape;
   weights.data.resize(weights_shape.DimensionsProduct() +
                       XNN_EXTRA_BYTES / sizeof(float));
@@ -303,9 +303,9 @@ absl::Status ConverterToConvWeightsOutX2Test(TestExecutionEnvironment& env,
 
   conv_weight_desc.layout = weights_layout;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
   op_def.dst_tensors.push_back(
-      {data_type, TensorStorageType::BUFFER, Layout::UNKNOWN});
+      {data_type, TensorStorageType::kBuffer, Layout::kUnknown});
   ABSL_RETURN_IF_ERROR(
       ConvolutionWeightsConverterTest(weights, conv_weight_desc, env, op_def));
   return absl::OkStatus();
@@ -321,7 +321,7 @@ absl::Status ConverterToConvTransposedWeights4x4Test(
   weight_desc.spatial_remap = {10, 11, 14, 15, 8, 9, 12, 13,
                                2,  3,  6,  7,  0, 1, 4,  5};
 
-  Tensor<OHWI, DataType::FLOAT32> weights;
+  Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = weights_shape;
   weights.data.resize(weights_shape.DimensionsProduct() +
                       XNN_EXTRA_BYTES / sizeof(float));
@@ -331,9 +331,9 @@ absl::Status ConverterToConvTransposedWeights4x4Test(
 
   weight_desc.layout = weights_layout;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
   op_def.dst_tensors.push_back(
-      {data_type, TensorStorageType::BUFFER, Layout::UNKNOWN});
+      {data_type, TensorStorageType::kBuffer, Layout::kUnknown});
   ABSL_RETURN_IF_ERROR(
       ConvolutionWeightsConverterTest(weights, weight_desc, env, op_def));
   return absl::OkStatus();
@@ -348,7 +348,7 @@ absl::Status ConverterToConvWeights4xTexturesTest(
   WeightsDescription conv_weight_desc;
   conv_weight_desc.output_group_size = 4;
 
-  Tensor<OHWI, DataType::FLOAT32> weights;
+  Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = weights_shape;
   weights.data.resize(weights_shape.DimensionsProduct() +
                       XNN_EXTRA_BYTES / sizeof(float));
@@ -358,15 +358,15 @@ absl::Status ConverterToConvWeights4xTexturesTest(
 
   conv_weight_desc.layout = weights_layout;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
   op_def.dst_tensors.push_back(
-      {data_type, TensorStorageType::TEXTURE_2D, Layout::HWC});
+      {data_type, TensorStorageType::kTexture2D, Layout::kHWC});
   op_def.dst_tensors.push_back(
-      {data_type, TensorStorageType::TEXTURE_2D, Layout::HWC});
+      {data_type, TensorStorageType::kTexture2D, Layout::kHWC});
   op_def.dst_tensors.push_back(
-      {data_type, TensorStorageType::TEXTURE_2D, Layout::HWC});
+      {data_type, TensorStorageType::kTexture2D, Layout::kHWC});
   op_def.dst_tensors.push_back(
-      {data_type, TensorStorageType::TEXTURE_2D, Layout::HWC});
+      {data_type, TensorStorageType::kTexture2D, Layout::kHWC});
   ABSL_RETURN_IF_ERROR(
       ConvolutionWeightsConverterTest(weights, conv_weight_desc, env, op_def));
   return absl::OkStatus();
@@ -381,7 +381,7 @@ absl::Status ConverterToConvWeightsFloat32OHWItoFloat32Test(
       .output_group_size = 1,
   };
 
-  Tensor<OHWI, DataType::FLOAT32> weights;
+  Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = weights_shape;
   weights.data.resize(weights.shape.DimensionsProduct() +
                       XNN_EXTRA_BYTES / sizeof(float));
@@ -389,13 +389,13 @@ absl::Status ConverterToConvWeightsFloat32OHWItoFloat32Test(
     weights.data[i] = i;
   }
   TensorDescriptor src_raw_ohwi =
-      TensorDescriptor(data_type, TensorStorageType::BUFFER, Layout::LINEAR);
+      TensorDescriptor(data_type, TensorStorageType::kBuffer, Layout::kLinear);
   src_raw_ohwi.SetBHWCShape(BHWC(1, 1, 1, weights.shape.DimensionsProduct()));
   src_raw_ohwi.UploadDataRaw(absl::MakeConstSpan(
       weights.data.data(), weights.shape.DimensionsProduct()));
 
   TensorDescriptor dst_descriptor =
-      TensorDescriptor(data_type, TensorStorageType::BUFFER, Layout::LINEAR);
+      TensorDescriptor(data_type, TensorStorageType::kBuffer, Layout::kLinear);
   dst_descriptor.SetBHWCShape(
       BHWC(1, 1, 1,
            GetTotalElementsCountForLayout(conv_weight_desc, weights_shape)));
@@ -411,7 +411,7 @@ absl::Status ConverterToConvWeightsInt8OHWIToUint8Test(
     TestExecutionEnvironment& env, const OHWI& weights_shape,
     const WeightsDescription& conv_weight_desc) {
   const GpuInfo& gpu_info = env.GetGpuInfo();
-  Tensor<OHWI, DataType::INT8> weights;
+  Tensor<OHWI, DataType::kInt8> weights;
   weights.shape = weights_shape;
   weights.data.resize(weights.shape.DimensionsProduct() +
                       XNN_EXTRA_BYTES / sizeof(int8_t));
@@ -419,7 +419,7 @@ absl::Status ConverterToConvWeightsInt8OHWIToUint8Test(
     weights.data[i] = static_cast<int8_t>(i);
   }
   TensorDescriptor src_raw_ohwi = TensorDescriptor(
-      DataType::INT8, TensorStorageType::BUFFER, Layout::LINEAR);
+      DataType::kInt8, TensorStorageType::kBuffer, Layout::kLinear);
   src_raw_ohwi.SetBHWCShape(BHWC(1, 1, 1, weights.shape.DimensionsProduct()));
   src_raw_ohwi.UploadDataRaw(absl::MakeConstSpan(
       weights.data.data(), weights.shape.DimensionsProduct()));
@@ -428,13 +428,13 @@ absl::Status ConverterToConvWeightsInt8OHWIToUint8Test(
   if (conv_weight_desc.layout ==
       WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
     dst_descriptor = TensorDescriptor(
-        DataType::UINT32, TensorStorageType::TEXTURE_2D, Layout::HW);
+        DataType::kUint32, TensorStorageType::kTexture2D, Layout::kHW);
     uint2 tex_size = Get2dResourceSize(conv_weight_desc, weights_shape);
     tex_size.x /= sizeof(uint32_t) / sizeof(uint8_t);
     dst_descriptor.SetBHWCShape(BHWC(1, tex_size.y, tex_size.x, 1));
   } else {
     dst_descriptor = TensorDescriptor(
-        conv_weight_desc.type, TensorStorageType::BUFFER, Layout::LINEAR);
+        conv_weight_desc.type, TensorStorageType::kBuffer, Layout::kLinear);
     dst_descriptor.SetBHWCShape(
         BHWC(1, 1, 1,
              GetTotalElementsCountForLayout(conv_weight_desc, weights_shape)));
@@ -461,7 +461,7 @@ absl::Status ConverterToConvWeightsInt8OHWIToUint8Test(
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_cpu_desc_ptrs, dst_cpu_desc_ptrs,
       std::make_unique<ConverterToConvWeights>(
-          gpu_info, op_def, weights.shape, conv_weight_desc, Layout::OHWI)));
+          gpu_info, op_def, weights.shape, conv_weight_desc, Layout::kOHWI)));
   auto data = dst_cpu_desc.GetData();
   EXPECT_EQ(data, weights_data);
   return absl::OkStatus();
@@ -478,7 +478,7 @@ absl::Status ConverterToConvWeightsInt4OHWIToUint4Test(
       (weights_shape.DimensionsProduct() + kUint4ValuesPerUint8Value - 1) /
       kUint4ValuesPerUint8Value;
   // Prepare int4 SRC tensor for Cpu conversion (reference) and Gpu conversion.
-  Tensor<OHWI, DataType::INT8> src_int4_weights;
+  Tensor<OHWI, DataType::kInt8> src_int4_weights;
   src_int4_weights.shape = weights_shape;
   src_int4_weights.data.resize(size_packed + XNN_EXTRA_BYTES / sizeof(int8_t));
   for (int i = 0; i < size_packed; ++i) {
@@ -488,7 +488,7 @@ absl::Status ConverterToConvWeightsInt4OHWIToUint4Test(
   }
 
   // Get reference results by Cpu conversion.
-  ml_drift::Tensor<OHWI, DataType::INT8> intermediate_int8_weights;
+  ml_drift::Tensor<OHWI, DataType::kInt8> intermediate_int8_weights;
   intermediate_int8_weights.shape = weights_shape;
   intermediate_int8_weights.data.resize(
       intermediate_int8_weights.shape.DimensionsProduct());
@@ -505,20 +505,20 @@ absl::Status ConverterToConvWeightsInt4OHWIToUint4Test(
 
   // Get results to test Gpu conversion.
   TensorDescriptor src_raw_ohwi = TensorDescriptor(
-      DataType::INT4, TensorStorageType::BUFFER, Layout::LINEAR);
+      DataType::kInt4, TensorStorageType::kBuffer, Layout::kLinear);
   src_raw_ohwi.SetBHWCShape(BHWC(1, 1, 1, size_packed));
   src_raw_ohwi.UploadDataRaw(
       absl::MakeConstSpan(src_int4_weights.data.data(), size_packed));
   TensorDescriptor dst_descriptor;
   if (conv_weight_desc.IsLinearLayout()) {
     dst_descriptor = TensorDescriptor(
-        conv_weight_desc.type, TensorStorageType::BUFFER, Layout::LINEAR);
+        conv_weight_desc.type, TensorStorageType::kBuffer, Layout::kLinear);
     dst_descriptor.SetBHWDCShape(
         BHWDC(1, 1, 1, 1, elems_count / kUint4ValuesPerUint8Value));
   } else if (conv_weight_desc.layout ==
              WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
     dst_descriptor = TensorDescriptor(
-        DataType::UINT16, TensorStorageType::TEXTURE_2D, Layout::HW);
+        DataType::kUint16, TensorStorageType::kTexture2D, Layout::kHW);
     uint2 tex_size = Get2dResourceSize(conv_weight_desc, weights_shape);
     constexpr int uint4_bits = 4;
     constexpr int uint16_bits = 16;
@@ -539,7 +539,7 @@ absl::Status ConverterToConvWeightsInt4OHWIToUint4Test(
       env.ExecuteGPUOperation(src_cpu_desc_ptrs, dst_cpu_desc_ptrs,
                               std::make_unique<ConverterToConvWeights>(
                                   gpu_info, op_def, src_int4_weights.shape,
-                                  conv_weight_desc, Layout::OHWI)));
+                                  conv_weight_desc, Layout::kOHWI)));
   auto dst_data = dst_cpu_desc.GetData();
   EXPECT_EQ(dst_data, reference_dst_data);
   return absl::OkStatus();
@@ -550,11 +550,11 @@ absl::Status ConverterToConvWeightsInt2OHWIToUint2Test(
     const WeightsDescription& conv_weight_desc) {
   const GpuInfo& gpu_info = env.GetGpuInfo();
   const int kUint2ValuesPerUint8Value =
-      SizeInBitsOf(DataType::UINT8) / SizeInBitsOf(DataType::UINT2);
+      SizeInBitsOf(DataType::kUint8) / SizeInBitsOf(DataType::kUint2);
   const size_t size_packed = DivideRoundUp(weights_shape.DimensionsProduct(),
                                            kUint2ValuesPerUint8Value);
   // Prepare int2 SRC tensor for Cpu conversion (reference) and Gpu conversion.
-  Tensor<OHWI, DataType::INT8> src_int2_weights;
+  Tensor<OHWI, DataType::kInt8> src_int2_weights;
   src_int2_weights.shape = weights_shape;
   src_int2_weights.data.resize(size_packed + XNN_EXTRA_BYTES / sizeof(int8_t));
   // For example, int2 values of [-2, -1, 0, 1] will be stored in one byte as
@@ -570,7 +570,7 @@ absl::Status ConverterToConvWeightsInt2OHWIToUint2Test(
   }
 
   // Get reference results by CPU weights rearrangement.
-  ml_drift::Tensor<OHWI, DataType::INT8> intermediate_int8_weights;
+  ml_drift::Tensor<OHWI, DataType::kInt8> intermediate_int8_weights;
   intermediate_int8_weights.shape = weights_shape;
   intermediate_int8_weights.data.resize(
       intermediate_int8_weights.shape.DimensionsProduct());
@@ -587,23 +587,23 @@ absl::Status ConverterToConvWeightsInt2OHWIToUint2Test(
 
   // Get results to test by GPU weights rearrangement.
   TensorDescriptor src_raw_ohwi = TensorDescriptor(
-      DataType::INT2, TensorStorageType::BUFFER, Layout::LINEAR);
+      DataType::kInt2, TensorStorageType::kBuffer, Layout::kLinear);
   src_raw_ohwi.SetBHWCShape(BHWC(1, 1, 1, size_packed));
   src_raw_ohwi.UploadDataRaw(
       absl::MakeConstSpan(src_int2_weights.data.data(), size_packed));
   TensorDescriptor dst_descriptor;
   if (conv_weight_desc.IsLinearLayout()) {
     dst_descriptor = TensorDescriptor(
-        DataType::UINT8, TensorStorageType::BUFFER, Layout::LINEAR);
+        DataType::kUint8, TensorStorageType::kBuffer, Layout::kLinear);
     dst_descriptor.SetBHWDCShape(BHWDC(
         1, 1, 1, 1, DivideRoundUp(elems_count, kUint2ValuesPerUint8Value)));
   } else if (conv_weight_desc.layout ==
              WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
     dst_descriptor = TensorDescriptor(
-        DataType::UINT8, TensorStorageType::TEXTURE_2D, Layout::HW);
+        DataType::kUint8, TensorStorageType::kTexture2D, Layout::kHW);
     uint2 tex_size = Get2dResourceSize(conv_weight_desc, weights_shape);
     const int kUint2ElementsPerUint8Value = DivideRoundUp(
-        SizeInBitsOf(DataType::UINT8), SizeInBitsOf(DataType::UINT2));
+        SizeInBitsOf(DataType::kUint8), SizeInBitsOf(DataType::kUint2));
     tex_size.x /= kUint2ElementsPerUint8Value;
     dst_descriptor.SetBHWDCShape(BHWDC(1, tex_size.y, tex_size.x, 1, 4));
   } else {
@@ -620,7 +620,7 @@ absl::Status ConverterToConvWeightsInt2OHWIToUint2Test(
       env.ExecuteGPUOperation(src_cpu_desc_ptrs, dst_cpu_desc_ptrs,
                               std::make_unique<ConverterToConvWeights>(
                                   gpu_info, op_def, src_int2_weights.shape,
-                                  conv_weight_desc, Layout::OHWI)));
+                                  conv_weight_desc, Layout::kOHWI)));
   auto dst_data = dst_cpu_desc.GetData();
   EXPECT_EQ(dst_data, reference_dst_data);
   return absl::OkStatus();
@@ -631,16 +631,16 @@ absl::Status ConverterToConvWeightsInt2OHWIToFloatTest(
     const WeightsDescription& conv_weight_desc) {
   const GpuInfo& gpu_info = env.GetGpuInfo();
   const int kUint2ValuesPerUint8Value =
-      SizeInBitsOf(DataType::UINT8) / SizeInBitsOf(DataType::UINT2);
+      SizeInBitsOf(DataType::kUint8) / SizeInBitsOf(DataType::kUint2);
   const size_t size_packed = DivideRoundUp(weights_shape.DimensionsProduct(),
                                            kUint2ValuesPerUint8Value);
 
   // Prepare int2 SRC tensor for Cpu conversion (reference) and Gpu conversion.
-  Tensor<OHWI, DataType::INT8> src_int2_weights;
+  Tensor<OHWI, DataType::kInt8> src_int2_weights;
   src_int2_weights.shape = weights_shape;
   src_int2_weights.data.resize(size_packed + XNN_EXTRA_BYTES / sizeof(int8_t));
 
-  Tensor<OHWI, DataType::INT8> src_int8_weights;
+  Tensor<OHWI, DataType::kInt8> src_int8_weights;
   src_int8_weights.shape = weights_shape;
   src_int8_weights.data.resize(weights_shape.DimensionsProduct() +
                                XNN_EXTRA_BYTES / sizeof(int8_t));
@@ -660,14 +660,14 @@ absl::Status ConverterToConvWeightsInt2OHWIToFloatTest(
     src_int8_weights.data[i * 4 + 3] = int2_val_3;
   }
 
-  Tensor<OHWI, DataType::FLOAT32> weights_scales;
+  Tensor<OHWI, DataType::kFloat32> weights_scales;
   weights_scales.shape = OHWI(weights_shape.o, 1, 1, 1);
   weights_scales.data.resize(weights_scales.shape.DimensionsProduct());
   for (int i = 0; i < weights_scales.data.size(); ++i) {
     weights_scales.data[i] = std::sin((i + 1) * 0.123f) / 8.0f;
   }
-  Tensor<OHWI, DataType::INT32> weights_zero_point;
-  Tensor<OHWI, DataType::FLOAT32> weights_zero_point_f32;
+  Tensor<OHWI, DataType::kInt32> weights_zero_point;
+  Tensor<OHWI, DataType::kFloat32> weights_zero_point_f32;
   weights_zero_point.shape = OHWI(weights_shape.o, 1, 1, 1);
   weights_zero_point_f32.shape = OHWI(weights_shape.o, 1, 1, 1);
   weights_zero_point.data.resize(weights_zero_point.shape.DimensionsProduct());
@@ -679,7 +679,7 @@ absl::Status ConverterToConvWeightsInt2OHWIToFloatTest(
   }
 
   // Get reference results by Cpu conversion.
-  Tensor<OHWI, DataType::FLOAT32> src_f32_weights =
+  Tensor<OHWI, DataType::kFloat32> src_f32_weights =
       DequantizeTensor(src_int8_weights, weights_scales, weights_zero_point);
   src_f32_weights.data.resize(src_f32_weights.shape.DimensionsProduct() +
                               XNN_EXTRA_BYTES / sizeof(float));
@@ -694,7 +694,7 @@ absl::Status ConverterToConvWeightsInt2OHWIToFloatTest(
   OperationDef op_def;
   // Get results to test Gpu conversion.
   TensorDescriptor src_raw_ohwi = TensorDescriptor(
-      DataType::INT2, TensorStorageType::BUFFER, Layout::LINEAR);
+      DataType::kInt2, TensorStorageType::kBuffer, Layout::kLinear);
   op_def.src_tensors.push_back(src_raw_ohwi);
   src_raw_ohwi.SetBHWCShape(BHWC(1, 1, 1, size_packed));
   src_raw_ohwi.UploadDataRaw(
@@ -704,15 +704,15 @@ absl::Status ConverterToConvWeightsInt2OHWIToFloatTest(
   op_def.dst_tensors.push_back(dst_desc);
 
   auto scale_desc = ScaleOrZeroPointToTensorDesc(
-      env.GetGpuInfo(), weights_scales, DataType::FLOAT32);
+      env.GetGpuInfo(), weights_scales, DataType::kFloat32);
   auto zp_desc = ScaleOrZeroPointToTensorDesc(
-      env.GetGpuInfo(), weights_zero_point_f32, DataType::FLOAT32);
+      env.GetGpuInfo(), weights_zero_point_f32, DataType::kFloat32);
 
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_raw_ohwi, &scale_desc, &zp_desc}, {&dst_desc},
       std::make_unique<ConverterToConvWeights>(
           gpu_info, op_def, src_int2_weights.shape, conv_weight_desc,
-          Layout::OHWI, &scale_desc, &zp_desc)));
+          Layout::kOHWI, &scale_desc, &zp_desc)));
   TensorFloat32 gpu_output;
   dst_desc.DownloadData(&gpu_output);
   EXPECT_THAT(gpu_output.data, Pointwise(FloatNear(1e-5f), reference_dst_data));
@@ -731,7 +731,7 @@ absl::Status ConverterToConvWeightsInt4OHWIToFloatTest(
       kUint4ValuesPerUint8Value;
 
   // Prepare SRC int4 weights (quantized weights, scale and zero point).
-  Tensor<OHWI, DataType::INT4> src_int4_weights;
+  Tensor<OHWI, DataType::kInt4> src_int4_weights;
   src_int4_weights.shape = weights_shape;
   src_int4_weights.data.resize(size_packed + XNN_EXTRA_BYTES / sizeof(int8_t));
   for (int i = 0; i < size_packed; ++i) {
@@ -739,14 +739,14 @@ absl::Status ConverterToConvWeightsInt4OHWIToFloatTest(
     int8_t upper_int4 = (i * 2 + 1) % 16 - 8;
     src_int4_weights.data[i] = (upper_int4 << 4) | (lower_int4 & 0x0F);
   }
-  Tensor<OHWI, DataType::FLOAT32> weights_scales;
+  Tensor<OHWI, DataType::kFloat32> weights_scales;
   weights_scales.shape = OHWI(weights_shape.o, 1, 1, 1);
   weights_scales.data.resize(weights_scales.shape.DimensionsProduct());
   for (int i = 0; i < weights_scales.data.size(); ++i) {
     weights_scales.data[i] = std::sin((i + 1) * 0.123f) / 8.0f;
   }
-  Tensor<OHWI, DataType::INT32> weights_zero_point;
-  Tensor<OHWI, DataType::FLOAT32> weights_zero_point_f32;
+  Tensor<OHWI, DataType::kInt32> weights_zero_point;
+  Tensor<OHWI, DataType::kFloat32> weights_zero_point_f32;
   weights_zero_point.shape = OHWI(weights_shape.o, 1, 1, 1);
   weights_zero_point_f32.shape = OHWI(weights_shape.o, 1, 1, 1);
   weights_zero_point.data.resize(weights_zero_point.shape.DimensionsProduct());
@@ -758,7 +758,7 @@ absl::Status ConverterToConvWeightsInt4OHWIToFloatTest(
   }
 
   // Get reference results by Cpu conversion.
-  Tensor<OHWI, DataType::FLOAT32> src_f32_weights =
+  Tensor<OHWI, DataType::kFloat32> src_f32_weights =
       DequantizeTensor(src_int4_weights, weights_scales, weights_zero_point);
   src_f32_weights.data.resize(src_f32_weights.shape.DimensionsProduct() +
                               XNN_EXTRA_BYTES / sizeof(float));
@@ -773,7 +773,7 @@ absl::Status ConverterToConvWeightsInt4OHWIToFloatTest(
   OperationDef op_def;
   // Get results to test Gpu conversion.
   TensorDescriptor src_raw_ohwi = TensorDescriptor(
-      DataType::INT4, TensorStorageType::BUFFER, Layout::LINEAR);
+      DataType::kInt4, TensorStorageType::kBuffer, Layout::kLinear);
   op_def.src_tensors.push_back(src_raw_ohwi);
   src_raw_ohwi.SetBHWCShape(BHWC(1, 1, 1, size_packed));
   src_raw_ohwi.UploadDataRaw(
@@ -783,15 +783,15 @@ absl::Status ConverterToConvWeightsInt4OHWIToFloatTest(
   op_def.dst_tensors.push_back(dst_desc);
 
   auto scale_desc = ScaleOrZeroPointToTensorDesc(
-      env.GetGpuInfo(), weights_scales, DataType::FLOAT32);
+      env.GetGpuInfo(), weights_scales, DataType::kFloat32);
   auto zp_desc = ScaleOrZeroPointToTensorDesc(
-      env.GetGpuInfo(), weights_zero_point_f32, DataType::FLOAT32);
+      env.GetGpuInfo(), weights_zero_point_f32, DataType::kFloat32);
 
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_raw_ohwi, &scale_desc, &zp_desc}, {&dst_desc},
       std::make_unique<ConverterToConvWeights>(
           gpu_info, op_def, src_int4_weights.shape, conv_weight_desc,
-          Layout::OHWI, &scale_desc, &zp_desc)));
+          Layout::kOHWI, &scale_desc, &zp_desc)));
   TensorFloat32 gpu_output;
   dst_desc.DownloadData(&gpu_output);
   EXPECT_THAT(gpu_output.data, Pointwise(FloatNear(1e-5f), reference_dst_data));
@@ -803,7 +803,7 @@ absl::Status ConverterToConvWeightsInt8OHWIToFloatTest(
     const WeightsDescription& conv_weight_desc) {
   const GpuInfo& gpu_info = env.GetGpuInfo();
   // Prepare SRC int8 weights (quantized weights, scale and zero point).
-  Tensor<OHWI, DataType::INT8> src_int8_weights;
+  Tensor<OHWI, DataType::kInt8> src_int8_weights;
   src_int8_weights.shape = weights_shape;
   src_int8_weights.data.resize(src_int8_weights.shape.DimensionsProduct() +
                       XNN_EXTRA_BYTES / sizeof(int8_t));
@@ -811,14 +811,14 @@ absl::Status ConverterToConvWeightsInt8OHWIToFloatTest(
     src_int8_weights.data[i] = static_cast<int8_t>(i);
   }
 
-  Tensor<OHWI, DataType::FLOAT32> weights_scales;
+  Tensor<OHWI, DataType::kFloat32> weights_scales;
   weights_scales.shape = OHWI(weights_shape.o, 1, 1, 1);
   weights_scales.data.resize(weights_scales.shape.DimensionsProduct());
   for (int i = 0; i < weights_scales.data.size(); ++i) {
     weights_scales.data[i] = std::sin((i + 1) * 0.123f) / 8.0f;
   }
-  Tensor<OHWI, DataType::INT32> weights_zero_point;
-  Tensor<OHWI, DataType::FLOAT32> weights_zero_point_f32;
+  Tensor<OHWI, DataType::kInt32> weights_zero_point;
+  Tensor<OHWI, DataType::kFloat32> weights_zero_point_f32;
   weights_zero_point.shape = OHWI(weights_shape.o, 1, 1, 1);
   weights_zero_point_f32.shape = OHWI(weights_shape.o, 1, 1, 1);
   weights_zero_point.data.resize(weights_zero_point.shape.DimensionsProduct());
@@ -830,7 +830,7 @@ absl::Status ConverterToConvWeightsInt8OHWIToFloatTest(
   }
 
   // Get reference results by Cpu conversion.
-  Tensor<OHWI, DataType::FLOAT32> src_f32_weights =
+  Tensor<OHWI, DataType::kFloat32> src_f32_weights =
       DequantizeTensor(src_int8_weights, weights_scales, weights_zero_point);
   src_f32_weights.data.resize(src_f32_weights.shape.DimensionsProduct() +
                               XNN_EXTRA_BYTES / sizeof(float));
@@ -844,7 +844,7 @@ absl::Status ConverterToConvWeightsInt8OHWIToFloatTest(
 
   // Get results to test Gpu conversion.
   TensorDescriptor src_raw_ohwi = TensorDescriptor(
-      DataType::INT8, TensorStorageType::BUFFER, Layout::LINEAR);
+      DataType::kInt8, TensorStorageType::kBuffer, Layout::kLinear);
   OperationDef op_def;
   op_def.src_tensors.push_back(src_raw_ohwi);
   src_raw_ohwi.SetBHWCShape(BHWC(1, 1, 1, weights_shape.DimensionsProduct()));
@@ -855,15 +855,15 @@ absl::Status ConverterToConvWeightsInt8OHWIToFloatTest(
   op_def.dst_tensors.push_back(dst_desc);
 
   auto scale_desc = ScaleOrZeroPointToTensorDesc(
-      env.GetGpuInfo(), weights_scales, DataType::FLOAT32);
+      env.GetGpuInfo(), weights_scales, DataType::kFloat32);
   auto zp_desc = ScaleOrZeroPointToTensorDesc(
-      env.GetGpuInfo(), weights_zero_point_f32, DataType::FLOAT32);
+      env.GetGpuInfo(), weights_zero_point_f32, DataType::kFloat32);
 
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_raw_ohwi, &scale_desc, &zp_desc}, {&dst_desc},
       std::make_unique<ConverterToConvWeights>(
           gpu_info, op_def, src_int8_weights.shape, conv_weight_desc,
-          Layout::OHWI, &scale_desc, &zp_desc)));
+          Layout::kOHWI, &scale_desc, &zp_desc)));
   TensorFloat32 gpu_output;
   dst_desc.DownloadData(&gpu_output);
   EXPECT_THAT(gpu_output.data, Pointwise(FloatNear(1e-5f), reference_dst_data));
@@ -873,7 +873,7 @@ absl::Status ConverterToConvWeightsInt8OHWIToFloatTest(
 absl::Status ConverterToOSpatialIOGroupITileOTileIXTest(
     TestExecutionEnvironment& env, const OHWI& weights_shape,
     WeightsDescription& weight_desc) {
-  Tensor<OHWI, DataType::FLOAT32> weights;
+  Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = weights_shape;
   weights.data.resize(weights_shape.DimensionsProduct() +
                       XNN_EXTRA_BYTES / sizeof(float));
@@ -881,12 +881,12 @@ absl::Status ConverterToOSpatialIOGroupITileOTileIXTest(
     weights.data[i] = i;
   }
 
-  weight_desc.type = DataType::FLOAT32;
+  weight_desc.type = DataType::kFloat32;
   OperationDef op_def;
   op_def.src_tensors.push_back(
-      {DataType::FLOAT32, TensorStorageType::BUFFER, Layout::BHWC});
+      {DataType::kFloat32, TensorStorageType::kBuffer, Layout::kBHWC});
   op_def.dst_tensors.push_back(
-      {DataType::FLOAT32, TensorStorageType::BUFFER, Layout::UNKNOWN});
+      {DataType::kFloat32, TensorStorageType::kBuffer, Layout::kUnknown});
   ABSL_RETURN_IF_ERROR(
       ConvolutionWeightsConverterTest(weights, weight_desc, env, op_def));
   return absl::OkStatus();
@@ -896,7 +896,7 @@ absl::Status ConverterToISpatialOI4O4UnalignedIOTest(
     TestExecutionEnvironment& env, const OHWI& weights_shape,
     TensorStorageType src_storage, DataType src_type, DataType dst_type) {
   const GpuInfo& gpu_info = env.GetGpuInfo();
-  Tensor<OHWI, DataType::FLOAT32> weights;
+  Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = weights_shape;
   weights.data.resize(weights_shape.DimensionsProduct() +
                       XNN_EXTRA_BYTES / sizeof(float));
@@ -905,9 +905,9 @@ absl::Status ConverterToISpatialOI4O4UnalignedIOTest(
   }
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({src_type, src_storage, Layout::BHWC});
+  op_def.src_tensors.push_back({src_type, src_storage, Layout::kBHWC});
   op_def.dst_tensors.push_back(
-      {dst_type, TensorStorageType::BUFFER, Layout::UNKNOWN});
+      {dst_type, TensorStorageType::kBuffer, Layout::kUnknown});
 
   // reinterpreting weights as HWIO-BHWC tensor
   TensorFloat32 src_tensor_as_hwio;
@@ -951,7 +951,7 @@ absl::Status ConverterToISpatialOI4O4UnalignedIOTest(
   TensorFloat32 dst_tensor;
   dst_tensor.shape = BHWC(1, 1, 1, elements_count);
   dst_tensor.data.resize(elements_count);
-  if (dst_type == DataType::FLOAT16) {
+  if (dst_type == DataType::kFloat16) {
     half* weights_data_f16 = reinterpret_cast<half*>(weights_data.data());
     for (int i = 0; i < elements_count; ++i) {
       dst_tensor.data[i] = weights_data_f16[i];
@@ -966,7 +966,7 @@ absl::Status ConverterToISpatialOI4O4UnalignedIOTest(
   TensorFloat32 dst_tensor_gpu;
   auto converter_from_ohwi =
       ConverterToConvWeights(gpu_info, op_def, weights.shape, weight_desc,
-                             /*input layout*/ Layout::OHWI);
+                             /*input layout*/ Layout::kOHWI);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor_as_ohwi},
       std::make_unique<ConverterToConvWeights>(std::move(converter_from_ohwi)),
@@ -975,7 +975,7 @@ absl::Status ConverterToISpatialOI4O4UnalignedIOTest(
 
   auto converter_from_hwio =
       ConverterToConvWeights(gpu_info, op_def, weights.shape, weight_desc,
-                             /*input layout*/ Layout::HWIO);
+                             /*input layout*/ Layout::kHWIO);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor_as_hwio},
       std::make_unique<ConverterToConvWeights>(std::move(converter_from_hwio)),
@@ -989,7 +989,7 @@ absl::Status ConverterToCustomGroupsTest(
     TensorStorageType src_storage, DataType src_type,
     const WeightsDescription& weights_desc) {
   const GpuInfo& gpu_info = env.GetGpuInfo();
-  Tensor<OHWI, DataType::FLOAT32> weights;
+  Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = weights_shape;
   weights.data.resize(weights_shape.DimensionsProduct() +
                       XNN_EXTRA_BYTES / sizeof(float));
@@ -998,9 +998,9 @@ absl::Status ConverterToCustomGroupsTest(
   }
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({src_type, src_storage, Layout::BHWC});
+  op_def.src_tensors.push_back({src_type, src_storage, Layout::kBHWC});
   op_def.dst_tensors.push_back(
-      {weights_desc.type, TensorStorageType::BUFFER, Layout::UNKNOWN});
+      {weights_desc.type, TensorStorageType::kBuffer, Layout::kUnknown});
 
   // reinterpreting weights as HWIO-BHWC tensor
   TensorFloat32 src_tensor_as_hwio;
@@ -1040,7 +1040,7 @@ absl::Status ConverterToCustomGroupsTest(
   TensorFloat32 dst_tensor;
   dst_tensor.shape = BHWC(1, 1, 1, elements_count);
   dst_tensor.data.resize(elements_count);
-  if (weights_desc.type == DataType::FLOAT16) {
+  if (weights_desc.type == DataType::kFloat16) {
     half* weights_data_f16 = reinterpret_cast<half*>(weights_data.data());
     for (int i = 0; i < elements_count; ++i) {
       dst_tensor.data[i] = weights_data_f16[i];
@@ -1055,7 +1055,7 @@ absl::Status ConverterToCustomGroupsTest(
   TensorFloat32 dst_tensor_gpu;
   auto converter_from_ohwi =
       ConverterToConvWeights(gpu_info, op_def, weights.shape, weights_desc,
-                             /*input layout*/ Layout::OHWI);
+                             /*input layout*/ Layout::kOHWI);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor_as_ohwi},
       std::make_unique<ConverterToConvWeights>(std::move(converter_from_ohwi)),
@@ -1064,7 +1064,7 @@ absl::Status ConverterToCustomGroupsTest(
 
   auto converter_from_hwio =
       ConverterToConvWeights(gpu_info, op_def, weights.shape, weights_desc,
-                             /*input layout*/ Layout::HWIO);
+                             /*input layout*/ Layout::kHWIO);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor_as_hwio},
       std::make_unique<ConverterToConvWeights>(std::move(converter_from_hwio)),
@@ -1076,14 +1076,14 @@ absl::Status ConverterToCustomGroupsTest(
 absl::Status Int8ToFloatWeightsConverterTest(
     TestExecutionEnvironment& env, OHWI weights_shape, int src_ch_quant_groups,
     WeightsLayout src_layout, WeightsDescription& dst_weights_desc) {
-  Tensor<OHWI, DataType::INT8> weights_i8;
+  Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = weights_shape;
   weights_i8.data.resize(weights_i8.shape.DimensionsProduct());
   for (int i = 0; i < weights_i8.data.size(); ++i) {
     weights_i8.data[i] = i % 256 - 128;
   }
 
-  Tensor<OHWI, DataType::FLOAT32> weights_scales;
+  Tensor<OHWI, DataType::kFloat32> weights_scales;
   weights_scales.shape = weights_shape;
   weights_scales.shape.i = src_ch_quant_groups;
   weights_scales.data.resize(weights_scales.shape.DimensionsProduct());
@@ -1091,7 +1091,7 @@ absl::Status Int8ToFloatWeightsConverterTest(
     weights_scales.data[i] = std::sin((i + 1) * 0.123f) / 128.0f;
   }
 
-  Tensor<OHWI, DataType::FLOAT32> weights_zero_point;
+  Tensor<OHWI, DataType::kFloat32> weights_zero_point;
   weights_zero_point.shape = weights_shape;
   weights_zero_point.shape.i = src_ch_quant_groups;
   weights_zero_point.data.resize(weights_zero_point.shape.DimensionsProduct());
@@ -1099,12 +1099,12 @@ absl::Status Int8ToFloatWeightsConverterTest(
     weights_zero_point.data[i] = std::sin((i + 1) * 0.123f);
   }
 
-  Tensor<OHWI, DataType::FLOAT32> weights_f32 =
+  Tensor<OHWI, DataType::kFloat32> weights_f32 =
       MakeWeightsFromInt8(weights_i8, weights_scales, weights_zero_point);
 
-  dst_weights_desc.type = DataType::FLOAT32;
+  dst_weights_desc.type = DataType::kFloat32;
   WeightsDescription src_weights_desc;
-  src_weights_desc.type = DataType::UINT8;
+  src_weights_desc.type = DataType::kUint8;
   src_weights_desc.layout = src_layout;
   if (src_layout == WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
     src_weights_desc.output_group_size = DivideRoundUp(weights_i8.shape.o, 4);
@@ -1118,14 +1118,14 @@ absl::Status Int8ToFloatWeightsConverterTest(
   RearrangeWeightsInt8AsUint8(weights_i8, src_weights_desc,
                               absl::MakeSpan(src_data), 128, 128u);
   if (src_layout == WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
-    weights_i8_td = TensorDescriptor(DataType::UINT32,
-                                     TensorStorageType::TEXTURE_2D, Layout::HW);
+    weights_i8_td = TensorDescriptor(
+        DataType::kUint32, TensorStorageType::kTexture2D, Layout::kHW);
     uint2 tex_size = Get2dResourceSize(src_weights_desc, weights_i8.shape);
     tex_size.x /= 4;  // because we store 4 uint8 as one uint32
     weights_i8_td.SetBHWCShape(BHWC(1, tex_size.y, tex_size.x, 4));
   } else {
-    weights_i8_td = TensorDescriptor(src_weights_desc.type,
-                                     TensorStorageType::BUFFER, Layout::LINEAR);
+    weights_i8_td = TensorDescriptor(
+        src_weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear);
     weights_i8_td.SetBHWCShape(BHWC(1, 1, 1, src_data.size()));
   }
   weights_i8_td.UploadDataRaw(absl::MakeConstSpan(src_data));
@@ -1135,24 +1135,24 @@ absl::Status Int8ToFloatWeightsConverterTest(
   std::vector<TensorDescriptor> weights_f32_td;
   if (dst_weights_desc.IsLinearLayout()) {
     weights_f32_td.push_back(TensorDescriptor(
-        DataType::FLOAT32, TensorStorageType::BUFFER, Layout::LINEAR));
+        DataType::kFloat32, TensorStorageType::kBuffer, Layout::kLinear));
     weights_f32_td[0].SetBHWCShape(weights_f32_refs[0].GetBHWCShape());
   } else {
     for (int i = 0; i < 4; ++i) {
       weights_f32_td.push_back(TensorDescriptor(
-          DataType::FLOAT32, TensorStorageType::TEXTURE_2D, Layout::HW));
+          DataType::kFloat32, TensorStorageType::kTexture2D, Layout::kHW));
       weights_f32_td.back().SetBHWCShape(weights_f32_refs[i].GetBHWCShape());
     }
   }
 
   auto scale_desc = ScaleOrZeroPointToTensorDesc(
-      env.GetGpuInfo(), weights_scales, DataType::FLOAT32);
+      env.GetGpuInfo(), weights_scales, DataType::kFloat32);
   auto zp_desc = ScaleOrZeroPointToTensorDesc(
-      env.GetGpuInfo(), weights_zero_point, DataType::FLOAT32);
+      env.GetGpuInfo(), weights_zero_point, DataType::kFloat32);
 
   OperationDef op_def;
   op_def.src_tensors.push_back(
-      {src_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR});
+      {src_weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear});
   for (int i = 0; i < weights_f32_td.size(); ++i) {
     op_def.dst_tensors.push_back(weights_f32_td[i]);
   }
@@ -1187,14 +1187,14 @@ absl::Status Int8ToFloatWeightsConverterTest(
 absl::Status Int4ToFloatWeightsConverterTest(
     TestExecutionEnvironment& env, OHWI weights_shape, int src_ch_quant_groups,
     WeightsLayout src_layout, WeightsDescription& dst_weights_desc) {
-  Tensor<OHWI, DataType::INT8> weights_i4;
+  Tensor<OHWI, DataType::kInt8> weights_i4;
   weights_i4.shape = weights_shape;
   weights_i4.data.resize(weights_i4.shape.DimensionsProduct());
   for (int i = 0; i < weights_i4.data.size(); ++i) {
     weights_i4.data[i] = i % 8 - 7;
   }
 
-  Tensor<OHWI, DataType::FLOAT32> weights_scales;
+  Tensor<OHWI, DataType::kFloat32> weights_scales;
   weights_scales.shape = weights_shape;
   weights_scales.shape.i = src_ch_quant_groups;
   weights_scales.data.resize(weights_scales.shape.DimensionsProduct());
@@ -1202,7 +1202,7 @@ absl::Status Int4ToFloatWeightsConverterTest(
     weights_scales.data[i] = std::sin((i + 1) * 0.123f) / 8.0f;
   }
 
-  Tensor<OHWI, DataType::FLOAT32> weights_zero_point;
+  Tensor<OHWI, DataType::kFloat32> weights_zero_point;
   weights_zero_point.shape = weights_shape;
   weights_zero_point.shape.i = src_ch_quant_groups;
   weights_zero_point.data.resize(weights_zero_point.shape.DimensionsProduct());
@@ -1210,12 +1210,12 @@ absl::Status Int4ToFloatWeightsConverterTest(
     weights_zero_point.data[i] = std::sin(i * 0.123f);
   }
 
-  Tensor<OHWI, DataType::FLOAT32> weights_f32 =
+  Tensor<OHWI, DataType::kFloat32> weights_f32 =
       MakeWeightsFromInt8(weights_i4, weights_scales, weights_zero_point);
 
-  dst_weights_desc.type = DataType::FLOAT32;
+  dst_weights_desc.type = DataType::kFloat32;
   WeightsDescription src_weights_desc;
-  src_weights_desc.type = DataType::UINT4;
+  src_weights_desc.type = DataType::kUint4;
   src_weights_desc.layout = src_layout;
   if (src_layout == WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
     src_weights_desc.output_group_size = DivideRoundUp(weights_i4.shape.o, 4);
@@ -1229,14 +1229,14 @@ absl::Status Int4ToFloatWeightsConverterTest(
   RearrangeWeightsInt8AsUint4(weights_i4, src_weights_desc,
                               absl::MakeSpan(src_data), 8, 8u);
   if (src_layout == WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
-    weights_i4_td = TensorDescriptor(DataType::UINT16,
-                                     TensorStorageType::TEXTURE_2D, Layout::HW);
+    weights_i4_td = TensorDescriptor(
+        DataType::kUint16, TensorStorageType::kTexture2D, Layout::kHW);
     uint2 tex_size = Get2dResourceSize(src_weights_desc, weights_i4.shape);
     tex_size.x /= 4;  // because we store 4 uint4 as one uint16
     weights_i4_td.SetBHWCShape(BHWC(1, tex_size.y, tex_size.x, 4));
   } else {
-    weights_i4_td = TensorDescriptor(DataType::UINT8, TensorStorageType::BUFFER,
-                                     Layout::LINEAR);
+    weights_i4_td = TensorDescriptor(
+        DataType::kUint8, TensorStorageType::kBuffer, Layout::kLinear);
     weights_i4_td.SetBHWCShape(BHWC(1, 1, 1, src_data.size()));
   }
   weights_i4_td.UploadDataRaw(absl::MakeConstSpan(src_data));
@@ -1246,24 +1246,24 @@ absl::Status Int4ToFloatWeightsConverterTest(
   std::vector<TensorDescriptor> weights_f32_td;
   if (dst_weights_desc.IsLinearLayout()) {
     weights_f32_td.push_back(TensorDescriptor(
-        DataType::FLOAT32, TensorStorageType::BUFFER, Layout::LINEAR));
+        DataType::kFloat32, TensorStorageType::kBuffer, Layout::kLinear));
     weights_f32_td[0].SetBHWCShape(weights_f32_refs[0].GetBHWCShape());
   } else {
     for (int i = 0; i < 4; ++i) {
       weights_f32_td.push_back(TensorDescriptor(
-          DataType::FLOAT32, TensorStorageType::TEXTURE_2D, Layout::HW));
+          DataType::kFloat32, TensorStorageType::kTexture2D, Layout::kHW));
       weights_f32_td.back().SetBHWCShape(weights_f32_refs[i].GetBHWCShape());
     }
   }
 
   auto scale_desc = ScaleOrZeroPointToTensorDesc(
-      env.GetGpuInfo(), weights_scales, DataType::FLOAT32);
+      env.GetGpuInfo(), weights_scales, DataType::kFloat32);
   auto zp_desc = ScaleOrZeroPointToTensorDesc(
-      env.GetGpuInfo(), weights_zero_point, DataType::FLOAT32);
+      env.GetGpuInfo(), weights_zero_point, DataType::kFloat32);
 
   OperationDef op_def;
   op_def.src_tensors.push_back(
-      {DataType::UINT8, TensorStorageType::BUFFER, Layout::LINEAR});
+      {DataType::kUint8, TensorStorageType::kBuffer, Layout::kLinear});
   for (int i = 0; i < weights_f32_td.size(); ++i) {
     op_def.dst_tensors.push_back(weights_f32_td[i]);
   }
@@ -1298,14 +1298,14 @@ absl::Status Int4ToFloatWeightsConverterTest(
 absl::Status Int2ToFloatWeightsConverterTest(
     TestExecutionEnvironment& env, OHWI weights_shape, int src_ch_quant_groups,
     WeightsLayout src_layout, WeightsDescription& dst_weights_desc) {
-  Tensor<OHWI, DataType::INT8> weights_i2;
+  Tensor<OHWI, DataType::kInt8> weights_i2;
   weights_i2.shape = weights_shape;
   weights_i2.data.resize(weights_i2.shape.DimensionsProduct());
   for (int i = 0; i < weights_i2.data.size(); ++i) {
     weights_i2.data[i] = i % 4 - 2;
   }
 
-  Tensor<OHWI, DataType::FLOAT32> weights_scales;
+  Tensor<OHWI, DataType::kFloat32> weights_scales;
   weights_scales.shape = weights_shape;
   weights_scales.shape.i = src_ch_quant_groups;
   weights_scales.data.resize(weights_scales.shape.DimensionsProduct());
@@ -1313,7 +1313,7 @@ absl::Status Int2ToFloatWeightsConverterTest(
     weights_scales.data[i] = std::sin((i + 1) * 0.123f) / 2.0f;
   }
 
-  Tensor<OHWI, DataType::FLOAT32> weights_zero_point;
+  Tensor<OHWI, DataType::kFloat32> weights_zero_point;
   weights_zero_point.shape = weights_shape;
   weights_zero_point.shape.i = src_ch_quant_groups;
   weights_zero_point.data.resize(weights_zero_point.shape.DimensionsProduct());
@@ -1321,12 +1321,12 @@ absl::Status Int2ToFloatWeightsConverterTest(
     weights_zero_point.data[i] = std::sin(i * 0.123f);
   }
 
-  Tensor<OHWI, DataType::FLOAT32> weights_f32 =
+  Tensor<OHWI, DataType::kFloat32> weights_f32 =
       MakeWeightsFromInt8(weights_i2, weights_scales, weights_zero_point);
 
-  dst_weights_desc.type = DataType::FLOAT32;
+  dst_weights_desc.type = DataType::kFloat32;
   WeightsDescription src_weights_desc;
-  src_weights_desc.type = DataType::UINT2;
+  src_weights_desc.type = DataType::kUint2;
   src_weights_desc.layout = src_layout;
   if (src_layout == WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
     src_weights_desc.output_group_size = DivideRoundUp(weights_i2.shape.o, 4);
@@ -1340,14 +1340,14 @@ absl::Status Int2ToFloatWeightsConverterTest(
   RearrangeWeightsInt8AsUint2(weights_i2, src_weights_desc,
                               absl::MakeSpan(src_data), 2, 2u);
   if (src_layout == WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
-    weights_i2_td = TensorDescriptor(DataType::UINT8,
-                                     TensorStorageType::TEXTURE_2D, Layout::HW);
+    weights_i2_td = TensorDescriptor(
+        DataType::kUint8, TensorStorageType::kTexture2D, Layout::kHW);
     uint2 tex_size = Get2dResourceSize(src_weights_desc, weights_i2.shape);
     tex_size.x /= 4;  // because we store 4 uint2 as one uint8
     weights_i2_td.SetBHWCShape(BHWC(1, tex_size.y, tex_size.x, 4));
   } else {
-    weights_i2_td = TensorDescriptor(DataType::UINT8, TensorStorageType::BUFFER,
-                                     Layout::LINEAR);
+    weights_i2_td = TensorDescriptor(
+        DataType::kUint8, TensorStorageType::kBuffer, Layout::kLinear);
     weights_i2_td.SetBHWCShape(BHWC(1, 1, 1, src_data.size()));
   }
   weights_i2_td.UploadDataRaw(absl::MakeConstSpan(src_data));
@@ -1357,24 +1357,24 @@ absl::Status Int2ToFloatWeightsConverterTest(
   std::vector<TensorDescriptor> weights_f32_td;
   if (dst_weights_desc.IsLinearLayout()) {
     weights_f32_td.push_back(TensorDescriptor(
-        DataType::FLOAT32, TensorStorageType::BUFFER, Layout::LINEAR));
+        DataType::kFloat32, TensorStorageType::kBuffer, Layout::kLinear));
     weights_f32_td[0].SetBHWCShape(weights_f32_refs[0].GetBHWCShape());
   } else {
     for (int i = 0; i < 4; ++i) {
       weights_f32_td.push_back(TensorDescriptor(
-          DataType::FLOAT32, TensorStorageType::TEXTURE_2D, Layout::HW));
+          DataType::kFloat32, TensorStorageType::kTexture2D, Layout::kHW));
       weights_f32_td.back().SetBHWCShape(weights_f32_refs[i].GetBHWCShape());
     }
   }
 
   auto scale_desc = ScaleOrZeroPointToTensorDesc(
-      env.GetGpuInfo(), weights_scales, DataType::FLOAT32);
+      env.GetGpuInfo(), weights_scales, DataType::kFloat32);
   auto zp_desc = ScaleOrZeroPointToTensorDesc(
-      env.GetGpuInfo(), weights_zero_point, DataType::FLOAT32);
+      env.GetGpuInfo(), weights_zero_point, DataType::kFloat32);
 
   OperationDef op_def;
   op_def.src_tensors.push_back(
-      {DataType::UINT8, TensorStorageType::BUFFER, Layout::LINEAR});
+      {DataType::kUint8, TensorStorageType::kBuffer, Layout::kLinear});
   for (int i = 0; i < weights_f32_td.size(); ++i) {
     op_def.dst_tensors.push_back(weights_f32_td[i]);
   }
@@ -1411,37 +1411,37 @@ absl::Status Int8ToFloatWeightsWithRuntimeInputTest(
   const int i_channels = 304;
   const int i_channels_runtime = 104;
   const int o_channels = 404;
-  Tensor<OHWI, DataType::INT8> weights_i8;
+  Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(o_channels, 1, 1, i_channels);
   weights_i8.data.resize(weights_i8.shape.DimensionsProduct());
   for (int i = 0; i < weights_i8.data.size(); ++i) {
     weights_i8.data[i] = i % 256 - 128;
   }
 
-  Tensor<OHWI, DataType::FLOAT32> weights_scales;
+  Tensor<OHWI, DataType::kFloat32> weights_scales;
   weights_scales.shape = OHWI(o_channels, 1, 1, 1);
   weights_scales.data.resize(weights_scales.shape.DimensionsProduct());
   for (int i = 0; i < weights_scales.data.size(); ++i) {
     weights_scales.data[i] = std::sin((i + 1) * 0.123f) / 128.0f;
   }
 
-  Tensor<OHWI, DataType::FLOAT32> weights_zero_point;
+  Tensor<OHWI, DataType::kFloat32> weights_zero_point;
   weights_zero_point.shape = OHWI(o_channels, 1, 1, 1);
   weights_zero_point.data.resize(weights_zero_point.shape.DimensionsProduct());
   for (int i = 0; i < weights_zero_point.data.size(); ++i) {
     weights_zero_point.data[i] = std::sin((i + 1) * 0.123f);
   }
 
-  Tensor<OHWI, DataType::FLOAT32> weights_f32 =
+  Tensor<OHWI, DataType::kFloat32> weights_f32 =
       MakeWeightsFromInt8(weights_i8, weights_scales, weights_zero_point);
 
   WeightsDescription dst_weights_desc;
-  dst_weights_desc.type = DataType::FLOAT32;
+  dst_weights_desc.type = DataType::kFloat32;
   dst_weights_desc.layout = WeightsLayout::kOSpatialIOGroupI4O4;
   dst_weights_desc.output_group_size = 1;
 
   WeightsDescription src_weights_desc;
-  src_weights_desc.type = DataType::UINT8;
+  src_weights_desc.type = DataType::kUint8;
   src_weights_desc.layout = WeightsLayout::kOSpatialIOGroupI4O4;
   src_weights_desc.output_group_size = 1;
 
@@ -1451,20 +1451,20 @@ absl::Status Int8ToFloatWeightsWithRuntimeInputTest(
                               absl::MakeSpan(src_data), 128, 128u);
   TensorDescriptor weights_i8_td;
   weights_i8_td = TensorDescriptor(src_weights_desc.type,
-                                   TensorStorageType::BUFFER, Layout::LINEAR);
+                                   TensorStorageType::kBuffer, Layout::kLinear);
   weights_i8_td.SetBHWCShape(BHWC(1, 1, 1, src_data.size()));
   weights_i8_td.UploadDataRaw(absl::MakeConstSpan(src_data));
 
   std::vector<TensorDescriptor> weights_f32_refs =
       GetTensorDescriptorsForWeightsLayout(weights_f32, dst_weights_desc);
   TensorDescriptor weights_f32_td = TensorDescriptor(
-      DataType::FLOAT32, TensorStorageType::BUFFER, Layout::LINEAR);
+      DataType::kFloat32, TensorStorageType::kBuffer, Layout::kLinear);
   weights_f32_td.SetBHWCShape(weights_f32_refs[0].GetBHWCShape());
 
   auto scale_desc = ScaleOrZeroPointToTensorDesc(
-      env.GetGpuInfo(), weights_scales, DataType::FLOAT32);
+      env.GetGpuInfo(), weights_scales, DataType::kFloat32);
   auto zp_desc = ScaleOrZeroPointToTensorDesc(
-      env.GetGpuInfo(), weights_zero_point, DataType::FLOAT32);
+      env.GetGpuInfo(), weights_zero_point, DataType::kFloat32);
 
   ConvRuntimeCheckDesc runtime_check;
   runtime_check.src_end_ch_index = 0;
@@ -1473,13 +1473,13 @@ absl::Status Int8ToFloatWeightsWithRuntimeInputTest(
   params.shape = BHWC(1, 1, 1, 1);
   params.data.resize(params.shape.DimensionsProduct());
   params.data[0] = i_channels_runtime;
-  TensorDescriptor params_td = {DataType::INT32, TensorStorageType::BUFFER,
-                                Layout::HWC};
+  TensorDescriptor params_td = {DataType::kInt32, TensorStorageType::kBuffer,
+                                Layout::kHWC};
   params_td.UploadData(params);
 
   OperationDef op_def;
   op_def.src_tensors.push_back(
-      {src_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR});
+      {src_weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear});
   op_def.dst_tensors.push_back(weights_f32_td);
   ExternalWeights src_weights;
   src_weights.desc = src_weights_desc;
@@ -1531,37 +1531,37 @@ absl::Status Int8ToFloatWeightsWithRuntimeOutputTest(
   const int i_channels = 304;
   const int o_channels = 404;
   const int o_channels_runtime = 104;
-  Tensor<OHWI, DataType::INT8> weights_i8;
+  Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(o_channels, 1, 1, i_channels);
   weights_i8.data.resize(weights_i8.shape.DimensionsProduct());
   for (int i = 0; i < weights_i8.data.size(); ++i) {
     weights_i8.data[i] = i % 256 - 128;
   }
 
-  Tensor<OHWI, DataType::FLOAT32> weights_scales;
+  Tensor<OHWI, DataType::kFloat32> weights_scales;
   weights_scales.shape = OHWI(o_channels, 1, 1, 1);
   weights_scales.data.resize(weights_scales.shape.DimensionsProduct());
   for (int i = 0; i < weights_scales.data.size(); ++i) {
     weights_scales.data[i] = std::sin((i + 1) * 0.123f) / 128.0f;
   }
 
-  Tensor<OHWI, DataType::FLOAT32> weights_zero_point;
+  Tensor<OHWI, DataType::kFloat32> weights_zero_point;
   weights_zero_point.shape = OHWI(o_channels, 1, 1, 1);
   weights_zero_point.data.resize(weights_zero_point.shape.DimensionsProduct());
   for (int i = 0; i < weights_zero_point.data.size(); ++i) {
     weights_zero_point.data[i] = std::sin((i + 1) * 0.123f);
   }
 
-  Tensor<OHWI, DataType::FLOAT32> weights_f32 =
+  Tensor<OHWI, DataType::kFloat32> weights_f32 =
       MakeWeightsFromInt8(weights_i8, weights_scales, weights_zero_point);
 
   WeightsDescription dst_weights_desc;
-  dst_weights_desc.type = DataType::FLOAT32;
+  dst_weights_desc.type = DataType::kFloat32;
   dst_weights_desc.layout = WeightsLayout::kOSpatialIOGroupI4O4;
   dst_weights_desc.output_group_size = 1;
 
   WeightsDescription src_weights_desc;
-  src_weights_desc.type = DataType::UINT8;
+  src_weights_desc.type = DataType::kUint8;
   src_weights_desc.layout = WeightsLayout::kOSpatialIOGroupI4O4;
   src_weights_desc.output_group_size = 1;
 
@@ -1571,20 +1571,20 @@ absl::Status Int8ToFloatWeightsWithRuntimeOutputTest(
                               absl::MakeSpan(src_data), 128, 128u);
   TensorDescriptor weights_i8_td;
   weights_i8_td = TensorDescriptor(src_weights_desc.type,
-                                   TensorStorageType::BUFFER, Layout::LINEAR);
+                                   TensorStorageType::kBuffer, Layout::kLinear);
   weights_i8_td.SetBHWCShape(BHWC(1, 1, 1, src_data.size()));
   weights_i8_td.UploadDataRaw(absl::MakeConstSpan(src_data));
 
   std::vector<TensorDescriptor> weights_f32_refs =
       GetTensorDescriptorsForWeightsLayout(weights_f32, dst_weights_desc);
   TensorDescriptor weights_f32_td = TensorDescriptor(
-      DataType::FLOAT32, TensorStorageType::BUFFER, Layout::LINEAR);
+      DataType::kFloat32, TensorStorageType::kBuffer, Layout::kLinear);
   weights_f32_td.SetBHWCShape(weights_f32_refs[0].GetBHWCShape());
 
   auto scale_desc = ScaleOrZeroPointToTensorDesc(
-      env.GetGpuInfo(), weights_scales, DataType::FLOAT32);
+      env.GetGpuInfo(), weights_scales, DataType::kFloat32);
   auto zp_desc = ScaleOrZeroPointToTensorDesc(
-      env.GetGpuInfo(), weights_zero_point, DataType::FLOAT32);
+      env.GetGpuInfo(), weights_zero_point, DataType::kFloat32);
 
   ConvRuntimeCheckDesc runtime_check;
   runtime_check.dst_end_ch_index = 0;
@@ -1593,13 +1593,13 @@ absl::Status Int8ToFloatWeightsWithRuntimeOutputTest(
   params.shape = BHWC(1, 1, 1, 1);
   params.data.resize(params.shape.DimensionsProduct());
   params.data[0] = o_channels_runtime;
-  TensorDescriptor params_td = {DataType::INT32, TensorStorageType::BUFFER,
-                                Layout::HWC};
+  TensorDescriptor params_td = {DataType::kInt32, TensorStorageType::kBuffer,
+                                Layout::kHWC};
   params_td.UploadData(params);
 
   OperationDef op_def;
   op_def.src_tensors.push_back(
-      {src_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR});
+      {src_weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear});
   op_def.dst_tensors.push_back(weights_f32_td);
   ExternalWeights src_weights;
   src_weights.desc = src_weights_desc;
@@ -1649,7 +1649,7 @@ absl::Status Int8ToFloatWeightsWithRuntimeOutputTest(
 absl::Status Int8ToUint8WeightsConverterTest(
     TestExecutionEnvironment& env, WeightsLayout src_layout,
     WeightsDescription& dst_weights_desc, int i_channels, int o_channels) {
-  Tensor<OHWI, DataType::INT8> weights_i8;
+  Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(o_channels, 1, 1, i_channels);
   weights_i8.data.resize(weights_i8.shape.DimensionsProduct() +
                          XNN_EXTRA_BYTES / sizeof(int8_t));
@@ -1658,7 +1658,7 @@ absl::Status Int8ToUint8WeightsConverterTest(
   }
 
   WeightsDescription src_weights_desc;
-  src_weights_desc.type = DataType::INT8;
+  src_weights_desc.type = DataType::kInt8;
   src_weights_desc.layout = src_layout;
   if (src_layout == WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
     src_weights_desc.output_group_size = DivideRoundUp(weights_i8.shape.o, 4);
@@ -1671,13 +1671,13 @@ absl::Status Int8ToUint8WeightsConverterTest(
   RearrangeWeights(weights_i8, src_weights_desc, absl::MakeSpan(src_data));
   if (src_layout == WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
     src_weights_i8_td = TensorDescriptor(
-        DataType::INT32, TensorStorageType::TEXTURE_2D, Layout::HW);
+        DataType::kInt32, TensorStorageType::kTexture2D, Layout::kHW);
     uint2 tex_size = Get2dResourceSize(src_weights_desc, weights_i8.shape);
     tex_size.x /= sizeof(uint32_t) / sizeof(uint8_t);
     src_weights_i8_td.SetBHWCShape(BHWC(1, tex_size.y, tex_size.x, 4));
   } else {
     src_weights_i8_td = TensorDescriptor(
-        src_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR);
+        src_weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear);
     src_weights_i8_td.SetBHWCShape(BHWC(1, 1, 1, src_data.size()));
   }
   src_weights_i8_td.UploadDataRaw(absl::MakeConstSpan(src_data));
@@ -1691,21 +1691,21 @@ absl::Status Int8ToUint8WeightsConverterTest(
   if (dst_weights_desc.layout ==
       WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
     dst_weights_ui8_td = TensorDescriptor(
-        DataType::UINT32, TensorStorageType::TEXTURE_2D, Layout::HW);
+        DataType::kUint32, TensorStorageType::kTexture2D, Layout::kHW);
     uint2 tex_size = Get2dResourceSize(dst_weights_desc, weights_i8.shape);
     tex_size.x /= sizeof(uint32_t) / sizeof(uint8_t);
     dst_weights_ui8_td.SetBHWCShape(BHWC(1, tex_size.y, tex_size.x, 1));
   } else {
     dst_weights_ui8_td = TensorDescriptor(
-        dst_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR);
+        dst_weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear);
     dst_weights_ui8_td.SetBHWCShape(BHWC(1, 1, 1, dst_ref_data.size()));
   }
 
   OperationDef op_def;
   op_def.src_tensors.push_back(
-      {src_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR});
+      {src_weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear});
   op_def.dst_tensors.push_back(
-      {dst_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR});
+      {dst_weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear});
   ExternalWeights src_weights;
   src_weights.desc = src_weights_desc;
   src_weights.shape = weights_i8.shape;
@@ -1722,7 +1722,7 @@ absl::Status Int8ToUint8WeightsConverterTest(
 absl::Status FloatToFloatWeightsConverterTest(
     TestExecutionEnvironment& env, const OHWI& weights_shape,
     WeightsLayout src_layout, WeightsDescription& dst_weights_desc) {
-  Tensor<OHWI, DataType::FLOAT32> weights;
+  Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = weights_shape;
   weights.data.resize(weights.shape.DimensionsProduct() +
                       XNN_EXTRA_BYTES / sizeof(float));
@@ -1730,14 +1730,14 @@ absl::Status FloatToFloatWeightsConverterTest(
     weights.data[i] = std::sin(i * 0.123f);
   }
 
-  dst_weights_desc.type = DataType::FLOAT32;
+  dst_weights_desc.type = DataType::kFloat32;
   WeightsDescription src_weights_desc;
-  src_weights_desc.type = DataType::FLOAT32;
+  src_weights_desc.type = DataType::kFloat32;
   src_weights_desc.layout = src_layout;
   src_weights_desc.output_group_size = 32;
 
   TensorDescriptor weights_src_td = TensorDescriptor(
-      DataType::FLOAT32, TensorStorageType::BUFFER, Layout::LINEAR);
+      DataType::kFloat32, TensorStorageType::kBuffer, Layout::kLinear);
   {
     std::vector<float> data(
         GetTotalElementsCountForLayout(src_weights_desc, weights.shape));
@@ -1753,19 +1753,19 @@ absl::Status FloatToFloatWeightsConverterTest(
   std::vector<TensorDescriptor> weights_f32_td;
   if (dst_weights_desc.IsLinearLayout()) {
     weights_f32_td.push_back(TensorDescriptor(
-        DataType::FLOAT32, TensorStorageType::BUFFER, Layout::LINEAR));
+        DataType::kFloat32, TensorStorageType::kBuffer, Layout::kLinear));
     weights_f32_td[0].SetBHWCShape(weights_f32_refs[0].GetBHWCShape());
   } else {
     for (int i = 0; i < 4; ++i) {
       weights_f32_td.push_back(TensorDescriptor(
-          DataType::FLOAT32, TensorStorageType::TEXTURE_2D, Layout::HW));
+          DataType::kFloat32, TensorStorageType::kTexture2D, Layout::kHW));
       weights_f32_td.back().SetBHWCShape(weights_f32_refs[i].GetBHWCShape());
     }
   }
 
   OperationDef op_def;
   op_def.src_tensors.push_back(
-      {DataType::FLOAT32, TensorStorageType::BUFFER, Layout::LINEAR});
+      {DataType::kFloat32, TensorStorageType::kBuffer, Layout::kLinear});
   for (int i = 0; i < weights_f32_td.size(); ++i) {
     op_def.dst_tensors.push_back(weights_f32_td[i]);
   }
@@ -1803,7 +1803,7 @@ absl::Status FloatWeightsWithRingedOTest(TestExecutionEnvironment& env,
   const OHWI weights_shape(o_channels, 1, 1, i_channels);
   const OHWI ring_weights_shape(ring_size, 1, 1, i_channels);
 
-  Tensor<OHWI, DataType::FLOAT32> ring_weights;
+  Tensor<OHWI, DataType::kFloat32> ring_weights;
   ring_weights.shape = ring_weights_shape;
   ring_weights.data.resize(ring_weights.shape.DimensionsProduct() +
                            XNN_EXTRA_BYTES / sizeof(float));
@@ -1822,8 +1822,8 @@ absl::Status FloatWeightsWithRingedOTest(TestExecutionEnvironment& env,
   dst_weights_desc.output_group_size = 1;
 
   for (int ring_offset : {0, 7, 13, 20, 31}) {
-    TensorDescriptor weights_src_td =
-        TensorDescriptor(data_type, TensorStorageType::BUFFER, Layout::LINEAR);
+    TensorDescriptor weights_src_td = TensorDescriptor(
+        data_type, TensorStorageType::kBuffer, Layout::kLinear);
     const int flt_count =
         GetTotalElementsCountForLayout(src_weights_desc, ring_weights.shape);
     std::vector<uint8_t> src_data(flt_count * SizeOf(data_type));
@@ -1831,7 +1831,7 @@ absl::Status FloatWeightsWithRingedOTest(TestExecutionEnvironment& env,
     weights_src_td.SetBHWCShape(BHWC(1, 1, 1, flt_count));
     weights_src_td.UploadDataRaw(absl::MakeConstSpan(src_data));
 
-    Tensor<OHWI, DataType::FLOAT32> ref_weights;
+    Tensor<OHWI, DataType::kFloat32> ref_weights;
     ref_weights.shape = weights_shape;
     ref_weights.data.resize(weights_shape.DimensionsProduct() +
                             XNN_EXTRA_BYTES / sizeof(float));
@@ -1845,8 +1845,8 @@ absl::Status FloatWeightsWithRingedOTest(TestExecutionEnvironment& env,
 
     std::vector<TensorDescriptor> weights_dst_refs =
         GetTensorDescriptorsForWeightsLayout(ref_weights, dst_weights_desc);
-    TensorDescriptor weights_dst_td =
-        TensorDescriptor(data_type, TensorStorageType::BUFFER, Layout::LINEAR);
+    TensorDescriptor weights_dst_td = TensorDescriptor(
+        data_type, TensorStorageType::kBuffer, Layout::kLinear);
     weights_dst_td.SetBHWCShape(weights_dst_refs[0].GetBHWCShape());
 
     ConvRuntimeCheckDesc runtime_check;
@@ -1856,13 +1856,13 @@ absl::Status FloatWeightsWithRingedOTest(TestExecutionEnvironment& env,
     TensorInt32 params;
     params.shape = BHWC(1, 1, 1, 1);
     params.data = {ring_offset};
-    TensorDescriptor params_td = {DataType::INT32, TensorStorageType::BUFFER,
-                                  Layout::HWC};
+    TensorDescriptor params_td = {DataType::kInt32, TensorStorageType::kBuffer,
+                                  Layout::kHWC};
     params_td.UploadData(params);
 
     OperationDef op_def;
     op_def.src_tensors.push_back(
-        {data_type, TensorStorageType::BUFFER, Layout::LINEAR});
+        {data_type, TensorStorageType::kBuffer, Layout::kLinear});
     op_def.dst_tensors.push_back(weights_dst_td);
 
     ExternalWeights src_weights;
@@ -1880,7 +1880,7 @@ absl::Status FloatWeightsWithRingedOTest(TestExecutionEnvironment& env,
     weights_dst_refs[0].DownloadData(&ref_out);
     TensorFloat32 gpu_out;
     weights_dst_td.DownloadData(&gpu_out);
-    const float eps = data_type == DataType::FLOAT16 ? 1e-3f : 1e-6f;
+    const float eps = data_type == DataType::kFloat16 ? 1e-3f : 1e-6f;
     EXPECT_THAT(ref_out.data, Pointwise(FloatNear(eps), gpu_out.data));
   }
   return absl::OkStatus();
@@ -1894,7 +1894,7 @@ absl::Status FloatWeightsWithRingedITest(TestExecutionEnvironment& env,
   const OHWI weights_shape(o_channels, 1, 1, i_channels);
   const OHWI ring_weights_shape(o_channels, 1, 1, ring_size);
 
-  Tensor<OHWI, DataType::FLOAT32> ring_weights;
+  Tensor<OHWI, DataType::kFloat32> ring_weights;
   ring_weights.shape = ring_weights_shape;
   ring_weights.data.resize(ring_weights.shape.DimensionsProduct() +
                            XNN_EXTRA_BYTES / sizeof(float));
@@ -1913,8 +1913,8 @@ absl::Status FloatWeightsWithRingedITest(TestExecutionEnvironment& env,
   dst_weights_desc.output_group_size = 2;
 
   for (int ring_offset : {0, 5, 11, 23, 31}) {
-    TensorDescriptor weights_src_td =
-        TensorDescriptor(data_type, TensorStorageType::BUFFER, Layout::LINEAR);
+    TensorDescriptor weights_src_td = TensorDescriptor(
+        data_type, TensorStorageType::kBuffer, Layout::kLinear);
     const int flt_count =
         GetTotalElementsCountForLayout(src_weights_desc, ring_weights.shape);
     std::vector<uint8_t> src_data(flt_count * SizeOf(data_type));
@@ -1922,7 +1922,7 @@ absl::Status FloatWeightsWithRingedITest(TestExecutionEnvironment& env,
     weights_src_td.SetBHWCShape(BHWC(1, 1, 1, flt_count));
     weights_src_td.UploadDataRaw(absl::MakeConstSpan(src_data));
 
-    Tensor<OHWI, DataType::FLOAT32> ref_weights;
+    Tensor<OHWI, DataType::kFloat32> ref_weights;
     ref_weights.shape = weights_shape;
     ref_weights.data.resize(weights_shape.DimensionsProduct() +
                             XNN_EXTRA_BYTES / sizeof(float));
@@ -1936,8 +1936,8 @@ absl::Status FloatWeightsWithRingedITest(TestExecutionEnvironment& env,
 
     std::vector<TensorDescriptor> weights_dst_refs =
         GetTensorDescriptorsForWeightsLayout(ref_weights, dst_weights_desc);
-    TensorDescriptor weights_dst_td =
-        TensorDescriptor(data_type, TensorStorageType::BUFFER, Layout::LINEAR);
+    TensorDescriptor weights_dst_td = TensorDescriptor(
+        data_type, TensorStorageType::kBuffer, Layout::kLinear);
     weights_dst_td.SetBHWCShape(weights_dst_refs[0].GetBHWCShape());
 
     ConvRuntimeCheckDesc runtime_check;
@@ -1947,13 +1947,13 @@ absl::Status FloatWeightsWithRingedITest(TestExecutionEnvironment& env,
     TensorInt32 params;
     params.shape = BHWC(1, 1, 1, 1);
     params.data = {ring_offset};
-    TensorDescriptor params_td = {DataType::INT32, TensorStorageType::BUFFER,
-                                  Layout::HWC};
+    TensorDescriptor params_td = {DataType::kInt32, TensorStorageType::kBuffer,
+                                  Layout::kHWC};
     params_td.UploadData(params);
 
     OperationDef op_def;
     op_def.src_tensors.push_back(
-        {data_type, TensorStorageType::BUFFER, Layout::LINEAR});
+        {data_type, TensorStorageType::kBuffer, Layout::kLinear});
     op_def.dst_tensors.push_back(weights_dst_td);
 
     ExternalWeights src_weights;
@@ -1971,7 +1971,7 @@ absl::Status FloatWeightsWithRingedITest(TestExecutionEnvironment& env,
     weights_dst_refs[0].DownloadData(&ref_out);
     TensorFloat32 gpu_out;
     weights_dst_td.DownloadData(&gpu_out);
-    const float eps = data_type == DataType::FLOAT16 ? 1e-3f : 1e-6f;
+    const float eps = data_type == DataType::kFloat16 ? 1e-3f : 1e-6f;
     EXPECT_THAT(ref_out.data, Pointwise(FloatNear(eps), gpu_out.data));
   }
   return absl::OkStatus();
@@ -1982,7 +1982,7 @@ absl::Status Uint8ToInt8WeightsConverterTest(
     WeightsDescription& dst_weights_desc) {
   const int i_channels = 128 - 4;
   const int o_channels = 128 + 4;
-  Tensor<OHWI, DataType::INT8> weights_i8;
+  Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(o_channels, 1, 1, i_channels);
   weights_i8.data.resize(weights_i8.shape.DimensionsProduct() +
                          XNN_EXTRA_BYTES / sizeof(int8_t));
@@ -1991,7 +1991,7 @@ absl::Status Uint8ToInt8WeightsConverterTest(
   }
 
   WeightsDescription src_weights_desc;
-  src_weights_desc.type = DataType::UINT8;
+  src_weights_desc.type = DataType::kUint8;
   src_weights_desc.layout = src_layout;
   if (src_layout == WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
     src_weights_desc.output_group_size = DivideRoundUp(weights_i8.shape.o, 4);
@@ -2006,13 +2006,13 @@ absl::Status Uint8ToInt8WeightsConverterTest(
                               absl::MakeSpan(src_data), 128, 128u);
   if (src_layout == WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
     weights_ui8_td = TensorDescriptor(
-        DataType::UINT32, TensorStorageType::TEXTURE_2D, Layout::HW);
+        DataType::kUint32, TensorStorageType::kTexture2D, Layout::kHW);
     uint2 tex_size = Get2dResourceSize(src_weights_desc, weights_i8.shape);
     tex_size.x /= sizeof(uint32_t) / sizeof(uint8_t);
     weights_ui8_td.SetBHWCShape(BHWC(1, tex_size.y, tex_size.x, 4));
   } else {
     weights_ui8_td = TensorDescriptor(
-        src_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR);
+        src_weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear);
     weights_ui8_td.SetBHWCShape(BHWC(1, 1, 1, src_data.size()));
   }
   weights_ui8_td.UploadDataRaw(absl::MakeConstSpan(src_data));
@@ -2021,14 +2021,14 @@ absl::Status Uint8ToInt8WeightsConverterTest(
       GetTotalElementsCountForLayout(dst_weights_desc, weights_i8.shape));
   RearrangeWeights(weights_i8, dst_weights_desc, absl::MakeSpan(dst_ref_data));
   TensorDescriptor weights_dst_i8_td = TensorDescriptor(
-      dst_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR);
+      dst_weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear);
   weights_dst_i8_td.SetBHWCShape(BHWC(1, 1, 1, dst_ref_data.size()));
 
   OperationDef op_def;
   op_def.src_tensors.push_back(
-      {src_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR});
+      {src_weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear});
   op_def.dst_tensors.push_back(
-      {dst_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR});
+      {dst_weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear});
   ExternalWeights src_weights;
   src_weights.desc = src_weights_desc;
   src_weights.shape = weights_i8.shape;
@@ -2047,7 +2047,7 @@ absl::Status Uint4ToInt8WeightsConverterTest(
     WeightsDescription& dst_weights_desc) {
   const int i_channels = 128 - 4;
   const int o_channels = 128 + 4;
-  Tensor<OHWI, DataType::INT8> weights_i4;
+  Tensor<OHWI, DataType::kInt8> weights_i4;
   weights_i4.shape = OHWI(o_channels, 1, 1, i_channels);
   weights_i4.data.resize(weights_i4.shape.DimensionsProduct() +
                          XNN_EXTRA_BYTES / sizeof(int8_t));
@@ -2056,7 +2056,7 @@ absl::Status Uint4ToInt8WeightsConverterTest(
   }
 
   WeightsDescription src_weights_desc;
-  src_weights_desc.type = DataType::UINT4;
+  src_weights_desc.type = DataType::kUint4;
   src_weights_desc.layout = src_layout;
   if (src_layout == WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
     src_weights_desc.output_group_size = DivideRoundUp(weights_i4.shape.o, 4);
@@ -2071,13 +2071,13 @@ absl::Status Uint4ToInt8WeightsConverterTest(
                               absl::MakeSpan(src_data), 8, 8u);
   if (src_layout == WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
     weights_ui4_td = TensorDescriptor(
-        DataType::UINT16, TensorStorageType::TEXTURE_2D, Layout::HW);
+        DataType::kUint16, TensorStorageType::kTexture2D, Layout::kHW);
     uint2 tex_size = Get2dResourceSize(src_weights_desc, weights_i4.shape);
     tex_size.x /= 4;  // because we store 4 uint4 as one uint16
     weights_ui4_td.SetBHWCShape(BHWC(1, tex_size.y, tex_size.x, 4));
   } else {
     weights_ui4_td = TensorDescriptor(
-        src_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR);
+        src_weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear);
     weights_ui4_td.SetBHWCShape(BHWC(1, 1, 1, src_data.size()));
   }
   weights_ui4_td.UploadDataRaw(absl::MakeConstSpan(src_data));
@@ -2086,14 +2086,14 @@ absl::Status Uint4ToInt8WeightsConverterTest(
       GetTotalElementsCountForLayout(dst_weights_desc, weights_i4.shape));
   RearrangeWeights(weights_i4, dst_weights_desc, absl::MakeSpan(dst_ref_data));
   TensorDescriptor weights_dst_i8_td = TensorDescriptor(
-      dst_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR);
+      dst_weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear);
   weights_dst_i8_td.SetBHWCShape(BHWC(1, 1, 1, dst_ref_data.size()));
 
   OperationDef op_def;
   op_def.src_tensors.push_back(
-      {src_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR});
+      {src_weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear});
   op_def.dst_tensors.push_back(
-      {dst_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR});
+      {dst_weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear});
   ExternalWeights src_weights;
   src_weights.desc = src_weights_desc;
   src_weights.shape = weights_i4.shape;
@@ -2112,7 +2112,7 @@ absl::Status Uint2ToInt8WeightsConverterTest(
     WeightsDescription& dst_weights_desc) {
   const int i_channels = 128 - 4;
   const int o_channels = 128 + 4;
-  Tensor<OHWI, DataType::INT8> weights_i2;
+  Tensor<OHWI, DataType::kInt8> weights_i2;
   weights_i2.shape = OHWI(o_channels, 1, 1, i_channels);
   weights_i2.data.resize(weights_i2.shape.DimensionsProduct() +
                          XNN_EXTRA_BYTES / sizeof(int8_t));
@@ -2121,7 +2121,7 @@ absl::Status Uint2ToInt8WeightsConverterTest(
   }
 
   WeightsDescription src_weights_desc;
-  src_weights_desc.type = DataType::UINT2;
+  src_weights_desc.type = DataType::kUint2;
   src_weights_desc.layout = src_layout;
   if (src_layout == WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
     src_weights_desc.output_group_size = DivideRoundUp(weights_i2.shape.o, 4);
@@ -2136,13 +2136,13 @@ absl::Status Uint2ToInt8WeightsConverterTest(
                               absl::MakeSpan(src_data), 2, 2u);
   if (src_layout == WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
     weights_ui2_td = TensorDescriptor(
-        DataType::UINT8, TensorStorageType::TEXTURE_2D, Layout::HW);
+        DataType::kUint8, TensorStorageType::kTexture2D, Layout::kHW);
     uint2 tex_size = Get2dResourceSize(src_weights_desc, weights_i2.shape);
     tex_size.x /= 4;  // because we store 4 uint2 as one uint8
     weights_ui2_td.SetBHWCShape(BHWC(1, tex_size.y, tex_size.x, 4));
   } else {
     weights_ui2_td = TensorDescriptor(
-        src_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR);
+        src_weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear);
     weights_ui2_td.SetBHWCShape(BHWC(1, 1, 1, src_data.size()));
   }
   weights_ui2_td.UploadDataRaw(absl::MakeConstSpan(src_data));
@@ -2151,14 +2151,14 @@ absl::Status Uint2ToInt8WeightsConverterTest(
       GetTotalElementsCountForLayout(dst_weights_desc, weights_i2.shape));
   RearrangeWeights(weights_i2, dst_weights_desc, absl::MakeSpan(dst_ref_data));
   TensorDescriptor weights_dst_i8_td = TensorDescriptor(
-      dst_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR);
+      dst_weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear);
   weights_dst_i8_td.SetBHWCShape(BHWC(1, 1, 1, dst_ref_data.size()));
 
   OperationDef op_def;
   op_def.src_tensors.push_back(
-      {src_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR});
+      {src_weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear});
   op_def.dst_tensors.push_back(
-      {dst_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR});
+      {dst_weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear});
   ExternalWeights src_weights;
   src_weights.desc = src_weights_desc;
   src_weights.shape = weights_i2.shape;
@@ -2177,7 +2177,7 @@ absl::Status Uint8ToUint8WeightsConverterTest(
     WeightsDescription& dst_weights_desc) {
   const int i_channels = 128 - 4;
   const int o_channels = 128 + 4;
-  Tensor<OHWI, DataType::INT8> weights_i8;
+  Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(o_channels, 1, 1, i_channels);
   weights_i8.data.resize(weights_i8.shape.DimensionsProduct() +
                          XNN_EXTRA_BYTES / sizeof(int8_t));
@@ -2185,7 +2185,7 @@ absl::Status Uint8ToUint8WeightsConverterTest(
     weights_i8.data[i] = i % 256 - 128;
   }
   WeightsDescription src_weights_desc;
-  src_weights_desc.type = DataType::UINT8;
+  src_weights_desc.type = DataType::kUint8;
   src_weights_desc.layout = src_layout;
   if (src_layout == WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
     src_weights_desc.output_group_size = DivideRoundUp(weights_i8.shape.o, 4);
@@ -2200,13 +2200,13 @@ absl::Status Uint8ToUint8WeightsConverterTest(
                               absl::MakeSpan(src_data), 128, 128u);
   if (src_layout == WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
     weights_ui8_td = TensorDescriptor(
-        DataType::UINT32, TensorStorageType::TEXTURE_2D, Layout::HW);
+        DataType::kUint32, TensorStorageType::kTexture2D, Layout::kHW);
     uint2 tex_size = Get2dResourceSize(src_weights_desc, weights_i8.shape);
     tex_size.x /= 4;  // because we store 4 uint8 as one uint32
     weights_ui8_td.SetBHWCShape(BHWC(1, tex_size.y, tex_size.x, 4));
   } else {
     weights_ui8_td = TensorDescriptor(
-        src_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR);
+        src_weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear);
     weights_ui8_td.SetBHWCShape(BHWC(1, 1, 1, src_data.size()));
   }
   weights_ui8_td.UploadDataRaw(absl::MakeConstSpan(src_data));
@@ -2216,14 +2216,14 @@ absl::Status Uint8ToUint8WeightsConverterTest(
   RearrangeWeightsInt8AsUint8(weights_i8, dst_weights_desc,
                               absl::MakeSpan(dst_ref_data), 128, 128u);
   TensorDescriptor weights_dst_ui8_td = TensorDescriptor(
-      dst_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR);
+      dst_weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear);
   weights_dst_ui8_td.SetBHWCShape(BHWC(1, 1, 1, dst_ref_data.size()));
 
   OperationDef op_def;
   op_def.src_tensors.push_back(
-      {src_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR});
+      {src_weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear});
   op_def.dst_tensors.push_back(
-      {dst_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR});
+      {dst_weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear});
   ExternalWeights src_weights;
   src_weights.desc = src_weights_desc;
   src_weights.shape = weights_i8.shape;
@@ -2242,7 +2242,7 @@ absl::Status Uint4ToUint8WeightsConverterTest(
     WeightsDescription& dst_weights_desc) {
   const int i_channels = 128 - 4;
   const int o_channels = 128 + 4;
-  Tensor<OHWI, DataType::INT8> weights_i4;
+  Tensor<OHWI, DataType::kInt8> weights_i4;
   weights_i4.shape = OHWI(o_channels, 1, 1, i_channels);
   weights_i4.data.resize(weights_i4.shape.DimensionsProduct() +
                          XNN_EXTRA_BYTES / sizeof(int8_t));
@@ -2251,7 +2251,7 @@ absl::Status Uint4ToUint8WeightsConverterTest(
   }
 
   WeightsDescription src_weights_desc;
-  src_weights_desc.type = DataType::UINT4;
+  src_weights_desc.type = DataType::kUint4;
   src_weights_desc.layout = src_layout;
   if (src_layout == WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
     src_weights_desc.output_group_size = DivideRoundUp(weights_i4.shape.o, 4);
@@ -2266,13 +2266,13 @@ absl::Status Uint4ToUint8WeightsConverterTest(
                               absl::MakeSpan(src_data), 8, 8u);
   if (src_layout == WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
     weights_ui4_td = TensorDescriptor(
-        DataType::UINT16, TensorStorageType::TEXTURE_2D, Layout::HW);
+        DataType::kUint16, TensorStorageType::kTexture2D, Layout::kHW);
     uint2 tex_size = Get2dResourceSize(src_weights_desc, weights_i4.shape);
     tex_size.x /= 4;  // because we store 4 uint4 as one uint16
     weights_ui4_td.SetBHWCShape(BHWC(1, tex_size.y, tex_size.x, 4));
   } else {
     weights_ui4_td = TensorDescriptor(
-        src_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR);
+        src_weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear);
     weights_ui4_td.SetBHWCShape(BHWC(1, 1, 1, src_data.size()));
   }
   weights_ui4_td.UploadDataRaw(absl::MakeConstSpan(src_data));
@@ -2282,14 +2282,14 @@ absl::Status Uint4ToUint8WeightsConverterTest(
   RearrangeWeightsInt8AsUint8(weights_i4, dst_weights_desc,
                               absl::MakeSpan(dst_ref_data), 128, 128u);
   TensorDescriptor weights_dst_ui8_td = TensorDescriptor(
-      dst_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR);
+      dst_weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear);
   weights_dst_ui8_td.SetBHWCShape(BHWC(1, 1, 1, dst_ref_data.size()));
 
   OperationDef op_def;
   op_def.src_tensors.push_back(
-      {src_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR});
+      {src_weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear});
   op_def.dst_tensors.push_back(
-      {dst_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR});
+      {dst_weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear});
   ExternalWeights src_weights;
   src_weights.desc = src_weights_desc;
   src_weights.shape = weights_i4.shape;
@@ -2308,7 +2308,7 @@ absl::Status Uint2ToUint8WeightsConverterTest(
     WeightsDescription& dst_weights_desc) {
   const int i_channels = 128 - 4;
   const int o_channels = 128 + 4;
-  Tensor<OHWI, DataType::INT8> weights_i2;
+  Tensor<OHWI, DataType::kInt8> weights_i2;
   weights_i2.shape = OHWI(o_channels, 1, 1, i_channels);
   weights_i2.data.resize(weights_i2.shape.DimensionsProduct() +
                          XNN_EXTRA_BYTES / sizeof(int8_t));
@@ -2317,7 +2317,7 @@ absl::Status Uint2ToUint8WeightsConverterTest(
   }
 
   WeightsDescription src_weights_desc;
-  src_weights_desc.type = DataType::UINT2;
+  src_weights_desc.type = DataType::kUint2;
   src_weights_desc.layout = src_layout;
   if (src_layout == WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
     src_weights_desc.output_group_size = DivideRoundUp(weights_i2.shape.o, 4);
@@ -2332,13 +2332,13 @@ absl::Status Uint2ToUint8WeightsConverterTest(
                               absl::MakeSpan(src_data), 2, 2u);
   if (src_layout == WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
     weights_ui2_td = TensorDescriptor(
-        DataType::UINT8, TensorStorageType::TEXTURE_2D, Layout::HW);
+        DataType::kUint8, TensorStorageType::kTexture2D, Layout::kHW);
     uint2 tex_size = Get2dResourceSize(src_weights_desc, weights_i2.shape);
     tex_size.x /= 4;  // because we store 4 uint2 as one uint8
     weights_ui2_td.SetBHWCShape(BHWC(1, tex_size.y, tex_size.x, 4));
   } else {
     weights_ui2_td = TensorDescriptor(
-        src_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR);
+        src_weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear);
     weights_ui2_td.SetBHWCShape(BHWC(1, 1, 1, src_data.size()));
   }
   weights_ui2_td.UploadDataRaw(absl::MakeConstSpan(src_data));
@@ -2348,14 +2348,14 @@ absl::Status Uint2ToUint8WeightsConverterTest(
   RearrangeWeightsInt8AsUint8(weights_i2, dst_weights_desc,
                               absl::MakeSpan(dst_ref_data), 128, 128u);
   TensorDescriptor weights_dst_ui8_td = TensorDescriptor(
-      dst_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR);
+      dst_weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear);
   weights_dst_ui8_td.SetBHWCShape(BHWC(1, 1, 1, dst_ref_data.size()));
 
   OperationDef op_def;
   op_def.src_tensors.push_back(
-      {src_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR});
+      {src_weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear});
   op_def.dst_tensors.push_back(
-      {dst_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR});
+      {dst_weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear});
   ExternalWeights src_weights;
   src_weights.desc = src_weights_desc;
   src_weights.shape = weights_i2.shape;
@@ -2374,7 +2374,7 @@ absl::Status Uint4ToInt4WeightsConverterTest(
     WeightsDescription& dst_weights_desc) {
   const int i_channels = 128 - 4;
   const int o_channels = 128 + 4;
-  Tensor<OHWI, DataType::INT8> weights_i4;
+  Tensor<OHWI, DataType::kInt8> weights_i4;
   weights_i4.shape = OHWI(o_channels, 1, 1, i_channels);
   weights_i4.data.resize(weights_i4.shape.DimensionsProduct() +
                          XNN_EXTRA_BYTES / sizeof(int8_t));
@@ -2383,7 +2383,7 @@ absl::Status Uint4ToInt4WeightsConverterTest(
   }
 
   WeightsDescription src_weights_desc;
-  src_weights_desc.type = DataType::UINT4;
+  src_weights_desc.type = DataType::kUint4;
   src_weights_desc.layout = src_layout;
   if (src_layout == WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
     src_weights_desc.output_group_size = DivideRoundUp(weights_i4.shape.o, 4);
@@ -2398,13 +2398,13 @@ absl::Status Uint4ToInt4WeightsConverterTest(
                               absl::MakeSpan(src_data), 8, 8u);
   if (src_layout == WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
     weights_ui4_td = TensorDescriptor(
-        DataType::UINT16, TensorStorageType::TEXTURE_2D, Layout::HW);
+        DataType::kUint16, TensorStorageType::kTexture2D, Layout::kHW);
     uint2 tex_size = Get2dResourceSize(src_weights_desc, weights_i4.shape);
     tex_size.x /= 4;  // because we store 4 uint4 as one uint16
     weights_ui4_td.SetBHWCShape(BHWC(1, tex_size.y, tex_size.x, 4));
   } else {
     weights_ui4_td = TensorDescriptor(
-        src_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR);
+        src_weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear);
     weights_ui4_td.SetBHWCShape(BHWC(1, 1, 1, src_data.size()));
   }
   weights_ui4_td.UploadDataRaw(absl::MakeConstSpan(src_data));
@@ -2414,14 +2414,14 @@ absl::Status Uint4ToInt4WeightsConverterTest(
   RearrangeWeightsInt4(weights_i4, dst_weights_desc,
                        absl::MakeSpan(dst_ref_data));
   TensorDescriptor weights_dst_i4_td = TensorDescriptor(
-      DataType::INT8, TensorStorageType::BUFFER, Layout::LINEAR);
+      DataType::kInt8, TensorStorageType::kBuffer, Layout::kLinear);
   weights_dst_i4_td.SetBHWCShape(BHWC(1, 1, 1, dst_ref_data.size()));
 
   OperationDef op_def;
   op_def.src_tensors.push_back(
-      {src_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR});
+      {src_weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear});
   op_def.dst_tensors.push_back(
-      {dst_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR});
+      {dst_weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear});
   ExternalWeights src_weights;
   src_weights.desc = src_weights_desc;
   src_weights.shape = weights_i4.shape;
@@ -2440,7 +2440,7 @@ absl::Status Uint2ToInt4WeightsConverterTest(
     WeightsDescription& dst_weights_desc) {
   const int i_channels = 128 - 4;
   const int o_channels = 128 + 4;
-  Tensor<OHWI, DataType::INT8> weights_i2;
+  Tensor<OHWI, DataType::kInt8> weights_i2;
   weights_i2.shape = OHWI(o_channels, 1, 1, i_channels);
   weights_i2.data.resize(weights_i2.shape.DimensionsProduct() +
                          XNN_EXTRA_BYTES / sizeof(int8_t));
@@ -2449,7 +2449,7 @@ absl::Status Uint2ToInt4WeightsConverterTest(
   }
 
   WeightsDescription src_weights_desc;
-  src_weights_desc.type = DataType::UINT2;
+  src_weights_desc.type = DataType::kUint2;
   src_weights_desc.layout = src_layout;
   if (src_layout == WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
     src_weights_desc.output_group_size = DivideRoundUp(weights_i2.shape.o, 4);
@@ -2464,13 +2464,13 @@ absl::Status Uint2ToInt4WeightsConverterTest(
                               absl::MakeSpan(src_data), 2, 2u);
   if (src_layout == WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
     weights_ui2_td = TensorDescriptor(
-        DataType::UINT8, TensorStorageType::TEXTURE_2D, Layout::HW);
+        DataType::kUint8, TensorStorageType::kTexture2D, Layout::kHW);
     uint2 tex_size = Get2dResourceSize(src_weights_desc, weights_i2.shape);
     tex_size.x /= 4;  // because we store 4 uint2 as one uint8
     weights_ui2_td.SetBHWCShape(BHWC(1, tex_size.y, tex_size.x, 4));
   } else {
     weights_ui2_td = TensorDescriptor(
-        src_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR);
+        src_weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear);
     weights_ui2_td.SetBHWCShape(BHWC(1, 1, 1, src_data.size()));
   }
   weights_ui2_td.UploadDataRaw(absl::MakeConstSpan(src_data));
@@ -2480,14 +2480,14 @@ absl::Status Uint2ToInt4WeightsConverterTest(
   RearrangeWeightsInt4(weights_i2, dst_weights_desc,
                        absl::MakeSpan(dst_ref_data));
   TensorDescriptor weights_dst_i4_td = TensorDescriptor(
-      DataType::INT8, TensorStorageType::BUFFER, Layout::LINEAR);
+      DataType::kInt8, TensorStorageType::kBuffer, Layout::kLinear);
   weights_dst_i4_td.SetBHWCShape(BHWC(1, 1, 1, dst_ref_data.size()));
 
   OperationDef op_def;
   op_def.src_tensors.push_back(
-      {src_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR});
+      {src_weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear});
   op_def.dst_tensors.push_back(
-      {dst_weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR});
+      {dst_weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear});
   ExternalWeights src_weights;
   src_weights.desc = src_weights_desc;
   src_weights.shape = weights_i2.shape;

@@ -219,7 +219,7 @@ TopKOp CreateTopK(const GpuInfo& gpu_info, const OperationDef& op_def,
   op.AddDstTensor("dst_max", op_def.dst_tensors[0]);
   op.AddDstTensor("dst_ind", op_def.dst_tensors[1]);
   const float min_float =
-      type == DataType::FLOAT32 ? std::numeric_limits<float>::max() : kMaxHalf;
+      type == DataType::kFloat32 ? std::numeric_limits<float>::max() : kMaxHalf;
   op.args_.AddFloat("min_value", -min_float, type);
   op.args_.AddInt("steps_count", 4);
   op.args_.AddInt("k_offset", k_offset / 4);

@@ -254,18 +254,18 @@ class IntTest : public Test,
 
 TEST_P(IntTest, ConvWaveMemoryInt8Test) {
   // Check dst storage. Check src storage w/i helper.
-  if (!exec_env->IsStorageSupported(dst_storage(), DataType::INT32)) {
+  if (!exec_env->IsStorageSupported(dst_storage(), DataType::kInt32)) {
     GTEST_SKIP() << "Unsupported dst storage type: " << ToString(dst_storage())
-                 << " data type: " << ToString(DataType::INT32);
+                 << " data type: " << ToString(DataType::kInt32);
   }
   ABSL_ASSERT_OK(ConvWaveMemoryInt8Test(*exec_env, src_storage(), dst_storage()));
 }
 
 TEST_P(IntTest, ConvWaveMemoryInt8ExternalWeightsTest) {
   // Check dst storage. Check src storage w/i helper.
-  if (!exec_env->IsStorageSupported(dst_storage(), DataType::INT32)) {
+  if (!exec_env->IsStorageSupported(dst_storage(), DataType::kInt32)) {
     GTEST_SKIP() << "Unsupported dst storage type: " << ToString(dst_storage())
-                 << " data type: " << ToString(DataType::INT32);
+                 << " data type: " << ToString(DataType::kInt32);
   }
   ABSL_ASSERT_OK(ConvWaveMemoryInt8ExternalWeightsTest(*exec_env, src_storage(),
                                                   dst_storage()));
@@ -296,7 +296,7 @@ class SrcQuantizationTest
 
 TEST_P(SrcQuantizationTest, ConvWaveMemoryInt8WithSrcQuantizationBig) {
   const auto& [float_type, int_storage, float_storage] = GetParam();
-  if (!exec_env->IsStorageSupported(int_storage, DataType::INT32)) {
+  if (!exec_env->IsStorageSupported(int_storage, DataType::kInt32)) {
     GTEST_SKIP() << "Unsupported int storage: " << ToString(int_storage);
   }
   if (!exec_env->IsStorageSupported(float_storage, float_type)) {
@@ -308,7 +308,7 @@ TEST_P(SrcQuantizationTest, ConvWaveMemoryInt8WithSrcQuantizationBig) {
 
 INSTANTIATE_TEST_SUITE_P(
     ConvWaveMemorySrcQuantizationTestSuite, SrcQuantizationTest,
-    Combine(ValuesIn({DataType::FLOAT16, DataType::FLOAT32}),
+    Combine(ValuesIn({DataType::kFloat16, DataType::kFloat32}),
             ValuesIn(GetTensorStoragesTypes()),
             ValuesIn(GetTensorStoragesTypes())),
     [](const TestParamInfo<SrcQuantizationTest::ParamType>& info) {

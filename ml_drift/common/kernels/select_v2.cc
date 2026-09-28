@@ -25,7 +25,7 @@ namespace ml_drift {
 std::string GetSelectV2Code(const OperationDef& op_def) {
   std::string c;
   c += "MAIN_FUNCTION($0) {\n";
-  if (op_def.dst_tensors[0].HasAxis(Axis::BATCH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kBatch)) {
     c += R"(
   int linear_id = ucl::GetGlobalId<0>();
   int X = linear_id / args.dst_tensor.Batch();

@@ -42,8 +42,8 @@ absl::Status TileChannelsTest(TestExecutionEnvironment& env, DataType data_type,
   src_tensor.shape = BHWC(1, 2, 1, 3);
   src_tensor.data = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f};
 
-  TensorDescriptor src_desc(data_type, storage, Layout::HWC);
-  TensorDescriptor dst_desc(data_type, storage, Layout::HWC);
+  TensorDescriptor src_desc(data_type, storage, Layout::kHWC);
+  TensorDescriptor dst_desc(data_type, storage, Layout::kHWC);
   TensorFloat32 dst_tensor;
   GPUOperation operation =
       CreateTile(src_desc, dst_desc, src_tensor.shape.c % 4 == 0);
@@ -62,8 +62,8 @@ absl::Status TileChannelsX4Test(TestExecutionEnvironment& env,
   src_tensor.shape = BHWC(1, 2, 1, 4);
   src_tensor.data = {1.0f, 2.0f, 3.0f, 7.0f, 4.0f, 5.0f, 6.0f, 8.0f};
 
-  TensorDescriptor src_desc(data_type, storage, Layout::HWC);
-  TensorDescriptor dst_desc(data_type, storage, Layout::HWC);
+  TensorDescriptor src_desc(data_type, storage, Layout::kHWC);
+  TensorDescriptor dst_desc(data_type, storage, Layout::kHWC);
   TensorFloat32 dst_tensor;
   GPUOperation operation =
       CreateTile(src_desc, dst_desc, src_tensor.shape.c % 4 == 0);
@@ -83,8 +83,8 @@ absl::Status TileWidthTest(TestExecutionEnvironment& env, DataType data_type,
   src_tensor.shape = BHWC(1, 1, 2, 3);
   src_tensor.data = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f};
 
-  TensorDescriptor src_desc(data_type, storage, Layout::HWC);
-  TensorDescriptor dst_desc(data_type, storage, Layout::HWC);
+  TensorDescriptor src_desc(data_type, storage, Layout::kHWC);
+  TensorDescriptor dst_desc(data_type, storage, Layout::kHWC);
   TensorFloat32 dst_tensor;
   GPUOperation operation =
       CreateTile(src_desc, dst_desc, src_tensor.shape.c % 4 == 0);
@@ -103,8 +103,8 @@ absl::Status TileHeightTest(TestExecutionEnvironment& env, DataType data_type,
   src_tensor.shape = BHWC(1, 2, 1, 3);
   src_tensor.data = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f};
 
-  TensorDescriptor src_desc(data_type, storage, Layout::HWC);
-  TensorDescriptor dst_desc(data_type, storage, Layout::HWC);
+  TensorDescriptor src_desc(data_type, storage, Layout::kHWC);
+  TensorDescriptor dst_desc(data_type, storage, Layout::kHWC);
   TensorFloat32 dst_tensor;
   GPUOperation operation =
       CreateTile(src_desc, dst_desc, src_tensor.shape.c % 4 == 0);
@@ -124,8 +124,8 @@ absl::Status TileHWCTest(TestExecutionEnvironment& env, DataType data_type,
   src_tensor.data = {1.0f, 2.0f, 3.0f, 4.0f,  5.0f,  6.0f,
                      7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f};
 
-  TensorDescriptor src_desc(data_type, storage, Layout::HWC);
-  TensorDescriptor dst_desc(data_type, storage, Layout::HWC);
+  TensorDescriptor src_desc(data_type, storage, Layout::kHWC);
+  TensorDescriptor dst_desc(data_type, storage, Layout::kHWC);
   TensorFloat32 dst_tensor;
   GPUOperation operation =
       CreateTile(src_desc, dst_desc, src_tensor.shape.c % 4 == 0);
@@ -162,9 +162,9 @@ absl::Status TileChannelsIntTest(TestExecutionEnvironment& env,
   ref_tensor.shape = BHWC(1, 2, 1, 6);
   ref_tensor.data = {1, 2, 3, 1, 2, 3, 4, 5, 6, 4, 5, 6};
 
-  TensorDescriptor src_desc(T, storage, Layout::HWC);
+  TensorDescriptor src_desc(T, storage, Layout::kHWC);
   src_desc.UploadData(src_tensor);
-  TensorDescriptor dst_desc(T, storage, Layout::HWC);
+  TensorDescriptor dst_desc(T, storage, Layout::kHWC);
   dst_desc.SetBHWCShape(BHWC(1, 2, 1, 6));
 
   GPUOperation operation =
@@ -180,17 +180,17 @@ absl::Status TileChannelsIntTest(TestExecutionEnvironment& env,
   return absl::OkStatus();
 }
 
-template absl::Status TileChannelsIntTest<DataType::INT8>(
+template absl::Status TileChannelsIntTest<DataType::kInt8>(
     TestExecutionEnvironment& env, TensorStorageType storage);
-template absl::Status TileChannelsIntTest<DataType::INT16>(
+template absl::Status TileChannelsIntTest<DataType::kInt16>(
     TestExecutionEnvironment& env, TensorStorageType storage);
-template absl::Status TileChannelsIntTest<DataType::INT32>(
+template absl::Status TileChannelsIntTest<DataType::kInt32>(
     TestExecutionEnvironment& env, TensorStorageType storage);
-template absl::Status TileChannelsIntTest<DataType::UINT8>(
+template absl::Status TileChannelsIntTest<DataType::kUint8>(
     TestExecutionEnvironment& env, TensorStorageType storage);
-template absl::Status TileChannelsIntTest<DataType::UINT16>(
+template absl::Status TileChannelsIntTest<DataType::kUint16>(
     TestExecutionEnvironment& env, TensorStorageType storage);
-template absl::Status TileChannelsIntTest<DataType::UINT32>(
+template absl::Status TileChannelsIntTest<DataType::kUint32>(
     TestExecutionEnvironment& env, TensorStorageType storage);
 
 template <DataType T>
@@ -204,9 +204,9 @@ absl::Status TileChannelsX4IntTest(TestExecutionEnvironment& env,
   ref_tensor.shape = BHWC(1, 2, 1, 8);
   ref_tensor.data = {1, 2, 3, 7, 1, 2, 3, 7, 4, 5, 6, 8, 4, 5, 6, 8};
 
-  TensorDescriptor src_desc(T, storage, Layout::HWC);
+  TensorDescriptor src_desc(T, storage, Layout::kHWC);
   src_desc.UploadData(src_tensor);
-  TensorDescriptor dst_desc(T, storage, Layout::HWC);
+  TensorDescriptor dst_desc(T, storage, Layout::kHWC);
   dst_desc.SetBHWCShape(BHWC(1, 2, 1, 8));
 
   GPUOperation operation =
@@ -222,17 +222,17 @@ absl::Status TileChannelsX4IntTest(TestExecutionEnvironment& env,
   return absl::OkStatus();
 }
 
-template absl::Status TileChannelsX4IntTest<DataType::INT8>(
+template absl::Status TileChannelsX4IntTest<DataType::kInt8>(
     TestExecutionEnvironment& env, TensorStorageType storage);
-template absl::Status TileChannelsX4IntTest<DataType::INT16>(
+template absl::Status TileChannelsX4IntTest<DataType::kInt16>(
     TestExecutionEnvironment& env, TensorStorageType storage);
-template absl::Status TileChannelsX4IntTest<DataType::INT32>(
+template absl::Status TileChannelsX4IntTest<DataType::kInt32>(
     TestExecutionEnvironment& env, TensorStorageType storage);
-template absl::Status TileChannelsX4IntTest<DataType::UINT8>(
+template absl::Status TileChannelsX4IntTest<DataType::kUint8>(
     TestExecutionEnvironment& env, TensorStorageType storage);
-template absl::Status TileChannelsX4IntTest<DataType::UINT16>(
+template absl::Status TileChannelsX4IntTest<DataType::kUint16>(
     TestExecutionEnvironment& env, TensorStorageType storage);
-template absl::Status TileChannelsX4IntTest<DataType::UINT32>(
+template absl::Status TileChannelsX4IntTest<DataType::kUint32>(
     TestExecutionEnvironment& env, TensorStorageType storage);
 
 absl::Status Tile5DTest(TestExecutionEnvironment& env, DataType data_type,
@@ -241,8 +241,8 @@ absl::Status Tile5DTest(TestExecutionEnvironment& env, DataType data_type,
   src_tensor.shape = BHWDC(2, 2, 1, 2, 1);
   src_tensor.data = {1, 2, 3, 4, 5, 6, 7, 8};
 
-  TensorDescriptor src_desc(data_type, storage, Layout::BHWDC);
-  TensorDescriptor dst_desc(data_type, storage, Layout::BHWDC);
+  TensorDescriptor src_desc(data_type, storage, Layout::kBHWDC);
+  TensorDescriptor dst_desc(data_type, storage, Layout::kBHWDC);
   Tensor5DFloat32 dst_tensor;
   GPUOperation operation = CreateTile(src_desc, dst_desc, true);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(

@@ -50,15 +50,14 @@ absl::Status GroupNorm(TestExecutionEnvironment* env, int num_batch,
   TensorStorageType storage) {
   GraphFloat32 model;
   Node* layer_norm = model.NewNode();
-  layer_norm->operation.type = ToString(ml_drift::OperationType::LAYER_NORM);
-  ml_drift::Tensor<ml_drift::Linear, ml_drift::DataType::FLOAT32> bias_tensor;
+  layer_norm->operation.type = ToString(ml_drift::OperationType::kLayerNorm);
+  ml_drift::Tensor<ml_drift::Linear, ml_drift::DataType::kFloat32> bias_tensor;
   bias_tensor.shape = Linear(4);
   bias_tensor.data.resize(bias_tensor.shape.DimensionsProduct());
   for (int i = 0; i < bias_tensor.shape.DimensionsProduct(); ++i) {
     bias_tensor.data[i] = 1;
   }
-  ml_drift::Tensor<ml_drift::Linear, ml_drift::DataType::FLOAT32>
-      scale_tensor;
+  ml_drift::Tensor<ml_drift::Linear, ml_drift::DataType::kFloat32> scale_tensor;
   scale_tensor.shape = Linear(4);
   scale_tensor.data.resize(scale_tensor.shape.DimensionsProduct());
   for (int i = 0; i < scale_tensor.shape.DimensionsProduct(); ++i) {
@@ -73,12 +72,12 @@ absl::Status GroupNorm(TestExecutionEnvironment* env, int num_batch,
   Value* input = model.NewValue();
   Value* output = model.NewValue();
   TensorRef<BHWC> input_ref;
-  input_ref.type = DataType::FLOAT32;
+  input_ref.type = DataType::kFloat32;
   input_ref.ref = 1;
   input_ref.shape = BHWC(num_batch, 1, 1, 4);
 
   TensorRef<BHWC> output_ref;
-  output_ref.type = DataType::FLOAT32;
+  output_ref.type = DataType::kFloat32;
   output_ref.ref = 2;
   output_ref.shape = BHWC(num_batch, 1, 1, 4);
 
@@ -96,7 +95,7 @@ absl::Status GroupNorm(TestExecutionEnvironment* env, int num_batch,
   TensorFloat32 inference_result;
   {
     CreateGpuModelInfo create_info;
-    create_info.precision = ml_drift::CalculationsPrecision::F32;
+    create_info.precision = ml_drift::CalculationsPrecision::kF32;
     create_info.storage_type = storage;
     create_info.hints.Add(ModelHints::kAllowSpecialKernels);
     create_info.hints.Add(ml_drift::ModelHints::kFastTuning);
@@ -126,7 +125,7 @@ class LayerNormTest
 
 TEST_P(LayerNormTest, GroupNormMultiBatches) {
   auto [num_batch, storage] = GetParam();
-  if (!exec_env->IsStorageSupported(storage, DataType::FLOAT32)) {
+  if (!exec_env->IsStorageSupported(storage, DataType::kFloat32)) {
     GTEST_SKIP() << "Unsupported storage type: "
                  << ToString(std::get<1>(GetParam()));
   }

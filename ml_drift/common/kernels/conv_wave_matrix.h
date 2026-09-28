@@ -61,7 +61,7 @@ class ConvWaveMatrix : public GPUOperation {
     OHWI scale_zp_shape = OHWI(1, 1, 1, 1);  // only used for ExternalWeights
     bool has_zero_point = false;             // only used for ExternalWeights
     int src_group_slices = 0;                // only used for ExternalWeights
-    CalculationsPrecision precision = CalculationsPrecision::F32;
+    CalculationsPrecision precision = CalculationsPrecision::kF32;
     DataType weights_data_type;
     bool x_kernel_is_1 = true;
     bool y_kernel_is_1 = true;
@@ -116,19 +116,19 @@ class ConvWaveMatrix : public GPUOperation {
     desc.layout = WeightsLayout::kCustomGroups;
     auto& groups = desc.group_sizes;
     if (kernel_params_.load_right_transposed) {
-      groups.push_back({Axis::INPUT_CHANNELS, kernel_params_.wave_matrix_k});
-      groups.push_back({Axis::OUTPUT_CHANNELS, kernel_params_.wave_matrix_n});
+      groups.push_back({Axis::kInputChannels, kernel_params_.wave_matrix_k});
+      groups.push_back({Axis::kOutputChannels, kernel_params_.wave_matrix_n});
     } else {
-      groups.push_back({Axis::OUTPUT_CHANNELS, kernel_params_.wave_matrix_n});
-      groups.push_back({Axis::INPUT_CHANNELS, kernel_params_.wave_matrix_k});
+      groups.push_back({Axis::kOutputChannels, kernel_params_.wave_matrix_n});
+      groups.push_back({Axis::kInputChannels, kernel_params_.wave_matrix_k});
     }
     groups.push_back(
-        {Axis::OUTPUT_CHANNELS, kernel_params_.dst_slices_per_thread /
+        {Axis::kOutputChannels, kernel_params_.dst_slices_per_thread /
                                     (kernel_params_.wave_matrix_n / 4)});
-    groups.push_back({Axis::INPUT_CHANNELS, 0});
-    groups.push_back({Axis::WIDTH, 0});
-    groups.push_back({Axis::HEIGHT, 0});
-    groups.push_back({Axis::OUTPUT_CHANNELS, 0});
+    groups.push_back({Axis::kInputChannels, 0});
+    groups.push_back({Axis::kWidth, 0});
+    groups.push_back({Axis::kHeight, 0});
+    groups.push_back({Axis::kOutputChannels, 0});
     return desc;
   }
 
@@ -136,8 +136,8 @@ class ConvWaveMatrix : public GPUOperation {
   KernelParams kernel_params_;
 
  private:
-  void UploadWeights(const Tensor<OHWI, DataType::FLOAT32>& weights);
-  void UploadWeights(const Tensor<OHWI, DataType::INT8>& weights);
+  void UploadWeights(const Tensor<OHWI, DataType::kFloat32>& weights);
+  void UploadWeights(const Tensor<OHWI, DataType::kInt8>& weights);
   // adding conv params for non 1x1 kernels
   void AddConvParams(const Convolution2DAttributes& attr);
 
@@ -159,7 +159,7 @@ class ConvWaveMatrix : public GPUOperation {
       const ConvRuntimeCheckDesc& runtime_check);
   friend ConvWaveMatrix CreateConvWaveMatrixInt8(
       const OperationDef& definition, const BHWC& dst_shape,
-      const Tensor<OHWI, DataType::INT8>& weights, const GpuInfo& gpu_info);
+      const Tensor<OHWI, DataType::kInt8>& weights, const GpuInfo& gpu_info);
   friend ConvWaveMatrix CreateConvWaveMatrixInt8ExternalWeights(
       const GpuInfo& gpu_info, const OperationDef& definition,
       const OHWI& weights_shape, const BHWC& dst_shape);
@@ -213,7 +213,7 @@ ConvWaveMatrix CreateConvWaveMatrixExternalWeights(
 // Creates an INT8 convolution operation with wave matrix.
 ConvWaveMatrix CreateConvWaveMatrixInt8(
     const OperationDef& definition, const BHWC& dst_shape,
-    const Tensor<OHWI, DataType::INT8>& weights, const GpuInfo& gpu_info);
+    const Tensor<OHWI, DataType::kInt8>& weights, const GpuInfo& gpu_info);
 
 // Creates an INT8 convolution operation with wave matrix and external weights.
 ConvWaveMatrix CreateConvWaveMatrixInt8ExternalWeights(

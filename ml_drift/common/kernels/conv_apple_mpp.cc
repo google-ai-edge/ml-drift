@@ -53,9 +53,9 @@ void AddRuntimeParams(GPUOperation& op,
   }
   if (has_runtime_check) {
     BufferDescriptor buffer_desc;
-    buffer_desc.element_type = DataType::INT32;
+    buffer_desc.element_type = DataType::kInt32;
     buffer_desc.element_size = 1;
-    buffer_desc.memory_type = MemoryType::CONSTANT;
+    buffer_desc.memory_type = MemoryType::kConstant;
     op.AddSrcBuffer("params", buffer_desc);
   }
 }
@@ -77,13 +77,13 @@ std::string ReadFloatWeights(const ConvAppleMPP::ConvParams& params) {
         fc::GetDataTypeForWeights(params.weights_desc.type));
     c += "    }\n";
   }
-  if (params.weights_desc.type == DataType::UINT8) {
+  if (params.weights_desc.type == DataType::kUint8) {
     c += "    uint4 u8_i4o4 = args.weights.Read(w_wg_offset);\n";
     c += "    ucl::U32x4ToU8x16AsVec4x4<half>(u8_i4o4, w0, w1, w2, w3);\n";
-  } else if (params.weights_desc.type == DataType::UINT4) {
+  } else if (params.weights_desc.type == DataType::kUint4) {
     c += "    uint2 u4_i4o4 = args.weights.Read(w_wg_offset);\n";
     c += "    ucl::U32x2ToU4x16AsVec4x4<half>(u4_i4o4, w0, w1, w2, w3);\n";
-  } else if (params.weights_desc.type == DataType::UINT2) {
+  } else if (params.weights_desc.type == DataType::kUint2) {
     c += "    uint u2_i4o4 = args.weights.Read(w_wg_offset);\n";
     c += "    ucl::U32x1ToU2x16AsVec4x4<half>(u2_i4o4, w0, w1, w2, w3);\n";
   } else {
@@ -126,17 +126,17 @@ std::string ConvAppleMPP::GetKernelCode(const TensorDescriptor& src) const {
       weights_conversion && SizeInBitsOf(params_.weights_desc.type) <= 8;
   const bool manual_src_reading =
       params_.softmax_input_activation ||
-      src.GetStorageType() != TensorStorageType::BUFFER || !src.IsCC4Layout() ||
-      !params_.x_kernel_is_1 || !params_.y_kernel_is_1;
+      src.GetStorageType() != TensorStorageType::kBuffer ||
+      !src.IsCC4Layout() || !params_.x_kernel_is_1 || !params_.y_kernel_is_1;
   const bool manual_k_tiling =
       params_.runtime_check.src_end_ch_index.has_value() ||
       manual_src_reading || weights_conversion;
   const int k_tile =
       manual_k_tiling ? 32 : AlignByN(params_.weights_shape.i, 4);
-  const bool has_batch = src.HasAxis(Axis::BATCH);
+  const bool has_batch = src.HasAxis(Axis::kBatch);
   std::string c;
   c += "#include <MetalPerformancePrimitives/MetalPerformancePrimitives.h>\n";
-  if (weights_conversion && params_.weights_data_type != DataType::FLOAT16) {
+  if (weights_conversion && params_.weights_data_type != DataType::kFloat16) {
     c += R"(
 uint32_t expand_int4_to_int8(uint32_t val) {
   uint32_t x = val & 0xFFFF;
@@ -196,9 +196,9 @@ MAIN_FUNCTION($0) {
     ABSL_CHECK(k_tile == 32);
     ABSL_CHECK(simdgroups_ == 4);
     const std::string w_loc_type =
-        params_.weights_data_type == DataType::FLOAT16 ? "half" : "int8_t";
+        params_.weights_data_type == DataType::kFloat16 ? "half" : "int8_t";
     const std::string w_loc_x4_type =
-        params_.weights_data_type == DataType::FLOAT16 ? "half4" : "uint";
+        params_.weights_data_type == DataType::kFloat16 ? "half4" : "uint";
     c += "  threadgroup " + w_loc_type + " w_loc[K_TILE * N_TILE];\n";
     c += "  threadgroup " + w_loc_x4_type + "* w_loc_x4 = (threadgroup " +
          w_loc_x4_type + "*)(w_loc);\n";
@@ -216,7 +216,7 @@ MAIN_FUNCTION($0) {
         params_.batched_weights ? "w_batch_id * args.src.Slices()" : "0";
     c += "  int w_wg_offset = (" + batch_part +
          " + sub_i) * args.dst.Slices() + w_o_slice;\n";
-    if (quantized_weights && params_.weights_data_type == DataType::FLOAT16) {
+    if (quantized_weights && params_.weights_data_type == DataType::kFloat16) {
       c += "  half4 w_scale, w_bias;\n";
       if (params_.scale_zp_shape.i != 1) {
         // grouped quantization
@@ -325,7 +325,7 @@ MAIN_FUNCTION($0) {
   if (manual_k_tiling) {
     c += "  for (int k = 0; k < " + src_end_slice + "; k += K_TILE_SLICES) {\n";
     if (weights_conversion) {
-      if (params_.weights_data_type == DataType::FLOAT16) {
+      if (params_.weights_data_type == DataType::kFloat16) {
         c += "    half4 w0, w1, w2, w3;\n";
         c += ReadFloatWeights(params_);
       } else {
@@ -437,7 +437,7 @@ MAIN_FUNCTION($0) {
   c += "  }\n";
   c += "}\n";
   const std::string type =
-      params_.weights_data_type == DataType::FLOAT16 ? "half" : "int8_t";
+      params_.weights_data_type == DataType::kFloat16 ? "half" : "int8_t";
   std::string spatial_size = "args.dst.Width()";
   if (!params_.batched_weights) {
     spatial_size += " * args.dst.Height()";
@@ -461,7 +461,7 @@ MAIN_FUNCTION($0) {
           {"K_TILE_SLICES", std::to_string(k_tile / 4)},
           {"SIMDGROUPS", std::to_string(simdgroups_)},
           {"WG_SIZE", std::to_string(32 * simdgroups_)},
-          {"Type", ToUclDataType(DataType::FLOAT16, 4)},
+          {"Type", ToUclDataType(DataType::kFloat16, 4)},
           {"SType", type},
           {"SPATIAL_SIZE", spatial_size},
           {"MAT_MUL_MODE", mat_mul_mode},
@@ -513,11 +513,11 @@ bool SupportsConvAppleMPP(const GpuInfo& gpu_info,
   if (!SupportsConvAppleMPP(gpu_info)) {
     return false;
   }
-  const bool supported_type = weights.desc.type == DataType::FLOAT32 ||
-                              weights.desc.type == DataType::FLOAT16 ||
-                              weights.desc.type == DataType::UINT8 ||
-                              weights.desc.type == DataType::UINT4 ||
-                              weights.desc.type == DataType::UINT2;
+  const bool supported_type = weights.desc.type == DataType::kFloat32 ||
+                              weights.desc.type == DataType::kFloat16 ||
+                              weights.desc.type == DataType::kUint8 ||
+                              weights.desc.type == DataType::kUint4 ||
+                              weights.desc.type == DataType::kUint2;
   const int dst_slices = DivideRoundUp(weights.shape.o, 4);
   if (weights.desc.layout != WeightsLayout::kOSpatialIOGroupI4O4 ||
       weights.desc.output_group_size != dst_slices || !supported_type) {
@@ -534,7 +534,7 @@ ConvAppleMPP CreateConvAppleMPP(const TensorDescriptor& src,
 
   ConvAppleMPP::ConvParams params;
   params.weights_desc.layout = WeightsLayout::kUnknown;
-  params.weights_data_type = DataType::FLOAT16;
+  params.weights_data_type = DataType::kFloat16;
   params.weights_shape = weights_shape;
   params.has_bias = !attr.bias.data.empty();
   params.InitKernelXY(attr);
@@ -556,13 +556,13 @@ ConvAppleMPP CreateConvAppleMPP(const TensorDescriptor& src,
   return conv;
 }
 
-ConvAppleMPP CreateConvAppleMPP(const TensorDescriptor& src,
-                                const TensorDescriptor& dst,
-                                const Tensor<OHWI, DataType::FLOAT32>& weights,
-                                const Tensor<Linear, DataType::FLOAT32>& bias) {
+ConvAppleMPP CreateConvAppleMPP(
+    const TensorDescriptor& src, const TensorDescriptor& dst,
+    const Tensor<OHWI, DataType::kFloat32>& weights,
+    const Tensor<Linear, DataType::kFloat32>& bias) {
   ConvAppleMPP::ConvParams params;
   params.weights_desc.layout = WeightsLayout::kUnknown;
-  params.weights_data_type = DataType::FLOAT16;
+  params.weights_data_type = DataType::kFloat16;
   params.weights_shape = weights.shape;
   params.has_bias = !bias.data.empty();
 
@@ -584,7 +584,7 @@ ConvAppleMPP CreateConvAppleMPPExternalWeights(
     const ConvRuntimeCheckDesc& runtime_check) {
   ConvAppleMPP::ConvParams params;
   params.weights_desc.layout = WeightsLayout::kUnknown;
-  params.weights_data_type = DataType::FLOAT16;
+  params.weights_data_type = DataType::kFloat16;
   params.weights_shape = weights_shape;
   params.has_bias = bias != nullptr;
   params.batched_weights = different_weights_for_height;
@@ -596,7 +596,7 @@ ConvAppleMPP CreateConvAppleMPPExternalWeights(
   conv.AddDstTensor("dst", dst);
 
   BufferDescriptor weights_desc;
-  weights_desc.element_type = DataType::FLOAT16;
+  weights_desc.element_type = DataType::kFloat16;
   weights_desc.element_size = 1;
   conv.AddSrcBuffer("weights", weights_desc);
 
@@ -619,7 +619,7 @@ ConvAppleMPP CreateConvAppleMPPExternalWeights(
     const ConvRuntimeCheckDesc& runtime_check, const BHWC* dst_shape) {
   ConvAppleMPP::ConvParams params;
   params.weights_desc.layout = WeightsLayout::kUnknown;
-  params.weights_data_type = DataType::FLOAT16;
+  params.weights_data_type = DataType::kFloat16;
   params.weights_shape = weights.shape;
   params.has_bias = bias != nullptr;
   params.batched_weights = different_weights_for_height;
@@ -651,10 +651,10 @@ ConvAppleMPP CreateConvAppleMPPExternalWeights(
     buffer_desc.element_size = 16;
   } else {
     // quantized weights
-    buffer_desc.element_type = DataType::UINT32;
+    buffer_desc.element_type = DataType::kUint32;
     buffer_desc.element_size = SizeInBitsOf(weights.desc.type) / 2;
   }
-  buffer_desc.memory_type = MemoryType::GLOBAL;
+  buffer_desc.memory_type = MemoryType::kGlobal;
   conv.AddSrcBuffer("weights", buffer_desc);
 
   fc::AddWeightsScaleZeroPointArguments(weights, &conv);
@@ -673,10 +673,10 @@ ConvAppleMPP CreateConvAppleMPPExternalWeights(
 
 ConvAppleMPP CreateConvAppleMPPInt8(
     const TensorDescriptor& src, const TensorDescriptor& dst,
-    const Tensor<OHWI, DataType::INT8>& weights) {
+    const Tensor<OHWI, DataType::kInt8>& weights) {
   ConvAppleMPP::ConvParams params;
   params.weights_desc.layout = WeightsLayout::kUnknown;
-  params.weights_data_type = DataType::INT8;
+  params.weights_data_type = DataType::kInt8;
   params.weights_shape = weights.shape;
   params.has_bias = false;
 
@@ -692,7 +692,7 @@ ConvAppleMPP CreateConvAppleMPPInt8(const TensorDescriptor& src,
                                     const OHWI& weights_shape) {
   ConvAppleMPP::ConvParams params;
   params.weights_desc.layout = WeightsLayout::kUnknown;
-  params.weights_data_type = DataType::INT8;
+  params.weights_data_type = DataType::kInt8;
   params.weights_shape = weights_shape;
   params.has_bias = false;
   params.batched_weights = weights_shape.h != 1;
@@ -702,7 +702,7 @@ ConvAppleMPP CreateConvAppleMPPInt8(const TensorDescriptor& src,
   conv.AddDstTensor("dst", dst);
 
   BufferDescriptor weights_desc;
-  weights_desc.element_type = DataType::INT8;
+  weights_desc.element_type = DataType::kInt8;
   weights_desc.element_size = 1;
   conv.AddSrcBuffer("weights", weights_desc);
   return conv;
@@ -714,7 +714,7 @@ ConvAppleMPP CreateConvAppleMPPInt8(const TensorDescriptor& src,
                                     const ExternalWeights& weights) {
   ConvAppleMPP::ConvParams params;
   params.weights_desc.layout = WeightsLayout::kUnknown;
-  params.weights_data_type = DataType::INT8;
+  params.weights_data_type = DataType::kInt8;
   params.weights_shape = weights.shape;
   params.has_bias = false;
   params.batched_weights = weights.shape.h != 1;
@@ -725,9 +725,9 @@ ConvAppleMPP CreateConvAppleMPPInt8(const TensorDescriptor& src,
   conv.AddDstTensor("dst", dst);
 
   BufferDescriptor weights_desc;
-  weights_desc.element_type = DataType::UINT32;
+  weights_desc.element_type = DataType::kUint32;
   weights_desc.element_size = 2;
-  weights_desc.memory_type = MemoryType::GLOBAL;
+  weights_desc.memory_type = MemoryType::kGlobal;
   conv.AddSrcBuffer("weights", weights_desc);
   return conv;
 }

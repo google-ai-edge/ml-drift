@@ -71,7 +71,7 @@ inline bool UseBufferForIntWeights(const GpuInfo& gpu_info, int int_bit_size,
     return true;
   }
   WeightsDescription weights_desc;
-  weights_desc.type = DataType::UINT8;
+  weights_desc.type = DataType::kUint8;
   weights_desc.layout = WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4;
   weights_desc.output_group_size = DivideRoundUp(weights_shape.o, 4);
   uint2 tex_size = Get2dResourceSize(weights_desc, weights_shape);
@@ -248,10 +248,10 @@ int3 GetWorkGroupSize(const FullyConnected::ConvParams& params,
   }
   int y_size = 8;
   if (is_quantized) {
-    if (params.weights_type == DataType::INT2) {
+    if (params.weights_type == DataType::kInt2) {
       y_size = 32;
     } else {
-      if (gpu_info.IsPowerVR() && params.weights_type == DataType::INT4) {
+      if (gpu_info.IsPowerVR() && params.weights_type == DataType::kInt4) {
         y_size = 32;
       } else {
         y_size = 16;
@@ -260,8 +260,8 @@ int3 GetWorkGroupSize(const FullyConnected::ConvParams& params,
   }
   if (dst_slices >= 512) {
     if (is_quantized) {
-      if (params.weights_type == DataType::INT4 ||
-          params.weights_type == DataType::INT2) {
+      if (params.weights_type == DataType::kInt4 ||
+          params.weights_type == DataType::kInt2) {
         y_size = 16;
       } else {
         y_size = 8;
@@ -275,8 +275,8 @@ int3 GetWorkGroupSize(const FullyConnected::ConvParams& params,
   }
   if (dst_slices >= 1024 * 2) {
     if (is_quantized) {
-      if (params.weights_type == DataType::INT4 ||
-          params.weights_type == DataType::INT2) {
+      if (params.weights_type == DataType::kInt4 ||
+          params.weights_type == DataType::kInt2) {
         y_size = 4;
       } else {
         y_size = 2;
@@ -287,7 +287,7 @@ int3 GetWorkGroupSize(const FullyConnected::ConvParams& params,
   }
   if (dst_slices >= 1024 * 4) {
     y_size = std::min(2, y_size);
-    if (is_quantized && params.weights_type == DataType::INT2) {
+    if (is_quantized && params.weights_type == DataType::kInt2) {
       y_size = 4;
     }
   }
@@ -349,7 +349,7 @@ FullyConnected::FullyConnected(const TensorDescriptor& src,
   if (gpu_info.IsAdreno()) {
     compiler_options_.push_back(CompilerOptions::kClFastRelaxedMath);
   }
-  if (precision == CalculationsPrecision::F16 && gpu_info.IsIntel()) {
+  if (precision == CalculationsPrecision::kF16 && gpu_info.IsIntel()) {
     compiler_options_.push_back(CompilerOptions::kClFastRelaxedMath);
   }
   if (gpu_info.IsMaleoon()) {
@@ -358,7 +358,7 @@ FullyConnected::FullyConnected(const TensorDescriptor& src,
   if (gpu_info.IsPowerVR()) {
     compiler_options_.push_back(CompilerOptions::kClFastRelaxedMath);
   }
-  if (src.GetDataType() == DataType::INT8) {
+  if (src.GetDataType() == DataType::kInt8) {
     if (gpu_info.SupportsExtension("cl_qcom_dot_product8")) {
       compiler_options_.push_back(CompilerOptions::kCl20);
     } else if (gpu_info.SupportsExtension("cl_khr_integer_dot_product")) {
@@ -425,7 +425,7 @@ std::string ReadRingedWeightsAsFloat(
   } else if (conv_params.runtime_check.ring_i_offset_index.has_value()) {
     c += GetRingedIAddresses(conv_params.batched_weights);
   }
-  if (conv_params.weights_type == DataType::INT8) {
+  if (conv_params.weights_type == DataType::kInt8) {
     c += R"(
     uint4 w;
     w.x = args.weights.Read(a0);
@@ -475,10 +475,10 @@ std::string ReadWeightsAsFloat(const FullyConnected::ConvParams& conv_params,
       c += "    ucl::U32Sparse2x4ToU4x16AsVec4x4<SType>(weights, indexes, "
            "w0, w1, w2, w3);\n";
     } else if (fc::IsQuantized(conv_params.weights_type)) {
-      if (conv_params.weights_type == DataType::INT2) {
+      if (conv_params.weights_type == DataType::kInt2) {
         c += "    uint w = args.weights.Read(linear_i4o4);\n";
         c += "    ucl::U32x1ToU2x16AsVec4x4<SType>(w, w0, w1, w2, w3);\n";
-      } else if (conv_params.weights_type == DataType::INT4) {
+      } else if (conv_params.weights_type == DataType::kInt4) {
         c += "    uint2 w = args.weights.Read(linear_i4o4);\n";
         c += "    ucl::U32x2ToU4x16AsVec4x4<SType>(w, w0, w1, w2, w3);\n";
       } else {
@@ -501,13 +501,13 @@ std::string ReadWeightsAsFloat(const FullyConnected::ConvParams& conv_params,
       c += "    w1 = args.weights1.Read<SType>(" + x_c + ", " + y_c + ");\n";
       c += "    w2 = args.weights2.Read<SType>(" + x_c + ", " + y_c + ");\n";
       c += "    w3 = args.weights3.Read<SType>(" + x_c + ", " + y_c + ");\n";
-    } else if (conv_params.weights_type == DataType::INT8) {
+    } else if (conv_params.weights_type == DataType::kInt8) {
       c += "    uint4 w = args.weights.Read(" + x_c + ", " + y_c + ");\n";
       c += "    ucl::U32x4ToU8x16AsVec4x4<SType>(w, w0, w1, w2, w3);\n";
-    } else if (conv_params.weights_type == DataType::INT4) {
+    } else if (conv_params.weights_type == DataType::kInt4) {
       c += "    ushort4 w = args.weights.Read(" + x_c + ", " + y_c + ");\n";
       c += "    ucl::U16x4ToU4x16AsVec4x4<SType>(w, w0, w1, w2, w3);\n";
-    } else if (conv_params.weights_type == DataType::INT2) {
+    } else if (conv_params.weights_type == DataType::kInt2) {
       c += "    uchar4 w = args.weights.Read(" + x_c + ", " + y_c + ");\n";
       c += "    ucl::U8x4ToU2x16AsVec4x4<SType>(w, w0, w1, w2, w3);\n";
     }
@@ -534,7 +534,7 @@ std::string ReadWeightsAs4Uint8x4(const FullyConnected::ConvParams& conv_params,
     coords_2d = x_c + ", " + y_c;
   }
   if (fc::IsQuantized(conv_params.weights_type)) {
-    if (conv_params.weights_type == DataType::INT2) {
+    if (conv_params.weights_type == DataType::kInt2) {
       if (weights_desc.IsLinearLayout()) {
         c += "    uint w = args.weights.Read(linear_i4o4);\n";
       } else {
@@ -545,7 +545,7 @@ std::string ReadWeightsAs4Uint8x4(const FullyConnected::ConvParams& conv_params,
       c += "    w1 = (w >> 2u) & 50529027u;\n";
       c += "    w2 = (w >> 4u) & 50529027u;\n";
       c += "    w3 = (w >> 6u) & 50529027u;\n";
-    } else if (conv_params.weights_type == DataType::INT4) {
+    } else if (conv_params.weights_type == DataType::kInt4) {
       if (weights_desc.IsLinearLayout()) {
         c += "    uint2 w = args.weights.Read(linear_i4o4);\n";
       } else {
@@ -567,7 +567,7 @@ std::string ReadWeightsAs4Uint8x4(const FullyConnected::ConvParams& conv_params,
   w2 = t1 & 0x0F0F0F0Fu;
   w3 = (t1 >> 4u) & 0x0F0F0F0Fu;
 )";
-    } else if (conv_params.weights_type == DataType::INT8) {
+    } else if (conv_params.weights_type == DataType::kInt8) {
       if (weights_desc.IsLinearLayout()) {
         c += "    uint4 w = args.weights.Read(linear_i4o4);\n";
       } else {
@@ -602,7 +602,7 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
   const int block_spatial = conv_params_.block_size.b *
                             conv_params_.block_size.w *
                             conv_params_.block_size.h;
-  const bool int8_math = src.GetDataType() == DataType::INT8;
+  const bool int8_math = src.GetDataType() == DataType::kInt8;
   const bool is_quantized = fc::IsQuantized(conv_params_.weights_type);
 
   std::string c;
@@ -639,11 +639,11 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
     c += fc::GetPackedGroupsParams(conv_params_.runtime_check, /*dim_id=*/1,
                                    conv_params_.block_size.w);
   }
-  DataType acc_type = precision == CalculationsPrecision::F16
-                          ? DataType::FLOAT16
-                          : DataType::FLOAT32;
-  if (src.GetDataType() == DataType::INT8) {
-    acc_type = DataType::INT32;
+  DataType acc_type = precision == CalculationsPrecision::kF16
+                          ? DataType::kFloat16
+                          : DataType::kFloat32;
+  if (src.GetDataType() == DataType::kInt8) {
+    acc_type = DataType::kInt32;
   }
   const std::string zero_value = GetZeroValue(acc_type);
   for (int sp_id = 0; sp_id < block_spatial; ++sp_id) {
@@ -728,7 +728,7 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
     std::string x_coord = std::to_string(bhw.z);
     if (conv_params_.runtime_check.packed_groups.has_value()) {
       x_coord = "dst_w + " + x_coord;
-      if (!src.CanReadOutOfBorder(Axis::WIDTH, gpu_info)) {
+      if (!src.CanReadOutOfBorder(Axis::kWidth, gpu_info)) {
         x_coord = "min(" + x_coord + ", args.src_tensor.Width() - 1)";
       }
       y_coord = "0";
@@ -849,7 +849,7 @@ int3 FullyConnected::GetGridSize() const {
 int GetRecommendedMaxTotalSpatialSize(const GpuInfo& gpu_info,
                                       CalculationsPrecision precision) {
   int base_max_size = 4;
-  if (precision == CalculationsPrecision::F16) {
+  if (precision == CalculationsPrecision::kF16) {
     base_max_size *= 2;
   }
   if (!gpu_info.IsMali()) {
@@ -941,8 +941,8 @@ absl::StatusOr<FullyConnected> CreateFullyConnectedExternalWeights(
           "Unsupported WeightsDescription layout for ringed weights.");
     }
   }
-  if (weights_desc.type == DataType::FLOAT32 ||
-      weights_desc.type == DataType::FLOAT16) {
+  if (weights_desc.type == DataType::kFloat32 ||
+      weights_desc.type == DataType::kFloat16) {
     if (weights_desc.type != DeduceDataTypeFromPrecision(precision)) {
       return absl::InvalidArgumentError("Unsupported WeightsDescription type.");
     }
@@ -1052,7 +1052,7 @@ WeightsDescription GetFullyConnectedInt8WeightsDesc(const GpuInfo& gpu_info,
                                                     const OHWI& weights_shape,
                                                     bool prefer_textures) {
   WeightsDescription weights_desc;
-  weights_desc.type = DataType::UINT8;
+  weights_desc.type = DataType::kUint8;
   if (UseBufferForIntWeights(gpu_info, /*int_bit_size=*/8, weights_shape,
                              prefer_textures)) {
     weights_desc.layout = WeightsLayout::kOSpatialIOGroupI4O4;
@@ -1067,7 +1067,7 @@ WeightsDescription GetFullyConnectedInt4WeightsDesc(const GpuInfo& gpu_info,
                                                     const OHWI& weights_shape,
                                                     bool prefer_textures) {
   WeightsDescription weights_desc;
-  weights_desc.type = DataType::UINT4;
+  weights_desc.type = DataType::kUint4;
   if (UseBufferForIntWeights(gpu_info, /*int_bit_size=*/4, weights_shape,
                              prefer_textures)) {
     weights_desc.layout = WeightsLayout::kOSpatialIOGroupI4O4;
@@ -1082,7 +1082,7 @@ WeightsDescription GetFullyConnectedInt2WeightsDesc(const GpuInfo& gpu_info,
                                                     const OHWI& weights_shape,
                                                     bool prefer_textures) {
   WeightsDescription weights_desc;
-  weights_desc.type = DataType::UINT2;
+  weights_desc.type = DataType::kUint2;
   if (UseBufferForIntWeights(gpu_info, /*int_bit_size=*/2, weights_shape,
                              prefer_textures)) {
     weights_desc.layout = WeightsLayout::kOSpatialIOGroupI4O4;

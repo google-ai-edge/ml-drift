@@ -389,7 +389,7 @@ std::string GetHWCNormalizationCodeGroupSize1(const GpuInfo& gpu_info,
   c += "MAIN_FUNCTION($0) {\n";
   c += "__local float4 shared_mem0[WG_Z][WG_SPATIAL];\n";
   c += "__local float4 shared_mem1[WG_Z][WG_SPATIAL];\n";
-  if (op_def.src_tensors[0].HasAxis(Axis::BATCH)) {
+  if (op_def.src_tensors[0].HasAxis(Axis::kBatch)) {
     c += "  int linear_id = ucl::GetGlobalId<0>();\n";
     c += "  int B = linear_id / WG_X;\n";
     c += "  args.src_tensor.SetBatchRef(B);\n";
@@ -403,7 +403,7 @@ std::string GetHWCNormalizationCodeGroupSize1(const GpuInfo& gpu_info,
   float4 sum_squares = ucl::Init<float4>(0.0f);
 )";
   std::string coords = "X, Y";
-  if (op_def.src_tensors[0].HasAxis(Axis::DEPTH)) {
+  if (op_def.src_tensors[0].HasAxis(Axis::kDepth)) {
     coords += ", D";
     c += "  for (int linear_y = ucl::GetLocalId<1>(); linear_y < "
          "args.src_tensor.Height() * args.src_tensor.Depth(); linear_y += "
@@ -453,7 +453,7 @@ std::string GetHWCNormalizationCodeGroupSize1(const GpuInfo& gpu_info,
   float4 stddev_inv = rsqrt(variance + args.variance_bias);
   // Calculate (t-mean)/stddev for each element
 )";
-  if (op_def.src_tensors[0].HasAxis(Axis::DEPTH)) {
+  if (op_def.src_tensors[0].HasAxis(Axis::kDepth)) {
     c += "  for (int linear_y = ucl::GetLocalId<1>(); linear_y < "
          "args.src_tensor.Height() * args.src_tensor.Depth(); linear_y += "
          "WG_Y) {\n";
@@ -502,7 +502,7 @@ std::string GetHWCNormalizationCode(const GpuInfo& gpu_info,
   } else {
     c += "__local float4 shared_mem[" + std::to_string(wg_total_size) + "];\n";
   }
-  if (op_def.src_tensors[0].HasAxis(Axis::BATCH)) {
+  if (op_def.src_tensors[0].HasAxis(Axis::kBatch)) {
     c += "  int linear_id = ucl::GetGlobalId<0>();\n";
     c += "  int B = linear_id / ucl::GetGroupSize<0>();\n";
     c += "  args.src_tensor.SetBatchRef(B);\n";
@@ -664,8 +664,8 @@ std::string GetHWCNormalizationCode(const GpuInfo& gpu_info,
 MeanStdDevNormalization::MeanStdDevNormalization(
     const OperationDef& definition, const GpuInfo& gpu_info, const BHWC& shape,
     float variance_bias, bool two_step,
-    const Tensor<Linear, DataType::FLOAT32>* gamma,
-    const Tensor<Linear, DataType::FLOAT32>* beta) {
+    const Tensor<Linear, DataType::kFloat32>* gamma,
+    const Tensor<Linear, DataType::kFloat32>* beta) {
   work_group_reduction_ = UseWorkGroupReduction(gpu_info, shape);
   if (work_group_reduction_) {
     work_group_size_ = GetRecommendedWorkGroupSize(gpu_info, shape);
@@ -674,7 +674,7 @@ MeanStdDevNormalization::MeanStdDevNormalization(
   }
   args_.AddFloat("variance_bias", variance_bias);
   args_.AddFloat("inv_ch_count", 1.0f / shape.c);
-  has_depth_ = definition.src_tensors[0].HasAxis(Axis::DEPTH);
+  has_depth_ = definition.src_tensors[0].HasAxis(Axis::kDepth);
   AddSrcTensor("src_tensor", definition.src_tensors[0]);
   AddDstTensor("dst_tensor", definition.dst_tensors[0]);
   if (gamma) {
@@ -690,7 +690,7 @@ MeanStdDevNormalization::MeanStdDevNormalization(
                                 std::move(beta_tensor_desc)));
   }
   code_ = GetNormalizationCode(gpu_info,
-                               definition.dst_tensors[0].HasAxis(Axis::BATCH),
+                               definition.dst_tensors[0].HasAxis(Axis::kBatch),
                                shape.c % 4 == 0, two_step, gamma != nullptr,
                                beta != nullptr, has_depth_);
 }
@@ -833,8 +833,8 @@ MeanStdDevNormalization CreateMeanStdDevNormalization(
 
 MeanStdDevNormalization CreateMeanStdDevNormalization(
     const OperationDef& definition, const GpuInfo& gpu_info, const BHWC& shape,
-    float variance_bias, const Tensor<Linear, DataType::FLOAT32>& gamma,
-    const Tensor<Linear, DataType::FLOAT32>& beta, bool two_step) {
+    float variance_bias, const Tensor<Linear, DataType::kFloat32>& gamma,
+    const Tensor<Linear, DataType::kFloat32>& beta, bool two_step) {
   return MeanStdDevNormalization(definition, gpu_info, shape, variance_bias,
                                  two_step, &gamma, &beta);
 }
@@ -852,11 +852,11 @@ MeanStdDevNormalization CreateRMSNormalization(const OperationDef& definition,
   }
   norm.args_.AddFloat("variance_bias", variance_bias);
   norm.args_.AddFloat("inv_ch_count", 1.0f / shape.c);
-  norm.has_depth_ = definition.src_tensors[0].HasAxis(Axis::DEPTH);
+  norm.has_depth_ = definition.src_tensors[0].HasAxis(Axis::kDepth);
   norm.AddSrcTensor("src_tensor", definition.src_tensors[0]);
   norm.AddDstTensor("dst_tensor", definition.dst_tensors[0]);
   norm.code_ = GetRMSNormalizationCode(
-      gpu_info, definition.dst_tensors[0].HasAxis(Axis::BATCH),
+      gpu_info, definition.dst_tensors[0].HasAxis(Axis::kBatch),
       shape.c % 4 == 0, norm.work_group_reduction_, norm.work_group_size_,
       norm.has_depth_);
   return norm;
@@ -873,12 +873,12 @@ std::unique_ptr<GPUOperation> CreateStatisticalTopK(
     norm.work_group_size_ = int3(8, 8, 1);
   }
   norm.args_.AddFloat("inv_ch_count", 1.0f / shape.c);
-  norm.has_depth_ = definition.src_tensors[0].HasAxis(Axis::DEPTH);
+  norm.has_depth_ = definition.src_tensors[0].HasAxis(Axis::kDepth);
   norm.args_.AddFloat("stddev_multiplier", stddev_multiplier);
   norm.AddSrcTensor("src_tensor", definition.src_tensors[0]);
   norm.AddDstTensor("dst_tensor", definition.dst_tensors[0]);
   norm.code_ = GetStatisticalTopKCode(
-      gpu_info, definition.dst_tensors[0].HasAxis(Axis::BATCH),
+      gpu_info, definition.dst_tensors[0].HasAxis(Axis::kBatch),
       shape.c % 4 == 0, norm.work_group_reduction_, norm.work_group_size_,
       norm.has_depth_);
   return std::make_unique<MeanStdDevNormalization>(std::move(norm));
@@ -887,8 +887,8 @@ std::unique_ptr<GPUOperation> CreateStatisticalTopK(
 HWCGroupNormalization::HWCGroupNormalization(
     const OperationDef& definition, const GpuInfo& gpu_info, const BHWC& shape,
     int groups, float variance_bias,
-    const Tensor<Linear, DataType::FLOAT32>& gamma,
-    const Tensor<Linear, DataType::FLOAT32>& beta)
+    const Tensor<Linear, DataType::kFloat32>& gamma,
+    const Tensor<Linear, DataType::kFloat32>& beta)
     : groups_(groups) {
   const int group_size = shape.c / groups;
   int max_total_size = 128;

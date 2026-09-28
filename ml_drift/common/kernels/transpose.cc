@@ -28,12 +28,12 @@ namespace {
 std::string GetTransposeCode(const OperationDef& op_def,
                              const std::vector<int>& remap, bool is_5d) {
   const std::string batch_id =
-      op_def.dst_tensors[0].HasAxis(Axis::BATCH) ? "B" : "0";
+      op_def.dst_tensors[0].HasAxis(Axis::kBatch) ? "B" : "0";
   const std::string depth_id =
-      op_def.dst_tensors[0].HasAxis(Axis::DEPTH) ? "D" : "0";
+      op_def.dst_tensors[0].HasAxis(Axis::kDepth) ? "D" : "0";
   std::string c;
   c += "MAIN_FUNCTION($0) {\n";
-  if (op_def.dst_tensors[0].HasAxis(Axis::BATCH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kBatch)) {
     c += "  int linear_id_0 = ucl::GetGlobalId<0>();\n";
     c += "  int X = linear_id_0 / args.dst_tensor.Batch();\n";
     c += "  int B = linear_id_0 % args.dst_tensor.Batch();\n";
@@ -41,7 +41,7 @@ std::string GetTransposeCode(const OperationDef& op_def,
   } else {
     c += "  int X = ucl::GetGlobalId<0>();\n";
   }
-  if (op_def.dst_tensors[0].HasAxis(Axis::DEPTH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kDepth)) {
     c += "  int linear_id_1 = ucl::GetGlobalId<1>();\n";
     c += "  int Y = linear_id_1 / args.dst_tensor.Depth();\n";
     c += "  int D = linear_id_1 % args.dst_tensor.Depth();\n";
@@ -62,13 +62,13 @@ std::string GetTransposeCode(const OperationDef& op_def,
   c += "    int dst_channel = S * 4 + i;\n";
   c += "    if (dst_channel < args.dst_tensor.Channels()) {\n";
   const std::string bhwdc[] = {batch_id, "Y", "X", depth_id, "dst_channel"};
-  if (op_def.src_tensors[0].HasAxis(Axis::BATCH)) {
+  if (op_def.src_tensors[0].HasAxis(Axis::kBatch)) {
     c += "      args.src_tensor.SetBatchRef(" + bhwdc[remap[0]] + ");\n";
   }
   c += "      int s_y = " + bhwdc[remap[1]] + ";\n";
   c += "      int s_x = " + bhwdc[remap[2]] + ";\n";
   std::string read_coords = "s_x, s_y";
-  if (op_def.src_tensors[0].HasAxis(Axis::DEPTH)) {
+  if (op_def.src_tensors[0].HasAxis(Axis::kDepth)) {
     c += "      int s_d = " + bhwdc[remap[3]] + ";\n";
     read_coords += ", s_d";
   }
@@ -83,7 +83,7 @@ std::string GetTransposeCode(const OperationDef& op_def,
   c += "  result.y = temps[1];\n";
   c += "  result.z = temps[2];\n";
   c += "  result.w = temps[3];\n";
-  if (op_def.dst_tensors[0].HasAxis(Axis::DEPTH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kDepth)) {
     c += "  args.dst_tensor.Write(result, X, Y, D, S);\n";
   } else {
     c += "  args.dst_tensor.Write(result, X, Y, S);\n";
@@ -103,12 +103,12 @@ GPUOperation CreateTranspose(const OperationDef& definition,
     remap[attr.perm.w] = 2;
     remap[attr.perm.c] = 3;
     const std::string batch_id =
-        definition.dst_tensors[0].HasAxis(Axis::BATCH) ? "DST_B" : "0";
+        definition.dst_tensors[0].HasAxis(Axis::kBatch) ? "DST_B" : "0";
     const std::string bhw[] = {batch_id, "DST_Y", "DST_X"};
     std::string code = "  SRC_S = DST_S;\n";
     code += "  SRC_X = " + bhw[remap[2]] + ";\n";
     code += "  SRC_Y = " + bhw[remap[1]] + ";\n";
-    if (definition.src_tensors[0].HasAxis(Axis::BATCH)) {
+    if (definition.src_tensors[0].HasAxis(Axis::kBatch)) {
       code += "  SRC_B = " + bhw[remap[0]] + ";\n";
     }
     return CreateReorderGpuOperation(definition, std::move(code));

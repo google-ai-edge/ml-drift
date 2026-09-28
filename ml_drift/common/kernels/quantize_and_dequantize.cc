@@ -42,7 +42,7 @@ GPUOperation CreateQuantizeAndOrDequantize(
     bool is_quantize_only) {
   QuantizeAndDequantizeAttributes adjusted_attr = attr;
   const DataType src_type = definition.src_tensors[0].GetDataType();
-  const bool is_fp16 = src_type == DataType::FLOAT16;
+  const bool is_fp16 = src_type == DataType::kFloat16;
   if (is_fp16 && attr.scale < 0.000062f) {
     // The smallest positive normal number for Half-precision floating-point
     // format is 2^-14 ~ 0.000062f. Therefore, if the scale is lesser than this
@@ -223,7 +223,7 @@ std::string GetCode(const int3& work_group_size,
     c += "  int sub_x = linear_wb % 4;\n";
     c += "  linear_wb = linear_wb / 4;\n";
   }
-  if (src_desc.HasAxis(Axis::BATCH)) {
+  if (src_desc.HasAxis(Axis::kBatch)) {
     c += "  int X = linear_wb / args.src_tensor.Batch();\n";
     c += "  int B = linear_wb % args.src_tensor.Batch();\n";
     c += "  args.src_tensor.SetBatchRef(B);\n";
@@ -659,7 +659,7 @@ class Quantization : public GPUOperation {
     args_.AddFloat("src_range_middle",
                    static_cast<float>(range / 2) / (range - 1));
     const bool is_params_fp16 =
-        definition.dst_tensors[1].GetDataType() == DataType::FLOAT16;
+        definition.dst_tensors[1].GetDataType() == DataType::kFloat16;
     if (is_params_fp16) {
       // sum is int, so type match.
       args_.AddInt("max_f16", static_cast<int>(kMaxHalf));
@@ -744,7 +744,7 @@ GPUOperation CreateDequantization(const OHWI& weights_shape,
   std::string c;
   c += "  float4 src_params = args.params_tensor.Read<float>(X_COORD, Y_COORD, "
        "0";
-  if (src_scale_zp_sum.HasAxis(Axis::BATCH)) {
+  if (src_scale_zp_sum.HasAxis(Axis::kBatch)) {
     c += ", B_COORD";
   }
   c += ");\n";
@@ -752,7 +752,7 @@ GPUOperation CreateDequantization(const OHWI& weights_shape,
   const bool pvr_checks =
       gpu_info.IsPowerVR() &&
       gpu_info.SupportsExtension("cl_img_pixel_subgroup_dot");
-  if (src.GetDataType() == DataType::UINT32) {
+  if (src.GetDataType() == DataType::kUint32) {
     // Adjusting sum(Su * Wu) to sum(Su * Wi)
     // Uint8MathForInt8 used only with src as uint(Su)
     //   sum(Su * Wi) = sum(Su * (Wu - 128)) =
@@ -813,11 +813,11 @@ GPUOperation CreateDequantization(const OHWI& weights_shape,
   // The default case cause compilation failure in combination with complex main
   // kernel(convolution) in Adreno with driver major version lower than 45.
   if (gpu_info.IsAdreno() &&
-      weights_sum.GetStorageType() == TensorStorageType::BUFFER) {
+      weights_sum.GetStorageType() == TensorStorageType::kBuffer) {
     BufferDescriptor buffer_desc;
     buffer_desc.element_type = weights_sum.GetDataType();
     buffer_desc.element_size = 4;
-    buffer_desc.memory_type = MemoryType::CONSTANT;
+    buffer_desc.memory_type = MemoryType::kConstant;
     op.AddSrcBuffer("weights_sum", buffer_desc);
   } else {
     op.AddSrcTensor("weights_sum", weights_sum);

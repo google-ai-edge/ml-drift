@@ -35,7 +35,7 @@ using ::testing::ValuesIn;
 using StridedSliceTypedTest = TestWithParam<TensorStorageType>;
 
 TEST_P(StridedSliceTypedTest, StridedSliceBoolTest) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::BOOL)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kBool)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
   ABSL_ASSERT_OK(StridedSliceBoolTest(*exec_env, GetParam()));

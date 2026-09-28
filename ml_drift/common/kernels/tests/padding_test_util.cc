@@ -47,10 +47,10 @@ absl::Status PaddingAppendWidthTest(TestExecutionEnvironment& env,
   attr.prepended = BHWC(0, 0, 0, 0);
   attr.appended = BHWC(0, 0, 1, 0);
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-3f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-3f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation =
       CreatePadding(env.GetGpuInfo(), op_def, attr, src_tensor.shape.c);
@@ -75,10 +75,10 @@ absl::Status PaddingAppendWidthConstValuesTest(TestExecutionEnvironment& env,
   attr.appended = BHWC(0, 0, 1, 0);
   attr.constant_values = 5;
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-3f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-3f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation =
       CreatePadding(env.GetGpuInfo(), op_def, attr, src_tensor.shape.c);
@@ -102,10 +102,10 @@ absl::Status PaddingPrependWidthTest(TestExecutionEnvironment& env,
   attr.prepended = BHWC(0, 0, 1, 0);
   attr.appended = BHWC(0, 0, 0, 0);
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-3f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-3f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation =
       CreatePadding(env.GetGpuInfo(), op_def, attr, src_tensor.shape.c);
@@ -129,10 +129,10 @@ absl::Status PaddingAppendHeightTest(TestExecutionEnvironment& env,
   attr.prepended = BHWC(0, 0, 0, 0);
   attr.appended = BHWC(0, 1, 0, 0);
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-3f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-3f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation =
       CreatePadding(env.GetGpuInfo(), op_def, attr, src_tensor.shape.c);
@@ -155,10 +155,10 @@ absl::Status PaddingPrependHeightTest(TestExecutionEnvironment& env,
   attr.prepended = BHWC(0, 1, 0, 0);
   attr.appended = BHWC(0, 0, 0, 0);
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-3f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-3f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation =
       CreatePadding(env.GetGpuInfo(), op_def, attr, src_tensor.shape.c);
@@ -181,10 +181,10 @@ absl::Status PaddingAppendChannelsTest(TestExecutionEnvironment& env,
   attr.prepended = BHWC(0, 0, 0, 0);
   attr.appended = BHWC(0, 0, 0, 1);
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-3f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-3f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation =
       CreatePadding(env.GetGpuInfo(), op_def, attr, src_tensor.shape.c);
@@ -214,10 +214,10 @@ absl::Status PaddingAppendChannelsUnalignedSrcTest(
   attr.prepended = BHWC(0, 0, 0, 0);
   attr.appended = BHWC(0, 0, 0, 3);
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-3f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-3f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation =
       CreatePadding(env.GetGpuInfo(), op_def, attr, src_tensor.shape.c);
@@ -241,10 +241,10 @@ absl::Status PaddingPrependChannelsTest(TestExecutionEnvironment& env,
   attr.prepended = BHWC(0, 0, 0, 1);
   attr.appended = BHWC(0, 0, 0, 0);
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-3f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-3f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation =
       CreatePadding(env.GetGpuInfo(), op_def, attr, src_tensor.shape.c);
@@ -267,10 +267,10 @@ absl::Status PaddingPrependChannelsX4Test(TestExecutionEnvironment& env,
   attr.prepended = BHWC(0, 0, 0, 4);
   attr.appended = BHWC(0, 0, 0, 0);
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-3f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-3f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation =
       CreatePadding(env.GetGpuInfo(), op_def, attr, src_tensor.shape.c);
@@ -292,10 +292,10 @@ absl::Status PaddingComplexTest(TestExecutionEnvironment& env,
   attr.prepended = BHWC(0, 0, 1, 1);
   attr.appended = BHWC(0, 1, 1, 0);
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-3f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-3f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation =
       CreatePadding(env.GetGpuInfo(), op_def, attr, src_tensor.shape.c);
@@ -321,12 +321,12 @@ absl::Status PaddingReflectWidthTest(TestExecutionEnvironment& env,
   PadAttributes attr;
   attr.prepended = BHWC(0, 0, 2, 0);
   attr.appended = BHWC(0, 0, 2, 0);
-  attr.type = PaddingContentType::REFLECT;
+  attr.type = PaddingContentType::kReflect;
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-3f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-3f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation =
       CreatePadding(env.GetGpuInfo(), op_def, attr, src_tensor.shape.c);
@@ -349,12 +349,12 @@ absl::Status PaddingReflectChannelsTest(TestExecutionEnvironment& env,
   PadAttributes attr;
   attr.prepended = BHWC(0, 0, 0, 2);
   attr.appended = BHWC(0, 0, 0, 2);
-  attr.type = PaddingContentType::REFLECT;
+  attr.type = PaddingContentType::kReflect;
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-3f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-3f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation =
       CreatePadding(env.GetGpuInfo(), op_def, attr, src_tensor.shape.c);
@@ -399,8 +399,8 @@ absl::Status PaddingBigTest(TestExecutionEnvironment& env, DataType data_type,
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   return PaddingTest(env, attr, src_tensor, op_def);
 }
 
@@ -416,8 +416,8 @@ absl::Status PaddingBatchedBigTest(TestExecutionEnvironment& env,
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
   return PaddingTest(env, attr, src_tensor, op_def);
 }
 

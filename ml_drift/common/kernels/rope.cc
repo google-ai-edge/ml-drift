@@ -45,10 +45,10 @@ GPUOperation CreateRoPE(const GpuInfo& gpu_info, const OperationDef& definition,
     sin_func_name = "native_sin";
     cos_func_name = "native_cos";
   }
-  const bool has_batch = definition.dst_tensors[0].HasAxis(Axis::BATCH);
+  const bool has_batch = definition.dst_tensors[0].HasAxis(Axis::kBatch);
   const std::string src_dst_batch_arg = has_batch ? ", B" : "";
   const std::string pos_batch_arg =
-      definition.src_tensors[2].HasAxis(Axis::BATCH) ? ", B" : "";
+      definition.src_tensors[2].HasAxis(Axis::kBatch) ? ", B" : "";
   std::string code;
   code += "MAIN_FUNCTION($0) {\n";
   if (has_batch) {
@@ -124,10 +124,10 @@ GPUOperation CreateSplitRoPEConcat(const GpuInfo& gpu_info,
     sin_func_name = "native_sin";
     cos_func_name = "native_cos";
   }
-  const bool has_batch = definition.dst_tensors[0].HasAxis(Axis::BATCH);
+  const bool has_batch = definition.dst_tensors[0].HasAxis(Axis::kBatch);
   const std::string src_dst_batch_arg = has_batch ? ", B" : "";
   const std::string pos_batch_arg =
-      definition.src_tensors[1].HasAxis(Axis::BATCH) ? ", B" : "";
+      definition.src_tensors[1].HasAxis(Axis::kBatch) ? ", B" : "";
   std::string code;
   code += "MAIN_FUNCTION($0) {\n";
   if (has_batch) {

@@ -151,7 +151,7 @@ std::string GenerateCheck(const OperationDef& definition,
                           const GpuInfo& gpu_info,
                           const ConvWaveMatrix::ConvParams& conv_params) {
   std::string check;
-  const std::vector<Axis> axes{Axis::WIDTH, Axis::HEIGHT, Axis::DEPTH};
+  const std::vector<Axis> axes{Axis::kWidth, Axis::kHeight, Axis::kDepth};
   const std::vector<std::string> names{"in_x", "in_y", "in_z"};
   const std::vector<bool> is_1{conv_params.x_kernel_is_1,
                                conv_params.y_kernel_is_1,
@@ -173,11 +173,11 @@ std::string GenerateCheck(const OperationDef& definition,
 DataType GetAccumulatorType(const ConvWaveMatrix::ConvParams& conv_params,
                             CalculationsPrecision precision) {
   if (IsFloatType(conv_params.weights_data_type)) {
-    return precision == CalculationsPrecision::F16 ? DataType::FLOAT16
-                                                   : DataType::FLOAT32;
+    return precision == CalculationsPrecision::kF16 ? DataType::kFloat16
+                                                    : DataType::kFloat32;
   } else {
-    return IsSigned(conv_params.weights_data_type) ? DataType::INT32
-                                                   : DataType::UINT32;
+    return IsSigned(conv_params.weights_data_type) ? DataType::kInt32
+                                                   : DataType::kUint32;
   }
 }
 
@@ -247,13 +247,13 @@ std::string ReadWeights(const ConvWaveMatrix::ConvParams& conv_params,
     c += "    }\n";
   }
   c += "    Type w0, w1, w2, w3;\n";
-  if (conv_params.weights_desc.type == DataType::UINT8) {
+  if (conv_params.weights_desc.type == DataType::kUint8) {
     c += "    uint4 u8_i4o4 = args.weights.Read(w_sg_offset);\n";
     c += "    ucl::U32x4ToU8x16AsVec4x4<SType>(u8_i4o4, w0, w1, w2, w3);\n";
-  } else if (conv_params.weights_desc.type == DataType::UINT4) {
+  } else if (conv_params.weights_desc.type == DataType::kUint4) {
     c += "    uint2 u4_i4o4 = args.weights.Read(w_sg_offset);\n";
     c += "    ucl::U32x2ToU4x16AsVec4x4<SType>(u4_i4o4, w0, w1, w2, w3);\n";
-  } else if (conv_params.weights_desc.type == DataType::UINT2) {
+  } else if (conv_params.weights_desc.type == DataType::kUint2) {
     c += "    uint u2_i4o4 = args.weights.Read(w_sg_offset);\n";
     c += "    ucl::U32x1ToU2x16AsVec4x4<SType>(u2_i4o4, w0, w1, w2, w3);\n";
   } else {
@@ -291,8 +291,8 @@ std::string GenerateConvolution(
   }
   c += GenerateDstCoords(
       kernel_params.work_group_launch_order, kernel_params.linear_spatial,
-      src_def.HasAxis(Axis::DEPTH), src_def.HasAxis(Axis::BATCH));
-  if (src_def.HasAxis(Axis::BATCH)) {
+      src_def.HasAxis(Axis::kDepth), src_def.HasAxis(Axis::kBatch));
+  if (src_def.HasAxis(Axis::kBatch)) {
     c += "  args.src_tensor.SetBatchRef(B);\n";
     c += "  args.dst_tensor.SetBatchRef(B);\n";
   }
@@ -477,9 +477,9 @@ std::string GenerateConvolution(
     c += "  for (int ky = 0; ky < args.kernel_size_y; ++ky) {\n";
     c += "  int temp_y = DST_Y * args.stride_y + args.padding_y;\n";
     c += "  int src_y = ky * args.dilation_y + temp_y;\n";
-    if (!src_def.SupportsZeroClamp(Axis::HEIGHT, gpu_info)) {
+    if (!src_def.SupportsZeroClamp(Axis::kHeight, gpu_info)) {
       c += "  bool in_y = src_y >= 0 && src_y < args.src_tensor.Height();\n";
-      if (!src_def.CanReadOutOfBorder(Axis::HEIGHT, gpu_info)) {
+      if (!src_def.CanReadOutOfBorder(Axis::kHeight, gpu_info)) {
         c += "  src_y = clamp(src_y, 0, args.src_tensor.Height() - 1);\n";
       }
     }
@@ -490,9 +490,9 @@ std::string GenerateConvolution(
     c += "  for (int kx = 0; kx < args.kernel_size_x; ++kx) {\n";
     c += "  int temp_x = DST_X * args.stride_x + args.padding_x;\n";
     c += "  int src_x = kx * args.dilation_x + temp_x;\n";
-    if (!src_def.SupportsZeroClamp(Axis::WIDTH, gpu_info)) {
+    if (!src_def.SupportsZeroClamp(Axis::kWidth, gpu_info)) {
       c += "  bool in_x = src_x >= 0 && src_x < args.src_tensor.Width();\n";
-      if (!src_def.CanReadOutOfBorder(Axis::WIDTH, gpu_info)) {
+      if (!src_def.CanReadOutOfBorder(Axis::kWidth, gpu_info)) {
         c += "  src_x = clamp(src_x, 0, args.src_tensor.Width() - 1);\n";
       }
     }
@@ -681,7 +681,7 @@ std::string GenerateConvolution(
     }
   }
   const DataType left_matrix_type =
-      conv_params.Is8Bit() ? DataType::INT8 : src_def.GetDataType();
+      conv_params.Is8Bit() ? DataType::kInt8 : src_def.GetDataType();
   c += "    ucl::wave_matrix<left, " + ToUclDataType(left_matrix_type, 1) +
        ", WM_M, WM_K> mat_src;\n";
   const int spatial_matrix_count = kernel_params.wave_size / wm_m;
@@ -912,7 +912,7 @@ ConvWaveMatrix::KernelParams InitParamsForTaskSize(
     src_slices_per_wg = 4;
     kernel_params.dst_slices_per_thread = 8;
     if (gpu_info.IsApiWebGpu() &&
-        params.precision == CalculationsPrecision::F32_F16) {
+        params.precision == CalculationsPrecision::kF32F16) {
       kernel_params.dst_slices_per_thread = 4;
     }
     if (params.Is8Bit()) {
@@ -997,8 +997,8 @@ bool SupportsConvWaveMatrix(const GpuInfo& gpu_info,
   const int dst_slices = DivideRoundUp(weights_shape.o, 4);
   if (gpu_info.IsApple()) {
     const auto type = DeduceDataTypeFromPrecision(precision);
-    if ((precision == CalculationsPrecision::F32 ||
-         precision == CalculationsPrecision::F16) &&
+    if ((precision == CalculationsPrecision::kF32 ||
+         precision == CalculationsPrecision::kF16) &&
         gpu_info.SupportsWaveMatMulOp(
             WaveMatMulOpDescriptor{/*m_size=*/8,
                                    /*n_size=*/8,
@@ -1010,48 +1010,48 @@ bool SupportsConvWaveMatrix(const GpuInfo& gpu_info,
     }
   }
   if (gpu_info.IsMali()) {
-    if (precision == CalculationsPrecision::F32 &&
+    if (precision == CalculationsPrecision::kF32 &&
         gpu_info.SupportsWaveMatMulOp(
             WaveMatMulOpDescriptor{/*m_size=*/4,
                                    /*n_size=*/4,
                                    /*k_size=*/4,
-                                   /*left_type=*/DataType::FLOAT32,
-                                   /*right_type=*/DataType::FLOAT32,
-                                   /*result_type=*/DataType::FLOAT32})) {
+                                   /*left_type=*/DataType::kFloat32,
+                                   /*right_type=*/DataType::kFloat32,
+                                   /*result_type=*/DataType::kFloat32})) {
       return dst_slices % 8 == 0;
     }
   }
   if (gpu_info.IsNvidia()) {
-    if (precision == CalculationsPrecision::F16 &&
+    if (precision == CalculationsPrecision::kF16 &&
         gpu_info.SupportsWaveMatMulOp(
             WaveMatMulOpDescriptor{/*m_size=*/16,
                                    /*n_size=*/16,
                                    /*k_size=*/16,
-                                   /*left_type=*/DataType::FLOAT16,
-                                   /*right_type=*/DataType::FLOAT16,
-                                   /*result_type=*/DataType::FLOAT16})) {
+                                   /*left_type=*/DataType::kFloat16,
+                                   /*right_type=*/DataType::kFloat16,
+                                   /*result_type=*/DataType::kFloat16})) {
       return src_slices % 4 == 0 && dst_slices % 8 == 0;
     }
   }
   if (gpu_info.IsIntel()) {
-    if (precision == CalculationsPrecision::F16 &&
+    if (precision == CalculationsPrecision::kF16 &&
         gpu_info.SupportsWaveMatMulOp(
             WaveMatMulOpDescriptor{/*m_size=*/8,
                                    /*n_size=*/16,
                                    /*k_size=*/16,
-                                   /*left_type=*/DataType::FLOAT16,
-                                   /*right_type=*/DataType::FLOAT16,
-                                   /*result_type=*/DataType::FLOAT16})) {
+                                   /*left_type=*/DataType::kFloat16,
+                                   /*right_type=*/DataType::kFloat16,
+                                   /*result_type=*/DataType::kFloat16})) {
       return src_slices % 4 == 0 && dst_slices % 8 == 0;
     }
-    if (precision == CalculationsPrecision::F32_F16 &&
+    if (precision == CalculationsPrecision::kF32F16 &&
         gpu_info.SupportsWaveMatMulOp(
             WaveMatMulOpDescriptor{/*m_size=*/8,
                                    /*n_size=*/16,
                                    /*k_size=*/16,
-                                   /*left_type=*/DataType::FLOAT16,
-                                   /*right_type=*/DataType::FLOAT16,
-                                   /*result_type=*/DataType::FLOAT32})) {
+                                   /*left_type=*/DataType::kFloat16,
+                                   /*right_type=*/DataType::kFloat16,
+                                   /*result_type=*/DataType::kFloat32})) {
       return src_slices % 4 == 0 && dst_slices % 8 == 0;
     }
   }
@@ -1076,7 +1076,7 @@ void AddRuntimeParams(GPUOperation& op,
   }
   if (has_runtime_check) {
     BufferDescriptor buffer_desc;
-    buffer_desc.element_type = DataType::INT32;
+    buffer_desc.element_type = DataType::kInt32;
     buffer_desc.element_size = 1;
     op.AddSrcBuffer("params", buffer_desc);
   }
@@ -1115,7 +1115,7 @@ ConvWaveMatrix::ConvWaveMatrix(const OperationDef& definition,
 }
 
 void ConvWaveMatrix::UploadWeights(
-    const Tensor<OHWI, DataType::FLOAT32>& weights) {
+    const Tensor<OHWI, DataType::kFloat32>& weights) {
   WeightsDescription weights_desc = GetWeightsDescription();
   const int elements_count =
       GetTotalElementsCountForLayout(weights_desc, weights.shape);
@@ -1123,7 +1123,7 @@ void ConvWaveMatrix::UploadWeights(
   BufferDescriptor buffer_desc;
   buffer_desc.element_type = params_.weights_data_type;
   buffer_desc.element_size = 1;
-  buffer_desc.memory_type = MemoryType::GLOBAL;
+  buffer_desc.memory_type = MemoryType::kGlobal;
   buffer_desc.size = elements_count * SizeOf(weights_desc.type);
   buffer_desc.data.resize(buffer_desc.size);
   RearrangeWeights(weights, weights_desc, absl::MakeSpan(buffer_desc.data));
@@ -1132,15 +1132,15 @@ void ConvWaveMatrix::UploadWeights(
 }
 
 void ConvWaveMatrix::UploadWeights(
-    const Tensor<OHWI, DataType::INT8>& weights) {
+    const Tensor<OHWI, DataType::kInt8>& weights) {
   WeightsDescription weights_desc = GetWeightsDescription();
   const int elements_count =
       GetTotalElementsCountForLayout(weights_desc, weights.shape);
 
   BufferDescriptor buffer_desc;
-  buffer_desc.element_type = DataType::INT32;
+  buffer_desc.element_type = DataType::kInt32;
   buffer_desc.element_size = 1;
-  buffer_desc.memory_type = MemoryType::GLOBAL;
+  buffer_desc.memory_type = MemoryType::kGlobal;
   buffer_desc.size = elements_count * SizeOf(weights_desc.type);
   buffer_desc.data.resize(buffer_desc.size);
   RearrangeWeights(weights, weights_desc, absl::MakeSpan(buffer_desc.data));
@@ -1263,7 +1263,7 @@ ConvWaveMatrix CreateConvWaveMatrixExternalWeights(
   BufferDescriptor weights_desc;
   weights_desc.element_type = params.weights_data_type;
   weights_desc.element_size = 1;
-  weights_desc.memory_type = MemoryType::GLOBAL;
+  weights_desc.memory_type = MemoryType::kGlobal;
   desc.AddSrcBuffer("weights", weights_desc);
 
   if (bias) {
@@ -1314,10 +1314,10 @@ ConvWaveMatrix CreateConvWaveMatrixExternalWeights(
     buffer_desc.element_size = 16;
   } else {
     // quantized weights
-    buffer_desc.element_type = DataType::UINT32;
+    buffer_desc.element_type = DataType::kUint32;
     buffer_desc.element_size = SizeInBitsOf(weights.desc.type) / 2;
   }
-  buffer_desc.memory_type = MemoryType::GLOBAL;
+  buffer_desc.memory_type = MemoryType::kGlobal;
   desc.AddSrcBuffer("weights", buffer_desc);
 
   fc::AddWeightsScaleZeroPointArguments(weights, &desc);
@@ -1337,14 +1337,14 @@ ConvWaveMatrix CreateConvWaveMatrixExternalWeights(
 
 ConvWaveMatrix CreateConvWaveMatrixInt8(
     const OperationDef& definition, const BHWC& dst_shape,
-    const Tensor<OHWI, DataType::INT8>& weights, const GpuInfo& gpu_info) {
+    const Tensor<OHWI, DataType::kInt8>& weights, const GpuInfo& gpu_info) {
   ConvWaveMatrix::ConvParams params;
   params.weights_desc.layout = WeightsLayout::kUnknown;
   params.different_weights_for_height = false;
   params.x_kernel_is_1 = true;
   params.y_kernel_is_1 = true;
   params.has_bias = false;
-  params.weights_data_type = DataType::INT8;
+  params.weights_data_type = DataType::kInt8;
   auto kernel_params =
       InitParamsForTaskSize(gpu_info, weights.shape, dst_shape, params);
   ConvWaveMatrix desc(definition, gpu_info, params, kernel_params);
@@ -1368,7 +1368,7 @@ ConvWaveMatrix CreateConvWaveMatrixInt8ExternalWeights(
   params.x_kernel_is_1 = true;
   params.y_kernel_is_1 = true;
   params.has_bias = false;
-  params.weights_data_type = DataType::INT8;
+  params.weights_data_type = DataType::kInt8;
   auto kernel_params =
       InitParamsForTaskSize(gpu_info, weights_shape, dst_shape, params);
   ConvWaveMatrix desc(definition, gpu_info, params, kernel_params);
@@ -1380,9 +1380,9 @@ ConvWaveMatrix CreateConvWaveMatrixInt8ExternalWeights(
                                   (kernel_params.wave_matrix_n / 4)));
 
   BufferDescriptor buffer_desc;
-  buffer_desc.element_type = DataType::INT32;
+  buffer_desc.element_type = DataType::kInt32;
   buffer_desc.element_size = 1;
-  buffer_desc.memory_type = MemoryType::GLOBAL;
+  buffer_desc.memory_type = MemoryType::kGlobal;
   desc.AddSrcBuffer("weights", buffer_desc);
   return desc;
 }
@@ -1394,11 +1394,11 @@ bool SupportsConvWaveMatrix(const GpuInfo& gpu_info,
     return false;
   }
   const int dst_slices = DivideRoundUp(weights.shape.o, 4);
-  const bool supported_type = weights.desc.type == DataType::FLOAT32 ||
-                              weights.desc.type == DataType::FLOAT16 ||
-                              weights.desc.type == DataType::UINT8 ||
-                              weights.desc.type == DataType::UINT4 ||
-                              weights.desc.type == DataType::UINT2;
+  const bool supported_type = weights.desc.type == DataType::kFloat32 ||
+                              weights.desc.type == DataType::kFloat16 ||
+                              weights.desc.type == DataType::kUint8 ||
+                              weights.desc.type == DataType::kUint4 ||
+                              weights.desc.type == DataType::kUint2;
   if (weights.desc.layout != WeightsLayout::kOSpatialIOGroupI4O4 ||
       weights.desc.output_group_size != dst_slices || !supported_type) {
     return false;
@@ -1429,9 +1429,9 @@ bool SupportsConvWaveMatrixInt8(const GpuInfo& gpu_info,
             WaveMatMulOpDescriptor{/*m_size=*/4,
                                    /*n_size=*/16,
                                    /*k_size=*/16,
-                                   /*left_type=*/DataType::INT8,
-                                   /*right_type=*/DataType::INT8,
-                                   /*result_type=*/DataType::INT32})) {
+                                   /*left_type=*/DataType::kInt8,
+                                   /*right_type=*/DataType::kInt8,
+                                   /*result_type=*/DataType::kInt32})) {
       return src_slices % 4 == 0 && dst_slices % 4 == 0;
     }
   }
@@ -1440,9 +1440,9 @@ bool SupportsConvWaveMatrixInt8(const GpuInfo& gpu_info,
             WaveMatMulOpDescriptor{/*m_size=*/16,
                                    /*n_size=*/16,
                                    /*k_size=*/32,
-                                   /*left_type=*/DataType::INT8,
-                                   /*right_type=*/DataType::INT8,
-                                   /*result_type=*/DataType::INT32})) {
+                                   /*left_type=*/DataType::kInt8,
+                                   /*right_type=*/DataType::kInt8,
+                                   /*result_type=*/DataType::kInt32})) {
       return src_slices % 4 == 0 && dst_slices % 4 == 0;
     }
   }
@@ -1451,9 +1451,9 @@ bool SupportsConvWaveMatrixInt8(const GpuInfo& gpu_info,
             WaveMatMulOpDescriptor{/*m_size=*/8,
                                    /*n_size=*/16,
                                    /*k_size=*/32,
-                                   /*left_type=*/DataType::INT8,
-                                   /*right_type=*/DataType::INT8,
-                                   /*result_type=*/DataType::INT32})) {
+                                   /*left_type=*/DataType::kInt8,
+                                   /*right_type=*/DataType::kInt8,
+                                   /*result_type=*/DataType::kInt32})) {
       return src_slices % 8 == 0 && dst_slices % 4 == 0;
     }
   }
@@ -1472,7 +1472,7 @@ bool IsGoodTaskSizeForAppleConvSimd(const BHWC& dst_shape,
                              AlignByN(task_size_spatial, wave_size);
   double threshold_useful_part =
       gpu_info.apple_info.IsFamilyApple9() ? 0.75 : 0.95;
-  if (precision == CalculationsPrecision::F32 &&
+  if (precision == CalculationsPrecision::kF32 &&
       gpu_info.apple_info.IsSIMDMatMulFp32Perf2x()) {
     threshold_useful_part = 0.6;
   }
@@ -1484,7 +1484,7 @@ bool IsGoodTaskSizeForAppleConvSimd(const BHWC& dst_shape,
   const double task_size_per_cu = task_size / gpu_info.GetComputeUnitsCount();
   const double waves_per_cu = task_size_per_cu / wave_size;
   double threshold_waves_per_cu =
-      precision == CalculationsPrecision::F32 ? 8.0 : 16.0;
+      precision == CalculationsPrecision::kF32 ? 8.0 : 16.0;
   if (waves_per_cu < threshold_waves_per_cu) {
     return false;
   }

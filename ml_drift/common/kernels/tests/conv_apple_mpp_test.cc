@@ -282,7 +282,7 @@ TEST_P(SrcQuantizationTest, ConvAppleMPPInt8WithSrcQuantizationBigTest) {
 INSTANTIATE_TEST_SUITE_P(
     ConvAppleMPPInt8WithSrcQuantizationTestSuite, SrcQuantizationTest,
     ::testing::Combine(
-        ValuesIn({DataType::FLOAT16, DataType::FLOAT32}),
+        ValuesIn({DataType::kFloat16, DataType::kFloat32}),
         ValuesIn(GetTensorStoragesTypesWithoutSingleTexture2D()),
         ValuesIn(GetTensorStoragesTypesWithoutSingleTexture2D())),
     [](const TestParamInfo<SrcQuantizationTest::ParamType>& info) {

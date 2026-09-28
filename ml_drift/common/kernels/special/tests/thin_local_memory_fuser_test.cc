@@ -61,7 +61,7 @@ absl::Status CreateGraph(const BHWC& resize_shape, const BHWC& add_shape,
   add_input->tensor.shape = add_shape;
 
   auto resize_node = graph->NewNode();
-  resize_node->operation.type = ToString(OperationType::RESIZE);
+  resize_node->operation.type = ToString(OperationType::kResize);
   resize_node->operation.attributes = resize_attr;
   graph->AddConsumer(resize_node->id, resize_input->id);
   auto resize_output = graph->NewValue();
@@ -70,7 +70,7 @@ absl::Status CreateGraph(const BHWC& resize_shape, const BHWC& add_shape,
   graph->SetProducer(resize_node->id, resize_output->id);
 
   auto add_node = graph->NewNode();
-  add_node->operation.type = ToString(OperationType::ADD);
+  add_node->operation.type = ToString(OperationType::kAdd);
   graph->AddConsumer(add_node->id, resize_output->id);
   graph->AddConsumer(add_node->id, add_input->id);
 
@@ -79,7 +79,7 @@ absl::Status CreateGraph(const BHWC& resize_shape, const BHWC& add_shape,
   graph->SetProducer(add_node->id, add_output->id);
 
   auto conv_node = graph->NewNode();
-  conv_node->operation.type = ToString(OperationType::CONVOLUTION_2D);
+  conv_node->operation.type = ToString(OperationType::kConvolution2D);
   conv_node->operation.attributes = conv_attr;
   graph->AddConsumer(conv_node->id, add_output->id);
   Value* conv_output = nullptr;
@@ -100,7 +100,7 @@ absl::flat_hash_map<ValueId, TensorDescriptor> GetTensorDescriptors(
     TensorStorageType storage_type) {
   absl::flat_hash_map<ValueId, TensorDescriptor> result;
   for (Value* value : graph.values()) {
-    Layout layout = value->tensor.shape.b == 1 ? Layout::HWC : Layout::BHWC;
+    Layout layout = value->tensor.shape.b == 1 ? Layout::kHWC : Layout::kBHWC;
     auto tensor_desc = TensorDescriptor{data_type, storage_type, layout};
     tensor_desc.SetBHWCShape(value->tensor.shape);
     result[value->id] = tensor_desc;
@@ -115,7 +115,7 @@ absl::Status ResizeAddConv(TestExecutionEnvironment* exec_env,
   Resize2DAttributes resize_attr;
   resize_attr.align_corners = false;
   resize_attr.half_pixel_centers = true;
-  resize_attr.type = SamplingType::BILINEAR;
+  resize_attr.type = SamplingType::kBilinear;
   resize_attr.new_shape = HW(add_shape.h, add_shape.w);
 
   Convolution2DAttributes conv_attr;
@@ -127,8 +127,9 @@ absl::Status ResizeAddConv(TestExecutionEnvironment* exec_env,
   conv_attr.bias = MakeSyntheticTensor(Linear(weights_shape.o));
 
   auto data_type = op_def.src_tensors[0].GetDataType();
-  auto precision = data_type == DataType::FLOAT16 ? CalculationsPrecision::F16
-                                                  : CalculationsPrecision::F32;
+  auto precision = data_type == DataType::kFloat16
+                       ? CalculationsPrecision::kF16
+                       : CalculationsPrecision::kF32;
 
   GpuModel gpu_model;
   {
@@ -143,7 +144,7 @@ absl::Status ResizeAddConv(TestExecutionEnvironment* exec_env,
         .hints = {},
         .storage = op_def.dst_tensors[0].GetStorageType(),
         .use_f32_accum_for_f16_convolutions =
-            precision == CalculationsPrecision::F32_F16,
+            precision == CalculationsPrecision::kF32F16,
     };
     GpuModelBuilder model_builder = GpuModelBuilder(
         exec_env->GetGpuInfo(), options,
@@ -195,23 +196,23 @@ absl::Status ResizeAddConv(TestExecutionEnvironment* exec_env,
 
 // Perf tests. No parameterization.
 TEST_F(Test, PerfResizeAddConv1x3x3x4) {
-  const DataType data_type = DataType::FLOAT16;
+  const DataType data_type = DataType::kFloat16;
   OperationDef op_def;
   op_def.src_tensors.push_back(
-      {data_type, TensorStorageType::TEXTURE_2D, Layout::HWC});
+      {data_type, TensorStorageType::kTexture2D, Layout::kHWC});
   op_def.dst_tensors.push_back(
-      {data_type, TensorStorageType::SINGLE_TEXTURE_2D, Layout::HWC});
+      {data_type, TensorStorageType::kSingleTexture2D, Layout::kHWC});
   ABSL_EXPECT_OK(ResizeAddConv(exec_env, OHWI(1, 3, 3, 4), BHWC(1, 1512, 2016, 4),
                           BHWC(1, 3024, 4032, 4), op_def, /*perf_test=*/true));
 }
 
 TEST_F(Test, PerfResizeAddConv4x3x3x8) {
-  const DataType data_type = DataType::FLOAT16;
+  const DataType data_type = DataType::kFloat16;
   OperationDef op_def;
   op_def.src_tensors.push_back(
-      {data_type, TensorStorageType::TEXTURE_2D, Layout::HWC});
+      {data_type, TensorStorageType::kTexture2D, Layout::kHWC});
   op_def.dst_tensors.push_back(
-      {data_type, TensorStorageType::TEXTURE_2D, Layout::HWC});
+      {data_type, TensorStorageType::kTexture2D, Layout::kHWC});
   ABSL_EXPECT_OK(ResizeAddConv(exec_env, OHWI(4, 3, 3, 8), BHWC(1, 756, 1008, 8),
                           BHWC(1, 1512, 2016, 8), op_def, /*perf_test=*/true));
 }
@@ -223,8 +224,8 @@ TEST_P(DataTypeTest, ResizeAddConv1x3x3x4) {
                  << " storage type: " << ToString(storage());
   }
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type(), storage(), Layout::HWC});
-  op_def.dst_tensors.push_back({data_type(), storage(), Layout::HWC});
+  op_def.src_tensors.push_back({data_type(), storage(), Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type(), storage(), Layout::kHWC});
   ABSL_EXPECT_OK(ResizeAddConv(exec_env, OHWI(1, 3, 3, 4), BHWC(1, 31, 49, 4),
                           BHWC(1, 62, 98, 4), op_def));
 }
@@ -235,8 +236,8 @@ TEST_P(DataTypeTest, ResizeAddConv4x3x3x8) {
                  << " storage type: " << ToString(storage());
   }
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type(), storage(), Layout::HWC});
-  op_def.dst_tensors.push_back({data_type(), storage(), Layout::HWC});
+  op_def.src_tensors.push_back({data_type(), storage(), Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type(), storage(), Layout::kHWC});
   ABSL_EXPECT_OK(ResizeAddConv(exec_env, OHWI(4, 3, 3, 8), BHWC(1, 31, 49, 8),
                           BHWC(1, 62, 98, 8), op_def));
 }

@@ -144,11 +144,11 @@ void UploadWeights(const std::vector<float>& constants, DataType data_type,
   BufferDescriptor desc;
   desc.element_type = data_type;
   desc.element_size = 4;
-  desc.memory_type = MemoryType::CONSTANT;
+  desc.memory_type = MemoryType::kConstant;
   desc.size = SizeOf(data_type) * constants.size();
   desc.data.resize(desc.size);
 
-  if (data_type == DataType::FLOAT32) {
+  if (data_type == DataType::kFloat32) {
     memcpy(desc.data.data(), constants.data(), desc.size);
   } else {
     half* gpu_data_half = reinterpret_cast<half*>(desc.data.data());
@@ -200,7 +200,7 @@ GPUOperation CreateDW7x7Conv2To6ConcatConv8to8(
     constants.push_back(conv2to6_weights_data[i]);
   }
 
-  auto alpha0 = std::get_if<Tensor<Linear, DataType::FLOAT32>>(&prelu0.alpha);
+  auto alpha0 = std::get_if<Tensor<Linear, DataType::kFloat32>>(&prelu0.alpha);
   for (int i = 0; i < 6; ++i) {
     constants.push_back(alpha0->data[i]);
   }
@@ -239,7 +239,7 @@ GPUOperation CreateDW7x7Conv2To6ConcatConv8to8(
     }
   }
 
-  auto alpha1 = std::get_if<Tensor<Linear, DataType::FLOAT32>>(&prelu1.alpha);
+  auto alpha1 = std::get_if<Tensor<Linear, DataType::kFloat32>>(&prelu1.alpha);
   for (int i = 0; i < 8; ++i) {
     constants.push_back(alpha1->data[i]);
   }
@@ -282,7 +282,7 @@ absl::Status TryDW7x7Conv2To6ConcatConv8to8(
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   if (OperationTypeFromString(dw_node->operation.type) !=
-      OperationType::DEPTHWISE_CONVOLUTION) {
+      OperationType::kDepthwiseConvolution) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
 
@@ -295,7 +295,7 @@ absl::Status TryDW7x7Conv2To6ConcatConv8to8(
                         model_builder->GetTensor(dw_inputs[0]->id));
 
   if (model_builder->GetConvPrecision(dw_handle.tensor_desc.GetDataType()) !=
-      CalculationsPrecision::F16) {
+      CalculationsPrecision::kF16) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
 
@@ -316,7 +316,7 @@ absl::Status TryDW7x7Conv2To6ConcatConv8to8(
   }
 
   if (dw_handle.tensor_desc.GetStorageType() !=
-      TensorStorageType::SINGLE_TEXTURE_2D) {
+      TensorStorageType::kSingleTexture2D) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   auto dw_outputs = graph.FindOutputs(dw_node->id);
@@ -333,7 +333,7 @@ absl::Status TryDW7x7Conv2To6ConcatConv8to8(
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   if (OperationTypeFromString(conv1_node->operation.type) !=
-      OperationType::CONVOLUTION_2D) {
+      OperationType::kConvolution2D) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   Convolution2DAttributes* conv1_attr =
@@ -358,7 +358,7 @@ absl::Status TryDW7x7Conv2To6ConcatConv8to8(
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   if (OperationTypeFromString(prelu1_node->operation.type) !=
-      OperationType::PRELU) {
+      OperationType::kPrelu) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   auto prelu1_outputs = graph.FindOutputs(prelu1_node->id);
@@ -375,7 +375,7 @@ absl::Status TryDW7x7Conv2To6ConcatConv8to8(
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   if (OperationTypeFromString(concat_node->operation.type) !=
-      OperationType::CONCAT) {
+      OperationType::kConcat) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   auto concat_outputs = graph.FindOutputs(concat_node->id);
@@ -396,12 +396,12 @@ absl::Status TryDW7x7Conv2To6ConcatConv8to8(
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   if (OperationTypeFromString(pooling_node->operation.type) !=
-      OperationType::POOLING_2D) {
+      OperationType::kPooling2D) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   Pooling2DAttributes* pooling_attr =
       std::any_cast<Pooling2DAttributes>(&pooling_node->operation.attributes);
-  if (pooling_attr->type != PoolingType::MAX || pooling_attr->output_indices ||
+  if (pooling_attr->type != PoolingType::kMax || pooling_attr->output_indices ||
       pooling_attr->kernel.w != 2 || pooling_attr->kernel.h != 2 ||
       pooling_attr->strides.w != 2 || pooling_attr->strides.h != 2 ||
       pooling_attr->padding.prepended.w != 0 ||
@@ -421,7 +421,7 @@ absl::Status TryDW7x7Conv2To6ConcatConv8to8(
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   if (OperationTypeFromString(conv2_node->operation.type) !=
-      OperationType::CONVOLUTION_2D) {
+      OperationType::kConvolution2D) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   Convolution2DAttributes* conv2_attr =
@@ -446,7 +446,7 @@ absl::Status TryDW7x7Conv2To6ConcatConv8to8(
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   if (OperationTypeFromString(prelu2_node->operation.type) !=
-      OperationType::PRELU) {
+      OperationType::kPrelu) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   auto prelu2_outputs = graph.FindOutputs(prelu2_node->id);
@@ -507,7 +507,7 @@ absl::Status TryDW7x7Conv2To6ConcatConv8to8(
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   if (OperationTypeFromString(dw_op->name) !=
-      OperationType::DEPTHWISE_CONVOLUTION) {
+      OperationType::kDepthwiseConvolution) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
 
@@ -519,7 +519,7 @@ absl::Status TryDW7x7Conv2To6ConcatConv8to8(
   ABSL_ASSIGN_OR_RETURN(auto dw_handle, model_builder->GetTensor(dw_inputs[0]));
 
   if (model_builder->GetConvPrecision(dw_handle.tensor_desc.GetDataType()) !=
-      CalculationsPrecision::F16) {
+      CalculationsPrecision::kF16) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
 
@@ -540,7 +540,7 @@ absl::Status TryDW7x7Conv2To6ConcatConv8to8(
   auto dw_handle_or_err = model_builder->GetTensor(dw_inputs[0]);
   if (!dw_handle_or_err.ok() ||
       dw_handle_or_err.value().tensor_desc.GetStorageType() !=
-          TensorStorageType::SINGLE_TEXTURE_2D) {
+          TensorStorageType::kSingleTexture2D) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   auto dw_outputs = dw_op->outputs;
@@ -557,7 +557,7 @@ absl::Status TryDW7x7Conv2To6ConcatConv8to8(
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   if (OperationTypeFromString(conv1_op->name) !=
-      OperationType::CONVOLUTION_2D) {
+      OperationType::kConvolution2D) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   auto conv1_attr = std::any_cast<Convolution2DAttributes>(conv1_op->attr);
@@ -580,7 +580,7 @@ absl::Status TryDW7x7Conv2To6ConcatConv8to8(
   if (consumed_ops.find(prelu1_op->id) != consumed_ops.end()) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
-  if (OperationTypeFromString(prelu1_op->name) != OperationType::PRELU) {
+  if (OperationTypeFromString(prelu1_op->name) != OperationType::kPrelu) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   auto prelu1_outputs = prelu1_op->outputs;
@@ -596,7 +596,7 @@ absl::Status TryDW7x7Conv2To6ConcatConv8to8(
   if (consumed_ops.find(concat_op->id) != consumed_ops.end()) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
-  if (OperationTypeFromString(concat_op->name) != OperationType::CONCAT) {
+  if (OperationTypeFromString(concat_op->name) != OperationType::kConcat) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   auto concat_outputs = concat_op->outputs;
@@ -616,11 +616,11 @@ absl::Status TryDW7x7Conv2To6ConcatConv8to8(
   if (consumed_ops.find(pooling_op->id) != consumed_ops.end()) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
-  if (OperationTypeFromString(pooling_op->name) != OperationType::POOLING_2D) {
+  if (OperationTypeFromString(pooling_op->name) != OperationType::kPooling2D) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   auto pooling_attr = std::any_cast<Pooling2DAttributes>(pooling_op->attr);
-  if (pooling_attr.type != PoolingType::MAX || pooling_attr.output_indices ||
+  if (pooling_attr.type != PoolingType::kMax || pooling_attr.output_indices ||
       pooling_attr.kernel.w != 2 || pooling_attr.kernel.h != 2 ||
       pooling_attr.strides.w != 2 || pooling_attr.strides.h != 2 ||
       pooling_attr.padding.prepended.w != 0 ||
@@ -640,7 +640,7 @@ absl::Status TryDW7x7Conv2To6ConcatConv8to8(
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   if (OperationTypeFromString(conv2_op->name) !=
-      OperationType::CONVOLUTION_2D) {
+      OperationType::kConvolution2D) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   auto conv2_attr = std::any_cast<Convolution2DAttributes>(conv2_op->attr);
@@ -663,7 +663,7 @@ absl::Status TryDW7x7Conv2To6ConcatConv8to8(
   if (consumed_ops.find(prelu2_op->id) != consumed_ops.end()) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
-  if (OperationTypeFromString(prelu2_op->name) != OperationType::PRELU) {
+  if (OperationTypeFromString(prelu2_op->name) != OperationType::kPrelu) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   auto prelu2_outputs = prelu2_op->outputs;

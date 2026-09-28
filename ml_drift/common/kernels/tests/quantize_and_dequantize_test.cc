@@ -99,8 +99,8 @@ TEST_P(QuantizationTest, QuantizationUint8) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(float_storage());
   }
-  if (!exec_env->IsStorageSupported(quant_storage(), DataType::UINT8)) {
-    GTEST_SKIP() << "Unsupported data type: " << ToString(DataType::UINT8)
+  if (!exec_env->IsStorageSupported(quant_storage(), DataType::kUint8)) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(DataType::kUint8)
                  << " storage type: " << ToString(quant_storage());
   }
   ABSL_ASSERT_OK(QuantizationUint8Test(*exec_env, float_storage(), data_type(),
@@ -112,8 +112,8 @@ TEST_P(QuantizationTest, QuantizationInt8) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(float_storage());
   }
-  if (!exec_env->IsStorageSupported(quant_storage(), DataType::INT8)) {
-    GTEST_SKIP() << "Unsupported data type: " << ToString(DataType::INT8)
+  if (!exec_env->IsStorageSupported(quant_storage(), DataType::kInt8)) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(DataType::kInt8)
                  << " storage type: " << ToString(quant_storage());
   }
   ABSL_ASSERT_OK(QuantizationUint8Test(*exec_env, float_storage(), data_type(),

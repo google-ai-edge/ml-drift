@@ -124,23 +124,23 @@ std::string GetOneInputCode(const GpuInfo& gpu_info,
                             const std::string& input_value,
                             const std::string& output_value) {
   const bool use_native_opencl_functions = gpu_info.IsApiOpenCl() &&
-                                           data_type != DataType::FLOAT32 &&
+                                           data_type != DataType::kFloat32 &&
                                            gpu_info.IsAdreno();
   const bool float_type = IsFloatType(data_type);
   std::string result;
   switch (op_type) {
-    case OperationType::ABS:
-      if (data_type == DataType::FLOAT16 || data_type == DataType::FLOAT32) {
+    case OperationType::kAbs:
+      if (data_type == DataType::kFloat16 || data_type == DataType::kFloat32) {
         result = "$0 = fabs($1);";
       } else {
         result =
             "$0 = ucl::Convert<" + ToUclDataType(data_type, 4) + ">(abs($1));";
       }
       break;
-    case OperationType::CEIL:
+    case OperationType::kCeil:
       result = "$0 = ceil($1);";
       break;
-    case OperationType::COS:
+    case OperationType::kCos:
       if (use_native_opencl_functions && float_type) {
         result =
             "$0 = ucl::Convert<Type>(native_cos(ucl::Convert<float4>($1)));";
@@ -151,10 +151,10 @@ std::string GetOneInputCode(const GpuInfo& gpu_info,
         result = "$0 = cos($1);";
       }
       break;
-    case OperationType::COPY:
+    case OperationType::kCopy:
       result = "$0 = $1;";
       break;
-    case OperationType::ELU:
+    case OperationType::kElu:
       if (gpu_info.IsApiOpenCl()) {
         result = R"(
 $0.x = $1.x < ucl::Init<SType>(0.0f) ? expm1($1.x) : $1.x;
@@ -169,13 +169,13 @@ $0.z = $1.z < ucl::Init<SType>(0.0f) ? exp($1.z) - ucl::Init<SType>(1.0f) : $1.z
 $0.w = $1.w < ucl::Init<SType>(0.0f) ? exp($1.w) - ucl::Init<SType>(1.0f) : $1.w;)";
       }
       break;
-    case OperationType::EXP:
+    case OperationType::kExp:
       result = "$0 = ucl::Exp<Type>($1);";
       break;
-    case OperationType::FLOOR:
+    case OperationType::kFloor:
       result = "$0 = floor($1);";
       break;
-    case OperationType::GELU:
+    case OperationType::kGelu:
       // gelu(x) = 0.5 * x * (1 + erf(x/sqrt(2)))
       result = "  Type erf_in = $1 * ucl::Init<Type>(0.707106781186548f);\n";
       result += "  Type erf_out;\n";
@@ -184,7 +184,7 @@ $0.w = $1.w < ucl::Init<SType>(0.0f) ? exp($1.w) - ucl::Init<SType>(1.0f) : $1.w
           "  $0 = ucl::Init<Type>(0.5f) * $1 * (ucl::Init<Type>(1.0f) + "
           "erf_out);\n";
       break;
-    case OperationType::GELU_TANH_APPROX:
+    case OperationType::kGeluTanhApprox:
       // Approximated GELU using tanh, per https://arxiv.org/abs/1606.08415v5
       // gelu(x) = 0.5 * x * (1 + tanh(sqrt(2/pi) * (x + 0.044715 * x^3)))
       // The real version caused NaNs on Apple GPUs. This was likely due to exp
@@ -202,14 +202,14 @@ $0.w = $1.w < ucl::Init<SType>(0.0f) ? exp($1.w) - ucl::Init<SType>(1.0f) : $1.w
 
       result += "$0 = ucl::Convert<Type>(0.5f * src_f32 * (1.0f + tanh_val));";
       break;
-    case OperationType::HARD_SWISH:
+    case OperationType::kHardSwish:
       result =
           "$0 = $1 * clamp($1 * ucl::Init<Type>(0.16666667f) + "
           "ucl::Init<Type>(0.5f), "
           "ucl::Init<Type>(0.0f), "
           "ucl::Init<Type>(1.0f));";
       break;
-    case OperationType::LOG:
+    case OperationType::kLog:
       if (use_native_opencl_functions) {
         result =
             "$0 = ucl::Convert<Type>(native_log(ucl::Convert<float4>($1)));";
@@ -217,14 +217,15 @@ $0.w = $1.w < ucl::Init<SType>(0.0f) ? exp($1.w) - ucl::Init<SType>(1.0f) : $1.w
         result = "$0 = log($1);";
       }
       break;
-    case OperationType::LOGICAL_NOT:
-      if (gpu_info.IsApiOpenCl() && data_type == DataType::BOOL) {
+    case OperationType::kLogicalNot:
+      if (gpu_info.IsApiOpenCl() && data_type == DataType::kBool) {
         result = "$0.x = $1.x ? 0u : 1u;\n";
         result += "$0.y = $1.y ? 0u : 1u;\n";
         result += "$0.z = $1.z ? 0u : 1u;\n";
         result += "$0.w = $1.w ? 0u : 1u;\n";
-      } else if (data_type == DataType::INT8 || data_type == DataType::INT16 ||
-                 data_type == DataType::INT32) {
+      } else if (data_type == DataType::kInt8 ||
+                 data_type == DataType::kInt16 ||
+                 data_type == DataType::kInt32) {
         result = "$0.x = ~$1.x;\n";
         result += "$0.y = ~$1.y;\n";
         result += "$0.z = ~$1.z;\n";
@@ -236,17 +237,17 @@ $0.w = $1.w < ucl::Init<SType>(0.0f) ? exp($1.w) - ucl::Init<SType>(1.0f) : $1.w
         result += "$0.w = !$1.w;\n";
       }
       break;
-    case OperationType::NEG:
+    case OperationType::kNeg:
       result = "$0 = -($1);";
       break;
-    case OperationType::ROUND:
+    case OperationType::kRound:
       if (gpu_info.IsApiOpenCl() || gpu_info.IsApiMetal()) {
         result = "$0 = rint($1);";
       } else {
         result = "$0 = round($1);";
       }
       break;
-    case OperationType::RSQRT:
+    case OperationType::kRsqrt:
       if (use_native_opencl_functions) {
         result =
             "$0 = ucl::Convert<Type>(native_rsqrt(ucl::Convert<float4>($1)));";
@@ -254,7 +255,7 @@ $0.w = $1.w < ucl::Init<SType>(0.0f) ? exp($1.w) - ucl::Init<SType>(1.0f) : $1.w
         result = "$0 = rsqrt($1);";
       }
       break;
-    case OperationType::SIGMOID:
+    case OperationType::kSigmoid:
       if (use_native_opencl_functions) {
         result =
             "$0 = ucl::Convert<Type>(native_recip(1.0f + "
@@ -265,8 +266,8 @@ $0.w = $1.w < ucl::Init<SType>(0.0f) ? exp($1.w) - ucl::Init<SType>(1.0f) : $1.w
             "exp(-($1)));";
       }
       break;
-    case OperationType::SIGN:
-      if (data_type == DataType::FLOAT16 || data_type == DataType::FLOAT32) {
+    case OperationType::kSign:
+      if (data_type == DataType::kFloat16 || data_type == DataType::kFloat32) {
         result = "$0 = sign($1);";
       } else {  // int
         if (gpu_info.IsApiWebGpu()) {
@@ -279,7 +280,7 @@ $0.w = $1.w < ucl::Init<SType>(0.0f) ? exp($1.w) - ucl::Init<SType>(1.0f) : $1.w
         }
       }
       break;
-    case OperationType::SIN:
+    case OperationType::kSin:
       if (use_native_opencl_functions && float_type) {
         result =
             "$0 = ucl::Convert<Type>(native_sin(ucl::Convert<float4>($1)));";
@@ -290,7 +291,7 @@ $0.w = $1.w < ucl::Init<SType>(0.0f) ? exp($1.w) - ucl::Init<SType>(1.0f) : $1.w
         result = "$0 = sin($1);";
       }
       break;
-    case OperationType::SQRT:
+    case OperationType::kSqrt:
       if (use_native_opencl_functions) {
         result =
             "$0 = ucl::Convert<Type>(native_sqrt(ucl::Convert<float4>($1)));";
@@ -298,23 +299,23 @@ $0.w = $1.w < ucl::Init<SType>(0.0f) ? exp($1.w) - ucl::Init<SType>(1.0f) : $1.w
         result = "$0 = sqrt($1);";
       }
       break;
-    case OperationType::SQUARE:
+    case OperationType::kSquare:
       result = "$0 = $1 * $1;";
       break;
-    case OperationType::TANH:
+    case OperationType::kTanh:
       result = "float4 tanh_out;\n";
       result += "float4 tanh_in = ucl::Convert<float4>($1);\n";
       result += ClampedTanh(gpu_info, "tanh_in", "tanh_out");
       result += "$0 = ucl::Convert<Type>(tanh_out);\n";
       break;
-    case OperationType::MISH:
+    case OperationType::kMish:
       // Mish: x -> x tanh(log(1+exp(x)))
       // The exp may overflow, so the approximation mish(x) ~= x is used for
       // large x.
 
       // Outside of these bounds, the approximation error is within 2.5 ULP
       // which is what Vulkan and OpenCL guarantees for divisions.
-      if (data_type == DataType::FLOAT32) {
+      if (data_type == DataType::kFloat32) {
         result = "SType large_boundary = ucl::Init<SType>(8);";
       } else {
         result = "SType large_boundary = ucl::Init<SType>(3.7);";
@@ -349,14 +350,14 @@ std::string GetTwoInputCode(const GpuInfo& gpu_info,
                             const std::string& input1,
                             bool swap_inputs = false) {
   const bool use_native_opencl_functions = gpu_info.IsApiOpenCl() &&
-                                           data_type != DataType::FLOAT32 &&
+                                           data_type != DataType::kFloat32 &&
                                            gpu_info.IsAdreno();
   std::string result;
   switch (op_type) {
-    case OperationType::ADD:
+    case OperationType::kAdd:
       result += "$0 = $1 + $2;";
       break;
-    case OperationType::ATAN2:
+    case OperationType::kAtan2:
       if (IsFloatType(data_type)) {
         result += "$0 = atan2($1, $2);";
       } else {
@@ -366,12 +367,12 @@ std::string GetTwoInputCode(const GpuInfo& gpu_info,
       }
 
       break;
-    case OperationType::DIV:
+    case OperationType::kDiv:
       result += "$0 = $1 / $2;";
       break;
-    case OperationType::FLOOR_DIV:
-      if (data_type == DataType::FLOAT16 || data_type == DataType::FLOAT32 ||
-          data_type == DataType::FLOAT64 || data_type == DataType::BFLOAT16) {
+    case OperationType::kFloorDiv:
+      if (data_type == DataType::kFloat16 || data_type == DataType::kFloat32 ||
+          data_type == DataType::kFloat64 || data_type == DataType::kBfloat16) {
         result = "$0 = floor($1 / $2);";
       } else {
         const std::string postfixes[4] = {".x", ".y", ".z", ".w"};
@@ -386,9 +387,9 @@ std::string GetTwoInputCode(const GpuInfo& gpu_info,
         }
       }
       break;
-    case OperationType::FLOOR_MOD:
-      if (data_type == DataType::FLOAT16 || data_type == DataType::FLOAT32 ||
-          data_type == DataType::FLOAT64 || data_type == DataType::BFLOAT16) {
+    case OperationType::kFloorMod:
+      if (data_type == DataType::kFloat16 || data_type == DataType::kFloat32 ||
+          data_type == DataType::kFloat64 || data_type == DataType::kBfloat16) {
         result = "$0 = $1 - floor($1 / $2) * $2;";
       } else {
         const std::string postfixes[4] = {".x", ".y", ".z", ".w"};
@@ -402,19 +403,19 @@ std::string GetTwoInputCode(const GpuInfo& gpu_info,
         }
       }
       break;
-    case OperationType::MAXIMUM:
+    case OperationType::kMaximum:
       result += "$0 = max($1, $2);";
       break;
-    case OperationType::MINIMUM:
+    case OperationType::kMinimum:
       result += "$0 = min($1, $2);";
       break;
-    case OperationType::MOD:
+    case OperationType::kMod:
       result += "$0 = $1 % $2;";
       break;
-    case OperationType::MUL:
+    case OperationType::kMul:
       result += "$0 = $1 * $2;";
       break;
-    case OperationType::POW:
+    case OperationType::kPow:
       if (use_native_opencl_functions) {
         result = "float4 out_f32;\n";
         result += "float4 in_f32_x = ucl::Convert<float4>($1);\n";
@@ -426,27 +427,27 @@ std::string GetTwoInputCode(const GpuInfo& gpu_info,
         result += "$0 = pow($1, $2);";
       }
       break;
-    case OperationType::SQUARED_DIFF:
+    case OperationType::kSquaredDiff:
       result += "$0 = ($1 - $2) * ($1 - $2);";
       break;
-    case OperationType::SUB:
+    case OperationType::kSub:
       result += "$0 = $1 - $2;";
       break;
     // Comparison operators
-    case OperationType::LESS:
+    case OperationType::kLess:
       result = "$0.x = $1.x < $2.x;\n";
       result += "$0.y = $1.y < $2.y;\n";
       result += "$0.z = $1.z < $2.z;\n";
       result += "$0.w = $1.w < $2.w;";
       break;
-    case OperationType::LESS_EQUAL:
+    case OperationType::kLessEqual:
       result = "$0.x = $1.x <= $2.x;\n";
       result += "$0.y = $1.y <= $2.y;\n";
       result += "$0.z = $1.z <= $2.z;\n";
       result += "$0.w = $1.w <= $2.w;";
       break;
-    case OperationType::LOGICAL_AND:
-      if (data_type == DataType::BOOL) {
+    case OperationType::kLogicalAnd:
+      if (data_type == DataType::kBool) {
         result = "$0.x = $1.x && $2.x;\n";
         result += "$0.y = $1.y && $2.y;\n";
         result += "$0.z = $1.z && $2.z;\n";
@@ -459,8 +460,8 @@ std::string GetTwoInputCode(const GpuInfo& gpu_info,
       }
 
       break;
-    case OperationType::LOGICAL_OR:
-      if (data_type == DataType::BOOL) {
+    case OperationType::kLogicalOr:
+      if (data_type == DataType::kBool) {
         result = "$0.x = $1.x || $2.x;\n";
         result += "$0.y = $1.y || $2.y;\n";
         result += "$0.z = $1.z || $2.z;\n";
@@ -472,9 +473,9 @@ std::string GetTwoInputCode(const GpuInfo& gpu_info,
         result += "$0.w = $1.w | $2.w;\n";
       }
       break;
-    case OperationType::LOGICAL_XOR:
+    case OperationType::kLogicalXor:
       if (gpu_info.IsApiOpenCl() ||
-          (!gpu_info.IsApiOpenCl() && data_type != DataType::BOOL)) {
+          (!gpu_info.IsApiOpenCl() && data_type != DataType::kBool)) {
         result = "$0.x = $1.x ^ $2.x;\n";
         result += "$0.y = $1.y ^ $2.y;\n";
         result += "$0.z = $1.z ^ $2.z;\n";
@@ -486,38 +487,38 @@ std::string GetTwoInputCode(const GpuInfo& gpu_info,
         result += "$0.w = ($1.w || $2.w) && !($1.w && $2.w);\n";
       }
       break;
-    case OperationType::GREATER:
+    case OperationType::kGreater:
       result = "$0.x = $1.x > $2.x;\n";
       result += "$0.y = $1.y > $2.y;\n";
       result += "$0.z = $1.z > $2.z;\n";
       result += "$0.w = $1.w > $2.w;";
       break;
-    case OperationType::GREATER_EQUAL:
+    case OperationType::kGreaterEqual:
       result = "$0.x = $1.x >= $2.x;\n";
       result += "$0.y = $1.y >= $2.y;\n";
       result += "$0.z = $1.z >= $2.z;\n";
       result += "$0.w = $1.w >= $2.w;";
       break;
-    case OperationType::EQUAL:
+    case OperationType::kEqual:
       result = "$0.x = $1.x == $2.x;\n";
       result += "$0.y = $1.y == $2.y;\n";
       result += "$0.z = $1.z == $2.z;\n";
       result += "$0.w = $1.w == $2.w;";
       break;
-    case OperationType::NOT_EQUAL:
+    case OperationType::kNotEqual:
       result = "$0.x = $1.x != $2.x;\n";
       result += "$0.y = $1.y != $2.y;\n";
       result += "$0.z = $1.z != $2.z;\n";
       result += "$0.w = $1.w != $2.w;";
       break;
-    case OperationType::SHIFT_LEFT:
+    case OperationType::kShiftLeft:
       if (gpu_info.IsApiWebGpu()) {
         result = "$0 = $1 << vec4<u32>($2);";
       } else {
         result = "$0 = $1 << $2;";
       }
       break;
-    case OperationType::SHIFT_RIGHT:
+    case OperationType::kShiftRight:
       if (gpu_info.IsApiWebGpu()) {
         result = "$0 = $1 >> vec4<u32>($2);";
       } else {
@@ -540,37 +541,37 @@ ElementwiseDescriptor CreateElementwiseOneRuntimeOneScalar(
     const GpuInfo& gpu_info, const OperationDef& definition,
     const OperationType& op_type, const ScalarValue& scalar, bool swap_inputs) {
   ElementwiseDescriptor op_desc;
-  DataType scalar_type = DataType::UNKNOWN;
+  DataType scalar_type = DataType::kUnknown;
   if (std::holds_alternative<float>(scalar)) {
-    scalar_type = DataType::FLOAT32;
+    scalar_type = DataType::kFloat32;
     const float* value = std::get_if<float>(&scalar);
-    if (op_type == OperationType::POW && *value == 2.0f) {
+    if (op_type == OperationType::kPow && *value == 2.0f) {
       op_desc.code = "out_value = in_value * in_value;";
       return op_desc;
     }
-    if (op_type == OperationType::POW && *value == 3.0f) {
+    if (op_type == OperationType::kPow && *value == 3.0f) {
       op_desc.code = "out_value = in_value * in_value * in_value;";
       return op_desc;
     }
-    if (op_type == OperationType::POW && *value == 1.5f) {
+    if (op_type == OperationType::kPow && *value == 1.5f) {
       op_desc.code = "out_value = in_value * sqrt(in_value);";
       return op_desc;
     }
     op_desc.args.AddFloat("scalar", *value);
   } else if (std::holds_alternative<int>(scalar)) {
-    scalar_type = DataType::INT32;
+    scalar_type = DataType::kInt32;
     const int* value = std::get_if<int>(&scalar);
     op_desc.args.AddInt("scalar", *value);
   } else if (std::holds_alternative<unsigned int>(scalar)) {
-    scalar_type = DataType::UINT32;
+    scalar_type = DataType::kUint32;
     const unsigned int* value = std::get_if<unsigned int>(&scalar);
     op_desc.args.AddUint("scalar", *value);
   }
   const DataType src_type_raw = definition.src_tensors[0].GetDataType();
   bool convert_bf16 =
-      src_type_raw == DataType::BFLOAT16 &&
+      src_type_raw == DataType::kBfloat16 &&
       !(gpu_info.IsApiMetal() && gpu_info.metal_info.IsNativeBfloatSupported());
-  const DataType src_type = convert_bf16 ? DataType::FLOAT32 : src_type_raw;
+  const DataType src_type = convert_bf16 ? DataType::kFloat32 : src_type_raw;
   const std::string src_type_str = ToUclDataType(src_type, 4);
   std::string scalar_value_str = "args.scalar";
   if (src_type != scalar_type) {
@@ -589,7 +590,7 @@ ElementwiseDescriptor CreateElementwiseOneRuntimeOneScalar(
 ElementwiseDescriptor CreateElementwiseTwoInput(
     const GpuInfo& gpu_info, const OperationDef& definition,
     const OperationType& op_type,
-    const Tensor<Linear, DataType::FLOAT32>& constant_tensor,
+    const Tensor<Linear, DataType::kFloat32>& constant_tensor,
     bool swap_inputs) {
   TensorDescriptor const_tensor_desc = CreateConstantLinearTensorDescriptor(
       gpu_info, definition.src_tensors[0].GetDataType(), constant_tensor);
@@ -616,7 +617,7 @@ ElementwiseDescriptor CreateElementwiseTwoInput(
 absl::StatusOr<ElementwiseDescriptor> CreateElementwiseTwoInput(
     const GpuInfo& gpu_info, const OperationDef& definition,
     const OperationType& op_type,
-    const Tensor<BHWC, DataType::FLOAT32>& constant_tensor, bool swap_inputs) {
+    const Tensor<BHWC, DataType::kFloat32>& constant_tensor, bool swap_inputs) {
   TensorDescriptor const_tensor_desc = definition.src_tensors[0];
   ABSL_RETURN_IF_ERROR(const_tensor_desc.UpdateToSupportedStorageType(
       gpu_info, constant_tensor.shape));
@@ -647,10 +648,11 @@ absl::StatusOr<ElementwiseDescriptor> CreateElementwiseTwoInput(
 absl::StatusOr<ElementwiseDescriptor> CreateElementwiseTwoInput(
     const GpuInfo& gpu_info, const OperationDef& definition,
     const OperationType& op_type,
-    const Tensor<BHWDC, DataType::FLOAT32>& constant_tensor, bool swap_inputs) {
+    const Tensor<BHWDC, DataType::kFloat32>& constant_tensor,
+    bool swap_inputs) {
   TensorDescriptor const_tensor_desc = definition.src_tensors[0];
   const_tensor_desc.SetBHWDCShape(constant_tensor.shape);
-  const_tensor_desc.SetLayout(Layout::BHWDC);
+  const_tensor_desc.SetLayout(Layout::kBHWDC);
   ABSL_RETURN_IF_ERROR(const_tensor_desc.UpdateToSupportedStorageType(
       gpu_info, constant_tensor.shape));
   const_tensor_desc.UploadData(constant_tensor);
@@ -691,15 +693,15 @@ absl::StatusOr<ElementwiseDescriptor> CreateElementwiseDesc(
               gpu_info, definition, op_type, arg,
               attr.runtime_tensor_is_second);
         } else if constexpr (std::is_same_v<
-                                 T, Tensor<Linear, DataType::FLOAT32>>) {
+                                 T, Tensor<Linear, DataType::kFloat32>>) {
           result = CreateElementwiseTwoInput(gpu_info, definition, op_type, arg,
                                              attr.runtime_tensor_is_second);
         } else if constexpr (std::is_same_v<T,
-                                            Tensor<BHWC, DataType::FLOAT32>>) {
+                                            Tensor<BHWC, DataType::kFloat32>>) {
           result = CreateElementwiseTwoInput(gpu_info, definition, op_type, arg,
                                              attr.runtime_tensor_is_second);
-        } else if constexpr (std::is_same_v<T,
-                                            Tensor<BHWDC, DataType::FLOAT32>>) {
+        } else if constexpr (std::is_same_v<
+                                 T, Tensor<BHWDC, DataType::kFloat32>>) {
           result = CreateElementwiseTwoInput(gpu_info, definition, op_type, arg,
                                              attr.runtime_tensor_is_second);
         } else if constexpr (std::is_same_v<T, std::monostate>) {
@@ -768,16 +770,16 @@ GPUOperation CreateElementwiseTwoInput(const GpuInfo& gpu_info,
 namespace {
 std::string GetKernelBodyCode(const OperationDef& definition) {
   const TensorDescriptor& dst_desc = definition.dst_tensors[0];
-  bool has_depth = dst_desc.HasAxis(Axis::DEPTH);
+  bool has_depth = dst_desc.HasAxis(Axis::kDepth);
   for (const auto& src : definition.src_tensors) {
-    if (src.HasAxis(Axis::DEPTH)) {
+    if (src.HasAxis(Axis::kDepth)) {
       has_depth = true;
     }
   }
 
   std::string c;
   c += "MAIN_FUNCTION($$0) {\n";
-  if (dst_desc.HasAxis(Axis::BATCH)) {
+  if (dst_desc.HasAxis(Axis::kBatch)) {
     c += "  int linear_id = ucl::GetGlobalId<0>();\n";
     c += "  int X = linear_id / args.dst_tensor.Batch();\n";
     c += "  int B = linear_id % args.dst_tensor.Batch();\n";
@@ -820,14 +822,14 @@ std::string GetReadBroadcastedValueCode(const BHWDC& src_shape,
       (src_shape.b != dst_shape.b || dst_shape.b == 1) ? "0" : "B";
 
   std::string coords;
-  if (src_desc.HasAxis(Axis::DEPTH)) {
+  if (src_desc.HasAxis(Axis::kDepth)) {
     coords = absl::StrCat(x_coord, ", ", y_coord, ", ", z_coord, ", ", s_coord);
-    if (src_desc.HasAxis(Axis::BATCH)) {
+    if (src_desc.HasAxis(Axis::kBatch)) {
       coords += ", " + b_coord;
     }
   } else {
     coords = absl::StrCat(x_coord, ", ", y_coord, ", ", s_coord);
-    if (src_desc.HasAxis(Axis::BATCH)) {
+    if (src_desc.HasAxis(Axis::kBatch)) {
       coords += ", " + b_coord;
     }
   }

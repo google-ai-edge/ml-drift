@@ -31,7 +31,7 @@ Split::Split(const GpuInfo& gpu_info, const OperationDef& definition,
              const SplitAttributes& attr, const std::vector<int>& channels)
     : attr_(attr) {
   work_group_size_ = int3(8, 4, 1);
-  code_ = attr.axis == Axis::CHANNELS
+  code_ = attr.axis == Axis::kChannels
               ? GetSplitChannelsCode(gpu_info, definition, channels)
               : GetSplitCode(definition);
 }
@@ -42,29 +42,29 @@ std::string Split::GetSplitCode(const OperationDef& definition) {
     AddDstTensor("dst_tensor_" + std::to_string(i), definition.dst_tensors[i]);
   }
   const std::string task_width =
-      attr_.axis == Axis::WIDTH ? "1" : "args.src_tensor.Width()";
+      attr_.axis == Axis::kWidth ? "1" : "args.src_tensor.Width()";
   const std::string task_height =
-      attr_.axis == Axis::HEIGHT ? "1" : "args.src_tensor.Height()";
+      attr_.axis == Axis::kHeight ? "1" : "args.src_tensor.Height()";
   const std::string task_depth =
-      attr_.axis == Axis::DEPTH ? "1" : "args.src_tensor.Depth()";
+      attr_.axis == Axis::kDepth ? "1" : "args.src_tensor.Depth()";
   const std::string task_batch =
-      attr_.axis == Axis::BATCH ? "1" : "args.src_tensor.Batch()";
+      attr_.axis == Axis::kBatch ? "1" : "args.src_tensor.Batch()";
   const std::string task_slices =
-      attr_.axis == Axis::CHANNELS ? "1" : "args.src_tensor.Slices()";
+      attr_.axis == Axis::kChannels ? "1" : "args.src_tensor.Slices()";
 
   std::map<Axis, std::string> axis_to_selector = {
-      {Axis::WIDTH, "Width"}, {Axis::HEIGHT, "Height"},
-      {Axis::DEPTH, "Depth"}, {Axis::CHANNELS, "Slices"},
-      {Axis::BATCH, "Batch"},
+      {Axis::kWidth, "Width"}, {Axis::kHeight, "Height"},
+      {Axis::kDepth, "Depth"}, {Axis::kChannels, "Slices"},
+      {Axis::kBatch, "Batch"},
   };
   std::map<Axis, std::string> axis_to_coord = {
-      {Axis::WIDTH, "X"},    {Axis::HEIGHT, "Y"}, {Axis::DEPTH, "Z"},
-      {Axis::CHANNELS, "S"}, {Axis::BATCH, "B"},
+      {Axis::kWidth, "X"},    {Axis::kHeight, "Y"}, {Axis::kDepth, "Z"},
+      {Axis::kChannels, "S"}, {Axis::kBatch, "B"},
   };
 
   std::string c;
   c += "MAIN_FUNCTION($0) {\n";
-  if (definition.src_tensors[0].HasAxis(Axis::BATCH)) {
+  if (definition.src_tensors[0].HasAxis(Axis::kBatch)) {
     c += "  int linear_id_0 = ucl::GetGlobalId<0>();\n";
     c += "  int X = linear_id_0 / " + task_batch + ";\n";
     c += "  int B = linear_id_0 % " + task_batch + ";\n";
@@ -73,7 +73,7 @@ std::string Split::GetSplitCode(const OperationDef& definition) {
     c += "  int X = ucl::GetGlobalId<0>();\n";
     c += "  if (X >= " + task_width + ") return;\n";
   }
-  if (definition.src_tensors[0].HasAxis(Axis::DEPTH)) {
+  if (definition.src_tensors[0].HasAxis(Axis::kDepth)) {
     c += "  int linear_id_1 = ucl::GetGlobalId<1>();\n";
     c += "  int Y = linear_id_1 / " + task_depth + ";\n";
     c += "  int Z = linear_id_1 % " + task_depth + ";\n";
@@ -86,8 +86,8 @@ std::string Split::GetSplitCode(const OperationDef& definition) {
   c += "  if (S >= " + task_slices + ") return;\n";
   c += "  int src_counter = 0;\n";
   std::vector<std::string> src_coords;
-  for (auto axis :
-       {Axis::WIDTH, Axis::HEIGHT, Axis::DEPTH, Axis::CHANNELS, Axis::BATCH}) {
+  for (auto axis : {Axis::kWidth, Axis::kHeight, Axis::kDepth, Axis::kChannels,
+                    Axis::kBatch}) {
     if (definition.src_tensors[0].HasAxis(axis)) {
       const std::string coord_name =
           attr_.axis == axis ? "src_counter" : axis_to_coord[axis];
@@ -100,8 +100,8 @@ std::string Split::GetSplitCode(const OperationDef& definition) {
   }
   for (int i = 0; i < definition.dst_tensors.size(); ++i) {
     std::vector<std::string> dst_coords;
-    for (auto axis : {Axis::WIDTH, Axis::HEIGHT, Axis::DEPTH, Axis::CHANNELS,
-                      Axis::BATCH}) {
+    for (auto axis : {Axis::kWidth, Axis::kHeight, Axis::kDepth,
+                      Axis::kChannels, Axis::kBatch}) {
       if (definition.dst_tensors[i].HasAxis(axis)) {
         const std::string coord_name =
             attr_.axis == axis ? "i" : axis_to_coord[axis];
@@ -133,11 +133,11 @@ std::string Split::GetSplitChannelsCode(const GpuInfo& gpu_info,
   }
 
   const std::string batch_coord =
-      definition.src_tensors[0].HasAxis(Axis::BATCH) ? ", B" : "";
+      definition.src_tensors[0].HasAxis(Axis::kBatch) ? ", B" : "";
   std::string coords = "X, Y";
   std::string c;
   c += "MAIN_FUNCTION($0) {\n";
-  if (definition.src_tensors[0].HasAxis(Axis::BATCH)) {
+  if (definition.src_tensors[0].HasAxis(Axis::kBatch)) {
     c += "  int linear_id_0 = ucl::GetGlobalId<0>();\n";
     c += "  int X = linear_id_0 / args.src_tensor.Batch();\n";
     c += "  int B = linear_id_0 % args.src_tensor.Batch();\n";
@@ -146,7 +146,7 @@ std::string Split::GetSplitChannelsCode(const GpuInfo& gpu_info,
     c += "  int X = ucl::GetGlobalId<0>();\n";
     c += "  if (X >= args.src_tensor.Width()) return;\n";
   }
-  if (definition.src_tensors[0].HasAxis(Axis::DEPTH)) {
+  if (definition.src_tensors[0].HasAxis(Axis::kDepth)) {
     c += "  int linear_id_1 = ucl::GetGlobalId<1>();\n";
     c += "  int Y = linear_id_1 / args.src_tensor.Depth();\n";
     c += "  int Z = linear_id_1 % args.src_tensor.Depth();\n";
@@ -205,11 +205,11 @@ std::string Split::GetSplitChannelsCode(const GpuInfo& gpu_info,
 }
 
 int3 Split::GetGridSize() const {
-  const int width = attr_.axis == Axis::WIDTH ? 1 : src_[0]->Width();
-  const int height = attr_.axis == Axis::HEIGHT ? 1 : src_[0]->Height();
-  const int depth = attr_.axis == Axis::DEPTH ? 1 : src_[0]->Depth();
-  const int batch = attr_.axis == Axis::BATCH ? 1 : src_[0]->Batch();
-  const int slices = attr_.axis == Axis::CHANNELS ? 1 : src_[0]->Slices();
+  const int width = attr_.axis == Axis::kWidth ? 1 : src_[0]->Width();
+  const int height = attr_.axis == Axis::kHeight ? 1 : src_[0]->Height();
+  const int depth = attr_.axis == Axis::kDepth ? 1 : src_[0]->Depth();
+  const int batch = attr_.axis == Axis::kBatch ? 1 : src_[0]->Batch();
+  const int slices = attr_.axis == Axis::kChannels ? 1 : src_[0]->Slices();
   const int grid_x = width * batch;
   const int grid_y = height * depth;
   const int grid_z = slices;

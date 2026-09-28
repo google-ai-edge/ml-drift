@@ -48,12 +48,12 @@ absl::Status SplitChannelsTest(TestExecutionEnvironment& env,
                      20.5f, 21.1f, 21.2f, 21.3f, 21.4f, 21.5f};
 
   SplitAttributes attr;
-  attr.axis = Axis::CHANNELS;
+  attr.axis = Axis::kChannels;
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor0, dst_tensor1;
   Split operation = CreateSplit(env.GetGpuInfo(), op_def, attr, {2, 3});
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
@@ -82,12 +82,12 @@ absl::Status SplitChannelsX4Test(TestExecutionEnvironment& env,
                      30.1f, 30.2f, 30.3f, 30.4f, 31.1f, 31.2f, 31.3f, 31.4f};
 
   SplitAttributes attr;
-  attr.axis = Axis::CHANNELS;
+  attr.axis = Axis::kChannels;
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor0, dst_tensor1;
   Split operation = CreateSplit(env.GetGpuInfo(), op_def, attr, {4, 4});
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
@@ -114,12 +114,12 @@ absl::Status SplitWidthTest(TestExecutionEnvironment& env, DataType data_type,
                      20.5f, 21.1f, 21.2f, 21.3f, 21.4f, 21.5f};
 
   SplitAttributes attr;
-  attr.axis = Axis::WIDTH;
+  attr.axis = Axis::kWidth;
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor0, dst_tensor1;
   Split operation = CreateSplit(env.GetGpuInfo(), op_def, attr, {1, 1});
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
@@ -147,12 +147,12 @@ absl::Status SplitHeightTest(TestExecutionEnvironment& env, DataType data_type,
                      20.5f, 21.1f, 21.2f, 21.3f, 21.4f, 21.5f};
 
   SplitAttributes attr;
-  attr.axis = Axis::HEIGHT;
+  attr.axis = Axis::kHeight;
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor0, dst_tensor1;
   Split operation = CreateSplit(env.GetGpuInfo(), op_def, attr, {1, 1});
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
@@ -179,12 +179,12 @@ absl::Status SplitBatchTest(TestExecutionEnvironment& env, DataType data_type,
                      20.5f, 21.1f, 21.2f, 21.3f, 21.4f, 21.5f};
 
   SplitAttributes attr;
-  attr.axis = Axis::BATCH;
+  attr.axis = Axis::kBatch;
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
   TensorFloat32 dst_tensor0, dst_tensor1;
   Split operation = CreateSplit(env.GetGpuInfo(), op_def, attr, {1, 1});
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
@@ -211,12 +211,12 @@ absl::Status SplitDepthTest(TestExecutionEnvironment& env, DataType data_type,
                      20.5f, 21.1f, 21.2f, 21.3f, 21.4f, 21.5f};
 
   SplitAttributes attr;
-  attr.axis = Axis::DEPTH;
+  attr.axis = Axis::kDepth;
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWDC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWDC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWDC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWDC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWDC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWDC});
   Tensor5DFloat32 dst_tensor0, dst_tensor1;
   Split operation = CreateSplit(env.GetGpuInfo(), op_def, attr, {1, 1});
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
@@ -245,12 +245,12 @@ absl::Status Split5DTest(TestExecutionEnvironment& env, DataType data_type,
   }
 
   SplitAttributes attr;
-  attr.axis = Axis::DEPTH;
+  attr.axis = Axis::kDepth;
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWDC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWDC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWDC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWDC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWDC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWDC});
   Tensor5DFloat32 dst_tensor0, dst_tensor1;
   Split operation = CreateSplit(env.GetGpuInfo(), op_def, attr, {2, 2});
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(

@@ -184,8 +184,8 @@ TEST_P(FullyConnectedFloatTest, FullyConnectedInt8BatchedWeightsBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  if (!exec_env->IsStorageSupported(storage(), DataType::INT32)) {
-    GTEST_SKIP() << "Unsupported data type: " << ToString(DataType::INT32)
+  if (!exec_env->IsStorageSupported(storage(), DataType::kInt32)) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(DataType::kInt32)
                  << " storage type: " << ToString(storage());
   }
   ABSL_ASSERT_OK(FullyConnectedInt8BatchedWeightsBigTest(*exec_env, precision(),
@@ -378,13 +378,13 @@ TEST_P(FullyConnectedIntTest, FullyConnectedSi8Wi8BigTest) {
   if (!SupportsFullyConnectedUint8Math(exec_env->GetGpuInfo())) {
     GTEST_SKIP() << "Unsupported FullyConnectedIntTest";
   }
-  if (!exec_env->IsStorageSupported(src_storage(), DataType::UINT8)) {
+  if (!exec_env->IsStorageSupported(src_storage(), DataType::kUint8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(src_storage())
-                 << " to " << ToString(DataType::UINT8);
+                 << " to " << ToString(DataType::kUint8);
   }
-  if (!exec_env->IsStorageSupported(dst_storage(), DataType::UINT32)) {
+  if (!exec_env->IsStorageSupported(dst_storage(), DataType::kUint32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(dst_storage())
-                 << " to " << ToString(DataType::UINT32);
+                 << " to " << ToString(DataType::kUint32);
   }
   ABSL_ASSERT_OK(
       FullyConnectedSi8Wi8BigTest(*exec_env, src_storage(), dst_storage()));
@@ -394,13 +394,13 @@ TEST_P(FullyConnectedIntTest, FullyConnectedSi8Wi4BigTest) {
   if (!SupportsFullyConnectedUint8Math(exec_env->GetGpuInfo())) {
     GTEST_SKIP() << "Unsupported FullyConnectedIntTest";
   }
-  if (!exec_env->IsStorageSupported(src_storage(), DataType::UINT8)) {
+  if (!exec_env->IsStorageSupported(src_storage(), DataType::kUint8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(src_storage())
-                 << " to " << ToString(DataType::UINT8);
+                 << " to " << ToString(DataType::kUint8);
   }
-  if (!exec_env->IsStorageSupported(dst_storage(), DataType::UINT32)) {
+  if (!exec_env->IsStorageSupported(dst_storage(), DataType::kUint32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(dst_storage())
-                 << " to " << ToString(DataType::UINT32);
+                 << " to " << ToString(DataType::kUint32);
   }
   ABSL_ASSERT_OK(
       FullyConnectedSi8Wi4BigTest(*exec_env, src_storage(), dst_storage()));
@@ -410,13 +410,13 @@ TEST_P(FullyConnectedIntTest, FullyConnectedSi8Wi2BigTest) {
   if (!SupportsFullyConnectedUint8Math(exec_env->GetGpuInfo())) {
     GTEST_SKIP() << "Unsupported FullyConnectedIntTest";
   }
-  if (!exec_env->IsStorageSupported(src_storage(), DataType::UINT8)) {
+  if (!exec_env->IsStorageSupported(src_storage(), DataType::kUint8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(src_storage())
-                 << " to " << ToString(DataType::UINT8);
+                 << " to " << ToString(DataType::kUint8);
   }
-  if (!exec_env->IsStorageSupported(dst_storage(), DataType::UINT32)) {
+  if (!exec_env->IsStorageSupported(dst_storage(), DataType::kUint32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(dst_storage())
-                 << " to " << ToString(DataType::UINT32);
+                 << " to " << ToString(DataType::kUint32);
   }
   ABSL_ASSERT_OK(
       FullyConnectedSi8Wi2BigTest(*exec_env, src_storage(), dst_storage()));

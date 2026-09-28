@@ -50,9 +50,9 @@ class ConvolutionTransposed2x2 : public GPUOperation {
     WeightsDescription desc;
     desc.type = weights_data_type_;
     desc.layout = WeightsLayout::kCustomGroups;
-    desc.group_sizes = {{Axis::OUTPUT_CHANNELS, 4}, {Axis::INPUT_CHANNELS, 4},
-                        {Axis::WIDTH, 0},           {Axis::HEIGHT, 0},
-                        {Axis::INPUT_CHANNELS, 0},  {Axis::OUTPUT_CHANNELS, 0}};
+    desc.group_sizes = {{Axis::kOutputChannels, 4}, {Axis::kInputChannels, 4},
+                        {Axis::kWidth, 0},          {Axis::kHeight, 0},
+                        {Axis::kInputChannels, 0},  {Axis::kOutputChannels, 0}};
     desc.spatial_remap = GetSpatialWeightsRemap();
     return desc;
   }

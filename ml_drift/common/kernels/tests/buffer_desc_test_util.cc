@@ -34,11 +34,11 @@
 namespace ml_drift {
 
 absl::Status ReadAsI16SelectorTest(TestExecutionEnvironment& env) {
-  Tensor<BHWC, DataType::INT32> src;
+  Tensor<BHWC, DataType::kInt32> src;
   src.shape = BHWC(1, 1, 1, 4);
   src.data = {0x0001ffff, 0x0002fffe, 0x0003fffd, 0x0004fffc};
 
-  Tensor<BHWC, DataType::INT32> ref_tensor;
+  Tensor<BHWC, DataType::kInt32> ref_tensor;
   ref_tensor.shape = BHWC(1, 1, 1, 8);
   ref_tensor.data = {-1, 1, -2, 2, -3, 3, -4, 4};
 
@@ -50,16 +50,16 @@ absl::Status ReadAsI16SelectorTest(TestExecutionEnvironment& env) {
   // will be parsed as two INT16 values: 0x0001 and 0xffff.
   OperationDef op_def;
   op_def.src_tensors.push_back(
-      {DataType::INT32, TensorStorageType::BUFFER, Layout::LINEAR});
+      {DataType::kInt32, TensorStorageType::kBuffer, Layout::kLinear});
   op_def.dst_tensors.push_back(
-      {DataType::INT32, TensorStorageType::BUFFER, Layout::LINEAR});
+      {DataType::kInt32, TensorStorageType::kBuffer, Layout::kLinear});
   TensorDescriptor src_0, dst;
   src_0 = op_def.src_tensors[0];
   src_0.UploadData(src);
   dst.SetBHWCShape(BHWC(1, 1, 1, 8));
   GPUOperation operation;
   BufferDescriptor desc;
-  desc.element_type = DataType::INT32;
+  desc.element_type = DataType::kInt32;
   desc.element_size = 1;
   operation.AddSrcBuffer("src", desc);
   operation.AddDstTensor("dst_tensor", op_def.dst_tensors[0]);
@@ -78,7 +78,7 @@ MAIN_FUNCTION($0) {
   operation.tensor_to_grid_ = TensorToGrid::kWBToX_HDToY_SToZ;
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_0}, {&dst}, std::make_unique<GPUOperation>(std::move(operation))));
-  Tensor<BHWC, DataType::INT32> dst_tensor;
+  Tensor<BHWC, DataType::kInt32> dst_tensor;
   dst.DownloadData(&dst_tensor);
   EXPECT_EQ(dst_tensor.data, ref_tensor.data);
   return absl::OkStatus();

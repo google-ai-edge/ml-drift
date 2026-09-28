@@ -48,11 +48,11 @@ void VectorToKernelBufferDesc(const std::vector<float>& data,
                               BufferDescriptor* buffer_desc) {
   buffer_desc->element_type = data_type;
   buffer_desc->element_size = 1;
-  buffer_desc->memory_type = MemoryType::CONSTANT;
+  buffer_desc->memory_type = MemoryType::kConstant;
   buffer_desc->attributes.push_back("kernel_global_space");
   buffer_desc->size = SizeOf(data_type) * data.size();
   buffer_desc->data.resize(buffer_desc->size);
-  if (data_type == DataType::FLOAT32) {
+  if (data_type == DataType::kFloat32) {
     memcpy(buffer_desc->data.data(), data.data(), buffer_desc->size);
   } else {
     half* hf_ptr = reinterpret_cast<half*>(buffer_desc->data.data());
@@ -66,7 +66,7 @@ std::string GetKernelWinograd4x4To36(const GpuInfo& gpu_info,
   std::string c;
   const auto src_desc = op_def.src_tensors[0];
   c += "MAIN_FUNCTION($0) {\n";
-  if (op_def.dst_tensors[0].HasAxis(Axis::BATCH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kBatch)) {
     c += "  int linear_id = ucl::GetGlobalId<0>();\n";
     c += "  int X = (linear_id / args.dst_tensor.Batch()) * 4;\n";
     c += "  int B = linear_id % args.dst_tensor.Batch();\n";
@@ -92,7 +92,7 @@ std::string GetKernelWinograd4x4To36(const GpuInfo& gpu_info,
     const std::string s_y = std::to_string(y);
     c += "  {\n";
     c += "    int coord_y = Y + " + s_y + " + args.padding_y;\n";
-    if (!src_desc.SupportsZeroClamp(Axis::HEIGHT, gpu_info)) {
+    if (!src_desc.SupportsZeroClamp(Axis::kHeight, gpu_info)) {
       c += "    bool in_y = coord_y >= 0 && coord_y < "
            "args.src_tensor.Height();\n";
       c += "    coord_y = clamp(coord_y, 0, args.src_tensor.Height() - 1);\n";
@@ -101,18 +101,18 @@ std::string GetKernelWinograd4x4To36(const GpuInfo& gpu_info,
       const std::string s_x = std::to_string(x);
       c += "    {\n";
       c += "      int coord_x = X + " + s_x + " + args.padding_x;\n";
-      if (!src_desc.SupportsZeroClamp(Axis::WIDTH, gpu_info)) {
+      if (!src_desc.SupportsZeroClamp(Axis::kWidth, gpu_info)) {
         c += "      bool in_x = coord_x >= 0 && coord_x < "
              "args.src_tensor.Width();\n";
         c += "      coord_x = clamp(coord_x, 0, args.src_tensor.Width()-1);\n";
       }
       std::string multiplier;
-      if (!src_desc.SupportsZeroClamp(Axis::WIDTH, gpu_info) &&
-          !src_desc.SupportsZeroClamp(Axis::HEIGHT, gpu_info)) {
+      if (!src_desc.SupportsZeroClamp(Axis::kWidth, gpu_info) &&
+          !src_desc.SupportsZeroClamp(Axis::kHeight, gpu_info)) {
         multiplier = " * ucl::Convert<SType>(in_y && in_x)";
-      } else if (!src_desc.SupportsZeroClamp(Axis::WIDTH, gpu_info)) {
+      } else if (!src_desc.SupportsZeroClamp(Axis::kWidth, gpu_info)) {
         multiplier = " * ucl::Convert<SType>(in_x)";
-      } else if (!src_desc.SupportsZeroClamp(Axis::HEIGHT, gpu_info)) {
+      } else if (!src_desc.SupportsZeroClamp(Axis::kHeight, gpu_info)) {
         multiplier = " * ucl::Convert<SType>(in_y)";
       }
       c += "      Type src = args.src_tensor.Read(coord_x, coord_y, S)" +
@@ -159,7 +159,7 @@ std::string GetKernelWinograd36To4x4(const OperationDef& op_def) {
   std::string c;
   const auto src_desc = op_def.src_tensors[0];
   c += "MAIN_FUNCTION($0) {\n";
-  if (op_def.dst_tensors[0].HasAxis(Axis::BATCH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kBatch)) {
     c += "  int linear_id = ucl::GetGlobalId<0>();\n";
     c += "  int tile_id = linear_id / args.dst_tensor.Batch();\n";
     c += "  int B = linear_id % args.dst_tensor.Batch();\n";
@@ -278,7 +278,7 @@ Winograd3x3TiledXForward::Winograd3x3TiledXForward(
   if (gpu_info.IsAdreno()) {
     compiler_options_.push_back(CompilerOptions::kAdrenoMoreWaves);
   }
-  if (definition.src_tensors[0].GetDataType() == DataType::FLOAT16 &&
+  if (definition.src_tensors[0].GetDataType() == DataType::kFloat16 &&
       gpu_info.IsPowerVR()) {
     compiler_options_.push_back(CompilerOptions::kClFastRelaxedMath);
   }
@@ -297,10 +297,10 @@ std::string GenerateSrcCaching(const GpuInfo& gpu_info,
   c += "    int src_x;\n";
   c += "    int src_y = tile_y + args.padding_y + ucl::GetLocalId<1>();\n";
   std::string mx_multiplier, my_multiplier;
-  if (!op_def.src_tensors[0].SupportsZeroClamp(Axis::WIDTH, gpu_info)) {
+  if (!op_def.src_tensors[0].SupportsZeroClamp(Axis::kWidth, gpu_info)) {
     c += "    bool inx;\n";
   }
-  if (!op_def.src_tensors[0].SupportsZeroClamp(Axis::HEIGHT, gpu_info)) {
+  if (!op_def.src_tensors[0].SupportsZeroClamp(Axis::kHeight, gpu_info)) {
     c += "    bool iny = src_y >= 0 && src_y < args.src_tensor.Height();\n";
     c += "    src_y = clamp(src_y, 0, args.src_tensor.Height() - 1);\n";
     my_multiplier = " * ucl::Convert<SType>(iny)";
@@ -309,7 +309,7 @@ std::string GenerateSrcCaching(const GpuInfo& gpu_info,
   for (int gr_x = 0; gr_x < groups_x; ++gr_x) {
     c +=
         "    src_x = tile_x + args.padding_x + " + std::to_string(gr_x) + ";\n";
-    if (!op_def.src_tensors[0].SupportsZeroClamp(Axis::WIDTH, gpu_info)) {
+    if (!op_def.src_tensors[0].SupportsZeroClamp(Axis::kWidth, gpu_info)) {
       c += "    inx = src_x >= 0 && src_x < args.src_tensor.Width();\n";
       c += "    src_x = clamp(src_x, 0, args.src_tensor.Width() - 1);\n";
       mx_multiplier = " * ucl::Convert<SType>(inx)";
@@ -335,7 +335,7 @@ std::string Winograd3x3TiledXForward::GetCode(const OperationDef& op_def,
   args_.AddInt("tiles_x");
 
   c += "MAIN_FUNCTION($0) {\n";
-  if (op_def.dst_tensors[0].HasAxis(Axis::BATCH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kBatch)) {
     c += "  int linear_id = ucl::GetGlobalId<0>();\n";
     c += "  int DST_X = linear_id / args.dst_tensor.Batch();\n";
     c += "  int B = linear_id % args.dst_tensor.Batch();\n";
@@ -422,10 +422,10 @@ std::string Winograd3x3TiledXForward::GetCode(const OperationDef& op_def,
     std::string read_statement;
     read_statement = "args.src_tensor.Read(xc" + xs + ", yc, DST_Z)";
     std::string multiplier;
-    if (!src_desc.SupportsZeroClamp(Axis::WIDTH, gpu_info)) {
+    if (!src_desc.SupportsZeroClamp(Axis::kWidth, gpu_info)) {
       multiplier += " * m" + xs + "_x";
     }
-    if (!src_desc.SupportsZeroClamp(Axis::HEIGHT, gpu_info)) {
+    if (!src_desc.SupportsZeroClamp(Axis::kHeight, gpu_info)) {
       multiplier += " * ucl::Convert<SType>(iny)";
     }
     c += "    Type " + src + " = " + read_statement + multiplier + ";\n";
@@ -433,7 +433,7 @@ std::string Winograd3x3TiledXForward::GetCode(const OperationDef& op_def,
   for (int x = 0; x < tile_size_outer_; ++x) {
     const std::string xs = std::to_string(x);
     c += "  int xc" + xs + " = tile_x + args.padding_x + " + xs + ";\n";
-    if (!src_desc.SupportsZeroClamp(Axis::WIDTH, gpu_info)) {
+    if (!src_desc.SupportsZeroClamp(Axis::kWidth, gpu_info)) {
       c += "  bool inx" + xs + " = (xc" + xs + " >= 0 && xc" + xs +
            " < args.src_tensor.Width());\n";
       c += "  SType m" + xs + "_x = ucl::Convert<SType>(inx" + xs + ");\n";
@@ -442,12 +442,12 @@ std::string Winograd3x3TiledXForward::GetCode(const OperationDef& op_def,
     }
   }
   const bool manual_unroll =
-      !(op_def.src_tensors[0].GetDataType() == DataType::FLOAT32 &&
+      !(op_def.src_tensors[0].GetDataType() == DataType::kFloat32 &&
         gpu_info.IsMali());
   if (manual_unroll) {
     c += "  {\n";
     c += "    int yc = tile_y + args.padding_y;\n";
-    if (!src_desc.SupportsZeroClamp(Axis::HEIGHT, gpu_info)) {
+    if (!src_desc.SupportsZeroClamp(Axis::kHeight, gpu_info)) {
       c += "    bool iny = (yc >= 0 && yc < args.src_tensor.Height());\n";
       c += "    yc = clamp(yc, 0, args.src_tensor.Height() - 1);\n";
       c += "    SType bt = bt_ar[0] * ucl::Convert<SType>(iny);\n";
@@ -465,7 +465,7 @@ std::string Winograd3x3TiledXForward::GetCode(const OperationDef& op_def,
       const std::string ys = std::to_string(y);
       c += "  {\n";
       c += "    int yc = tile_y + args.padding_y + (" + ys + ");\n";
-      if (!src_desc.SupportsZeroClamp(Axis::HEIGHT, gpu_info)) {
+      if (!src_desc.SupportsZeroClamp(Axis::kHeight, gpu_info)) {
         c += "    bool iny = (yc >= 0 && yc < args.src_tensor.Height());\n";
         c += "    yc = clamp(yc, 0, args.src_tensor.Height() - 1);\n";
         c += "    SType bt = bt_ar[" + ys + "] * ucl::Convert<SType>(iny);\n";
@@ -486,7 +486,7 @@ std::string Winograd3x3TiledXForward::GetCode(const OperationDef& op_def,
     }
     c += "  for (int y = 0; y < TILE_SIZE_OUTER; ++y) {\n";
     c += "    int yc = tile_y + args.padding_y + y;\n";
-    if (!src_desc.SupportsZeroClamp(Axis::HEIGHT, gpu_info)) {
+    if (!src_desc.SupportsZeroClamp(Axis::kHeight, gpu_info)) {
       c += "    bool iny = (yc >= 0 && yc < args.src_tensor.Height());\n";
       c += "    yc = clamp(yc, 0, args.src_tensor.Height() - 1);\n";
       c += "    SType bt = bt_ar[y] * ucl::Convert<SType>(iny);\n";
@@ -512,7 +512,7 @@ std::string Winograd3x3TiledXForward::GetCode(const OperationDef& op_def,
 }
 
 void Winograd3x3TiledXForward::UploadBt(const OperationDef& op_def) {
-  Tensor<Linear, DataType::FLOAT32> bt_aligned;
+  Tensor<Linear, DataType::kFloat32> bt_aligned;
   const int aligned_width = AlignByN(tile_size_outer_, 4);
   bt_aligned.shape = Linear(tile_size_outer_ * aligned_width);
   bt_aligned.data.resize(bt_aligned.shape.DimensionsProduct());
@@ -604,7 +604,7 @@ int3 Winograd36To4x4::GetGridSize() const {
 
 Winograd36To4x4 CreateWinograd36To4x4(
     const OperationDef& definition,
-    const Tensor<Linear, DataType::FLOAT32>& biases) {
+    const Tensor<Linear, DataType::kFloat32>& biases) {
   Winograd36To4x4 desc;
   desc.code_ = GetKernelWinograd36To4x4(definition);
 
@@ -633,7 +633,7 @@ Winograd3x3TiledXBackward::Winograd3x3TiledXBackward(
   work_group_size_ = int3(32, 1, 1);
   tile_size_outer_ = tile_size;
   tile_size_inner_ = tile_size_outer_ - 2;
-  if (definition.src_tensors[0].GetDataType() == DataType::FLOAT16 &&
+  if (definition.src_tensors[0].GetDataType() == DataType::kFloat16 &&
       gpu_info.IsPowerVR()) {
     compiler_options_.push_back(CompilerOptions::kClFastRelaxedMath);
   }
@@ -649,7 +649,7 @@ std::string Winograd3x3TiledXBackward::GetCode(const OperationDef& op_def,
   args_.AddInt("tiles_x");
 
   c += "MAIN_FUNCTION($0) {\n";
-  if (op_def.dst_tensors[0].HasAxis(Axis::BATCH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kBatch)) {
     c += "  int linear_id = ucl::GetGlobalId<0>();\n";
     c += "  int tile_id = linear_id / args.dst_tensor.Batch();\n";
     c += "  int B = linear_id % args.dst_tensor.Batch();\n";
@@ -686,7 +686,7 @@ std::string Winograd3x3TiledXBackward::GetCode(const OperationDef& op_def,
          "." + postfixes[y % 4] + ";\n";
   }
   const bool manual_unroll =
-      !(op_def.src_tensors[0].GetDataType() == DataType::FLOAT32 &&
+      !(op_def.src_tensors[0].GetDataType() == DataType::kFloat32 &&
         gpu_info.IsMali());
   if (manual_unroll) {
     c += "  {\n";
@@ -750,7 +750,7 @@ std::string Winograd3x3TiledXBackward::GetCode(const OperationDef& op_def,
 }
 
 void Winograd3x3TiledXBackward::UploadAt(const OperationDef& op_def) {
-  Tensor<Linear, DataType::FLOAT32> at_aligned;
+  Tensor<Linear, DataType::kFloat32> at_aligned;
   const int aligned_width = AlignByN(tile_size_outer_, 4);
   at_aligned.shape = Linear(tile_size_inner_ * aligned_width);
   at_aligned.data.resize(tile_size_inner_ * aligned_width);
@@ -820,7 +820,7 @@ std::vector<int3> Winograd3x3TiledXBackward::GetPossibleKernelWorkGroups(
 
 Winograd3x3TiledXBackward CreateWinograd3x3TiledXBackward(
     const GpuInfo& gpu_info, const OperationDef& definition,
-    const Tensor<Linear, DataType::FLOAT32>& biases, int tile_size) {
+    const Tensor<Linear, DataType::kFloat32>& biases, int tile_size) {
   Winograd3x3TiledXBackward result(definition, gpu_info, tile_size);
   TensorDescriptor bias_tensor_desc = CreateConstantLinearTensorDescriptor(
       gpu_info, definition.src_tensors[0].GetDataType(), biases);
@@ -874,7 +874,7 @@ Winograd3x3To36::Winograd3x3To36(const TensorDescriptor& src_desc,
 
 void Winograd3x3To36::AddTransformMatrix() {
   auto mat = GetTransposedMatrixForWinograd3(6);
-  Tensor<Linear, DataType::FLOAT32> mat_opt;
+  Tensor<Linear, DataType::kFloat32> mat_opt;
   mat_opt.shape = Linear(6 * 4);
   mat_opt.data.resize(mat_opt.shape.DimensionsProduct());
   for (int i = 0; i < 6; ++i) {
@@ -885,7 +885,7 @@ void Winograd3x3To36::AddTransformMatrix() {
   }
 
   TensorDescriptor mat_desc = CreateConstantLinearTensorDescriptor(
-      DataType::FLOAT32, TensorStorageType::TEXTURE_2D, mat_opt);
+      DataType::kFloat32, TensorStorageType::kTexture2D, mat_opt);
   args_.AddObject("mat",
                   std::make_unique<TensorDescriptor>(std::move(mat_desc)));
 }

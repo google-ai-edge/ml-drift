@@ -37,7 +37,7 @@ std::string GetGatherCode(const OperationDef& op_def, Axis gather_axis) {
        "S >= args.dst_tensor.Slices()) { \n";
   c += "    return; \n";
   c += "  } \n";
-  if (gather_axis == Axis::CHANNELS) {
+  if (gather_axis == Axis::kChannels) {
     c += R"(
   args.src_tensor::scalar_type src_array[4];
   int4 gather_indexes = args.indices.Read<int>(0, 0, S);
@@ -61,10 +61,10 @@ std::string GetGatherCode(const OperationDef& op_def, Axis gather_axis) {
 )";
   } else {
     const std::vector<std::pair<Axis, std::string>> coords = {
-        {Axis::WIDTH, "X"},
-        {Axis::HEIGHT, "Y"},
-        {Axis::CHANNELS, "S"},
-        {Axis::BATCH, "B"},
+        {Axis::kWidth, "X"},
+        {Axis::kHeight, "Y"},
+        {Axis::kChannels, "S"},
+        {Axis::kBatch, "B"},
     };
     std::string src_coords;
     std::string gather_coord;

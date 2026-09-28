@@ -52,17 +52,17 @@ absl::Status FullyConnectedInt8Test(TestExecutionEnvironment& env,
   src_tensor.shape = BHWC(1, 1, 1, 4);
   src_tensor.data = {0.0f, 1.0f, 2.0f, 3.0f};
 
-  Tensor<OHWI, DataType::INT8> weights_i8;
+  Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(2, 1, 1, 4);
   weights_i8.data = {2, 4, 6, 8, 10, 12, -14, 16};
-  Tensor<Linear, DataType::FLOAT32> biases;
+  Tensor<Linear, DataType::kFloat32> biases;
   biases.shape = Linear(2);
   biases.data = {0.5f, -0.5f};
 
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
 
   DataType type = op_def.src_tensors[0].GetDataType();
   TensorDescriptor bias_td =
@@ -95,7 +95,7 @@ absl::Status FullyConnectedInt8Test(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   dst_td.DownloadData(&dst_tensor);
 
-  const float eps = precision == CalculationsPrecision::F32 ? 1e-6f : 1e-3f;
+  const float eps = precision == CalculationsPrecision::kF32 ? 1e-6f : 1e-3f;
   EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), {20.5f, 15.5f}));
 
   return absl::OkStatus();
@@ -108,15 +108,15 @@ absl::Status FullyConnectedInt8BlockwiseAttributesTest(
   src_tensor.shape = BHWC(1, 1, 1, 8);
   src_tensor.data = {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f};
 
-  Tensor<OHWI, DataType::INT8> weights_i8;
+  Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(2, 1, 1, 8);
   weights_i8.data = {1, 1, 1, 1, 2, 2, 2, 2,   // output 0
                      3, 3, 3, 3, 4, 4, 4, 4};  // output 1
-  Tensor<Linear, DataType::FLOAT32> biases;
+  Tensor<Linear, DataType::kFloat32> biases;
   biases.shape = Linear(2);
   biases.data = {0.0f, 0.0f};
 
-  Tensor<OHWI, DataType::FLOAT32> scale;
+  Tensor<OHWI, DataType::kFloat32> scale;
   // 2 blocks per output channel, scale shape is (2, 1, 1, 2)
   scale.shape = OHWI(2, 1, 1, 2);
   scale.data = {0.5f, 2.0f,   // output 0: block 0 scale=0.5, block 1 scale=2.0
@@ -124,8 +124,8 @@ absl::Status FullyConnectedInt8BlockwiseAttributesTest(
 
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
 
   DataType type = op_def.src_tensors[0].GetDataType();
   auto scale_desc =
@@ -167,7 +167,7 @@ absl::Status FullyConnectedInt8BlockwiseAttributesTest(
   // Output 1, Block 1: (4*4 + 5*4 + 6*4 + 7*4) * 0.1 = 88 * 0.1 = 8.8
   // Output 1 total: 18 + 8.8 = 26.8
 
-  const float eps = precision == CalculationsPrecision::F32 ? 1e-5f : 0.05f;
+  const float eps = precision == CalculationsPrecision::kF32 ? 1e-5f : 0.05f;
   EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), {91.0f, 26.8f}));
 
   return absl::OkStatus();
@@ -180,21 +180,21 @@ absl::Status FullyConnectedInt8BlockwiseAttributesWithZeroPointsTest(
   src_tensor.shape = BHWC(1, 1, 1, 8);
   src_tensor.data = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
 
-  Tensor<OHWI, DataType::INT8> weights_i8;
+  Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(2, 1, 1, 8);
   weights_i8.data = {1,  2,  3,  4,  5,  6,  7,  8,    // output 0
                      -8, -7, -6, -5, -4, -3, -2, -1};  // output 1
-  Tensor<Linear, DataType::FLOAT32> biases;
+  Tensor<Linear, DataType::kFloat32> biases;
   biases.shape = Linear(2);
   biases.data = {0.0f, 0.0f};
 
-  Tensor<OHWI, DataType::FLOAT32> scale;
+  Tensor<OHWI, DataType::kFloat32> scale;
   // 2 blocks per output channel, scale shape is (2, 1, 1, 2)
   scale.shape = OHWI(2, 1, 1, 2);
   scale.data = {0.5f, 2.0f,   // output 0: block 0 scale=0.5, block 1 scale=2.0
                 1.5f, 0.1f};  // output 1: block 0 scale=1.5, block 1 scale=0.1
 
-  Tensor<OHWI, DataType::FLOAT32> zero_point;
+  Tensor<OHWI, DataType::kFloat32> zero_point;
   // 2 blocks per output channel, zero_point shape is (2, 1, 1, 2)
   zero_point.shape = OHWI(2, 1, 1, 2);
   zero_point.data = {2, -3,  // output 0: block 0 zp=2, block 1 zp=-3
@@ -202,8 +202,8 @@ absl::Status FullyConnectedInt8BlockwiseAttributesWithZeroPointsTest(
 
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
 
   DataType type = op_def.src_tensors[0].GetDataType();
   auto scale_desc =
@@ -241,7 +241,7 @@ absl::Status FullyConnectedInt8BlockwiseAttributesWithZeroPointsTest(
   TensorFloat32 dst_tensor;
   dst_td.DownloadData(&dst_tensor);
 
-  const float eps = precision == CalculationsPrecision::F32 ? 1e-5f : 0.1f;
+  const float eps = precision == CalculationsPrecision::kF32 ? 1e-5f : 0.1f;
   EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), {509.0f, -121.4f}));
 
   return absl::OkStatus();
@@ -267,9 +267,9 @@ absl::Status FullyConnectedWeightsAsSpatialTensorTest(
 
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   ABSL_ASSIGN_OR_RETURN(
       FullyConnected operation,
@@ -288,19 +288,19 @@ absl::Status FullyConnectedWeightsAsSpatialTensorTest(
 namespace {
 absl::Status FullyConnectedInt4Sparse2x4Test(
     TestExecutionEnvironment& exec_env, const TensorFloat32& src_tensor,
-    const ml_drift::Tensor<OHWI, DataType::INT8>& weights_i4,
-    const ml_drift::Tensor<OHWI, DataType::UINT8>& weights_indices,
+    const ml_drift::Tensor<OHWI, DataType::kInt8>& weights_i4,
+    const ml_drift::Tensor<OHWI, DataType::kUint8>& weights_indices,
     const OperationDef& op_def, CalculationsPrecision precision) {
   TensorFloat32 dst_ref_tensor;
   dst_ref_tensor.shape = src_tensor.shape;
   dst_ref_tensor.shape.c = weights_i4.shape.o;
   dst_ref_tensor.data.resize(dst_ref_tensor.shape.DimensionsProduct(), 0.0f);
 
-  ml_drift::Tensor<OHWI, DataType::FLOAT32> weights_scale;
+  ml_drift::Tensor<OHWI, DataType::kFloat32> weights_scale;
   weights_scale.shape = OHWI(weights_i4.shape.o, 1, 1, 1);
   weights_scale.data.resize(weights_scale.shape.DimensionsProduct(),
                             1.0f / 16.0f);
-  ml_drift::Tensor<OHWI, DataType::FLOAT32> weights_zero_point;
+  ml_drift::Tensor<OHWI, DataType::kFloat32> weights_zero_point;
   weights_zero_point.shape = OHWI(weights_i4.shape.o, 1, 1, 1);
   weights_zero_point.data.resize(weights_zero_point.shape.DimensionsProduct(),
                                  0.0f);
@@ -347,14 +347,14 @@ absl::Status FullyConnectedInt4Sparse2x4Test(
                                                       weights_zero_point, type);
 
   ExternalWeights external_weights;
-  external_weights.desc.type = DataType::UINT4;
+  external_weights.desc.type = DataType::kUint4;
   external_weights.desc.layout = WeightsLayout::kCustomGroups;
   external_weights.desc.group_sizes = {
-      {Axis::OUTPUT_CHANNELS, 4},
-      {Axis::INPUT_CHANNELS, 2},
-      {Axis::OUTPUT_CHANNELS, DivideRoundUp(weights_i4.shape.o, 4)},
-      {Axis::INPUT_CHANNELS, 0},
-      {Axis::OUTPUT_CHANNELS, 0},
+      {Axis::kOutputChannels, 4},
+      {Axis::kInputChannels, 2},
+      {Axis::kOutputChannels, DivideRoundUp(weights_i4.shape.o, 4)},
+      {Axis::kInputChannels, 0},
+      {Axis::kOutputChannels, 0},
   };
   external_weights.shape = weights_i4.shape;
   external_weights.scale_zp_shape = weights_scale.shape;
@@ -371,7 +371,7 @@ absl::Status FullyConnectedInt4Sparse2x4Test(
                                 /*shift_value=*/8, /*pad_value=*/8u);
 
     weights_gpu_desc = TensorDescriptor(
-        DataType::UINT32, TensorStorageType::BUFFER, Layout::LINEAR);
+        DataType::kUint32, TensorStorageType::kBuffer, Layout::kLinear);
     weights_gpu_desc.SetBHWCShape(BHWC(1, 1, 1, weights_data.size()));
     weights_gpu_desc.UploadDataRaw(absl::MakeConstSpan(weights_data));
   }
@@ -379,13 +379,13 @@ absl::Status FullyConnectedInt4Sparse2x4Test(
   TensorDescriptor weights_indices_desc;
   {
     WeightsDescription indices_desc = external_weights.desc;
-    indices_desc.type = DataType::UINT2;
+    indices_desc.type = DataType::kUint2;
     std::vector<uint8_t> weights_indices_data(elements_count / 4);
     RearrangeWeightsUint2(weights_indices, indices_desc,
                           absl::MakeSpan(weights_indices_data));
 
     weights_indices_desc = TensorDescriptor(
-        DataType::UINT32, TensorStorageType::BUFFER, Layout::LINEAR);
+        DataType::kUint32, TensorStorageType::kBuffer, Layout::kLinear);
     weights_indices_desc.SetBHWCShape(
         BHWC(1, 1, 1, weights_indices_data.size()));
     weights_indices_desc.UploadDataRaw(
@@ -418,14 +418,14 @@ absl::Status FullyConnectedInt4Sparse2x4Test(TestExecutionEnvironment& env,
                                              const BHWC& src_shape,
                                              int dst_channels) {
   const int src_channels = src_shape.c;
-  ml_drift::Tensor<OHWI, DataType::INT8> weights_i4;
+  ml_drift::Tensor<OHWI, DataType::kInt8> weights_i4;
   weights_i4.shape = OHWI(dst_channels, 1, 1, src_channels / 2);
   weights_i4.data.resize(weights_i4.shape.DimensionsProduct() +
                          XNN_EXTRA_BYTES / sizeof(int8_t));
   for (int i = 0; i < weights_i4.shape.DimensionsProduct(); ++i) {
     weights_i4.data[i] = ((i % 1331) % 131) % 16 - 8;
   }
-  ml_drift::Tensor<OHWI, DataType::UINT8> weights_indices;
+  ml_drift::Tensor<OHWI, DataType::kUint8> weights_indices;
   weights_indices.shape = OHWI(dst_channels, 1, 1, src_channels / 2);
   weights_indices.data.resize(weights_indices.shape.DimensionsProduct() +
                               XNN_EXTRA_BYTES / sizeof(uint8_t));
@@ -441,8 +441,8 @@ absl::Status FullyConnectedInt4Sparse2x4Test(TestExecutionEnvironment& env,
 
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   ABSL_RETURN_IF_ERROR(FullyConnectedInt4Sparse2x4Test(
       env, src_tensor, weights_i4, weights_indices, op_def, precision));
   return absl::OkStatus();
@@ -498,8 +498,8 @@ absl::Status FullyConnectedExternalTest(
   }
   src_cpu.push_back(&bias_td);
 
-  TensorDescriptor params_td = {DataType::INT32, TensorStorageType::BUFFER,
-                                Layout::HWC};
+  TensorDescriptor params_td = {DataType::kInt32, TensorStorageType::kBuffer,
+                                Layout::kHWC};
   TensorInt32 params_tensor = runtime_channels.GenerateTensorInt32();
   if (std::any_of(params_tensor.data.begin(), params_tensor.data.end(),
                   [](int x) { return x != -1; })) {
@@ -557,8 +557,8 @@ absl::Status FullyConnectedExternalWeightsBigTest(
                               WeightsLayout::kOSpatialIOGroupO4I4}) {
     for (auto runtime_channels : test_runtime_channels) {
       OperationDef op_def;
-      op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-      op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+      op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+      op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
       ABSL_EXPECT_OK(FullyConnectedExternalTest(env, attr, weights_layout,
                                            src_tensor, op_def, precision,
                                            runtime_channels));
@@ -594,8 +594,8 @@ absl::Status FullyConnectedBatchedWeightsBigTest(
         WeightsLayout::k2DX4I4YIsSpatialIAndXIsOOGroupO4}) {
     for (auto runtime_channels : test_runtime_channels) {
       OperationDef op_def;
-      op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-      op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+      op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+      op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
       ABSL_EXPECT_OK(FullyConnectedExternalTest(env, attr, weights_layout,
                                            src_tensor, op_def, precision,
                                            runtime_channels));
@@ -624,8 +624,8 @@ absl::Status FullyConnectedRingedOTest(TestExecutionEnvironment& env,
   auto weights_layout = WeightsLayout::kOSpatialIOGroupO4I4;
   for (int ring_offset : {0, 17, 20, 33, 49}) {
     OperationDef op_def;
-    op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-    op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+    op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+    op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
 
     const BHWC dst_shape =
         BHWC(src_shape.b, src_shape.h, src_shape.w, dst_channels);
@@ -690,8 +690,8 @@ absl::Status FullyConnectedRingedOTest(TestExecutionEnvironment& env,
     TensorInt32 params;
     params.shape = BHWC(1, 1, 1, 1);
     params.data = std::vector<int32_t>(1, ring_offset);
-    TensorDescriptor params_td = {DataType::INT32, TensorStorageType::BUFFER,
-                                  Layout::HWC};
+    TensorDescriptor params_td = {DataType::kInt32, TensorStorageType::kBuffer,
+                                  Layout::kHWC};
     params_td.UploadData(params);
     src_cpu.push_back(&params_td);
 
@@ -727,8 +727,8 @@ absl::Status FullyConnectedRingedITest(TestExecutionEnvironment& env,
   auto weights_layout = WeightsLayout::kOSpatialIOGroupI4O4;
   for (int ring_offset : {0, 17, 20, 33, 49}) {
     OperationDef op_def;
-    op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-    op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+    op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+    op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
 
     const BHWC dst_shape =
         BHWC(src_shape.b, src_shape.h, src_shape.w, dst_channels);
@@ -793,8 +793,8 @@ absl::Status FullyConnectedRingedITest(TestExecutionEnvironment& env,
     TensorInt32 params;
     params.shape = BHWC(1, 1, 1, 1);
     params.data = std::vector<int32_t>(1, ring_offset);
-    TensorDescriptor params_td = {DataType::INT32, TensorStorageType::BUFFER,
-                                  Layout::HWC};
+    TensorDescriptor params_td = {DataType::kInt32, TensorStorageType::kBuffer,
+                                  Layout::kHWC};
     params_td.UploadData(params);
     src_cpu.push_back(&params_td);
 
@@ -812,12 +812,12 @@ absl::Status FullyConnectedRingedITest(TestExecutionEnvironment& env,
 
 absl::Status FullyConnectedInt8Test(
     TestExecutionEnvironment& exec_env,
-    const ml_drift::Tensor<OHWI, DataType::INT8>& weights_i8,
-    const ml_drift::Tensor<OHWI, DataType::FLOAT32>& weights_scale,
-    const ml_drift::Tensor<Linear, DataType::FLOAT32>& biases,
+    const ml_drift::Tensor<OHWI, DataType::kInt8>& weights_i8,
+    const ml_drift::Tensor<OHWI, DataType::kFloat32>& weights_scale,
+    const ml_drift::Tensor<Linear, DataType::kFloat32>& biases,
     const TensorFloat32& src_tensor, const OperationDef& op_def,
     CalculationsPrecision precision) {
-  ml_drift::Tensor<OHWI, DataType::FLOAT32> weights_zero_point;
+  ml_drift::Tensor<OHWI, DataType::kFloat32> weights_zero_point;
   weights_zero_point.shape = weights_scale.shape;
   weights_zero_point.data.resize(weights_scale.shape.DimensionsProduct(), 0.0f);
   FullyConnectedAttributes attr;
@@ -870,7 +870,7 @@ absl::Status FullyConnectedInt8BigTest(TestExecutionEnvironment& env,
   const int src_channels = 171;
   const int dst_channels = 533;
 
-  ml_drift::Tensor<OHWI, DataType::INT8> weights_i8;
+  ml_drift::Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(dst_channels, 1, 1, src_channels);
   weights_i8.data.resize(weights_i8.shape.DimensionsProduct());
   auto weights_f32 =
@@ -890,8 +890,8 @@ absl::Status FullyConnectedInt8BigTest(TestExecutionEnvironment& env,
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   ABSL_EXPECT_OK(FullyConnectedInt8Test(env, weights_i8, weights_scales, biases,
                                    src_tensor, op_def, precision));
   return absl::OkStatus();
@@ -904,7 +904,7 @@ absl::Status FullyConnectedInt8Width2Batch2BigTest(
   const int src_channels = 171;
   const int dst_channels = 533;
 
-  ml_drift::Tensor<OHWI, DataType::INT8> weights_i8;
+  ml_drift::Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(dst_channels, 1, 1, src_channels);
   weights_i8.data.resize(weights_i8.shape.DimensionsProduct());
   auto weights_f32 =
@@ -924,8 +924,8 @@ absl::Status FullyConnectedInt8Width2Batch2BigTest(
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
   ABSL_EXPECT_OK(FullyConnectedInt8Test(env, weights_i8, weights_scales, biases,
                                    src_tensor, op_def, precision));
   return absl::OkStatus();
@@ -938,7 +938,7 @@ absl::Status FullyConnectedInt8GroupedQuantizationBigTest(
   const int src_channels = 7 * 13 * 4;
   const int dst_channels = 533;
 
-  ml_drift::Tensor<OHWI, DataType::INT8> weights_i8;
+  ml_drift::Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(dst_channels, 1, 1, src_channels);
   weights_i8.data.resize(weights_i8.shape.DimensionsProduct());
   auto weights_f32 =
@@ -958,8 +958,8 @@ absl::Status FullyConnectedInt8GroupedQuantizationBigTest(
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   ABSL_EXPECT_OK(FullyConnectedInt8Test(env, weights_i8, weights_scales, biases,
                                    src_tensor, op_def, precision));
   return absl::OkStatus();
@@ -967,11 +967,11 @@ absl::Status FullyConnectedInt8GroupedQuantizationBigTest(
 
 absl::Status FullyConnectedInt8ExternalTest(
     TestExecutionEnvironment& exec_env,
-    const ml_drift::Tensor<OHWI, DataType::INT8>& weights_i8,
-    const ml_drift::Tensor<OHWI, DataType::FLOAT32>& weights_scale,
+    const ml_drift::Tensor<OHWI, DataType::kInt8>& weights_i8,
+    const ml_drift::Tensor<OHWI, DataType::kFloat32>& weights_scale,
     const TensorFloat32& src_tensor, const OperationDef& op_def,
     CalculationsPrecision precision) {
-  ml_drift::Tensor<OHWI, DataType::FLOAT32> weights_zero_point;
+  ml_drift::Tensor<OHWI, DataType::kFloat32> weights_zero_point;
   weights_zero_point.shape = weights_scale.shape;
   weights_zero_point.data.resize(weights_scale.shape.DimensionsProduct(), 0.0f);
   FullyConnectedAttributes attr;
@@ -1033,11 +1033,11 @@ absl::Status FullyConnectedInt8ExternalTest(
 
 absl::Status FullyConnectedInt8BatchedWeightsIdsTest(
     TestExecutionEnvironment& exec_env,
-    const ml_drift::Tensor<OHWI, DataType::INT8>& weights_i8,
-    const ml_drift::Tensor<OHWI, DataType::FLOAT32>& weights_scale,
+    const ml_drift::Tensor<OHWI, DataType::kInt8>& weights_i8,
+    const ml_drift::Tensor<OHWI, DataType::kFloat32>& weights_scale,
     const TensorFloat32& src_tensor, const TensorInt32& weights_ids,
     const OperationDef& op_def, CalculationsPrecision precision) {
-  ml_drift::Tensor<OHWI, DataType::FLOAT32> weights_zero_point;
+  ml_drift::Tensor<OHWI, DataType::kFloat32> weights_zero_point;
   weights_zero_point.shape = weights_scale.shape;
   weights_zero_point.data.resize(weights_scale.shape.DimensionsProduct(), 0.0f);
   FullyConnectedAttributes attr;
@@ -1097,13 +1097,13 @@ absl::Status FullyConnectedInt8BatchedWeightsIdsTest(
 
 absl::Status FullyConnectedInt8ExternalTest(
     TestExecutionEnvironment& exec_env,
-    const ml_drift::Tensor<OHWI, DataType::INT8>& weights_i8,
-    const ml_drift::Tensor<OHWI, DataType::FLOAT32>& weights_scale,
-    const ml_drift::Tensor<Linear, DataType::FLOAT32>& biases,
+    const ml_drift::Tensor<OHWI, DataType::kInt8>& weights_i8,
+    const ml_drift::Tensor<OHWI, DataType::kFloat32>& weights_scale,
+    const ml_drift::Tensor<Linear, DataType::kFloat32>& biases,
     const TensorFloat32& src_tensor, const OperationDef& op_def,
     CalculationsPrecision precision,
     const TestingRuntimeChannels& runtime_channels) {
-  ml_drift::Tensor<OHWI, DataType::FLOAT32> weights_zero_point;
+  ml_drift::Tensor<OHWI, DataType::kFloat32> weights_zero_point;
   weights_zero_point.shape = weights_scale.shape;
   weights_zero_point.data.resize(weights_scale.shape.DimensionsProduct(), 0.0f);
   FullyConnectedAttributes attr;
@@ -1154,8 +1154,8 @@ absl::Status FullyConnectedInt8ExternalTest(
 
   std::vector<TensorDescriptor*> src_cpu = {&src_td, &weights_i8_td,
                                             &scale_desc, &zp_desc, &bias_td};
-  TensorDescriptor params_td = {DataType::INT32, TensorStorageType::BUFFER,
-                                Layout::HWC};
+  TensorDescriptor params_td = {DataType::kInt32, TensorStorageType::kBuffer,
+                                Layout::kHWC};
   TensorInt32 params_tensor = runtime_channels.GenerateTensorInt32();
   if (std::any_of(params_tensor.data.begin(), params_tensor.data.end(),
                   [](int x) { return x != -1; })) {
@@ -1195,7 +1195,7 @@ absl::Status FullyConnectedInt8ExternalBigTest(TestExecutionEnvironment& env,
   constexpr int kSrcChannels = 171;
   constexpr int kDstChannels = 533;
 
-  ml_drift::Tensor<OHWI, DataType::INT8> weights_i8;
+  ml_drift::Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(kDstChannels, 1, 1, kSrcChannels);
   weights_i8.data.resize(weights_i8.shape.DimensionsProduct());
   auto weights_f32 =
@@ -1222,8 +1222,8 @@ absl::Status FullyConnectedInt8ExternalBigTest(TestExecutionEnvironment& env,
 
   for (auto runtime_channels : test_runtime_channels) {
     OperationDef op_def;
-    op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-    op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+    op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+    op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
     ABSL_EXPECT_OK(FullyConnectedInt8ExternalTest(env, weights_i8, weights_scales,
                                              biases, src_tensor, op_def,
                                              precision, runtime_channels));
@@ -1239,7 +1239,7 @@ absl::Status FullyConnectedInt8BatchedWeightsBigTest(
   const int kDstChannels = 32;
   const int kWeightsBatch = 4;
 
-  ml_drift::Tensor<OHWI, DataType::INT8> weights_i8;
+  ml_drift::Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(kDstChannels, kWeightsBatch, 1, kSrcChannels);
   weights_i8.data.resize(weights_i8.shape.DimensionsProduct());
   auto weights_f32 =
@@ -1259,8 +1259,8 @@ absl::Status FullyConnectedInt8BatchedWeightsBigTest(
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   ABSL_EXPECT_OK(FullyConnectedInt8ExternalTest(env, weights_i8, weights_scales,
                                            src_tensor, op_def, precision));
   return absl::OkStatus();
@@ -1275,7 +1275,7 @@ absl::Status FullyConnectedInt8BatchedWeightsIdsBigTest(
   const int kDstChannels = 32;
   const int kWeightsBatch = 16;
 
-  ml_drift::Tensor<OHWI, DataType::INT8> weights_i8;
+  ml_drift::Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(kDstChannels, kWeightsBatch, 1, kSrcChannels);
   weights_i8.data.resize(weights_i8.shape.DimensionsProduct());
   auto weights_f32 =
@@ -1300,9 +1300,9 @@ absl::Status FullyConnectedInt8BatchedWeightsIdsBigTest(
   }
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({DataType::INT32, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({DataType::kInt32, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   ABSL_EXPECT_OK(FullyConnectedInt8BatchedWeightsIdsTest(
       env, weights_i8, weights_scales, src_tensor, batch_ids_tensor, op_def,
       precision));
@@ -1316,7 +1316,7 @@ absl::Status FullyConnectedInt8ExternalGroupedQuantizationBigTest(
   constexpr int kSrcChannels = 11 * 4 * 7;
   constexpr int kDstChannels = 533;
 
-  ml_drift::Tensor<OHWI, DataType::INT8> weights_i8;
+  ml_drift::Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(kDstChannels, 1, 1, kSrcChannels);
   weights_i8.data.resize(weights_i8.shape.DimensionsProduct());
   auto weights_f32 =
@@ -1341,8 +1341,8 @@ absl::Status FullyConnectedInt8ExternalGroupedQuantizationBigTest(
 
   for (auto runtime_channels : test_runtime_channels) {
     OperationDef op_def;
-    op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-    op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+    op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+    op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
     ABSL_EXPECT_OK(FullyConnectedInt8ExternalTest(env, weights_i8, weights_scales,
                                              biases, src_tensor, op_def,
                                              precision, runtime_channels));
@@ -1352,8 +1352,8 @@ absl::Status FullyConnectedInt8ExternalGroupedQuantizationBigTest(
 
 absl::Status FullyConnectedSi8Wi8Test(
     TestExecutionEnvironment& exec_env,
-    const ml_drift::Tensor<BHWC, DataType::INT8>& src_tensor_i8,
-    const ml_drift::Tensor<OHWI, DataType::INT8>& weights_i8,
+    const ml_drift::Tensor<BHWC, DataType::kInt8>& src_tensor_i8,
+    const ml_drift::Tensor<OHWI, DataType::kInt8>& weights_i8,
     const OperationDef& op_def) {
   const TensorInt32 dst_ref_tensor =
       FullyConnectedReference(src_tensor_i8, weights_i8);
@@ -1368,7 +1368,7 @@ absl::Status FullyConnectedSi8Wi8Test(
   external_weights.shape = weights_i8.shape;
   ABSL_ASSIGN_OR_RETURN(auto operation,
                         CreateFullyConnectedExternalWeights(
-                            exec_env.GetGpuInfo(), CalculationsPrecision::F32,
+                            exec_env.GetGpuInfo(), CalculationsPrecision::kF32,
                             op_def.src_tensors[0], op_def.dst_tensors[0],
                             external_weights, nullptr, nullptr));
 
@@ -1389,14 +1389,14 @@ absl::Status FullyConnectedSi8Wi8Test(
 absl::Status FullyConnectedSi8Wi8BigTest(TestExecutionEnvironment& env,
                                          TensorStorageType src_storage,
                                          TensorStorageType dst_storage) {
-  const DataType src_data_type = DataType::INT8;
-  const DataType dst_data_type = DataType::INT32;
+  const DataType src_data_type = DataType::kInt8;
+  const DataType dst_data_type = DataType::kInt32;
   const int src_channels = 112;
   const int dst_channels = 152;
 
   auto weights_f32 =
       MakeSyntheticTensor(OHWI(dst_channels, 1, 1, src_channels));
-  ml_drift::Tensor<OHWI, DataType::INT8> weights_i8;
+  ml_drift::Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(dst_channels, 1, 1, src_channels);
   weights_i8.data.resize(weights_i8.shape.DimensionsProduct());
   for (int i = 0; i < weights_i8.data.size(); ++i) {
@@ -1408,7 +1408,7 @@ absl::Status FullyConnectedSi8Wi8BigTest(TestExecutionEnvironment& env,
 
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);  // range [-1, 1]
 
-  Tensor<BHWC, DataType::INT8> src_int8_tensor;
+  Tensor<BHWC, DataType::kInt8> src_int8_tensor;
   src_int8_tensor.shape = src_shape;
   src_int8_tensor.data.resize(src_shape.DimensionsProduct());
   for (int i = 0; i < src_shape.DimensionsProduct(); ++i) {
@@ -1416,20 +1416,20 @@ absl::Status FullyConnectedSi8Wi8BigTest(TestExecutionEnvironment& env,
   }
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({src_data_type, src_storage, Layout::HWC});
-  op_def.dst_tensors.push_back({dst_data_type, dst_storage, Layout::HWC});
+  op_def.src_tensors.push_back({src_data_type, src_storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({dst_data_type, dst_storage, Layout::kHWC});
   ABSL_EXPECT_OK(FullyConnectedSi8Wi8Test(env, src_int8_tensor, weights_i8, op_def));
   return absl::OkStatus();
 }
 
 absl::Status FullyConnectedInt4Test(
     TestExecutionEnvironment& exec_env,
-    const ml_drift::Tensor<OHWI, DataType::INT8>& weights_i4,
-    const ml_drift::Tensor<OHWI, DataType::FLOAT32>& weights_scale,
-    const ml_drift::Tensor<Linear, DataType::FLOAT32>& biases,
+    const ml_drift::Tensor<OHWI, DataType::kInt8>& weights_i4,
+    const ml_drift::Tensor<OHWI, DataType::kFloat32>& weights_scale,
+    const ml_drift::Tensor<Linear, DataType::kFloat32>& biases,
     const TensorFloat32& src_tensor, const OperationDef& op_def,
     CalculationsPrecision precision) {
-  ml_drift::Tensor<OHWI, DataType::FLOAT32> weights_zero_point;
+  ml_drift::Tensor<OHWI, DataType::kFloat32> weights_zero_point;
   weights_zero_point.shape = weights_scale.shape;
   weights_zero_point.data.resize(weights_scale.shape.DimensionsProduct(), 0.0f);
   FullyConnectedAttributes attr;
@@ -1482,16 +1482,16 @@ absl::Status FullyConnectedInt4BlockwiseTest(TestExecutionEnvironment& env,
   const int src_channels = 16;
   const int dst_channels = 4;
 
-  ml_drift::Tensor<OHWI, DataType::INT8> weights_i4;
+  ml_drift::Tensor<OHWI, DataType::kInt8> weights_i4;
   weights_i4.shape = OHWI(dst_channels, 1, 1, src_channels);
   weights_i4.data.resize(weights_i4.shape.DimensionsProduct(), 1);  // all 1s
 
   // 2 blocks per output channel, scale shape is (4, 1, 1, 2)
-  ml_drift::Tensor<OHWI, DataType::FLOAT32> weights_scales;
+  ml_drift::Tensor<OHWI, DataType::kFloat32> weights_scales;
   weights_scales.shape = OHWI(dst_channels, 1, 1, 2);
   weights_scales.data.resize(weights_scales.shape.DimensionsProduct(), 0.5f);
 
-  ml_drift::Tensor<Linear, DataType::FLOAT32> biases;
+  ml_drift::Tensor<Linear, DataType::kFloat32> biases;
   biases.shape = Linear(dst_channels);
   biases.data.resize(biases.shape.DimensionsProduct(), 0.0f);
 
@@ -1501,14 +1501,14 @@ absl::Status FullyConnectedInt4BlockwiseTest(TestExecutionEnvironment& env,
   src_tensor.data.resize(src_tensor.shape.DimensionsProduct(), 1.0f);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
 
   // Block 0: 8 * 1 * 0.5 = 4
   // Block 1: 8 * 1 * 0.5 = 4
   // Total: 4 + 4 = 8
 
-  ml_drift::Tensor<OHWI, DataType::FLOAT32> weights_zero_point;  // empty
+  ml_drift::Tensor<OHWI, DataType::kFloat32> weights_zero_point;  // empty
 
   DataType type = op_def.src_tensors[0].GetDataType();
   auto scale_desc =
@@ -1543,7 +1543,7 @@ absl::Status FullyConnectedInt4BlockwiseTest(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   dst_td.DownloadData(&dst_tensor);
 
-  float eps = precision == CalculationsPrecision::F32 ? 1e-6f : 1e-2f;
+  float eps = precision == CalculationsPrecision::kF32 ? 1e-6f : 1e-2f;
   std::vector<float> expected(dst_channels, 8.0f);
   EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), expected));
 
@@ -1557,7 +1557,7 @@ absl::Status FullyConnectedInt4BigTest(TestExecutionEnvironment& env,
   const int src_channels = 171;
   const int dst_channels = 533;
 
-  ml_drift::Tensor<OHWI, DataType::INT8> weights_i4;
+  ml_drift::Tensor<OHWI, DataType::kInt8> weights_i4;
   weights_i4.shape = OHWI(dst_channels, 1, 1, src_channels);
   weights_i4.data.resize(weights_i4.shape.DimensionsProduct());
   auto weights_f32 =
@@ -1577,8 +1577,8 @@ absl::Status FullyConnectedInt4BigTest(TestExecutionEnvironment& env,
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   ABSL_EXPECT_OK(FullyConnectedInt4Test(env, weights_i4, weights_scales, biases,
                                    src_tensor, op_def, precision));
   return absl::OkStatus();
@@ -1591,16 +1591,16 @@ absl::Status FullyConnectedInt2BlockwiseTest(TestExecutionEnvironment& env,
   const int src_channels = 16;
   const int dst_channels = 4;
 
-  ml_drift::Tensor<OHWI, DataType::INT8> weights_i2;
+  ml_drift::Tensor<OHWI, DataType::kInt8> weights_i2;
   weights_i2.shape = OHWI(dst_channels, 1, 1, src_channels);
   weights_i2.data.resize(weights_i2.shape.DimensionsProduct(), 1);  // all 1s
 
   // 2 blocks per output channel, scale shape is (4, 1, 1, 2)
-  ml_drift::Tensor<OHWI, DataType::FLOAT32> weights_scales;
+  ml_drift::Tensor<OHWI, DataType::kFloat32> weights_scales;
   weights_scales.shape = OHWI(dst_channels, 1, 1, 2);
   weights_scales.data.resize(weights_scales.shape.DimensionsProduct(), 0.5f);
 
-  ml_drift::Tensor<Linear, DataType::FLOAT32> biases;
+  ml_drift::Tensor<Linear, DataType::kFloat32> biases;
   biases.shape = Linear(dst_channels);
   biases.data.resize(biases.shape.DimensionsProduct(), 0.0f);
 
@@ -1610,8 +1610,8 @@ absl::Status FullyConnectedInt2BlockwiseTest(TestExecutionEnvironment& env,
   src_tensor.data.resize(src_tensor.shape.DimensionsProduct(), 1.0f);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
 
   // Block 0: 8 * 1 * 0.5 = 4
   // Block 1: 8 * 1 * 0.5 = 4
@@ -1649,7 +1649,7 @@ absl::Status FullyConnectedInt2BlockwiseTest(TestExecutionEnvironment& env,
 
   TensorFloat32 dst_tensor;
   dst_td.DownloadData(&dst_tensor);
-  float eps = precision == CalculationsPrecision::F32 ? 1e-6f : 1e-2f;
+  float eps = precision == CalculationsPrecision::kF32 ? 1e-6f : 1e-2f;
   std::vector<float> expected(dst_channels, 8.0f);
   EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), expected));
 
@@ -1663,7 +1663,7 @@ absl::Status FullyConnectedInt4WidthIs4BigTest(TestExecutionEnvironment& env,
   const int src_channels = 171;
   const int dst_channels = 533;
 
-  ml_drift::Tensor<OHWI, DataType::INT8> weights_i4;
+  ml_drift::Tensor<OHWI, DataType::kInt8> weights_i4;
   weights_i4.shape = OHWI(dst_channels, 1, 1, src_channels);
   weights_i4.data.resize(weights_i4.shape.DimensionsProduct());
   auto weights_f32 =
@@ -1683,8 +1683,8 @@ absl::Status FullyConnectedInt4WidthIs4BigTest(TestExecutionEnvironment& env,
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   ABSL_EXPECT_OK(FullyConnectedInt4Test(env, weights_i4, weights_scales, biases,
                                    src_tensor, op_def, precision));
   return absl::OkStatus();
@@ -1697,7 +1697,7 @@ absl::Status FullyConnectedInt4GroupedQuantizationBigTest(
   const int src_channels = 7 * 13 * 4;
   const int dst_channels = 533;
 
-  ml_drift::Tensor<OHWI, DataType::INT8> weights_i4;
+  ml_drift::Tensor<OHWI, DataType::kInt8> weights_i4;
   weights_i4.shape = OHWI(dst_channels, 1, 1, src_channels);
   weights_i4.data.resize(weights_i4.shape.DimensionsProduct());
   auto weights_f32 =
@@ -1717,8 +1717,8 @@ absl::Status FullyConnectedInt4GroupedQuantizationBigTest(
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   ABSL_EXPECT_OK(FullyConnectedInt4Test(env, weights_i4, weights_scales, biases,
                                    src_tensor, op_def, precision));
   return absl::OkStatus();
@@ -1726,12 +1726,12 @@ absl::Status FullyConnectedInt4GroupedQuantizationBigTest(
 
 absl::Status FullyConnectedInt4ExternalTest(
     TestExecutionEnvironment& exec_env,
-    const ml_drift::Tensor<OHWI, DataType::INT8>& weights_i4,
-    const ml_drift::Tensor<OHWI, DataType::FLOAT32>& weights_scale,
-    const ml_drift::Tensor<Linear, DataType::FLOAT32>& biases,
+    const ml_drift::Tensor<OHWI, DataType::kInt8>& weights_i4,
+    const ml_drift::Tensor<OHWI, DataType::kFloat32>& weights_scale,
+    const ml_drift::Tensor<Linear, DataType::kFloat32>& biases,
     const TensorFloat32& src_tensor, const OperationDef& op_def,
     CalculationsPrecision precision) {
-  ml_drift::Tensor<OHWI, DataType::FLOAT32> weights_zero_point;
+  ml_drift::Tensor<OHWI, DataType::kFloat32> weights_zero_point;
   weights_zero_point.shape = weights_scale.shape;
   weights_zero_point.data.resize(weights_scale.shape.DimensionsProduct(), 0.0f);
   FullyConnectedAttributes attr;
@@ -1789,7 +1789,7 @@ absl::Status FullyConnectedInt4ExternalWeightsBigTest(
   constexpr int kSrcChannels = 171;
   constexpr int kDstChannels = 533;
 
-  ml_drift::Tensor<OHWI, DataType::INT8> weights_i4;
+  ml_drift::Tensor<OHWI, DataType::kInt8> weights_i4;
   weights_i4.shape = OHWI(kDstChannels, 1, 1, kSrcChannels);
   weights_i4.data.resize(weights_i4.shape.DimensionsProduct());
   auto weights_f32 =
@@ -1809,8 +1809,8 @@ absl::Status FullyConnectedInt4ExternalWeightsBigTest(
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   ABSL_EXPECT_OK(FullyConnectedInt4ExternalTest(
       env, weights_i4, weights_scales, biases, src_tensor, op_def, precision));
   return absl::OkStatus();
@@ -1823,7 +1823,7 @@ absl::Status FullyConnectedInt4ExternalGroupedQuantizationBigTest(
   constexpr int kSrcChannels = 7 * 13 * 4;
   constexpr int kDstChannels = 533;
 
-  ml_drift::Tensor<OHWI, DataType::INT8> weights_i4;
+  ml_drift::Tensor<OHWI, DataType::kInt8> weights_i4;
   weights_i4.shape = OHWI(kDstChannels, 1, 1, kSrcChannels);
   weights_i4.data.resize(weights_i4.shape.DimensionsProduct());
   auto weights_f32 =
@@ -1843,8 +1843,8 @@ absl::Status FullyConnectedInt4ExternalGroupedQuantizationBigTest(
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   ABSL_EXPECT_OK(FullyConnectedInt4ExternalTest(
       env, weights_i4, weights_scales, biases, src_tensor, op_def, precision));
   return absl::OkStatus();
@@ -1852,8 +1852,8 @@ absl::Status FullyConnectedInt4ExternalGroupedQuantizationBigTest(
 
 absl::Status FullyConnectedSi8Wi4Test(
     TestExecutionEnvironment& exec_env,
-    const ml_drift::Tensor<BHWC, DataType::INT8>& src_tensor_i8,
-    const ml_drift::Tensor<OHWI, DataType::INT8>& weights_i4,
+    const ml_drift::Tensor<BHWC, DataType::kInt8>& src_tensor_i8,
+    const ml_drift::Tensor<OHWI, DataType::kInt8>& weights_i4,
     const OperationDef& op_def) {
   const TensorInt32 dst_ref_tensor =
       FullyConnectedReference(src_tensor_i8, weights_i4);
@@ -1868,7 +1868,7 @@ absl::Status FullyConnectedSi8Wi4Test(
   external_weights.shape = weights_i4.shape;
   ABSL_ASSIGN_OR_RETURN(auto operation,
                         CreateFullyConnectedExternalWeights(
-                            exec_env.GetGpuInfo(), CalculationsPrecision::F32,
+                            exec_env.GetGpuInfo(), CalculationsPrecision::kF32,
                             op_def.src_tensors[0], op_def.dst_tensors[0],
                             external_weights, nullptr, nullptr));
 
@@ -1889,14 +1889,14 @@ absl::Status FullyConnectedSi8Wi4Test(
 absl::Status FullyConnectedSi8Wi4BigTest(TestExecutionEnvironment& env,
                                          TensorStorageType src_storage,
                                          TensorStorageType dst_storage) {
-  const DataType src_data_type = DataType::INT8;
-  const DataType dst_data_type = DataType::INT32;
+  const DataType src_data_type = DataType::kInt8;
+  const DataType dst_data_type = DataType::kInt32;
   const int src_channels = 112;
   const int dst_channels = 152;
 
   auto weights_f32 =
       MakeSyntheticTensor(OHWI(dst_channels, 1, 1, src_channels));
-  ml_drift::Tensor<OHWI, DataType::INT8> weights_i4;
+  ml_drift::Tensor<OHWI, DataType::kInt8> weights_i4;
   weights_i4.shape = OHWI(dst_channels, 1, 1, src_channels);
   weights_i4.data.resize(weights_i4.shape.DimensionsProduct());
   for (int i = 0; i < weights_i4.data.size(); ++i) {
@@ -1908,7 +1908,7 @@ absl::Status FullyConnectedSi8Wi4BigTest(TestExecutionEnvironment& env,
 
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);  // range [-1, 1]
 
-  Tensor<BHWC, DataType::INT8> src_int8_tensor;
+  Tensor<BHWC, DataType::kInt8> src_int8_tensor;
   src_int8_tensor.shape = src_shape;
   src_int8_tensor.data.resize(src_shape.DimensionsProduct());
   for (int i = 0; i < src_shape.DimensionsProduct(); ++i) {
@@ -1916,20 +1916,20 @@ absl::Status FullyConnectedSi8Wi4BigTest(TestExecutionEnvironment& env,
   }
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({src_data_type, src_storage, Layout::HWC});
-  op_def.dst_tensors.push_back({dst_data_type, dst_storage, Layout::HWC});
+  op_def.src_tensors.push_back({src_data_type, src_storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({dst_data_type, dst_storage, Layout::kHWC});
   ABSL_EXPECT_OK(FullyConnectedSi8Wi4Test(env, src_int8_tensor, weights_i4, op_def));
   return absl::OkStatus();
 }
 
 absl::Status FullyConnectedInt2Test(
     TestExecutionEnvironment& exec_env,
-    const ml_drift::Tensor<OHWI, DataType::INT8>& weights_i2,
-    const ml_drift::Tensor<OHWI, DataType::FLOAT32>& weights_scale,
-    const ml_drift::Tensor<Linear, DataType::FLOAT32>& biases,
+    const ml_drift::Tensor<OHWI, DataType::kInt8>& weights_i2,
+    const ml_drift::Tensor<OHWI, DataType::kFloat32>& weights_scale,
+    const ml_drift::Tensor<Linear, DataType::kFloat32>& biases,
     const TensorFloat32& src_tensor, const OperationDef& op_def,
     CalculationsPrecision precision) {
-  ml_drift::Tensor<OHWI, DataType::FLOAT32> weights_zero_point;
+  ml_drift::Tensor<OHWI, DataType::kFloat32> weights_zero_point;
   weights_zero_point.shape = weights_scale.shape;
   weights_zero_point.data.resize(weights_scale.shape.DimensionsProduct(), 0.0f);
   FullyConnectedAttributes attr;
@@ -1982,7 +1982,7 @@ absl::Status FullyConnectedInt2BigTest(TestExecutionEnvironment& env,
   const int src_channels = 171;
   const int dst_channels = 533;
 
-  ml_drift::Tensor<OHWI, DataType::INT8> weights_i2;
+  ml_drift::Tensor<OHWI, DataType::kInt8> weights_i2;
   weights_i2.shape = OHWI(dst_channels, 1, 1, src_channels);
   weights_i2.data.resize(weights_i2.shape.DimensionsProduct());
   auto weights_f32 =
@@ -2002,8 +2002,8 @@ absl::Status FullyConnectedInt2BigTest(TestExecutionEnvironment& env,
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   ABSL_EXPECT_OK(FullyConnectedInt2Test(env, weights_i2, weights_scales, biases,
                                    src_tensor, op_def, precision));
   return absl::OkStatus();
@@ -2016,7 +2016,7 @@ absl::Status FullyConnectedInt2WidthIs4BigTest(TestExecutionEnvironment& env,
   const int src_channels = 171;
   const int dst_channels = 533;
 
-  ml_drift::Tensor<OHWI, DataType::INT8> weights_i2;
+  ml_drift::Tensor<OHWI, DataType::kInt8> weights_i2;
   weights_i2.shape = OHWI(dst_channels, 1, 1, src_channels);
   weights_i2.data.resize(weights_i2.shape.DimensionsProduct());
   auto weights_f32 =
@@ -2036,8 +2036,8 @@ absl::Status FullyConnectedInt2WidthIs4BigTest(TestExecutionEnvironment& env,
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   ABSL_EXPECT_OK(FullyConnectedInt2Test(env, weights_i2, weights_scales, biases,
                                    src_tensor, op_def, precision));
   return absl::OkStatus();
@@ -2050,7 +2050,7 @@ absl::Status FullyConnectedInt2GroupedQuantizationBigTest(
   const int src_channels = 7 * 13 * 4;
   const int dst_channels = 533;
 
-  ml_drift::Tensor<OHWI, DataType::INT8> weights_i2;
+  ml_drift::Tensor<OHWI, DataType::kInt8> weights_i2;
   weights_i2.shape = OHWI(dst_channels, 1, 1, src_channels);
   weights_i2.data.resize(weights_i2.shape.DimensionsProduct());
   auto weights_f32 =
@@ -2070,8 +2070,8 @@ absl::Status FullyConnectedInt2GroupedQuantizationBigTest(
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   ABSL_EXPECT_OK(FullyConnectedInt2Test(env, weights_i2, weights_scales, biases,
                                    src_tensor, op_def, precision));
   return absl::OkStatus();
@@ -2079,12 +2079,12 @@ absl::Status FullyConnectedInt2GroupedQuantizationBigTest(
 
 absl::Status FullyConnectedInt2ExternalTest(
     TestExecutionEnvironment& exec_env,
-    const ml_drift::Tensor<OHWI, DataType::INT8>& weights_i2,
-    const ml_drift::Tensor<OHWI, DataType::FLOAT32>& weights_scale,
-    const ml_drift::Tensor<Linear, DataType::FLOAT32>& biases,
+    const ml_drift::Tensor<OHWI, DataType::kInt8>& weights_i2,
+    const ml_drift::Tensor<OHWI, DataType::kFloat32>& weights_scale,
+    const ml_drift::Tensor<Linear, DataType::kFloat32>& biases,
     const TensorFloat32& src_tensor, const OperationDef& op_def,
     CalculationsPrecision precision) {
-  ml_drift::Tensor<OHWI, DataType::FLOAT32> weights_zero_point;
+  ml_drift::Tensor<OHWI, DataType::kFloat32> weights_zero_point;
   weights_zero_point.shape = weights_scale.shape;
   weights_zero_point.data.resize(weights_scale.shape.DimensionsProduct(), 0.0f);
   FullyConnectedAttributes attr;
@@ -2142,7 +2142,7 @@ absl::Status FullyConnectedInt2ExternalWeightsBigTest(
   constexpr int kSrcChannels = 171;
   constexpr int kDstChannels = 533;
 
-  ml_drift::Tensor<OHWI, DataType::INT8> weights_i2;
+  ml_drift::Tensor<OHWI, DataType::kInt8> weights_i2;
   weights_i2.shape = OHWI(kDstChannels, 1, 1, kSrcChannels);
   weights_i2.data.resize(weights_i2.shape.DimensionsProduct());
   auto weights_f32 =
@@ -2162,8 +2162,8 @@ absl::Status FullyConnectedInt2ExternalWeightsBigTest(
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   ABSL_EXPECT_OK(FullyConnectedInt2ExternalTest(
       env, weights_i2, weights_scales, biases, src_tensor, op_def, precision));
   return absl::OkStatus();
@@ -2176,7 +2176,7 @@ absl::Status FullyConnectedInt2ExternalGroupedQuantizationBigTest(
   constexpr int kSrcChannels = 7 * 13 * 4;
   constexpr int kDstChannels = 533;
 
-  ml_drift::Tensor<OHWI, DataType::INT8> weights_i2;
+  ml_drift::Tensor<OHWI, DataType::kInt8> weights_i2;
   weights_i2.shape = OHWI(kDstChannels, 1, 1, kSrcChannels);
   weights_i2.data.resize(weights_i2.shape.DimensionsProduct());
   auto weights_f32 =
@@ -2196,8 +2196,8 @@ absl::Status FullyConnectedInt2ExternalGroupedQuantizationBigTest(
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   ABSL_EXPECT_OK(FullyConnectedInt2ExternalTest(
       env, weights_i2, weights_scales, biases, src_tensor, op_def, precision));
   return absl::OkStatus();
@@ -2205,8 +2205,8 @@ absl::Status FullyConnectedInt2ExternalGroupedQuantizationBigTest(
 
 absl::Status FullyConnectedSi8Wi2Test(
     TestExecutionEnvironment& exec_env,
-    const ml_drift::Tensor<BHWC, DataType::INT8>& src_tensor_i8,
-    const ml_drift::Tensor<OHWI, DataType::INT8>& weights_i2,
+    const ml_drift::Tensor<BHWC, DataType::kInt8>& src_tensor_i8,
+    const ml_drift::Tensor<OHWI, DataType::kInt8>& weights_i2,
     const OperationDef& op_def) {
   const TensorInt32 dst_ref_tensor =
       FullyConnectedReference(src_tensor_i8, weights_i2);
@@ -2221,7 +2221,7 @@ absl::Status FullyConnectedSi8Wi2Test(
   external_weights.shape = weights_i2.shape;
   ABSL_ASSIGN_OR_RETURN(auto operation,
                         CreateFullyConnectedExternalWeights(
-                            exec_env.GetGpuInfo(), CalculationsPrecision::F32,
+                            exec_env.GetGpuInfo(), CalculationsPrecision::kF32,
                             op_def.src_tensors[0], op_def.dst_tensors[0],
                             external_weights, nullptr, nullptr));
 
@@ -2242,14 +2242,14 @@ absl::Status FullyConnectedSi8Wi2Test(
 absl::Status FullyConnectedSi8Wi2BigTest(TestExecutionEnvironment& env,
                                          TensorStorageType src_storage,
                                          TensorStorageType dst_storage) {
-  const DataType src_data_type = DataType::INT8;
-  const DataType dst_data_type = DataType::INT32;
+  const DataType src_data_type = DataType::kInt8;
+  const DataType dst_data_type = DataType::kInt32;
   const int src_channels = 112;
   const int dst_channels = 152;
 
   auto weights_f32 =
       MakeSyntheticTensor(OHWI(dst_channels, 1, 1, src_channels));
-  ml_drift::Tensor<OHWI, DataType::INT8> weights_i2;
+  ml_drift::Tensor<OHWI, DataType::kInt8> weights_i2;
   weights_i2.shape = OHWI(dst_channels, 1, 1, src_channels);
   weights_i2.data.resize(weights_i2.shape.DimensionsProduct());
   for (int i = 0; i < weights_i2.data.size(); ++i) {
@@ -2260,7 +2260,7 @@ absl::Status FullyConnectedSi8Wi2BigTest(TestExecutionEnvironment& env,
 
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);  // range [-1, 1]
 
-  Tensor<BHWC, DataType::INT8> src_int8_tensor;
+  Tensor<BHWC, DataType::kInt8> src_int8_tensor;
   src_int8_tensor.shape = src_shape;
   src_int8_tensor.data.resize(src_shape.DimensionsProduct());
   for (int i = 0; i < src_shape.DimensionsProduct(); ++i) {
@@ -2268,8 +2268,8 @@ absl::Status FullyConnectedSi8Wi2BigTest(TestExecutionEnvironment& env,
   }
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({src_data_type, src_storage, Layout::HWC});
-  op_def.dst_tensors.push_back({dst_data_type, dst_storage, Layout::HWC});
+  op_def.src_tensors.push_back({src_data_type, src_storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({dst_data_type, dst_storage, Layout::kHWC});
   ABSL_EXPECT_OK(FullyConnectedSi8Wi2Test(env, src_int8_tensor, weights_i2, op_def));
   return absl::OkStatus();
 }
@@ -2283,7 +2283,7 @@ absl::Status FullyConnectedPackedGroupsTest(TestExecutionEnvironment& env,
   const int weights_batch_size = 16;
   const int num_groups_per_item = 4;
 
-  Tensor<OHWI, DataType::FLOAT32> weights = MakeSyntheticTensor(
+  Tensor<OHWI, DataType::kFloat32> weights = MakeSyntheticTensor(
       OHWI(dst_channels, weights_batch_size, 1, src_channels));
   weights.data.resize(weights.shape.DimensionsProduct() +
                       XNN_EXTRA_BYTES / sizeof(float));
@@ -2306,8 +2306,8 @@ absl::Status FullyConnectedPackedGroupsTest(TestExecutionEnvironment& env,
 
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
 
   ConvRuntimeCheckDesc::PackedGroups packed_groups;
   packed_groups.params_offset = 0;
@@ -2319,7 +2319,8 @@ absl::Status FullyConnectedPackedGroupsTest(TestExecutionEnvironment& env,
   WeightsDescription weights_desc =
       GetFullyConnectedWeightsDesc(data_type, weights.shape);
 
-  TensorDescriptor src_desc = TensorDescriptor(data_type, storage, Layout::HWC);
+  TensorDescriptor src_desc =
+      TensorDescriptor(data_type, storage, Layout::kHWC);
   src_desc.UploadData(src_packed);
 
   std::vector<TensorDescriptor> weights_gpu =
@@ -2330,8 +2331,8 @@ absl::Status FullyConnectedPackedGroupsTest(TestExecutionEnvironment& env,
     runtime_params_cpu[i] = groups_sizes.data[i];
     runtime_params_cpu[weights_batch_size + i] = groups_offsets.data[i];
   }
-  TensorDescriptor runtime_params_td(DataType::INT32, TensorStorageType::BUFFER,
-                                     Layout::LINEAR);
+  TensorDescriptor runtime_params_td(
+      DataType::kInt32, TensorStorageType::kBuffer, Layout::kLinear);
   runtime_params_td.SetBHWCShape(BHWC(1, 1, 1, weights_batch_size * 2));
   runtime_params_td.UploadData(runtime_params_cpu.data());
 
@@ -2345,7 +2346,8 @@ absl::Status FullyConnectedPackedGroupsTest(TestExecutionEnvironment& env,
                             /*bias=*/nullptr, &dst_packed_shape,
                             /*src_exp=*/nullptr, runtime_check));
 
-  TensorDescriptor dst_desc = TensorDescriptor(data_type, storage, Layout::HWC);
+  TensorDescriptor dst_desc =
+      TensorDescriptor(data_type, storage, Layout::kHWC);
   dst_desc.SetBHWCShape(dst_packed_shape);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc, &weights_gpu[0], &runtime_params_td}, {&dst_desc},

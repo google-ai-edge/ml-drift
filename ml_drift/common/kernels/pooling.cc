@@ -36,18 +36,19 @@ std::string GetAveragePoolingKernelCode(const OperationDef& op_def,
   op->AddDstTensor("dst_tensor", op_def.dst_tensors[0]);
 
   std::map<Axis, std::string> axis_to_src_coord = {
-      {Axis::WIDTH, "x_c"},  {Axis::HEIGHT, "y_c"}, {Axis::DEPTH, "d_c"},
-      {Axis::CHANNELS, "Z"}, {Axis::BATCH, "B"},
+      {Axis::kWidth, "x_c"},  {Axis::kHeight, "y_c"}, {Axis::kDepth, "d_c"},
+      {Axis::kChannels, "Z"}, {Axis::kBatch, "B"},
   };
 
   std::map<Axis, std::string> axis_to_dst_coord = {
-      {Axis::WIDTH, "X"},    {Axis::HEIGHT, "Y"}, {Axis::DEPTH, "D"},
-      {Axis::CHANNELS, "Z"}, {Axis::BATCH, "B"},
+      {Axis::kWidth, "X"},    {Axis::kHeight, "Y"}, {Axis::kDepth, "D"},
+      {Axis::kChannels, "Z"}, {Axis::kBatch, "B"},
   };
 
   std::vector<std::string> src_coords;
   std::vector<std::string> dst_coords;
-  for (auto axis : {Axis::WIDTH, Axis::HEIGHT, Axis::DEPTH, Axis::CHANNELS}) {
+  for (auto axis :
+       {Axis::kWidth, Axis::kHeight, Axis::kDepth, Axis::kChannels}) {
     if (op_def.dst_tensors[0].HasAxis(axis)) {
       dst_coords.push_back(axis_to_dst_coord[axis]);
     }
@@ -66,7 +67,7 @@ std::string GetAveragePoolingKernelCode(const OperationDef& op_def,
 
   std::string c;
   c += "MAIN_FUNCTION($0) {\n";
-  if (op_def.dst_tensors[0].HasAxis(Axis::BATCH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kBatch)) {
     c += "  int linear_id = ucl::GetGlobalId<0>();\n";
     c += "  int X = linear_id / args.dst_tensor.Batch();\n";
     c += "  int B = linear_id % args.dst_tensor.Batch();\n";
@@ -75,7 +76,7 @@ std::string GetAveragePoolingKernelCode(const OperationDef& op_def,
   } else {
     c += "  int X = ucl::GetGlobalId<0>();\n";
   }
-  if (op_def.dst_tensors[0].HasAxis(Axis::DEPTH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kDepth)) {
     c += "  int linear_id_1 = ucl::GetGlobalId<1>();\n";
     c += "  int Y = linear_id_1 / args.dst_tensor.Depth();\n";
     c += "  int D = linear_id_1 % args.dst_tensor.Depth();\n";
@@ -91,7 +92,7 @@ std::string GetAveragePoolingKernelCode(const OperationDef& op_def,
   c += "  float window_size = 0.0;\n";
   c += "  int xs = X * args.stride_x + args.padding_x;\n";
   c += "  int ys = Y * args.stride_y + args.padding_y;\n";
-  if (op_def.dst_tensors[0].HasAxis(Axis::DEPTH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kDepth)) {
     c += "  int ds = D * args.stride_z + args.padding_z;\n";
     c += "  for (int kz = 0; kz < args.kernel_size_z; ++kz) {\n";
     c += "    int d_c = ds + kz;\n";
@@ -104,8 +105,8 @@ std::string GetAveragePoolingKernelCode(const OperationDef& op_def,
   c += "      int x_c = xs + kx;\n";
   c += "      bool outside = outside_y || x_c < 0 || x_c >= "
        "args.src_tensor.Width();\n";
-  if (op_def.src_tensors[0].SupportsZeroClamp(Axis::WIDTH, gpu_info) &&
-      op_def.src_tensors[0].SupportsZeroClamp(Axis::HEIGHT, gpu_info)) {
+  if (op_def.src_tensors[0].SupportsZeroClamp(Axis::kWidth, gpu_info) &&
+      op_def.src_tensors[0].SupportsZeroClamp(Axis::kHeight, gpu_info)) {
     c += "      r += args.src_tensor.Read<float>(" + src_coord + ");\n";
   } else {
     c += "     r += !outside ? args.src_tensor.Read<float>(" + src_coord +
@@ -115,7 +116,7 @@ std::string GetAveragePoolingKernelCode(const OperationDef& op_def,
   c += "        window_size += !outside ? 1.0 : 0.0;\n";
   c += "    }\n";
   c += "  }\n";
-  if (op_def.dst_tensors[0].HasAxis(Axis::DEPTH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kDepth)) {
     c += "  }  // Depth\n";
   }
   // If window_size==0, window covered nothing. This situation is a sign of
@@ -138,18 +139,19 @@ std::string GetMaxPoolingKernelCode(const OperationDef& op_def,
   }
 
   std::map<Axis, std::string> axis_to_src_coord = {
-      {Axis::WIDTH, "x_c"},  {Axis::HEIGHT, "y_c"}, {Axis::DEPTH, "d_c"},
-      {Axis::CHANNELS, "Z"}, {Axis::BATCH, "B"},
+      {Axis::kWidth, "x_c"},  {Axis::kHeight, "y_c"}, {Axis::kDepth, "d_c"},
+      {Axis::kChannels, "Z"}, {Axis::kBatch, "B"},
   };
 
   std::map<Axis, std::string> axis_to_dst_coord = {
-      {Axis::WIDTH, "X"},    {Axis::HEIGHT, "Y"}, {Axis::DEPTH, "D"},
-      {Axis::CHANNELS, "Z"}, {Axis::BATCH, "B"},
+      {Axis::kWidth, "X"},    {Axis::kHeight, "Y"}, {Axis::kDepth, "D"},
+      {Axis::kChannels, "Z"}, {Axis::kBatch, "B"},
   };
 
   std::vector<std::string> src_coords;
   std::vector<std::string> dst_coords;
-  for (auto axis : {Axis::WIDTH, Axis::HEIGHT, Axis::DEPTH, Axis::CHANNELS}) {
+  for (auto axis :
+       {Axis::kWidth, Axis::kHeight, Axis::kDepth, Axis::kChannels}) {
     if (op_def.dst_tensors[0].HasAxis(axis)) {
       dst_coords.push_back(axis_to_dst_coord[axis]);
     }
@@ -168,7 +170,7 @@ std::string GetMaxPoolingKernelCode(const OperationDef& op_def,
 
   std::string c;
   c += "MAIN_FUNCTION($0) {\n";
-  if (op_def.dst_tensors[0].HasAxis(Axis::BATCH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kBatch)) {
     c += "  int linear_id = ucl::GetGlobalId<0>();\n";
     c += "  int X = linear_id / args.dst_tensor.Batch();\n";
     c += "  int B = linear_id % args.dst_tensor.Batch();\n";
@@ -180,7 +182,7 @@ std::string GetMaxPoolingKernelCode(const OperationDef& op_def,
   } else {
     c += "  int X = ucl::GetGlobalId<0>();\n";
   }
-  if (op_def.dst_tensors[0].HasAxis(Axis::DEPTH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kDepth)) {
     c += "  int linear_id_1 = ucl::GetGlobalId<1>();\n";
     c += "  int Y = linear_id_1 / args.dst_tensor.Depth();\n";
     c += "  int D = linear_id_1 % args.dst_tensor.Depth();\n";
@@ -205,7 +207,7 @@ std::string GetMaxPoolingKernelCode(const OperationDef& op_def,
   c += "    for (int kx = 0; kx < args.kernel_size_x; ++kx) {\n";
   c += "      int x_c = xs + kx;\n";
   c += "      if (x_c < 0 || x_c >= args.src_tensor.Width()) continue;\n";
-  if (op_def.dst_tensors[0].HasAxis(Axis::DEPTH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kDepth)) {
     c += "    int ds = D * args.stride_z + args.padding_z;\n";
     c += "    for (int kz = 0; kz < args.kernel_size_z; ++kz) {\n";
     c += "    int d_c = ds + kz;\n";
@@ -214,7 +216,7 @@ std::string GetMaxPoolingKernelCode(const OperationDef& op_def,
   c += "      args.src_tensor::type src = args.src_tensor.Read(" + src_coord +
        ");\n";
   if (output_indices) {
-    if (op_def.dst_tensors[0].HasAxis(Axis::DEPTH)) {
+    if (op_def.dst_tensors[0].HasAxis(Axis::kDepth)) {
       c += "      int index_counter = (ky * args.kernel_size_x + kx) * "
            "args.kernel_size_z + kz;\n";
     } else {
@@ -239,7 +241,7 @@ std::string GetMaxPoolingKernelCode(const OperationDef& op_def,
   } else {
     c += "      maximum = max(src, maximum);\n";
   }
-  if (op_def.dst_tensors[0].HasAxis(Axis::DEPTH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kDepth)) {
     c += "    }  // Depth\n";
   }
   c += "    }\n";
@@ -266,9 +268,9 @@ GPUOperation CreatePooling(const OperationDef& definition,
   op.args_.AddInt("kernel_size_y", attr.kernel.h);
   op.args_.AddInt("padding_y", -attr.padding.prepended.h);
   op.args_.AddInt("stride_y", attr.strides.h);
-  if (attr.type == PoolingType::AVERAGE) {
+  if (attr.type == PoolingType::kAverage) {
     op.code_ = GetAveragePoolingKernelCode(definition, gpu_info, &op);
-  } else if (attr.type == PoolingType::MAX) {
+  } else if (attr.type == PoolingType::kMax) {
     op.code_ =
         GetMaxPoolingKernelCode(definition, gpu_info, attr.output_indices, &op);
   }
@@ -289,9 +291,9 @@ GPUOperation CreatePooling(const OperationDef& definition,
   op.args_.AddInt("kernel_size_z", attr.kernel.d);
   op.args_.AddInt("padding_z", -attr.padding.prepended.d);
   op.args_.AddInt("stride_z", attr.strides.d);
-  if (attr.type == PoolingType::AVERAGE) {
+  if (attr.type == PoolingType::kAverage) {
     op.code_ = GetAveragePoolingKernelCode(definition, gpu_info, &op);
-  } else if (attr.type == PoolingType::MAX) {
+  } else if (attr.type == PoolingType::kMax) {
     op.code_ =
         GetMaxPoolingKernelCode(definition, gpu_info, attr.output_indices, &op);
   }

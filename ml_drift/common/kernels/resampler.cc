@@ -27,7 +27,7 @@ std::string GetResamplerCode(const GpuInfo& gpu_info,
                              const OperationDef& op_def) {
   std::string c;
   c += "MAIN_FUNCTION($0) {\n";
-  if (op_def.dst_tensors[0].HasAxis(Axis::BATCH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kBatch)) {
     c += "  int linear_id = ucl::GetGlobalId<0>();\n";
     c += "  int X = linear_id / args.dst_tensor.Batch();\n";
     c += "  int B = linear_id % args.dst_tensor.Batch();\n";
@@ -53,8 +53,8 @@ std::string GetResamplerCode(const GpuInfo& gpu_info,
   c += "  st.w = st.y + 1;\n";
   c += "  float2 t = f_coords - f_coords_floor;\n";
   bool supports_hw_zero_clamp =
-      op_def.src_tensors[0].SupportsZeroClamp(Axis::WIDTH, gpu_info) &&
-      op_def.src_tensors[0].SupportsZeroClamp(Axis::HEIGHT, gpu_info);
+      op_def.src_tensors[0].SupportsZeroClamp(Axis::kWidth, gpu_info) &&
+      op_def.src_tensors[0].SupportsZeroClamp(Axis::kHeight, gpu_info);
   if (supports_hw_zero_clamp) {
     c += R"(
   float4 src0 = args.src_tensor.Read<float>(st.x, st.y, S);

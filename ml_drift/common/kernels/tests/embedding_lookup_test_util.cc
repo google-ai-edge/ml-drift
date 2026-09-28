@@ -56,7 +56,7 @@ absl::Status EmbeddingLookupTest(TestExecutionEnvironment& env,
   EmbeddingLookupAttributes attr;
   attr.original_weights_shape =
       OHWI(lookup_table.shape.h, 1, 1, lookup_table.shape.w);
-  Tensor<OHWI, DataType::FLOAT32> weights_float32;
+  Tensor<OHWI, DataType::kFloat32> weights_float32;
   weights_float32.data = lookup_table.data;
   weights_float32.shape.h = 1;
   weights_float32.shape.w = 1;
@@ -66,8 +66,8 @@ absl::Status EmbeddingLookupTest(TestExecutionEnvironment& env,
   attr.weights_type = EmbeddingLookupAttributes::WeightsType::kFloat32;
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::INT32, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({dst_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({DataType::kInt32, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({dst_type, storage, Layout::kHWC});
   TensorDescriptor src_0, src_1, dst;
   src_0 = op_def.src_tensors[0];
   src_0.UploadData(id);
@@ -101,7 +101,7 @@ absl::Status EmbeddingLookupSeqLen2Test(TestExecutionEnvironment& env,
   EmbeddingLookupAttributes attr;
   attr.original_weights_shape =
       OHWI(lookup_table.shape.h, 1, 1, lookup_table.shape.w);
-  Tensor<OHWI, DataType::FLOAT32> weights_float32;
+  Tensor<OHWI, DataType::kFloat32> weights_float32;
   weights_float32.data = lookup_table.data;
   weights_float32.shape.h = 1;
   weights_float32.shape.w = 1;
@@ -111,8 +111,8 @@ absl::Status EmbeddingLookupSeqLen2Test(TestExecutionEnvironment& env,
   attr.weights_type = EmbeddingLookupAttributes::WeightsType::kFloat32;
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::INT32, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({dst_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({DataType::kInt32, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({dst_type, storage, Layout::kHWC});
   TensorDescriptor src, dst;
   src = op_def.src_tensors[0];
   src.UploadData(id);
@@ -133,7 +133,7 @@ absl::Status EmbeddingLookupSeqLen2Test(TestExecutionEnvironment& env,
 absl::Status EmbeddingLookupInt8Test(TestExecutionEnvironment& env,
                                      DataType dst_type,
                                      TensorStorageType storage) {
-  Tensor<BHWC, DataType::INT8> lookup_table;
+  Tensor<BHWC, DataType::kInt8> lookup_table;
   lookup_table.shape = BHWC(1, 4, 4, 1);
   lookup_table.data = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
 
@@ -141,8 +141,8 @@ absl::Status EmbeddingLookupInt8Test(TestExecutionEnvironment& env,
   id.shape = BHWC(1, 1, 1, 1);
   id.data = {1};
 
-  Tensor<OHWI, DataType::FLOAT32> scale_tensor;
-  Tensor<OHWI, DataType::FLOAT32> zero_point_tensor;
+  Tensor<OHWI, DataType::kFloat32> scale_tensor;
+  Tensor<OHWI, DataType::kFloat32> zero_point_tensor;
   scale_tensor.shape = OHWI(lookup_table.shape.h, 1, 1, 1);
   scale_tensor.data.resize(scale_tensor.shape.DimensionsProduct());
   for (int i = 0; i < scale_tensor.data.size(); ++i) {
@@ -158,7 +158,7 @@ absl::Status EmbeddingLookupInt8Test(TestExecutionEnvironment& env,
   attr.weights_zero_point = zero_point_tensor;
   attr.original_weights_shape =
       OHWI(lookup_table.shape.h, 1, 1, lookup_table.shape.w);
-  Tensor<OHWI, DataType::INT8> weights_int8;
+  Tensor<OHWI, DataType::kInt8> weights_int8;
   weights_int8.data = lookup_table.data;
   weights_int8.shape.h = 1;
   weights_int8.shape.w = 1;
@@ -168,8 +168,8 @@ absl::Status EmbeddingLookupInt8Test(TestExecutionEnvironment& env,
   attr.weights_type = EmbeddingLookupAttributes::WeightsType::kInt8;
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::INT32, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({dst_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({DataType::kInt32, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({dst_type, storage, Layout::kHWC});
   TensorDescriptor src_0, dst;
   src_0 = op_def.src_tensors[0];
   src_0.UploadData(id);
@@ -188,7 +188,7 @@ absl::Status EmbeddingLookupInt8Test(TestExecutionEnvironment& env,
 absl::Status EmbeddingLookupInt4Test(TestExecutionEnvironment& env,
                                      DataType dst_type,
                                      TensorStorageType storage) {
-  Tensor<BHWC, DataType::INT8> LookupTable;
+  Tensor<BHWC, DataType::kInt8> LookupTable;
   LookupTable.shape = BHWC(1, 4, 4, 1);
   LookupTable.data = {0, 1, 2, 3, 4, 5, 6, 7, 0, -1, -2, -3, -4, -5, -6, -7};
 
@@ -203,8 +203,8 @@ absl::Status EmbeddingLookupInt4Test(TestExecutionEnvironment& env,
   Ids.shape = BHWC(1, 1, 1, 1);
   Ids.data = {1};
 
-  Tensor<OHWI, DataType::FLOAT32> scale_tensor;
-  Tensor<OHWI, DataType::FLOAT32> zero_point_tensor;
+  Tensor<OHWI, DataType::kFloat32> scale_tensor;
+  Tensor<OHWI, DataType::kFloat32> zero_point_tensor;
   scale_tensor.shape = OHWI(LookupTable.shape.h, 1, 1, 1);
   scale_tensor.data.resize(scale_tensor.shape.DimensionsProduct());
   for (int i = 0; i < scale_tensor.data.size(); ++i) {
@@ -221,7 +221,7 @@ absl::Status EmbeddingLookupInt4Test(TestExecutionEnvironment& env,
   attr.original_weights_shape =
       OHWI(LookupTable.shape.h, 1, 1, LookupTable.shape.w);
   attr.weights_type = EmbeddingLookupAttributes::WeightsType::kInt4;
-  Tensor<OHWI, DataType::UINT8> weights_int4;
+  Tensor<OHWI, DataType::kUint8> weights_int4;
   weights_int4.data = packed_data;
   weights_int4.shape.h = 1;
   weights_int4.shape.w = 1;
@@ -230,8 +230,8 @@ absl::Status EmbeddingLookupInt4Test(TestExecutionEnvironment& env,
   attr.weights = weights_int4;
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::INT32, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({dst_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({DataType::kInt32, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({dst_type, storage, Layout::kHWC});
   TensorDescriptor src_0, dst;
   src_0 = op_def.src_tensors[0];
   src_0.UploadData(Ids);
@@ -250,7 +250,7 @@ absl::Status EmbeddingLookupInt4Test(TestExecutionEnvironment& env,
 absl::Status EmbeddingLookupInt4NegativeTest(TestExecutionEnvironment& env,
                                              DataType dst_type,
                                              TensorStorageType storage) {
-  Tensor<BHWC, DataType::INT8> LookupTable;
+  Tensor<BHWC, DataType::kInt8> LookupTable;
   LookupTable.shape = BHWC(1, 4, 4, 1);
   LookupTable.data = {0, 1, 2, 3, 4, 5, 6, 7, 0, -1, -2, -3, -4, -5, -6, -7};
   std::vector<uint8_t> packed_data(LookupTable.data.size() / 2);
@@ -264,8 +264,8 @@ absl::Status EmbeddingLookupInt4NegativeTest(TestExecutionEnvironment& env,
   Ids.shape = BHWC(1, 1, 1, 1);
   Ids.data = {3};
 
-  Tensor<OHWI, DataType::FLOAT32> scale_tensor;
-  Tensor<OHWI, DataType::FLOAT32> zero_point_tensor;
+  Tensor<OHWI, DataType::kFloat32> scale_tensor;
+  Tensor<OHWI, DataType::kFloat32> zero_point_tensor;
   scale_tensor.shape = OHWI(LookupTable.shape.h, 1, 1, 1);
   scale_tensor.data.resize(scale_tensor.shape.DimensionsProduct());
   for (int i = 0; i < scale_tensor.data.size(); ++i) {
@@ -282,7 +282,7 @@ absl::Status EmbeddingLookupInt4NegativeTest(TestExecutionEnvironment& env,
   attr.original_weights_shape =
       OHWI(LookupTable.shape.h, 1, 1, LookupTable.shape.w);
   attr.weights_type = EmbeddingLookupAttributes::WeightsType::kInt4;
-  Tensor<OHWI, DataType::UINT8> weights_int4;
+  Tensor<OHWI, DataType::kUint8> weights_int4;
   weights_int4.data = packed_data;
   weights_int4.shape.h = 1;
   weights_int4.shape.w = 1;
@@ -291,8 +291,8 @@ absl::Status EmbeddingLookupInt4NegativeTest(TestExecutionEnvironment& env,
   attr.weights = weights_int4;
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::INT32, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({dst_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({DataType::kInt32, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({dst_type, storage, Layout::kHWC});
   TensorDescriptor src_0, dst;
   src_0 = op_def.src_tensors[0];
   src_0.UploadData(Ids);

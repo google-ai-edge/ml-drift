@@ -61,7 +61,7 @@ std::unique_ptr<GPUOperation> CreateExpertsRemapOp(
   op.AddSrcTensor("src", src);
   op.AddDstTensor("dst", dst);
   BufferDescriptor dst_count;
-  dst_count.element_type = DataType::INT32;
+  dst_count.element_type = DataType::kInt32;
   dst_count.element_size = 1;
   op.AddDstBuffer("dst_count", dst_count);
   op.work_group_size_ = {256, 1, 1};
@@ -159,11 +159,11 @@ class OffsetsOp : public GPUOperation {
 std::unique_ptr<GPUOperation> CreateOffsetsOp() {
   OffsetsOp op;
   BufferDescriptor src_count;
-  src_count.element_type = DataType::INT32;
+  src_count.element_type = DataType::kInt32;
   src_count.element_size = 1;
   op.AddSrcBuffer("src_count", src_count);
   BufferDescriptor dst_offset;
-  dst_offset.element_type = DataType::INT32;
+  dst_offset.element_type = DataType::kInt32;
   dst_offset.element_size = 1;
   op.AddDstBuffer("dst_offset", dst_offset);
   op.args_.AddInt("size", 0);
@@ -232,7 +232,7 @@ std::unique_ptr<GPUOperation> CreateLinearizeMapOp(
   LinearizeMapOp op;
   op.AddSrcTensor("src", src_map);
   BufferDescriptor dst_count;
-  dst_count.element_type = DataType::INT32;
+  dst_count.element_type = DataType::kInt32;
   dst_count.element_size = 1;
   op.AddSrcBuffer("counts", dst_count);
   op.AddSrcBuffer("offsets", dst_count);

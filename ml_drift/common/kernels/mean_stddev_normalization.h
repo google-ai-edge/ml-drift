@@ -38,8 +38,8 @@ class MeanStdDevNormalization : public GPUOperation {
   explicit MeanStdDevNormalization(
       const OperationDef& definition, const GpuInfo& gpu_info,
       const BHWC& shape, float variance_bias, bool two_step,
-      const Tensor<Linear, DataType::FLOAT32>* gamma,
-      const Tensor<Linear, DataType::FLOAT32>* beta);
+      const Tensor<Linear, DataType::kFloat32>* gamma,
+      const Tensor<Linear, DataType::kFloat32>* beta);
 
   std::vector<int3> GetPossibleKernelWorkGroups(
       TuningType tuning_type, const GpuInfo& gpu_info,
@@ -84,8 +84,8 @@ MeanStdDevNormalization CreateMeanStdDevNormalization(
 // beta tensors.
 MeanStdDevNormalization CreateMeanStdDevNormalization(
     const OperationDef& definition, const GpuInfo& gpu_info, const BHWC& shape,
-    float variance_bias, const Tensor<Linear, DataType::FLOAT32>& gamma,
-    const Tensor<Linear, DataType::FLOAT32>& beta, bool two_step);
+    float variance_bias, const Tensor<Linear, DataType::kFloat32>& gamma,
+    const Tensor<Linear, DataType::kFloat32>& beta, bool two_step);
 
 // Creates a root mean square normalization operation.
 MeanStdDevNormalization CreateRMSNormalization(const OperationDef& definition,
@@ -100,11 +100,11 @@ std::unique_ptr<GPUOperation> CreateStatisticalTopK(
 
 class HWCGroupNormalization : public GPUOperation {
  public:
-  explicit HWCGroupNormalization(const OperationDef& definition,
-                                 const GpuInfo& gpu_info, const BHWC& shape,
-                                 int groups, float variance_bias,
-                                 const Tensor<Linear, DataType::FLOAT32>& gamma,
-                                 const Tensor<Linear, DataType::FLOAT32>& beta);
+  explicit HWCGroupNormalization(
+      const OperationDef& definition, const GpuInfo& gpu_info,
+      const BHWC& shape, int groups, float variance_bias,
+      const Tensor<Linear, DataType::kFloat32>& gamma,
+      const Tensor<Linear, DataType::kFloat32>& beta);
 
   std::vector<int3> GetPossibleKernelWorkGroups(
       TuningType tuning_type, const GpuInfo& gpu_info,

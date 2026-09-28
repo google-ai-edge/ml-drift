@@ -31,11 +31,11 @@ namespace ml_drift {
 namespace fc {
 namespace {
 inline int GetRangeShift(DataType type) {
-  if (type == DataType::INT8) {
+  if (type == DataType::kInt8) {
     return 128;
-  } else if (type == DataType::INT4) {
+  } else if (type == DataType::kInt4) {
     return 8;
-  } else if (type == DataType::INT2) {
+  } else if (type == DataType::kInt2) {
     return 2;
   } else {
     return 0;
@@ -69,7 +69,7 @@ void AddRuntimeParam(const ConvRuntimeCheckDesc& runtime_check,
   }
   if (has_runtime_check) {
     BufferDescriptor desc;
-    desc.element_type = DataType::INT32;
+    desc.element_type = DataType::kInt32;
     desc.element_size = 1;
     op->AddSrcBuffer("params", desc);
   }
@@ -167,7 +167,7 @@ std::string AccumulateFloat(const std::string& r_name,
                             CalculationsPrecision precision, bool isI4O4,
                             bool use_fma) {
   std::string c;
-  if (precision != CalculationsPrecision::F32_F16) {
+  if (precision != CalculationsPrecision::kF32F16) {
     if (isI4O4) {
       if (use_fma) {
         c += "    $0 = fma(ucl::Init<Type>($1.x), w0, $0);\n";
@@ -291,8 +291,8 @@ int GetLocalBatchSize(const GpuInfo& gpu_info, CalculationsPrecision precision,
                       int block_spatial, const int3& work_group_size) {
   int local_batch_size = block_spatial;
   int data_type_size =
-      precision == CalculationsPrecision::F16 && gpu_info.SupportsFP16() ? 2
-                                                                         : 4;
+      precision == CalculationsPrecision::kF16 && gpu_info.SupportsFP16() ? 2
+                                                                          : 4;
   int workgroup_storage_size = work_group_size.x * work_group_size.y *
                                local_batch_size * data_type_size * 4;
   if (local_batch_size > 8 ||
@@ -401,8 +401,8 @@ void AddWeightsScaleZeroPointArguments(const ExternalWeights& weights,
 
 void AddWeightsArguments(const ExternalWeights& weights, int vec_size,
                          GPUOperation* op) {
-  if (weights.desc.type == DataType::FLOAT32 ||
-      weights.desc.type == DataType::FLOAT16) {
+  if (weights.desc.type == DataType::kFloat32 ||
+      weights.desc.type == DataType::kFloat16) {
     if (weights.desc.IsLinearLayout()) {
       BufferDescriptor desc;
       desc.element_type = weights.desc.type;
@@ -410,54 +410,54 @@ void AddWeightsArguments(const ExternalWeights& weights, int vec_size,
       op->AddSrcBuffer("weights", desc);
     } else {
       // Texture based weights, stored as 4 separate 2D textures.
-      TensorDescriptor desc{weights.desc.type, TensorStorageType::TEXTURE_2D,
-                            Layout::HW};
+      TensorDescriptor desc{weights.desc.type, TensorStorageType::kTexture2D,
+                            Layout::kHW};
       for (int i = 0; i < 4; ++i) {
         const std::string name = "weights" + std::to_string(i);
         op->AddSrcTensor(name, desc);
       }
     }
-  } else if (weights.desc.type == DataType::UINT8) {
+  } else if (weights.desc.type == DataType::kUint8) {
     if (weights.desc.IsLinearLayout()) {
       BufferDescriptor desc;
-      desc.element_type = DataType::UINT32;
+      desc.element_type = DataType::kUint32;
       desc.element_size = vec_size / 4;
       op->AddSrcBuffer("weights", desc);
     } else {
       TensorDescriptor desc = TensorDescriptor(
-          DataType::UINT32, TensorStorageType::TEXTURE_2D, Layout::HW);
+          DataType::kUint32, TensorStorageType::kTexture2D, Layout::kHW);
       op->AddSrcTensor("weights", desc);
     }
-  } else if (weights.desc.type == DataType::UINT4) {
+  } else if (weights.desc.type == DataType::kUint4) {
     if (weights.desc.IsLinearLayout()) {
       BufferDescriptor desc;
-      desc.element_type = DataType::UINT32;
+      desc.element_type = DataType::kUint32;
       desc.element_size = vec_size / 8;
       op->AddSrcBuffer("weights", desc);
     } else {
-      DataType texture_type = DataType::UINT16;
+      DataType texture_type = DataType::kUint16;
       if (vec_size == 32) {
-        texture_type = DataType::UINT32;
+        texture_type = DataType::kUint32;
       }
       TensorDescriptor desc = TensorDescriptor(
-          texture_type, TensorStorageType::TEXTURE_2D, Layout::HW);
+          texture_type, TensorStorageType::kTexture2D, Layout::kHW);
       op->AddSrcTensor("weights", desc);
     }
-  } else if (weights.desc.type == DataType::UINT2) {
+  } else if (weights.desc.type == DataType::kUint2) {
     if (weights.desc.IsLinearLayout()) {
       BufferDescriptor desc;
-      desc.element_type = DataType::UINT32;
+      desc.element_type = DataType::kUint32;
       desc.element_size = vec_size / 16;
       op->AddSrcBuffer("weights", desc);
     } else {
-      DataType texture_type = DataType::UINT8;
+      DataType texture_type = DataType::kUint8;
       if (vec_size == 32) {
-        texture_type = DataType::UINT16;
+        texture_type = DataType::kUint16;
       } else if (vec_size == 64) {
-        texture_type = DataType::UINT32;
+        texture_type = DataType::kUint32;
       }
       TensorDescriptor desc = TensorDescriptor(
-          texture_type, TensorStorageType::TEXTURE_2D, Layout::HW);
+          texture_type, TensorStorageType::kTexture2D, Layout::kHW);
       op->AddSrcTensor("weights", desc);
     }
   }
@@ -468,12 +468,12 @@ void AddWeightsArguments(const ExternalWeights& weights, int vec_size,
 void AddSparseWeightsArguments(const ExternalWeights& weights, int vec_size,
                                GPUOperation* op) {
   BufferDescriptor desc;
-  desc.element_type = DataType::UINT32;
+  desc.element_type = DataType::kUint32;
   desc.element_size = vec_size / 16;
   op->AddSrcBuffer("weights", desc);
 
   BufferDescriptor desc_indices;
-  desc_indices.element_type = DataType::UINT32;
+  desc_indices.element_type = DataType::kUint32;
   desc_indices.element_size = 1;
   op->AddSrcBuffer("weights_indices", desc_indices);
 
@@ -481,7 +481,8 @@ void AddSparseWeightsArguments(const ExternalWeights& weights, int vec_size,
 }
 
 bool IsQuantized(DataType weights_type) {
-  return weights_type != DataType::FLOAT32 && weights_type != DataType::FLOAT16;
+  return weights_type != DataType::kFloat32 &&
+         weights_type != DataType::kFloat16;
 }
 
 bool IsScalarQuantized(DataType weights_type, const OHWI& scale_zp_shape) {
@@ -508,14 +509,14 @@ int3 GetBlockSpatialCoords(int linear_spatial, const BHWC& shape) {
 }
 
 DataType GetDataTypeForWeights(DataType weights_type) {
-  if (weights_type == DataType::UINT8) {
-    return DataType::INT8;
+  if (weights_type == DataType::kUint8) {
+    return DataType::kInt8;
   }
-  if (weights_type == DataType::UINT4) {
-    return DataType::INT4;
+  if (weights_type == DataType::kUint4) {
+    return DataType::kInt4;
   }
-  if (weights_type == DataType::UINT2) {
-    return DataType::INT2;
+  if (weights_type == DataType::kUint2) {
+    return DataType::kInt2;
   }
   return weights_type;
 }

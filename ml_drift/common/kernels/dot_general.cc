@@ -33,10 +33,10 @@ std::string GetDotGeneralCode(const OperationDef& op_def,
   std::vector<std::string> lhs_read_coords = {"0", "0", "0", "0"};
   std::vector<std::string> rhs_read_coords = {"0", "0", "0", "0"};
   std::map<Axis, int> axis_to_idx = {
-      {Axis::BATCH, 0},
-      {Axis::HEIGHT, 1},
-      {Axis::WIDTH, 2},
-      {Axis::CHANNELS, 3},
+      {Axis::kBatch, 0},
+      {Axis::kHeight, 1},
+      {Axis::kWidth, 2},
+      {Axis::kChannels, 3},
   };
   std::map<int, std::string> idx_to_coord_str = {
       {0, "Batch"},

@@ -33,7 +33,7 @@ using ::testing::ValuesIn;
 using TopKTypedTest = TestWithParam<TensorStorageType>;
 
 TEST_P(TopKTypedTest, TopKIterative2StepBigTest) {
-  if (GetParam() != TensorStorageType::BUFFER) {
+  if (GetParam() != TensorStorageType::kBuffer) {
     GTEST_SKIP() << "Only test for BUFFER storage type.";
   }
   ABSL_ASSERT_OK(TopKIterative2StepBigTest(*exec_env, GetParam()));
@@ -64,7 +64,7 @@ TEST_P(TopKFloatTest, TopKPartialReductionTest) {
 }
 
 TEST_P(TopKFloatTest, TopKBigTest) {
-  if (storage() != TensorStorageType::BUFFER) {
+  if (storage() != TensorStorageType::kBuffer) {
     GTEST_SKIP() << "TopKBigTest is only supported for BUFFER storage type.";
   }
   if (!exec_env->IsStorageSupported(storage(), data_type())) {
@@ -75,7 +75,7 @@ TEST_P(TopKFloatTest, TopKBigTest) {
 }
 
 TEST_P(TopKFloatTest, TopKBig2StepTest) {
-  if (storage() != TensorStorageType::BUFFER) {
+  if (storage() != TensorStorageType::kBuffer) {
     GTEST_SKIP()
         << "TopKBig2StepTest is only supported for BUFFER storage type.";
   }
@@ -87,7 +87,7 @@ TEST_P(TopKFloatTest, TopKBig2StepTest) {
 }
 
 TEST_P(TopKFloatTest, TopKBig2StepFirstStepNoWgReductionTest) {
-  if (storage() != TensorStorageType::BUFFER) {
+  if (storage() != TensorStorageType::kBuffer) {
     GTEST_SKIP() << "TopKBig2StepFirstStepNoWgReductionTest is only supported "
                     "for BUFFER storage type.";
   }
@@ -108,7 +108,7 @@ TEST_P(TopKFloatTest, TopKIterativeTest) {
 }
 
 TEST_P(TopKFloatTest, TopKIterativeBigTest) {
-  if (storage() != TensorStorageType::BUFFER) {
+  if (storage() != TensorStorageType::kBuffer) {
     GTEST_SKIP()
         << "TopKIterativeBigTest is only supported for BUFFER storage type.";
   }

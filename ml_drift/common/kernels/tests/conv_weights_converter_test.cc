@@ -47,24 +47,24 @@ std::array<WeightsDescription, 5> WeightsDescsIntOHWIToUInt() {
         .output_group_size = 16},
        {.layout = WeightsLayout::kOSpatialIOGroupO4I4, .output_group_size = 16},
        {.layout = WeightsLayout::kCustomGroups,
-        .group_sizes = {{Axis::INPUT_CHANNELS, 2},
-                        {Axis::OUTPUT_CHANNELS, 4},
-                        {Axis::INPUT_CHANNELS, 2},
-                        {Axis::INPUT_CHANNELS, 3},
-                        {Axis::OUTPUT_CHANNELS, 5},
-                        {Axis::INPUT_CHANNELS, 0},
-                        {Axis::WIDTH, 0},
-                        {Axis::HEIGHT, 0},
-                        {Axis::OUTPUT_CHANNELS, 0}}},
+        .group_sizes = {{Axis::kInputChannels, 2},
+                        {Axis::kOutputChannels, 4},
+                        {Axis::kInputChannels, 2},
+                        {Axis::kInputChannels, 3},
+                        {Axis::kOutputChannels, 5},
+                        {Axis::kInputChannels, 0},
+                        {Axis::kWidth, 0},
+                        {Axis::kHeight, 0},
+                        {Axis::kOutputChannels, 0}}},
        {.layout = WeightsLayout::kCustomGroups,
-        .group_sizes = {{Axis::INPUT_CHANNELS, 4},
-                        {Axis::OUTPUT_CHANNELS, 4},
-                        {Axis::INPUT_CHANNELS, 2},
-                        {Axis::OUTPUT_CHANNELS, 3},
-                        {Axis::INPUT_CHANNELS, 0},
-                        {Axis::WIDTH, 0},
-                        {Axis::HEIGHT, 0},
-                        {Axis::OUTPUT_CHANNELS, 0}}}}};
+        .group_sizes = {{Axis::kInputChannels, 4},
+                        {Axis::kOutputChannels, 4},
+                        {Axis::kInputChannels, 2},
+                        {Axis::kOutputChannels, 3},
+                        {Axis::kInputChannels, 0},
+                        {Axis::kWidth, 0},
+                        {Axis::kHeight, 0},
+                        {Axis::kOutputChannels, 0}}}}};
 };
 
 std::array<WeightsDescription, 5> WeightsDescsIntOHWIToFloat() {
@@ -72,32 +72,32 @@ std::array<WeightsDescription, 5> WeightsDescsIntOHWIToFloat() {
       {{.layout = WeightsLayout::kOSpatialIOGroupI4O4, .output_group_size = 16},
        {.layout = WeightsLayout::kOSpatialIOGroupO4I4, .output_group_size = 16},
        {.layout = WeightsLayout::kCustomGroups,
-        .group_sizes = {{Axis::INPUT_CHANNELS, 2},
-                        {Axis::OUTPUT_CHANNELS, 4},
-                        {Axis::INPUT_CHANNELS, 2},
-                        {Axis::INPUT_CHANNELS, 3},
-                        {Axis::OUTPUT_CHANNELS, 5},
-                        {Axis::INPUT_CHANNELS, 0},
-                        {Axis::WIDTH, 0},
-                        {Axis::HEIGHT, 0},
-                        {Axis::OUTPUT_CHANNELS, 0}}},
+        .group_sizes = {{Axis::kInputChannels, 2},
+                        {Axis::kOutputChannels, 4},
+                        {Axis::kInputChannels, 2},
+                        {Axis::kInputChannels, 3},
+                        {Axis::kOutputChannels, 5},
+                        {Axis::kInputChannels, 0},
+                        {Axis::kWidth, 0},
+                        {Axis::kHeight, 0},
+                        {Axis::kOutputChannels, 0}}},
        {.layout = WeightsLayout::kCustomGroups,
-        .group_sizes = {{Axis::INPUT_CHANNELS, 4},
-                        {Axis::OUTPUT_CHANNELS, 4},
-                        {Axis::INPUT_CHANNELS, 2},
-                        {Axis::OUTPUT_CHANNELS, 3},
-                        {Axis::INPUT_CHANNELS, 0},
-                        {Axis::WIDTH, 0},
-                        {Axis::HEIGHT, 0},
-                        {Axis::OUTPUT_CHANNELS, 0}}},
+        .group_sizes = {{Axis::kInputChannels, 4},
+                        {Axis::kOutputChannels, 4},
+                        {Axis::kInputChannels, 2},
+                        {Axis::kOutputChannels, 3},
+                        {Axis::kInputChannels, 0},
+                        {Axis::kWidth, 0},
+                        {Axis::kHeight, 0},
+                        {Axis::kOutputChannels, 0}}},
        {.layout = WeightsLayout::kCustomGroups,
-        .group_sizes = {{Axis::INPUT_CHANNELS, 32},
-                        {Axis::OUTPUT_CHANNELS, 16},
-                        {Axis::OUTPUT_CHANNELS, 1},
-                        {Axis::INPUT_CHANNELS, 0},
-                        {Axis::WIDTH, 0},
-                        {Axis::HEIGHT, 0},
-                        {Axis::OUTPUT_CHANNELS, 0}}}}};
+        .group_sizes = {{Axis::kInputChannels, 32},
+                        {Axis::kOutputChannels, 16},
+                        {Axis::kOutputChannels, 1},
+                        {Axis::kInputChannels, 0},
+                        {Axis::kWidth, 0},
+                        {Axis::kHeight, 0},
+                        {Axis::kOutputChannels, 0}}}}};
 };
 
 std::array<WeightsDescription, 9> WeightsDescsIntToFloat() {
@@ -122,107 +122,107 @@ std::array<WeightsDescription, 9> WeightsDescsIntToFloat() {
            },
            {
                .layout = WeightsLayout::kCustomGroups,
-               .group_sizes = {{Axis::OUTPUT_CHANNELS, 8},
-                               {Axis::INPUT_CHANNELS, 8},
-                               {Axis::OUTPUT_CHANNELS, 4},
-                               {Axis::INPUT_CHANNELS, 0},
-                               {Axis::WIDTH, 0},
-                               {Axis::HEIGHT, 0},
-                               {Axis::OUTPUT_CHANNELS, 0}},
+               .group_sizes = {{Axis::kOutputChannels, 8},
+                               {Axis::kInputChannels, 8},
+                               {Axis::kOutputChannels, 4},
+                               {Axis::kInputChannels, 0},
+                               {Axis::kWidth, 0},
+                               {Axis::kHeight, 0},
+                               {Axis::kOutputChannels, 0}},
            },
            {
                .layout = WeightsLayout::kCustomGroups,
-               .group_sizes = {{Axis::INPUT_CHANNELS, 4},
-                               {Axis::OUTPUT_CHANNELS, 4},
-                               {Axis::WIDTH, 0},
-                               {Axis::HEIGHT, 0},
-                               {Axis::INPUT_CHANNELS, 0},
-                               {Axis::OUTPUT_CHANNELS, 0}},
+               .group_sizes = {{Axis::kInputChannels, 4},
+                               {Axis::kOutputChannels, 4},
+                               {Axis::kWidth, 0},
+                               {Axis::kHeight, 0},
+                               {Axis::kInputChannels, 0},
+                               {Axis::kOutputChannels, 0}},
            },
            {
                .layout = WeightsLayout::kCustomGroups,
-               .group_sizes = {{Axis::OUTPUT_CHANNELS, 4},
-                               {Axis::INPUT_CHANNELS, 4},
-                               {Axis::WIDTH, 0},
-                               {Axis::HEIGHT, 0},
-                               {Axis::OUTPUT_CHANNELS, 0},
-                               {Axis::INPUT_CHANNELS, 0}},
+               .group_sizes = {{Axis::kOutputChannels, 4},
+                               {Axis::kInputChannels, 4},
+                               {Axis::kWidth, 0},
+                               {Axis::kHeight, 0},
+                               {Axis::kOutputChannels, 0},
+                               {Axis::kInputChannels, 0}},
            },
            {
                .layout = WeightsLayout::kCustomGroups,
-               .group_sizes = {{Axis::INPUT_CHANNELS, 32},
-                               {Axis::OUTPUT_CHANNELS, 16},
-                               {Axis::OUTPUT_CHANNELS, 1},
-                               {Axis::INPUT_CHANNELS, 0},
-                               {Axis::WIDTH, 0},
-                               {Axis::HEIGHT, 0},
-                               {Axis::OUTPUT_CHANNELS, 0}},
+               .group_sizes = {{Axis::kInputChannels, 32},
+                               {Axis::kOutputChannels, 16},
+                               {Axis::kOutputChannels, 1},
+                               {Axis::kInputChannels, 0},
+                               {Axis::kWidth, 0},
+                               {Axis::kHeight, 0},
+                               {Axis::kOutputChannels, 0}},
            }}};
 };
 
 std::array<WeightsDescription, 8> WeightsDescsI8ToUI8() {
   return {{{
-               .type = DataType::UINT8,
+               .type = DataType::kUint8,
                .layout = WeightsLayout::kOSpatialIOGroupI4O4,
                .output_group_size = 16,
            },
            {
-               .type = DataType::UINT8,
+               .type = DataType::kUint8,
                .layout = WeightsLayout::kOSpatialIOGroupO4I4,
                .output_group_size = 16,
            },
-           {.type = DataType::UINT8,
+           {.type = DataType::kUint8,
             .layout = WeightsLayout::kCustomGroups,
-            .group_sizes = {{Axis::INPUT_CHANNELS, 2},
-                            {Axis::OUTPUT_CHANNELS, 4},
-                            {Axis::INPUT_CHANNELS, 2},
-                            {Axis::INPUT_CHANNELS, 3},
-                            {Axis::OUTPUT_CHANNELS, 5},
-                            {Axis::INPUT_CHANNELS, 0},
-                            {Axis::WIDTH, 0},
-                            {Axis::HEIGHT, 0},
-                            {Axis::OUTPUT_CHANNELS, 0}}},
-           {.type = DataType::UINT8,
+            .group_sizes = {{Axis::kInputChannels, 2},
+                            {Axis::kOutputChannels, 4},
+                            {Axis::kInputChannels, 2},
+                            {Axis::kInputChannels, 3},
+                            {Axis::kOutputChannels, 5},
+                            {Axis::kInputChannels, 0},
+                            {Axis::kWidth, 0},
+                            {Axis::kHeight, 0},
+                            {Axis::kOutputChannels, 0}}},
+           {.type = DataType::kUint8,
             .layout = WeightsLayout::kCustomGroups,
-            .group_sizes = {{Axis::INPUT_CHANNELS, 4},
-                            {Axis::OUTPUT_CHANNELS, 4},
-                            {Axis::INPUT_CHANNELS, 2},
-                            {Axis::OUTPUT_CHANNELS, 3},
-                            {Axis::INPUT_CHANNELS, 0},
-                            {Axis::WIDTH, 0},
-                            {Axis::HEIGHT, 0},
-                            {Axis::OUTPUT_CHANNELS, 0}}},
+            .group_sizes = {{Axis::kInputChannels, 4},
+                            {Axis::kOutputChannels, 4},
+                            {Axis::kInputChannels, 2},
+                            {Axis::kOutputChannels, 3},
+                            {Axis::kInputChannels, 0},
+                            {Axis::kWidth, 0},
+                            {Axis::kHeight, 0},
+                            {Axis::kOutputChannels, 0}}},
            {
-               .type = DataType::UINT8,
+               .type = DataType::kUint8,
                .layout = WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4,
                .output_group_size = 16,
            },
            {
-               .type = DataType::UINT8,
+               .type = DataType::kUint8,
                .layout = WeightsLayout::kCustomGroups,
-               .group_sizes = {{Axis::INPUT_CHANNELS, 4},
-                               {Axis::OUTPUT_CHANNELS, 4},
-                               {Axis::INPUT_CHANNELS, 0},
-                               {Axis::OUTPUT_CHANNELS, 0}},
+               .group_sizes = {{Axis::kInputChannels, 4},
+                               {Axis::kOutputChannels, 4},
+                               {Axis::kInputChannels, 0},
+                               {Axis::kOutputChannels, 0}},
            },
            {
-               .type = DataType::UINT8,
+               .type = DataType::kUint8,
                .layout = WeightsLayout::kCustomGroups,
-               .group_sizes = {{Axis::OUTPUT_CHANNELS, 4},
-                               {Axis::INPUT_CHANNELS, 4},
-                               {Axis::OUTPUT_CHANNELS, 0},
-                               {Axis::INPUT_CHANNELS, 0}},
+               .group_sizes = {{Axis::kOutputChannels, 4},
+                               {Axis::kInputChannels, 4},
+                               {Axis::kOutputChannels, 0},
+                               {Axis::kInputChannels, 0}},
            },
            {
-               .type = DataType::UINT8,
+               .type = DataType::kUint8,
                .layout = WeightsLayout::kCustomGroups,
-               .group_sizes = {{Axis::INPUT_CHANNELS, 32},
-                               {Axis::OUTPUT_CHANNELS, 16},
-                               {Axis::OUTPUT_CHANNELS, 1},
-                               {Axis::INPUT_CHANNELS, 0},
-                               {Axis::WIDTH, 0},
-                               {Axis::HEIGHT, 0},
-                               {Axis::OUTPUT_CHANNELS, 0}},
+               .group_sizes = {{Axis::kInputChannels, 32},
+                               {Axis::kOutputChannels, 16},
+                               {Axis::kOutputChannels, 1},
+                               {Axis::kInputChannels, 0},
+                               {Axis::kWidth, 0},
+                               {Axis::kHeight, 0},
+                               {Axis::kOutputChannels, 0}},
            }}};
 };
 
@@ -245,41 +245,41 @@ std::array<WeightsDescription, 9> WeightsDescsF32ToF32() {
            },
            {
                .layout = WeightsLayout::kCustomGroups,
-               .group_sizes = {{Axis::OUTPUT_CHANNELS, 8},
-                               {Axis::INPUT_CHANNELS, 8},
-                               {Axis::OUTPUT_CHANNELS, 4},
-                               {Axis::INPUT_CHANNELS, 0},
-                               {Axis::WIDTH, 0},
-                               {Axis::HEIGHT, 0},
-                               {Axis::OUTPUT_CHANNELS, 0}},
+               .group_sizes = {{Axis::kOutputChannels, 8},
+                               {Axis::kInputChannels, 8},
+                               {Axis::kOutputChannels, 4},
+                               {Axis::kInputChannels, 0},
+                               {Axis::kWidth, 0},
+                               {Axis::kHeight, 0},
+                               {Axis::kOutputChannels, 0}},
            },
            {.layout = WeightsLayout::kCustomGroups,
-            .group_sizes = {{Axis::INPUT_CHANNELS, 2},
-                            {Axis::OUTPUT_CHANNELS, 4},
-                            {Axis::INPUT_CHANNELS, 2},
-                            {Axis::INPUT_CHANNELS, 3},
-                            {Axis::OUTPUT_CHANNELS, 5},
-                            {Axis::INPUT_CHANNELS, 0},
-                            {Axis::WIDTH, 0},
-                            {Axis::HEIGHT, 0},
-                            {Axis::OUTPUT_CHANNELS, 0}}},
+            .group_sizes = {{Axis::kInputChannels, 2},
+                            {Axis::kOutputChannels, 4},
+                            {Axis::kInputChannels, 2},
+                            {Axis::kInputChannels, 3},
+                            {Axis::kOutputChannels, 5},
+                            {Axis::kInputChannels, 0},
+                            {Axis::kWidth, 0},
+                            {Axis::kHeight, 0},
+                            {Axis::kOutputChannels, 0}}},
            {.layout = WeightsLayout::kCustomGroups,
-            .group_sizes = {{Axis::INPUT_CHANNELS, 4},
-                            {Axis::OUTPUT_CHANNELS, 4},
-                            {Axis::INPUT_CHANNELS, 2},
-                            {Axis::OUTPUT_CHANNELS, 3},
-                            {Axis::INPUT_CHANNELS, 0},
-                            {Axis::WIDTH, 0},
-                            {Axis::HEIGHT, 0},
-                            {Axis::OUTPUT_CHANNELS, 0}}},
+            .group_sizes = {{Axis::kInputChannels, 4},
+                            {Axis::kOutputChannels, 4},
+                            {Axis::kInputChannels, 2},
+                            {Axis::kOutputChannels, 3},
+                            {Axis::kInputChannels, 0},
+                            {Axis::kWidth, 0},
+                            {Axis::kHeight, 0},
+                            {Axis::kOutputChannels, 0}}},
            {.layout = WeightsLayout::kCustomGroups,
-            .group_sizes = {{Axis::INPUT_CHANNELS, 32},
-                            {Axis::OUTPUT_CHANNELS, 16},
-                            {Axis::OUTPUT_CHANNELS, 1},
-                            {Axis::INPUT_CHANNELS, 0},
-                            {Axis::WIDTH, 0},
-                            {Axis::HEIGHT, 0},
-                            {Axis::OUTPUT_CHANNELS, 0}}},
+            .group_sizes = {{Axis::kInputChannels, 32},
+                            {Axis::kOutputChannels, 16},
+                            {Axis::kOutputChannels, 1},
+                            {Axis::kInputChannels, 0},
+                            {Axis::kWidth, 0},
+                            {Axis::kHeight, 0},
+                            {Axis::kOutputChannels, 0}}},
            {
                .layout = WeightsLayout::kISpatialOI4O4UnalignedIO,
            }}};
@@ -295,47 +295,47 @@ std::array<WeightsDescription, 7> WeightsDescsUITo8Bit() {
                .output_group_size = 16,
            },
            {.layout = WeightsLayout::kCustomGroups,
-            .group_sizes = {{Axis::INPUT_CHANNELS, 2},
-                            {Axis::OUTPUT_CHANNELS, 4},
-                            {Axis::INPUT_CHANNELS, 2},
-                            {Axis::INPUT_CHANNELS, 8},
-                            {Axis::OUTPUT_CHANNELS, 2},
-                            {Axis::INPUT_CHANNELS, 0},
-                            {Axis::WIDTH, 0},
-                            {Axis::HEIGHT, 0},
-                            {Axis::OUTPUT_CHANNELS, 0}}},
+            .group_sizes = {{Axis::kInputChannels, 2},
+                            {Axis::kOutputChannels, 4},
+                            {Axis::kInputChannels, 2},
+                            {Axis::kInputChannels, 8},
+                            {Axis::kOutputChannels, 2},
+                            {Axis::kInputChannels, 0},
+                            {Axis::kWidth, 0},
+                            {Axis::kHeight, 0},
+                            {Axis::kOutputChannels, 0}}},
            {.layout = WeightsLayout::kCustomGroups,
-            .group_sizes = {{Axis::INPUT_CHANNELS, 4},
-                            {Axis::OUTPUT_CHANNELS, 4},
-                            {Axis::INPUT_CHANNELS, 3},
-                            {Axis::OUTPUT_CHANNELS, 5},
-                            {Axis::INPUT_CHANNELS, 0},
-                            {Axis::WIDTH, 0},
-                            {Axis::HEIGHT, 0},
-                            {Axis::OUTPUT_CHANNELS, 0}}},
+            .group_sizes = {{Axis::kInputChannels, 4},
+                            {Axis::kOutputChannels, 4},
+                            {Axis::kInputChannels, 3},
+                            {Axis::kOutputChannels, 5},
+                            {Axis::kInputChannels, 0},
+                            {Axis::kWidth, 0},
+                            {Axis::kHeight, 0},
+                            {Axis::kOutputChannels, 0}}},
            {
                .layout = WeightsLayout::kCustomGroups,
-               .group_sizes = {{Axis::INPUT_CHANNELS, 4},
-                               {Axis::OUTPUT_CHANNELS, 4},
-                               {Axis::INPUT_CHANNELS, 0},
-                               {Axis::OUTPUT_CHANNELS, 0}},
+               .group_sizes = {{Axis::kInputChannels, 4},
+                               {Axis::kOutputChannels, 4},
+                               {Axis::kInputChannels, 0},
+                               {Axis::kOutputChannels, 0}},
            },
            {
                .layout = WeightsLayout::kCustomGroups,
-               .group_sizes = {{Axis::OUTPUT_CHANNELS, 4},
-                               {Axis::INPUT_CHANNELS, 4},
-                               {Axis::OUTPUT_CHANNELS, 0},
-                               {Axis::INPUT_CHANNELS, 0}},
+               .group_sizes = {{Axis::kOutputChannels, 4},
+                               {Axis::kInputChannels, 4},
+                               {Axis::kOutputChannels, 0},
+                               {Axis::kInputChannels, 0}},
            },
            {
                .layout = WeightsLayout::kCustomGroups,
-               .group_sizes = {{Axis::INPUT_CHANNELS, 32},
-                               {Axis::OUTPUT_CHANNELS, 16},
-                               {Axis::OUTPUT_CHANNELS, 1},
-                               {Axis::INPUT_CHANNELS, 0},
-                               {Axis::WIDTH, 0},
-                               {Axis::HEIGHT, 0},
-                               {Axis::OUTPUT_CHANNELS, 0}},
+               .group_sizes = {{Axis::kInputChannels, 32},
+                               {Axis::kOutputChannels, 16},
+                               {Axis::kOutputChannels, 1},
+                               {Axis::kInputChannels, 0},
+                               {Axis::kWidth, 0},
+                               {Axis::kHeight, 0},
+                               {Axis::kOutputChannels, 0}},
            }}};
 };
 
@@ -349,161 +349,161 @@ std::array<WeightsDescription, 4> WeightsDescsUITo4Bit() {
                .output_group_size = 16,
            },
            {.layout = WeightsLayout::kCustomGroups,
-            .group_sizes = {{Axis::INPUT_CHANNELS, 2},
-                            {Axis::OUTPUT_CHANNELS, 4},
-                            {Axis::INPUT_CHANNELS, 2},
-                            {Axis::INPUT_CHANNELS, 8},
-                            {Axis::OUTPUT_CHANNELS, 2},
-                            {Axis::INPUT_CHANNELS, 0},
-                            {Axis::WIDTH, 0},
-                            {Axis::HEIGHT, 0},
-                            {Axis::OUTPUT_CHANNELS, 0}}},
+            .group_sizes = {{Axis::kInputChannels, 2},
+                            {Axis::kOutputChannels, 4},
+                            {Axis::kInputChannels, 2},
+                            {Axis::kInputChannels, 8},
+                            {Axis::kOutputChannels, 2},
+                            {Axis::kInputChannels, 0},
+                            {Axis::kWidth, 0},
+                            {Axis::kHeight, 0},
+                            {Axis::kOutputChannels, 0}}},
            {.layout = WeightsLayout::kCustomGroups,
-            .group_sizes = {{Axis::INPUT_CHANNELS, 4},
-                            {Axis::OUTPUT_CHANNELS, 4},
-                            {Axis::INPUT_CHANNELS, 3},
-                            {Axis::OUTPUT_CHANNELS, 5},
-                            {Axis::INPUT_CHANNELS, 0},
-                            {Axis::WIDTH, 0},
-                            {Axis::HEIGHT, 0},
-                            {Axis::OUTPUT_CHANNELS, 0}}}}};
+            .group_sizes = {{Axis::kInputChannels, 4},
+                            {Axis::kOutputChannels, 4},
+                            {Axis::kInputChannels, 3},
+                            {Axis::kOutputChannels, 5},
+                            {Axis::kInputChannels, 0},
+                            {Axis::kWidth, 0},
+                            {Axis::kHeight, 0},
+                            {Axis::kOutputChannels, 0}}}}};
 };
 
 std::array<WeightsDescription, 12> WeightsDescsCustomGroups() {
   return {{{
-               .type = DataType::FLOAT32,
+               .type = DataType::kFloat32,
                .layout = WeightsLayout::kCustomGroups,
-               .group_sizes = {{Axis::INPUT_CHANNELS, 8},
-                               {Axis::OUTPUT_CHANNELS, 12},
-                               {Axis::INPUT_CHANNELS, 0},
-                               {Axis::OUTPUT_CHANNELS, 0}},
+               .group_sizes = {{Axis::kInputChannels, 8},
+                               {Axis::kOutputChannels, 12},
+                               {Axis::kInputChannels, 0},
+                               {Axis::kOutputChannels, 0}},
            },
            {
-               .type = DataType::FLOAT32,
+               .type = DataType::kFloat32,
                .layout = WeightsLayout::kCustomGroups,
-               .group_sizes = {{Axis::OUTPUT_CHANNELS, 8},
-                               {Axis::INPUT_CHANNELS, 12},
-                               {Axis::OUTPUT_CHANNELS, 0},
-                               {Axis::INPUT_CHANNELS, 0}},
+               .group_sizes = {{Axis::kOutputChannels, 8},
+                               {Axis::kInputChannels, 12},
+                               {Axis::kOutputChannels, 0},
+                               {Axis::kInputChannels, 0}},
            },
            {
-               .type = DataType::FLOAT32,
+               .type = DataType::kFloat32,
                .layout = WeightsLayout::kCustomGroups,
-               .group_sizes = {{Axis::INPUT_CHANNELS, 4},
-                               {Axis::OUTPUT_CHANNELS, 4},
-                               {Axis::INPUT_CHANNELS, 0},
-                               {Axis::OUTPUT_CHANNELS, 0}},
+               .group_sizes = {{Axis::kInputChannels, 4},
+                               {Axis::kOutputChannels, 4},
+                               {Axis::kInputChannels, 0},
+                               {Axis::kOutputChannels, 0}},
            },
            {
-               .type = DataType::FLOAT32,
+               .type = DataType::kFloat32,
                .layout = WeightsLayout::kCustomGroups,
-               .group_sizes = {{Axis::OUTPUT_CHANNELS, 4},
-                               {Axis::INPUT_CHANNELS, 4},
-                               {Axis::OUTPUT_CHANNELS, 0},
-                               {Axis::INPUT_CHANNELS, 0}},
+               .group_sizes = {{Axis::kOutputChannels, 4},
+                               {Axis::kInputChannels, 4},
+                               {Axis::kOutputChannels, 0},
+                               {Axis::kInputChannels, 0}},
            },
            {
-               .type = DataType::FLOAT32,
+               .type = DataType::kFloat32,
                .layout = WeightsLayout::kCustomGroups,
-               .group_sizes = {{Axis::INPUT_CHANNELS, 4},
-                               {Axis::OUTPUT_CHANNELS, 4},
-                               {Axis::INPUT_CHANNELS, 4},
-                               {Axis::OUTPUT_CHANNELS, 0},
-                               {Axis::INPUT_CHANNELS, 0}},
+               .group_sizes = {{Axis::kInputChannels, 4},
+                               {Axis::kOutputChannels, 4},
+                               {Axis::kInputChannels, 4},
+                               {Axis::kOutputChannels, 0},
+                               {Axis::kInputChannels, 0}},
            },
            {
-               .type = DataType::FLOAT32,
+               .type = DataType::kFloat32,
                .layout = WeightsLayout::kCustomGroups,
-               .group_sizes = {{Axis::OUTPUT_CHANNELS, 4},
-                               {Axis::INPUT_CHANNELS, 4},
-                               {Axis::OUTPUT_CHANNELS, 4},
-                               {Axis::INPUT_CHANNELS, 0},
-                               {Axis::OUTPUT_CHANNELS, 0}},
+               .group_sizes = {{Axis::kOutputChannels, 4},
+                               {Axis::kInputChannels, 4},
+                               {Axis::kOutputChannels, 4},
+                               {Axis::kInputChannels, 0},
+                               {Axis::kOutputChannels, 0}},
            },
            {
-               .type = DataType::FLOAT32,
+               .type = DataType::kFloat32,
                .layout = WeightsLayout::kCustomGroups,
-               .group_sizes = {{Axis::INPUT_CHANNELS, 4},
-                               {Axis::OUTPUT_CHANNELS, 4},
-                               {Axis::INPUT_CHANNELS, 4},
-                               {Axis::OUTPUT_CHANNELS, 4},
-                               {Axis::INPUT_CHANNELS, 0},
-                               {Axis::OUTPUT_CHANNELS, 0}},
+               .group_sizes = {{Axis::kInputChannels, 4},
+                               {Axis::kOutputChannels, 4},
+                               {Axis::kInputChannels, 4},
+                               {Axis::kOutputChannels, 4},
+                               {Axis::kInputChannels, 0},
+                               {Axis::kOutputChannels, 0}},
            },
            {
-               .type = DataType::FLOAT32,
+               .type = DataType::kFloat32,
                .layout = WeightsLayout::kCustomGroups,
-               .group_sizes = {{Axis::OUTPUT_CHANNELS, 4},
-                               {Axis::INPUT_CHANNELS, 4},
-                               {Axis::OUTPUT_CHANNELS, 4},
-                               {Axis::INPUT_CHANNELS, 4},
-                               {Axis::OUTPUT_CHANNELS, 0},
-                               {Axis::INPUT_CHANNELS, 0}},
+               .group_sizes = {{Axis::kOutputChannels, 4},
+                               {Axis::kInputChannels, 4},
+                               {Axis::kOutputChannels, 4},
+                               {Axis::kInputChannels, 4},
+                               {Axis::kOutputChannels, 0},
+                               {Axis::kInputChannels, 0}},
            },
            {
-               .type = DataType::FLOAT32,
+               .type = DataType::kFloat32,
                .layout = WeightsLayout::kCustomGroups,
-               .group_sizes = {{Axis::INPUT_CHANNELS, 2},
-                               {Axis::OUTPUT_CHANNELS, 2},
-                               {Axis::INPUT_CHANNELS, 2},
-                               {Axis::OUTPUT_CHANNELS, 2},
-                               {Axis::INPUT_CHANNELS, 0},
-                               {Axis::OUTPUT_CHANNELS, 0}},
+               .group_sizes = {{Axis::kInputChannels, 2},
+                               {Axis::kOutputChannels, 2},
+                               {Axis::kInputChannels, 2},
+                               {Axis::kOutputChannels, 2},
+                               {Axis::kInputChannels, 0},
+                               {Axis::kOutputChannels, 0}},
            },
            {
-               .type = DataType::FLOAT32,
+               .type = DataType::kFloat32,
                .layout = WeightsLayout::kCustomGroups,
-               .group_sizes = {{Axis::OUTPUT_CHANNELS, 2},
-                               {Axis::INPUT_CHANNELS, 4},
-                               {Axis::OUTPUT_CHANNELS, 2},
-                               {Axis::INPUT_CHANNELS, 0},
-                               {Axis::OUTPUT_CHANNELS, 0}},
+               .group_sizes = {{Axis::kOutputChannels, 2},
+                               {Axis::kInputChannels, 4},
+                               {Axis::kOutputChannels, 2},
+                               {Axis::kInputChannels, 0},
+                               {Axis::kOutputChannels, 0}},
            },
            {
-               .type = DataType::FLOAT32,
+               .type = DataType::kFloat32,
                .layout = WeightsLayout::kCustomGroups,
-               .group_sizes = {{Axis::INPUT_CHANNELS, 2},
-                               {Axis::OUTPUT_CHANNELS, 4},
-                               {Axis::INPUT_CHANNELS, 2},
-                               {Axis::OUTPUT_CHANNELS, 0},
-                               {Axis::INPUT_CHANNELS, 0}},
+               .group_sizes = {{Axis::kInputChannels, 2},
+                               {Axis::kOutputChannels, 4},
+                               {Axis::kInputChannels, 2},
+                               {Axis::kOutputChannels, 0},
+                               {Axis::kInputChannels, 0}},
            },
            {
-               .type = DataType::FLOAT32,
+               .type = DataType::kFloat32,
                .layout = WeightsLayout::kCustomGroups,
-               .group_sizes = {{Axis::INPUT_CHANNELS, 32},
-                               {Axis::OUTPUT_CHANNELS, 16},
-                               {Axis::OUTPUT_CHANNELS, 1},
-                               {Axis::INPUT_CHANNELS, 0},
-                               {Axis::WIDTH, 0},
-                               {Axis::HEIGHT, 0},
-                               {Axis::OUTPUT_CHANNELS, 0}},
+               .group_sizes = {{Axis::kInputChannels, 32},
+                               {Axis::kOutputChannels, 16},
+                               {Axis::kOutputChannels, 1},
+                               {Axis::kInputChannels, 0},
+                               {Axis::kWidth, 0},
+                               {Axis::kHeight, 0},
+                               {Axis::kOutputChannels, 0}},
            }}};
 };
 
 std::array<WeightsDescription, 3> WeightsDescsCustomGroupsOIorIO() {
   return {{{
-               .type = DataType::FLOAT32,
+               .type = DataType::kFloat32,
                .layout = WeightsLayout::kCustomGroups,
-               .group_sizes = {{Axis::INPUT_CHANNELS, 0},
-                               {Axis::OUTPUT_CHANNELS, 0}},
+               .group_sizes = {{Axis::kInputChannels, 0},
+                               {Axis::kOutputChannels, 0}},
            },
            {
-               .type = DataType::FLOAT32,
+               .type = DataType::kFloat32,
                .layout = WeightsLayout::kCustomGroups,
-               .group_sizes = {{Axis::OUTPUT_CHANNELS, 0},
-                               {Axis::INPUT_CHANNELS, 0}},
+               .group_sizes = {{Axis::kOutputChannels, 0},
+                               {Axis::kInputChannels, 0}},
            },
            {
-               .type = DataType::FLOAT32,
+               .type = DataType::kFloat32,
                .layout = WeightsLayout::kCustomGroups,
-               .group_sizes = {{Axis::INPUT_CHANNELS, 32},
-                               {Axis::OUTPUT_CHANNELS, 16},
-                               {Axis::OUTPUT_CHANNELS, 1},
-                               {Axis::INPUT_CHANNELS, 0},
-                               {Axis::WIDTH, 0},
-                               {Axis::HEIGHT, 0},
-                               {Axis::OUTPUT_CHANNELS, 0}},
+               .group_sizes = {{Axis::kInputChannels, 32},
+                               {Axis::kOutputChannels, 16},
+                               {Axis::kOutputChannels, 1},
+                               {Axis::kInputChannels, 0},
+                               {Axis::kWidth, 0},
+                               {Axis::kHeight, 0},
+                               {Axis::kOutputChannels, 0}},
            }}};
 };
 }  // namespace
@@ -601,7 +601,7 @@ class F32OHWItoF32Test : public Test,
 
 TEST_P(F32OHWItoF32Test, Float32OHWItoFloat32Test) {
   auto [data_type, weights_shape] = GetParam();
-  if (!exec_env->IsStorageSupported(TensorStorageType::BUFFER, data_type)) {
+  if (!exec_env->IsStorageSupported(TensorStorageType::kBuffer, data_type)) {
     GTEST_SKIP() << "Unsupported data_type " << ToString(data_type);
   }
   ABSL_ASSERT_OK(ConverterToConvWeightsFloat32OHWItoFloat32Test(*exec_env, data_type,
@@ -630,39 +630,39 @@ class FromIntOHWITest
 
 TEST_P(FromIntOHWITest, Int8OHWIToUint8Test) {
   auto [weights_shape, conv_weight_desc] = GetParam();
-  if (!exec_env->IsStorageSupported(TensorStorageType::BUFFER,
-                                    DataType::INT8) ||
-      !exec_env->IsStorageSupported(TensorStorageType::BUFFER,
-                                    DataType::UINT8)) {
+  if (!exec_env->IsStorageSupported(TensorStorageType::kBuffer,
+                                    DataType::kInt8) ||
+      !exec_env->IsStorageSupported(TensorStorageType::kBuffer,
+                                    DataType::kUint8)) {
     GTEST_SKIP() << "Unsupported int8/uint8 buffer storage";
   }
-  conv_weight_desc.type = DataType::UINT8;
+  conv_weight_desc.type = DataType::kUint8;
   ABSL_ASSERT_OK(ConverterToConvWeightsInt8OHWIToUint8Test(*exec_env, weights_shape,
                                                       conv_weight_desc));
 }
 
 TEST_P(FromIntOHWITest, Int2OHWIToUint2Test) {
   auto [weights_shape, conv_weight_desc] = GetParam();
-  if (!exec_env->IsStorageSupported(TensorStorageType::BUFFER,
-                                    DataType::INT8)) {
-    GTEST_SKIP() << "Unsupported data_type " << ToString(DataType::INT8)
+  if (!exec_env->IsStorageSupported(TensorStorageType::kBuffer,
+                                    DataType::kInt8)) {
+    GTEST_SKIP() << "Unsupported data_type " << ToString(DataType::kInt8)
                  << " and storage type: "
-                 << ToString(TensorStorageType::BUFFER);
+                 << ToString(TensorStorageType::kBuffer);
   }
-  conv_weight_desc.type = DataType::UINT2;
+  conv_weight_desc.type = DataType::kUint2;
   ABSL_ASSERT_OK(ConverterToConvWeightsInt2OHWIToUint2Test(*exec_env, weights_shape,
                                                       conv_weight_desc));
 }
 
 TEST_P(FromIntOHWITest, Int4OHWIToUint4Test) {
   auto [weights_shape, conv_weight_desc] = GetParam();
-  if (!exec_env->IsStorageSupported(TensorStorageType::BUFFER,
-                                    DataType::INT8)) {
-    GTEST_SKIP() << "Unsupported data_type " << ToString(DataType::INT8)
+  if (!exec_env->IsStorageSupported(TensorStorageType::kBuffer,
+                                    DataType::kInt8)) {
+    GTEST_SKIP() << "Unsupported data_type " << ToString(DataType::kInt8)
                  << " and storage type: "
-                 << ToString(TensorStorageType::BUFFER);
+                 << ToString(TensorStorageType::kBuffer);
   }
-  conv_weight_desc.type = DataType::UINT4;
+  conv_weight_desc.type = DataType::kUint4;
   ABSL_ASSERT_OK(ConverterToConvWeightsInt4OHWIToUint4Test(*exec_env, weights_shape,
                                                       conv_weight_desc));
 }
@@ -718,7 +718,7 @@ TEST_P(FromIntOHWIToFloatTest, Int8OHWIToFloatTest) {
 INSTANTIATE_TEST_SUITE_P(
     ConverterToConvWeightsTestSuite, FromIntOHWIToFloatTest,
     // TODO: use GetFloatTypes()
-    Combine(ValuesIn({DataType::FLOAT32}),
+    Combine(ValuesIn({DataType::kFloat32}),
             ValuesIn({// aligned shapes
                       OHWI(4, 1, 1, 4), OHWI(4, 1, 1, 16), OHWI(16, 1, 1, 4),
                       OHWI(16, 1, 1, 16), OHWI(32, 1, 1, 16),
@@ -748,15 +748,15 @@ TEST_P(OTileI2Test, OSpatialIOGroupITileOTileI2) {
   auto [shape, i_tile_size, output_group_size] = GetParam();
   WeightsDescription conv_weight_desc = {
       .layout = WeightsLayout::kCustomGroups,
-      .group_sizes = {{Axis::INPUT_CHANNELS, 2},
-                      {Axis::OUTPUT_CHANNELS, 4},
-                      {Axis::INPUT_CHANNELS, 2},
-                      {Axis::INPUT_CHANNELS, i_tile_size / 2},
-                      {Axis::OUTPUT_CHANNELS, output_group_size},
-                      {Axis::INPUT_CHANNELS, 0},
-                      {Axis::WIDTH, 0},
-                      {Axis::HEIGHT, 0},
-                      {Axis::OUTPUT_CHANNELS, 0}},
+      .group_sizes = {{Axis::kInputChannels, 2},
+                      {Axis::kOutputChannels, 4},
+                      {Axis::kInputChannels, 2},
+                      {Axis::kInputChannels, i_tile_size / 2},
+                      {Axis::kOutputChannels, output_group_size},
+                      {Axis::kInputChannels, 0},
+                      {Axis::kWidth, 0},
+                      {Axis::kHeight, 0},
+                      {Axis::kOutputChannels, 0}},
   };
   ABSL_ASSERT_OK(ConverterToOSpatialIOGroupITileOTileIXTest(*exec_env, shape,
                                                        conv_weight_desc));
@@ -788,14 +788,14 @@ TEST_P(OTileI4Test, OSpatialIOGroupITileOTileI4) {
   auto [shape, i_tile_size, o_tile_size, output_group_size] = GetParam();
   WeightsDescription conv_weight_desc = {
       .layout = WeightsLayout::kCustomGroups,
-      .group_sizes = {{Axis::INPUT_CHANNELS, 4},
-                      {Axis::OUTPUT_CHANNELS, o_tile_size},
-                      {Axis::INPUT_CHANNELS, i_tile_size},
-                      {Axis::OUTPUT_CHANNELS, output_group_size},
-                      {Axis::INPUT_CHANNELS, 0},
-                      {Axis::WIDTH, 0},
-                      {Axis::HEIGHT, 0},
-                      {Axis::OUTPUT_CHANNELS, 0}}};
+      .group_sizes = {{Axis::kInputChannels, 4},
+                      {Axis::kOutputChannels, o_tile_size},
+                      {Axis::kInputChannels, i_tile_size},
+                      {Axis::kOutputChannels, output_group_size},
+                      {Axis::kInputChannels, 0},
+                      {Axis::kWidth, 0},
+                      {Axis::kHeight, 0},
+                      {Axis::kOutputChannels, 0}}};
   ABSL_ASSERT_OK(ConverterToOSpatialIOGroupITileOTileIXTest(*exec_env, shape,
                                                        conv_weight_desc));
 }
@@ -890,27 +890,27 @@ TEST(IntToFloatRuntimeTest, Int8ToFloatRuntimeOutput) {
 }
 
 TEST(FloatWeightsRingedTest, RingedOFloat32) {
-  ABSL_ASSERT_OK(FloatWeightsWithRingedOTest(*exec_env, DataType::FLOAT32));
+  ABSL_ASSERT_OK(FloatWeightsWithRingedOTest(*exec_env, DataType::kFloat32));
 }
 
 TEST(FloatWeightsRingedTest, RingedOFloat16) {
-  if (!exec_env->IsStorageSupported(TensorStorageType::BUFFER,
-                                    DataType::FLOAT16)) {
+  if (!exec_env->IsStorageSupported(TensorStorageType::kBuffer,
+                                    DataType::kFloat16)) {
     GTEST_SKIP() << "Unsupported data type: FLOAT16";
   }
-  ABSL_ASSERT_OK(FloatWeightsWithRingedOTest(*exec_env, DataType::FLOAT16));
+  ABSL_ASSERT_OK(FloatWeightsWithRingedOTest(*exec_env, DataType::kFloat16));
 }
 
 TEST(FloatWeightsRingedTest, RingedIFloat32) {
-  ABSL_ASSERT_OK(FloatWeightsWithRingedITest(*exec_env, DataType::FLOAT32));
+  ABSL_ASSERT_OK(FloatWeightsWithRingedITest(*exec_env, DataType::kFloat32));
 }
 
 TEST(FloatWeightsRingedTest, RingedIFloat16) {
-  if (!exec_env->IsStorageSupported(TensorStorageType::BUFFER,
-                                    DataType::FLOAT16)) {
+  if (!exec_env->IsStorageSupported(TensorStorageType::kBuffer,
+                                    DataType::kFloat16)) {
     GTEST_SKIP() << "Unsupported data type: FLOAT16";
   }
-  ABSL_ASSERT_OK(FloatWeightsWithRingedITest(*exec_env, DataType::FLOAT16));
+  ABSL_ASSERT_OK(FloatWeightsWithRingedITest(*exec_env, DataType::kFloat16));
 }
 
 class I8ToUI8Test
@@ -995,42 +995,42 @@ class UITo8BitTest
 
 TEST_P(UITo8BitTest, UI8ToI8) {
   WeightsDescription dst_weights_desc = std::get<1>(GetParam());
-  dst_weights_desc.type = DataType::INT8;
+  dst_weights_desc.type = DataType::kInt8;
   ABSL_ASSERT_OK(Uint8ToInt8WeightsConverterTest(*exec_env, GetSrcLayout(),
                                             dst_weights_desc));
 }
 
 TEST_P(UITo8BitTest, UI4ToI8) {
   WeightsDescription dst_weights_desc = std::get<1>(GetParam());
-  dst_weights_desc.type = DataType::INT8;
+  dst_weights_desc.type = DataType::kInt8;
   ABSL_ASSERT_OK(Uint4ToInt8WeightsConverterTest(*exec_env, GetSrcLayout(),
                                             dst_weights_desc));
 }
 
 TEST_P(UITo8BitTest, UI2ToI8) {
   WeightsDescription dst_weights_desc = std::get<1>(GetParam());
-  dst_weights_desc.type = DataType::INT8;
+  dst_weights_desc.type = DataType::kInt8;
   ABSL_ASSERT_OK(Uint2ToInt8WeightsConverterTest(*exec_env, GetSrcLayout(),
                                             dst_weights_desc));
 }
 
 TEST_P(UITo8BitTest, UI8ToUI8) {
   WeightsDescription dst_weights_desc = std::get<1>(GetParam());
-  dst_weights_desc.type = DataType::UINT8;
+  dst_weights_desc.type = DataType::kUint8;
   ABSL_ASSERT_OK(Uint8ToUint8WeightsConverterTest(*exec_env, GetSrcLayout(),
                                              dst_weights_desc));
 }
 
 TEST_P(UITo8BitTest, UI4ToUI8) {
   WeightsDescription dst_weights_desc = std::get<1>(GetParam());
-  dst_weights_desc.type = DataType::UINT8;
+  dst_weights_desc.type = DataType::kUint8;
   ABSL_ASSERT_OK(Uint4ToUint8WeightsConverterTest(*exec_env, GetSrcLayout(),
                                              dst_weights_desc));
 }
 
 TEST_P(UITo8BitTest, UI2ToUI8) {
   WeightsDescription dst_weights_desc = std::get<1>(GetParam());
-  dst_weights_desc.type = DataType::UINT8;
+  dst_weights_desc.type = DataType::kUint8;
   ABSL_ASSERT_OK(Uint2ToUint8WeightsConverterTest(*exec_env, GetSrcLayout(),
                                              dst_weights_desc));
 }
@@ -1057,14 +1057,14 @@ class UITo4BitTest
 
 TEST_P(UITo4BitTest, UI4ToI4) {
   WeightsDescription dst_weights_desc = std::get<1>(GetParam());
-  dst_weights_desc.type = DataType::INT4;
+  dst_weights_desc.type = DataType::kInt4;
   ABSL_ASSERT_OK(Uint4ToInt4WeightsConverterTest(*exec_env, GetSrcLayout(),
                                             dst_weights_desc));
 }
 
 TEST_P(UITo4BitTest, UI2ToI4) {
   WeightsDescription dst_weights_desc = std::get<1>(GetParam());
-  dst_weights_desc.type = DataType::INT4;
+  dst_weights_desc.type = DataType::kInt4;
   ABSL_ASSERT_OK(Uint2ToInt4WeightsConverterTest(*exec_env, GetSrcLayout(),
                                             dst_weights_desc));
 }
@@ -1090,7 +1090,8 @@ class OHWIToCustomGroupsTest
 TEST_P(OHWIToCustomGroupsTest, FromOHWI) {
   auto [weights_shape, storage, src_type, dst_desc] = GetParam();
   if (!exec_env->IsStorageSupported(storage, src_type) ||
-      !exec_env->IsStorageSupported(TensorStorageType::BUFFER, dst_desc.type)) {
+      !exec_env->IsStorageSupported(TensorStorageType::kBuffer,
+                                    dst_desc.type)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(storage);
   }
   ABSL_ASSERT_OK(ConverterToCustomGroupsTest(*exec_env, weights_shape, storage,
@@ -1102,7 +1103,7 @@ INSTANTIATE_TEST_SUITE_P(
     Combine(ValuesIn({OHWI(3, 1, 1, 3), OHWI(13, 1, 1, 11), OHWI(49, 1, 1, 37),
                       OHWI(79, 1, 1, 82)}),
             ValuesIn(GetTensorStoragesTypesWithoutSingleTexture2D()),
-            ValuesIn({DataType::FLOAT32}),
+            ValuesIn({DataType::kFloat32}),
             ValuesIn(WeightsDescsCustomGroups())),
     [](const TestParamInfo<OHWIToCustomGroupsTest::ParamType>& info) {
       const OHWI weights_shape = std::get<0>(info.param);
@@ -1122,7 +1123,7 @@ INSTANTIATE_TEST_SUITE_P(
     Combine(ValuesIn({OHWI(4, 1, 1, 4), OHWI(16, 1, 1, 12), OHWI(48, 1, 1, 36),
                       OHWI(76, 1, 1, 84)}),
             ValuesIn(GetTensorStoragesTypesWithoutSingleTexture2D()),
-            ValuesIn({DataType::FLOAT32}),
+            ValuesIn({DataType::kFloat32}),
             ValuesIn(WeightsDescsCustomGroupsOIorIO())),
     [](const TestParamInfo<OHWIToCustomGroupsTest::ParamType>& info) {
       const OHWI weights_shape = std::get<0>(info.param);

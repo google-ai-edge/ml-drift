@@ -130,13 +130,13 @@ class Winograd36To4x4 : public GPUOperation {
  private:
   friend Winograd36To4x4 CreateWinograd36To4x4(
       const OperationDef& definition,
-      const Tensor<Linear, DataType::FLOAT32>& biases);
+      const Tensor<Linear, DataType::kFloat32>& biases);
 };
 
 // Creates a Winograd 36 to 4x4 operation.
 Winograd36To4x4 CreateWinograd36To4x4(
     const OperationDef& definition,
-    const Tensor<Linear, DataType::FLOAT32>& biases);
+    const Tensor<Linear, DataType::kFloat32>& biases);
 
 class Winograd3x3TiledXBackward : public GPUOperation {
  public:
@@ -160,7 +160,7 @@ class Winograd3x3TiledXBackward : public GPUOperation {
  private:
   friend Winograd3x3TiledXBackward CreateWinograd3x3TiledXBackward(
       const GpuInfo& gpu_info, const OperationDef& definition,
-      const Tensor<Linear, DataType::FLOAT32>& biases, int tile_size);
+      const Tensor<Linear, DataType::kFloat32>& biases, int tile_size);
 
   void UploadAt(const OperationDef& op_def);
 
@@ -176,7 +176,7 @@ class Winograd3x3TiledXBackward : public GPUOperation {
 // Creates a Winograd 3x3 tiled backward operation.
 Winograd3x3TiledXBackward CreateWinograd3x3TiledXBackward(
     const GpuInfo& gpu_info, const OperationDef& definition,
-    const Tensor<Linear, DataType::FLOAT32>& biases, int tile_size);
+    const Tensor<Linear, DataType::kFloat32>& biases, int tile_size);
 
 class Winograd3x3To36 : public GPUOperation {
  public:

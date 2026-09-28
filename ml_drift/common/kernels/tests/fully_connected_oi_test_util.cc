@@ -84,12 +84,12 @@ absl::Status FullyConnectedOITest(TestExecutionEnvironment* exec_env,
 
 absl::Status FullyConnectedOIO4Int8Test(
     TestExecutionEnvironment* exec_env, const TensorFloat32& src_tensor,
-    const ml_drift::Tensor<OHWI, DataType::INT8>& weights_i8,
-    const ml_drift::Tensor<OHWI, DataType::FLOAT32>& weights_scale,
-    const ml_drift::Tensor<Linear, DataType::FLOAT32>& biases,
+    const ml_drift::Tensor<OHWI, DataType::kInt8>& weights_i8,
+    const ml_drift::Tensor<OHWI, DataType::kFloat32>& weights_scale,
+    const ml_drift::Tensor<Linear, DataType::kFloat32>& biases,
     const OperationDef& op_def, WeightsLayout weights_layout,
     CalculationsPrecision precision) {
-  ml_drift::Tensor<OHWI, DataType::FLOAT32> weights_zero_point;
+  ml_drift::Tensor<OHWI, DataType::kFloat32> weights_zero_point;
   weights_zero_point.shape = weights_scale.shape;
   weights_zero_point.data.resize(weights_scale.shape.DimensionsProduct(), 0.0f);
 
@@ -106,7 +106,7 @@ absl::Status FullyConnectedOIO4Int8Test(
                                                       weights_zero_point, type);
 
   ExternalWeights external_weights;
-  external_weights.desc.type = DataType::UINT8;
+  external_weights.desc.type = DataType::kUint8;
   external_weights.desc.layout = weights_layout;
   external_weights.desc.output_group_size = 1;
   external_weights.shape = weights_i8.shape;
@@ -140,11 +140,11 @@ absl::Status FullyConnectedOIO4Int8Test(
 
 absl::Status FullyConnectedOIO4Int4Test(
     TestExecutionEnvironment* exec_env, const TensorFloat32& src_tensor,
-    const ml_drift::Tensor<OHWI, DataType::INT8>& weights_i4,
-    const ml_drift::Tensor<OHWI, DataType::FLOAT32>& weights_scale,
-    const ml_drift::Tensor<Linear, DataType::FLOAT32>& biases,
+    const ml_drift::Tensor<OHWI, DataType::kInt8>& weights_i4,
+    const ml_drift::Tensor<OHWI, DataType::kFloat32>& weights_scale,
+    const ml_drift::Tensor<Linear, DataType::kFloat32>& biases,
     const OperationDef& op_def, CalculationsPrecision precision) {
-  ml_drift::Tensor<OHWI, DataType::FLOAT32> weights_zero_point;
+  ml_drift::Tensor<OHWI, DataType::kFloat32> weights_zero_point;
   weights_zero_point.shape = weights_scale.shape;
   weights_zero_point.data.resize(weights_scale.shape.DimensionsProduct(), 0.0f);
 
@@ -161,7 +161,7 @@ absl::Status FullyConnectedOIO4Int4Test(
                                                       weights_zero_point, type);
 
   ExternalWeights external_weights;
-  external_weights.desc.type = DataType::UINT8;
+  external_weights.desc.type = DataType::kUint8;
   external_weights.desc.layout = WeightsLayout::kOSpatialIOGroupI4O4;
   external_weights.desc.output_group_size = 1;
   external_weights.shape = weights_i4.shape;
@@ -195,8 +195,8 @@ absl::Status FullyConnectedOIO4Int4Test(
 
 absl::Status FullyConnectedOIO4Int4Sparse2x4Test(
     TestExecutionEnvironment* exec_env, const TensorFloat32& src_tensor,
-    const ml_drift::Tensor<OHWI, DataType::INT8>& weights_i4,
-    const ml_drift::Tensor<OHWI, DataType::UINT8>& weights_indices,
+    const ml_drift::Tensor<OHWI, DataType::kInt8>& weights_i4,
+    const ml_drift::Tensor<OHWI, DataType::kUint8>& weights_indices,
     const OperationDef& op_def, CalculationsPrecision precision) {
   auto weights_scales = MakeSyntheticTensor(OHWI(weights_i4.shape.o, 1, 1, 1));
   for (int i = 0; i < weights_scales.data.size(); ++i) {
@@ -241,7 +241,7 @@ absl::Status FullyConnectedOIO4Int4Sparse2x4Test(
       }
     }
   }
-  ml_drift::Tensor<OHWI, DataType::FLOAT32> weights_zero_point;
+  ml_drift::Tensor<OHWI, DataType::kFloat32> weights_zero_point;
   weights_zero_point.shape = weights_scales.shape;
   weights_zero_point.data.resize(weights_scales.shape.DimensionsProduct(),
                                  0.0f);
@@ -253,7 +253,7 @@ absl::Status FullyConnectedOIO4Int4Sparse2x4Test(
                                                       weights_zero_point, type);
 
   ExternalWeights external_weights;
-  external_weights.desc.type = DataType::UINT4;
+  external_weights.desc.type = DataType::kUint4;
   external_weights.desc.layout = WeightsLayout::kOSpatialIOGroupI4O4;
   external_weights.desc.output_group_size = 1;
   external_weights.shape = weights_i4.shape;
@@ -270,8 +270,8 @@ absl::Status FullyConnectedOIO4Int4Sparse2x4Test(
                                 absl::MakeSpan(weights_data),
                                 /*shift_value=*/8, /*pad_value=*/8u);
 
-    weights_desc = TensorDescriptor(DataType::UINT32, TensorStorageType::BUFFER,
-                                    Layout::LINEAR);
+    weights_desc = TensorDescriptor(
+        DataType::kUint32, TensorStorageType::kBuffer, Layout::kLinear);
     weights_desc.SetBHWCShape(BHWC(1, 1, 1, weights_data.size()));
     weights_desc.UploadDataRaw(absl::MakeConstSpan(weights_data));
   }
@@ -279,13 +279,13 @@ absl::Status FullyConnectedOIO4Int4Sparse2x4Test(
   TensorDescriptor weights_indices_desc;
   {
     WeightsDescription indices_desc = external_weights.desc;
-    indices_desc.type = DataType::UINT2;
+    indices_desc.type = DataType::kUint2;
     std::vector<uint8_t> weights_indices_data(elements_count / 4);
     RearrangeWeightsUint2(weights_indices, indices_desc,
                           absl::MakeSpan(weights_indices_data));
 
     weights_indices_desc = TensorDescriptor(
-        DataType::UINT32, TensorStorageType::BUFFER, Layout::LINEAR);
+        DataType::kUint32, TensorStorageType::kBuffer, Layout::kLinear);
     weights_indices_desc.SetBHWCShape(
         BHWC(1, 1, 1, weights_indices_data.size()));
     weights_indices_desc.UploadDataRaw(
@@ -330,8 +330,8 @@ absl::Status FullyConnectedOITest(TestExecutionEnvironment& env,
 
   DataType data_type = DeduceDataTypeFromPrecision(precision);
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   WeightsLayout weights_layout = isI4O4 ? WeightsLayout::kOSpatialIOGroupI4O4
                                         : WeightsLayout::kOSpatialIOGroupO4I4;
   ABSL_EXPECT_OK(FullyConnectedOITest(&env, attr, src_tensor, op_def, weights_layout,
@@ -344,7 +344,7 @@ absl::Status FullyConnectedOIWi8(TestExecutionEnvironment& env,
                                  TensorStorageType storage, bool isI4O4) {
   const int src_channels = 256;
   const int dst_channels = 256;
-  ml_drift::Tensor<OHWI, DataType::INT8> weights_i8;
+  ml_drift::Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(dst_channels, 1, 1, src_channels);
   weights_i8.data.resize(weights_i8.shape.DimensionsProduct());
   auto weights_f32 =
@@ -365,8 +365,8 @@ absl::Status FullyConnectedOIWi8(TestExecutionEnvironment& env,
 
   DataType data_type = DeduceDataTypeFromPrecision(precision);
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   WeightsLayout weights_layout = isI4O4 ? WeightsLayout::kOSpatialIOGroupI4O4
                                         : WeightsLayout::kOSpatialIOGroupO4I4;
   ABSL_EXPECT_OK(FullyConnectedOIO4Int8Test(&env, src_tensor, weights_i8,
@@ -380,7 +380,7 @@ absl::Status FullyConnectedOIWi4(TestExecutionEnvironment& env,
                                  TensorStorageType storage) {
   const int src_channels = 256;
   const int dst_channels = 256;
-  ml_drift::Tensor<OHWI, DataType::INT8> weights_i4;
+  ml_drift::Tensor<OHWI, DataType::kInt8> weights_i4;
   weights_i4.shape = OHWI(dst_channels, 1, 1, src_channels);
   weights_i4.data.resize(weights_i4.shape.DimensionsProduct());
   auto weights_f32 =
@@ -401,8 +401,8 @@ absl::Status FullyConnectedOIWi4(TestExecutionEnvironment& env,
 
   DataType data_type = DeduceDataTypeFromPrecision(precision);
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   ABSL_EXPECT_OK(FullyConnectedOIO4Int4Test(
       &env, src_tensor, weights_i4, weights_scales, biases, op_def, precision));
   return absl::OkStatus();
@@ -413,7 +413,7 @@ absl::Status FullyConnectedOIWi4Sparse2x4(TestExecutionEnvironment& env,
                                           TensorStorageType storage) {
   const int src_channels = 256;
   const int dst_channels = 256;
-  ml_drift::Tensor<OHWI, DataType::INT8> weights_i4;
+  ml_drift::Tensor<OHWI, DataType::kInt8> weights_i4;
   weights_i4.shape = OHWI(dst_channels, 1, 1, src_channels / 2);
   weights_i4.data.resize(weights_i4.shape.DimensionsProduct());
   auto weights_f32 =
@@ -422,7 +422,7 @@ absl::Status FullyConnectedOIWi4Sparse2x4(TestExecutionEnvironment& env,
     const int val = (weights_f32.data[i] + 1.0f) * 16.0f;
     weights_i4.data[i] = std::max(std::min(val, 15), 0) - 8;
   }
-  ml_drift::Tensor<OHWI, DataType::UINT8> weights_indices;
+  ml_drift::Tensor<OHWI, DataType::kUint8> weights_indices;
   weights_indices.shape = OHWI(dst_channels, 1, 1, src_channels / 2);
   weights_indices.data.resize(weights_indices.shape.DimensionsProduct() +
                               XNN_EXTRA_BYTES / sizeof(uint8_t));
@@ -440,8 +440,8 @@ absl::Status FullyConnectedOIWi4Sparse2x4(TestExecutionEnvironment& env,
 
   DataType data_type = DeduceDataTypeFromPrecision(precision);
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   ABSL_EXPECT_OK(FullyConnectedOIO4Int4Sparse2x4Test(
       &env, src_tensor, weights_i4, weights_indices, op_def, precision));
   return absl::OkStatus();
@@ -479,8 +479,8 @@ absl::Status FullyConnectedOIRuntimeChannelsTest(
 
   std::vector<TensorDescriptor*> src_cpu = {&src_desc, &weights_descs[0]};
 
-  TensorDescriptor params_td = {DataType::INT32, TensorStorageType::BUFFER,
-                                Layout::HWC};
+  TensorDescriptor params_td = {DataType::kInt32, TensorStorageType::kBuffer,
+                                Layout::kHWC};
   TensorInt32 params_tensor = runtime_channels.GenerateTensorInt32();
   if (std::any_of(params_tensor.data.begin(), params_tensor.data.end(),
                   [](int x) { return x != -1; })) {
@@ -530,8 +530,8 @@ absl::Status FullyConnectedOIRuntimeSrcTest(TestExecutionEnvironment& env,
 
   DataType data_type = DeduceDataTypeFromPrecision(precision);
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
 
   for (int src_ch = 16; src_ch <= src_channels; src_ch += 16) {
     TestingRuntimeChannels runtime_channels;
@@ -559,8 +559,8 @@ absl::Status FullyConnectedOIRuntimeDstTest(TestExecutionEnvironment& env,
 
   DataType data_type = DeduceDataTypeFromPrecision(precision);
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
 
   for (int dst_ch = 16; dst_ch <= dst_channels; dst_ch += 16) {
     TestingRuntimeChannels runtime_channels;
@@ -580,7 +580,7 @@ absl::Status FullyConnectedOIPackedGroupsTest(TestExecutionEnvironment& env,
   const int weights_batch_size = 16;
   const int num_groups_per_item = 4;
 
-  Tensor<OHWI, DataType::FLOAT32> weights = MakeSyntheticTensor(
+  Tensor<OHWI, DataType::kFloat32> weights = MakeSyntheticTensor(
       OHWI(dst_channels, weights_batch_size, 1, src_channels));
   weights.data.resize(weights.shape.DimensionsProduct() +
                       XNN_EXTRA_BYTES / sizeof(float));
@@ -603,8 +603,8 @@ absl::Status FullyConnectedOIPackedGroupsTest(TestExecutionEnvironment& env,
 
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
 
   ConvRuntimeCheckDesc::PackedGroups packed_groups;
   packed_groups.params_offset = 0;
@@ -613,7 +613,8 @@ absl::Status FullyConnectedOIPackedGroupsTest(TestExecutionEnvironment& env,
   ConvRuntimeCheckDesc runtime_check;
   runtime_check.packed_groups = packed_groups;
 
-  TensorDescriptor src_desc = TensorDescriptor(data_type, storage, Layout::HWC);
+  TensorDescriptor src_desc =
+      TensorDescriptor(data_type, storage, Layout::kHWC);
   src_desc.UploadData(src_packed);
 
   std::vector<int32_t> runtime_params_cpu(weights_batch_size * 2, 0);
@@ -621,8 +622,8 @@ absl::Status FullyConnectedOIPackedGroupsTest(TestExecutionEnvironment& env,
     runtime_params_cpu[i] = groups_sizes.data[i];
     runtime_params_cpu[weights_batch_size + i] = groups_offsets.data[i];
   }
-  TensorDescriptor runtime_params_td(DataType::INT32, TensorStorageType::BUFFER,
-                                     Layout::LINEAR);
+  TensorDescriptor runtime_params_td(
+      DataType::kInt32, TensorStorageType::kBuffer, Layout::kLinear);
   runtime_params_td.SetBHWCShape(BHWC(1, 1, 1, weights_batch_size * 2));
   runtime_params_td.UploadData(runtime_params_cpu.data());
 
@@ -631,11 +632,11 @@ absl::Status FullyConnectedOIPackedGroupsTest(TestExecutionEnvironment& env,
   {
     WeightsDescription& desc = external_weights.desc;
     desc.layout = WeightsLayout::kCustomGroups;
-    desc.group_sizes.push_back({Axis::INPUT_CHANNELS, 4});
-    desc.group_sizes.push_back({Axis::OUTPUT_CHANNELS, 4});
-    desc.group_sizes.push_back({Axis::INPUT_CHANNELS, 0});
-    desc.group_sizes.push_back({Axis::OUTPUT_CHANNELS, 0});
-    desc.group_sizes.push_back({Axis::HEIGHT, 0});
+    desc.group_sizes.push_back({Axis::kInputChannels, 4});
+    desc.group_sizes.push_back({Axis::kOutputChannels, 4});
+    desc.group_sizes.push_back({Axis::kInputChannels, 0});
+    desc.group_sizes.push_back({Axis::kOutputChannels, 0});
+    desc.group_sizes.push_back({Axis::kHeight, 0});
   }
   external_weights.desc.output_group_size = 1;
   external_weights.shape = weights.shape;
@@ -648,7 +649,8 @@ absl::Status FullyConnectedOIPackedGroupsTest(TestExecutionEnvironment& env,
       external_weights,
       /*bias=*/nullptr, &dst_packed_shape, /*src_exp=*/nullptr, runtime_check);
 
-  TensorDescriptor dst_desc = TensorDescriptor(data_type, storage, Layout::HWC);
+  TensorDescriptor dst_desc =
+      TensorDescriptor(data_type, storage, Layout::kHWC);
   dst_desc.SetBHWCShape(dst_packed_shape);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc, &weights_gpu[0], &runtime_params_td}, {&dst_desc},
@@ -684,8 +686,8 @@ absl::Status FullyConnectedOIRingedOTest(TestExecutionEnvironment& env,
   auto weights_layout = WeightsLayout::kOSpatialIOGroupO4I4;
   for (int ring_offset : {0, 17, 20, 33, 49}) {
     OperationDef op_def;
-    op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-    op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+    op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+    op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
 
     const BHWC dst_shape =
         BHWC(src_shape.b, src_shape.h, src_shape.w, dst_channels);
@@ -748,8 +750,8 @@ absl::Status FullyConnectedOIRingedOTest(TestExecutionEnvironment& env,
     TensorInt32 params;
     params.shape = BHWC(1, 1, 1, 1);
     params.data = std::vector<int32_t>(1, ring_offset);
-    TensorDescriptor params_td = {DataType::INT32, TensorStorageType::BUFFER,
-                                  Layout::HWC};
+    TensorDescriptor params_td = {DataType::kInt32, TensorStorageType::kBuffer,
+                                  Layout::kHWC};
     params_td.UploadData(params);
     src_cpu.push_back(&params_td);
 
@@ -786,8 +788,8 @@ absl::Status FullyConnectedOIRingedITest(TestExecutionEnvironment& env,
   auto weights_layout = WeightsLayout::kOSpatialIOGroupI4O4;
   for (int ring_offset : {0, 17, 20, 33, 49}) {
     OperationDef op_def;
-    op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-    op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+    op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+    op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
 
     const BHWC dst_shape =
         BHWC(src_shape.b, src_shape.h, src_shape.w, dst_channels);
@@ -850,8 +852,8 @@ absl::Status FullyConnectedOIRingedITest(TestExecutionEnvironment& env,
     TensorInt32 params;
     params.shape = BHWC(1, 1, 1, 1);
     params.data = std::vector<int32_t>(1, ring_offset);
-    TensorDescriptor params_td = {DataType::INT32, TensorStorageType::BUFFER,
-                                  Layout::HWC};
+    TensorDescriptor params_td = {DataType::kInt32, TensorStorageType::kBuffer,
+                                  Layout::kHWC};
     params_td.UploadData(params);
     src_cpu.push_back(&params_td);
 

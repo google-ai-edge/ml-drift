@@ -53,14 +53,14 @@ std::string GenerateConv(CalculationsPrecision precision, bool is_i4o4,
   std::string code;
   if (is_i4o4) {
     switch (precision) {
-      case CalculationsPrecision::F32:
-      case CalculationsPrecision::F16:
+      case CalculationsPrecision::kF32:
+      case CalculationsPrecision::kF16:
         code += "    $0 += $1.x * weights_cache[$2];\n";
         code += "    $0 += $1.y * weights_cache[$3];\n";
         code += "    $0 += $1.z * weights_cache[$4];\n";
         code += "    $0 += $1.w * weights_cache[$5];\n";
         break;
-      case CalculationsPrecision::F32_F16:
+      case CalculationsPrecision::kF32F16:
         code +=
             "    $0 += ucl::Convert<AccType>($1.x * weights_cache[$2] + $1.y * "
             "weights_cache[$3] + $1.z * "
@@ -111,7 +111,7 @@ ConvolutionTransposed3x3::ConvolutionTransposed3x3(
   code_ = GenerateConvolutionTransposedCode(gpu_info, definition, precision,
                                             weights_upload_type_, padding_,
                                             work_group_launch_order_, has_bias);
-  if (precision == CalculationsPrecision::F16 && gpu_info.IsPowerVR()) {
+  if (precision == CalculationsPrecision::kF16 && gpu_info.IsPowerVR()) {
     compiler_options_.push_back(CompilerOptions::kClFastRelaxedMath);
   }
 }
@@ -168,7 +168,7 @@ std::string ConvolutionTransposed3x3::GenerateConvolutionTransposedCode(
              ">()";
     }
   };
-  if (op_def.dst_tensors[0].HasAxis(Axis::BATCH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kBatch)) {
     c += "  int linear_id = " + GetGlobalID(0) + ";\n";
     c += "  int X = linear_id / args.dst_tensor.Batch();\n";
     c += "  int B = linear_id % args.dst_tensor.Batch();\n";
@@ -215,19 +215,19 @@ std::string ConvolutionTransposed3x3::GenerateConvolutionTransposedCode(
   if (weights_upload_type == WeightsUploadType::kLocalMemoryByThreads) {
     c += "  int local_id = ucl::GetLocalId<1>() * 8 + ucl::GetLocalId<0>();\n";
   }
-  if (!src_desc.SupportsZeroClamp(Axis::WIDTH, gpu_info)) {
+  if (!src_desc.SupportsZeroClamp(Axis::kWidth, gpu_info)) {
     c += "  bool in_x0 = SRC_X >= 0 && SRC_X < args.src_tensor.Width();\n";
     c += "  bool in_x1 = SRC_X + 1 >= 0 && SRC_X + 1 < "
          "args.src_tensor.Width();\n";
   }
-  if (!src_desc.SupportsZeroClamp(Axis::HEIGHT, gpu_info)) {
+  if (!src_desc.SupportsZeroClamp(Axis::kHeight, gpu_info)) {
     c += "  bool in_y0 = SRC_Y >= 0 && SRC_Y < args.src_tensor.Height();\n";
     c += "  bool in_y1 = SRC_Y + 1 >= 0 && SRC_Y + 1 < "
          "args.src_tensor.Height();\n";
   }
   auto generate_check = [&](int x, int y) {
     std::string check;
-    const std::vector<Axis> axes{Axis::WIDTH, Axis::HEIGHT};
+    const std::vector<Axis> axes{Axis::kWidth, Axis::kHeight};
     const std::vector<std::string> names{"in_x" + std::to_string(x),
                                          "in_y" + std::to_string(y)};
     for (int i = 0; i < axes.size(); ++i) {
@@ -408,9 +408,9 @@ std::string ConvolutionTransposed3x3::GenerateConvolutionTransposedCode(
     }
   }
   c += "}\n";
-  const DataType acc_type = precision == CalculationsPrecision::F16
-                                ? DataType::FLOAT16
-                                : DataType::FLOAT32;
+  const DataType acc_type = precision == CalculationsPrecision::kF16
+                                ? DataType::kFloat16
+                                : DataType::kFloat32;
   const DataType type = op_def.src_tensors[0].GetDataType();
   absl::StrReplaceAll({{"SType", ToUclDataType(type, 1)},
                        {"Type", ToUclDataType(type, 4)},
@@ -471,7 +471,7 @@ std::vector<int> ConvolutionTransposed3x3::GetSpatialWeightsRemap() const {
 }
 
 void ConvolutionTransposed3x3::UploadWeights(
-    const GpuInfo& gpu_info, const Tensor<OHWI, DataType::FLOAT32>& weights) {
+    const GpuInfo& gpu_info, const Tensor<OHWI, DataType::kFloat32>& weights) {
   const auto weights_desc = GetWeightsDescription();
   const int flt_count =
       GetTotalElementsCountForLayout(weights_desc, weights.shape);

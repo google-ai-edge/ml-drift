@@ -40,17 +40,17 @@ absl::Status ExpertsRemapTest(const TensorInt32& src_tensor, int num_experts,
 
   auto [groups_map, groups_sizes] = GroupsMapReference(src_tensor, num_experts);
 
-  TensorDescriptor src_desc =
-      TensorDescriptor(DataType::INT32, TensorStorageType::BUFFER, Layout::HWC);
+  TensorDescriptor src_desc = TensorDescriptor(
+      DataType::kInt32, TensorStorageType::kBuffer, Layout::kHWC);
   src_desc.SetBHWCShape(src_tensor.shape);
   src_desc.UploadData(src_tensor);
 
-  TensorDescriptor dst_desc =
-      TensorDescriptor(DataType::INT32, TensorStorageType::BUFFER, Layout::HWC);
+  TensorDescriptor dst_desc = TensorDescriptor(
+      DataType::kInt32, TensorStorageType::kBuffer, Layout::kHWC);
   dst_desc.SetBHWCShape(BHWC(1, num_experts, seq_size, 2));
 
-  TensorDescriptor dst_count_desc =
-      TensorDescriptor(DataType::INT32, TensorStorageType::BUFFER, Layout::HWC);
+  TensorDescriptor dst_count_desc = TensorDescriptor(
+      DataType::kInt32, TensorStorageType::kBuffer, Layout::kHWC);
   dst_count_desc.SetBHWCShape(BHWC(1, 1, 1, num_experts));
 
   ABSL_RETURN_IF_ERROR(
@@ -116,13 +116,13 @@ absl::Status OffsetsTest(TestExecutionEnvironment* env) {
       0, 1, 3, 8, 14, 17, 21, 27, 37, 44, 52, 61,
   };
 
-  TensorDescriptor src_desc =
-      TensorDescriptor(DataType::INT32, TensorStorageType::BUFFER, Layout::HWC);
+  TensorDescriptor src_desc = TensorDescriptor(
+      DataType::kInt32, TensorStorageType::kBuffer, Layout::kHWC);
   src_desc.SetBHWCShape(src_tensor.shape);
   src_desc.UploadData(src_tensor);
 
-  TensorDescriptor dst_desc =
-      TensorDescriptor(DataType::INT32, TensorStorageType::BUFFER, Layout::HWC);
+  TensorDescriptor dst_desc = TensorDescriptor(
+      DataType::kInt32, TensorStorageType::kBuffer, Layout::kHWC);
   dst_desc.SetBHWCShape(BHWC(1, 1, 1, 12));
 
   ABSL_RETURN_IF_ERROR(
@@ -153,13 +153,13 @@ absl::Status OffsetsBigTest(TestExecutionEnvironment* env, int size) {
     ref_tensor.data[i] = ref_tensor.data[i - 1] + src_tensor.data[i - 1];
   }
 
-  TensorDescriptor src_desc =
-      TensorDescriptor(DataType::INT32, TensorStorageType::BUFFER, Layout::HWC);
+  TensorDescriptor src_desc = TensorDescriptor(
+      DataType::kInt32, TensorStorageType::kBuffer, Layout::kHWC);
   src_desc.SetBHWCShape(src_tensor.shape);
   src_desc.UploadData(src_tensor);
 
-  TensorDescriptor dst_desc =
-      TensorDescriptor(DataType::INT32, TensorStorageType::BUFFER, Layout::HWC);
+  TensorDescriptor dst_desc = TensorDescriptor(
+      DataType::kInt32, TensorStorageType::kBuffer, Layout::kHWC);
   dst_desc.SetBHWCShape(BHWC(1, 1, 1, size));
 
   ABSL_RETURN_IF_ERROR(
@@ -183,17 +183,17 @@ absl::Status LinearizeMapTest(TestExecutionEnvironment* env, int seq_size,
   auto [packed_groups_map, groups_offsets] =
       PackedGroupsMapReference(groups_map, groups_sizes);
 
-  TensorDescriptor src_desc =
-      TensorDescriptor(DataType::INT32, TensorStorageType::BUFFER, Layout::HWC);
+  TensorDescriptor src_desc = TensorDescriptor(
+      DataType::kInt32, TensorStorageType::kBuffer, Layout::kHWC);
   src_desc.SetBHWCShape(active_expert_ids.shape);
   src_desc.UploadData(active_expert_ids);
 
-  TensorDescriptor map_desc =
-      TensorDescriptor(DataType::INT32, TensorStorageType::BUFFER, Layout::HWC);
+  TensorDescriptor map_desc = TensorDescriptor(
+      DataType::kInt32, TensorStorageType::kBuffer, Layout::kHWC);
   map_desc.SetBHWCShape(BHWC(1, num_experts, seq_size, 2));
 
-  TensorDescriptor count_desc =
-      TensorDescriptor(DataType::INT32, TensorStorageType::BUFFER, Layout::HWC);
+  TensorDescriptor count_desc = TensorDescriptor(
+      DataType::kInt32, TensorStorageType::kBuffer, Layout::kHWC);
   count_desc.SetBHWCShape(BHWC(1, 1, 1, num_experts));
 
   ABSL_RETURN_IF_ERROR(
@@ -219,8 +219,8 @@ absl::Status LinearizeMapTest(TestExecutionEnvironment* env, int seq_size,
     }
   }
 
-  TensorDescriptor offsets_desc =
-      TensorDescriptor(DataType::INT32, TensorStorageType::BUFFER, Layout::HWC);
+  TensorDescriptor offsets_desc = TensorDescriptor(
+      DataType::kInt32, TensorStorageType::kBuffer, Layout::kHWC);
   offsets_desc.SetBHWCShape(BHWC(1, 1, 1, num_experts));
 
   ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation({&count_desc}, {&offsets_desc},
@@ -231,8 +231,8 @@ absl::Status LinearizeMapTest(TestExecutionEnvironment* env, int seq_size,
   EXPECT_THAT(offsets_tensor.data,
               ::testing::ElementsAreArray(groups_offsets.data));
 
-  TensorDescriptor linearized_map_desc =
-      TensorDescriptor(DataType::INT32, TensorStorageType::BUFFER, Layout::HWC);
+  TensorDescriptor linearized_map_desc = TensorDescriptor(
+      DataType::kInt32, TensorStorageType::kBuffer, Layout::kHWC);
   linearized_map_desc.SetBHWCShape(
       BHWC(1, 1, num_active_experts * seq_size, 2));
 
@@ -251,8 +251,8 @@ absl::Status LinearizeMapTest(TestExecutionEnvironment* env, int seq_size,
 absl::Status ExpertsRemapToTest(TestExecutionEnvironment* env, int seq_size,
                                 int num_active_experts, int num_experts,
                                 int channels) {
-  const DataType data_type = DataType::FLOAT32;
-  const TensorStorageType storage_type = TensorStorageType::BUFFER;
+  const DataType data_type = DataType::kFloat32;
+  const TensorStorageType storage_type = TensorStorageType::kBuffer;
   TensorFloat32 src_tensor =
       MakeSyntheticTensor(BHWC(1, 1, seq_size, channels));
   TensorInt32 active_expert_ids =
@@ -266,14 +266,14 @@ absl::Status ExpertsRemapToTest(TestExecutionEnvironment* env, int seq_size,
   auto dst_ref = RemapToReference(src_tensor, packed_groups_map);
 
   TensorDescriptor src_desc =
-      TensorDescriptor(data_type, storage_type, Layout::HWC);
+      TensorDescriptor(data_type, storage_type, Layout::kHWC);
   src_desc.UploadData(src_tensor);
   TensorDescriptor experts_packed_map_desc =
-      TensorDescriptor(DataType::INT32, storage_type, Layout::HWC);
+      TensorDescriptor(DataType::kInt32, storage_type, Layout::kHWC);
   experts_packed_map_desc.UploadData(packed_groups_map);
 
   TensorDescriptor dst_desc =
-      TensorDescriptor(data_type, storage_type, Layout::HWC);
+      TensorDescriptor(data_type, storage_type, Layout::kHWC);
   dst_desc.SetBHWCShape(dst_ref.shape);
 
   ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
@@ -293,8 +293,8 @@ absl::Status ExpertsRemapToTest(TestExecutionEnvironment* env, int seq_size,
 absl::Status ExpertsRemapFromTest(TestExecutionEnvironment* env, int seq_size,
                                   int num_active_experts, int num_experts,
                                   int channels) {
-  const DataType data_type = DataType::FLOAT32;
-  const TensorStorageType storage_type = TensorStorageType::BUFFER;
+  const DataType data_type = DataType::kFloat32;
+  const TensorStorageType storage_type = TensorStorageType::kBuffer;
   TensorFloat32 packed_tensor =
       MakeSyntheticTensor(BHWC(1, 1, seq_size * num_active_experts, channels));
   TensorInt32 active_expert_ids =
@@ -309,14 +309,14 @@ absl::Status ExpertsRemapFromTest(TestExecutionEnvironment* env, int seq_size,
       RemapFromReference(packed_tensor, packed_groups_map, num_active_experts);
 
   TensorDescriptor src_desc =
-      TensorDescriptor(data_type, storage_type, Layout::HWC);
+      TensorDescriptor(data_type, storage_type, Layout::kHWC);
   src_desc.UploadData(packed_tensor);
   TensorDescriptor experts_packed_map_desc =
-      TensorDescriptor(DataType::INT32, storage_type, Layout::HWC);
+      TensorDescriptor(DataType::kInt32, storage_type, Layout::kHWC);
   experts_packed_map_desc.UploadData(packed_groups_map);
 
   TensorDescriptor dst_desc =
-      TensorDescriptor(data_type, storage_type, Layout::HWC);
+      TensorDescriptor(data_type, storage_type, Layout::kHWC);
   dst_desc.SetBHWCShape(dst_ref.shape);
 
   ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(

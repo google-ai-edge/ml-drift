@@ -65,11 +65,11 @@ TEST(ArgsortTest, SmallScaleReferenceTest) {
 
   OperationDef op_def;
   TensorDescriptor src_td = TensorDescriptor{
-    DataType::INT32, TensorStorageType::BUFFER, Layout::BHWC};
+      DataType::kInt32, TensorStorageType::kBuffer, Layout::kBHWC};
   src_td.SetBHWCShape(BHWC(1, 1, 1, num_elements));
   op_def.src_tensors.push_back(src_td);
   TensorDescriptor dst_td = TensorDescriptor{
-      DataType::INT32, TensorStorageType::BUFFER, Layout::BHWC};
+      DataType::kInt32, TensorStorageType::kBuffer, Layout::kBHWC};
   dst_td.SetBHWCShape(BHWC(1, 1, 1, num_elements));
   op_def.dst_tensors.push_back(dst_td);
 
@@ -80,7 +80,7 @@ TEST(ArgsortTest, SmallScaleReferenceTest) {
   ABSL_ASSERT_OK(exec_env->ExecuteGPUOperation(
       {&src_td}, {&dst_td}, std::make_unique<BucketArgsortOp>(std::move(op))));
 
-  Tensor<BHWC, DataType::INT32> gpu_output_tensor;
+  Tensor<BHWC, DataType::kInt32> gpu_output_tensor;
   dst_td.DownloadData(&gpu_output_tensor);
 
   EXPECT_EQ(gpu_output_tensor.data, expected_indices);
@@ -103,11 +103,11 @@ TEST_P(ArgsortScaleTest, GpuEquivalence) {
 
   OperationDef op_def;
   TensorDescriptor src_td = TensorDescriptor{
-    DataType::INT32, TensorStorageType::BUFFER, Layout::BHWC};
+      DataType::kInt32, TensorStorageType::kBuffer, Layout::kBHWC};
   src_td.SetBHWCShape(BHWC(1, 1, 1, num_elements));
   op_def.src_tensors.push_back(src_td);
   TensorDescriptor dst_td = TensorDescriptor{
-      DataType::INT32, TensorStorageType::BUFFER, Layout::BHWC};
+      DataType::kInt32, TensorStorageType::kBuffer, Layout::kBHWC};
   dst_td.SetBHWCShape(BHWC(1, 1, 1, num_elements));
   op_def.dst_tensors.push_back(dst_td);
 
@@ -118,7 +118,7 @@ TEST_P(ArgsortScaleTest, GpuEquivalence) {
   ABSL_ASSERT_OK(exec_env->ExecuteGPUOperation(
       {&src_td}, {&dst_td}, std::make_unique<BucketArgsortOp>(std::move(op))));
 
-  Tensor<BHWC, DataType::INT32> gpu_output_tensor;
+  Tensor<BHWC, DataType::kInt32> gpu_output_tensor;
   dst_td.DownloadData(&gpu_output_tensor);
 
   EXPECT_EQ(gpu_output_tensor.data, cpu_output_tensor.data);

@@ -57,7 +57,7 @@ absl::Status ConvAppleMPPTest(TestExecutionEnvironment& env,
   attr.dilations = HW(2, 1);
   auto synthetic_weights =
       MakeSyntheticTensor(OHWI(dst_channels, 2, 3, src_channels));
-  auto& attr_weights = attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>(
+  auto& attr_weights = attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>(
       std::move(synthetic_weights));
   attr_weights.data.resize(attr_weights.data.size() +
                            XNN_EXTRA_BYTES / sizeof(float));
@@ -66,16 +66,16 @@ absl::Status ConvAppleMPPTest(TestExecutionEnvironment& env,
   TensorFloat32 src_tensor = MakeSyntheticTensor(shape);
   TensorFloat32 dst_ref_tensor = ConvolutionReference(attr, src_tensor);
 
-  const Layout layout = shape.b == 1 ? Layout::HWC : Layout::BHWC;
-  TensorDescriptor src_tensor_desc{DataType::FLOAT16, storage, layout};
-  TensorDescriptor dst_tensor_desc{DataType::FLOAT16, storage, layout};
+  const Layout layout = shape.b == 1 ? Layout::kHWC : Layout::kBHWC;
+  TensorDescriptor src_tensor_desc{DataType::kFloat16, storage, layout};
+  TensorDescriptor dst_tensor_desc{DataType::kFloat16, storage, layout};
 
   auto conv = CreateConvAppleMPP(src_tensor_desc, dst_tensor_desc, attr);
   TensorFloat32 dst_tensor;
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<ConvAppleMPP>(std::move(conv)),
       dst_ref_tensor.shape, &dst_tensor));
-  float eps = GetEpsilon(CalculationsPrecision::F16, env.GetGpuInfo(), attr);
+  float eps = GetEpsilon(CalculationsPrecision::kF16, env.GetGpuInfo(), attr);
   EXPECT_THAT(dst_tensor.data,
               testing::Pointwise(testing::FloatNear(eps), dst_ref_tensor.data));
   return absl::OkStatus();
@@ -84,11 +84,11 @@ absl::Status ConvAppleMPPTest(TestExecutionEnvironment& env,
 absl::Status ConvAppleMPPBigTest(TestExecutionEnvironment& env,
                                  TensorStorageType dst_storage,
                                  const BHWC& src_shape, int dst_channels) {
-  Layout layout = src_shape.b == 1 ? Layout::HWC : Layout::BHWC;
+  Layout layout = src_shape.b == 1 ? Layout::kHWC : Layout::kBHWC;
   TensorDescriptor src_tensor_desc{
-      DataType::FLOAT16, TensorStorageType::BUFFER, layout,
+      DataType::kFloat16, TensorStorageType::kBuffer, layout,
       TensorDescriptor::PhysicalLayout1D::kDHWBCC4};
-  TensorDescriptor dst_tensor_desc{DataType::FLOAT16, dst_storage, layout};
+  TensorDescriptor dst_tensor_desc{DataType::kFloat16, dst_storage, layout};
 
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
   FullyConnectedAttributes attr;
@@ -106,7 +106,7 @@ absl::Status ConvAppleMPPBigTest(TestExecutionEnvironment& env,
   TensorFloat32 dst_tensor;
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::move(conv), dst_ref_tensor.shape, &dst_tensor));
-  float eps = GetEpsilon(CalculationsPrecision::F16, env.GetGpuInfo(), attr);
+  float eps = GetEpsilon(CalculationsPrecision::kF16, env.GetGpuInfo(), attr);
   EXPECT_THAT(dst_tensor.data,
               testing::Pointwise(testing::FloatNear(eps), dst_ref_tensor.data));
   return absl::OkStatus();
@@ -116,11 +116,11 @@ absl::Status ConvAppleMPPExternalWeightsTest(TestExecutionEnvironment& env,
                                              TensorStorageType dst_storage,
                                              const BHWC& src_shape,
                                              int dst_channels) {
-  Layout layout = src_shape.b == 1 ? Layout::HWC : Layout::BHWC;
+  Layout layout = src_shape.b == 1 ? Layout::kHWC : Layout::kBHWC;
   TensorDescriptor src_tensor_desc{
-      DataType::FLOAT16, TensorStorageType::BUFFER, layout,
+      DataType::kFloat16, TensorStorageType::kBuffer, layout,
       TensorDescriptor::PhysicalLayout1D::kDHWBCC4};
-  TensorDescriptor dst_tensor_desc{DataType::FLOAT16, dst_storage, layout};
+  TensorDescriptor dst_tensor_desc{DataType::kFloat16, dst_storage, layout};
 
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
   FullyConnectedAttributes attr;
@@ -132,7 +132,7 @@ absl::Status ConvAppleMPPExternalWeightsTest(TestExecutionEnvironment& env,
       FullyConnectedReference(attr, src_tensor);
 
   TensorDescriptor bias_tensor_desc = CreateConstantLinearTensorDescriptor(
-      env.GetGpuInfo(), DataType::FLOAT16, attr.bias);
+      env.GetGpuInfo(), DataType::kFloat16, attr.bias);
 
   ConvAppleMPP conv = CreateConvAppleMPPExternalWeights(
       src_tensor_desc, dst_tensor_desc, attr.weights.shape, &bias_tensor_desc);
@@ -158,7 +158,7 @@ absl::Status ConvAppleMPPExternalWeightsTest(TestExecutionEnvironment& env,
       srcs_td, {&dst_td}, std::make_unique<ConvAppleMPP>(std::move(conv))));
   TensorFloat32 dst_tensor;
   dst_td.DownloadData(&dst_tensor);
-  float eps = GetEpsilon(CalculationsPrecision::F16, env.GetGpuInfo(), attr);
+  float eps = GetEpsilon(CalculationsPrecision::kF16, env.GetGpuInfo(), attr);
   EXPECT_THAT(dst_tensor.data,
               testing::Pointwise(testing::FloatNear(eps), dst_ref_tensor.data));
   return absl::OkStatus();
@@ -171,7 +171,7 @@ absl::Status ConvAppleMPPPackedGroupsTest(TestExecutionEnvironment& env,
   const int weights_batch_size = 16;
   const int num_groups_per_item = 4;
 
-  Tensor<OHWI, DataType::FLOAT32> weights = MakeSyntheticTensor(
+  Tensor<OHWI, DataType::kFloat32> weights = MakeSyntheticTensor(
       OHWI(dst_channels, weights_batch_size, 1, src_shape.c));
   weights.data.resize(weights.shape.DimensionsProduct() +
                       XNN_EXTRA_BYTES / sizeof(float));
@@ -191,9 +191,9 @@ absl::Status ConvAppleMPPPackedGroupsTest(TestExecutionEnvironment& env,
   auto dst_packed_shape = src_packed.shape;
   dst_packed_shape.c = dst_channels;
 
-  const DataType data_type = DataType::FLOAT16;
-  Layout layout = src_shape.b == 1 ? Layout::HWC : Layout::BHWC;
-  TensorDescriptor src_desc{data_type, TensorStorageType::BUFFER, layout,
+  const DataType data_type = DataType::kFloat16;
+  Layout layout = src_shape.b == 1 ? Layout::kHWC : Layout::kBHWC;
+  TensorDescriptor src_desc{data_type, TensorStorageType::kBuffer, layout,
                             TensorDescriptor::PhysicalLayout1D::kDHWBCC4};
   TensorDescriptor dst_desc{data_type, dst_storage, layout};
 
@@ -220,8 +220,8 @@ absl::Status ConvAppleMPPPackedGroupsTest(TestExecutionEnvironment& env,
     runtime_params_cpu[i] = groups_sizes.data[i];
     runtime_params_cpu[weights_batch_size + i] = groups_offsets.data[i];
   }
-  TensorDescriptor runtime_params_td(DataType::INT32, TensorStorageType::BUFFER,
-                                     Layout::LINEAR);
+  TensorDescriptor runtime_params_td(
+      DataType::kInt32, TensorStorageType::kBuffer, Layout::kLinear);
   runtime_params_td.SetBHWCShape(BHWC(1, 1, 1, weights_batch_size * 2));
   runtime_params_td.UploadData(runtime_params_cpu.data());
 
@@ -241,7 +241,7 @@ absl::Status ConvAppleMPPPackedGroupsTest(TestExecutionEnvironment& env,
   dst_desc.DownloadData(&dst_packed);
   auto dst_tensor =
       RemapFromReference(dst_packed, packed_groups_map, num_groups_per_item);
-  float eps = GetEpsilon(CalculationsPrecision::F16, env.GetGpuInfo()) * 2.0f *
+  float eps = GetEpsilon(CalculationsPrecision::kF16, env.GetGpuInfo()) * 2.0f *
               src_shape.c;
   EXPECT_THAT(dst_tensor.data,
               testing::Pointwise(testing::FloatNear(eps), dst_ref.data));
@@ -270,15 +270,15 @@ absl::Status ConvAppleMPPExternalWfloatTest(TestExecutionEnvironment& env,
   TensorFloat32 dst_ref_tensor =
       FullyConnectedRefDifferentWeightsForHeight(weights_f32, src_tensor);
 
-  Layout layout = src_tensor.shape.b == 1 ? Layout::HWC : Layout::BHWC;
-  DataType float_type = DataType::FLOAT16;
+  Layout layout = src_tensor.shape.b == 1 ? Layout::kHWC : Layout::kBHWC;
+  DataType float_type = DataType::kFloat16;
   TensorDescriptor src_tensor_desc{
-      float_type, TensorStorageType::BUFFER, layout,
+      float_type, TensorStorageType::kBuffer, layout,
       TensorDescriptor::PhysicalLayout1D::kDHWBCC4};
   TensorDescriptor dst_tensor_desc{float_type, storage, layout};
 
   WeightsDescription weights_desc =
-      GetFullyConnectedWeightsDesc(DataType::FLOAT16, weights_f32.shape);
+      GetFullyConnectedWeightsDesc(DataType::kFloat16, weights_f32.shape);
 
   ExternalWeights external_weights;
   external_weights.desc = weights_desc;
@@ -298,7 +298,7 @@ absl::Status ConvAppleMPPExternalWfloatTest(TestExecutionEnvironment& env,
   TensorDescriptor dst_td = dst_tensor_desc;
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
 
-  float eps = GetEpsilon(CalculationsPrecision::F16, env.GetGpuInfo()) *
+  float eps = GetEpsilon(CalculationsPrecision::kF16, env.GetGpuInfo()) *
               weights_f32.shape.i * 4.0f;
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_td, &weights_td}, {&dst_td},
@@ -328,7 +328,7 @@ absl::Status ConvAppleMPPExternalWi8Test(TestExecutionEnvironment& env,
 
   const int weights_batch_size = batched_weights ? src_shape.h : 1;
   scale_zp_batch = scale_zp_batch != -1 ? scale_zp_batch : weights_batch_size;
-  ml_drift::Tensor<OHWI, DataType::INT8> weights_i8;
+  ml_drift::Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(dst_channels, weights_batch_size, 1, src_channels);
   weights_i8.data.resize(weights_i8.shape.DimensionsProduct());
   auto weights_f32 = MakeSyntheticTensor(
@@ -342,7 +342,7 @@ absl::Status ConvAppleMPPExternalWi8Test(TestExecutionEnvironment& env,
   for (int i = 0; i < weights_scales.data.size(); ++i) {
     weights_scales.data[i] /= 128.0f;
   }
-  ml_drift::Tensor<OHWI, DataType::FLOAT32> weights_zero_point;
+  ml_drift::Tensor<OHWI, DataType::kFloat32> weights_zero_point;
   weights_zero_point.shape = weights_scales.shape;
   weights_zero_point.data.resize(weights_scales.shape.DimensionsProduct(),
                                  0.0f);
@@ -352,10 +352,10 @@ absl::Status ConvAppleMPPExternalWi8Test(TestExecutionEnvironment& env,
   TensorFloat32 dst_ref_tensor =
       FullyConnectedRefDifferentWeightsForHeight(weights, src_tensor);
 
-  Layout layout = src_tensor.shape.b == 1 ? Layout::HWC : Layout::BHWC;
-  DataType float_type = DataType::FLOAT16;
+  Layout layout = src_tensor.shape.b == 1 ? Layout::kHWC : Layout::kBHWC;
+  DataType float_type = DataType::kFloat16;
   TensorDescriptor src_tensor_desc{
-      float_type, TensorStorageType::BUFFER, layout,
+      float_type, TensorStorageType::kBuffer, layout,
       TensorDescriptor::PhysicalLayout1D::kDHWBCC4};
   TensorDescriptor dst_tensor_desc{float_type, storage, layout};
 
@@ -387,7 +387,7 @@ absl::Status ConvAppleMPPExternalWi8Test(TestExecutionEnvironment& env,
   TensorDescriptor dst_td = dst_tensor_desc;
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
 
-  float eps = GetEpsilon(CalculationsPrecision::F16, env.GetGpuInfo()) *
+  float eps = GetEpsilon(CalculationsPrecision::kF16, env.GetGpuInfo()) *
               group_size * 8.0f;
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_td, &weights_i8_td, &scale_desc, &zp_desc}, {&dst_td},
@@ -416,7 +416,7 @@ absl::Status ConvAppleMPPExternalWi4Test(TestExecutionEnvironment& env,
   }
 
   const int weights_batch_size = batched_weights ? src_shape.h : 1;
-  ml_drift::Tensor<OHWI, DataType::INT8> weights_i4;
+  ml_drift::Tensor<OHWI, DataType::kInt8> weights_i4;
   weights_i4.shape = OHWI(dst_channels, weights_batch_size, 1, src_channels);
   weights_i4.data.resize(weights_i4.shape.DimensionsProduct());
   auto weights_f32 = MakeSyntheticTensor(
@@ -430,7 +430,7 @@ absl::Status ConvAppleMPPExternalWi4Test(TestExecutionEnvironment& env,
   for (int i = 0; i < weights_scales.data.size(); ++i) {
     weights_scales.data[i] /= 8.0f;
   }
-  ml_drift::Tensor<OHWI, DataType::FLOAT32> weights_zero_point;
+  ml_drift::Tensor<OHWI, DataType::kFloat32> weights_zero_point;
   weights_zero_point.shape = weights_scales.shape;
   weights_zero_point.data.resize(weights_scales.shape.DimensionsProduct(),
                                  0.0f);
@@ -440,10 +440,10 @@ absl::Status ConvAppleMPPExternalWi4Test(TestExecutionEnvironment& env,
   TensorFloat32 dst_ref_tensor =
       FullyConnectedRefDifferentWeightsForHeight(weights, src_tensor);
 
-  Layout layout = src_tensor.shape.b == 1 ? Layout::HWC : Layout::BHWC;
-  DataType float_type = DataType::FLOAT16;
+  Layout layout = src_tensor.shape.b == 1 ? Layout::kHWC : Layout::kBHWC;
+  DataType float_type = DataType::kFloat16;
   TensorDescriptor src_tensor_desc{
-      float_type, TensorStorageType::BUFFER, layout,
+      float_type, TensorStorageType::kBuffer, layout,
       TensorDescriptor::PhysicalLayout1D::kDHWBCC4};
   TensorDescriptor dst_tensor_desc{float_type, storage, layout};
 
@@ -475,7 +475,7 @@ absl::Status ConvAppleMPPExternalWi4Test(TestExecutionEnvironment& env,
   TensorDescriptor dst_td = dst_tensor_desc;
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
 
-  float eps = GetEpsilon(CalculationsPrecision::F16, env.GetGpuInfo()) *
+  float eps = GetEpsilon(CalculationsPrecision::kF16, env.GetGpuInfo()) *
               group_size * 4.0f;
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_td, &weights_i4_td, &scale_desc, &zp_desc}, {&dst_td},
@@ -504,7 +504,7 @@ absl::Status ConvAppleMPPExternalWi2Test(TestExecutionEnvironment& env,
   }
 
   const int weights_batch_size = batched_weights ? src_shape.h : 1;
-  ml_drift::Tensor<OHWI, DataType::INT8> weights_i2;
+  ml_drift::Tensor<OHWI, DataType::kInt8> weights_i2;
   weights_i2.shape = OHWI(dst_channels, weights_batch_size, 1, src_channels);
   weights_i2.data.resize(weights_i2.shape.DimensionsProduct());
   auto weights_f32 = MakeSyntheticTensor(
@@ -518,7 +518,7 @@ absl::Status ConvAppleMPPExternalWi2Test(TestExecutionEnvironment& env,
   for (int i = 0; i < weights_scales.data.size(); ++i) {
     weights_scales.data[i] /= 2.0f;
   }
-  ml_drift::Tensor<OHWI, DataType::FLOAT32> weights_zero_point;
+  ml_drift::Tensor<OHWI, DataType::kFloat32> weights_zero_point;
   weights_zero_point.shape = weights_scales.shape;
   weights_zero_point.data.resize(weights_scales.shape.DimensionsProduct(),
                                  0.0f);
@@ -528,10 +528,10 @@ absl::Status ConvAppleMPPExternalWi2Test(TestExecutionEnvironment& env,
   TensorFloat32 dst_ref_tensor =
       FullyConnectedRefDifferentWeightsForHeight(weights, src_tensor);
 
-  Layout layout = src_tensor.shape.b == 1 ? Layout::HWC : Layout::BHWC;
-  DataType float_type = DataType::FLOAT16;
+  Layout layout = src_tensor.shape.b == 1 ? Layout::kHWC : Layout::kBHWC;
+  DataType float_type = DataType::kFloat16;
   TensorDescriptor src_tensor_desc{
-      float_type, TensorStorageType::BUFFER, layout,
+      float_type, TensorStorageType::kBuffer, layout,
       TensorDescriptor::PhysicalLayout1D::kDHWBCC4};
   TensorDescriptor dst_tensor_desc{float_type, storage, layout};
 
@@ -563,7 +563,7 @@ absl::Status ConvAppleMPPExternalWi2Test(TestExecutionEnvironment& env,
   TensorDescriptor dst_td = dst_tensor_desc;
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
 
-  float eps = GetEpsilon(CalculationsPrecision::F16, env.GetGpuInfo()) *
+  float eps = GetEpsilon(CalculationsPrecision::kF16, env.GetGpuInfo()) *
               group_size * 2.0f;
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_td, &weights_i2_td, &scale_desc, &zp_desc}, {&dst_td},
@@ -584,7 +584,7 @@ absl::Status ConvAppleMPPBatchedMatMulTest(TestExecutionEnvironment& env,
   TensorFloat32 dst_ref_tensor =
       BatchedMatMulReference(left_tensor, right_tensor);
 
-  ml_drift::Tensor<OHWI, DataType::FLOAT32> weights;
+  ml_drift::Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape =
       OHWI(right_tensor.shape.c, right_tensor.shape.h, 1, right_tensor.shape.w);
   weights.data.resize(weights.shape.DimensionsProduct() +
@@ -602,9 +602,10 @@ absl::Status ConvAppleMPPBatchedMatMulTest(TestExecutionEnvironment& env,
   }
 
   TensorDescriptor src_tensor_desc{
-      DataType::FLOAT16, TensorStorageType::BUFFER, Layout::HWC,
+      DataType::kFloat16, TensorStorageType::kBuffer, Layout::kHWC,
       TensorDescriptor::PhysicalLayout1D::kDHWBCC4};
-  TensorDescriptor dst_tensor_desc{DataType::FLOAT16, dst_storage, Layout::HWC};
+  TensorDescriptor dst_tensor_desc{DataType::kFloat16, dst_storage,
+                                   Layout::kHWC};
   ConvAppleMPP conv = CreateConvAppleMPPExternalWeights(
       src_tensor_desc, dst_tensor_desc, weights.shape, /*bias=*/nullptr,
       /*src_exp=*/nullptr,
@@ -628,7 +629,7 @@ absl::Status ConvAppleMPPBatchedMatMulTest(TestExecutionEnvironment& env,
 
   int mads_count = left_tensor.shape.c;
   float eps =
-      GetEpsilon(CalculationsPrecision::F16, env.GetGpuInfo()) * mads_count;
+      GetEpsilon(CalculationsPrecision::kF16, env.GetGpuInfo()) * mads_count;
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       srcs_td, {&dst_td}, std::make_unique<ConvAppleMPP>(std::move(conv))));
   TensorFloat32 dst_tensor;
@@ -658,13 +659,13 @@ absl::Status ConvWaveMemoryRuntimeChannelsTest(
   }
 
   TensorDescriptor bias_tensor_desc = CreateConstantLinearTensorDescriptor(
-      exec_env.GetGpuInfo(), DataType::FLOAT16, attr.bias);
+      exec_env.GetGpuInfo(), DataType::kFloat16, attr.bias);
 
-  Layout layout = src_tensor.shape.b == 1 ? Layout::HWC : Layout::BHWC;
+  Layout layout = src_tensor.shape.b == 1 ? Layout::kHWC : Layout::kBHWC;
   TensorDescriptor src_tensor_desc{
-      DataType::FLOAT16, TensorStorageType::BUFFER, layout,
+      DataType::kFloat16, TensorStorageType::kBuffer, layout,
       TensorDescriptor::PhysicalLayout1D::kDHWBCC4};
-  TensorDescriptor dst_tensor_desc{DataType::FLOAT16, dst_storage, layout};
+  TensorDescriptor dst_tensor_desc{DataType::kFloat16, dst_storage, layout};
   auto operation = CreateConvAppleMPPExternalWeights(
       src_tensor_desc, dst_tensor_desc, attr.weights.shape, &bias_tensor_desc,
       /*src_exp=*/nullptr,
@@ -685,8 +686,8 @@ absl::Status ConvWaveMemoryRuntimeChannelsTest(
   }
   srcs_td[weights_gpu.size() + 1] = &bias_tensor_desc;
 
-  TensorDescriptor params_td = {DataType::INT32, TensorStorageType::BUFFER,
-                                Layout::HWC};
+  TensorDescriptor params_td = {DataType::kInt32, TensorStorageType::kBuffer,
+                                Layout::kHWC};
   TensorInt32 params_tensor = runtime_channels.GenerateTensorInt32();
   if (std::any_of(params_tensor.data.begin(), params_tensor.data.end(),
                   [](int x) { return x != -1; })) {
@@ -698,7 +699,7 @@ absl::Status ConvWaveMemoryRuntimeChannelsTest(
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
 
   float eps =
-      GetEpsilon(CalculationsPrecision::F16, exec_env.GetGpuInfo(), attr);
+      GetEpsilon(CalculationsPrecision::kF16, exec_env.GetGpuInfo(), attr);
   ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
       srcs_td, {&dst_td},
       std::make_unique<ConvAppleMPP>(std::move(operation))));
@@ -770,7 +771,7 @@ absl::Status ConvAppleMPPInt8BigTest(TestExecutionEnvironment& env,
 
   auto weights_f32 =
       MakeSyntheticTensor(OHWI(dst_channels, 1, 1, src_channels));
-  ml_drift::Tensor<OHWI, DataType::INT8> weights_i8;
+  ml_drift::Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(dst_channels, 1, 1, src_channels);
   weights_i8.data.resize(weights_i8.shape.DimensionsProduct() +
                          XNN_EXTRA_BYTES / sizeof(int8_t));
@@ -779,18 +780,18 @@ absl::Status ConvAppleMPPInt8BigTest(TestExecutionEnvironment& env,
   }
 
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
-  ml_drift::Tensor<BHWC, DataType::INT8> src_i8_tensor;
+  ml_drift::Tensor<BHWC, DataType::kInt8> src_i8_tensor;
   src_i8_tensor.shape = src_shape;
   src_i8_tensor.data.resize(src_shape.DimensionsProduct());
   for (int i = 0; i < src_shape.DimensionsProduct(); ++i) {
     src_i8_tensor.data[i] = src_tensor.data[i] * 127.0f;
   }
 
-  Layout layout = src_shape.b == 1 ? Layout::HWC : Layout::BHWC;
+  Layout layout = src_shape.b == 1 ? Layout::kHWC : Layout::kBHWC;
   TensorDescriptor src_tensor_desc{
-      DataType::INT8, TensorStorageType::BUFFER, layout,
+      DataType::kInt8, TensorStorageType::kBuffer, layout,
       TensorDescriptor::PhysicalLayout1D::kDHWBCC4};
-  TensorDescriptor dst_tensor_desc{DataType::INT32, dst_storage, layout};
+  TensorDescriptor dst_tensor_desc{DataType::kInt32, dst_storage, layout};
 
   const TensorInt32 dst_ref_tensor =
       FullyConnectedReference(src_i8_tensor, weights_i8);
@@ -818,7 +819,7 @@ absl::Status ConvAppleMPPInt8ExternalWeightsBigTest(
 
   auto weights_f32 =
       MakeSyntheticTensor(OHWI(dst_channels, 1, 1, src_channels));
-  ml_drift::Tensor<OHWI, DataType::INT8> weights_i8;
+  ml_drift::Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(dst_channels, 1, 1, src_channels);
   weights_i8.data.resize(weights_i8.shape.DimensionsProduct() +
                          XNN_EXTRA_BYTES / sizeof(int8_t));
@@ -827,18 +828,18 @@ absl::Status ConvAppleMPPInt8ExternalWeightsBigTest(
   }
 
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
-  ml_drift::Tensor<BHWC, DataType::INT8> src_i8_tensor;
+  ml_drift::Tensor<BHWC, DataType::kInt8> src_i8_tensor;
   src_i8_tensor.shape = src_shape;
   src_i8_tensor.data.resize(src_shape.DimensionsProduct());
   for (int i = 0; i < src_shape.DimensionsProduct(); ++i) {
     src_i8_tensor.data[i] = src_tensor.data[i] * 127.0f;
   }
 
-  Layout layout = src_shape.b == 1 ? Layout::HWC : Layout::BHWC;
+  Layout layout = src_shape.b == 1 ? Layout::kHWC : Layout::kBHWC;
   TensorDescriptor src_tensor_desc{
-      DataType::INT8, TensorStorageType::BUFFER, layout,
+      DataType::kInt8, TensorStorageType::kBuffer, layout,
       TensorDescriptor::PhysicalLayout1D::kDHWBCC4};
-  TensorDescriptor dst_tensor_desc{DataType::INT32, dst_storage, layout};
+  TensorDescriptor dst_tensor_desc{DataType::kInt32, dst_storage, layout};
 
   const TensorInt32 dst_ref_tensor =
       FullyConnectedReference(src_i8_tensor, weights_i8);
@@ -853,8 +854,8 @@ absl::Status ConvAppleMPPInt8ExternalWeightsBigTest(
         GetTotalElementsCountForLayout(weights_desc, weights_i8.shape));
     RearrangeWeights(weights_i8, weights_desc, absl::MakeSpan(data));
 
-    weights_i8_td = TensorDescriptor(weights_desc.type,
-                                     TensorStorageType::BUFFER, Layout::LINEAR);
+    weights_i8_td = TensorDescriptor(
+        weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear);
     weights_i8_td.SetBHWDCShape(BHWDC(1, 1, 1, 1, data.size()));
     weights_i8_td.UploadDataRaw(absl::MakeConstSpan(data));
   }
@@ -878,7 +879,7 @@ absl::Status ConvAppleMPPInt8ExternalBatchedWi4Test(
     const BHWC& src_shape, int dst_channels) {
   const int src_channels = src_shape.c;
 
-  ml_drift::Tensor<OHWI, DataType::INT8> weights_i4;
+  ml_drift::Tensor<OHWI, DataType::kInt8> weights_i4;
   weights_i4.shape = OHWI(dst_channels, src_shape.h, 1, src_channels);
   weights_i4.data.resize(weights_i4.shape.DimensionsProduct());
   auto weights_f32 =
@@ -889,18 +890,18 @@ absl::Status ConvAppleMPPInt8ExternalBatchedWi4Test(
   }
 
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
-  ml_drift::Tensor<BHWC, DataType::INT8> src_i8_tensor;
+  ml_drift::Tensor<BHWC, DataType::kInt8> src_i8_tensor;
   src_i8_tensor.shape = src_shape;
   src_i8_tensor.data.resize(src_shape.DimensionsProduct());
   for (int i = 0; i < src_shape.DimensionsProduct(); ++i) {
     src_i8_tensor.data[i] = src_tensor.data[i] * 127.0f;
   }
 
-  Layout layout = src_shape.b == 1 ? Layout::HWC : Layout::BHWC;
+  Layout layout = src_shape.b == 1 ? Layout::kHWC : Layout::kBHWC;
   TensorDescriptor src_tensor_desc{
-      DataType::INT8, TensorStorageType::BUFFER, layout,
+      DataType::kInt8, TensorStorageType::kBuffer, layout,
       TensorDescriptor::PhysicalLayout1D::kDHWBCC4};
-  TensorDescriptor dst_tensor_desc{DataType::INT32, dst_storage, layout};
+  TensorDescriptor dst_tensor_desc{DataType::kInt32, dst_storage, layout};
 
   const TensorInt32 dst_ref_tensor =
       FullyConnectedReference(src_i8_tensor, weights_i4);
@@ -935,9 +936,9 @@ namespace {
 absl::Status ConvAppleMPPInt8WithSrcQuantizationTest(
     TestExecutionEnvironment& exec_env,
     const ml_drift::TensorFloat32& src_tensor,
-    const ml_drift::Tensor<OHWI, DataType::INT8>& weights_i8,
-    const ml_drift::Tensor<Linear, DataType::FLOAT32>& weights_scale,
-    const ml_drift::Tensor<Linear, DataType::FLOAT32>* weights_zero_point,
+    const ml_drift::Tensor<OHWI, DataType::kInt8>& weights_i8,
+    const ml_drift::Tensor<Linear, DataType::kFloat32>& weights_scale,
+    const ml_drift::Tensor<Linear, DataType::kFloat32>* weights_zero_point,
     const DataType float_type, const TensorStorageType float_storage_type,
     const TensorStorageType int_storage_type) {
   FullyConnectedAttributes attr;
@@ -947,8 +948,9 @@ absl::Status ConvAppleMPPInt8WithSrcQuantizationTest(
   TensorFloat32 dst_ref_tensor = FullyConnectedReference(attr, src_tensor);
 
   TensorDescriptor src_params_td;
-  const Layout layout = src_tensor.shape.b == 1 ? Layout::HWC : Layout::BHWC;
-  TensorDescriptor src_i8_td{DataType::INT8, TensorStorageType::BUFFER, layout,
+  const Layout layout = src_tensor.shape.b == 1 ? Layout::kHWC : Layout::kBHWC;
+  TensorDescriptor src_i8_td{DataType::kInt8, TensorStorageType::kBuffer,
+                             layout,
                              TensorDescriptor::PhysicalLayout1D::kDHWBCC4};
   {
     OperationDef op_def;
@@ -985,7 +987,7 @@ absl::Status ConvAppleMPPInt8WithSrcQuantizationTest(
   auto weights_sum_i_td = CreateConstantLinearTensorDescriptor(
       exec_env.GetGpuInfo(), weights_sum_i);
 
-  TensorDescriptor dst_tensor_desc{DataType::INT32, int_storage_type, layout};
+  TensorDescriptor dst_tensor_desc{DataType::kInt32, int_storage_type, layout};
   auto conv =
       CreateConvAppleMPPInt8(src_i8_td, dst_tensor_desc, weights_i8.shape);
 
@@ -1003,8 +1005,8 @@ absl::Status ConvAppleMPPInt8WithSrcQuantizationTest(
         GetTotalElementsCountForLayout(weights_desc, weights_i8.shape));
     RearrangeWeights(weights_i8, weights_desc, absl::MakeSpan(data));
 
-    weights_i8_td = TensorDescriptor(weights_desc.type,
-                                     TensorStorageType::BUFFER, Layout::LINEAR);
+    weights_i8_td = TensorDescriptor(
+        weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear);
     weights_i8_td.SetBHWDCShape(BHWDC(1, 1, 1, 1, data.size()));
     weights_i8_td.UploadDataRaw(absl::MakeConstSpan(data));
   }
@@ -1036,7 +1038,7 @@ absl::Status ConvAppleMPPInt8WithSrcQuantizationBigTest(
     TestExecutionEnvironment& env, TensorStorageType int_storage,
     TensorStorageType float_storage, DataType float_type, const BHWC& src_shape,
     int dst_channels) {
-  if (float_type != DataType::FLOAT16 && float_type != DataType::FLOAT32) {
+  if (float_type != DataType::kFloat16 && float_type != DataType::kFloat32) {
     return absl::InvalidArgumentError("Unsupported float type: " +
                                       ToString(float_type));
   }
@@ -1044,7 +1046,7 @@ absl::Status ConvAppleMPPInt8WithSrcQuantizationBigTest(
 
   auto weights_f32 =
       MakeSyntheticTensor(OHWI(dst_channels, 1, 1, src_channels));
-  ml_drift::Tensor<OHWI, DataType::INT8> weights_i8;
+  ml_drift::Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(dst_channels, 1, 1, src_channels);
   weights_i8.data.resize(weights_i8.shape.DimensionsProduct() +
                          XNN_EXTRA_BYTES / sizeof(int8_t));

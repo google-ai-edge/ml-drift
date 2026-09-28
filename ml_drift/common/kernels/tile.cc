@@ -28,14 +28,14 @@ std::string GetTileCode(const TensorDescriptor& src_desc,
                         bool src_channels_x4) {
   std::string c;
   c += "MAIN_FUNCTION($0) {\n";
-  if (dst_desc.HasAxis(Axis::BATCH)) {
+  if (dst_desc.HasAxis(Axis::kBatch)) {
     c += "  int linear_id_0 = ucl::GetGlobalId<0>();\n";
     c += "  int X = linear_id_0 / args.dst_tensor.Batch();\n";
     c += "  int B = linear_id_0 % args.dst_tensor.Batch();\n";
   } else {
     c += "  int X = ucl::GetGlobalId<0>();\n";
   }
-  if (dst_desc.HasAxis(Axis::DEPTH)) {
+  if (dst_desc.HasAxis(Axis::kDepth)) {
     c += "  int linear_id_1 = ucl::GetGlobalId<1>();\n";
     c += "  int Y = linear_id_1 / args.dst_tensor.Depth();\n";
     c += "  int Z = linear_id_1 % args.dst_tensor.Depth();\n";
@@ -48,27 +48,27 @@ std::string GetTileCode(const TensorDescriptor& src_desc,
   c += "    return; \n";
   c += "  } \n";
   std::string dst_coords = "X, Y";
-  if (dst_desc.HasAxis(Axis::DEPTH)) {
+  if (dst_desc.HasAxis(Axis::kDepth)) {
     dst_coords += ", Z";
   }
   dst_coords += ", S";
-  if (dst_desc.HasAxis(Axis::BATCH)) {
+  if (dst_desc.HasAxis(Axis::kBatch)) {
     dst_coords += ", B";
   }
   std::string src_coords = "src_x, src_y";
-  if (src_desc.HasAxis(Axis::DEPTH)) {
+  if (src_desc.HasAxis(Axis::kDepth)) {
     src_coords += ", src_z";
   }
   src_coords += ", src_s";
-  if (src_desc.HasAxis(Axis::BATCH)) {
+  if (src_desc.HasAxis(Axis::kBatch)) {
     src_coords += ", src_b";
   }
   c += "  int src_x = X % args.src_tensor.Width();\n";
   c += "  int src_y = Y % args.src_tensor.Height();\n";
-  if (src_desc.HasAxis(Axis::DEPTH)) {
+  if (src_desc.HasAxis(Axis::kDepth)) {
     c += "  int src_z = Z % args.src_tensor.Depth();\n";
   }
-  if (src_desc.HasAxis(Axis::BATCH)) {
+  if (src_desc.HasAxis(Axis::kBatch)) {
     c += "  int src_b = B % args.src_tensor.Batch();\n";
   }
   if (src_channels_x4) {

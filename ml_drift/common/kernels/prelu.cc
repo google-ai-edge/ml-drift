@@ -37,7 +37,7 @@ ElementwiseDescriptor CreatePReLU(const PReLUAttributes& attr,
   ElementwiseDescriptor op_desc;
   std::string alpha_read;
   auto alpha_linear =
-      std::get_if<Tensor<Linear, DataType::FLOAT32>>(&attr.alpha);
+      std::get_if<Tensor<Linear, DataType::kFloat32>>(&attr.alpha);
   if (alpha_linear) {
     TensorDescriptor alpha_tensor_desc = CreateConstantLinearTensorDescriptor(
         tensor_desc.GetDataType(), tensor_desc.GetStorageType(), *alpha_linear);
@@ -46,7 +46,7 @@ ElementwiseDescriptor CreatePReLU(const PReLUAttributes& attr,
     alpha_read = "Type alpha_val = args.alpha.Read(S_COORD);\n";
   }
 
-  auto alpha_hwc = std::get_if<Tensor<HWC, DataType::FLOAT32>>(&attr.alpha);
+  auto alpha_hwc = std::get_if<Tensor<HWC, DataType::kFloat32>>(&attr.alpha);
   if (alpha_hwc) {
     const BHWC shape =
         BHWC(1, alpha_hwc->shape.h, alpha_hwc->shape.w, alpha_hwc->shape.c);

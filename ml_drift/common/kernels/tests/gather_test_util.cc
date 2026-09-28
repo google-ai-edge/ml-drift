@@ -47,12 +47,12 @@ absl::Status GatherWidthIntTest(TestExecutionEnvironment& env,
   src_indices.shape = BHWC(1, 1, 1, 9);
   src_indices.data = {1, 2, 3, 0, 1, 4, 2, 3, 1};
   GatherAttributes attr;
-  attr.axis = Axis::WIDTH;
+  attr.axis = Axis::kWidth;
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({T, storage, Layout::HWC});
-  op_def.src_tensors.push_back({T, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({T, storage, Layout::HWC});
+  op_def.src_tensors.push_back({T, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({T, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({T, storage, Layout::kHWC});
   TensorDescriptor src_0, src_1, dst;
   src_0 = op_def.src_tensors[0];
   src_1 = op_def.src_tensors[1];
@@ -71,18 +71,18 @@ absl::Status GatherWidthIntTest(TestExecutionEnvironment& env,
   return absl::OkStatus();
 }
 
-template absl::Status GatherWidthIntTest<DataType::INT8>(
-  TestExecutionEnvironment& env, TensorStorageType storage);
-template absl::Status GatherWidthIntTest<DataType::INT16>(
-  TestExecutionEnvironment& env, TensorStorageType storage);
-template absl::Status GatherWidthIntTest<DataType::INT32>(
-  TestExecutionEnvironment& env, TensorStorageType storage);
-template absl::Status GatherWidthIntTest<DataType::UINT8>(
-  TestExecutionEnvironment& env, TensorStorageType storage);
-template absl::Status GatherWidthIntTest<DataType::UINT16>(
-  TestExecutionEnvironment& env, TensorStorageType storage);
-template absl::Status GatherWidthIntTest<DataType::UINT32>(
-  TestExecutionEnvironment& env, TensorStorageType storage);
+template absl::Status GatherWidthIntTest<DataType::kInt8>(
+    TestExecutionEnvironment& env, TensorStorageType storage);
+template absl::Status GatherWidthIntTest<DataType::kInt16>(
+    TestExecutionEnvironment& env, TensorStorageType storage);
+template absl::Status GatherWidthIntTest<DataType::kInt32>(
+    TestExecutionEnvironment& env, TensorStorageType storage);
+template absl::Status GatherWidthIntTest<DataType::kUint8>(
+    TestExecutionEnvironment& env, TensorStorageType storage);
+template absl::Status GatherWidthIntTest<DataType::kUint16>(
+    TestExecutionEnvironment& env, TensorStorageType storage);
+template absl::Status GatherWidthIntTest<DataType::kUint32>(
+    TestExecutionEnvironment& env, TensorStorageType storage);
 
 absl::Status GatherTest(TestExecutionEnvironment& env, DataType data_type,
                         TensorStorageType storage, Axis axis) {
@@ -102,11 +102,11 @@ absl::Status GatherTest(TestExecutionEnvironment& env, DataType data_type,
   attr.axis = axis;
 
   const Layout src_layout =
-      src_tensor.shape.b != 1 ? Layout::BHWC : Layout::HWC;
-  const Layout dst_layout = dst_shape.b != 1 ? Layout::BHWC : Layout::HWC;
+      src_tensor.shape.b != 1 ? Layout::kBHWC : Layout::kHWC;
+  const Layout dst_layout = dst_shape.b != 1 ? Layout::kBHWC : Layout::kHWC;
   OperationDef op_def;
   op_def.src_tensors.push_back({data_type, storage, src_layout});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
   op_def.dst_tensors.push_back({data_type, storage, dst_layout});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateGather(op_def, attr);

@@ -29,50 +29,50 @@ void Cumsum::GetCumsumCode(const OperationDef& op_def) {
   AddSrcTensor("src_tensor", op_def.src_tensors[0]);
   AddDstTensor("dst_tensor", op_def.dst_tensors[0]);
   std::map<Axis, std::string> task_sizes = {
-      {Axis::WIDTH, "args.src_tensor.Width()"},
-      {Axis::HEIGHT, "args.src_tensor.Height()"},
-      {Axis::DEPTH, "args.src_tensor.Depth()"},
-      {Axis::CHANNELS, "args.src_tensor.Slices()"},
-      {Axis::BATCH, "args.src_tensor.Batch()"},
+      {Axis::kWidth, "args.src_tensor.Width()"},
+      {Axis::kHeight, "args.src_tensor.Height()"},
+      {Axis::kDepth, "args.src_tensor.Depth()"},
+      {Axis::kChannels, "args.src_tensor.Slices()"},
+      {Axis::kBatch, "args.src_tensor.Batch()"},
   };
   std::string limit = task_sizes[axis_];
   task_sizes[axis_] = "1";
   std::map<Axis, std::string> index_name = {
-      {Axis::WIDTH, "X"},    {Axis::HEIGHT, "Y"}, {Axis::DEPTH, "Z"},
-      {Axis::CHANNELS, "S"}, {Axis::BATCH, "B"},
+      {Axis::kWidth, "X"},    {Axis::kHeight, "Y"}, {Axis::kDepth, "Z"},
+      {Axis::kChannels, "S"}, {Axis::kBatch, "B"},
   };
   std::string indexes = "X, Y";
   std::string c;
   c += "MAIN_FUNCTION($0) {\n";
-  if (op_def.dst_tensors[0].HasAxis(Axis::DEPTH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kDepth)) {
     indexes += ", Z";
     c += "  int linear_id_1 = ucl::GetGlobalId<1>();\n";
-    c += "  int Y = linear_id_1 / " + task_sizes[Axis::DEPTH] + ";\n";
-    c += "  int Z = linear_id_1 % " + task_sizes[Axis::DEPTH] + ";\n";
-    c += "  if (Y >= " + task_sizes[Axis::HEIGHT] + ") return;\n";
+    c += "  int Y = linear_id_1 / " + task_sizes[Axis::kDepth] + ";\n";
+    c += "  int Z = linear_id_1 % " + task_sizes[Axis::kDepth] + ";\n";
+    c += "  if (Y >= " + task_sizes[Axis::kHeight] + ") return;\n";
   } else {
     c += "  int Y = ucl::GetGlobalId<1>();\n";
-    c += "  if (Y >= " + task_sizes[Axis::HEIGHT] + ") return;\n";
+    c += "  if (Y >= " + task_sizes[Axis::kHeight] + ") return;\n";
   }
   indexes += ", S";
-  if (op_def.dst_tensors[0].HasAxis(Axis::BATCH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kBatch)) {
     indexes += ", B";
     c += "  int linear_id_0 = ucl::GetGlobalId<0>();\n";
-    c += "  int X = linear_id_0 / " + task_sizes[Axis::BATCH] + ";\n";
-    c += "  int B = linear_id_0 % " + task_sizes[Axis::BATCH] + ";\n";
-    c += "  if (X >= " + task_sizes[Axis::WIDTH] + ") return;\n";
+    c += "  int X = linear_id_0 / " + task_sizes[Axis::kBatch] + ";\n";
+    c += "  int B = linear_id_0 % " + task_sizes[Axis::kBatch] + ";\n";
+    c += "  if (X >= " + task_sizes[Axis::kWidth] + ") return;\n";
   } else {
     c += "  int X = ucl::GetGlobalId<0>();\n";
-    c += "  if (X >= " + task_sizes[Axis::WIDTH] + ") return;\n";
+    c += "  if (X >= " + task_sizes[Axis::kWidth] + ") return;\n";
   }
   c += "  int S = ucl::GetGlobalId<2>();\n";
-  c += "  if (S >= " + task_sizes[Axis::CHANNELS] + ") return;\n";
+  c += "  if (S >= " + task_sizes[Axis::kChannels] + ") return;\n";
   c += "  args.src_tensor::type res = args.src_tensor::zero_value;\n";
   c += "  for (; " + index_name[axis_] + " < " + limit + "; " +
        index_name[axis_] + "++) {\n";
   c += "    args.src_tensor::type curr = args.src_tensor.Read(" + indexes +
        ");\n";
-  if (axis_ == Axis::CHANNELS) {
+  if (axis_ == Axis::kChannels) {
     c += "    res.x = res.w + curr.x;\n";
     c += "    res.y = res.x + curr.y;\n";
     c += "    res.z = res.y + curr.z;\n";
@@ -87,11 +87,11 @@ void Cumsum::GetCumsumCode(const OperationDef& op_def) {
 }
 
 int3 Cumsum::GetGridSize() const {
-  const int width = axis_ == Axis::WIDTH ? 1 : src_[0]->Width();
-  const int height = axis_ == Axis::HEIGHT ? 1 : src_[0]->Height();
-  const int depth = axis_ == Axis::DEPTH ? 1 : src_[0]->Depth();
-  const int batch = axis_ == Axis::BATCH ? 1 : src_[0]->Batch();
-  const int slices = axis_ == Axis::CHANNELS ? 1 : src_[0]->Slices();
+  const int width = axis_ == Axis::kWidth ? 1 : src_[0]->Width();
+  const int height = axis_ == Axis::kHeight ? 1 : src_[0]->Height();
+  const int depth = axis_ == Axis::kDepth ? 1 : src_[0]->Depth();
+  const int batch = axis_ == Axis::kBatch ? 1 : src_[0]->Batch();
+  const int slices = axis_ == Axis::kChannels ? 1 : src_[0]->Slices();
   const int grid_x = width * batch;
   const int grid_y = height * depth;
   const int grid_z = slices;

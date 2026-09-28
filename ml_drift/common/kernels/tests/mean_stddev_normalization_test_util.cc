@@ -90,8 +90,8 @@ absl::Status MeanStddevNormSeparateBatchesUnit(TestExecutionEnvironment& env,
                      mean + 2 * diff, mean - 2 * diff, mean - diff,
                      mean + diff,     mean + 2 * diff};
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   auto operation =
       CreateMeanStdDevNormalization(op_def, env.GetGpuInfo(), src_tensor.shape);
@@ -188,10 +188,10 @@ absl::Status MeanStddevNormalizationAllBatchesTest(
       98.0f,   99.0f,   101.0f, 102.0f,  // large mean, small variance
       -100.0f, 0.0f,    200.0f, 300.0f,  // large mean, large variance
   };
-  const float eps = data_type == DataType::FLOAT32 ? 2.53e-05f : 5.0e-4f;
+  const float eps = data_type == DataType::kFloat32 ? 2.53e-05f : 5.0e-4f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
   TensorFloat32 dst_tensor;
   auto operation = CreateMeanStdDevNormalization(op_def, env.GetGpuInfo(),
                                                   src_tensor.shape);
@@ -251,10 +251,10 @@ absl::Status MeanStddevNormalizationLargeVectorTest(
     src_tensor.data[kVectorSize + i + 1] = mean - diff;
   }
 
-  const float eps = data_type == DataType::FLOAT32 ? 5.0e-7f : 8.60e-4f;
+  const float eps = data_type == DataType::kFloat32 ? 5.0e-7f : 8.60e-4f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   auto operation =
       CreateMeanStdDevNormalization(op_def, env.GetGpuInfo(), src_tensor.shape);
@@ -278,7 +278,7 @@ absl::Status MeanStddevNormalizationLargeVectorTest(
   }
   EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), expected_output));
 
-  if (data_type != DataType::FLOAT32) {
+  if (data_type != DataType::kFloat32) {
     TensorFloat32 dst_tensor_single_step;
     auto operation_single_step = CreateMeanStdDevNormalization(
         op_def, env.GetGpuInfo(), src_tensor.shape,
@@ -305,13 +305,13 @@ absl::Status HWCGroupNormalizationTest(TestExecutionEnvironment& env,
     src_tensor.data[i] = std::sin(i);
   }
   const float kVarianceBias = 1.0e-5f;
-  Tensor<Linear, DataType::FLOAT32> gamma;
+  Tensor<Linear, DataType::kFloat32> gamma;
   gamma.shape = Linear(src_tensor.shape.c);
   gamma.data.resize(gamma.shape.DimensionsProduct());
   for (int i = 0; i < gamma.data.size(); ++i) {
     gamma.data[i] = 1.0f;
   }
-  Tensor<Linear, DataType::FLOAT32> beta;
+  Tensor<Linear, DataType::kFloat32> beta;
   beta.shape = Linear(src_tensor.shape.c);
   beta.data.resize(beta.shape.DimensionsProduct());
   for (int i = 0; i < beta.data.size(); ++i) {
@@ -321,10 +321,10 @@ absl::Status HWCGroupNormalizationTest(TestExecutionEnvironment& env,
   const int kNumGroups = src_tensor.shape.c / group_size;
   TensorFloat32 output_ref =
       NormalizeHWCGroupRef(src_tensor, kNumGroups, kVarianceBias);
-  const float eps = data_type == DataType::FLOAT32 ? 3e-05f : 2e-3f;
+  const float eps = data_type == DataType::kFloat32 ? 3e-05f : 2e-3f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
 
   HWCGroupNormalization operation =
@@ -351,13 +351,13 @@ absl::Status HWCGroupNormalizationBatchTest(TestExecutionEnvironment& env,
     src_tensor.data[i] = std::sin(i);
   }
   const float kVarianceBias = 1.0e-5f;
-  Tensor<Linear, DataType::FLOAT32> gamma;
+  Tensor<Linear, DataType::kFloat32> gamma;
   gamma.shape = Linear(src_tensor.shape.c);
   gamma.data.resize(gamma.shape.DimensionsProduct());
   for (int i = 0; i < gamma.data.size(); ++i) {
     gamma.data[i] = 1.0f;
   }
-  Tensor<Linear, DataType::FLOAT32> beta;
+  Tensor<Linear, DataType::kFloat32> beta;
   beta.shape = Linear(src_tensor.shape.c);
   beta.data.resize(beta.shape.DimensionsProduct());
   for (int i = 0; i < beta.data.size(); ++i) {
@@ -367,10 +367,10 @@ absl::Status HWCGroupNormalizationBatchTest(TestExecutionEnvironment& env,
   const int kNumGroups = src_tensor.shape.c / group_size;
   TensorFloat32 output_ref =
       NormalizeHWCGroupRef(src_tensor, kNumGroups, kVarianceBias);
-  const float eps = data_type == DataType::FLOAT32 ? 3e-05f : 2e-3f;
+  const float eps = data_type == DataType::kFloat32 ? 3e-05f : 2e-3f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
   TensorFloat32 dst_tensor;
 
   HWCGroupNormalization operation =
@@ -414,8 +414,8 @@ absl::Status RMSNormalizationBigTest(TestExecutionEnvironment& env,
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   ABSL_RETURN_IF_ERROR(
       RMSNormalizationTest(env, src_tensor, op_def, data_type));
 
@@ -429,8 +429,8 @@ absl::Status StatisticalTopKTest(TestExecutionEnvironment& env,
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
 
   const float stddev_multiplier = 1.0f;
   TensorFloat32 dst_ref_tensor =
@@ -451,7 +451,7 @@ absl::Status StatisticalTopKTest(TestExecutionEnvironment& env,
 absl::Status MeanStddevNormalization5DTest(TestExecutionEnvironment& env,
                                            DataType data_type,
                                            TensorStorageType storage) {
-  Tensor<BHWDC, DataType::FLOAT32> src_tensor;
+  Tensor<BHWDC, DataType::kFloat32> src_tensor;
   src_tensor.shape = BHWDC(1, 1, 4, 1, 4);
   src_tensor.data = {
       0.0f,    0.0f,   0.0f,    0.0f,    // zero mean, zero variance
@@ -459,11 +459,11 @@ absl::Status MeanStddevNormalization5DTest(TestExecutionEnvironment& env,
       -200.0f, 200.0f, -200.0f, 200.0f,  // zero mean, large variance
       100.0f,  100.0f, 100.0f,  100.0f,  // large mean, zero variance
   };
-  const float eps = data_type == DataType::FLOAT32 ? 2.53e-05f : 5.0e-4f;
+  const float eps = data_type == DataType::kFloat32 ? 2.53e-05f : 5.0e-4f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWDC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWDC});
-  Tensor<BHWDC, DataType::FLOAT32> dst_tensor;
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWDC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWDC});
+  Tensor<BHWDC, DataType::kFloat32> dst_tensor;
 
   // We mock a BHWC shape for CreateMeanStdDevNormalization since it currently
   // takes BHWC and deduces workgroups based on that.

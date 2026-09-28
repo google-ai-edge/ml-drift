@@ -53,16 +53,16 @@ class ConvolutionTransposed4x4 : public GPUOperation {
     desc.type = weights_data_type_;
     desc.layout = WeightsLayout::kCustomGroups;
     if (is_dot_preferred_) {
-      desc.group_sizes = {{Axis::INPUT_CHANNELS, 4},
-                          {Axis::OUTPUT_CHANNELS, 4}};
+      desc.group_sizes = {{Axis::kInputChannels, 4},
+                          {Axis::kOutputChannels, 4}};
     } else {
-      desc.group_sizes = {{Axis::OUTPUT_CHANNELS, 4},
-                          {Axis::INPUT_CHANNELS, 4}};
+      desc.group_sizes = {{Axis::kOutputChannels, 4},
+                          {Axis::kInputChannels, 4}};
     }
-    desc.group_sizes.push_back({Axis::WIDTH, 0});
-    desc.group_sizes.push_back({Axis::HEIGHT, 0});
-    desc.group_sizes.push_back({Axis::INPUT_CHANNELS, 0});
-    desc.group_sizes.push_back({Axis::OUTPUT_CHANNELS, 0});
+    desc.group_sizes.push_back({Axis::kWidth, 0});
+    desc.group_sizes.push_back({Axis::kHeight, 0});
+    desc.group_sizes.push_back({Axis::kInputChannels, 0});
+    desc.group_sizes.push_back({Axis::kOutputChannels, 0});
     desc.spatial_remap = GetSpatialWeightsRemap();
     return desc;
   }
@@ -82,7 +82,7 @@ class ConvolutionTransposed4x4 : public GPUOperation {
       const ConvolutionTransposedAttributes& attr);
 
   void UploadWeights(const GpuInfo& gpu_info,
-                     const Tensor<OHWI, DataType::FLOAT32>& weights);
+                     const Tensor<OHWI, DataType::kFloat32>& weights);
 
   std::vector<int> GetSpatialWeightsRemap() const;
 

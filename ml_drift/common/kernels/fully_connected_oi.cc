@@ -92,7 +92,7 @@ std::string ReadRingedWeightsAsFloat(
   } else if (conv_params.runtime_check.ring_i_offset_index.has_value()) {
     c += GetRingedIAddresses(conv_params.batched_weights);
   }
-  if (conv_params.weights_type == DataType::INT8) {
+  if (conv_params.weights_type == DataType::kInt8) {
     c += R"(
     uint4 w;
     w.x = args.weights.Read(a0);
@@ -137,8 +137,8 @@ std::string ReadWeightsAsFloat(const FullyConnectedOI::ConvParams& conv_params,
     y_c = "w_batch_id * args.dst_tensor.Slices() + dst_s";
   }
   std::string coords = x_c + ", " + y_c;
-  if (conv_params.weights_type == DataType::FLOAT32 ||
-      conv_params.weights_type == DataType::FLOAT16) {
+  if (conv_params.weights_type == DataType::kFloat32 ||
+      conv_params.weights_type == DataType::kFloat16) {
     if (weights_desc.IsLinearLayout()) {
       c += "    args.weights.ReadVec16AsVec4x4(w0, w1, w2, w3, linear_i4o4);\n";
     } else {
@@ -153,14 +153,14 @@ std::string ReadWeightsAsFloat(const FullyConnectedOI::ConvParams& conv_params,
     c += "    ushort2 wind_us2 = ucl::Reinterpret<uchar4, ushort2>(wind);\n";
     c += "    ucl::U32Sparse2x4ToU4x16AsVec4x4<SType>(w_ui2.x, wind_us2.x, w0, "
          "w1, w2, w3);\n";
-  } else if (conv_params.weights_type == DataType::INT8) {
+  } else if (conv_params.weights_type == DataType::kInt8) {
     if (weights_desc.IsLinearLayout()) {
       c += "    uint4 w = args.weights.Read(linear_i4o4);\n";
     } else {
       c += "    uint4 w = args.weights.Read(" + coords + ");\n";
     }
     c += "    ucl::U32x4ToU8x16AsVec4x4<SType>(w, w0, w1, w2, w3);\n";
-  } else if (conv_params.weights_type == DataType::INT4) {
+  } else if (conv_params.weights_type == DataType::kInt4) {
     if (weights_desc.IsLinearLayout()) {
       if (conv_params.src_n == 2) {
         c += "    uint4 w = args.weights.Read(linear_i4o4);\n";
@@ -178,7 +178,7 @@ std::string ReadWeightsAsFloat(const FullyConnectedOI::ConvParams& conv_params,
         c += "    ucl::U16x4ToU4x16AsVec4x4<SType>(w, w0, w1, w2, w3);\n";
       }
     }
-  } else if (conv_params.weights_type == DataType::INT2) {
+  } else if (conv_params.weights_type == DataType::kInt2) {
     if (weights_desc.IsLinearLayout()) {
       if (conv_params.src_n == 4) {
         c += "    uint4 w = args.weights.Read(linear_i4o4);\n";
@@ -211,12 +211,12 @@ std::string DecodeWeightsAsFloat(
     c += "    ucl::U32Sparse2x4ToU4x16AsVec4x4<SType>(w_ui2.y, wind_us2.y, "
          "w0, w1, w2, w3);\n";
   }
-  if (conv_params.weights_type == DataType::INT4 && !conv_params.sparse_2x4) {
+  if (conv_params.weights_type == DataType::kInt4 && !conv_params.sparse_2x4) {
     std::string postfixes[2] = {"xy", "zw"};
     c += "    ucl::U32x2ToU4x16AsVec4x4<SType>(w." + postfixes[src_id] +
          ", w0, w1, w2, w3);\n";
   }
-  if (conv_params.weights_type == DataType::INT2 && !conv_params.sparse_2x4) {
+  if (conv_params.weights_type == DataType::kInt2 && !conv_params.sparse_2x4) {
     std::string postfixes[4] = {"x", "y", "z", "w"};
     c += "    ucl::U32x1ToU2x16AsVec4x4<SType>(w." + postfixes[src_id] +
          ", w0, w1, w2, w3);\n";
@@ -332,7 +332,7 @@ std::string GetFullyConnectedOIO4KernelCode(
     std::string x_coord = std::to_string(bhw.z);
     if (conv_params.runtime_check.packed_groups.has_value()) {
       x_coord = "dst_w + " + x_coord;
-      if (!src_desc.CanReadOutOfBorder(Axis::WIDTH, gpu_info)) {
+      if (!src_desc.CanReadOutOfBorder(Axis::kWidth, gpu_info)) {
         x_coord = "min(" + x_coord + ", args.src_tensor.Width() - 1)";
       }
       y_coord = "0";
@@ -373,7 +373,7 @@ std::string GetFullyConnectedOIO4KernelCode(
       const std::string r_name =
           late_weights_scaling ? "rl" : "r_sp" + std::to_string(sp_id);
       const CalculationsPrecision prec =
-          late_weights_scaling ? CalculationsPrecision::F32 : precision;
+          late_weights_scaling ? CalculationsPrecision::kF32 : precision;
       c += fc::AccumulateFloat(r_name, src_name, prec, isI4O4, use_fma);
       if (late_weights_scaling) {
         c += "    s_sum += " + src_name + ".x + " + src_name + ".y + " +
@@ -382,7 +382,7 @@ std::string GetFullyConnectedOIO4KernelCode(
     }
   }
   if (late_weights_scaling) {
-    if (precision == CalculationsPrecision::F32_F16) {
+    if (precision == CalculationsPrecision::kF32F16) {
       c += "    r_sp0 += ucl::Convert<float4>(rl * w_scale);\n";
       c += "    r_sp0 += ucl::Convert<float4>(w_bias * s_sum);\n";
     } else {
@@ -420,9 +420,9 @@ std::string GetFullyConnectedOIO4KernelCode(
                             conv_params.has_bias, conv_params.batched_weights,
                             conv_params.runtime_batch_ids);
   c += "}\n";
-  const DataType acc_type = precision == CalculationsPrecision::F16
-                                ? DataType::FLOAT16
-                                : DataType::FLOAT32;
+  const DataType acc_type = precision == CalculationsPrecision::kF16
+                                ? DataType::kFloat16
+                                : DataType::kFloat32;
   absl::StrReplaceAll(
       {
           {"WG_SIZE_X", std::to_string(wg_size.x)},
@@ -493,7 +493,7 @@ int3 GetWorkGroupSize(const GpuInfo& gpu_info, int src_slices, int dst_slices,
 int GetSrcN(const ExternalWeights& weights) {
   auto weights_type = fc::GetDataTypeForWeights(weights.desc.type);
   int src_n = 1;
-  if (weights_type == DataType::INT2 || weights_type == DataType::INT4) {
+  if (weights_type == DataType::kInt2 || weights_type == DataType::kInt4) {
     src_n = 2;
   }
   const int src_slices = DivideRoundUp(weights.shape.i, 4);

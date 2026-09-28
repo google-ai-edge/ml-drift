@@ -42,15 +42,15 @@ absl::Status PReLUAlphaTest(TestExecutionEnvironment& env, DataType data_type,
   src_tensor.data = {0.0f, -1.0f, -2.0f, 3.0f};
 
   PReLUAttributes attr;
-  Tensor<Linear, DataType::FLOAT32> parameters;
+  Tensor<Linear, DataType::kFloat32> parameters;
   parameters.shape = Linear(2);
   parameters.data = {0.5f, -2.0f};
   attr.alpha = parameters;
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-3f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-3f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreatePReLU(env.GetGpuInfo(), op_def, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
@@ -68,15 +68,15 @@ absl::Status PReLUHWCAlphaTest(TestExecutionEnvironment& env,
   src_tensor.data = {0.0f, -1.0f, -2.0f, 3.0f};
 
   PReLUAttributes attr;
-  Tensor<HWC, DataType::FLOAT32> hwc_tensor;
+  Tensor<HWC, DataType::kFloat32> hwc_tensor;
   hwc_tensor.shape = HWC(2, 1, 2);
   hwc_tensor.data = {0.5f, -2.0f, 0.7f, 4.7f};
   attr.alpha = hwc_tensor;
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-3f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-3f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreatePReLU(env.GetGpuInfo(), op_def, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(

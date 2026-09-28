@@ -47,14 +47,14 @@ std::string GenerateConv(CalculationsPrecision precision,
                          int index) {
   std::string code;
   switch (precision) {
-    case CalculationsPrecision::F32:
-    case CalculationsPrecision::F16:
+    case CalculationsPrecision::kF32:
+    case CalculationsPrecision::kF16:
       code += "    $0 += $1.x * weights_cache[$2];\n";
       code += "    $0 += $1.y * weights_cache[$3];\n";
       code += "    $0 += $1.z * weights_cache[$4];\n";
       code += "    $0 += $1.w * weights_cache[$5];\n";
       break;
-    case CalculationsPrecision::F32_F16:
+    case CalculationsPrecision::kF32F16:
       code +=
           "    $0 += ucl::Convert<AccType>($1.x * weights_cache[$2] + $1.y * "
           "weights_cache[$3] + $1.z * "
@@ -91,7 +91,7 @@ std::string GenerateConvolutionTransposedCode(
     }
   }
   c += "MAIN_FUNCTION($0) {\n";
-  if (op_def.dst_tensors[0].HasAxis(Axis::BATCH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kBatch)) {
     c += "  int linear_id = ucl::GetGlobalId<0>();\n";
     c += "  int X = linear_id / args.dst_tensor.Batch();\n";
     c += "  int B = linear_id % args.dst_tensor.Batch();\n";
@@ -122,10 +122,10 @@ std::string GenerateConvolutionTransposedCode(
     c += "  __local Type weights_cache[16];\n";
     c += "  int local_id = ucl::GetLocalId<1>() * 8 + ucl::GetLocalId<0>();\n";
   }
-  if (!src_desc.SupportsZeroClamp(Axis::WIDTH, gpu_info)) {
+  if (!src_desc.SupportsZeroClamp(Axis::kWidth, gpu_info)) {
     c += "  bool in_x = X < args.src_tensor.Width();\n";
   }
-  if (!src_desc.SupportsZeroClamp(Axis::HEIGHT, gpu_info)) {
+  if (!src_desc.SupportsZeroClamp(Axis::kHeight, gpu_info)) {
     c += "  bool in_y = Y < args.src_tensor.Height();\n";
   }
   if (src_desc.IsLinear()) {
@@ -143,7 +143,7 @@ std::string GenerateConvolutionTransposedCode(
   }
   auto generate_check = [&]() {
     std::string check;
-    const std::vector<Axis> axes{Axis::WIDTH, Axis::HEIGHT};
+    const std::vector<Axis> axes{Axis::kWidth, Axis::kHeight};
     const std::vector<std::string> names{"in_x", "in_y"};
     for (int i = 0; i < axes.size(); ++i) {
       const auto& axis = axes[i];
@@ -237,9 +237,9 @@ std::string GenerateConvolutionTransposedCode(
   c += "    args.dst_tensor.Write(result, X + 1, Y + 1, Z);\n";
   c += "  }\n";
   c += "}\n";
-  const DataType acc_type = precision == CalculationsPrecision::F16
-                                ? DataType::FLOAT16
-                                : DataType::FLOAT32;
+  const DataType acc_type = precision == CalculationsPrecision::kF16
+                                ? DataType::kFloat16
+                                : DataType::kFloat32;
   const DataType type = op_def.src_tensors[0].GetDataType();
   absl::StrReplaceAll({{"SType", ToUclDataType(type, 1)},
                        {"Type", ToUclDataType(type, 4)},

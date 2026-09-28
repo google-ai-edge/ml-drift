@@ -113,7 +113,7 @@ std::string GenerateConvolutionConstantCode(const GpuInfo& gpu_info,
   };
 
   c += "MAIN_FUNCTION($0) {\n";
-  if (src_desc.HasAxis(Axis::BATCH)) {
+  if (src_desc.HasAxis(Axis::kBatch)) {
     c += "  int linear_id = ucl::GetGlobalId<0>();\n";
     c += "  int X = linear_id / args.dst_tensor.Batch();\n";
     c += "  int B = linear_id % args.dst_tensor.Batch();\n";
@@ -156,10 +156,10 @@ std::string GenerateConvolutionConstantCode(const GpuInfo& gpu_info,
          " = ucl::Init<AccType>(0.0f);\n";
   }
   std::string check;
-  if (y_oob_reads && !src_desc.SupportsZeroClamp(Axis::HEIGHT, gpu_info)) {
+  if (y_oob_reads && !src_desc.SupportsZeroClamp(Axis::kHeight, gpu_info)) {
     AppendConditionally("inside_y", " && ", &check);
   }
-  if (x_oob_reads && !src_desc.SupportsZeroClamp(Axis::WIDTH, gpu_info)) {
+  if (x_oob_reads && !src_desc.SupportsZeroClamp(Axis::kWidth, gpu_info)) {
     AppendConditionally("inside_x", " && ", &check);
   }
   for (int src_s = 0; src_s < src_slices; ++src_s) {
@@ -173,7 +173,7 @@ std::string GenerateConvolutionConstantCode(const GpuInfo& gpu_info,
         c += "    int y_c = start_y + " + std::to_string(ky) +
              " * args.dilation_y;\n";
         if (y_oob_reads &&
-            !src_desc.SupportsZeroClamp(Axis::HEIGHT, gpu_info)) {
+            !src_desc.SupportsZeroClamp(Axis::kHeight, gpu_info)) {
           c += "    bool inside_y = y_c >= 0 && y_c < "
                "args.src_tensor.Height();\n";
           c += "    y_c = clamp(y_c, 0, args.src_tensor.Height() - 1);\n";
@@ -189,7 +189,7 @@ std::string GenerateConvolutionConstantCode(const GpuInfo& gpu_info,
           c += "      int x_c = start_x + " + std::to_string(kx) +
                " * args.dilation_x;\n";
           if (x_oob_reads &&
-              !src_desc.SupportsZeroClamp(Axis::WIDTH, gpu_info)) {
+              !src_desc.SupportsZeroClamp(Axis::kWidth, gpu_info)) {
             c += "      bool inside_x = x_c >= 0 && x_c < "
                  "args.src_tensor.Width();\n";
             c += "      x_c = clamp(x_c, 0, args.src_tensor.Width() - 1);\n";
@@ -207,7 +207,7 @@ std::string GenerateConvolutionConstantCode(const GpuInfo& gpu_info,
             const std::string postfixes[] = {".x", ".y", ".z", ".w"};
             const std::string src_name = "src" + postfixes[src_ch];
             if (weights_shape.o % 4 == 0 &&
-                precision != CalculationsPrecision::F32_F16) {
+                precision != CalculationsPrecision::kF32F16) {
               const std::string w_name = GetWeightValueX4();
               if (use_fma) {
                 c += "      r" + std::to_string(dst_s) + " = fma(" + src_name +
@@ -222,7 +222,7 @@ std::string GenerateConvolutionConstantCode(const GpuInfo& gpu_info,
                 const std::string w_name = GetWeightValueX1();
                 const std::string dst_name =
                     "r" + std::to_string(dst_s) + postfixes[dst_ch];
-                if (precision == CalculationsPrecision::F32_F16) {
+                if (precision == CalculationsPrecision::kF32F16) {
                   c += "      " + dst_name +
                        " += ucl::Convert<AccScalarType>(" + src_name + " * " +
                        w_name + ");\n";
@@ -253,9 +253,9 @@ std::string GenerateConvolutionConstantCode(const GpuInfo& gpu_info,
     c += "  }\n";
   }
   c += "}\n";
-  const DataType acc_type = precision == CalculationsPrecision::F16
-                                ? DataType::FLOAT16
-                                : DataType::FLOAT32;
+  const DataType acc_type = precision == CalculationsPrecision::kF16
+                                ? DataType::kFloat16
+                                : DataType::kFloat32;
   const DataType type = op_def.src_tensors[0].GetDataType();
   absl::StrReplaceAll({{"ScalarType", ToUclDataType(type, 1)},
                        {"Type", ToUclDataType(type, 4)},
@@ -279,7 +279,7 @@ bool IsConvConstantsSupported(const GpuInfo& gpu_info,
   }
 
   if (gpu_info.IsApiOpenCl() && gpu_info.IsAMD() &&
-      precision == CalculationsPrecision::F32_F16) {
+      precision == CalculationsPrecision::kF32F16) {
     return false;
   }
 
@@ -291,7 +291,7 @@ bool IsConvConstantsSupported(const GpuInfo& gpu_info,
       std::visit([](const auto& w) { return w.shape; }, attr.weights);
   const int filters_count = AlignByN(weights_shape.DimensionsProduct(), 4);
   const int float_size =
-      precision == CalculationsPrecision::F32 ? sizeof(float) : sizeof(half);
+      precision == CalculationsPrecision::kF32 ? sizeof(float) : sizeof(half);
   const int filters_buffer_size = filters_count * float_size;
   const int kConstantMaxSize = GetOptimalMaxConstantSize(gpu_info);
   const int flt4_registers = DivideRoundUp(weights_shape.o, 4);
@@ -348,7 +348,7 @@ ConvConstants::ConvConstants(const GpuInfo& gpu_info,
          {"TILES_COUNT", std::to_string(tiles_count)},
          {"Type", ToUclDataType(definition.src_tensors[0].GetDataType(), 4)}});
   }
-  if (precision == CalculationsPrecision::F16 && gpu_info.IsAdreno() &&
+  if (precision == CalculationsPrecision::kF16 && gpu_info.IsAdreno() &&
       gpu_info.adreno_info.IsAdreno3xx()) {
     compiler_options_.push_back(CompilerOptions::kAdrenoFullSimd);
   }
@@ -379,15 +379,15 @@ BufferDescriptor GetBufferDescriptor(const GpuInfo& gpu_info,
   buffer_desc.element_type = weights_desc.type;
   buffer_desc.element_size = 4;
   if (gpu_info.IsApiOpenCl() || gpu_info.IsApiMetal()) {
-    buffer_desc.memory_type = MemoryType::CONSTANT;
+    buffer_desc.memory_type = MemoryType::kConstant;
   } else {
-    buffer_desc.memory_type = MemoryType::GLOBAL;
+    buffer_desc.memory_type = MemoryType::kGlobal;
   }
   return buffer_desc;
 }
 
 void ConvConstants::UploadWeights(
-    const GpuInfo& gpu_info, const Tensor<OHWI, DataType::FLOAT32>& weights) {
+    const GpuInfo& gpu_info, const Tensor<OHWI, DataType::kFloat32>& weights) {
   WeightsDescription weights_desc = GetWeightsDescription();
   BufferDescriptor buffer_desc = GetBufferDescriptor(gpu_info, weights_desc);
   const int elements_count =

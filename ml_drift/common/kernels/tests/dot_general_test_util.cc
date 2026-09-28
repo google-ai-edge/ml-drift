@@ -50,14 +50,14 @@ absl::Status DotGeneral2DIntTest(TestExecutionEnvironment& env,
   ref.data = {6, 12, 15, 30};
 
   DotGeneralAttributes attr;
-  attr.lhs_contracting_axes = {Axis::CHANNELS};
-  attr.rhs_contracting_axes = {Axis::CHANNELS};
-  attr.lhs_resulting_axes = {Axis::BATCH};
-  attr.rhs_resulting_axes = {Axis::BATCH};
+  attr.lhs_contracting_axes = {Axis::kChannels};
+  attr.rhs_contracting_axes = {Axis::kChannels};
+  attr.lhs_resulting_axes = {Axis::kBatch};
+  attr.rhs_resulting_axes = {Axis::kBatch};
   OperationDef op_def;
-  op_def.src_tensors.push_back({T, storage, Layout::BHWC});
-  op_def.src_tensors.push_back({T, storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({T, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({T, storage, Layout::kBHWC});
+  op_def.src_tensors.push_back({T, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({T, storage, Layout::kBHWC});
   TensorDescriptor lhs_td, rhs_td, dst;
   lhs_td = op_def.src_tensors[0];
   rhs_td = op_def.src_tensors[1];
@@ -74,36 +74,36 @@ absl::Status DotGeneral2DIntTest(TestExecutionEnvironment& env,
   return absl::OkStatus();
 }
 
-template absl::Status DotGeneral2DIntTest<DataType::INT8>(
+template absl::Status DotGeneral2DIntTest<DataType::kInt8>(
     TestExecutionEnvironment& env, TensorStorageType storage);
-template absl::Status DotGeneral2DIntTest<DataType::INT16>(
+template absl::Status DotGeneral2DIntTest<DataType::kInt16>(
     TestExecutionEnvironment& env, TensorStorageType storage);
-template absl::Status DotGeneral2DIntTest<DataType::INT32>(
+template absl::Status DotGeneral2DIntTest<DataType::kInt32>(
     TestExecutionEnvironment& env, TensorStorageType storage);
-template absl::Status DotGeneral2DIntTest<DataType::UINT8>(
+template absl::Status DotGeneral2DIntTest<DataType::kUint8>(
     TestExecutionEnvironment& env, TensorStorageType storage);
-template absl::Status DotGeneral2DIntTest<DataType::UINT16>(
+template absl::Status DotGeneral2DIntTest<DataType::kUint16>(
     TestExecutionEnvironment& env, TensorStorageType storage);
-template absl::Status DotGeneral2DIntTest<DataType::UINT32>(
+template absl::Status DotGeneral2DIntTest<DataType::kUint32>(
     TestExecutionEnvironment& env, TensorStorageType storage);
 
 absl::Status DotGeneral2DBfloatTest(TestExecutionEnvironment& env,
                                     TensorStorageType storage) {
-  Tensor<BHWC, DataType::BFLOAT16> lhs, rhs;
+  Tensor<BHWC, DataType::kBfloat16> lhs, rhs;
   lhs.shape = BHWC(2, 1, 1, 3);
   lhs.data = FloatToBFloat({1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f});
   rhs.shape = BHWC(2, 1, 1, 3);
   rhs.data = FloatToBFloat({1.0f, 1.0f, 1.0f, 2.0f, 2.0f, 2.0f});
 
   DotGeneralAttributes attr;
-  attr.lhs_contracting_axes = {Axis::CHANNELS};
-  attr.rhs_contracting_axes = {Axis::CHANNELS};
-  attr.lhs_resulting_axes = {Axis::BATCH};
-  attr.rhs_resulting_axes = {Axis::BATCH};
+  attr.lhs_contracting_axes = {Axis::kChannels};
+  attr.rhs_contracting_axes = {Axis::kChannels};
+  attr.lhs_resulting_axes = {Axis::kBatch};
+  attr.rhs_resulting_axes = {Axis::kBatch};
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::BFLOAT16, storage, Layout::BHWC});
-  op_def.src_tensors.push_back({DataType::BFLOAT16, storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({DataType::BFLOAT16, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({DataType::kBfloat16, storage, Layout::kBHWC});
+  op_def.src_tensors.push_back({DataType::kBfloat16, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({DataType::kBfloat16, storage, Layout::kBHWC});
   TensorDescriptor lhs_td, rhs_td, dst;
   lhs_td = op_def.src_tensors[0];
   rhs_td = op_def.src_tensors[1];
@@ -114,7 +114,7 @@ absl::Status DotGeneral2DBfloatTest(TestExecutionEnvironment& env,
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&lhs_td, &rhs_td}, {&dst},
       std::make_unique<GPUOperation>(std::move(operation))));
-  Tensor<BHWC, DataType::BFLOAT16> dst_tensor;
+  Tensor<BHWC, DataType::kBfloat16> dst_tensor;
   dst.DownloadData(&dst_tensor);
   EXPECT_THAT(BFloatToFloat(dst_tensor.data),
               Pointwise(FloatNear(1e-3f), {6.0f, 12.0f, 15.0f, 30.0f}));
@@ -130,14 +130,14 @@ absl::Status DotGeneral1DTest(TestExecutionEnvironment& env, DataType data_type,
   rhs.shape = BHWC(1, 1, 1, 2);
   rhs.data = {1.0f, 2.0f};
   DotGeneralAttributes attr;
-  attr.lhs_resulting_axes = {Axis::BATCH};
-  attr.lhs_contracting_axes = {Axis::CHANNELS};
-  attr.rhs_contracting_axes = {Axis::CHANNELS};
+  attr.lhs_resulting_axes = {Axis::kBatch};
+  attr.lhs_contracting_axes = {Axis::kChannels};
+  attr.rhs_contracting_axes = {Axis::kChannels};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
   TensorDescriptor lhs_td, rhs_td, dst;
   lhs_td = op_def.src_tensors[0];
   rhs_td = op_def.src_tensors[1];
@@ -163,15 +163,15 @@ absl::Status DotGeneral2DTest(TestExecutionEnvironment& env, DataType data_type,
   rhs.shape = BHWC(2, 1, 1, 3);
   rhs.data = {1.0f, 1.0f, 1.0f, 2.0f, 2.0f, 2.0f};
   DotGeneralAttributes attr;
-  attr.lhs_contracting_axes = {Axis::CHANNELS};
-  attr.rhs_contracting_axes = {Axis::CHANNELS};
-  attr.lhs_resulting_axes = {Axis::BATCH};
-  attr.rhs_resulting_axes = {Axis::BATCH};
+  attr.lhs_contracting_axes = {Axis::kChannels};
+  attr.rhs_contracting_axes = {Axis::kChannels};
+  attr.lhs_resulting_axes = {Axis::kBatch};
+  attr.rhs_resulting_axes = {Axis::kBatch};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
   TensorDescriptor lhs_td, rhs_td, dst;
   lhs_td = op_def.src_tensors[0];
   rhs_td = op_def.src_tensors[1];
@@ -199,17 +199,17 @@ absl::Status DotGeneral3DBatchTest(TestExecutionEnvironment& env,
   rhs.shape = BHWC(2, 1, 2, 2);
   rhs.data = {0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f};
   DotGeneralAttributes attr;
-  attr.lhs_contracting_axes = {Axis::CHANNELS};
-  attr.rhs_contracting_axes = {Axis::WIDTH};
-  attr.lhs_batch_axes = {Axis::BATCH};
-  attr.rhs_batch_axes = {Axis::BATCH};
-  attr.lhs_resulting_axes = {Axis::WIDTH};
-  attr.rhs_resulting_axes = {Axis::CHANNELS};
+  attr.lhs_contracting_axes = {Axis::kChannels};
+  attr.rhs_contracting_axes = {Axis::kWidth};
+  attr.lhs_batch_axes = {Axis::kBatch};
+  attr.rhs_batch_axes = {Axis::kBatch};
+  attr.lhs_resulting_axes = {Axis::kWidth};
+  attr.rhs_resulting_axes = {Axis::kChannels};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
   TensorDescriptor lhs_td, rhs_td, dst;
   lhs_td = op_def.src_tensors[0];
   rhs_td = op_def.src_tensors[1];
@@ -239,15 +239,15 @@ absl::Status DotGeneral4DTest(TestExecutionEnvironment& env, DataType data_type,
   rhs.data = {1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f,
               1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f};
   DotGeneralAttributes attr;
-  attr.lhs_contracting_axes = {Axis::BATCH, Axis::HEIGHT};
-  attr.rhs_contracting_axes = {Axis::BATCH, Axis::HEIGHT};
-  attr.lhs_resulting_axes = {Axis::WIDTH, Axis::CHANNELS};
-  attr.rhs_resulting_axes = {Axis::WIDTH, Axis::CHANNELS};
+  attr.lhs_contracting_axes = {Axis::kBatch, Axis::kHeight};
+  attr.rhs_contracting_axes = {Axis::kBatch, Axis::kHeight};
+  attr.lhs_resulting_axes = {Axis::kWidth, Axis::kChannels};
+  attr.rhs_resulting_axes = {Axis::kWidth, Axis::kChannels};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
   TensorDescriptor lhs_td, rhs_td, dst;
   lhs_td = op_def.src_tensors[0];
   rhs_td = op_def.src_tensors[1];

@@ -33,52 +33,54 @@ using ::testing::ValuesIn;
 using DynamicUpdateSliceTypedTest = TestWithParam<TensorStorageType>;
 
 TEST_P(DynamicUpdateSliceTypedTest, Bool) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::BOOL)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kBool)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
   ABSL_ASSERT_OK(DynamicUpdateSliceBoolTest(*exec_env, GetParam()));
 }
 
 TEST_P(DynamicUpdateSliceTypedTest, Int8) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::INT8)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kInt8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(DynamicUpdateSliceIntTest<DataType::INT8>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(DynamicUpdateSliceIntTest<DataType::kInt8>(*exec_env, GetParam()));
 }
 
 TEST_P(DynamicUpdateSliceTypedTest, Int16) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::INT16)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kInt16)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(DynamicUpdateSliceIntTest<DataType::INT16>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(DynamicUpdateSliceIntTest<DataType::kInt16>(*exec_env, GetParam()));
 }
 
 TEST_P(DynamicUpdateSliceTypedTest, Int32) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::INT32)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kInt32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(DynamicUpdateSliceIntTest<DataType::INT32>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(DynamicUpdateSliceIntTest<DataType::kInt32>(*exec_env, GetParam()));
 }
 
 TEST_P(DynamicUpdateSliceTypedTest, Uint8) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT8)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kUint8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(DynamicUpdateSliceIntTest<DataType::UINT8>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(DynamicUpdateSliceIntTest<DataType::kUint8>(*exec_env, GetParam()));
 }
 
 TEST_P(DynamicUpdateSliceTypedTest, Uint16) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT16)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kUint16)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(DynamicUpdateSliceIntTest<DataType::UINT16>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(
+      DynamicUpdateSliceIntTest<DataType::kUint16>(*exec_env, GetParam()));
 }
 
 TEST_P(DynamicUpdateSliceTypedTest, Uint32) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT32)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kUint32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(DynamicUpdateSliceIntTest<DataType::UINT32>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(
+      DynamicUpdateSliceIntTest<DataType::kUint32>(*exec_env, GetParam()));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -158,8 +160,8 @@ TEST_P(DynamicUpdateSliceFloatTest, DynamicUpdateSliceConversionTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  DataType src_type = (data_type() == DataType::FLOAT32) ? DataType::FLOAT16
-                                                         : DataType::FLOAT32;
+  DataType src_type = (data_type() == DataType::kFloat32) ? DataType::kFloat16
+                                                          : DataType::kFloat32;
   if (!exec_env->IsStorageSupported(storage(), src_type)) {
     GTEST_SKIP() << "Unsupported src data type: " << ToString(src_type);
   }

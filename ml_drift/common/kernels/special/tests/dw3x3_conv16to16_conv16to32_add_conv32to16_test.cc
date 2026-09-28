@@ -196,13 +196,13 @@ TEST_P(DataTypeTest, DW3x3Conv16To16Conv16To32AddConv32To16Test0) {
                  << " storage type: " << ToString(storage());
   }
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type(), storage(), Layout::HWC});
-  op_def.src_tensors.push_back({data_type(), storage(), Layout::HWC});
-  op_def.dst_tensors.push_back({data_type(), storage(), Layout::HWC});
-  op_def.dst_tensors.push_back({data_type(), storage(), Layout::HWC});
-  if (!op_def.src_tensors[0].SupportsZeroClamp(Axis::WIDTH,
+  op_def.src_tensors.push_back({data_type(), storage(), Layout::kHWC});
+  op_def.src_tensors.push_back({data_type(), storage(), Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type(), storage(), Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type(), storage(), Layout::kHWC});
+  if (!op_def.src_tensors[0].SupportsZeroClamp(Axis::kWidth,
                                                exec_env->GetGpuInfo()) ||
-      !op_def.src_tensors[0].SupportsZeroClamp(Axis::HEIGHT,
+      !op_def.src_tensors[0].SupportsZeroClamp(Axis::kHeight,
                                                exec_env->GetGpuInfo())) {
     GTEST_SKIP() << "Source tensor does not support zero clamp.";
   }
@@ -215,13 +215,13 @@ TEST_P(DataTypeTest, DW3x3Conv16To16Conv16To32AddConv32To16Test2) {
                  << " storage type: " << ToString(storage());
   }
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type(), storage(), Layout::HWC});
-  op_def.src_tensors.push_back({data_type(), storage(), Layout::HWC});
-  op_def.dst_tensors.push_back({data_type(), storage(), Layout::HWC});
-  op_def.dst_tensors.push_back({data_type(), storage(), Layout::HWC});
-  if (!op_def.src_tensors[0].SupportsZeroClamp(Axis::WIDTH,
+  op_def.src_tensors.push_back({data_type(), storage(), Layout::kHWC});
+  op_def.src_tensors.push_back({data_type(), storage(), Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type(), storage(), Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type(), storage(), Layout::kHWC});
+  if (!op_def.src_tensors[0].SupportsZeroClamp(Axis::kWidth,
                                                exec_env->GetGpuInfo()) ||
-      !op_def.src_tensors[0].SupportsZeroClamp(Axis::HEIGHT,
+      !op_def.src_tensors[0].SupportsZeroClamp(Axis::kHeight,
                                                exec_env->GetGpuInfo())) {
     GTEST_SKIP() << "Source tensor does not support zero clamp.";
   }

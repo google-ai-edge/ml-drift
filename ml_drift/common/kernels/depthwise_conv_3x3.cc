@@ -45,7 +45,7 @@ DepthwiseConv3x3::DepthwiseConv3x3(const OperationDef& definition,
   code_ = GenerateDepthwiseConvCode(gpu_info, definition, precision,
                                     weights_are_buffer, local_mem_uploads_);
 
-  if (precision == CalculationsPrecision::F16 && gpu_info.IsPowerVR()) {
+  if (precision == CalculationsPrecision::kF16 && gpu_info.IsPowerVR()) {
     compiler_options_.push_back(CompilerOptions::kClFastRelaxedMath);
   }
 }
@@ -63,7 +63,7 @@ std::string DepthwiseConv3x3::GenerateDepthwiseConvCode(
     c += "__attribute__((reqd_work_group_size(8, 4, 1)))\n";
   }
   c += "MAIN_FUNCTION($0) {\n";
-  if (op_def.dst_tensors[0].HasAxis(Axis::BATCH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kBatch)) {
     c += "  int linear_id = ucl::GetGlobalId<0>();\n";
     c += "  int X = (linear_id / args.dst_tensor.Batch()) * 2;\n";
     c += "  int B = linear_id % args.dst_tensor.Batch();\n";
@@ -120,7 +120,7 @@ std::string DepthwiseConv3x3::GenerateDepthwiseConvCode(
     c += "   Type f7 = args.weights.Read(7, S);\n";
     c += "   Type f8 = args.weights.Read(8, S);\n";
   }
-  if (!op_def.src_tensors[0].SupportsZeroClamp(Axis::WIDTH, gpu_info)) {
+  if (!op_def.src_tensors[0].SupportsZeroClamp(Axis::kWidth, gpu_info)) {
     c += "  int x0 = X - 1;\n";
     c += "  int x1 = X;\n";
     c += "  int x2 = X + 1;\n";
@@ -138,7 +138,7 @@ std::string DepthwiseConv3x3::GenerateDepthwiseConvCode(
     xc[2] = "x2";
     xc[3] = "x3";
   }
-  if (!op_def.src_tensors[0].SupportsZeroClamp(Axis::HEIGHT, gpu_info)) {
+  if (!op_def.src_tensors[0].SupportsZeroClamp(Axis::kHeight, gpu_info)) {
     c += "  int y0 = Y - 1;\n";
     c += "  int y1 = Y;\n";
     c += "  int y2 = Y + 1;\n";
@@ -175,13 +175,13 @@ std::string DepthwiseConv3x3::GenerateDepthwiseConvCode(
   }
   auto read_4x_line = [&](int y) {
     std::string s0_check, s1_check, s2_check, s3_check;
-    if (!op_def.src_tensors[0].SupportsZeroClamp(Axis::WIDTH, gpu_info)) {
+    if (!op_def.src_tensors[0].SupportsZeroClamp(Axis::kWidth, gpu_info)) {
       s0_check += "x0_in";
       s1_check += "x1_in";
       s2_check += "x2_in";
       s3_check += "x3_in";
     }
-    if (!op_def.src_tensors[0].SupportsZeroClamp(Axis::HEIGHT, gpu_info)) {
+    if (!op_def.src_tensors[0].SupportsZeroClamp(Axis::kHeight, gpu_info)) {
       const std::string y_in = "y" + std::to_string(y) + "_in";
       s0_check += s0_check.empty() ? y_in : (" && " + y_in);
       s1_check += s1_check.empty() ? y_in : (" && " + y_in);
@@ -292,9 +292,9 @@ std::string DepthwiseConv3x3::GenerateDepthwiseConvCode(
   c += "  }\n";
   c += "}\n";
 
-  const DataType acc_type = precision == CalculationsPrecision::F16
-                                ? DataType::FLOAT16
-                                : DataType::FLOAT32;
+  const DataType acc_type = precision == CalculationsPrecision::kF16
+                                ? DataType::kFloat16
+                                : DataType::kFloat32;
   const DataType type = op_def.src_tensors[0].GetDataType();
   absl::StrReplaceAll({{"SType", ToUclDataType(type, 1)},
                        {"Type", ToUclDataType(type, 4)},
@@ -355,9 +355,9 @@ DepthwiseConv3x3 CreateDepthwiseConv3x3(
   }
   DepthwiseConv3x3 result(definition, precision, weights_are_buffer,
                           local_mem_uploads, gpu_info);
-  const DataType weights_data_type = precision == CalculationsPrecision::F32
-                                         ? DataType::FLOAT32
-                                         : DataType::FLOAT16;
+  const DataType weights_data_type = precision == CalculationsPrecision::kF32
+                                         ? DataType::kFloat32
+                                         : DataType::kFloat16;
   result.UploadWeightsAndBiases(GetFloatWeights(attr), attr.bias,
                                 weights_data_type, weights_are_buffer);
   return result;

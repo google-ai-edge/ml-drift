@@ -114,7 +114,7 @@ TensorFloat32 SoftmaxWithMaxAdjustmentConv1x1(
 
 TensorFloat32 Conv1x1BatchedHeight(
     const TensorFloat32& src,
-    const ml_drift::Tensor<OHWI, DataType::FLOAT32>& weights) {
+    const ml_drift::Tensor<OHWI, DataType::kFloat32>& weights) {
   const BHWC dst_shape =
       BHWC(src.shape.b, src.shape.h, src.shape.w, weights.shape.o);
   TensorFloat32 dst = MakeZeroTensor(dst_shape);
@@ -152,7 +152,7 @@ TEST(SoftaxConv1x1, Base) {
   attr.bias = MakeSyntheticTensor(Linear(dst_channels));
 
   SoftmaxAttributes sfm_attr;
-  sfm_attr.axis = Axis::CHANNELS;
+  sfm_attr.axis = Axis::kChannels;
 
   auto src_shape = BHWC(1, 8, 8, src_channels);
 
@@ -173,7 +173,7 @@ TEST(SoftaxConv1x1, Base) {
 using SoftmaxConv1x1BigTest = TestWithParam<TensorStorageType>;
 
 TEST_P(SoftmaxConv1x1BigTest, BatchedConvSoftmaxBatchedConv) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::FLOAT16)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kFloat16)) {
     GTEST_SKIP() << "Unsupported storage: " << ToString(GetParam());
   }
   int batch_size = 8;
@@ -181,11 +181,11 @@ TEST_P(SoftmaxConv1x1BigTest, BatchedConvSoftmaxBatchedConv) {
   int src_ch = 40;
   int interm_ch = 128;
   int dst_ch = 40;
-  ml_drift::Tensor<OHWI, DataType::FLOAT32> weights0 =
+  ml_drift::Tensor<OHWI, DataType::kFloat32> weights0 =
       MakeSyntheticTensor(OHWI(interm_ch, 1, batch_size, src_ch));
   weights0.data.resize(weights0.shape.DimensionsProduct() +
                        XNN_EXTRA_BYTES / sizeof(float));
-  ml_drift::Tensor<OHWI, DataType::FLOAT32> weights1 =
+  ml_drift::Tensor<OHWI, DataType::kFloat32> weights1 =
       MakeSyntheticTensor(OHWI(dst_ch, 1, batch_size, interm_ch));
   weights1.data.resize(weights1.shape.DimensionsProduct() +
                        XNN_EXTRA_BYTES / sizeof(float));
@@ -196,17 +196,17 @@ TEST_P(SoftmaxConv1x1BigTest, BatchedConvSoftmaxBatchedConv) {
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  auto precision = CalculationsPrecision::F16;
+  auto precision = CalculationsPrecision::kF16;
   auto data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, GetParam(), Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, GetParam(), Layout::HWC});
+  op_def.src_tensors.push_back({data_type, GetParam(), Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, GetParam(), Layout::kHWC});
 
   TensorFloat32 interm0_tensor = Conv1x1BatchedHeight(src_tensor, weights0);
 
   TensorFloat32 interm1_tensor;
 
   SoftmaxAttributes attr;
-  attr.axis = Axis::CHANNELS;
+  attr.axis = Axis::kChannels;
   interm1_tensor = SoftmaxReference(attr, interm0_tensor);
 
   TensorFloat32 dst_ref_tensor = Conv1x1BatchedHeight(interm1_tensor, weights1);

@@ -100,7 +100,7 @@ class ConvGeneric : public GPUOperation {
     int src_group_slices = 0;                // only used for ExternalWeights
     TensorDescriptor src_desc;
     PackedType src_packed_type;  // applicable for 8/4 bit convolutions
-    CalculationsPrecision precision = CalculationsPrecision::F32;
+    CalculationsPrecision precision = CalculationsPrecision::kF32;
     int4 stride = int4(1, 1, 1, 1);
     int4 padding_prepended = int4(0, 0, 0, 0);
     int4 padding_appended = int4(0, 0, 0, 0);
@@ -127,12 +127,12 @@ class ConvGeneric : public GPUOperation {
       return IsXKernelIs1() && IsYKernelIs1() && IsZKernelIs1();
     }
     bool Is8Bit() const {
-      return weights_data_type == DataType::INT8 ||
-             weights_data_type == DataType::UINT8;
+      return weights_data_type == DataType::kInt8 ||
+             weights_data_type == DataType::kUint8;
     }
     bool Is4Bit() const {
-      return weights_data_type == DataType::INT4 ||
-             weights_data_type == DataType::UINT4;
+      return weights_data_type == DataType::kInt4 ||
+             weights_data_type == DataType::kUint4;
     }
     bool IsSrcPackedW4C4() const {
       return Is8Bit() && (src_packed_type == PackedType::kInt8W4C4 ||
@@ -178,8 +178,8 @@ class ConvGeneric : public GPUOperation {
 
   template <DataType T>
   void UploadWeights(const Tensor<OHWI, T>& weights);
-  void UploadWeightsI4(const Tensor<OHWI, DataType::INT8>& weights_i4);
-  void UploadWeightsI8AsU8(const Tensor<OHWI, DataType::INT8>& weights);
+  void UploadWeightsI4(const Tensor<OHWI, DataType::kInt8>& weights_i4);
+  void UploadWeightsI8AsU8(const Tensor<OHWI, DataType::kInt8>& weights);
 
   template <DataType T>
   void UploadWeights(const Tensor<OHWDI, T>& weights);
@@ -193,8 +193,8 @@ class ConvGeneric : public GPUOperation {
   MemoryType GetBufferWeightsMemoryType() const {
     return kernel_params_.weights_upload_type ==
                    ConvGeneric::WeightsUploadType::kConstantMemory
-               ? MemoryType::CONSTANT
-               : MemoryType::GLOBAL;
+               ? MemoryType::kConstant
+               : MemoryType::kGlobal;
   }
 
   friend ConvGeneric CreateConvGeneric(const GpuInfo& gpu_info,
@@ -230,7 +230,7 @@ class ConvGeneric : public GPUOperation {
 
   friend ConvGeneric CreateConvGenericInt8(
       const GpuInfo& gpu_info, const OperationDef& definition,
-      PackedType src_packed_type, const Tensor<OHWI, DataType::INT8>& weights,
+      PackedType src_packed_type, const Tensor<OHWI, DataType::kInt8>& weights,
       const BHWC* dst_shape);
   friend ConvGeneric CreateConvGenericInt8ExternalWeights(
       const GpuInfo& gpu_info, const OperationDef& definition,
@@ -239,7 +239,7 @@ class ConvGeneric : public GPUOperation {
 
   friend ConvGeneric CreateConvGenericInt4(
       const GpuInfo& gpu_info, const OperationDef& definition,
-      const Tensor<OHWI, DataType::INT8>& weights, const BHWC* dst_shape);
+      const Tensor<OHWI, DataType::kInt8>& weights, const BHWC* dst_shape);
   friend ConvGeneric CreateConvGenericInt4ExternalWeights(
       const GpuInfo& gpu_info, const OperationDef& definition,
       const OHWI& weights_shape, const BHWC* dst_shape);
@@ -281,7 +281,7 @@ void ConvGeneric::UploadWeights(const Tensor<OHWI, T>& weights) {
     int sub_size = SizeOf(weights_desc.type) * 4 * tex_size.x * tex_size.y;
     for (int i = 0; i < 4; ++i) {
       TensorDescriptor desc = CreateConstantHWVec4TensorDescriptor(
-          weights_desc.type, TensorStorageType::TEXTURE_2D, tex_size.x,
+          weights_desc.type, TensorStorageType::kTexture2D, tex_size.x,
           tex_size.y, weights_data.data() + sub_size * i);
       args_.AddObject("weights" + std::to_string(i),
                       std::make_unique<TensorDescriptor>(std::move(desc)));
@@ -312,7 +312,7 @@ void ConvGeneric::UploadWeights(const Tensor<OHWDI, T>& weights) {
     int sub_size = SizeOf(weights_desc.type) * 4 * tex_size.x * tex_size.y;
     for (int i = 0; i < 4; ++i) {
       TensorDescriptor desc = CreateConstantHWVec4TensorDescriptor(
-          weights_desc.type, TensorStorageType::TEXTURE_2D, tex_size.x,
+          weights_desc.type, TensorStorageType::kTexture2D, tex_size.x,
           tex_size.y, weights_data.data() + sub_size * i);
       args_.AddObject("weights" + std::to_string(i),
                       std::make_unique<TensorDescriptor>(std::move(desc)));
@@ -372,7 +372,7 @@ bool UseUint8MathForInt8Weights(const GpuInfo& gpu_info);
 ConvGeneric CreateConvGenericInt8(const GpuInfo& gpu_info,
                                   const OperationDef& definition,
                                   PackedType src_packed_type,
-                                  const Tensor<OHWI, DataType::INT8>& weights,
+                                  const Tensor<OHWI, DataType::kInt8>& weights,
                                   const BHWC* dst_shape = nullptr);
 
 // Creates a generic INT8 convolution operation with external weights.
@@ -389,7 +389,7 @@ PackedType GetConvGenericInt4SrcType(const GpuInfo& gpu_info,
 // Creates a generic INT4 convolution operation.
 ConvGeneric CreateConvGenericInt4(const GpuInfo& gpu_info,
                                   const OperationDef& definition,
-                                  const Tensor<OHWI, DataType::INT8>& weights,
+                                  const Tensor<OHWI, DataType::kInt8>& weights,
                                   const BHWC* dst_shape = nullptr);
 
 // Creates a generic INT4 convolution operation with external weights.

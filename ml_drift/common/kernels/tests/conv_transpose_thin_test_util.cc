@@ -136,11 +136,11 @@ absl::Status ConvolutionTransposedThinSimpleWeightsTest(
   attr.bias.shape = Linear(2);
   attr.bias.data = {0.0f, 0.0f};
 
-  const float eps = precision == CalculationsPrecision::F32 ? 1e-6f : 1e-3f;
+  const float eps = precision == CalculationsPrecision::kF32 ? 1e-6f : 1e-3f;
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   ConvolutionTransposedThin operation = CreateConvolutionTransposedThin(
       env.GetGpuInfo(), op_def, precision, attr);
@@ -173,11 +173,11 @@ absl::Status ConvolutionTransposedThinTest(TestExecutionEnvironment& env,
   attr.bias.shape = Linear(1);
   attr.bias.data = {0.5f};
 
-  const float eps = precision == CalculationsPrecision::F32 ? 1e-6f : 1e-3f;
+  const float eps = precision == CalculationsPrecision::kF32 ? 1e-6f : 1e-3f;
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   ConvolutionTransposedThin operation = CreateConvolutionTransposedThin(
       env.GetGpuInfo(), op_def, precision, attr);
@@ -212,8 +212,8 @@ absl::Status ConvolutionTransposedThinBigTest(TestExecutionEnvironment& env,
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   return ConvolutionTransposedThinTest(env, attr, src_tensor, op_def,
                                        precision);
 }
@@ -238,8 +238,8 @@ absl::Status ConvolutionTransposedThinBatchedBigTest(
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
   return ConvolutionTransposedThinTest(env, attr, src_tensor, op_def,
                                        precision);
 }
@@ -262,11 +262,11 @@ absl::Status ConvolutionTransposed3x3ThinSimpleWeightsTest(
   attr.bias.shape = Linear(2);
   attr.bias.data = {0.0f, 0.0f};
 
-  const float eps = precision == CalculationsPrecision::F32 ? 1e-6f : 1e-3f;
+  const float eps = precision == CalculationsPrecision::kF32 ? 1e-6f : 1e-3f;
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   ConvolutionTransposed3x3Thin operation = CreateConvolutionTransposed3x3Thin(
       env.GetGpuInfo(), op_def, precision, attr);
@@ -302,11 +302,11 @@ absl::Status ConvolutionTransposed3x3ThinTest(TestExecutionEnvironment& env,
   attr.bias.shape = Linear(1);
   attr.bias.data = {0.5f};
 
-  const float eps = precision == CalculationsPrecision::F32 ? 1e-6f : 1e-3f;
+  const float eps = precision == CalculationsPrecision::kF32 ? 1e-6f : 1e-3f;
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   ConvolutionTransposed3x3Thin operation = CreateConvolutionTransposed3x3Thin(
       env.GetGpuInfo(), op_def, precision, attr);
@@ -342,8 +342,8 @@ absl::Status ConvolutionTransposed3x3ThinBigTest(
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   return ConvolutionTransposed3x3ThinTest(env, attr, src_tensor, op_def,
                                           precision);
 }
@@ -369,8 +369,8 @@ absl::Status ConvolutionTransposed3x3ThinBatchedBigTest(
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
   return ConvolutionTransposed3x3ThinTest(env, attr, src_tensor, op_def,
                                           precision);
 }
@@ -396,10 +396,10 @@ absl::Status ConvolutionTransposed3x3ThinExternalWeightsBigTest(
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
   op_def.src_tensors.push_back(
-      {data_type, TensorStorageType::BUFFER, Layout::UNKNOWN});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+      {data_type, TensorStorageType::kBuffer, Layout::kUnknown});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   return ConvolutionTransposed3x3ThinDynamicWeightsTest(env, attr, src_tensor,
                                                         op_def, precision);
 }

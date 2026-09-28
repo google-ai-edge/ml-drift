@@ -105,12 +105,12 @@ std::string GetSrcXYCheck(const GpuInfo& gpu_info,
                           const std::string& x_coord,
                           const std::string& y_coord) {
   std::string result;
-  if (!src_desc.SupportsZeroClamp(Axis::WIDTH, gpu_info)) {
+  if (!src_desc.SupportsZeroClamp(Axis::kWidth, gpu_info)) {
     const std::string x_check =
         x_coord + " >= 0 && " + x_coord + " < args.src_tensor.Width()";
     AppendToBack(x_check, " && ", &result);
   }
-  if (!src_desc.SupportsZeroClamp(Axis::HEIGHT, gpu_info)) {
+  if (!src_desc.SupportsZeroClamp(Axis::kHeight, gpu_info)) {
     const std::string y_check =
         y_coord + " >= 0 && " + y_coord + " < args.src_tensor.Height()";
     AppendToBack(y_check, " && ", &result);
@@ -248,7 +248,7 @@ std::string DepthwiseConv::GenerateCode(const GpuInfo& gpu_info,
 
   const auto& src_desc = op_def.src_tensors[0];
   c += "MAIN_FUNCTION($0) {\n";
-  if (src_desc.HasAxis(Axis::BATCH)) {
+  if (src_desc.HasAxis(Axis::kBatch)) {
     c += "  int linear_id = ucl::GetGlobalId<0>();\n";
     c += "  int X = linear_id / args.dst_tensor.Batch();\n";
     c += "  int B = linear_id % args.dst_tensor.Batch();\n";
@@ -257,7 +257,7 @@ std::string DepthwiseConv::GenerateCode(const GpuInfo& gpu_info,
   } else {
     c += "  int X = ucl::GetGlobalId<0>();\n";
   }
-  if (src_desc.HasAxis(Axis::DEPTH)) {
+  if (src_desc.HasAxis(Axis::kDepth)) {
     c += "  int linear_id_1 = ucl::GetGlobalId<1>();\n";
     c += "  int Y = linear_id_1 / args.dst_tensor.Depth();\n";
     c += "  int Z = linear_id_1 % args.dst_tensor.Depth();\n";
@@ -267,7 +267,7 @@ std::string DepthwiseConv::GenerateCode(const GpuInfo& gpu_info,
   c += "  int S = ucl::GetGlobalId<2>();\n";
   c += "  int x_src = X * args.stride_x + args.padding_x;\n";
   c += "  int y_src = Y * args.stride_y + args.padding_y;\n";
-  if (src_desc.HasAxis(Axis::DEPTH)) {
+  if (src_desc.HasAxis(Axis::kDepth)) {
     c += "  int z_src = Z * args.stride_z + args.padding_z;\n";
   }
   if (params_.use_spatial_caching) {
@@ -305,24 +305,24 @@ std::string DepthwiseConv::GenerateCode(const GpuInfo& gpu_info,
 
   std::string check;
   std::vector<std::string> coords;
-  if (src_desc.HasAxis(Axis::DEPTH)) {
+  if (src_desc.HasAxis(Axis::kDepth)) {
     c += "  for (int kz = 0; kz < " + kernel_size_z + "; ++kz) {\n";
     if (!params_.use_spatial_caching) {
       c += "    int z_c = z_src + kz * args.dilation_z;\n";
       coords.insert(coords.begin(), "z_c");
-      if (!src_desc.SupportsZeroClamp(Axis::DEPTH, gpu_info)) {
+      if (!src_desc.SupportsZeroClamp(Axis::kDepth, gpu_info)) {
         c += "    bool inside_z = z_c >= 0 && z_c < args.src_tensor.Depth();\n";
         c += "    z_c = clamp(z_c, 0, args.src_tensor.Depth() - 1);\n";
         AppendToBack("inside_z", " && ", &check);
       }
     }
   }
-  if (src_desc.HasAxis(Axis::HEIGHT)) {
+  if (src_desc.HasAxis(Axis::kHeight)) {
     c += "  for (int ky = 0; ky < " + kernel_size_y + "; ++ky) {\n";
     if (!params_.use_spatial_caching) {
       c += "    int y_c = y_src + ky * args.dilation_y;\n";
       coords.insert(coords.begin(), "y_c");
-      if (!src_desc.SupportsZeroClamp(Axis::HEIGHT, gpu_info)) {
+      if (!src_desc.SupportsZeroClamp(Axis::kHeight, gpu_info)) {
         c +=
             "    bool inside_y = y_c >= 0 && y_c < args.src_tensor.Height();\n";
         c += "    y_c = clamp(y_c, 0, args.src_tensor.Height() - 1);\n";
@@ -330,12 +330,12 @@ std::string DepthwiseConv::GenerateCode(const GpuInfo& gpu_info,
       }
     }
   }
-  if (src_desc.HasAxis(Axis::WIDTH)) {
+  if (src_desc.HasAxis(Axis::kWidth)) {
     c += "  for (int kx = 0; kx < " + kernel_size_x + "; ++kx) {\n";
     if (!params_.use_spatial_caching) {
       c += "    int x_c = x_src + kx * args.dilation_x;\n";
       coords.insert(coords.begin(), "x_c");
-      if (!src_desc.SupportsZeroClamp(Axis::WIDTH, gpu_info)) {
+      if (!src_desc.SupportsZeroClamp(Axis::kWidth, gpu_info)) {
         c += "    bool inside_x = x_c >= 0 && x_c < args.src_tensor.Width();\n";
         c += "    x_c = clamp(x_c, 0, args.src_tensor.Width() - 1);\n";
         AppendToBack("inside_x", " && ", &check);
@@ -345,7 +345,7 @@ std::string DepthwiseConv::GenerateCode(const GpuInfo& gpu_info,
   std::string weight_value;
   if (params_.use_weights_caching) {
     std::string weight_index = "ky";
-    if (src_desc.HasAxis(Axis::DEPTH)) {
+    if (src_desc.HasAxis(Axis::kDepth)) {
       weight_index =
           "(kz * " + std::to_string(params_.y_kernel_size) + " + ky)";
     }
@@ -386,28 +386,28 @@ std::string DepthwiseConv::GenerateCode(const GpuInfo& gpu_info,
   if (!dynamic_weights && !params_.use_weights_caching) {
     c += "    fx_c++;\n";
   }
-  if (src_desc.HasAxis(Axis::WIDTH)) {
+  if (src_desc.HasAxis(Axis::kWidth)) {
     c += "  }\n";
   }
-  if (src_desc.HasAxis(Axis::HEIGHT)) {
+  if (src_desc.HasAxis(Axis::kHeight)) {
     c += "  }\n";
   }
-  if (src_desc.HasAxis(Axis::DEPTH)) {
+  if (src_desc.HasAxis(Axis::kDepth)) {
     c += "  }\n";
   }
   c += "  Type res0 = ucl::Convert<Type>(r);\n";
   if (has_bias) {
     c += "  res0 += args.biases.Read(S);\n";
   }
-  if (src_desc.HasAxis(Axis::DEPTH)) {
+  if (src_desc.HasAxis(Axis::kDepth)) {
     c += "  args.dst_tensor.Write(res0, X, Y, Z, S);\n";
   } else {
     c += "  args.dst_tensor.Write(res0, X, Y, S);\n";
   }
   c += "}\n";
-  const DataType acc_type = precision == CalculationsPrecision::F16
-                                ? DataType::FLOAT16
-                                : DataType::FLOAT32;
+  const DataType acc_type = precision == CalculationsPrecision::kF16
+                                ? DataType::kFloat16
+                                : DataType::kFloat32;
   const DataType type = op_def.src_tensors[0].GetDataType();
   absl::StrReplaceAll({{"SType", ToUclDataType(type, 1)},
                        {"Type", ToUclDataType(type, 4)},
@@ -417,7 +417,7 @@ std::string DepthwiseConv::GenerateCode(const GpuInfo& gpu_info,
 }
 
 void DepthwiseConv::UploadWeightsForDWConv2D(
-    const Tensor<OHWI, DataType::FLOAT32>& weights, DataType dst_type,
+    const Tensor<OHWI, DataType::kFloat32>& weights, DataType dst_type,
     bool weights_are_buffer) {
   const int dst_channels = weights.shape.i * weights.shape.o;
   const int dst_slices = DivideRoundUp(dst_channels, 4);
@@ -428,7 +428,7 @@ void DepthwiseConv::UploadWeightsForDWConv2D(
 
   std::vector<uint8_t> data(SizeOf(dst_type) * 4 * elements_count);
 
-  if (dst_type == DataType::FLOAT32) {
+  if (dst_type == DataType::kFloat32) {
     float4* ptr = reinterpret_cast<float4*>(data.data());
     RearrangeWeightsForDWConv2D(weights, absl::MakeSpan(ptr, elements_count));
   } else {  // f16
@@ -445,7 +445,7 @@ void DepthwiseConv::UploadWeightsForDWConv2D(
     args_.AddObject("weights", std::make_unique<BufferDescriptor>(desc));
   } else {
     TensorDescriptor desc = CreateConstantHWVec4TensorDescriptor(
-        dst_type, TensorStorageType::TEXTURE_2D, kernel_x * kernel_y,
+        dst_type, TensorStorageType::kTexture2D, kernel_x * kernel_y,
         dst_slices, data.data());
     args_.AddObject("weights", std::make_unique<TensorDescriptor>(desc));
   }
@@ -487,9 +487,9 @@ DepthwiseConv CreateDepthwiseConvolution2D(
   }
   bool has_bias = !attr.bias.data.empty();
   op.code_ = op.GenerateCode(gpu_info, definition, precision, has_bias);
-  const DataType weights_data_type = precision == CalculationsPrecision::F32
-                                         ? DataType::FLOAT32
-                                         : DataType::FLOAT16;
+  const DataType weights_data_type = precision == CalculationsPrecision::kF32
+                                         ? DataType::kFloat32
+                                         : DataType::kFloat16;
   op.UploadWeightsForDWConv2D(GetFloatWeights(attr), weights_data_type,
                               weights_are_buffer);
   op.tensor_to_grid_ = TensorToGrid::kWBToX_HDToY_SToZ;
@@ -557,9 +557,9 @@ DepthwiseConv CreateDepthwiseConvolution3D(
   }
   bool has_bias = !attr.bias.data.empty();
   op.code_ = op.GenerateCode(gpu_info, definition, precision, has_bias);
-  const DataType weights_data_type = precision == CalculationsPrecision::F32
-                                         ? DataType::FLOAT32
-                                         : DataType::FLOAT16;
+  const DataType weights_data_type = precision == CalculationsPrecision::kF32
+                                         ? DataType::kFloat32
+                                         : DataType::kFloat16;
   op.UploadWeightsForDWConv3D(attr.weights, weights_data_type,
                               weights_are_buffer);
   op.tensor_to_grid_ = TensorToGrid::kWBToX_HDToY_SToZ;

@@ -29,7 +29,7 @@ GPUOperation CreateCast(const OperationDef& definition,
   DataType dst_type = definition.dst_tensors[0].GetDataType();
   if (!(gpu_info.IsApiMetal() &&
         gpu_info.metal_info.IsNativeBfloatSupported())) {
-    dst_type = dst_type == DataType::BFLOAT16 ? DataType::FLOAT32 : dst_type;
+    dst_type = dst_type == DataType::kBfloat16 ? DataType::kFloat32 : dst_type;
   }
   op_desc.code = "out_value = ucl::Convert<" + ToUclDataType(dst_type, 4) +
                  ">(in_value);\n";

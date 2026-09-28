@@ -65,10 +65,10 @@ std::string GetSecondPart(const GpuInfo& gpu_info, const OHWI& weights_shape,
     c += "  Type src_x" + std::to_string(x) + ";\n";
   }
   const bool load_src_4half4_as_int8 =
-      type == DataType::FLOAT16 && gpu_info.IsAdreno() &&
+      type == DataType::kFloat16 && gpu_info.IsAdreno() &&
       gpu_info.IsApiOpenCl() && (block_size.x + 2) % 4 == 0;
   const bool load_src_2half4_as_int4 =
-      type == DataType::FLOAT16 && gpu_info.IsAdreno() &&
+      type == DataType::kFloat16 && gpu_info.IsAdreno() &&
       gpu_info.IsApiOpenCl() && (block_size.x + 2) % 2 == 0;
   if (load_src_4half4_as_int8) {
     c += "  __local int8* src_iptr;\n";
@@ -216,15 +216,15 @@ std::string GetCodeWGFirstTensorPrecise(const GpuInfo& gpu_info,
 )";
   for (auto* node : nodes) {
     const OperationType op_type = OperationTypeFromString(node->operation.type);
-    if (op_type == OperationType::RESIZE) {
+    if (op_type == OperationType::kResize) {
       auto resize_attr =
           std::any_cast<Resize2DAttributes>(node->operation.attributes);
       c += GetResize2dCode(resize_attr, "src_tensor", "interm_x", "interm_y",
                            "local_s", "value");
-    } else if (op_type == OperationType::ADD) {
+    } else if (op_type == OperationType::kAdd) {
       c += "    value += args.add_tensor.Read(interm_x, interm_y, "
            "local_s);\n";
-    } else if (op_type == OperationType::CONCAT) {
+    } else if (op_type == OperationType::kConcat) {
       c += "    value.x = args.src_tensor0.Read(interm_x, interm_y, 0).x;\n";
       c += "    value.y = args.src_tensor1.Read(interm_x, interm_y, 0).x;\n";
       c += "    value.z = args.src_tensor2.Read(interm_x, interm_y, 0).x;\n";
@@ -316,15 +316,15 @@ std::string GetCodeWGSecondTensorPrecise(const GpuInfo& gpu_info,
 )";
   for (auto* node : nodes) {
     const OperationType op_type = OperationTypeFromString(node->operation.type);
-    if (op_type == OperationType::RESIZE) {
+    if (op_type == OperationType::kResize) {
       auto resize_attr =
           std::any_cast<Resize2DAttributes>(node->operation.attributes);
       c += GetResize2dCode(resize_attr, "src_tensor", "interm_x", "interm_y",
                            "local_s", "value");
-    } else if (op_type == OperationType::ADD) {
+    } else if (op_type == OperationType::kAdd) {
       c += "        value += args.add_tensor.Read(interm_x, interm_y, "
            "local_s);\n";
-    } else if (op_type == OperationType::CONCAT) {
+    } else if (op_type == OperationType::kConcat) {
       c +=
           "        value.x = args.src_tensor0.Read(interm_x, interm_y, 0).x;\n";
       c +=
@@ -393,14 +393,14 @@ std::string GetCodeWGFirstTensorPrecise(const GpuInfo& gpu_info,
 )";
   for (const auto* op : ops) {
     const OperationType op_type = OperationTypeFromString(op->name);
-    if (op_type == OperationType::RESIZE) {
+    if (op_type == OperationType::kResize) {
       auto resize_attr = std::any_cast<Resize2DAttributes>(op->attr);
       c += GetResize2dCode(resize_attr, "src_tensor", "interm_x", "interm_y",
                            "local_s", "value");
-    } else if (op_type == OperationType::ADD) {
+    } else if (op_type == OperationType::kAdd) {
       c += "    value += args.add_tensor.Read(interm_x, interm_y, "
            "local_s);\n";
-    } else if (op_type == OperationType::CONCAT) {
+    } else if (op_type == OperationType::kConcat) {
       c += "    value.x = args.src_tensor0.Read(interm_x, interm_y, 0).x;\n";
       c += "    value.y = args.src_tensor1.Read(interm_x, interm_y, 0).x;\n";
       c += "    value.z = args.src_tensor2.Read(interm_x, interm_y, 0).x;\n";
@@ -490,14 +490,14 @@ std::string GetCodeWGSecondTensorPrecise(
 )";
   for (const auto* op : ops) {
     const OperationType op_type = OperationTypeFromString(op->name);
-    if (op_type == OperationType::RESIZE) {
+    if (op_type == OperationType::kResize) {
       auto resize_attr = std::any_cast<Resize2DAttributes>(op->attr);
       c += GetResize2dCode(resize_attr, "src_tensor", "interm_x", "interm_y",
                            "local_s", "value");
-    } else if (op_type == OperationType::ADD) {
+    } else if (op_type == OperationType::kAdd) {
       c += "        value += args.add_tensor.Read(interm_x, interm_y, "
            "local_s);\n";
-    } else if (op_type == OperationType::CONCAT) {
+    } else if (op_type == OperationType::kConcat) {
       c +=
           "        value.x = args.src_tensor0.Read(interm_x, interm_y, 0).x;\n";
       c +=
@@ -546,12 +546,12 @@ void AddConstantsGpuBuffer(const GpuInfo& gpu_info, DataType data_type,
   desc.element_size = 4;
   desc.memory_type = gpu_info.IsMali() || gpu_info.IsBroadcom() ||
                              gpu_info.IsLlvmPipe() || gpu_info.IsAMD()
-                         ? MemoryType::GLOBAL
-                         : MemoryType::CONSTANT;
+                         ? MemoryType::kGlobal
+                         : MemoryType::kConstant;
   desc.size = SizeOf(data_type) * weights.size();
   desc.data.resize(desc.size);
 
-  if (data_type == DataType::FLOAT32) {
+  if (data_type == DataType::kFloat32) {
     memcpy(desc.data.data(), weights.data(), desc.size);
   } else {
     half* gpu_data_half = reinterpret_cast<half*>(desc.data.data());
@@ -642,7 +642,7 @@ absl::Status TryConcatConvLocalMemoryFuser(
     return absl::NotFoundError("ConcatConv not suitable.");
   }
   if (OperationTypeFromString(concat_node->operation.type) !=
-      OperationType::CONCAT) {
+      OperationType::kConcat) {
     return absl::NotFoundError("ConcatConv not suitable.");
   }
   auto concat_inputs = graph.FindInputs(concat_node->id);
@@ -660,12 +660,12 @@ absl::Status TryConcatConvLocalMemoryFuser(
   const auto& src0_td = src0_handle.tensor_desc;
   const auto& src1_td = src1_handle.tensor_desc;
   const auto& src2_td = src2_handle.tensor_desc;
-  if (!src0_td.SupportsZeroClamp(Axis::WIDTH, gpu_info) ||
-      !src0_td.SupportsZeroClamp(Axis::HEIGHT, gpu_info) ||
-      !src1_td.SupportsZeroClamp(Axis::WIDTH, gpu_info) ||
-      !src1_td.SupportsZeroClamp(Axis::HEIGHT, gpu_info) ||
-      !src2_td.SupportsZeroClamp(Axis::WIDTH, gpu_info) ||
-      !src2_td.SupportsZeroClamp(Axis::HEIGHT, gpu_info)) {
+  if (!src0_td.SupportsZeroClamp(Axis::kWidth, gpu_info) ||
+      !src0_td.SupportsZeroClamp(Axis::kHeight, gpu_info) ||
+      !src1_td.SupportsZeroClamp(Axis::kWidth, gpu_info) ||
+      !src1_td.SupportsZeroClamp(Axis::kHeight, gpu_info) ||
+      !src2_td.SupportsZeroClamp(Axis::kWidth, gpu_info) ||
+      !src2_td.SupportsZeroClamp(Axis::kHeight, gpu_info)) {
     return absl::NotFoundError("ConcatConv not suitable.");
   }
   auto concat_output = graph.FindOutputs(concat_node->id)[0];
@@ -684,7 +684,7 @@ absl::Status TryConcatConvLocalMemoryFuser(
     return absl::NotFoundError("ConcatConv not suitable.");
   }
   if (OperationTypeFromString(conv_node->operation.type) !=
-      OperationType::CONVOLUTION_2D) {
+      OperationType::kConvolution2D) {
     return absl::NotFoundError("ConcatConv not suitable.");
   }
   auto conv_inputs = graph.FindInputs(conv_node->id);
@@ -700,7 +700,7 @@ absl::Status TryConcatConvLocalMemoryFuser(
 
   auto concat_attr =
       std::any_cast<ConcatAttributes>(concat_node->operation.attributes);
-  if (concat_attr.axis != Axis::CHANNELS) {
+  if (concat_attr.axis != Axis::kChannels) {
     return absl::NotFoundError("ConcatConv not suitable.");
   }
 
@@ -814,7 +814,7 @@ absl::Status TryResizeAddConvLocalMemoryFuser(
     return absl::NotFoundError("ThinLocalMemoryFuser not suitable.");
   }
   if (OperationTypeFromString(resize_node->operation.type) !=
-      OperationType::RESIZE) {
+      OperationType::kResize) {
     return absl::NotFoundError("ThinLocalMemoryFuser not suitable.");
   }
   auto resize_input = graph.FindInputs(resize_node->id)[0];
@@ -827,7 +827,8 @@ absl::Status TryResizeAddConvLocalMemoryFuser(
   if (add_node == nullptr) {
     return absl::NotFoundError("ThinLocalMemoryFuser not suitable.");
   }
-  if (OperationTypeFromString(add_node->operation.type) != OperationType::ADD) {
+  if (OperationTypeFromString(add_node->operation.type) !=
+      OperationType::kAdd) {
     return absl::NotFoundError("ThinLocalMemoryFuser not suitable.");
   }
   auto add_inputs = graph.FindInputs(add_node->id);
@@ -857,7 +858,7 @@ absl::Status TryResizeAddConvLocalMemoryFuser(
     return absl::NotFoundError("ThinLocalMemoryFuser not suitable.");
   }
   if (OperationTypeFromString(conv_node->operation.type) !=
-      OperationType::CONVOLUTION_2D) {
+      OperationType::kConvolution2D) {
     return absl::NotFoundError("ThinLocalMemoryFuser not suitable.");
   }
   auto conv_output = graph.FindOutputs(conv_node->id)[0];
@@ -967,13 +968,14 @@ absl::Status TryResizeAddConvLocalMemoryFuser(
       if (gpu_info.IsAdreno()) {
         if (conv_i_slices == 1) {
           operation.block_size_ = int2(2, 2);
-          operation.work_group_size_ = data_type == DataType::FLOAT16
+          operation.work_group_size_ = data_type == DataType::kFloat16
                                            ? int3(32, 16, 1)
                                            : int3(16, 16, 1);
         } else if (conv_i_slices == 2) {
           operation.block_size_ = int2(2, 1);
-          operation.work_group_size_ =
-              data_type == DataType::FLOAT16 ? int3(18, 16, 2) : int3(18, 8, 2);
+          operation.work_group_size_ = data_type == DataType::kFloat16
+                                           ? int3(18, 16, 2)
+                                           : int3(18, 8, 2);
         }
       }
       if (gpu_info.IsPowerVR()) {
@@ -1100,7 +1102,7 @@ absl::Status TryConcatConvLocalMemoryFuser(
   if (concat_op == nullptr) {
     return absl::NotFoundError("ConcatConv not suitable.");
   }
-  if (OperationTypeFromString(concat_op->name) != OperationType::CONCAT) {
+  if (OperationTypeFromString(concat_op->name) != OperationType::kConcat) {
     return absl::NotFoundError("ConcatConv not suitable.");
   }
   auto concat_inputs = concat_op->inputs;
@@ -1119,12 +1121,12 @@ absl::Status TryConcatConvLocalMemoryFuser(
   const auto& src0_td = src0_handle.tensor_desc;
   const auto& src1_td = src1_handle.tensor_desc;
   const auto& src2_td = src2_handle.tensor_desc;
-  if (!src0_td.SupportsZeroClamp(Axis::WIDTH, gpu_info) ||
-      !src0_td.SupportsZeroClamp(Axis::HEIGHT, gpu_info) ||
-      !src1_td.SupportsZeroClamp(Axis::WIDTH, gpu_info) ||
-      !src1_td.SupportsZeroClamp(Axis::HEIGHT, gpu_info) ||
-      !src2_td.SupportsZeroClamp(Axis::WIDTH, gpu_info) ||
-      !src2_td.SupportsZeroClamp(Axis::HEIGHT, gpu_info)) {
+  if (!src0_td.SupportsZeroClamp(Axis::kWidth, gpu_info) ||
+      !src0_td.SupportsZeroClamp(Axis::kHeight, gpu_info) ||
+      !src1_td.SupportsZeroClamp(Axis::kWidth, gpu_info) ||
+      !src1_td.SupportsZeroClamp(Axis::kHeight, gpu_info) ||
+      !src2_td.SupportsZeroClamp(Axis::kWidth, gpu_info) ||
+      !src2_td.SupportsZeroClamp(Axis::kHeight, gpu_info)) {
     return absl::NotFoundError("ConcatConv not suitable.");
   }
   auto concat_output = concat_op->outputs[0];
@@ -1142,7 +1144,7 @@ absl::Status TryConcatConvLocalMemoryFuser(
   if (conv_op == nullptr) {
     return absl::NotFoundError("ConcatConv not suitable.");
   }
-  if (OperationTypeFromString(conv_op->name) != OperationType::CONVOLUTION_2D) {
+  if (OperationTypeFromString(conv_op->name) != OperationType::kConvolution2D) {
     return absl::NotFoundError("ConcatConv not suitable.");
   }
   auto conv_output = conv_op->outputs[0];
@@ -1155,7 +1157,7 @@ absl::Status TryConcatConvLocalMemoryFuser(
   op_def.dst_tensors.push_back(dst_handle.tensor_desc);
 
   auto concat_attr = std::any_cast<ConcatAttributes>(concat_op->attr);
-  if (concat_attr.axis != Axis::CHANNELS) {
+  if (concat_attr.axis != Axis::kChannels) {
     return absl::NotFoundError("ConcatConv not suitable.");
   }
 
@@ -1275,7 +1277,7 @@ absl::Status TryResizeAddConvLocalMemoryFuser(
   }
   auto* resize_op = ir_model.op(first_op_id);
   if (resize_op == nullptr ||
-      OperationTypeFromString(resize_op->name) != OperationType::RESIZE) {
+      OperationTypeFromString(resize_op->name) != OperationType::kResize) {
     return absl::NotFoundError("ThinLocalMemoryFuser not suitable. 1");
   }
   auto resize_input = resize_op->inputs[0];
@@ -1286,7 +1288,7 @@ absl::Status TryResizeAddConvLocalMemoryFuser(
   }
   auto* add_op = resize_consumers[0];
   if (add_op == nullptr ||
-      OperationTypeFromString(add_op->name) != OperationType::ADD) {
+      OperationTypeFromString(add_op->name) != OperationType::kAdd) {
     return absl::NotFoundError("ThinLocalMemoryFuser not suitable. 3");
   }
   auto add_inputs = add_op->inputs;
@@ -1313,7 +1315,7 @@ absl::Status TryResizeAddConvLocalMemoryFuser(
   }
   auto* conv_op = add_consumers[0];
   if (conv_op == nullptr ||
-      OperationTypeFromString(conv_op->name) != OperationType::CONVOLUTION_2D) {
+      OperationTypeFromString(conv_op->name) != OperationType::kConvolution2D) {
     return absl::NotFoundError("ThinLocalMemoryFuser not suitable. 5");
   }
   auto conv_output = conv_op->outputs[0];
@@ -1435,13 +1437,14 @@ absl::Status TryResizeAddConvLocalMemoryFuser(
       if (gpu_info.IsAdreno()) {
         if (conv_i_slices == 1) {
           operation.block_size_ = int2(2, 2);
-          operation.work_group_size_ = data_type == DataType::FLOAT16
+          operation.work_group_size_ = data_type == DataType::kFloat16
                                            ? int3(32, 16, 1)
                                            : int3(16, 16, 1);
         } else if (conv_i_slices == 2) {
           operation.block_size_ = int2(2, 1);
-          operation.work_group_size_ =
-              data_type == DataType::FLOAT16 ? int3(18, 16, 2) : int3(18, 8, 2);
+          operation.work_group_size_ = data_type == DataType::kFloat16
+                                           ? int3(18, 16, 2)
+                                           : int3(18, 8, 2);
         }
       }
       if (gpu_info.IsPowerVR()) {

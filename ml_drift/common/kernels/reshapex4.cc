@@ -55,7 +55,7 @@ std::vector<int3> Reshapex4::GetPossibleKernelWorkGroups(
 
 Reshapex4 CreateReshapex4(const OperationDef& definition) {
   std::string code;
-  if (definition.dst_tensors[0].HasAxis(Axis::BATCH)) {
+  if (definition.dst_tensors[0].HasAxis(Axis::kBatch)) {
     code += "  int out_linear = DST_B;\n";
   } else {
     code += "  int out_linear = 0;\n";
@@ -68,7 +68,7 @@ Reshapex4 CreateReshapex4(const OperationDef& definition) {
   out_linear = out_linear / SRC_WIDTH;
   SRC_Y = out_linear % SRC_HEIGHT;
 )";
-  if (definition.src_tensors[0].HasAxis(Axis::BATCH)) {
+  if (definition.src_tensors[0].HasAxis(Axis::kBatch)) {
     code += "SRC_B = out_linear / SRC_HEIGHT;\n";
   }
 

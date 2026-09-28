@@ -34,45 +34,45 @@ using ::testing::ValuesIn;
 using GatherTypedTest = TestWithParam<TensorStorageType>;
 
 TEST_P(GatherTypedTest, Int8) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::INT8)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kInt8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(GatherWidthIntTest<DataType::INT8>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(GatherWidthIntTest<DataType::kInt8>(*exec_env, GetParam()));
 }
 
 TEST_P(GatherTypedTest, Int16) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::INT16)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kInt16)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(GatherWidthIntTest<DataType::INT16>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(GatherWidthIntTest<DataType::kInt16>(*exec_env, GetParam()));
 }
 
 TEST_P(GatherTypedTest, Int32) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::INT32)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kInt32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(GatherWidthIntTest<DataType::INT32>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(GatherWidthIntTest<DataType::kInt32>(*exec_env, GetParam()));
 }
 
 TEST_P(GatherTypedTest, Uint8) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT8)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kUint8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(GatherWidthIntTest<DataType::UINT8>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(GatherWidthIntTest<DataType::kUint8>(*exec_env, GetParam()));
 }
 
 TEST_P(GatherTypedTest, Uint16) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT16)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kUint16)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(GatherWidthIntTest<DataType::UINT16>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(GatherWidthIntTest<DataType::kUint16>(*exec_env, GetParam()));
 }
 
 TEST_P(GatherTypedTest, Uint32) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT32)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kUint32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(GatherWidthIntTest<DataType::UINT32>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(GatherWidthIntTest<DataType::kUint32>(*exec_env, GetParam()));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -89,7 +89,7 @@ TEST_P(GatherFloatTest, GatherWidthTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  ABSL_ASSERT_OK(GatherTest(*exec_env, data_type(), storage(), Axis::WIDTH));
+  ABSL_ASSERT_OK(GatherTest(*exec_env, data_type(), storage(), Axis::kWidth));
 }
 
 TEST_P(GatherFloatTest, GatherHeightTest) {
@@ -97,7 +97,7 @@ TEST_P(GatherFloatTest, GatherHeightTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  ABSL_ASSERT_OK(GatherTest(*exec_env, data_type(), storage(), Axis::HEIGHT));
+  ABSL_ASSERT_OK(GatherTest(*exec_env, data_type(), storage(), Axis::kHeight));
 }
 
 TEST_P(GatherFloatTest, GatherChannelsTest) {
@@ -105,7 +105,7 @@ TEST_P(GatherFloatTest, GatherChannelsTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  ABSL_ASSERT_OK(GatherTest(*exec_env, data_type(), storage(), Axis::CHANNELS));
+  ABSL_ASSERT_OK(GatherTest(*exec_env, data_type(), storage(), Axis::kChannels));
 }
 
 TEST_P(GatherFloatTest, GatherBatchTest) {
@@ -113,7 +113,7 @@ TEST_P(GatherFloatTest, GatherBatchTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  ABSL_ASSERT_OK(GatherTest(*exec_env, data_type(), storage(), Axis::BATCH));
+  ABSL_ASSERT_OK(GatherTest(*exec_env, data_type(), storage(), Axis::kBatch));
 }
 
 INSTANTIATE_TEST_SUITE_P(

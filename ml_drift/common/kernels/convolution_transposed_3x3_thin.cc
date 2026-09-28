@@ -45,14 +45,14 @@ std::string ConvInstr(CalculationsPrecision precision, bool is_i4_o4,
   std::string c;
   if (is_i4_o4) {
     switch (precision) {
-      case CalculationsPrecision::F32:
-      case CalculationsPrecision::F16:
+      case CalculationsPrecision::kF32:
+      case CalculationsPrecision::kF16:
         c += "  $0 += $1.x * args.weights.Read($2); \n";
         c += "  $0 += $1.y * args.weights.Read($3); \n";
         c += "  $0 += $1.z * args.weights.Read($4); \n";
         c += "  $0 += $1.w * args.weights.Read($5); \n";
         break;
-      case CalculationsPrecision::F32_F16:
+      case CalculationsPrecision::kF32F16:
         c += "  $0 += ucl::Convert<AccType>($1.x * args.weights.Read($2) + "
              "$1.y * "
              "args.weights.Read($3) + $1.z * args.weights.Read($4) + $1.w * "
@@ -72,7 +72,7 @@ std::string ConvInstr(CalculationsPrecision precision, bool is_i4_o4,
 }
 
 MemoryType GetWeightsMemoryType(const GpuInfo& gpu_info) {
-  return gpu_info.IsApiWebGpu() ? MemoryType::GLOBAL : MemoryType::CONSTANT;
+  return gpu_info.IsApiWebGpu() ? MemoryType::kGlobal : MemoryType::kConstant;
 }
 }  // namespace
 
@@ -105,7 +105,7 @@ std::string ConvolutionTransposed3x3Thin::GenerateConvolutionTransposedCode(
   std::string c;
 
   c += "MAIN_FUNCTION($0) {\n";
-  if (op_def.dst_tensors[0].HasAxis(Axis::BATCH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kBatch)) {
     c += "  int linear_id = ucl::GetGlobalId<0>();\n";
     c += "  int X = linear_id / args.dst_tensor.Batch();\n";
     c += "  int B = linear_id % args.dst_tensor.Batch();\n";
@@ -128,8 +128,8 @@ std::string ConvolutionTransposed3x3Thin::GenerateConvolutionTransposedCode(
   for (int s = 0; s < src_depth; ++s) {
     const std::string z = std::to_string(s);
     c += "  {\n";
-    if (op_def.src_tensors[0].SupportsZeroClamp(Axis::WIDTH, gpu_info) &&
-        op_def.src_tensors[0].SupportsZeroClamp(Axis::HEIGHT, gpu_info)) {
+    if (op_def.src_tensors[0].SupportsZeroClamp(Axis::kWidth, gpu_info) &&
+        op_def.src_tensors[0].SupportsZeroClamp(Axis::kHeight, gpu_info)) {
       c += "  Type src0 = args.src_tensor.Read(X, Y, " + z + ");\n";
       c += "  Type src1 = args.src_tensor.Read(X + 1, Y, " + z + ");\n";
       c += "  Type src2 = args.src_tensor.Read(X, Y + 1, " + z + ");\n";
@@ -217,9 +217,9 @@ std::string ConvolutionTransposed3x3Thin::GenerateConvolutionTransposedCode(
     c += "  }\n";
   }
   c += "}\n";
-  const DataType acc_type = precision == CalculationsPrecision::F16
-                                ? DataType::FLOAT16
-                                : DataType::FLOAT32;
+  const DataType acc_type = precision == CalculationsPrecision::kF16
+                                ? DataType::kFloat16
+                                : DataType::kFloat32;
   const DataType type = op_def.src_tensors[0].GetDataType();
   absl::StrReplaceAll({{"AccType", ToUclDataType(acc_type, 4)},
                        {"Type", ToUclDataType(type, 4)}},
@@ -240,7 +240,7 @@ std::vector<int> ConvolutionTransposed3x3Thin::GetSpatialWeightsRemap() const {
 }
 
 void ConvolutionTransposed3x3Thin::UploadWeights(
-    const GpuInfo& gpu_info, const Tensor<OHWI, DataType::FLOAT32>& weights) {
+    const GpuInfo& gpu_info, const Tensor<OHWI, DataType::kFloat32>& weights) {
   const auto weights_desc = GetWeightsDescription();
   const int flt_count =
       GetTotalElementsCountForLayout(weights_desc, weights.shape);
@@ -294,7 +294,7 @@ ConvolutionTransposed3x3Thin CreateConvolutionTransposed3x3ThinDynamicWeights(
   const DataType weights_type = definition.src_tensors[0].GetDataType();
   // add 1 src_tensor(buffer) for weights
   new_def.src_tensors.push_back(
-      {weights_type, TensorStorageType::BUFFER, Layout::HWC});
+      {weights_type, TensorStorageType::kBuffer, Layout::kHWC});
   ConvolutionTransposed3x3Thin result(gpu_info, new_def, precision, attr);
 
   if (!attr.bias.data.empty()) {

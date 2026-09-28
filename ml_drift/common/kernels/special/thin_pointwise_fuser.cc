@@ -113,14 +113,15 @@ int GetDepthwiseConvWeightsSize(const DepthwiseConvolution2DAttributes& attr,
 }
 
 bool IsElementwiseOneInput(const OperationType& op_type) {
-  return op_type == OperationType::ABS || op_type == OperationType::COPY ||
-         op_type == OperationType::COS || op_type == OperationType::ELU ||
-         op_type == OperationType::EXP || op_type == OperationType::GELU ||
-         op_type == OperationType::HARD_SWISH ||
-         op_type == OperationType::LOG || op_type == OperationType::NEG ||
-         op_type == OperationType::RSQRT || op_type == OperationType::SIGMOID ||
-         op_type == OperationType::SIN || op_type == OperationType::SQRT ||
-         op_type == OperationType::SQUARE || op_type == OperationType::TANH;
+  return op_type == OperationType::kAbs || op_type == OperationType::kCopy ||
+         op_type == OperationType::kCos || op_type == OperationType::kElu ||
+         op_type == OperationType::kExp || op_type == OperationType::kGelu ||
+         op_type == OperationType::kHardSwish ||
+         op_type == OperationType::kLog || op_type == OperationType::kNeg ||
+         op_type == OperationType::kRsqrt ||
+         op_type == OperationType::kSigmoid || op_type == OperationType::kSin ||
+         op_type == OperationType::kSqrt || op_type == OperationType::kSquare ||
+         op_type == OperationType::kTanh;
 }
 }  // namespace
 
@@ -302,15 +303,15 @@ void ThinPointwiseFuser::CreateConstantsGpuBuffer(const GpuInfo& gpu_info) {
   desc.element_size = 4;
   desc.memory_type = gpu_info.IsMali() || gpu_info.IsBroadcom() ||
                              gpu_info.IsLlvmPipe() || gpu_info.IsAMD()
-                         ? MemoryType::GLOBAL
-                         : MemoryType::CONSTANT;
+                         ? MemoryType::kGlobal
+                         : MemoryType::kConstant;
   if (gpu_info.IsApiVulkan()) {
-    desc.memory_type = MemoryType::GLOBAL;
+    desc.memory_type = MemoryType::kGlobal;
   }
   desc.size = SizeOf(data_type_) * gpu_data_.size();
   desc.data.resize(desc.size);
 
-  if (data_type_ == DataType::FLOAT32) {
+  if (data_type_ == DataType::kFloat32) {
     memcpy(desc.data.data(), gpu_data_.data(), desc.size);
   } else {
     half* gpu_data_half = reinterpret_cast<half*>(desc.data.data());
@@ -340,7 +341,7 @@ bool ThinPointwiseFuser::IsNodeSupported(const GpuInfo& gpu_info,
     return false;
   }
   auto op_type = OperationTypeFromString(node->operation.type);
-  if (op_type == OperationType::ADD) {
+  if (op_type == OperationType::kAdd) {
     if (nodes_.empty()) {
       return false;
     }
@@ -368,11 +369,11 @@ bool ThinPointwiseFuser::IsNodeSupported(const GpuInfo& gpu_info,
     }
     return true;
   }
-  if (op_type == OperationType::RELU || op_type == OperationType::PRELU) {
+  if (op_type == OperationType::kRelu || op_type == OperationType::kPrelu) {
     return !nodes_.empty();
   } else if (IsElementwiseOneInput(op_type)) {
     return !nodes_.empty();
-  } else if (op_type == OperationType::DEPTHWISE_CONVOLUTION) {
+  } else if (op_type == OperationType::kDepthwiseConvolution) {
     if (!nodes_.empty()) {
       return false;
     }
@@ -394,9 +395,9 @@ bool ThinPointwiseFuser::IsNodeSupported(const GpuInfo& gpu_info,
              dw_shape.i * dw_shape.h * dw_shape.w <= 3 * 3 * 16;
     } else if (gpu_info.IsMali()) {
       const bool kNeedExplicitClampToZero =
-          !op_def_.src_tensors[0].SupportsZeroClamp(Axis::WIDTH, gpu_info) ||
-          !op_def_.src_tensors[0].SupportsZeroClamp(Axis::HEIGHT, gpu_info);
-      if (precision_ == CalculationsPrecision::F16 &&
+          !op_def_.src_tensors[0].SupportsZeroClamp(Axis::kWidth, gpu_info) ||
+          !op_def_.src_tensors[0].SupportsZeroClamp(Axis::kHeight, gpu_info);
+      if (precision_ == CalculationsPrecision::kF16 &&
           !kNeedExplicitClampToZero) {
         const int kMaxChannels = 16;
         return dw_shape.i <= kMaxChannels &&
@@ -405,7 +406,7 @@ bool ThinPointwiseFuser::IsNodeSupported(const GpuInfo& gpu_info,
         return false;
       }
     } else {
-      if (precision_ == CalculationsPrecision::F16) {
+      if (precision_ == CalculationsPrecision::kF16) {
         return dw_shape.i <= 32 &&
                dw_shape.i * dw_shape.h * dw_shape.w <= 3 * 3 * 32;
       } else {
@@ -413,7 +414,7 @@ bool ThinPointwiseFuser::IsNodeSupported(const GpuInfo& gpu_info,
                dw_shape.i * dw_shape.h * dw_shape.w <= 3 * 3 * 16;
       }
     }
-  } else if (op_type == OperationType::CONVOLUTION_2D) {
+  } else if (op_type == OperationType::kConvolution2D) {
     auto inputs = graph_->FindInputs(node->id);
     if (inputs.size() != 1) {
       return false;
@@ -457,7 +458,7 @@ bool ThinPointwiseFuser::IsNodeSupported(const GpuInfo& gpu_info,
         std::visit([](const auto& w) { return w.shape; }, conv_attr->weights);
     const int kernel_size = conv_shape.i * conv_shape.w * conv_shape.h;
     if (gpu_info.IsApple() || gpu_info.IsIntel()) {
-      if (precision_ == CalculationsPrecision::F16) {
+      if (precision_ == CalculationsPrecision::kF16) {
         return conv_shape.o <= 16 && kernel_size * conv_shape.o <= 16 * 16;
       } else {
         return conv_shape.o <= 8 && kernel_size * conv_shape.o <= 8 * 16;
@@ -465,9 +466,9 @@ bool ThinPointwiseFuser::IsNodeSupported(const GpuInfo& gpu_info,
     } else if (gpu_info.IsMali()) {
       const bool kNeedExplicitClampToZero =
           !is_1x1_conv &&
-          (!op_def_.src_tensors[0].SupportsZeroClamp(Axis::WIDTH, gpu_info) ||
-           !op_def_.src_tensors[0].SupportsZeroClamp(Axis::HEIGHT, gpu_info));
-      if (precision_ == CalculationsPrecision::F16 &&
+          (!op_def_.src_tensors[0].SupportsZeroClamp(Axis::kWidth, gpu_info) ||
+           !op_def_.src_tensors[0].SupportsZeroClamp(Axis::kHeight, gpu_info));
+      if (precision_ == CalculationsPrecision::kF16 &&
           !kNeedExplicitClampToZero) {
         const int kMaxChannels = gpu_info.mali_info.IsBifrost() ? 16 : 32;
         return conv_shape.o <= kMaxChannels &&
@@ -476,7 +477,7 @@ bool ThinPointwiseFuser::IsNodeSupported(const GpuInfo& gpu_info,
         return false;
       }
     } else {
-      if (precision_ == CalculationsPrecision::F16) {
+      if (precision_ == CalculationsPrecision::kF16) {
         return conv_shape.o <= 32 && kernel_size * conv_shape.o <= 32 * 32;
       } else {
         return conv_shape.o <= 32 && kernel_size * conv_shape.o <= 16 * 32;
@@ -517,14 +518,14 @@ absl::Status ThinPointwiseFuser::ReserveNode(const GpuInfo& gpu_info,
 uint64_t ThinPointwiseFuser::GetNodeFlops(Node* node) const {
   auto op_type = OperationTypeFromString(node->operation.type);
   auto output_shape = graph_->FindOutputs(node->id)[0]->tensor.shape;
-  if (op_type == OperationType::DEPTHWISE_CONVOLUTION) {
+  if (op_type == OperationType::kDepthwiseConvolution) {
     DepthwiseConvolution2DAttributes* attr =
         std::any_cast<DepthwiseConvolution2DAttributes>(
             &node->operation.attributes);
     return GetDepthwiseConvolutionFlops(
         output_shape,
         std::visit([](const auto& w) { return w.shape; }, attr->weights));
-  } else if (op_type == OperationType::CONVOLUTION_2D) {
+  } else if (op_type == OperationType::kConvolution2D) {
     Convolution2DAttributes* attr =
         std::any_cast<Convolution2DAttributes>(&node->operation.attributes);
     return GetConvolutionFlops(
@@ -538,15 +539,15 @@ absl::Status ThinPointwiseFuser::AddNode(const GpuInfo& gpu_info,
                                          int node_index) {
   Node* node = nodes_[node_index];
   auto op_type = OperationTypeFromString(node->operation.type);
-  if (op_type == OperationType::RELU) {
+  if (op_type == OperationType::kRelu) {
     ReLUAttributes* attr =
         std::any_cast<ReLUAttributes>(&node->operation.attributes);
     AddReluNode(*attr);
-  } else if (op_type == OperationType::PRELU) {
+  } else if (op_type == OperationType::kPrelu) {
     PReLUAttributes* attr =
         std::any_cast<PReLUAttributes>(&node->operation.attributes);
     AddPreluNode(*attr);
-  } else if (op_type == OperationType::ADD) {
+  } else if (op_type == OperationType::kAdd) {
     Node* prev_node = nodes_[node_index - 1];
     auto add_inputs = graph_->FindInputs(node->id);
     auto prev_node_outputs = graph_->FindOutputs(prev_node->id);
@@ -557,12 +558,12 @@ absl::Status ThinPointwiseFuser::AddNode(const GpuInfo& gpu_info,
     ABSL_RETURN_IF_ERROR(AddAddNode(add_new_input->id));
   } else if (IsElementwiseOneInput(op_type)) {
     AddElementwiseOneInputNode(gpu_info, op_type);
-  } else if (op_type == OperationType::DEPTHWISE_CONVOLUTION) {
+  } else if (op_type == OperationType::kDepthwiseConvolution) {
     DepthwiseConvolution2DAttributes* attr =
         std::any_cast<DepthwiseConvolution2DAttributes>(
             &node->operation.attributes);
     AddDepthwiseConvNode(gpu_info, *attr);
-  } else if (op_type == OperationType::CONVOLUTION_2D) {
+  } else if (op_type == OperationType::kConvolution2D) {
     Convolution2DAttributes* attr =
         std::any_cast<Convolution2DAttributes>(&node->operation.attributes);
     if (IsConv1x1(*attr) && node_index != 0) {
@@ -576,18 +577,18 @@ absl::Status ThinPointwiseFuser::AddNode(const GpuInfo& gpu_info,
 
 bool ThinPointwiseFuser::IsElementwiseNode(Node* node) const {
   auto op_type = OperationTypeFromString(node->operation.type);
-  return op_type == OperationType::RELU || op_type == OperationType::PRELU ||
-         op_type == OperationType::ADD || IsElementwiseOneInput(op_type);
+  return op_type == OperationType::kRelu || op_type == OperationType::kPrelu ||
+         op_type == OperationType::kAdd || IsElementwiseOneInput(op_type);
 }
 
 bool ThinPointwiseFuser::IsConvNode(Node* node) const {
   auto op_type = OperationTypeFromString(node->operation.type);
-  return op_type == OperationType::CONVOLUTION_2D;
+  return op_type == OperationType::kConvolution2D;
 }
 
 bool ThinPointwiseFuser::IsDwConvNode(Node* node) const {
   auto op_type = OperationTypeFromString(node->operation.type);
-  return op_type == OperationType::DEPTHWISE_CONVOLUTION;
+  return op_type == OperationType::kDepthwiseConvolution;
 }
 
 void ThinPointwiseFuser::AddDepthwiseConvNode(
@@ -616,7 +617,7 @@ void ThinPointwiseFuser::AddDepthwiseConvNode(
 
   auto generate_check = [&]() {
     std::string check;
-    const std::vector<Axis> axes{Axis::WIDTH, Axis::HEIGHT, Axis::DEPTH};
+    const std::vector<Axis> axes{Axis::kWidth, Axis::kHeight, Axis::kDepth};
     const std::vector<std::string> names{"x_in", "y_in", "z_in"};
     for (int i = 0; i < axes.size(); ++i) {
       const auto& axis = axes[i];
@@ -631,10 +632,10 @@ void ThinPointwiseFuser::AddDepthwiseConvNode(
     return check;
   };
   const std::string check = generate_check();
-  if (!src_desc.SupportsZeroClamp(Axis::HEIGHT, gpu_info)) {
+  if (!src_desc.SupportsZeroClamp(Axis::kHeight, gpu_info)) {
     code_ += "  bool y_in;\n";
   }
-  if (!src_desc.SupportsZeroClamp(Axis::WIDTH, gpu_info)) {
+  if (!src_desc.SupportsZeroClamp(Axis::kWidth, gpu_info)) {
     code_ += "  bool x_in;\n";
   }
 
@@ -646,14 +647,14 @@ void ThinPointwiseFuser::AddDepthwiseConvNode(
     for (int ky = 0; ky < weights_shape.h; ++ky) {
       code_ += "  y_c = y_offseted + " + std::to_string(ky) +
                " * args.dilation_y;\n";
-      if (!src_desc.SupportsZeroClamp(Axis::HEIGHT, gpu_info)) {
+      if (!src_desc.SupportsZeroClamp(Axis::kHeight, gpu_info)) {
         code_ += "  y_in = y_c >= 0 && y_c < args.src_tensor.Height();\n";
         code_ += "  y_c = clamp(y_c, 0, args.src_tensor.Height() - 1);\n";
       }
       for (int kx = 0; kx < weights_shape.w; ++kx) {
         code_ += "  x_c = x_offseted + " + std::to_string(kx) +
                  " * args.dilation_x;\n";
-        if (!src_desc.SupportsZeroClamp(Axis::WIDTH, gpu_info)) {
+        if (!src_desc.SupportsZeroClamp(Axis::kWidth, gpu_info)) {
           code_ += "  x_in = x_c >= 0 && x_c < args.src_tensor.Width();\n";
           code_ += "  x_c = clamp(x_c, 0, args.src_tensor.Width() - 1);\n";
         }
@@ -810,7 +811,7 @@ void ThinPointwiseFuser::AddConv2dNode(const GpuInfo& gpu_info,
 
   auto generate_check = [&]() {
     std::string check;
-    const std::vector<Axis> axes{Axis::WIDTH, Axis::HEIGHT, Axis::DEPTH};
+    const std::vector<Axis> axes{Axis::kWidth, Axis::kHeight, Axis::kDepth};
     const std::vector<std::string> names{"x_in", "y_in", "z_in"};
     for (int i = 0; i < axes.size(); ++i) {
       const auto& axis = axes[i];
@@ -825,10 +826,10 @@ void ThinPointwiseFuser::AddConv2dNode(const GpuInfo& gpu_info,
     return check;
   };
   const std::string check = generate_check();
-  if (!src_desc.SupportsZeroClamp(Axis::HEIGHT, gpu_info)) {
+  if (!src_desc.SupportsZeroClamp(Axis::kHeight, gpu_info)) {
     code_ += "  bool y_in;\n";
   }
-  if (!src_desc.SupportsZeroClamp(Axis::WIDTH, gpu_info)) {
+  if (!src_desc.SupportsZeroClamp(Axis::kWidth, gpu_info)) {
     code_ += "  bool x_in;\n";
   }
 
@@ -841,7 +842,7 @@ void ThinPointwiseFuser::AddConv2dNode(const GpuInfo& gpu_info,
         y_coord = "y_c";
         code_ += "  y_c = " + y_base_coord + " + " + std::to_string(ky) +
                  " * args.dilation_y;\n";
-        if (!src_desc.SupportsZeroClamp(Axis::HEIGHT, gpu_info)) {
+        if (!src_desc.SupportsZeroClamp(Axis::kHeight, gpu_info)) {
           code_ += "  y_in = y_c >= 0 && y_c < args.src_tensor.Height();\n";
           code_ += "  y_c = clamp(y_c, 0, args.src_tensor.Height() - 1);\n";
         }
@@ -852,7 +853,7 @@ void ThinPointwiseFuser::AddConv2dNode(const GpuInfo& gpu_info,
           x_coord = "x_c";
           code_ += "  x_c = " + x_base_coord + " + " + std::to_string(kx) +
                    " * args.dilation_x;\n";
-          if (!src_desc.SupportsZeroClamp(Axis::WIDTH, gpu_info)) {
+          if (!src_desc.SupportsZeroClamp(Axis::kWidth, gpu_info)) {
             code_ += "  x_in = x_c >= 0 && x_c < args.src_tensor.Width();\n";
             code_ += "  x_c = clamp(x_c, 0, args.src_tensor.Width() - 1);\n";
           }
@@ -903,7 +904,7 @@ absl::Status ThinPointwiseFuser::Finalize(const GpuInfo& gpu_info,
   op_def_.dst_tensors.push_back(handle.value().tensor_desc);
 
   code_ = "MAIN_FUNCTION($0) {\n";
-  if (op_def_.src_tensors[0].HasAxis(Axis::BATCH)) {
+  if (op_def_.src_tensors[0].HasAxis(Axis::kBatch)) {
     code_ += "  int linear_id = ucl::GetGlobalId<0>();\n";
     code_ += "  int X = linear_id / args.dst_tensor.Batch();\n";
     code_ += "  int B = linear_id % args.dst_tensor.Batch();\n";
@@ -1211,15 +1212,15 @@ void ThinPointwiseFuserIr::CreateConstantsGpuBuffer(const GpuInfo& gpu_info) {
   desc.element_size = 4;
   desc.memory_type = gpu_info.IsMali() || gpu_info.IsBroadcom() ||
                              gpu_info.IsLlvmPipe() || gpu_info.IsAMD()
-                         ? MemoryType::GLOBAL
-                         : MemoryType::CONSTANT;
+                         ? MemoryType::kGlobal
+                         : MemoryType::kConstant;
   if (gpu_info.IsApiVulkan()) {
-    desc.memory_type = MemoryType::GLOBAL;
+    desc.memory_type = MemoryType::kGlobal;
   }
   desc.size = SizeOf(data_type_) * gpu_data_.size();
   desc.data.resize(desc.size);
 
-  if (data_type_ == DataType::FLOAT32) {
+  if (data_type_ == DataType::kFloat32) {
     memcpy(desc.data.data(), gpu_data_.data(), desc.size);
   } else {
     half* gpu_data_half = reinterpret_cast<half*>(desc.data.data());
@@ -1249,7 +1250,7 @@ bool ThinPointwiseFuserIr::IsOpSupported(const GpuInfo& gpu_info,
     return false;
   }
   auto op_type = OperationTypeFromString(op->name);
-  if (op_type == OperationType::ADD) {
+  if (op_type == OperationType::kAdd) {
     if (ops_.empty()) {
       return false;
     }
@@ -1278,11 +1279,11 @@ bool ThinPointwiseFuserIr::IsOpSupported(const GpuInfo& gpu_info,
     }
     return true;
   }
-  if (op_type == OperationType::RELU || op_type == OperationType::PRELU) {
+  if (op_type == OperationType::kRelu || op_type == OperationType::kPrelu) {
     return !ops_.empty();
   } else if (IsElementwiseOneInput(op_type)) {
     return !ops_.empty();
-  } else if (op_type == OperationType::DEPTHWISE_CONVOLUTION) {
+  } else if (op_type == OperationType::kDepthwiseConvolution) {
     if (!ops_.empty()) {
       return false;
     }
@@ -1303,9 +1304,9 @@ bool ThinPointwiseFuserIr::IsOpSupported(const GpuInfo& gpu_info,
              dw_shape.i * dw_shape.h * dw_shape.w <= 3 * 3 * 16;
     } else if (gpu_info.IsMali()) {
       const bool kNeedExplicitClampToZero =
-          !op_def_.src_tensors[0].SupportsZeroClamp(Axis::WIDTH, gpu_info) ||
-          !op_def_.src_tensors[0].SupportsZeroClamp(Axis::HEIGHT, gpu_info);
-      if (precision_ == CalculationsPrecision::F16 &&
+          !op_def_.src_tensors[0].SupportsZeroClamp(Axis::kWidth, gpu_info) ||
+          !op_def_.src_tensors[0].SupportsZeroClamp(Axis::kHeight, gpu_info);
+      if (precision_ == CalculationsPrecision::kF16 &&
           !kNeedExplicitClampToZero) {
         const int kMaxChannels = 16;
         return dw_shape.i <= kMaxChannels &&
@@ -1314,7 +1315,7 @@ bool ThinPointwiseFuserIr::IsOpSupported(const GpuInfo& gpu_info,
         return false;
       }
     } else {
-      if (precision_ == CalculationsPrecision::F16) {
+      if (precision_ == CalculationsPrecision::kF16) {
         return dw_shape.i <= 32 &&
                dw_shape.i * dw_shape.h * dw_shape.w <= 3 * 3 * 32;
       } else {
@@ -1322,7 +1323,7 @@ bool ThinPointwiseFuserIr::IsOpSupported(const GpuInfo& gpu_info,
                dw_shape.i * dw_shape.h * dw_shape.w <= 3 * 3 * 16;
       }
     }
-  } else if (op_type == OperationType::CONVOLUTION_2D) {
+  } else if (op_type == OperationType::kConvolution2D) {
     auto inputs = op->inputs;
     if (inputs.size() != 1) {
       return false;
@@ -1366,7 +1367,7 @@ bool ThinPointwiseFuserIr::IsOpSupported(const GpuInfo& gpu_info,
         std::visit([](const auto& w) { return w.shape; }, conv_attr->weights);
     const int kernel_size = conv_shape.i * conv_shape.w * conv_shape.h;
     if (gpu_info.IsApple() || gpu_info.IsIntel()) {
-      if (precision_ == CalculationsPrecision::F16) {
+      if (precision_ == CalculationsPrecision::kF16) {
         return conv_shape.o <= 16 && kernel_size * conv_shape.o <= 16 * 16;
       } else {
         return conv_shape.o <= 8 && kernel_size * conv_shape.o <= 8 * 16;
@@ -1374,9 +1375,9 @@ bool ThinPointwiseFuserIr::IsOpSupported(const GpuInfo& gpu_info,
     } else if (gpu_info.IsMali()) {
       const bool kNeedExplicitClampToZero =
           !is_1x1_conv &&
-          (!op_def_.src_tensors[0].SupportsZeroClamp(Axis::WIDTH, gpu_info) ||
-           !op_def_.src_tensors[0].SupportsZeroClamp(Axis::HEIGHT, gpu_info));
-      if (precision_ == CalculationsPrecision::F16 &&
+          (!op_def_.src_tensors[0].SupportsZeroClamp(Axis::kWidth, gpu_info) ||
+           !op_def_.src_tensors[0].SupportsZeroClamp(Axis::kHeight, gpu_info));
+      if (precision_ == CalculationsPrecision::kF16 &&
           !kNeedExplicitClampToZero) {
         const int kMaxChannels = gpu_info.mali_info.IsBifrost() ? 16 : 32;
         return conv_shape.o <= kMaxChannels &&
@@ -1385,7 +1386,7 @@ bool ThinPointwiseFuserIr::IsOpSupported(const GpuInfo& gpu_info,
         return false;
       }
     } else {
-      if (precision_ == CalculationsPrecision::F16) {
+      if (precision_ == CalculationsPrecision::kF16) {
         return conv_shape.o <= 32 && kernel_size * conv_shape.o <= 32 * 32;
       } else {
         return conv_shape.o <= 32 && kernel_size * conv_shape.o <= 16 * 32;
@@ -1425,13 +1426,13 @@ uint64_t ThinPointwiseFuserIr::GetOpFlops(ir::IrOp* op) const {
   auto op_type = OperationTypeFromString(op->name);
   auto bhwdc = ir_model_->tensor(op->outputs[0])->desc.GetBHWDCShape();
   BHWC output_shape(bhwdc.b, bhwdc.h, bhwdc.w, bhwdc.c);
-  if (op_type == OperationType::DEPTHWISE_CONVOLUTION) {
+  if (op_type == OperationType::kDepthwiseConvolution) {
     DepthwiseConvolution2DAttributes* attr =
         std::any_cast<DepthwiseConvolution2DAttributes>(&op->attr);
     return GetDepthwiseConvolutionFlops(
         output_shape,
         std::visit([](const auto& w) { return w.shape; }, attr->weights));
-  } else if (op_type == OperationType::CONVOLUTION_2D) {
+  } else if (op_type == OperationType::kConvolution2D) {
     Convolution2DAttributes* attr =
         std::any_cast<Convolution2DAttributes>(&op->attr);
     return GetConvolutionFlops(
@@ -1445,13 +1446,13 @@ absl::Status ThinPointwiseFuserIr::AddOp(const GpuInfo& gpu_info,
                                          int op_index) {
   ir::IrOp* op = ops_[op_index];
   auto op_type = OperationTypeFromString(op->name);
-  if (op_type == OperationType::RELU) {
+  if (op_type == OperationType::kRelu) {
     ReLUAttributes* attr = std::any_cast<ReLUAttributes>(&op->attr);
     AddReluOp(*attr);
-  } else if (op_type == OperationType::PRELU) {
+  } else if (op_type == OperationType::kPrelu) {
     PReLUAttributes* attr = std::any_cast<PReLUAttributes>(&op->attr);
     AddPreluOp(*attr);
-  } else if (op_type == OperationType::ADD) {
+  } else if (op_type == OperationType::kAdd) {
     ir::IrOp* prev_op = ops_[op_index - 1];
     auto add_inputs = op->inputs;
     auto prev_op_outputs = prev_op->outputs;
@@ -1461,11 +1462,11 @@ absl::Status ThinPointwiseFuserIr::AddOp(const GpuInfo& gpu_info,
     ABSL_RETURN_IF_ERROR(AddAddOp(add_new_input_id));
   } else if (IsElementwiseOneInput(op_type)) {
     AddElementwiseOneInputOp(gpu_info, op_type);
-  } else if (op_type == OperationType::DEPTHWISE_CONVOLUTION) {
+  } else if (op_type == OperationType::kDepthwiseConvolution) {
     DepthwiseConvolution2DAttributes* attr =
         std::any_cast<DepthwiseConvolution2DAttributes>(&op->attr);
     AddDepthwiseConvOp(gpu_info, *attr);
-  } else if (op_type == OperationType::CONVOLUTION_2D) {
+  } else if (op_type == OperationType::kConvolution2D) {
     Convolution2DAttributes* attr =
         std::any_cast<Convolution2DAttributes>(&op->attr);
     if (IsConv1x1(*attr) && op_index != 0) {
@@ -1479,18 +1480,18 @@ absl::Status ThinPointwiseFuserIr::AddOp(const GpuInfo& gpu_info,
 
 bool ThinPointwiseFuserIr::IsElementwiseOp(ir::IrOp* op) const {
   auto op_type = OperationTypeFromString(op->name);
-  return op_type == OperationType::RELU || op_type == OperationType::PRELU ||
-         op_type == OperationType::ADD || IsElementwiseOneInput(op_type);
+  return op_type == OperationType::kRelu || op_type == OperationType::kPrelu ||
+         op_type == OperationType::kAdd || IsElementwiseOneInput(op_type);
 }
 
 bool ThinPointwiseFuserIr::IsConvOp(ir::IrOp* op) const {
   auto op_type = OperationTypeFromString(op->name);
-  return op_type == OperationType::CONVOLUTION_2D;
+  return op_type == OperationType::kConvolution2D;
 }
 
 bool ThinPointwiseFuserIr::IsDwConvOp(ir::IrOp* op) const {
   auto op_type = OperationTypeFromString(op->name);
-  return op_type == OperationType::DEPTHWISE_CONVOLUTION;
+  return op_type == OperationType::kDepthwiseConvolution;
 }
 
 void ThinPointwiseFuserIr::AddDepthwiseConvOp(
@@ -1519,7 +1520,7 @@ void ThinPointwiseFuserIr::AddDepthwiseConvOp(
 
   auto generate_check = [&]() {
     std::string check;
-    const std::vector<Axis> axes{Axis::WIDTH, Axis::HEIGHT, Axis::DEPTH};
+    const std::vector<Axis> axes{Axis::kWidth, Axis::kHeight, Axis::kDepth};
     const std::vector<std::string> names{"x_in", "y_in", "z_in"};
     for (int i = 0; i < axes.size(); ++i) {
       const auto& axis = axes[i];
@@ -1534,10 +1535,10 @@ void ThinPointwiseFuserIr::AddDepthwiseConvOp(
     return check;
   };
   const std::string check = generate_check();
-  if (!src_desc.SupportsZeroClamp(Axis::HEIGHT, gpu_info)) {
+  if (!src_desc.SupportsZeroClamp(Axis::kHeight, gpu_info)) {
     code_ += "  bool y_in;\n";
   }
-  if (!src_desc.SupportsZeroClamp(Axis::WIDTH, gpu_info)) {
+  if (!src_desc.SupportsZeroClamp(Axis::kWidth, gpu_info)) {
     code_ += "  bool x_in;\n";
   }
 
@@ -1549,14 +1550,14 @@ void ThinPointwiseFuserIr::AddDepthwiseConvOp(
     for (int ky = 0; ky < weights_shape.h; ++ky) {
       code_ += "  y_c = y_offseted + " + std::to_string(ky) +
                " * args.dilation_y;\n";
-      if (!src_desc.SupportsZeroClamp(Axis::HEIGHT, gpu_info)) {
+      if (!src_desc.SupportsZeroClamp(Axis::kHeight, gpu_info)) {
         code_ += "  y_in = y_c >= 0 && y_c < args.src_tensor.Height();\n";
         code_ += "  y_c = clamp(y_c, 0, args.src_tensor.Height() - 1);\n";
       }
       for (int kx = 0; kx < weights_shape.w; ++kx) {
         code_ += "  x_c = x_offseted + " + std::to_string(kx) +
                  " * args.dilation_x;\n";
-        if (!src_desc.SupportsZeroClamp(Axis::WIDTH, gpu_info)) {
+        if (!src_desc.SupportsZeroClamp(Axis::kWidth, gpu_info)) {
           code_ += "  x_in = x_c >= 0 && x_c < args.src_tensor.Width();\n";
           code_ += "  x_c = clamp(x_c, 0, args.src_tensor.Width() - 1);\n";
         }
@@ -1713,7 +1714,7 @@ void ThinPointwiseFuserIr::AddConv2dOp(const GpuInfo& gpu_info,
 
   auto generate_check = [&]() {
     std::string check;
-    const std::vector<Axis> axes{Axis::WIDTH, Axis::HEIGHT, Axis::DEPTH};
+    const std::vector<Axis> axes{Axis::kWidth, Axis::kHeight, Axis::kDepth};
     const std::vector<std::string> names{"x_in", "y_in", "z_in"};
     for (int i = 0; i < axes.size(); ++i) {
       const auto& axis = axes[i];
@@ -1728,10 +1729,10 @@ void ThinPointwiseFuserIr::AddConv2dOp(const GpuInfo& gpu_info,
     return check;
   };
   const std::string check = generate_check();
-  if (!src_desc.SupportsZeroClamp(Axis::HEIGHT, gpu_info)) {
+  if (!src_desc.SupportsZeroClamp(Axis::kHeight, gpu_info)) {
     code_ += "  bool y_in;\n";
   }
-  if (!src_desc.SupportsZeroClamp(Axis::WIDTH, gpu_info)) {
+  if (!src_desc.SupportsZeroClamp(Axis::kWidth, gpu_info)) {
     code_ += "  bool x_in;\n";
   }
 
@@ -1744,7 +1745,7 @@ void ThinPointwiseFuserIr::AddConv2dOp(const GpuInfo& gpu_info,
         y_coord = "y_c";
         code_ += "  y_c = " + y_base_coord + " + " + std::to_string(ky) +
                  " * args.dilation_y;\n";
-        if (!src_desc.SupportsZeroClamp(Axis::HEIGHT, gpu_info)) {
+        if (!src_desc.SupportsZeroClamp(Axis::kHeight, gpu_info)) {
           code_ += "  y_in = y_c >= 0 && y_c < args.src_tensor.Height();\n";
           code_ += "  y_c = clamp(y_c, 0, args.src_tensor.Height() - 1);\n";
         }
@@ -1755,7 +1756,7 @@ void ThinPointwiseFuserIr::AddConv2dOp(const GpuInfo& gpu_info,
           x_coord = "x_c";
           code_ += "  x_c = " + x_base_coord + " + " + std::to_string(kx) +
                    " * args.dilation_x;\n";
-          if (!src_desc.SupportsZeroClamp(Axis::WIDTH, gpu_info)) {
+          if (!src_desc.SupportsZeroClamp(Axis::kWidth, gpu_info)) {
             code_ += "  x_in = x_c >= 0 && x_c < args.src_tensor.Width();\n";
             code_ += "  x_c = clamp(x_c, 0, args.src_tensor.Width() - 1);\n";
           }
@@ -1807,7 +1808,7 @@ absl::Status ThinPointwiseFuserIr::Finalize(const GpuInfo& gpu_info,
   op_def_.dst_tensors.push_back(handle.tensor_desc);
 
   code_ = "MAIN_FUNCTION($0) {\n";
-  if (op_def_.src_tensors[0].HasAxis(Axis::BATCH)) {
+  if (op_def_.src_tensors[0].HasAxis(Axis::kBatch)) {
     code_ += "  int linear_id = ucl::GetGlobalId<0>();\n";
     code_ += "  int X = linear_id / args.dst_tensor.Batch();\n";
     code_ += "  int B = linear_id % args.dst_tensor.Batch();\n";

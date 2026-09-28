@@ -295,11 +295,11 @@ void UploadWeights(const std::vector<float>& constants, DataType data_type,
   BufferDescriptor desc;
   desc.element_type = data_type;
   desc.element_size = 4;
-  desc.memory_type = MemoryType::CONSTANT;
+  desc.memory_type = MemoryType::kConstant;
   desc.size = SizeOf(data_type) * constants.size();
   desc.data.resize(desc.size);
 
-  if (data_type == DataType::FLOAT32) {
+  if (data_type == DataType::kFloat32) {
     memcpy(desc.data.data(), constants.data(), desc.size);
   } else {
     half* gpu_data_half = reinterpret_cast<half*>(desc.data.data());
@@ -370,7 +370,7 @@ GPUOperation CreateDW3x3Conv16To16Conv16To32AddConv32To16(
     }
   }
 
-  auto alpha0 = std::get_if<Tensor<Linear, DataType::FLOAT32>>(&prelu0.alpha);
+  auto alpha0 = std::get_if<Tensor<Linear, DataType::kFloat32>>(&prelu0.alpha);
   for (int i = 0; i < 16; ++i) {
     constants.push_back(alpha0->data[i]);
   }
@@ -407,7 +407,7 @@ GPUOperation CreateDW3x3Conv16To16Conv16To32AddConv32To16(
     }
   }
 
-  auto alpha1 = std::get_if<Tensor<Linear, DataType::FLOAT32>>(&prelu1.alpha);
+  auto alpha1 = std::get_if<Tensor<Linear, DataType::kFloat32>>(&prelu1.alpha);
   for (int i = 0; i < 32; ++i) {
     constants.push_back(alpha1->data[i]);
   }
@@ -444,7 +444,7 @@ GPUOperation CreateDW3x3Conv16To16Conv16To32AddConv32To16(
     }
   }
 
-  auto alpha2 = std::get_if<Tensor<Linear, DataType::FLOAT32>>(&prelu2.alpha);
+  auto alpha2 = std::get_if<Tensor<Linear, DataType::kFloat32>>(&prelu2.alpha);
   for (int i = 0; i < 16; ++i) {
     constants.push_back(alpha2->data[i]);
   }

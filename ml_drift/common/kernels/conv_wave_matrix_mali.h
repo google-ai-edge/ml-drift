@@ -44,7 +44,7 @@ class ConvWaveMatrixMali : public GPUOperation {
   };
   ConvWaveMatrixMali() = default;
   ConvWaveMatrixMali(const GpuInfo& gpu_info, const OperationDef& definition,
-                     const ml_drift::Tensor<OHWI, DataType::INT8>& weights_i8);
+                     const ml_drift::Tensor<OHWI, DataType::kInt8>& weights_i8);
   ConvWaveMatrixMali(const GpuInfo& gpu_info, const OperationDef& definition,
                      const OHWI& weights_shape);
   std::vector<int3> GetPossibleKernelWorkGroups(
@@ -57,14 +57,14 @@ class ConvWaveMatrixMali : public GPUOperation {
     weights_desc.type = conv_params_.weights_type;
     weights_desc.layout = WeightsLayout::kCustomGroups;
     weights_desc.group_sizes = {
-        {Axis::INPUT_CHANNELS, 4},
-        {Axis::OUTPUT_CHANNELS, 16},
-        {Axis::INPUT_CHANNELS, 4},
-        {Axis::OUTPUT_CHANNELS, kernel_params_.dst_s4_block_size},
-        {Axis::INPUT_CHANNELS, 0},
-        {Axis::WIDTH, 0},
-        {Axis::HEIGHT, 0},
-        {Axis::OUTPUT_CHANNELS, 0}};
+        {Axis::kInputChannels, 4},
+        {Axis::kOutputChannels, 16},
+        {Axis::kInputChannels, 4},
+        {Axis::kOutputChannels, kernel_params_.dst_s4_block_size},
+        {Axis::kInputChannels, 0},
+        {Axis::kWidth, 0},
+        {Axis::kHeight, 0},
+        {Axis::kOutputChannels, 0}};
     return weights_desc;
   }
 

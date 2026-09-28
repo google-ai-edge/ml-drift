@@ -91,16 +91,16 @@ class ConvAppleMPP : public GPUOperation {
     weights_desc.type = params_.weights_data_type;
     weights_desc.layout = WeightsLayout::kCustomGroups;
     weights_desc.group_sizes = {
-        {Axis::OUTPUT_CHANNELS, AlignByN(params_.weights_shape.o, 4)},
-        {Axis::INPUT_CHANNELS, AlignByN(params_.weights_shape.i, 4)}};
+        {Axis::kOutputChannels, AlignByN(params_.weights_shape.o, 4)},
+        {Axis::kInputChannels, AlignByN(params_.weights_shape.i, 4)}};
     if (params_.batched_weights) {
-      weights_desc.group_sizes.push_back({Axis::HEIGHT, 0});
+      weights_desc.group_sizes.push_back({Axis::kHeight, 0});
     }
     if (!params_.x_kernel_is_1) {
-      weights_desc.group_sizes.push_back({Axis::WIDTH, 0});
+      weights_desc.group_sizes.push_back({Axis::kWidth, 0});
     }
     if (!params_.y_kernel_is_1) {
-      weights_desc.group_sizes.push_back({Axis::HEIGHT, 0});
+      weights_desc.group_sizes.push_back({Axis::kHeight, 0});
     }
     return weights_desc;
   }
@@ -141,7 +141,7 @@ void ConvAppleMPP::UploadWeights(const Tensor<OHWI, T>& weights) {
 template <DataType T>
 void ConvAppleMPP::UploadBias(const Tensor<Linear, T>& bias) {
   TensorDescriptor bias_tensor_desc = CreateConstantLinearTensorDescriptor(
-      params_.weights_data_type, TensorStorageType::BUFFER, bias);
+      params_.weights_data_type, TensorStorageType::kBuffer, bias);
   args_.AddObject("biases", std::make_unique<TensorDescriptor>(
                                 std::move(bias_tensor_desc)));
 }
@@ -158,8 +158,8 @@ ConvAppleMPP CreateConvAppleMPP(const TensorDescriptor& src,
 // Creates an Apple MPP convolution operation with the given attributes.
 ConvAppleMPP CreateConvAppleMPP(
     const TensorDescriptor& src, const TensorDescriptor& dst,
-    const Tensor<OHWI, DataType::FLOAT32>& weights,
-    const Tensor<Linear, DataType::FLOAT32>& bias = {});
+    const Tensor<OHWI, DataType::kFloat32>& weights,
+    const Tensor<Linear, DataType::kFloat32>& bias = {});
 
 // Creates an Apple MPP convolution operation with external weights.
 ConvAppleMPP CreateConvAppleMPPExternalWeights(
@@ -181,7 +181,7 @@ ConvAppleMPP CreateConvAppleMPPExternalWeights(
 // Creates an Apple MPP convolution operation with INT8 weights.
 ConvAppleMPP CreateConvAppleMPPInt8(
     const TensorDescriptor& src, const TensorDescriptor& dst,
-    const Tensor<OHWI, DataType::INT8>& weights);
+    const Tensor<OHWI, DataType::kInt8>& weights);
 
 // Creates an Apple MPP convolution operation with INT8 external weights.
 ConvAppleMPP CreateConvAppleMPPInt8(const TensorDescriptor& src,

@@ -24,10 +24,10 @@
 namespace ml_drift {
 
 TEST(TensorDescriptorTest, SupportsAbslHash) {
-  if (!exec_env->IsStorageSupported(TensorStorageType::BUFFER,
-                                    DataType::INT32)) {
+  if (!exec_env->IsStorageSupported(TensorStorageType::kBuffer,
+                                    DataType::kInt32)) {
     GTEST_SKIP() << "Unsupported storage type: "
-                 << ToString(TensorStorageType::BUFFER);
+                 << ToString(TensorStorageType::kBuffer);
   }
   ABSL_ASSERT_OK(ReadAsI16SelectorTest(*exec_env));
 }
