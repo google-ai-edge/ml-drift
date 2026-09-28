@@ -40,11 +40,11 @@ TEST(MakeMeanFromGlobalAveragePooling, Smoke) {
   attr.padding.appended = HW(0, 0);
   attr.strides = HW(4, 4);
   attr.kernel = HW(4, 4);
-  attr.type = PoolingType::AVERAGE;
+  attr.type = PoolingType::kAverage;
   attr.output_indices = false;
 
   auto pool_node = graph.NewNode();
-  pool_node->operation.type = ToString(OperationType::POOLING_2D);
+  pool_node->operation.type = ToString(OperationType::kPooling2D);
   pool_node->operation.attributes = attr;
 
   graph.AddConsumer(pool_node->id, input->id);
@@ -62,7 +62,7 @@ TEST(MakeMeanFromGlobalAveragePooling, Smoke) {
 
   ASSERT_EQ(1, graph.nodes().size());
   ASSERT_EQ(2, graph.values().size());
-  ASSERT_EQ(ToString(OperationType::MEAN), graph.nodes()[0]->operation.type);
+  ASSERT_EQ(ToString(OperationType::kMean), graph.nodes()[0]->operation.type);
 }
 
 }  // namespace

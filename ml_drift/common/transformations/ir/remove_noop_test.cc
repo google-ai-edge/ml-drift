@@ -35,16 +35,16 @@ TEST(IrRemoveNoopTest, RemoveSingleInputAdd_Smoke) {
   IrModel model;
   IrOp* op1 = model.add_op();
   IrOp* add_op = model.add_op();
-  add_op->name = ToString(OperationType::ADD);
+  add_op->name = ToString(OperationType::kAdd);
   ElementwiseAttributes attr;
   add_op->attr = attr;  // std::monostate by default
 
-  IrTensor* input =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
-  IrTensor* intermediate =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
-  IrTensor* output =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  IrTensor* input = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                     ::ml_drift::HWC(1, 1, 1));
+  IrTensor* intermediate = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                            ::ml_drift::HWC(1, 1, 1));
+  IrTensor* output = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                      ::ml_drift::HWC(1, 1, 1));
 
   model.add_input(input->id);
   model.add_output(output->id);
@@ -71,17 +71,17 @@ TEST(IrRemoveNoopTest, RemoveSingleInputAdd_DoNotTrigger_LinearTensor) {
   IrModel model;
   IrOp* op1 = model.add_op();
   IrOp* add_op = model.add_op();
-  add_op->name = ToString(OperationType::ADD);
+  add_op->name = ToString(OperationType::kAdd);
   ElementwiseAttributes attr;
-  attr.param = Tensor<Linear, DataType::FLOAT32>();
+  attr.param = Tensor<Linear, DataType::kFloat32>();
   add_op->attr = attr;
 
-  IrTensor* input =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
-  IrTensor* intermediate =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
-  IrTensor* output =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  IrTensor* input = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                     ::ml_drift::HWC(1, 1, 1));
+  IrTensor* intermediate = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                            ::ml_drift::HWC(1, 1, 1));
+  IrTensor* output = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                      ::ml_drift::HWC(1, 1, 1));
 
   model.add_input(input->id);
   model.add_output(output->id);
@@ -102,17 +102,17 @@ TEST(IrRemoveNoopTest, RemoveSingleInputAdd_DoNotTrigger_Scalar) {
   IrModel model;
   IrOp* op1 = model.add_op();
   IrOp* add_op = model.add_op();
-  add_op->name = ToString(OperationType::ADD);
+  add_op->name = ToString(OperationType::kAdd);
   ElementwiseAttributes attr;
   attr.param = 0.5f;
   add_op->attr = attr;
 
-  IrTensor* input =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
-  IrTensor* intermediate =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
-  IrTensor* output =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  IrTensor* input = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                     ::ml_drift::HWC(1, 1, 1));
+  IrTensor* intermediate = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                            ::ml_drift::HWC(1, 1, 1));
+  IrTensor* output = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                      ::ml_drift::HWC(1, 1, 1));
 
   model.add_input(input->id);
   model.add_output(output->id);
@@ -134,16 +134,16 @@ TEST(IrRemoveNoopTest, RemoveSingleInputAdd_DoNotTrigger_Multiple) {
   IrOp* op_a = model.add_op();
   IrOp* op_b = model.add_op();
   IrOp* add_op = model.add_op();
-  add_op->name = ToString(OperationType::ADD);
+  add_op->name = ToString(OperationType::kAdd);
 
-  IrTensor* input =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
-  IrTensor* temp_a =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
-  IrTensor* temp_b =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
-  IrTensor* output =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  IrTensor* input = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                     ::ml_drift::HWC(1, 1, 1));
+  IrTensor* temp_a = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                      ::ml_drift::HWC(1, 1, 1));
+  IrTensor* temp_b = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                      ::ml_drift::HWC(1, 1, 1));
+  IrTensor* output = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                      ::ml_drift::HWC(1, 1, 1));
 
   model.add_input(input->id);
   model.add_output(output->id);
@@ -167,18 +167,18 @@ TEST(IrRemoveNoopTest, RemoveDegenerateUpsampling_Smoke) {
   IrModel model;
   IrOp* op1 = model.add_op();
   IrOp* resize_op = model.add_op();
-  resize_op->name = ToString(OperationType::RESIZE);
+  resize_op->name = ToString(OperationType::kResize);
   Resize2DAttributes attr;
   attr.new_shape = ::ml_drift::HW(5, 5);
-  attr.type = ::ml_drift::SamplingType::BILINEAR;
+  attr.type = ::ml_drift::SamplingType::kBilinear;
   resize_op->attr = attr;
 
-  IrTensor* input =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(5, 5, 1));
-  IrTensor* intermediate =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(5, 5, 1));
-  IrTensor* output =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(5, 5, 1));
+  IrTensor* input = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                     ::ml_drift::HWC(5, 5, 1));
+  IrTensor* intermediate = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                            ::ml_drift::HWC(5, 5, 1));
+  IrTensor* output = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                      ::ml_drift::HWC(5, 5, 1));
 
   model.add_input(input->id);
   model.add_output(output->id);
@@ -206,18 +206,18 @@ TEST(IrRemoveNoopTest, RemoveIdentityReshape_Smoke) {
   IrOp* op1 = model.add_op();
   IrOp* reshape_op = model.add_op();
   IrOp* op2 = model.add_op();
-  reshape_op->name = ToString(OperationType::RESHAPE);
+  reshape_op->name = ToString(OperationType::kReshape);
   ReshapeAttributes attr;
   attr.new_shape = ::ml_drift::BHWC(1, 1, 1, 11);
   reshape_op->attr = attr;
 
-  IrTensor* input = model.add_tensor(::ml_drift::DataType::FLOAT32,
+  IrTensor* input = model.add_tensor(::ml_drift::DataType::kFloat32,
                                      ::ml_drift::HWC(1, 1, 11));
-  IrTensor* intermediate = model.add_tensor(::ml_drift::DataType::FLOAT32,
+  IrTensor* intermediate = model.add_tensor(::ml_drift::DataType::kFloat32,
                                             ::ml_drift::HWC(1, 1, 11));
-  IrTensor* intermediate2 = model.add_tensor(::ml_drift::DataType::FLOAT32,
+  IrTensor* intermediate2 = model.add_tensor(::ml_drift::DataType::kFloat32,
                                              ::ml_drift::HWC(1, 1, 11));
-  IrTensor* output = model.add_tensor(::ml_drift::DataType::FLOAT32,
+  IrTensor* output = model.add_tensor(::ml_drift::DataType::kFloat32,
                                       ::ml_drift::HWC(1, 1, 11));
 
   model.add_input(input->id);
@@ -255,18 +255,18 @@ TEST(IrRemoveNoopTest,
   IrOp* reshape_op = model.add_op();
   IrOp* consumer_op = model.add_op();
 
-  reshape_op->name = ToString(OperationType::RESHAPE);
+  reshape_op->name = ToString(OperationType::kReshape);
   ReshapeAttributes attr;
   attr.new_shape = ::ml_drift::BHWC(1, 1, 1, 11);
   reshape_op->attr = attr;
 
-  IrTensor* graph_input = model.add_tensor(::ml_drift::DataType::FLOAT32,
+  IrTensor* graph_input = model.add_tensor(::ml_drift::DataType::kFloat32,
                                            ::ml_drift::HWC(1, 1, 11));
-  IrTensor* value0 = model.add_tensor(::ml_drift::DataType::FLOAT32,
+  IrTensor* value0 = model.add_tensor(::ml_drift::DataType::kFloat32,
                                       ::ml_drift::HWC(1, 1, 11));
-  IrTensor* value1 = model.add_tensor(::ml_drift::DataType::FLOAT32,
+  IrTensor* value1 = model.add_tensor(::ml_drift::DataType::kFloat32,
                                       ::ml_drift::HWC(1, 1, 11));
-  IrTensor* graph_output = model.add_tensor(::ml_drift::DataType::FLOAT32,
+  IrTensor* graph_output = model.add_tensor(::ml_drift::DataType::kFloat32,
                                             ::ml_drift::HWC(1, 1, 11));
 
   model.add_input(graph_input->id);
@@ -307,20 +307,20 @@ TEST(IrRemoveNoopTest, RemoveIdentityStridedSlice_Smoke) {
   IrOp* slice_op = model.add_op();
   IrOp* op2 = model.add_op();
 
-  slice_op->name = ToString(OperationType::SLICE);
+  slice_op->name = ToString(OperationType::kSlice);
   SliceAttributes attr;
   attr.starts = ::ml_drift::BHWC(0, 0, 0, 0);
   attr.strides = ::ml_drift::BHWC(1, 1, 1, 1);
   attr.ends = ::ml_drift::BHWC(1, 1, 1, 11);
   slice_op->attr = attr;
 
-  IrTensor* input = model.add_tensor(::ml_drift::DataType::FLOAT32,
+  IrTensor* input = model.add_tensor(::ml_drift::DataType::kFloat32,
                                      ::ml_drift::HWC(1, 1, 11));
-  IrTensor* intermediate1 = model.add_tensor(::ml_drift::DataType::FLOAT32,
+  IrTensor* intermediate1 = model.add_tensor(::ml_drift::DataType::kFloat32,
                                              ::ml_drift::HWC(1, 1, 11));
-  IrTensor* intermediate2 = model.add_tensor(::ml_drift::DataType::FLOAT32,
+  IrTensor* intermediate2 = model.add_tensor(::ml_drift::DataType::kFloat32,
                                              ::ml_drift::HWC(1, 1, 11));
-  IrTensor* output = model.add_tensor(::ml_drift::DataType::FLOAT32,
+  IrTensor* output = model.add_tensor(::ml_drift::DataType::kFloat32,
                                       ::ml_drift::HWC(1, 1, 11));
 
   model.add_input(input->id);
@@ -358,20 +358,20 @@ TEST(IrRemoveNoopTest,
   IrOp* slice_node = model.add_op();
   IrOp* second_node = model.add_op();
 
-  slice_node->name = ToString(OperationType::SLICE);
+  slice_node->name = ToString(OperationType::kSlice);
   SliceAttributes attr;
   attr.starts = ::ml_drift::BHWC(0, 0, 0, 0);
   attr.strides = ::ml_drift::BHWC(1, 1, 1, 1);
   attr.ends = ::ml_drift::BHWC(1, 1, 1, 11);
   slice_node->attr = attr;
 
-  IrTensor* value0 = model.add_tensor(::ml_drift::DataType::FLOAT32,
+  IrTensor* value0 = model.add_tensor(::ml_drift::DataType::kFloat32,
                                       ::ml_drift::HWC(1, 1, 11));
-  IrTensor* value1 = model.add_tensor(::ml_drift::DataType::FLOAT32,
+  IrTensor* value1 = model.add_tensor(::ml_drift::DataType::kFloat32,
                                       ::ml_drift::HWC(1, 1, 11));
-  IrTensor* value2 = model.add_tensor(::ml_drift::DataType::FLOAT32,
+  IrTensor* value2 = model.add_tensor(::ml_drift::DataType::kFloat32,
                                       ::ml_drift::HWC(1, 1, 11));
-  IrTensor* value3 = model.add_tensor(::ml_drift::DataType::FLOAT32,
+  IrTensor* value3 = model.add_tensor(::ml_drift::DataType::kFloat32,
                                       ::ml_drift::HWC(1, 1, 11));
 
   model.add_input(value0->id);
@@ -407,14 +407,14 @@ TEST(IrRemoveNoopTest,
      DoNotRemoveNoopWhenBothInputAndOutputAreGraphBoundaries) {
   IrModel model;
   IrOp* reshape_op = model.add_op();
-  reshape_op->name = ToString(OperationType::RESHAPE);
+  reshape_op->name = ToString(OperationType::kReshape);
   ReshapeAttributes attr;
   attr.new_shape = ::ml_drift::BHWC(1, 1, 2, 4);
   reshape_op->attr = attr;
 
-  IrTensor* input = model.add_tensor(::ml_drift::DataType::FLOAT32,
+  IrTensor* input = model.add_tensor(::ml_drift::DataType::kFloat32,
                                      ::ml_drift::BHWC(1, 1, 2, 4));
-  IrTensor* output = model.add_tensor(::ml_drift::DataType::FLOAT32,
+  IrTensor* output = model.add_tensor(::ml_drift::DataType::kFloat32,
                                       ::ml_drift::BHWC(1, 1, 2, 4));
 
   model.add_input(input->id);
@@ -436,25 +436,25 @@ TEST(IrRemoveNoopTest, MergeConsecutiveReshapes_Smoke) {
   IrOp* reshape1 = model.add_op();
   IrOp* consumer_op = model.add_op();
 
-  reshape0->name = ToString(OperationType::RESHAPE);
+  reshape0->name = ToString(OperationType::kReshape);
   ReshapeAttributes attr0;
   attr0.new_shape = ::ml_drift::BHWC(1, 2, 2, 3);
   reshape0->attr = attr0;
 
-  reshape1->name = ToString(OperationType::RESHAPE);
+  reshape1->name = ToString(OperationType::kReshape);
   ReshapeAttributes attr1;
   attr1.new_shape = ::ml_drift::BHWC(1, 3, 2, 2);
   reshape1->attr = attr1;
 
-  IrTensor* graph_input = model.add_tensor(::ml_drift::DataType::FLOAT32,
+  IrTensor* graph_input = model.add_tensor(::ml_drift::DataType::kFloat32,
                                            ::ml_drift::BHWC(1, 1, 1, 12));
-  IrTensor* value0 = model.add_tensor(::ml_drift::DataType::FLOAT32,
+  IrTensor* value0 = model.add_tensor(::ml_drift::DataType::kFloat32,
                                       ::ml_drift::BHWC(1, 1, 1, 12));
-  IrTensor* value1 = model.add_tensor(::ml_drift::DataType::FLOAT32,
+  IrTensor* value1 = model.add_tensor(::ml_drift::DataType::kFloat32,
                                       ::ml_drift::BHWC(1, 2, 2, 3));
-  IrTensor* value2 = model.add_tensor(::ml_drift::DataType::FLOAT32,
+  IrTensor* value2 = model.add_tensor(::ml_drift::DataType::kFloat32,
                                       ::ml_drift::BHWC(1, 3, 2, 2));
-  IrTensor* graph_output = model.add_tensor(::ml_drift::DataType::FLOAT32,
+  IrTensor* graph_output = model.add_tensor(::ml_drift::DataType::kFloat32,
                                             ::ml_drift::BHWC(1, 3, 2, 2));
 
   model.add_input(graph_input->id);
@@ -494,25 +494,25 @@ TEST(IrRemoveNoopTest,
   IrOp* reshape1 = model.add_op();
   IrOp* consumer_op = model.add_op();
 
-  reshape0->name = ToString(OperationType::RESHAPE);
+  reshape0->name = ToString(OperationType::kReshape);
   ReshapeAttributes attr0;
   attr0.new_shape = ::ml_drift::BHWC(12, 1, 630, 630);
   reshape0->attr = attr0;
 
-  reshape1->name = ToString(OperationType::RESHAPE);
+  reshape1->name = ToString(OperationType::kReshape);
   ReshapeAttributes attr1;
   attr1.new_shape = ::ml_drift::BHWC(1, 12, 630, 630);
   reshape1->attr = attr1;
 
-  IrTensor* graph_input = model.add_tensor(::ml_drift::DataType::FLOAT32,
+  IrTensor* graph_input = model.add_tensor(::ml_drift::DataType::kFloat32,
                                            ::ml_drift::BHWC(1, 12, 630, 630));
-  IrTensor* value0 = model.add_tensor(::ml_drift::DataType::FLOAT32,
+  IrTensor* value0 = model.add_tensor(::ml_drift::DataType::kFloat32,
                                       ::ml_drift::BHWC(1, 12, 630, 630));
-  IrTensor* value1 = model.add_tensor(::ml_drift::DataType::FLOAT32,
+  IrTensor* value1 = model.add_tensor(::ml_drift::DataType::kFloat32,
                                       ::ml_drift::BHWC(12, 1, 630, 630));
-  IrTensor* value2 = model.add_tensor(::ml_drift::DataType::FLOAT32,
+  IrTensor* value2 = model.add_tensor(::ml_drift::DataType::kFloat32,
                                       ::ml_drift::BHWC(1, 12, 630, 630));
-  IrTensor* graph_output = model.add_tensor(::ml_drift::DataType::FLOAT32,
+  IrTensor* graph_output = model.add_tensor(::ml_drift::DataType::kFloat32,
                                             ::ml_drift::BHWC(1, 12, 630, 630));
 
   model.add_input(graph_input->id);
@@ -555,27 +555,27 @@ TEST(IrRemoveNoopTest,
   IrOp* other_consumer = model.add_op();
   IrOp* consumer_op = model.add_op();
 
-  reshape0->name = ToString(OperationType::RESHAPE);
+  reshape0->name = ToString(OperationType::kReshape);
   ReshapeAttributes attr0;
   attr0.new_shape = ::ml_drift::BHWC(1, 2, 2, 3);
   reshape0->attr = attr0;
 
-  reshape1->name = ToString(OperationType::RESHAPE);
+  reshape1->name = ToString(OperationType::kReshape);
   ReshapeAttributes attr1;
   attr1.new_shape = ::ml_drift::BHWC(1, 3, 2, 2);
   reshape1->attr = attr1;
 
-  IrTensor* graph_input = model.add_tensor(::ml_drift::DataType::FLOAT32,
+  IrTensor* graph_input = model.add_tensor(::ml_drift::DataType::kFloat32,
                                            ::ml_drift::BHWC(1, 1, 1, 12));
-  IrTensor* value0 = model.add_tensor(::ml_drift::DataType::FLOAT32,
+  IrTensor* value0 = model.add_tensor(::ml_drift::DataType::kFloat32,
                                       ::ml_drift::BHWC(1, 1, 1, 12));
-  IrTensor* value1 = model.add_tensor(::ml_drift::DataType::FLOAT32,
+  IrTensor* value1 = model.add_tensor(::ml_drift::DataType::kFloat32,
                                       ::ml_drift::BHWC(1, 2, 2, 3));
-  IrTensor* value2 = model.add_tensor(::ml_drift::DataType::FLOAT32,
+  IrTensor* value2 = model.add_tensor(::ml_drift::DataType::kFloat32,
                                       ::ml_drift::BHWC(1, 3, 2, 2));
-  IrTensor* other_output = model.add_tensor(::ml_drift::DataType::FLOAT32,
+  IrTensor* other_output = model.add_tensor(::ml_drift::DataType::kFloat32,
                                             ::ml_drift::BHWC(1, 2, 2, 3));
-  IrTensor* graph_output = model.add_tensor(::ml_drift::DataType::FLOAT32,
+  IrTensor* graph_output = model.add_tensor(::ml_drift::DataType::kFloat32,
                                             ::ml_drift::BHWC(1, 3, 2, 2));
 
   model.add_input(graph_input->id);

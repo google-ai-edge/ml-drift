@@ -30,23 +30,23 @@ namespace {
 class MakeFullyConnectedFromConvolution : public NodeTransformation {
  public:
   TransformResult ApplyToNode(Node* node, GraphFloat32* graph) final {
-    if (node->operation.type != ToString(OperationType::CONVOLUTION_2D)) {
-      return {TransformStatus::SKIPPED, ""};
+    if (node->operation.type != ToString(OperationType::kConvolution2D)) {
+      return {TransformStatus::kSkipped, ""};
     }
     auto inputs = graph->FindInputs(node->id);
     if (inputs.size() != 1) {
-      return {TransformStatus::SKIPPED, ""};
+      return {TransformStatus::kSkipped, ""};
     }
 
     const auto& input_shape = inputs[0]->tensor.shape;
     if (input_shape.w != 1 || input_shape.h != 1) {
-      return {TransformStatus::SKIPPED, ""};
+      return {TransformStatus::kSkipped, ""};
     }
 
     const auto& conv_attr = std::any_cast<const Convolution2DAttributes&>(
         node->operation.attributes);
     if (!IsConvEquivalentToFullyConnected(conv_attr)) {
-      return {TransformStatus::SKIPPED, ""};
+      return {TransformStatus::kSkipped, ""};
     }
 
     FullyConnectedAttributes fc_attr;
@@ -54,8 +54,8 @@ class MakeFullyConnectedFromConvolution : public NodeTransformation {
     fc_attr.bias = conv_attr.bias;
 
     node->operation.attributes = fc_attr;
-    node->operation.type = ToString(OperationType::FULLY_CONNECTED);
-    return {TransformStatus::APPLIED,
+    node->operation.type = ToString(OperationType::kFullyConnected);
+    return {TransformStatus::kApplied,
             "Replaced convolution with fully connected."};
   }
 };

@@ -38,7 +38,7 @@ TEST(MergePaddingWith, Smoke) {
 
   auto pad_node = graph.NewNode();
   graph.AddConsumer(pad_node->id, input->id);
-  pad_node->operation.type = ToString(OperationType::PAD);
+  pad_node->operation.type = ToString(OperationType::kPad);
   PadAttributes attr;
   attr.prepended = BHWC(0, 1, 1, 0);
   attr.appended = BHWC(0, 2, 2, 0);
@@ -48,7 +48,7 @@ TEST(MergePaddingWith, Smoke) {
   Value* temp = nullptr;
   ASSERT_TRUE(ConnectTwoNodes(&graph, pad_node, conv_node, &temp).ok());
   ASSERT_TRUE(AddOutput(&graph, conv_node, &temp).ok());
-  conv_node->operation.type = ToString(OperationType::CONVOLUTION_2D);
+  conv_node->operation.type = ToString(OperationType::kConvolution2D);
   Convolution2DAttributes conv_attr;
   conv_attr.padding.appended = HW(0, 0);
   conv_attr.padding.prepended = HW(0, 0);
@@ -75,7 +75,7 @@ TEST(MergePaddingWith, MergeTwo) {
 
   auto pad_node1 = graph.NewNode();
   graph.AddConsumer(pad_node1->id, input->id);
-  pad_node1->operation.type = ToString(OperationType::PAD);
+  pad_node1->operation.type = ToString(OperationType::kPad);
   PadAttributes attr;
   attr.prepended = BHWC(0, 1, 1, 0);
   attr.appended = BHWC(0, 0, 0, 0);
@@ -84,7 +84,7 @@ TEST(MergePaddingWith, MergeTwo) {
   auto pad_node2 = graph.NewNode();
   Value* temp1 = nullptr;
   ASSERT_TRUE(ConnectTwoNodes(&graph, pad_node1, pad_node2, &temp1).ok());
-  pad_node2->operation.type = ToString(OperationType::PAD);
+  pad_node2->operation.type = ToString(OperationType::kPad);
   attr.prepended = BHWC(0, 0, 0, 0);
   attr.appended = BHWC(0, 2, 2, 0);
   pad_node2->operation.attributes = attr;
@@ -93,7 +93,7 @@ TEST(MergePaddingWith, MergeTwo) {
   Value* temp2 = nullptr;
   ASSERT_TRUE(ConnectTwoNodes(&graph, pad_node2, conv_node, &temp2).ok());
   ASSERT_TRUE(AddOutput(&graph, conv_node, &temp2).ok());
-  conv_node->operation.type = ToString(OperationType::CONVOLUTION_2D);
+  conv_node->operation.type = ToString(OperationType::kConvolution2D);
   Convolution2DAttributes conv_attr;
   conv_attr.padding.appended = HW(0, 0);
   conv_attr.padding.prepended = HW(0, 0);
@@ -123,7 +123,7 @@ TEST(MergePaddingWithAdd, MergeAlignedPadding) {
   auto output = graph.NewValue();
 
   auto pad_node = graph.NewNode();
-  pad_node->operation.type = ToString(OperationType::PAD);
+  pad_node->operation.type = ToString(OperationType::kPad);
   PadAttributes pad_attr;
   pad_attr.prepended = BHWC(0, 0, 0, 0);
   pad_attr.appended = BHWC(0, 0, 0, 32);
@@ -137,7 +137,7 @@ TEST(MergePaddingWithAdd, MergeAlignedPadding) {
   graph.AddConsumer(add_node->id, padded->id);
   graph.AddConsumer(add_node->id, input1->id);
   graph.SetProducer(add_node->id, output->id);
-  add_node->operation.type = ToString(OperationType::ADD);
+  add_node->operation.type = ToString(OperationType::kAdd);
   add_node->operation.attributes = add_attr;
 
   ASSERT_EQ(2, graph.nodes().size());
@@ -161,7 +161,7 @@ TEST(MergePaddingWithAdd, DoNotTrigger_AddWithAttributes) {
   auto output = graph.NewValue();
 
   auto pad_node = graph.NewNode();
-  pad_node->operation.type = ToString(OperationType::PAD);
+  pad_node->operation.type = ToString(OperationType::kPad);
   PadAttributes pad_attr;
   pad_attr.prepended = BHWC(0, 0, 0, 0);
   pad_attr.appended = BHWC(0, 0, 0, 32);
@@ -172,11 +172,11 @@ TEST(MergePaddingWithAdd, DoNotTrigger_AddWithAttributes) {
 
   auto add_node = graph.NewNode();
   ElementwiseAttributes add_attr;
-  add_attr.param = Tensor<Linear, DataType::FLOAT32>();
+  add_attr.param = Tensor<Linear, DataType::kFloat32>();
   graph.AddConsumer(add_node->id, padded->id);
   graph.AddConsumer(add_node->id, input1->id);
   graph.SetProducer(add_node->id, output->id);
-  add_node->operation.type = ToString(OperationType::ADD);
+  add_node->operation.type = ToString(OperationType::kAdd);
   add_node->operation.attributes = add_attr;
 
   ASSERT_EQ(2, graph.nodes().size());

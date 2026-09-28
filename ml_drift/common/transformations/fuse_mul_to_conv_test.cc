@@ -47,23 +47,23 @@ TEST(MergeConvolutionWithMulTest, Smoke) {
   conv_attr.strides = HW(1, 1);
   conv_attr.dilations = HW(1, 1);
   auto& conv_attr_weights =
-      conv_attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::FLOAT32>>();
+      conv_attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::kFloat32>>();
   conv_attr_weights.shape = OHWI(16, 3, 2, 8);
   conv_attr_weights.data.resize(conv_attr_weights.shape.DimensionsProduct());
   conv_attr.bias.shape = Linear(16);
   conv_attr.bias.data.resize(16);
 
-  Tensor<Linear, DataType::FLOAT32> mul_tensor;
+  Tensor<Linear, DataType::kFloat32> mul_tensor;
   mul_tensor.shape = Linear(16);
   mul_tensor.data.resize(16);
   ElementwiseAttributes mul_attr;
   mul_attr.param = mul_tensor;
 
   auto conv_node = graph.NewNode();
-  conv_node->operation.type = ToString(OperationType::CONVOLUTION_2D);
+  conv_node->operation.type = ToString(OperationType::kConvolution2D);
   conv_node->operation.attributes = conv_attr;
   auto mul_node = graph.NewNode();
-  mul_node->operation.type = ToString(OperationType::MUL);
+  mul_node->operation.type = ToString(OperationType::kMul);
   mul_node->operation.attributes = mul_attr;
 
   graph.AddConsumer(conv_node->id, input->id);
@@ -85,7 +85,7 @@ TEST(MergeConvolutionWithMulTest, Smoke) {
 
   EXPECT_EQ(1, graph.nodes().size());
   EXPECT_EQ(2, graph.values().size());
-  EXPECT_EQ(ToString(OperationType::CONVOLUTION_2D),
+  EXPECT_EQ(ToString(OperationType::kConvolution2D),
             graph.nodes()[0]->operation.type);
 }
 
@@ -94,7 +94,7 @@ TEST(MergeMulWithConvolutionTest, Smoke) {
   auto input = graph.NewValue();
   input->tensor.shape = BHWC(1, 4, 4, 8);
 
-  Tensor<Linear, DataType::FLOAT32> mul_tensor;
+  Tensor<Linear, DataType::kFloat32> mul_tensor;
   mul_tensor.shape = Linear(8);
   mul_tensor.data.resize(8);
   ElementwiseAttributes mul_attr;
@@ -106,17 +106,17 @@ TEST(MergeMulWithConvolutionTest, Smoke) {
   conv_attr.strides = HW(1, 1);
   conv_attr.dilations = HW(1, 1);
   auto& conv_attr_weights =
-      conv_attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::FLOAT32>>();
+      conv_attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::kFloat32>>();
   conv_attr_weights.shape = OHWI(16, 3, 2, 8);
   conv_attr_weights.data.resize(conv_attr_weights.shape.DimensionsProduct());
   conv_attr.bias.shape = Linear(16);
   conv_attr.bias.data.resize(16);
 
   auto conv_node = graph.NewNode();
-  conv_node->operation.type = ToString(OperationType::CONVOLUTION_2D);
+  conv_node->operation.type = ToString(OperationType::kConvolution2D);
   conv_node->operation.attributes = conv_attr;
   auto mul_node = graph.NewNode();
-  mul_node->operation.type = ToString(OperationType::MUL);
+  mul_node->operation.type = ToString(OperationType::kMul);
   mul_node->operation.attributes = mul_attr;
 
   graph.AddConsumer(mul_node->id, input->id);
@@ -138,20 +138,20 @@ TEST(MergeMulWithConvolutionTest, Smoke) {
 
   EXPECT_EQ(1, graph.nodes().size());
   EXPECT_EQ(2, graph.values().size());
-  EXPECT_EQ(ToString(OperationType::CONVOLUTION_2D),
+  EXPECT_EQ(ToString(OperationType::kConvolution2D),
             graph.nodes()[0]->operation.type);
 }
 
 TEST(FuseMulAfterConvolution2DTest, Smoke) {
   Convolution2DAttributes attr;
   auto& attr_weights =
-      attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::FLOAT32>>();
+      attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(2, 1, 2, 2);
   attr_weights.data = {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f};
   attr.bias.shape = Linear(2);
   attr.bias.data = {1.5f, 2.5f};
 
-  Tensor<Linear, DataType::FLOAT32> mul_tensor;
+  Tensor<Linear, DataType::kFloat32> mul_tensor;
   mul_tensor.shape = Linear(2);
   mul_tensor.data = {0.5f, 2.0f};
   ElementwiseAttributes mul_attr;
@@ -168,13 +168,13 @@ TEST(FuseMulAfterConvolution2DTest, Smoke) {
 TEST(FuseMulAfterDepthwiseConvolution2DTest, Smoke) {
   DepthwiseConvolution2DAttributes attr;
   auto& attr_weights =
-      attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::FLOAT32>>();
+      attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(2, 1, 2, 2);
   attr_weights.data = {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f};
   attr.bias.shape = Linear(4);
   attr.bias.data = {1.5f, 2.5f, 1.0f, 2.0f};
 
-  Tensor<Linear, DataType::FLOAT32> mul_tensor;
+  Tensor<Linear, DataType::kFloat32> mul_tensor;
   mul_tensor.shape = Linear(4);
   mul_tensor.data = {0.5f, 2.0f, 4.0f, 0.25f};
   ElementwiseAttributes mul_attr;
@@ -196,7 +196,7 @@ TEST(FuseMulAfterConvolutionTransposedTest, Smoke) {
   attr.bias.shape = Linear(2);
   attr.bias.data = {1.5f, 2.5f};
 
-  Tensor<Linear, DataType::FLOAT32> mul_tensor;
+  Tensor<Linear, DataType::kFloat32> mul_tensor;
   mul_tensor.shape = Linear(2);
   mul_tensor.data = {0.5f, 2.0f};
   ElementwiseAttributes mul_attr;
@@ -217,7 +217,7 @@ TEST(FuseMulAfterFullyConnectedTest, Smoke) {
   attr.bias.shape = Linear(2);
   attr.bias.data = {1.5f, 2.5f};
 
-  Tensor<Linear, DataType::FLOAT32> mul_tensor;
+  Tensor<Linear, DataType::kFloat32> mul_tensor;
   mul_tensor.shape = Linear(2);
   mul_tensor.data = {0.5f, 2.0f};
   ElementwiseAttributes mul_attr;
@@ -233,13 +233,13 @@ TEST(FuseMulAfterFullyConnectedTest, Smoke) {
 TEST(FuseMulBeforeConvolution2DTest, Smoke) {
   Convolution2DAttributes attr;
   auto& attr_weights =
-      attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::FLOAT32>>();
+      attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(2, 1, 2, 2);
   attr_weights.data = {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f};
   attr.bias.shape = Linear(2);
   attr.bias.data = {1.5f, 2.5f};
 
-  Tensor<Linear, DataType::FLOAT32> mul_tensor;
+  Tensor<Linear, DataType::kFloat32> mul_tensor;
   mul_tensor.shape = Linear(2);
   mul_tensor.data = {0.5f, 2.0f};
   ElementwiseAttributes mul_attr;
@@ -256,13 +256,13 @@ TEST(FuseMulBeforeConvolution2DTest, Smoke) {
 TEST(FuseMulBeforeDepthwiseConvolution2DTest, Smoke) {
   DepthwiseConvolution2DAttributes attr;
   auto& attr_weights =
-      attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::FLOAT32>>();
+      attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(2, 1, 2, 2);
   attr_weights.data = {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f};
   attr.bias.shape = Linear(4);
   attr.bias.data = {1.5f, 2.5f, 1.0f, 2.0f};
 
-  Tensor<Linear, DataType::FLOAT32> mul_tensor;
+  Tensor<Linear, DataType::kFloat32> mul_tensor;
   mul_tensor.shape = Linear(4);
   mul_tensor.data = {0.5f, 2.0f, 4.0f, 0.25f};
   ElementwiseAttributes mul_attr;
@@ -284,7 +284,7 @@ TEST(FuseMulBeforeConvolutionTransposedTest, Smoke) {
   attr.bias.shape = Linear(2);
   attr.bias.data = {1.5f, 2.5f};
 
-  Tensor<Linear, DataType::FLOAT32> mul_tensor;
+  Tensor<Linear, DataType::kFloat32> mul_tensor;
   mul_tensor.shape = Linear(2);
   mul_tensor.data = {0.5f, 2.0f};
   ElementwiseAttributes mul_attr;
@@ -305,7 +305,7 @@ TEST(FuseMulBeforeFullyConnectedTest, Smoke) {
   attr.bias.shape = Linear(2);
   attr.bias.data = {1.5f, 2.5f};
 
-  Tensor<Linear, DataType::FLOAT32> mul_tensor;
+  Tensor<Linear, DataType::kFloat32> mul_tensor;
   mul_tensor.shape = Linear(2);
   mul_tensor.data = {0.5f, 2.0f};
   ElementwiseAttributes mul_attr;

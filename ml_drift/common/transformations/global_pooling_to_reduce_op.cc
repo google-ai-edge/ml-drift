@@ -39,15 +39,15 @@ bool IsGlobalPooling(const Pooling2DAttributes& attr, const BHWC& src_shape,
 
 bool IsGlobalAveragePooling(const Pooling2DAttributes& attr,
                             const BHWC& src_shape, const BHWC& dst_shape) {
-  return attr.type == PoolingType::AVERAGE && attr.output_indices == false &&
+  return attr.type == PoolingType::kAverage && attr.output_indices == false &&
          IsGlobalPooling(attr, src_shape, dst_shape);
 }
 
 class GlobalPoolingToReduceOp : public NodeTransformation {
  public:
   TransformResult ApplyToNode(Node* node, GraphFloat32* graph) final {
-    if (node->operation.type != ToString(OperationType::POOLING_2D)) {
-      return {TransformStatus::SKIPPED, ""};
+    if (node->operation.type != ToString(OperationType::kPooling2D)) {
+      return {TransformStatus::kSkipped, ""};
     }
 
     auto inputs = graph->FindInputs(node->id);
@@ -56,15 +56,15 @@ class GlobalPoolingToReduceOp : public NodeTransformation {
         std::any_cast<const Pooling2DAttributes&>(node->operation.attributes);
     if (!IsGlobalAveragePooling(pool_attr, inputs[0]->tensor.shape,
                                 outputs[0]->tensor.shape)) {
-      return {TransformStatus::SKIPPED, ""};
+      return {TransformStatus::kSkipped, ""};
     }
 
     ReduceAttributes mean_attr;
-    mean_attr.dims = {Axis::WIDTH, Axis::HEIGHT};
+    mean_attr.dims = {Axis::kWidth, Axis::kHeight};
 
     node->operation.attributes = mean_attr;
-    node->operation.type = ToString(OperationType::MEAN);
-    return {TransformStatus::APPLIED,
+    node->operation.type = ToString(OperationType::kMean);
+    return {TransformStatus::kApplied,
             "Replaced global average pooling with mean."};
   }
 };

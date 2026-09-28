@@ -33,12 +33,12 @@ namespace {
 
 void FuseBiasWithAddAttributes(const ElementwiseAttributes& add_attr,
                                const int channels,
-                               Tensor<Linear, DataType::FLOAT32>* bias) {
-  auto add = std::get_if<Tensor<Linear, DataType::FLOAT32>>(&add_attr.param);
+                               Tensor<Linear, DataType::kFloat32>* bias) {
+  auto add = std::get_if<Tensor<Linear, DataType::kFloat32>>(&add_attr.param);
   auto add_scalar = GetIfFloatScalar(&add_attr.param);
   if (!add && !add_scalar) return;
   if (bias->data.empty()) {
-    *bias = MakeZeroTensor<Linear, DataType::FLOAT32>(Linear(channels));
+    *bias = MakeZeroTensor<Linear, DataType::kFloat32>(Linear(channels));
   }
   for (int d = 0; d < channels; ++d) {
     bias->data[d] += add ? add->data[d] : *add_scalar;
@@ -53,56 +53,56 @@ class MergeConvolutionWithAdd : public SequenceTransformation {
                                        GraphFloat32* graph) final {
     auto& conv_node = *sequence[0];
     if (graph->FindInputs(conv_node.id).size() != 1) {
-      return {TransformStatus::DECLINED,
+      return {TransformStatus::kDeclined,
               "This fusion is only applicable to ops with one runtime input."};
     }
     auto& add_node = *sequence[1];
-    if (add_node.operation.type != ToString(OperationType::ADD)) {
-      return {TransformStatus::SKIPPED, ""};
+    if (add_node.operation.type != ToString(OperationType::kAdd)) {
+      return {TransformStatus::kSkipped, ""};
     }
     ElementwiseAttributes add_attr =
         std::any_cast<ElementwiseAttributes>(add_node.operation.attributes);
-    if (!std::holds_alternative<Tensor<Linear, DataType::FLOAT32>>(
+    if (!std::holds_alternative<Tensor<Linear, DataType::kFloat32>>(
             add_attr.param) &&
         !HoldsFloatScalar(add_attr.param)) {
-      return {TransformStatus::DECLINED,
+      return {TransformStatus::kDeclined,
               "This fuse applicable only for broadcast or scalar addition."};
     }
 
-    if (conv_node.operation.type == ToString(OperationType::CONVOLUTION_2D)) {
+    if (conv_node.operation.type == ToString(OperationType::kConvolution2D)) {
       Convolution2DAttributes* conv_attr =
           std::any_cast<Convolution2DAttributes>(
               &conv_node.operation.attributes);
       FuseConvolution2DWithAdd(add_attr, conv_attr);
     } else if (conv_node.operation.type ==
-               ToString(OperationType::CONVOLUTION_TRANSPOSED)) {
+               ToString(OperationType::kConvolutionTransposed)) {
       ConvolutionTransposedAttributes* conv_attr =
           std::any_cast<ConvolutionTransposedAttributes>(
               &conv_node.operation.attributes);
       FuseConvolutionTransposedWithAdd(add_attr, conv_attr);
     } else if (conv_node.operation.type ==
-               ToString(OperationType::DEPTHWISE_CONVOLUTION)) {
+               ToString(OperationType::kDepthwiseConvolution)) {
       DepthwiseConvolution2DAttributes* conv_attr =
           std::any_cast<DepthwiseConvolution2DAttributes>(
               &conv_node.operation.attributes);
       FuseDepthwiseConvolution2DWithAdd(add_attr, conv_attr);
     } else if (conv_node.operation.type ==
-               ToString(OperationType::FULLY_CONNECTED)) {
+               ToString(OperationType::kFullyConnected)) {
       FullyConnectedAttributes* conv_attr =
           std::any_cast<FullyConnectedAttributes>(
               &conv_node.operation.attributes);
       FuseFullyConnectedWithAdd(add_attr, conv_attr);
     } else {
-      return {TransformStatus::SKIPPED, ""};
+      return {TransformStatus::kSkipped, ""};
     }
 
     absl::Status status = RemoveFollowingNode(graph, &add_node, &conv_node);
     if (!status.ok()) {
-      return {TransformStatus::INVALID,
+      return {TransformStatus::kInvalid,
               "Unable to remove add node after convolution: " +
                   std::string(status.message())};
     }
-    return {TransformStatus::APPLIED, ""};
+    return {TransformStatus::kApplied, ""};
   }
 };
 
@@ -110,14 +110,14 @@ class MergeConvolutionWithAdd : public SequenceTransformation {
 
 void FuseAddWithConvolution2D(const ElementwiseAttributes& add_attr,
                               Convolution2DAttributes* attr) {
-  auto add = std::get_if<Tensor<Linear, DataType::FLOAT32>>(&add_attr.param);
+  auto add = std::get_if<Tensor<Linear, DataType::kFloat32>>(&add_attr.param);
   auto add_scalar = GetIfFloatScalar(&add_attr.param);
   if (!add && !add_scalar) return;
   const auto& weights = GetFloatWeights(*attr);
   if (weights.data.empty()) return;
   if (attr->bias.data.empty()) {
     attr->bias =
-        MakeZeroTensor<Linear, DataType::FLOAT32>(Linear(weights.shape.o));
+        MakeZeroTensor<Linear, DataType::kFloat32>(Linear(weights.shape.o));
   }
   for (int d = 0; d < weights.shape.o; ++d) {
     float sum = 0.0f;
@@ -144,53 +144,53 @@ class MergeAddWithConvolution : public SequenceTransformation {
                                        GraphFloat32* graph) final {
     auto& conv_node = *sequence[1];
     if (graph->FindInputs(conv_node.id).size() != 1) {
-      return {TransformStatus::DECLINED,
+      return {TransformStatus::kDeclined,
               "This fusion is only applicable to ops with one runtime input."};
     }
     auto& add_node = *sequence[0];
-    if (add_node.operation.type != ToString(OperationType::ADD)) {
-      return {TransformStatus::SKIPPED, ""};
+    if (add_node.operation.type != ToString(OperationType::kAdd)) {
+      return {TransformStatus::kSkipped, ""};
     }
     if (!add_node.operation.attributes.has_value()) {
-      return {TransformStatus::SKIPPED, "No value for add node attributes."};
+      return {TransformStatus::kSkipped, "No value for add node attributes."};
     }
     ElementwiseAttributes add_attr =
         std::any_cast<ElementwiseAttributes>(add_node.operation.attributes);
-    if (!std::holds_alternative<Tensor<Linear, DataType::FLOAT32>>(
+    if (!std::holds_alternative<Tensor<Linear, DataType::kFloat32>>(
             add_attr.param) &&
         !HoldsFloatScalar(add_attr.param)) {
-      return {TransformStatus::DECLINED,
+      return {TransformStatus::kDeclined,
               "This fuse applicable only for broadcast or scalar addition."};
     }
 
-    if (conv_node.operation.type == ToString(OperationType::CONVOLUTION_2D)) {
+    if (conv_node.operation.type == ToString(OperationType::kConvolution2D)) {
       Convolution2DAttributes* conv_attr =
           std::any_cast<Convolution2DAttributes>(
               &conv_node.operation.attributes);
       if (conv_attr->groups != 1) {
-        return {TransformStatus::DECLINED,
+        return {TransformStatus::kDeclined,
                 "This fuse not applicable for grouped convolution."};
       }
       if (conv_attr->padding.appended.w != 0 ||
           conv_attr->padding.appended.h != 0 ||
           conv_attr->padding.prepended.w != 0 ||
           conv_attr->padding.prepended.h != 0) {
-        return {TransformStatus::DECLINED,
+        return {TransformStatus::kDeclined,
                 "This fuse applicable only for convolution that do not read "
                 "out of bound elements."};
       }
       FuseAddWithConvolution2D(add_attr, conv_attr);
     } else {
-      return {TransformStatus::SKIPPED, ""};
+      return {TransformStatus::kSkipped, ""};
     }
 
     absl::Status status = RemovePrecedingNode(graph, &add_node, &conv_node);
     if (!status.ok()) {
-      return {TransformStatus::INVALID,
+      return {TransformStatus::kInvalid,
               "Unable to remove mul node after convolution: " +
                   std::string(status.message())};
     }
-    return {TransformStatus::APPLIED, ""};
+    return {TransformStatus::kApplied, ""};
   }
 };
 

@@ -47,14 +47,14 @@ class RemoveOperation : public SequenceTransformation {
     Node* prev_op_node = sequence.front();
     Node* op_node = sequence.back();
     if (!remove_predicate_(graph, op_node)) {
-      return {TransformStatus::SKIPPED, ""};
+      return {TransformStatus::kSkipped, ""};
     }
     absl::Status status = RemoveFollowingNode(graph, op_node, prev_op_node);
     if (!status.ok()) {
-      return {TransformStatus::INVALID,
+      return {TransformStatus::kInvalid,
               "Unable to remove a node: " + std::string(status.message())};
     }
-    return {TransformStatus::APPLIED, ""};
+    return {TransformStatus::kApplied, ""};
   }
 
  private:
@@ -65,7 +65,7 @@ class RemoveOperation : public SequenceTransformation {
 
 std::unique_ptr<SequenceTransformation> NewRemoveSingleInputConcat() {
   // Using SequenceTransformation implies that CONCAT has a single input.
-  auto type = ToString(OperationType::CONCAT);
+  auto type = ToString(OperationType::kConcat);
   return std::make_unique<RemoveOperation>(
       [type](GraphFloat32* graph, Node* node) {
         return type == node->operation.type;
@@ -74,7 +74,7 @@ std::unique_ptr<SequenceTransformation> NewRemoveSingleInputConcat() {
 
 std::unique_ptr<SequenceTransformation> NewRemoveSingleInputAdd() {
   // Using SequenceTransformation implies that ADD has a single input.
-  auto type = ToString(OperationType::ADD);
+  auto type = ToString(OperationType::kAdd);
   return std::make_unique<RemoveOperation>([type](GraphFloat32* graph,
                                                   Node* node) {
     if (node->operation.type != type) {
@@ -87,7 +87,7 @@ std::unique_ptr<SequenceTransformation> NewRemoveSingleInputAdd() {
 }
 
 std::unique_ptr<SequenceTransformation> NewRemoveDegenerateUpsampling() {
-  auto type = ToString(OperationType::RESIZE);
+  auto type = ToString(OperationType::kResize);
   return std::make_unique<RemoveOperation>(
       [type](GraphFloat32* graph, Node* node) {
         if (node->operation.type != type) {
@@ -103,14 +103,14 @@ std::unique_ptr<SequenceTransformation> NewRemoveDegenerateUpsampling() {
 class RemoveIdentityReshape : public NodeTransformation {
  public:
   TransformResult ApplyToNode(Node* node, GraphFloat32* graph) final {
-    if (node->operation.type != ToString(OperationType::RESHAPE)) {
-      return {TransformStatus::SKIPPED, ""};
+    if (node->operation.type != ToString(OperationType::kReshape)) {
+      return {TransformStatus::kSkipped, ""};
     }
     auto input_shape = graph->FindInputs(node->id)[0]->tensor.shape;
     const auto& reshape_attr =
         std::any_cast<const ReshapeAttributes&>(node->operation.attributes);
     if (input_shape != reshape_attr.new_shape) {
-      return {TransformStatus::SKIPPED, ""};
+      return {TransformStatus::kSkipped, ""};
     }
     {
       // Check if any of the consumers of the reshape node is already using the
@@ -130,7 +130,7 @@ class RemoveIdentityReshape : public NodeTransformation {
           // Not skipping it will crash RemoveSimpleNodeKeepInput as it assumes
           // the consumer is not using the input of the reshape node.
           return {
-              TransformStatus::SKIPPED,
+              TransformStatus::kSkipped,
               "One of the consumers also uses the input of the reshape node."};
         }
       }
@@ -139,15 +139,15 @@ class RemoveIdentityReshape : public NodeTransformation {
     const auto& graph_outputs = graph->outputs();
     if (std::find(graph_outputs.begin(), graph_outputs.end(), output) !=
         graph_outputs.end()) {
-      return {TransformStatus::SKIPPED,
+      return {TransformStatus::kSkipped,
               "Can not apply transformation when node output is graph output"};
     }
     absl::Status status = RemoveSimpleNodeKeepInput(graph, node);
     if (!status.ok()) {
-      return {TransformStatus::INVALID,
+      return {TransformStatus::kInvalid,
               "Unable to remove a node: " + std::string(status.message())};
     }
-    return {TransformStatus::APPLIED,
+    return {TransformStatus::kApplied,
             "Removed reshape with input_shape == output_shape."};
   }
 };
@@ -164,10 +164,10 @@ class MergeConsecutiveReshapes : public SequenceTransformation {
                                        GraphFloat32* graph) final {
     Node* first_node = sequence.front();
     Node* second_node = sequence.back();
-    auto reshape_type = ToString(OperationType::RESHAPE);
+    auto reshape_type = ToString(OperationType::kReshape);
     if (first_node->operation.type != reshape_type ||
         second_node->operation.type != reshape_type) {
-      return {TransformStatus::SKIPPED, ""};
+      return {TransformStatus::kSkipped, ""};
     }
 
     auto first_inputs = graph->FindInputs(first_node->id);
@@ -177,24 +177,24 @@ class MergeConsecutiveReshapes : public SequenceTransformation {
 
     if (first_inputs.size() != 1 || first_outputs.size() != 1 ||
         second_inputs.size() != 1 || second_outputs.size() != 1) {
-      return {TransformStatus::SKIPPED, ""};
+      return {TransformStatus::kSkipped, ""};
     }
 
     Value* intermediate_value = first_outputs[0];
     if (second_inputs[0]->id != intermediate_value->id) {
-      return {TransformStatus::SKIPPED, ""};
+      return {TransformStatus::kSkipped, ""};
     }
 
     // Make sure the intermediate value has no other consumers.
     if (graph->FindConsumers(intermediate_value->id).size() != 1) {
-      return {TransformStatus::SKIPPED,
+      return {TransformStatus::kSkipped,
               "Intermediate value between consecutive reshapes has multiple "
               "consumers."};
     }
 
     // Intermediate value must not be a graph output.
     if (graph->IsGraphOutput(intermediate_value->id)) {
-      return {TransformStatus::SKIPPED,
+      return {TransformStatus::kSkipped,
               "Intermediate value between consecutive reshapes is a graph "
               "output."};
     }
@@ -207,11 +207,11 @@ class MergeConsecutiveReshapes : public SequenceTransformation {
     // Remove second_node and rewire its outputs to be produced by first_node.
     absl::Status status = RemoveFollowingNode(graph, second_node, first_node);
     if (!status.ok()) {
-      return {TransformStatus::INVALID,
+      return {TransformStatus::kInvalid,
               "Unable to remove following reshape node: " +
                   std::string(status.message())};
     }
-    return {TransformStatus::APPLIED, "Merged consecutive reshapes into one."};
+    return {TransformStatus::kApplied, "Merged consecutive reshapes into one."};
   }
 };
 
@@ -222,24 +222,24 @@ std::unique_ptr<SequenceTransformation> NewMergeConsecutiveReshapes() {
 class RemoveIdentityStridedSlice : public NodeTransformation {
  public:
   TransformResult ApplyToNode(Node* node, GraphFloat32* graph) final {
-    if (node->operation.type != ToString(OperationType::SLICE)) {
-      return {TransformStatus::SKIPPED, ""};
+    if (node->operation.type != ToString(OperationType::kSlice)) {
+      return {TransformStatus::kSkipped, ""};
     }
     auto input = graph->FindInputs(node->id)[0];
     auto output = graph->FindOutputs(node->id)[0];
     const auto& slice_attr =
         std::any_cast<const SliceAttributes&>(node->operation.attributes);
     if (input->tensor.shape != output->tensor.shape) {
-      return {TransformStatus::SKIPPED, ""};
+      return {TransformStatus::kSkipped, ""};
     }
     if (slice_attr.starts != BHWC(0, 0, 0, 0)) {
-      return {TransformStatus::SKIPPED, ""};
+      return {TransformStatus::kSkipped, ""};
     }
     if (slice_attr.strides != BHWC(1, 1, 1, 1)) {
-      return {TransformStatus::SKIPPED, ""};
+      return {TransformStatus::kSkipped, ""};
     }
     if (slice_attr.ends != output->tensor.shape) {
-      return {TransformStatus::SKIPPED, ""};
+      return {TransformStatus::kSkipped, ""};
     }
     const auto& graph_outputs = graph->outputs();
     const auto& graph_inputs = graph->inputs();
@@ -250,29 +250,29 @@ class RemoveIdentityStridedSlice : public NodeTransformation {
         std::find(graph_outputs.begin(), graph_outputs.end(), output) !=
         graph_outputs.end();
     if (input_is_graph_input && output_is_graph_output) {
-      return {TransformStatus::SKIPPED,
+      return {TransformStatus::kSkipped,
               "Can not apply transformation when node input is graph input and "
               "node output is graph output"};
     }
     if (output_is_graph_output) {
       if (graph->FindConsumers(input->id).size() != 1) {
-        return {TransformStatus::SKIPPED,
+        return {TransformStatus::kSkipped,
                 "Can not apply transformation when node output is graph output "
                 "and input consumed by other nodes."};
       }
       absl::Status status = RemoveSimpleNodeKeepOutput(graph, node);
       if (!status.ok()) {
-        return {TransformStatus::INVALID,
+        return {TransformStatus::kInvalid,
                 "Unable to remove a node: " + std::string(status.message())};
       }
-      return {TransformStatus::APPLIED, "Removed identity strided slice."};
+      return {TransformStatus::kApplied, "Removed identity strided slice."};
     }
     absl::Status status = RemoveSimpleNodeKeepInput(graph, node);
     if (!status.ok()) {
-      return {TransformStatus::INVALID,
+      return {TransformStatus::kInvalid,
               "Unable to remove a node: " + std::string(status.message())};
     }
-    return {TransformStatus::APPLIED, "Removed identity strided slice."};
+    return {TransformStatus::kApplied, "Removed identity strided slice."};
   }
 };
 

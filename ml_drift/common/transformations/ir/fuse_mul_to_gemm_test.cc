@@ -36,31 +36,31 @@ namespace ml_drift::ir {
 namespace {
 
 std::any GetDefaultAttr(OperationType op_type) {
-  if (op_type == OperationType::CONVOLUTION_2D) {
+  if (op_type == OperationType::kConvolution2D) {
     Convolution2DAttributes attr;
     attr.padding.prepended = HW(0, 0);
     attr.padding.appended = HW(0, 0);
     attr.strides = HW(1, 1);
     attr.dilations = HW(1, 1);
-    auto& weights = attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
+    auto& weights = attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
     weights.shape = OHWI(16, 3, 2, 8);
     weights.data.resize(weights.shape.DimensionsProduct(), 0.1f);
     attr.bias.shape = Linear(16);
     attr.bias.data.resize(16, 1.5f);
     return attr;
-  } else if (op_type == OperationType::DEPTHWISE_CONVOLUTION) {
+  } else if (op_type == OperationType::kDepthwiseConvolution) {
     DepthwiseConvolution2DAttributes attr;
     attr.padding.prepended = HW(0, 0);
     attr.padding.appended = HW(0, 0);
     attr.strides = HW(1, 1);
     attr.dilations = HW(1, 1);
-    auto& weights = attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
+    auto& weights = attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
     weights.shape = OHWI(2, 3, 2, 8);
     weights.data.resize(weights.shape.DimensionsProduct(), 0.1f);
     attr.bias.shape = Linear(16);
     attr.bias.data.resize(16, 1.5f);
     return attr;
-  } else if (op_type == OperationType::CONVOLUTION_TRANSPOSED) {
+  } else if (op_type == OperationType::kConvolutionTransposed) {
     ConvolutionTransposedAttributes attr;
     attr.padding.prepended = HW(0, 0);
     attr.padding.appended = HW(0, 0);
@@ -70,7 +70,7 @@ std::any GetDefaultAttr(OperationType op_type) {
     attr.bias.shape = Linear(16);
     attr.bias.data.resize(16, 1.5f);
     return attr;
-  } else if (op_type == OperationType::FULLY_CONNECTED) {
+  } else if (op_type == OperationType::kFullyConnected) {
     FullyConnectedAttributes attr;
     attr.weights.shape = OHWI(16, 1, 1, 8);
     attr.weights.data.resize(attr.weights.shape.DimensionsProduct(), 0.1f);
@@ -82,7 +82,7 @@ std::any GetDefaultAttr(OperationType op_type) {
 }
 
 ElementwiseAttributes GetMulAttr() {
-  Tensor<Linear, DataType::FLOAT32> mul_tensor;
+  Tensor<Linear, DataType::kFloat32> mul_tensor;
   mul_tensor.shape = Linear(16);
   mul_tensor.data.resize(16, 0.5f);
   ElementwiseAttributes mul_attr;
@@ -95,10 +95,10 @@ using FuseMulTopologyParamTest = ::testing::TestWithParam<OperationType>;
 TEST_P(FuseMulTopologyParamTest, GemmThenMul) {
   IrModel model;
 
-  IrTensor* input = model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 8));
+  IrTensor* input = model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 8));
   IrTensor* intermediate =
-      model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 16));
-  IrTensor* output = model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 16));
+      model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 16));
+  IrTensor* output = model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 16));
   model.add_input(input->id);
   model.add_output(output->id);
 
@@ -109,7 +109,7 @@ TEST_P(FuseMulTopologyParamTest, GemmThenMul) {
   model.SetProducer(intermediate->id, main_op->id);
 
   IrOp* mul_op = model.add_op();
-  mul_op->name = ToString(OperationType::MUL);
+  mul_op->name = ToString(OperationType::kMul);
   mul_op->attr = GetMulAttr();
   model.AddConsumer(intermediate->id, mul_op->id);
   model.SetProducer(output->id, mul_op->id);
@@ -132,20 +132,20 @@ TEST_P(FuseMulTopologyParamTest, AbsorbProducer) {
   IrModel model;
 
   ElementwiseAttributes mul_attr;
-  Tensor<Linear, DataType::FLOAT32> mul_tensor;
+  Tensor<Linear, DataType::kFloat32> mul_tensor;
   mul_tensor.shape = Linear(8);  // Input channels is 8
   mul_tensor.data.resize(8, 0.5f);
   mul_attr.param = mul_tensor;
 
-  IrTensor* input = model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 8));
+  IrTensor* input = model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 8));
   IrTensor* intermediate =
-      model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 8));
-  IrTensor* output = model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 16));
+      model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 8));
+  IrTensor* output = model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 16));
   model.add_input(input->id);
   model.add_output(output->id);
 
   IrOp* mul_op = model.add_op();
-  mul_op->name = ToString(OperationType::MUL);
+  mul_op->name = ToString(OperationType::kMul);
   mul_op->attr = mul_attr;
   model.AddConsumer(input->id, mul_op->id);
   model.SetProducer(intermediate->id, mul_op->id);
@@ -172,36 +172,36 @@ TEST_P(FuseMulTopologyParamTest, AbsorbProducer) {
 
 INSTANTIATE_TEST_SUITE_P(
     FuseMulToConvTest, FuseMulTopologyParamTest,
-    ::testing::Values(OperationType::CONVOLUTION_2D,
-                      OperationType::DEPTHWISE_CONVOLUTION,
-                      OperationType::CONVOLUTION_TRANSPOSED,
-                      OperationType::FULLY_CONNECTED));
+    ::testing::Values(OperationType::kConvolution2D,
+                      OperationType::kDepthwiseConvolution,
+                      OperationType::kConvolutionTransposed,
+                      OperationType::kFullyConnected));
 
 TEST(IrFuseMulToGemmTest, ComplexChainedTopology) {
   // input -> Conv2D -> Mul -> Mul -> Output
   IrModel model;
 
-  IrTensor* input = model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 8));
-  IrTensor* inter1 = model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 16));
-  IrTensor* inter2 = model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 16));
-  IrTensor* output = model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 16));
+  IrTensor* input = model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 8));
+  IrTensor* inter1 = model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 16));
+  IrTensor* inter2 = model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 16));
+  IrTensor* output = model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 16));
   model.add_input(input->id);
   model.add_output(output->id);
 
   IrOp* conv = model.add_op();
-  conv->name = ToString(OperationType::CONVOLUTION_2D);
-  conv->attr = GetDefaultAttr(OperationType::CONVOLUTION_2D);
+  conv->name = ToString(OperationType::kConvolution2D);
+  conv->attr = GetDefaultAttr(OperationType::kConvolution2D);
   model.AddConsumer(input->id, conv->id);
   model.SetProducer(inter1->id, conv->id);
 
   IrOp* mul1 = model.add_op();
-  mul1->name = ToString(OperationType::MUL);
+  mul1->name = ToString(OperationType::kMul);
   mul1->attr = GetMulAttr();
   model.AddConsumer(inter1->id, mul1->id);
   model.SetProducer(inter2->id, mul1->id);
 
   IrOp* mul2 = model.add_op();
-  mul2->name = ToString(OperationType::MUL);
+  mul2->name = ToString(OperationType::kMul);
   mul2->attr = GetMulAttr();
   model.AddConsumer(inter2->id, mul2->id);
   model.SetProducer(output->id, mul2->id);
@@ -226,7 +226,7 @@ TEST(IrFuseMulToGemmTest, ComplexChainedTopology) {
   auto conv_attr = std::any_cast<Convolution2DAttributes>(remaining_op->attr);
   EXPECT_THAT(conv_attr.bias.data,
               Pointwise(FloatNear(1e-5), std::vector<float>(16, 0.375f)));
-  auto& weights = std::get<Tensor<OHWI, DataType::FLOAT32>>(conv_attr.weights);
+  auto& weights = std::get<Tensor<OHWI, DataType::kFloat32>>(conv_attr.weights);
   EXPECT_THAT(
       weights.data,
       Pointwise(FloatNear(1e-5),
@@ -238,13 +238,13 @@ TEST(IrFuseMulToGemmTest, ComplexChainedTopology) {
 TEST(FuseMulAfterConvolution2DTest, MathVerification) {
   Convolution2DAttributes attr;
   auto& attr_weights =
-      attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::FLOAT32>>();
+      attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(2, 1, 2, 2);
   attr_weights.data = {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f};
   attr.bias.shape = Linear(2);
   attr.bias.data = {1.5f, 2.5f};
 
-  Tensor<Linear, DataType::FLOAT32> mul_tensor;
+  Tensor<Linear, DataType::kFloat32> mul_tensor;
   mul_tensor.shape = Linear(2);
   mul_tensor.data = {0.5f, 2.0f};
   ElementwiseAttributes mul_attr;
@@ -261,13 +261,13 @@ TEST(FuseMulAfterConvolution2DTest, MathVerification) {
 TEST(FuseMulAfterDepthwiseConvolution2DTest, MathVerification) {
   DepthwiseConvolution2DAttributes attr;
   auto& attr_weights =
-      attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::FLOAT32>>();
+      attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(2, 1, 2, 2);
   attr_weights.data = {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f};
   attr.bias.shape = Linear(4);
   attr.bias.data = {1.5f, 2.5f, 1.0f, 2.0f};
 
-  Tensor<Linear, DataType::FLOAT32> mul_tensor;
+  Tensor<Linear, DataType::kFloat32> mul_tensor;
   mul_tensor.shape = Linear(4);
   mul_tensor.data = {0.5f, 2.0f, 4.0f, 0.25f};
   ElementwiseAttributes mul_attr;
@@ -289,7 +289,7 @@ TEST(FuseMulAfterConvolutionTransposedTest, MathVerification) {
   attr.bias.shape = Linear(2);
   attr.bias.data = {1.5f, 2.5f};
 
-  Tensor<Linear, DataType::FLOAT32> mul_tensor;
+  Tensor<Linear, DataType::kFloat32> mul_tensor;
   mul_tensor.shape = Linear(2);
   mul_tensor.data = {0.5f, 2.0f};
   ElementwiseAttributes mul_attr;
@@ -310,7 +310,7 @@ TEST(FuseMulAfterFullyConnectedTest, MathVerification) {
   attr.bias.shape = Linear(2);
   attr.bias.data = {1.5f, 2.5f};
 
-  Tensor<Linear, DataType::FLOAT32> mul_tensor;
+  Tensor<Linear, DataType::kFloat32> mul_tensor;
   mul_tensor.shape = Linear(2);
   mul_tensor.data = {0.5f, 2.0f};
   ElementwiseAttributes mul_attr;
@@ -326,13 +326,13 @@ TEST(FuseMulAfterFullyConnectedTest, MathVerification) {
 TEST(FuseMulBeforeConvolution2DTest, MathVerification) {
   Convolution2DAttributes attr;
   auto& attr_weights =
-      attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::FLOAT32>>();
+      attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(2, 1, 2, 2);
   attr_weights.data = {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f};
   attr.bias.shape = Linear(2);
   attr.bias.data = {1.5f, 2.5f};
 
-  Tensor<Linear, DataType::FLOAT32> mul_tensor;
+  Tensor<Linear, DataType::kFloat32> mul_tensor;
   mul_tensor.shape = Linear(2);
   mul_tensor.data = {0.5f, 2.0f};
   ElementwiseAttributes mul_attr;
@@ -349,13 +349,13 @@ TEST(FuseMulBeforeConvolution2DTest, MathVerification) {
 TEST(FuseMulBeforeDepthwiseConvolution2DTest, MathVerification) {
   DepthwiseConvolution2DAttributes attr;
   auto& attr_weights =
-      attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::FLOAT32>>();
+      attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(2, 1, 2, 2);
   attr_weights.data = {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f};
   attr.bias.shape = Linear(4);
   attr.bias.data = {1.5f, 2.5f, 1.0f, 2.0f};
 
-  Tensor<Linear, DataType::FLOAT32> mul_tensor;
+  Tensor<Linear, DataType::kFloat32> mul_tensor;
   mul_tensor.shape = Linear(4);
   mul_tensor.data = {0.5f, 2.0f, 4.0f, 0.25f};
   ElementwiseAttributes mul_attr;
@@ -377,7 +377,7 @@ TEST(FuseMulBeforeConvolutionTransposedTest, MathVerification) {
   attr.bias.shape = Linear(2);
   attr.bias.data = {1.5f, 2.5f};
 
-  Tensor<Linear, DataType::FLOAT32> mul_tensor;
+  Tensor<Linear, DataType::kFloat32> mul_tensor;
   mul_tensor.shape = Linear(2);
   mul_tensor.data = {0.5f, 2.0f};
   ElementwiseAttributes mul_attr;
@@ -398,7 +398,7 @@ TEST(FuseMulBeforeFullyConnectedTest, MathVerification) {
   attr.bias.shape = Linear(2);
   attr.bias.data = {1.5f, 2.5f};
 
-  Tensor<Linear, DataType::FLOAT32> mul_tensor;
+  Tensor<Linear, DataType::kFloat32> mul_tensor;
   mul_tensor.shape = Linear(2);
   mul_tensor.data = {0.5f, 2.0f};
   ElementwiseAttributes mul_attr;
@@ -414,25 +414,25 @@ TEST(FuseMulBeforeFullyConnectedTest, MathVerification) {
 TEST(FuseMulToGemmTest, MultiInputGemmDeclinesFusion) {
   IrModel model;
 
-  IrTensor* input = model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 8));
+  IrTensor* input = model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 8));
   IrTensor* weights_tensor =
-      model.add_tensor(DataType::FLOAT32, BHWC(1, 1, 8, 16));
+      model.add_tensor(DataType::kFloat32, BHWC(1, 1, 8, 16));
   IrTensor* intermediate =
-      model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 16));
-  IrTensor* output = model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 16));
+      model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 16));
+  IrTensor* output = model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 16));
   model.add_input(input->id);
   model.add_input(weights_tensor->id);
   model.add_output(output->id);
 
   IrOp* main_op = model.add_op();
-  main_op->name = ToString(OperationType::CONVOLUTION_2D);
-  main_op->attr = GetDefaultAttr(OperationType::CONVOLUTION_2D);
+  main_op->name = ToString(OperationType::kConvolution2D);
+  main_op->attr = GetDefaultAttr(OperationType::kConvolution2D);
   model.AddConsumer(input->id, main_op->id);
   model.AddConsumer(weights_tensor->id, main_op->id);
   model.SetProducer(intermediate->id, main_op->id);
 
   IrOp* mul_op = model.add_op();
-  mul_op->name = ToString(OperationType::MUL);
+  mul_op->name = ToString(OperationType::kMul);
   mul_op->attr = GetMulAttr();
   model.AddConsumer(intermediate->id, mul_op->id);
   model.SetProducer(output->id, mul_op->id);
@@ -448,17 +448,17 @@ TEST(FuseMulToGemmTest, MultiInputGemmDeclinesFusion) {
 TEST(FuseMulToGemmTest, EmptyWeightsDataDeclinesFusion) {
   IrModel model;
 
-  IrTensor* input = model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 8));
+  IrTensor* input = model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 8));
   IrTensor* intermediate =
-      model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 16));
-  IrTensor* output = model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 16));
+      model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 16));
+  IrTensor* output = model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 16));
   model.add_input(input->id);
   model.add_output(output->id);
 
   IrOp* main_op = model.add_op();
-  main_op->name = ToString(OperationType::CONVOLUTION_2D);
+  main_op->name = ToString(OperationType::kConvolution2D);
   Convolution2DAttributes attr;
-  auto& weights = attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
+  auto& weights = attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
   weights.shape = OHWI(16, 3, 2, 8);
   // weights.data is empty
   main_op->attr = std::move(attr);
@@ -466,7 +466,7 @@ TEST(FuseMulToGemmTest, EmptyWeightsDataDeclinesFusion) {
   model.SetProducer(intermediate->id, main_op->id);
 
   IrOp* mul_op = model.add_op();
-  mul_op->name = ToString(OperationType::MUL);
+  mul_op->name = ToString(OperationType::kMul);
   mul_op->attr = GetMulAttr();
   model.AddConsumer(intermediate->id, mul_op->id);
   model.SetProducer(output->id, mul_op->id);

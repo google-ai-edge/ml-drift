@@ -47,23 +47,23 @@ TEST(MergeConvolutionWithAddTest, Smoke) {
   conv_attr.strides = HW(1, 1);
   conv_attr.dilations = HW(1, 1);
   auto& attr_weights =
-      conv_attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
+      conv_attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(16, 3, 2, 8);
   attr_weights.data.resize(attr_weights.shape.DimensionsProduct());
   conv_attr.bias.shape = Linear(16);
   conv_attr.bias.data.resize(16);
 
-  Tensor<Linear, DataType::FLOAT32> add_tensor;
+  Tensor<Linear, DataType::kFloat32> add_tensor;
   add_tensor.shape = Linear(16);
   add_tensor.data.resize(16);
   ElementwiseAttributes add_attr;
   add_attr.param = add_tensor;
 
   auto conv_node = graph.NewNode();
-  conv_node->operation.type = ToString(OperationType::CONVOLUTION_2D);
+  conv_node->operation.type = ToString(OperationType::kConvolution2D);
   conv_node->operation.attributes = conv_attr;
   auto add_node = graph.NewNode();
-  add_node->operation.type = ToString(OperationType::ADD);
+  add_node->operation.type = ToString(OperationType::kAdd);
   add_node->operation.attributes = add_attr;
 
   graph.AddConsumer(conv_node->id, input->id);
@@ -85,19 +85,19 @@ TEST(MergeConvolutionWithAddTest, Smoke) {
 
   EXPECT_EQ(1, graph.nodes().size());
   EXPECT_EQ(2, graph.values().size());
-  EXPECT_EQ(ToString(OperationType::CONVOLUTION_2D),
+  EXPECT_EQ(ToString(OperationType::kConvolution2D),
             graph.nodes()[0]->operation.type);
 }
 
 TEST(FuseAddAfterConvolution2DTest, Smoke) {
   Convolution2DAttributes attr;
-  auto& attr_weights = attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
+  auto& attr_weights = attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(2, 1, 2, 2);
   attr_weights.data = {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f};
   attr.bias.shape = Linear(2);
   attr.bias.data = {1.1f, 1.2f};
 
-  Tensor<Linear, DataType::FLOAT32> add_tensor;
+  Tensor<Linear, DataType::kFloat32> add_tensor;
   add_tensor.shape = Linear(2);
   add_tensor.data = {0.3f, 0.7f};
   ElementwiseAttributes add_attr;
@@ -113,13 +113,13 @@ TEST(FuseAddAfterConvolution2DTest, Smoke) {
 
 TEST(FuseAddAfterDepthwiseConvolution2DTest, Smoke) {
   DepthwiseConvolution2DAttributes attr;
-  auto& attr_weights = attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
+  auto& attr_weights = attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(2, 1, 2, 2);
   attr_weights.data = {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f};
   attr.bias.shape = Linear(4);
   attr.bias.data = {1.1f, 1.2f, 1.3f, 1.4f};
 
-  Tensor<Linear, DataType::FLOAT32> add_tensor;
+  Tensor<Linear, DataType::kFloat32> add_tensor;
   add_tensor.shape = Linear(4);
   add_tensor.data = {0.3f, 0.7f, 0.5f, 0.1f};
   ElementwiseAttributes add_attr;
@@ -141,7 +141,7 @@ TEST(FuseAddAfterConvolutionTransposedTest, Smoke) {
   attr.bias.shape = Linear(2);
   attr.bias.data = {1.1f, 1.2f};
 
-  Tensor<Linear, DataType::FLOAT32> add_tensor;
+  Tensor<Linear, DataType::kFloat32> add_tensor;
   add_tensor.shape = Linear(2);
   add_tensor.data = {0.3f, 0.7f};
   ElementwiseAttributes add_attr;
@@ -162,7 +162,7 @@ TEST(FuseAddAfterFullyConnectedTest, Smoke) {
   attr.bias.shape = Linear(2);
   attr.bias.data = {1.1f, 1.2f};
 
-  Tensor<Linear, DataType::FLOAT32> add_tensor;
+  Tensor<Linear, DataType::kFloat32> add_tensor;
   add_tensor.shape = Linear(2);
   add_tensor.data = {0.3f, 0.7f};
   ElementwiseAttributes add_attr;
@@ -180,7 +180,7 @@ TEST(MergeAddWithConvolutionTest, Smoke) {
   auto input = graph.NewValue();
   input->tensor.shape = BHWC(1, 4, 4, 2);
 
-  Tensor<Linear, DataType::FLOAT32> add_tensor;
+  Tensor<Linear, DataType::kFloat32> add_tensor;
   add_tensor.shape = Linear(2);
   add_tensor.data = {1.0f, 2.0f};
   ElementwiseAttributes add_attr;
@@ -192,17 +192,17 @@ TEST(MergeAddWithConvolutionTest, Smoke) {
   conv_attr.strides = HW(1, 1);
   conv_attr.dilations = HW(1, 1);
   auto& attr_weights =
-      conv_attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
+      conv_attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(2, 1, 2, 2);
   attr_weights.data = {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f};
   conv_attr.bias.shape = Linear(2);
   conv_attr.bias.data = {1.1f, 1.2f};
 
   auto conv_node = graph.NewNode();
-  conv_node->operation.type = ToString(OperationType::CONVOLUTION_2D);
+  conv_node->operation.type = ToString(OperationType::kConvolution2D);
   conv_node->operation.attributes = conv_attr;
   auto add_node = graph.NewNode();
-  add_node->operation.type = ToString(OperationType::ADD);
+  add_node->operation.type = ToString(OperationType::kAdd);
   add_node->operation.attributes = add_attr;
 
   graph.AddConsumer(add_node->id, input->id);
@@ -224,7 +224,7 @@ TEST(MergeAddWithConvolutionTest, Smoke) {
 
   EXPECT_EQ(1, graph.nodes().size());
   EXPECT_EQ(2, graph.values().size());
-  EXPECT_EQ(ToString(OperationType::CONVOLUTION_2D),
+  EXPECT_EQ(ToString(OperationType::kConvolution2D),
             graph.nodes()[0]->operation.type);
 
   Convolution2DAttributes* conv_attr_new =

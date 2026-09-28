@@ -45,13 +45,13 @@ TEST(AddQuantAdjustmentsTest, OneNode) {
   input->tensor.shape = BHWC(1, 4, 4, 8);
   input->quant_params = {.min = 0.0, .max = 1.0, .scale = 0.004};
 
-  Tensor<Linear, DataType::FLOAT32> add_tensor;
+  Tensor<Linear, DataType::kFloat32> add_tensor;
   add_tensor.shape = Linear(8);
   add_tensor.data.resize(8);
   ElementwiseAttributes add_attr;
   add_attr.param = add_tensor;
   auto add_node = graph.NewNode();
-  add_node->operation.type = ToString(OperationType::ADD);
+  add_node->operation.type = ToString(OperationType::kAdd);
   add_node->operation.attributes = add_attr;
 
   graph.AddConsumer(add_node->id, input->id);
@@ -87,13 +87,13 @@ TEST(AddQuantAdjustmentsTest, GeneralCase) {
   input->quant_params = {.min = 0.0, .max = 1.0, .scale = 0.004};
 
   // First Add.
-  Tensor<Linear, DataType::FLOAT32> add_tensor;
+  Tensor<Linear, DataType::kFloat32> add_tensor;
   add_tensor.shape = Linear(8);
   add_tensor.data.resize(8);
   ElementwiseAttributes add_attr;
   add_attr.param = add_tensor;
   auto add1_node = graph.NewNode();
-  add1_node->operation.type = ToString(OperationType::ADD);
+  add1_node->operation.type = ToString(OperationType::kAdd);
   add1_node->operation.attributes = add_attr;
   // QuantizeAndDequantize.
   QuantizeAndDequantizeAttributes quant_attr;
@@ -101,11 +101,11 @@ TEST(AddQuantAdjustmentsTest, GeneralCase) {
   quant_attr.max = 1.0;
   quant_attr.scale = 0.008;
   auto quant_node = graph.NewNode();
-  quant_node->operation.type = ToString(OperationType::QUANTIZE_AND_DEQUANTIZE);
+  quant_node->operation.type = ToString(OperationType::kQuantizeAndDequantize);
   quant_node->operation.attributes = quant_attr;
   // Second Add.
   auto add2_node = graph.NewNode();
-  add2_node->operation.type = ToString(OperationType::ADD);
+  add2_node->operation.type = ToString(OperationType::kAdd);
 
   // Connections.
   graph.AddConsumer(add1_node->id, input->id);
@@ -132,14 +132,14 @@ TEST(AddQuantAdjustmentsTest, GeneralCase) {
 
   EXPECT_EQ(4, graph.nodes().size());
   EXPECT_EQ(5, graph.values().size());
-  EXPECT_EQ(ToString(OperationType::ADD), graph.nodes()[0]->operation.type);
+  EXPECT_EQ(ToString(OperationType::kAdd), graph.nodes()[0]->operation.type);
   // The new node should be inserted at index 1, just after add1.
-  EXPECT_EQ(ToString(OperationType::QUANTIZE_AND_DEQUANTIZE),
+  EXPECT_EQ(ToString(OperationType::kQuantizeAndDequantize),
             graph.nodes()[1]->operation.type);
-  EXPECT_EQ(ToString(OperationType::QUANTIZE_AND_DEQUANTIZE),
+  EXPECT_EQ(ToString(OperationType::kQuantizeAndDequantize),
             graph.nodes()[2]->operation.type);
   EXPECT_EQ(quant_node->id, graph.nodes()[2]->id);
-  EXPECT_EQ(ToString(OperationType::ADD), graph.nodes()[3]->operation.type);
+  EXPECT_EQ(ToString(OperationType::kAdd), graph.nodes()[3]->operation.type);
   auto new_quant_attr = std::any_cast<QuantizeAndDequantizeAttributes>(
       graph.nodes()[1]->operation.attributes);
   EXPECT_EQ(0.0, new_quant_attr.min);

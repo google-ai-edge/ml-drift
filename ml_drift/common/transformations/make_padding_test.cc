@@ -39,9 +39,9 @@ TEST(MakePadding, Smoke) {
 
   auto concat_node = graph.NewNode();
   graph.AddConsumer(concat_node->id, input->id);
-  concat_node->operation.type = ToString(OperationType::CONCAT);
+  concat_node->operation.type = ToString(OperationType::kConcat);
   ConcatAttributes attr;
-  attr.axis = Axis::HEIGHT;
+  attr.axis = Axis::kHeight;
   concat_node->operation.attributes = attr;
 
   Value* output = nullptr;
@@ -49,7 +49,7 @@ TEST(MakePadding, Smoke) {
   output->tensor.shape = BHWC(1, 7, 3, 5);
 
   auto const_node = graph.NewNode();
-  const_node->operation.type = ToString(OperationType::CONSTANT);
+  const_node->operation.type = ToString(OperationType::kConstant);
   ConstTensorAttributes const_attr;
   TensorFloat32 const_data;
   const_data.shape = BHWC(1, 5, 3, 5);
@@ -71,7 +71,7 @@ TEST(MakePadding, Smoke) {
   ASSERT_EQ(1, graph.nodes().size());
   ASSERT_EQ(2, graph.values().size());
   auto pad_node = graph.nodes()[0];
-  ASSERT_EQ(ToString(OperationType::PAD), pad_node->operation.type);
+  ASSERT_EQ(ToString(OperationType::kPad), pad_node->operation.type);
   auto pad_attr = std::any_cast<PadAttributes>(pad_node->operation.attributes);
   EXPECT_EQ(BHWC(0, 0, 0, 0), pad_attr.prepended);
   EXPECT_EQ(BHWC(0, 5, 0, 0), pad_attr.appended);
