@@ -43,10 +43,10 @@ class InferenceContextTest : public OpenCLTest {
 
   GpuModelBuilder::TensorHandle InitOptionalModel() {
     CreateGpuModelInfo create_info{
-        .precision = CalculationsPrecision::F32,
-        .storage_type = TensorStorageType::BUFFER,
+        .precision = CalculationsPrecision::kF32,
+        .storage_type = TensorStorageType::kBuffer,
     };
-    const DataType float_type = DataType::FLOAT32;
+    const DataType float_type = DataType::kFloat32;
 
     GpuModelBuilder model_builder(env_.GetDevicePtr()->GetInfo(),
                                   create_info.hints, create_info.precision,
@@ -96,10 +96,10 @@ class InferenceContextTest : public OpenCLTest {
 
   absl::StatusOr<GpuModelBuilder::TensorHandle> InitSubgraphModel() {
     CreateGpuModelInfo create_info{
-        .precision = CalculationsPrecision::F32,
-        .storage_type = TensorStorageType::BUFFER,
+        .precision = CalculationsPrecision::kF32,
+        .storage_type = TensorStorageType::kBuffer,
     };
-    const DataType float_type = DataType::FLOAT32;
+    const DataType float_type = DataType::kFloat32;
 
     GpuModelBuilder model_builder(env_.GetDevicePtr()->GetInfo(),
                                   create_info.hints, create_info.precision,

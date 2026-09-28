@@ -40,16 +40,16 @@ namespace cl {
 absl::Status ClExecutionEnvironment::Init() { return CreateEnvironment(&env_); }
 
 std::vector<DataType> ClExecutionEnvironment::GetSupportedDataTypes() const {
-  std::vector<DataType> data_types = {DataType::FLOAT32};
+  std::vector<DataType> data_types = {DataType::kFloat32};
   if (env_.GetDevicePtr()->GetInfo().SupportsFP16()) {
-    data_types.push_back(DataType::FLOAT16);
+    data_types.push_back(DataType::kFloat16);
   }
   return data_types;
 }
 
 std::vector<TensorStorageType> ClExecutionEnvironment::GetSupportedStorages(
     DataType data_type) const {
-  if (data_type == DataType::FLOAT16 &&
+  if (data_type == DataType::kFloat16 &&
       !env_.GetDevicePtr()->GetInfo().SupportsFP16()) {
     return {};
   }

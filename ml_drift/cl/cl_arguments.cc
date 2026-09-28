@@ -77,11 +77,11 @@ void AppendArgument(const std::string& arg, std::string* args) {
 
 std::string GetImageModifier(AccessType access) {
   switch (access) {
-    case AccessType::READ:
+    case AccessType::kRead:
       return "__read_only";
-    case AccessType::WRITE:
+    case AccessType::kWrite:
       return "__write_only";
-    case AccessType::READ_WRITE:
+    case AccessType::kReadWrite:
       return "__read_write";
   }
 }
@@ -532,16 +532,16 @@ std::string CLArguments::GetListOfArgs() {
   std::string result;
   for (auto& t : buffers_) {
     const std::string type_name =
-        t.second.desc.data_type == DataType::FLOAT32 ? "float" : "half";
+        t.second.desc.data_type == DataType::kFloat32 ? "float" : "half";
     std::string attributes;
     for (const auto& attr : t.second.desc.attributes) {
       attributes += absl::StrCat("  __attribute__((", attr, "))");
     }
     std::string cl_type;
-    if (t.second.desc.data_type == DataType::BOOL) {
-      cl_type = ToCLDataType(DataType::UINT8, t.second.desc.element_size);
-    } else if (t.second.desc.data_type == DataType::BFLOAT16) {
-      cl_type = ToCLDataType(DataType::UINT16, t.second.desc.element_size);
+    if (t.second.desc.data_type == DataType::kBool) {
+      cl_type = ToCLDataType(DataType::kUint8, t.second.desc.element_size);
+    } else if (t.second.desc.data_type == DataType::kBfloat16) {
+      cl_type = ToCLDataType(DataType::kUint16, t.second.desc.element_size);
     } else {
       cl_type =
           ToCLDataType(t.second.desc.data_type, t.second.desc.element_size);
@@ -702,27 +702,27 @@ bool CLArguments::HasEqualScalarArguments(const CLArguments& other) const {
 
 bool CLArguments::HasFloat16Objects() const {
   for (const auto& t : buffers_) {
-    if (t.second.desc.data_type == DataType::FLOAT16) {
+    if (t.second.desc.data_type == DataType::kFloat16) {
       return true;
     }
   }
   for (const auto& t : images2d_) {
-    if (t.second.desc.data_type == DataType::FLOAT16) {
+    if (t.second.desc.data_type == DataType::kFloat16) {
       return true;
     }
   }
   for (const auto& t : image2d_arrays_) {
-    if (t.second.desc.data_type == DataType::FLOAT16) {
+    if (t.second.desc.data_type == DataType::kFloat16) {
       return true;
     }
   }
   for (const auto& t : images3d_) {
-    if (t.second.desc.data_type == DataType::FLOAT16) {
+    if (t.second.desc.data_type == DataType::kFloat16) {
       return true;
     }
   }
   for (const auto& t : image_buffers_) {
-    if (t.second.desc.data_type == DataType::FLOAT16) {
+    if (t.second.desc.data_type == DataType::kFloat16) {
       return true;
     }
   }
@@ -731,8 +731,8 @@ bool CLArguments::HasFloat16Objects() const {
 
 bool CLArguments::HasWriteOnly3dImages() const {
   for (const auto& t : images3d_) {
-    if (t.second.desc.access_type == AccessType::WRITE ||
-        t.second.desc.access_type == AccessType::READ_WRITE) {
+    if (t.second.desc.access_type == AccessType::kWrite ||
+        t.second.desc.access_type == AccessType::kReadWrite) {
       return true;
     }
   }

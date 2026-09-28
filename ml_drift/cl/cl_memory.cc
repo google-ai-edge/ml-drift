@@ -22,11 +22,11 @@ namespace cl {
 
 cl_mem_flags ToClMemFlags(AccessType access_type) {
   switch (access_type) {
-    case AccessType::READ:
+    case AccessType::kRead:
       return CL_MEM_READ_ONLY;
-    case AccessType::WRITE:
+    case AccessType::kWrite:
       return CL_MEM_WRITE_ONLY;
-    case AccessType::READ_WRITE:
+    case AccessType::kReadWrite:
       return CL_MEM_READ_WRITE;
   }
 

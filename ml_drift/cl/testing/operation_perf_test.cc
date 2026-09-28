@@ -30,7 +30,7 @@ namespace cl {
 
 TEST(OpenCLOperationTest, Performance) {
   ABSL_ASSERT_OK(LoadOpenCL());
-  ABSL_ASSERT_OK(ConvolutionPerfTest(CalculationsPrecision::F16,
+  ABSL_ASSERT_OK(ConvolutionPerfTest(CalculationsPrecision::kF16,
                                 BHWC(1, 32, 32, 1024), 1024, HW(1, 1)));
   // ABSL_ASSERT_OK(ConvolutionSf16Wi4BatchedPerfTest(BHWC(1, 8, 1024, 1024), 1024));
   // ABSL_ASSERT_OK(ConvMoEPerfTest(/*seq_size=*/1024, /*src_channels=*/512,

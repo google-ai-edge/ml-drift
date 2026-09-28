@@ -35,8 +35,8 @@ TEST_F(OpenCLTest, MemoryManagerSharingSavesMemory) {
   GpuModel model;
 
   // Define an intermediate tensor of size 1024 floats (4KB)
-  TensorDescriptor desc(DataType::FLOAT32, TensorStorageType::BUFFER,
-                        Layout::BHWC);
+  TensorDescriptor desc(DataType::kFloat32, TensorStorageType::kBuffer,
+                        Layout::kBHWC);
   desc.SetBHWCShape(BHWC(1, 1, 1, 1024));
 
   model.tensors[1] = desc;

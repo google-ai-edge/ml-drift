@@ -33,12 +33,12 @@ namespace ml_drift {
 namespace cl {
 TEST(CLArgumentsTest, TestSelectorResolve) {
   BufferDescriptor desc;
-  desc.element_type = DataType::FLOAT32;
+  desc.element_type = DataType::kFloat32;
   desc.element_size = 4;
-  desc.memory_type = MemoryType::GLOBAL;
+  desc.memory_type = MemoryType::kGlobal;
 
   Arguments args;
-  args.AddObjectRef("weights", AccessType::READ,
+  args.AddObjectRef("weights", AccessType::kRead,
                     std::make_unique<BufferDescriptor>(std::move(desc)));
   std::string sample_code = R"(
 __kernel void main_function($0) {

@@ -799,8 +799,8 @@ absl::Status InferenceContext::SetInputTensor(ValueId id,
                                               CLCommandQueue* queue) {
   Tensor* gpu_tensor = GetTensor(id);
   TensorDescriptor descriptor_with_data = gpu_tensor->GetDescriptor();
-  if (descriptor_with_data.GetDataType() != DataType::FLOAT32 &&
-      descriptor_with_data.GetDataType() != DataType::FLOAT16) {
+  if (descriptor_with_data.GetDataType() != DataType::kFloat32 &&
+      descriptor_with_data.GetDataType() != DataType::kFloat16) {
     return absl::InvalidArgumentError(
         absl::StrCat("SetInputTensor attempted to upload TensorFloat32 to the "
                      "tensor of type ",
@@ -815,7 +815,7 @@ absl::Status InferenceContext::SetInputTensor(ValueId id,
                                               CLCommandQueue* queue) {
   Tensor* gpu_tensor = GetTensor(id);
   TensorDescriptor descriptor_with_data = gpu_tensor->GetDescriptor();
-  if (descriptor_with_data.GetDataType() != DataType::BOOL) {
+  if (descriptor_with_data.GetDataType() != DataType::kBool) {
     return absl::InvalidArgumentError(absl::StrCat(
         "SetInputTensor attempted to upload TensorBool to the tensor of type ",
         descriptor_with_data.GetDataType(), "."));
@@ -825,7 +825,7 @@ absl::Status InferenceContext::SetInputTensor(ValueId id,
 }
 
 absl::Status InferenceContext::SetInputTensor(
-    ValueId id, const ml_drift::Tensor<BHWC, DataType::INT32>& tensor,
+    ValueId id, const ml_drift::Tensor<BHWC, DataType::kInt32>& tensor,
     CLCommandQueue* queue) {
   Tensor* gpu_tensor = GetTensor(id);
   TensorDescriptor descriptor_with_data = gpu_tensor->GetDescriptor();

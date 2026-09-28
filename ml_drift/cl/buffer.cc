@@ -94,7 +94,7 @@ absl::Status Buffer::GetGPUResources(const GPUObjectDescriptor* obj_ptr,
 
 absl::Status Buffer::CreateFromBufferDescriptor(const BufferDescriptor& desc,
                                                 CLContext* context) {
-  bool read_only = desc.memory_type == MemoryType::CONSTANT;
+  bool read_only = desc.memory_type == MemoryType::kConstant;
   uint8_t* data_ptr = desc.data.empty()
                           ? nullptr
                           : const_cast<unsigned char*>(desc.data.data());

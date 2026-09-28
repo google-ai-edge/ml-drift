@@ -53,8 +53,8 @@ absl::Status AllocateTensorMemoryInternal(const CLContext& context,
   const DataType data_type = tensor_desc.GetDataType();
   std::vector<uint64_t> storage_dims = tensor_desc.GetStorageDims();
   switch (tensor_desc.GetStorageType()) {
-    case TensorStorageType::BUFFER:
-    case TensorStorageType::IMAGE_BUFFER: {
+    case TensorStorageType::kBuffer:
+    case TensorStorageType::kImageBuffer: {
       const size_t data_size =
           storage_dims[0] * tensor_desc.GetElementSize() * SizeOf(data_type);
       cl_int error_code;
@@ -71,7 +71,7 @@ absl::Status AllocateTensorMemoryInternal(const CLContext& context,
       *result = CLMemory(memory, true);
       return absl::OkStatus();
     }
-    case TensorStorageType::TEXTURE_2D: {
+    case TensorStorageType::kTexture2D: {
       cl_image_desc image_desc;
       image_desc.image_type = CL_MEM_OBJECT_IMAGE2D;
       image_desc.image_width = storage_dims[0];
@@ -103,7 +103,7 @@ absl::Status AllocateTensorMemoryInternal(const CLContext& context,
       *result = CLMemory(memory, true);
       return absl::OkStatus();
     }
-    case TensorStorageType::TEXTURE_3D: {
+    case TensorStorageType::kTexture3D: {
       cl_image_desc image_desc;
       image_desc.image_type = CL_MEM_OBJECT_IMAGE3D;
       image_desc.image_width = storage_dims[0];
@@ -136,7 +136,7 @@ absl::Status AllocateTensorMemoryInternal(const CLContext& context,
       *result = CLMemory(memory, true);
       return absl::OkStatus();
     }
-    case TensorStorageType::TEXTURE_ARRAY: {
+    case TensorStorageType::kTextureArray: {
       cl_image_desc image_desc;
       image_desc.image_type = CL_MEM_OBJECT_IMAGE2D_ARRAY;
       image_desc.image_width = storage_dims[0];
@@ -171,7 +171,7 @@ absl::Status AllocateTensorMemoryInternal(const CLContext& context,
       return absl::OkStatus();
     }
 
-    case TensorStorageType::SINGLE_TEXTURE_2D: {
+    case TensorStorageType::kSingleTexture2D: {
       const int element_size = tensor_desc.GetElementSize();
       if (element_size > 4) {
         return absl::InvalidArgumentError(absl::StrCat(
@@ -346,8 +346,8 @@ Tensor::Tensor(cl_mem memory, bool memory_owner, cl_mem image_buffer_memory,
       memory_owner_(memory_owner) {
   tensor_desc.CopyWithoutData(&tensor_desc_);
   if (image_buffer_memory &&
-      (tensor_desc.GetStorageType() == TensorStorageType::TEXTURE_2D ||
-       tensor_desc.GetStorageType() == TensorStorageType::SINGLE_TEXTURE_2D)) {
+      (tensor_desc.GetStorageType() == TensorStorageType::kTexture2D ||
+       tensor_desc.GetStorageType() == TensorStorageType::kSingleTexture2D)) {
     buffer_based_ = true;
   }
 }
@@ -392,8 +392,8 @@ absl::Status Tensor::GetGPUResources(const GPUObjectDescriptor* obj_ptr,
                                      GPUResourcesWithValue* resources) const {
   const auto* buffer_desc = dynamic_cast<const BufferDescriptor*>(obj_ptr);
   if (buffer_desc) {
-    if (tensor_desc_.GetStorageType() != TensorStorageType::BUFFER &&
-        tensor_desc_.GetStorageType() != TensorStorageType::IMAGE_BUFFER) {
+    if (tensor_desc_.GetStorageType() != TensorStorageType::kBuffer &&
+        tensor_desc_.GetStorageType() != TensorStorageType::kImageBuffer) {
       return absl::InvalidArgumentError(
           "Tensor can be used with BufferDescriptor only with "
           "TensorStorageType::BUFFER/TensorStorageType::IMAGE_BUFFER.");
@@ -408,12 +408,12 @@ absl::Status Tensor::GetGPUResources(const GPUObjectDescriptor* obj_ptr,
   tensor_desc->GetGpuResources(tensor_desc_.GetBHWDCShape(),
                                &resources->generic);
 
-  if (tensor_desc_.GetStorageType() == TensorStorageType::BUFFER) {
+  if (tensor_desc_.GetStorageType() == TensorStorageType::kBuffer) {
     resources->buffers.push_back({"buffer", memory_});
-  } else if (tensor_desc_.GetStorageType() == TensorStorageType::TEXTURE_2D ||
+  } else if (tensor_desc_.GetStorageType() == TensorStorageType::kTexture2D ||
              tensor_desc_.GetStorageType() ==
-                 TensorStorageType::SINGLE_TEXTURE_2D) {
-    if (obj_ptr->GetAccess() == AccessType::WRITE &&
+                 TensorStorageType::kSingleTexture2D) {
+    if (obj_ptr->GetAccess() == AccessType::kWrite &&
         tensor_desc->GetUseBufferForWriteOnlyTexture2d()) {
       resources->AddInt("aligned_texture_width", aligned_texture_width_);
       resources->buffers.push_back({"buffer", memory_});
@@ -422,12 +422,12 @@ absl::Status Tensor::GetGPUResources(const GPUObjectDescriptor* obj_ptr,
       resources->images2d.push_back({"image2d", mem});
     }
   } else if (tensor_desc_.GetStorageType() ==
-             TensorStorageType::TEXTURE_ARRAY) {
+             TensorStorageType::kTextureArray) {
     resources->image2d_arrays.push_back({"image2d_array", memory_});
-  } else if (tensor_desc_.GetStorageType() == TensorStorageType::TEXTURE_3D) {
+  } else if (tensor_desc_.GetStorageType() == TensorStorageType::kTexture3D) {
     resources->images3d.push_back({"image3d", memory_});
-  } else if (tensor_desc_.GetStorageType() == TensorStorageType::IMAGE_BUFFER) {
-    if (obj_ptr->GetAccess() == AccessType::WRITE &&
+  } else if (tensor_desc_.GetStorageType() == TensorStorageType::kImageBuffer) {
+    if (obj_ptr->GetAccess() == AccessType::kWrite &&
         tensor_desc->GetUseBufferForWriteOnlyImageBuffer()) {
       resources->buffers.push_back({"buffer", memory_});
     } else {
@@ -443,7 +443,7 @@ cl_mem Tensor::GetMemoryPtr() const {
   if (buffer_based_) {
     return image_buffer_memory_;
   } else {
-    return tensor_desc_.GetStorageType() == TensorStorageType::IMAGE_BUFFER
+    return tensor_desc_.GetStorageType() == TensorStorageType::kImageBuffer
                ? image_buffer_memory_
                : memory_;
   }
@@ -465,7 +465,7 @@ absl::Status Tensor::CreateFromDescriptor(const TensorDescriptor& tensor_desc,
   ABSL_RETURN_IF_ERROR(
       AllocateTensorMemoryInternal(context, tensor_desc, &memory));
   memory_ = memory.Release();
-  if (tensor_desc.GetStorageType() == TensorStorageType::IMAGE_BUFFER) {
+  if (tensor_desc.GetStorageType() == TensorStorageType::kImageBuffer) {
     std::vector<uint64_t> storage_dims = tensor_desc_.GetStorageDims();
     ABSL_RETURN_IF_ERROR(
         CreateImageBufferFromBuffer(context, memory_, tensor_desc.GetDataType(),
@@ -492,14 +492,14 @@ absl::Status Tensor::WriteDataViaStaging(const void* ptr, CLCommandQueue* queue,
                                          CLContext* context) {
   const size_t data_size = GetMemorySizeInBytes();
   switch (tensor_desc_.GetStorageType()) {
-    case TensorStorageType::BUFFER:
-    case TensorStorageType::IMAGE_BUFFER:
+    case TensorStorageType::kBuffer:
+    case TensorStorageType::kImageBuffer:
       return WriteDataViaStagingBuffer(ptr, data_size, queue, context,
                                        &memory_);
-    case TensorStorageType::TEXTURE_ARRAY:
-    case TensorStorageType::TEXTURE_2D:
-    case TensorStorageType::TEXTURE_3D:
-    case TensorStorageType::SINGLE_TEXTURE_2D:
+    case TensorStorageType::kTextureArray:
+    case TensorStorageType::kTexture2D:
+    case TensorStorageType::kTexture3D:
+    case TensorStorageType::kSingleTexture2D:
     default:
       return absl::InternalError(
           absl::StrCat("Writing data via staging is not implemented yet for ",
@@ -511,15 +511,15 @@ absl::Status Tensor::WriteDataViaStaging(const void* ptr, CLCommandQueue* queue,
 absl::Status Tensor::WriteData(const void* ptr, CLCommandQueue* queue,
                                bool async) {
   switch (tensor_desc_.GetStorageType()) {
-    case TensorStorageType::BUFFER:
-    case TensorStorageType::IMAGE_BUFFER:
+    case TensorStorageType::kBuffer:
+    case TensorStorageType::kImageBuffer:
       ABSL_RETURN_IF_ERROR(queue->EnqueueWriteBuffer(
           memory_, GetMemorySizeInBytes(), ptr, async));
       break;
-    case TensorStorageType::TEXTURE_ARRAY:
-    case TensorStorageType::TEXTURE_2D:
-    case TensorStorageType::TEXTURE_3D:
-    case TensorStorageType::SINGLE_TEXTURE_2D: {
+    case TensorStorageType::kTextureArray:
+    case TensorStorageType::kTexture2D:
+    case TensorStorageType::kTexture3D:
+    case TensorStorageType::kSingleTexture2D: {
       cl_mem mem = buffer_based_ ? image_buffer_memory_ : memory_;
       ABSL_RETURN_IF_ERROR(queue->EnqueueWriteImage(
           mem, tensor_desc_.GetFullTensorRegion(), ptr, async));
@@ -533,15 +533,15 @@ absl::Status Tensor::WriteData(const void* ptr, CLCommandQueue* queue,
 
 absl::Status Tensor::ReadData(void* ptr, CLCommandQueue* queue) const {
   switch (tensor_desc_.GetStorageType()) {
-    case TensorStorageType::BUFFER:
-    case TensorStorageType::IMAGE_BUFFER:
+    case TensorStorageType::kBuffer:
+    case TensorStorageType::kImageBuffer:
       ABSL_RETURN_IF_ERROR(
           queue->EnqueueReadBuffer(memory_, GetMemorySizeInBytes(), ptr));
       break;
-    case TensorStorageType::TEXTURE_ARRAY:
-    case TensorStorageType::TEXTURE_2D:
-    case TensorStorageType::TEXTURE_3D:
-    case TensorStorageType::SINGLE_TEXTURE_2D: {
+    case TensorStorageType::kTextureArray:
+    case TensorStorageType::kTexture2D:
+    case TensorStorageType::kTexture3D:
+    case TensorStorageType::kSingleTexture2D: {
       cl_mem mem = buffer_based_ ? image_buffer_memory_ : memory_;
       ABSL_RETURN_IF_ERROR(queue->EnqueueReadImage(
           mem, tensor_desc_.GetFullTensorRegion(), ptr));
@@ -560,7 +560,7 @@ absl::Status CreateTensor(const CLContext& context,
       AllocateTensorMemoryInternal(context, tensor_desc, &mem));
   cl_mem memory = mem.Release();
   cl_mem image_memory = nullptr;
-  if (tensor_desc.GetStorageType() == TensorStorageType::IMAGE_BUFFER) {
+  if (tensor_desc.GetStorageType() == TensorStorageType::kImageBuffer) {
     std::vector<uint64_t> storage_dims = tensor_desc.GetStorageDims();
     ABSL_RETURN_IF_ERROR(
         CreateImageBufferFromBuffer(context, memory, tensor_desc.GetDataType(),
@@ -576,7 +576,7 @@ absl::Status CreateTensorShared(const CLContext& context, cl_mem memory,
                                 const TensorDescriptor& tensor_desc,
                                 Tensor* result) {
   const bool memory_owner = false;
-  if (tensor_desc.GetStorageType() == TensorStorageType::IMAGE_BUFFER) {
+  if (tensor_desc.GetStorageType() == TensorStorageType::kImageBuffer) {
     std::vector<uint64_t> storage_dims = tensor_desc.GetStorageDims();
     cl_mem image_memory;
     ABSL_RETURN_IF_ERROR(

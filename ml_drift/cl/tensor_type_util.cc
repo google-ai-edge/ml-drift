@@ -23,56 +23,56 @@ namespace cl {
 
 ObjectType ToObjectType(TensorStorageType type) {
   switch (type) {
-    case TensorStorageType::IMAGE_BUFFER:
-    case TensorStorageType::BUFFER:
-      return ObjectType::OPENCL_BUFFER;
-    case TensorStorageType::SINGLE_TEXTURE_2D:
-    case TensorStorageType::TEXTURE_2D:
-    case TensorStorageType::TEXTURE_ARRAY:
-    case TensorStorageType::TEXTURE_3D:
-      return ObjectType::OPENCL_TEXTURE;
+    case TensorStorageType::kImageBuffer:
+    case TensorStorageType::kBuffer:
+      return ObjectType::kOpenClBuffer;
+    case TensorStorageType::kSingleTexture2D:
+    case TensorStorageType::kTexture2D:
+    case TensorStorageType::kTextureArray:
+    case TensorStorageType::kTexture3D:
+      return ObjectType::kOpenClTexture;
     default:
-      return ObjectType::UNKNOWN;
+      return ObjectType::kUnknown;
   }
 }
 
 DataLayout ToDataLayout(TensorStorageType type) {
   switch (type) {
-    case TensorStorageType::BUFFER:
-      return DataLayout::DHWC4;
-    case TensorStorageType::IMAGE_BUFFER:
-      return DataLayout::DHWC4;
-    case TensorStorageType::SINGLE_TEXTURE_2D:
-      return DataLayout::BHWC;
-    case TensorStorageType::TEXTURE_2D:
-      return DataLayout::HDWC4;
-    case TensorStorageType::TEXTURE_ARRAY:
-      return DataLayout::DHWC4;
-    case TensorStorageType::TEXTURE_3D:
-      return DataLayout::DHWC4;
+    case TensorStorageType::kBuffer:
+      return DataLayout::kDHWC4;
+    case TensorStorageType::kImageBuffer:
+      return DataLayout::kDHWC4;
+    case TensorStorageType::kSingleTexture2D:
+      return DataLayout::kBHWC;
+    case TensorStorageType::kTexture2D:
+      return DataLayout::kHDWC4;
+    case TensorStorageType::kTextureArray:
+      return DataLayout::kDHWC4;
+    case TensorStorageType::kTexture3D:
+      return DataLayout::kDHWC4;
     default:
-      return DataLayout::UNKNOWN;
+      return DataLayout::kUnknown;
   }
 }
 
 TensorStorageType ToTensorStorageType(ObjectType object_type,
                                       DataLayout data_layout) {
   switch (object_type) {
-    case ObjectType::OPENCL_BUFFER:
-      return TensorStorageType::BUFFER;
-    case ObjectType::OPENCL_TEXTURE:
+    case ObjectType::kOpenClBuffer:
+      return TensorStorageType::kBuffer;
+    case ObjectType::kOpenClTexture:
       switch (data_layout) {
-        case DataLayout::BHWC:
-          return TensorStorageType::SINGLE_TEXTURE_2D;
-        case DataLayout::DHWC4:
-          return TensorStorageType::TEXTURE_ARRAY;
-        case DataLayout::HDWC4:
-          return TensorStorageType::TEXTURE_2D;
+        case DataLayout::kBHWC:
+          return TensorStorageType::kSingleTexture2D;
+        case DataLayout::kDHWC4:
+          return TensorStorageType::kTextureArray;
+        case DataLayout::kHDWC4:
+          return TensorStorageType::kTexture2D;
         default:
-          return TensorStorageType::UNKNOWN;
+          return TensorStorageType::kUnknown;
       }
     default:
-      return TensorStorageType::UNKNOWN;
+      return TensorStorageType::kUnknown;
   }
 }
 

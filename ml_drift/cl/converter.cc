@@ -55,30 +55,30 @@ namespace cl {
 namespace {
 
 bool IsSupportedDataType(DataType type) {
-  return type == DataType::FLOAT16 || type == DataType::FLOAT32 ||
-         type == DataType::INT32 || type == DataType::BOOL ||
-         type == DataType::BFLOAT16 || type == DataType::INT16 ||
-         type == DataType::UINT8 || type == DataType::INT8;
+  return type == DataType::kFloat16 || type == DataType::kFloat32 ||
+         type == DataType::kInt32 || type == DataType::kBool ||
+         type == DataType::kBfloat16 || type == DataType::kInt16 ||
+         type == DataType::kUint8 || type == DataType::kInt8;
 }
 
 bool IsBHWCOpenCLBuffer(const ObjectDef& def) {
   return IsSupportedDataType(def.data_type) &&
-         def.object_type == ObjectType::OPENCL_BUFFER &&
-         def.data_layout == DataLayout::BHWC;
+         def.object_type == ObjectType::kOpenClBuffer &&
+         def.data_layout == DataLayout::kBHWC;
 }
 
 bool IsOpenCLTensor(const ObjectDef& def) {
-  const bool is_buffer_tensor = def.object_type == ObjectType::OPENCL_BUFFER &&
-                                def.data_layout == DataLayout::DHWC4;
+  const bool is_buffer_tensor = def.object_type == ObjectType::kOpenClBuffer &&
+                                def.data_layout == DataLayout::kDHWC4;
   const bool is_image2d_tensor =
-      def.object_type == ObjectType::OPENCL_TEXTURE &&
-      def.data_layout == DataLayout::HDWC4;
+      def.object_type == ObjectType::kOpenClTexture &&
+      def.data_layout == DataLayout::kHDWC4;
   const bool is_image2d_array_tensor =
-      def.object_type == ObjectType::OPENCL_TEXTURE &&
-      def.data_layout == DataLayout::DHWC4;
+      def.object_type == ObjectType::kOpenClTexture &&
+      def.data_layout == DataLayout::kDHWC4;
   const bool is_single_image_tensor =
-      def.object_type == ObjectType::OPENCL_TEXTURE &&
-      def.data_layout == DataLayout::BHWC;
+      def.object_type == ObjectType::kOpenClTexture &&
+      def.data_layout == DataLayout::kBHWC;
   return IsSupportedDataType(def.data_type) &&
          (is_buffer_tensor || is_image2d_tensor || is_image2d_array_tensor ||
           is_single_image_tensor);
@@ -123,13 +123,13 @@ absl::Status TensorToTensorConverter::Init(const TensorObjectDef& input_def,
       TensorDescriptor(input_def.object_def.data_type,
                        ToTensorStorageType(input_def.object_def.object_type,
                                            input_def.object_def.data_layout),
-                       Layout::BHWC);
+                       Layout::kBHWC);
 
   dst_tensor_descriptor_ =
       TensorDescriptor(output_def.object_def.data_type,
                        ToTensorStorageType(output_def.object_def.object_type,
                                            output_def.object_def.data_layout),
-                       Layout::BHWC);
+                       Layout::kBHWC);
 
   shape_ = BHWC(input_def.dimensions.b, input_def.dimensions.h,
                 input_def.dimensions.w, input_def.dimensions.c);
@@ -195,17 +195,17 @@ absl::Status TensorToBHWCBufferConverter::Init(
       input_def.object_def.object_type, input_def.object_def.data_layout);
   DataType src_data_type = input_def.object_def.data_type;
   DataType dst_data_type = output_def.object_def.data_type;
-  if (src_data_type == DataType::BFLOAT16 &&
-      dst_data_type == DataType::BFLOAT16) {
-    src_data_type = DataType::UINT16;
-    dst_data_type = DataType::UINT16;
+  if (src_data_type == DataType::kBfloat16 &&
+      dst_data_type == DataType::kBfloat16) {
+    src_data_type = DataType::kUint16;
+    dst_data_type = DataType::kUint16;
   }
   src_tensor_descriptor_ =
-      TensorDescriptor(src_data_type, src_tensor_type, Layout::BHWC);
+      TensorDescriptor(src_data_type, src_tensor_type, Layout::kBHWC);
 
   dst_buffer_descriptor_.element_type = dst_data_type;
   dst_buffer_descriptor_.element_size = 1;
-  dst_buffer_descriptor_.memory_type = MemoryType::GLOBAL;
+  dst_buffer_descriptor_.memory_type = MemoryType::kGlobal;
 
   shape_ = BHWC(input_def.dimensions.b, input_def.dimensions.h,
                 input_def.dimensions.w, input_def.dimensions.c);
@@ -270,21 +270,21 @@ absl::Status BHWCBufferToTensorConverter::Init(
     Environment* environment) {
   DataType src_data_type = input_def.object_def.data_type;
   DataType dst_data_type = output_def.object_def.data_type;
-  if (src_data_type == DataType::BFLOAT16 &&
-      dst_data_type == DataType::BFLOAT16) {
-    src_data_type = DataType::UINT16;
-    dst_data_type = DataType::UINT16;
+  if (src_data_type == DataType::kBfloat16 &&
+      dst_data_type == DataType::kBfloat16) {
+    src_data_type = DataType::kUint16;
+    dst_data_type = DataType::kUint16;
   }
 
   src_buffer_descriptor_.element_type = src_data_type;
   src_buffer_descriptor_.element_size = 1;
-  src_buffer_descriptor_.memory_type = MemoryType::GLOBAL;
+  src_buffer_descriptor_.memory_type = MemoryType::kGlobal;
 
   TensorStorageType dst_tensor_type = ToTensorStorageType(
       output_def.object_def.object_type, output_def.object_def.data_layout);
   dst_tensor_descriptor_ = TensorDescriptor(dst_data_type,
 
-                                            dst_tensor_type, Layout::BHWC);
+                                            dst_tensor_type, Layout::kBHWC);
 
   shape_ = BHWC(output_def.dimensions.b, output_def.dimensions.h,
                 output_def.dimensions.w, output_def.dimensions.c);
@@ -331,15 +331,15 @@ std::array<size_t, 3> CalculateTextureRegion(const TensorObjectDef& def) {
   std::array<size_t, 3> region = {0, 0, 1};
   switch (ToTensorStorageType(def.object_def.object_type,
                               def.object_def.data_layout)) {
-    case TensorStorageType::SINGLE_TEXTURE_2D:
+    case TensorStorageType::kSingleTexture2D:
       region[0] = static_cast<size_t>(dims.w * dims.b);
       region[1] = static_cast<size_t>(dims.h);
       break;
-    case TensorStorageType::TEXTURE_2D:
+    case TensorStorageType::kTexture2D:
       region[0] = static_cast<size_t>(dims.w * dims.b);
       region[1] = static_cast<size_t>(dims.h * dims.d());
       break;
-    case TensorStorageType::TEXTURE_ARRAY:
+    case TensorStorageType::kTextureArray:
       region[0] = static_cast<size_t>(dims.w * dims.b);
       region[1] = static_cast<size_t>(dims.h);
       region[2] = static_cast<size_t>(dims.d());
@@ -351,8 +351,8 @@ std::array<size_t, 3> CalculateTextureRegion(const TensorObjectDef& def) {
 }
 
 bool IsOpenClTextureOrBuffer(ObjectType type) {
-  return type == ObjectType::OPENCL_BUFFER ||
-         type == ObjectType::OPENCL_TEXTURE;
+  return type == ObjectType::kOpenClBuffer ||
+         type == ObjectType::kOpenClTexture;
 }
 
 // Copies data from one object of the same type and layout to another object.
@@ -413,7 +413,7 @@ class TrivialCopier : public OpenClConverterImpl {
   }
 
  private:
-  DataType data_type_ = DataType::UNKNOWN;
+  DataType data_type_ = DataType::kUnknown;
   std::array<size_t, 3> region_;
 };
 
@@ -424,9 +424,9 @@ class CpuCopier : public OpenClConverterImpl {
   static bool IsSupported(const ObjectDef& input, const ObjectDef& output) {
     return input.data_type == output.data_type &&
            input.data_layout == output.data_layout &&
-           ((input.object_type == ObjectType::CPU_MEMORY &&
+           ((input.object_type == ObjectType::kCpuMemory &&
              IsOpenClTextureOrBuffer(output.object_type)) ||
-            (output.object_type == ObjectType::CPU_MEMORY &&
+            (output.object_type == ObjectType::kCpuMemory &&
              IsOpenClTextureOrBuffer(input.object_type)));
   }
 
@@ -434,7 +434,7 @@ class CpuCopier : public OpenClConverterImpl {
                     const TensorObjectDef& output_def,
                     Environment* environment) final {
     region_ = CalculateTextureRegion(
-        input_def.object_def.object_type == ObjectType::CPU_MEMORY ? output_def
+        input_def.object_def.object_type == ObjectType::kCpuMemory ? output_def
                                                                    : input_def);
     input_data_type_ = input_def.object_def.data_type;
     output_data_type_ = output_def.object_def.data_type;
@@ -447,7 +447,7 @@ class CpuCopier : public OpenClConverterImpl {
     auto cpu_input = std::get_if<CpuMemory>(&input_obj);
     auto cpu_output = std::get_if<CpuMemory>(&output_obj);
     if (cpu_input) {
-      if (output_data_type_ == DataType::BOOL) {
+      if (output_data_type_ == DataType::kBool) {
         return CopyFromBoolCpu(cpu_input, output_obj);
       }
       auto texture_output = std::get_if<OpenClTexture>(&output_obj);
@@ -463,7 +463,7 @@ class CpuCopier : public OpenClConverterImpl {
                                           cpu_input->data, async_);
       }
     } else if (cpu_output) {
-      if (input_data_type_ == DataType::BOOL) {
+      if (input_data_type_ == DataType::kBool) {
         return CopyToBoolCpu(input_obj, cpu_output);
       }
       auto texture_input = std::get_if<OpenClTexture>(&input_obj);

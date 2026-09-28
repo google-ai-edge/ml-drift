@@ -132,7 +132,7 @@ class InferenceContext {
                               CLCommandQueue* queue);
 
   absl::Status SetInputTensor(
-      ValueId id, const ml_drift::Tensor<BHWC, DataType::INT32>& tensor,
+      ValueId id, const ml_drift::Tensor<BHWC, DataType::kInt32>& tensor,
       CLCommandQueue* queue);
 
   // It will work only with input/output tensor ids. For all other ids we don't

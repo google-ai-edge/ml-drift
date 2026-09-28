@@ -36,20 +36,20 @@ namespace {
 bool IsGpuSupportsStorageType(const GpuInfo& gpu_info,
                               TensorStorageType storage_type) {
   switch (storage_type) {
-    case TensorStorageType::TEXTURE_2D:
+    case TensorStorageType::kTexture2D:
       return !gpu_info.IsAMD();
-    case TensorStorageType::BUFFER:
+    case TensorStorageType::kBuffer:
       return true;
-    case TensorStorageType::TEXTURE_ARRAY:
+    case TensorStorageType::kTextureArray:
       return !gpu_info.IsAMD() && gpu_info.SupportsTextureArray();
-    case TensorStorageType::IMAGE_BUFFER:
+    case TensorStorageType::kImageBuffer:
       return (gpu_info.IsAdreno() || gpu_info.IsAMD() || gpu_info.IsNvidia()) &&
              gpu_info.SupportsImageBuffer();
-    case TensorStorageType::TEXTURE_3D:
+    case TensorStorageType::kTexture3D:
       return !gpu_info.IsAMD() && gpu_info.SupportsImage3D();
-    case TensorStorageType::SINGLE_TEXTURE_2D:
+    case TensorStorageType::kSingleTexture2D:
       return false;
-    case TensorStorageType::UNKNOWN:
+    case TensorStorageType::kUnknown:
       return false;
   }
   return false;
@@ -58,10 +58,10 @@ bool IsGpuSupportsStorageType(const GpuInfo& gpu_info,
 bool IsGpuSupportsPrecision(const GpuInfo& gpu_info,
                             CalculationsPrecision precision) {
   switch (precision) {
-    case CalculationsPrecision::F32_F16:
-    case CalculationsPrecision::F16:
+    case CalculationsPrecision::kF32F16:
+    case CalculationsPrecision::kF16:
       return gpu_info.SupportsFP16();
-    case CalculationsPrecision::F32:
+    case CalculationsPrecision::kF32:
       return true;
   }
 }
@@ -133,8 +133,8 @@ absl::Status Environment::Init() {
 std::vector<CalculationsPrecision> Environment::GetSupportedPrecisions() const {
   std::vector<CalculationsPrecision> precisions;
   for (CalculationsPrecision precision :
-       {CalculationsPrecision::F32, CalculationsPrecision::F32_F16,
-        CalculationsPrecision::F16}) {
+       {CalculationsPrecision::kF32, CalculationsPrecision::kF32F16,
+        CalculationsPrecision::kF16}) {
     if (IsSupported(precision)) {
       precisions.push_back(precision);
     }
@@ -149,9 +149,9 @@ bool Environment::IsSupported(CalculationsPrecision precision) const {
 std::vector<TensorStorageType> Environment::GetSupportedStorages() const {
   std::vector<TensorStorageType> storage_types;
   for (auto storage_type :
-       {TensorStorageType::TEXTURE_2D, TensorStorageType::BUFFER,
-        TensorStorageType::TEXTURE_ARRAY, TensorStorageType::IMAGE_BUFFER,
-        TensorStorageType::TEXTURE_3D}) {
+       {TensorStorageType::kTexture2D, TensorStorageType::kBuffer,
+        TensorStorageType::kTextureArray, TensorStorageType::kImageBuffer,
+        TensorStorageType::kTexture3D}) {
     if (IsSupported(storage_type)) {
       storage_types.push_back(storage_type);
     }
@@ -163,8 +163,8 @@ std::vector<TensorStorageType>
 Environment::GetSupportedStoragesWithHWZeroClampSupport() const {
   std::vector<TensorStorageType> storage_types;
   for (auto storage_type :
-       {TensorStorageType::TEXTURE_2D, TensorStorageType::TEXTURE_ARRAY,
-        TensorStorageType::TEXTURE_3D}) {
+       {TensorStorageType::kTexture2D, TensorStorageType::kTextureArray,
+        TensorStorageType::kTexture3D}) {
     if (IsSupported(storage_type)) {
       storage_types.push_back(storage_type);
     }
@@ -178,21 +178,21 @@ bool Environment::IsSupported(TensorStorageType storage_type) const {
 
 TensorStorageType GetFastestStorageType(const GpuInfo& gpu_info) {
   if (gpu_info.IsAdreno()) {
-    return TensorStorageType::TEXTURE_2D;
+    return TensorStorageType::kTexture2D;
   } else if (gpu_info.IsPowerVR()) {
-    return TensorStorageType::TEXTURE_2D;
+    return TensorStorageType::kTexture2D;
   } else if (gpu_info.IsMali()) {
-    return TensorStorageType::TEXTURE_2D;
+    return TensorStorageType::kTexture2D;
   } else if (gpu_info.IsNvidia()) {
-    return gpu_info.SupportsImageBuffer() ? TensorStorageType::IMAGE_BUFFER
-                                          : TensorStorageType::BUFFER;
+    return gpu_info.SupportsImageBuffer() ? TensorStorageType::kImageBuffer
+                                          : TensorStorageType::kBuffer;
   } else if (gpu_info.IsAMD()) {
-    return gpu_info.SupportsImageBuffer() ? TensorStorageType::IMAGE_BUFFER
-                                          : TensorStorageType::BUFFER;
+    return gpu_info.SupportsImageBuffer() ? TensorStorageType::kImageBuffer
+                                          : TensorStorageType::kBuffer;
   } else if (gpu_info.IsIntel()) {
-    return TensorStorageType::BUFFER;
+    return TensorStorageType::kBuffer;
   }
-  return TensorStorageType::BUFFER;
+  return TensorStorageType::kBuffer;
 }
 
 TensorStorageType GetStorageTypeWithMinimalMemoryConsumption(
@@ -200,38 +200,38 @@ TensorStorageType GetStorageTypeWithMinimalMemoryConsumption(
   if (gpu_info.IsAdreno()) {
     if (gpu_info.adreno_info.IsAdreno3xx() ||
         gpu_info.adreno_info.IsAdreno4xx()) {
-      return TensorStorageType::BUFFER;
+      return TensorStorageType::kBuffer;
     } else {
       if (gpu_info.opencl_info.IsImage2dFromBufferSupported()) {
-        return TensorStorageType::TEXTURE_2D;
+        return TensorStorageType::kTexture2D;
       } else {
-        return TensorStorageType::IMAGE_BUFFER;
+        return TensorStorageType::kImageBuffer;
       }
     }
   } else if (gpu_info.IsPowerVR()) {
     if (gpu_info.opencl_info.IsImage2dFromBufferSupported() &&
         CanUseSubBufferForImage2d(gpu_info)) {
-      return TensorStorageType::TEXTURE_2D;
+      return TensorStorageType::kTexture2D;
     } else {
-      return TensorStorageType::BUFFER;
+      return TensorStorageType::kBuffer;
     }
   } else if (gpu_info.IsMali()) {
     if (gpu_info.opencl_info.IsImage2dFromBufferSupported() &&
         CanUseSubBufferForImage2d(gpu_info)) {
-      return TensorStorageType::TEXTURE_2D;
+      return TensorStorageType::kTexture2D;
     } else {
-      return TensorStorageType::BUFFER;
+      return TensorStorageType::kBuffer;
     }
   } else if (gpu_info.IsNvidia()) {
-    return gpu_info.SupportsImageBuffer() ? TensorStorageType::IMAGE_BUFFER
-                                          : TensorStorageType::BUFFER;
+    return gpu_info.SupportsImageBuffer() ? TensorStorageType::kImageBuffer
+                                          : TensorStorageType::kBuffer;
   } else if (gpu_info.IsAMD()) {
-    return gpu_info.SupportsImageBuffer() ? TensorStorageType::IMAGE_BUFFER
-                                          : TensorStorageType::BUFFER;
+    return gpu_info.SupportsImageBuffer() ? TensorStorageType::kImageBuffer
+                                          : TensorStorageType::kBuffer;
   } else if (gpu_info.IsIntel()) {
-    return TensorStorageType::BUFFER;
+    return TensorStorageType::kBuffer;
   }
-  return TensorStorageType::BUFFER;
+  return TensorStorageType::kBuffer;
 }
 
 bool CanUseSubBufferForImage2d(const GpuInfo& gpu_info) {
