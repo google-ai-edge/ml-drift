@@ -22,6 +22,7 @@
 
 #include "absl/numeric/int128.h"
 #include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/time/time.h"
 #include "ml_drift/common/gpu_info.h"
@@ -141,7 +142,7 @@ class ComputeTask {
   absl::Status Encode(const wgpu::ComputePassEncoder& compute_encoder) const;
   absl::Status Execute(const Environment& env);
 
-  absl::Duration GetOperationTime(const Environment& env);
+  absl::StatusOr<absl::Duration> GetOperationTime(const Environment& env);
 
   void CopyFrom(const ComputeTask& other);
 

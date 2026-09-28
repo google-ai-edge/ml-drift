@@ -552,8 +552,8 @@ absl::Status InferenceContext::Profile(const Environment& env,
     }
   } else {
     for (int k = 0; k < nodes_.size(); ++k) {
-      result->dispatches[k].duration =
-          nodes_[k].webgpu_operation.GetOperationTime(env);
+      ABSL_ASSIGN_OR_RETURN(result->dispatches[k].duration,
+                            nodes_[k].webgpu_operation.GetOperationTime(env));
     }
   }
   for (int k = 0; k < nodes_.size(); ++k) {

@@ -151,7 +151,7 @@ absl::Status TestConvolutionPerformance(const Convolution2DAttributes& attr,
   ABSL_RETURN_IF_ERROR(webgpu_op.Compile(*env));
 
   for (int i = 0; i < 5; ++i) {
-    auto duration = webgpu_op.GetOperationTime(*env);
+    ABSL_ASSIGN_OR_RETURN(auto duration, webgpu_op.GetOperationTime(*env));
     const auto time_ms = absl::ToDoubleMilliseconds(duration);
     const double fps = 1000.0 / time_ms;
     const double gflops_real = fps * gflops_count;
@@ -389,7 +389,7 @@ absl::Status ConvolutionInt8PerfTest(const BHWC& src_shape, int dst_channels) {
   ABSL_RETURN_IF_ERROR(webgpu_op.Compile(env));
 
   for (int i = 0; i < 5; ++i) {
-    auto duration = webgpu_op.GetOperationTime(env);
+    ABSL_ASSIGN_OR_RETURN(auto duration, webgpu_op.GetOperationTime(env));
     const auto time_ms = absl::ToDoubleMilliseconds(duration);
     const double fps = 1000.0 / time_ms;
     const double gflops_real = fps * gflops_count;
@@ -562,7 +562,7 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision,
   ABSL_RETURN_IF_ERROR(webgpu_op.Compile(env));
 
   for (int i = 0; i < 10; ++i) {
-    auto duration = webgpu_op.GetOperationTime(env);
+    ABSL_ASSIGN_OR_RETURN(auto duration, webgpu_op.GetOperationTime(env));
     double time_ms = absl::ToDoubleMilliseconds(duration);
     const double fps = 1000.0 / time_ms;
     const double gflops_real = fps * gflops_count;
