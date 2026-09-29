@@ -144,6 +144,31 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "gpu_model_builder_moe_util",
+    srcs = ["gpu_model_builder_moe_util.cc"],
+    hdrs = ["gpu_model_builder_moe_util.h"],
+    deps = [
+        ":data_type",
+        ":gpu_model_builder",
+        ":operations",
+        ":precision",
+        ":shape",
+        ":tensor",
+        ":util",
+        "//ml_drift/common/kernels:conv_apple_mpp",
+        "//ml_drift/common/kernels:conv_generic",
+        "//ml_drift/common/kernels:conv_wave_matrix",
+        "//ml_drift/common/kernels:conv_wave_memory",
+        "//ml_drift/common/kernels:fully_connected",
+        "//ml_drift/common/kernels/special:experts_remap",
+        "//ml_drift/common/task:gpu_operation",
+        "//ml_drift/common/task:tensor_desc",
+        "@com_google_absl//absl/status:status_macros",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
 flatbuffer_cc_library(
     name = "gpu_model_cc_fbs",
     srcs = ["gpu_model.fbs"],

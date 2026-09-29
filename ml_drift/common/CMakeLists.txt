@@ -238,6 +238,31 @@ target_link_libraries(mld_common_gpu_model_builder
     mld_common_winograd_util
 )
 
+add_library(mld_common_gpu_model_builder_moe_util gpu_model_builder_moe_util.cc gpu_model_builder_moe_util.h)
+target_include_directories(mld_common_gpu_model_builder_moe_util PUBLIC
+  $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>
+)
+target_link_libraries(mld_common_gpu_model_builder_moe_util
+  PUBLIC
+    absl::status_macros
+    absl::statusor
+    mld_common_data_type
+    mld_common_gpu_model_builder
+    mld_common_kernels_conv_apple_mpp
+    mld_common_kernels_conv_generic
+    mld_common_kernels_conv_wave_matrix
+    mld_common_kernels_conv_wave_memory
+    mld_common_kernels_fully_connected
+    mld_common_kernels_special_experts_remap
+    mld_common_operations
+    mld_common_precision
+    mld_common_shape
+    mld_common_task_gpu_operation
+    mld_common_task_tensor_desc
+    mld_common_tensor
+    mld_common_util
+)
+
 add_library(mld_common_gpu_model_util gpu_model_util.cc gpu_model_util.h)
 target_include_directories(mld_common_gpu_model_util PUBLIC
   $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>
