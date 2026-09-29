@@ -82,213 +82,213 @@ Padding3D& Padding3D::operator-(const Padding3D& value) {
 
 std::string ToString(enum OperationType op) {
   switch (op) {
-    case OperationType::ABS:
+    case OperationType::kAbs:
       return "abs";
-    case OperationType::ADD:
+    case OperationType::kAdd:
       return "add";
-    case OperationType::ATAN2:
+    case OperationType::kAtan2:
       return "atan2";
-    case OperationType::BATCH_NORMALIZATION:
+    case OperationType::kBatchNormalization:
       return "batch_normalization";
-    case OperationType::BATCH_TO_SPACE:
+    case OperationType::kBatchToSpace:
       return "batch_to_space";
-    case OperationType::BATCHED_MATMUL:
+    case OperationType::kBatchedMatmul:
       return "batched_matmul";
-    case OperationType::BITCAST:
+    case OperationType::kBitcast:
       return "bitcast";
-    case OperationType::BROADCAST_IN_DIM:
+    case OperationType::kBroadcastInDim:
       return "broadcast_in_dim";
-    case OperationType::CAST:
+    case OperationType::kCast:
       return "cast";
-    case OperationType::CEIL:
+    case OperationType::kCeil:
       return "ceil";
-    case OperationType::CONCAT:
+    case OperationType::kConcat:
       return "concat";
-    case OperationType::CONSTANT:
+    case OperationType::kConstant:
       return "const";
-    case OperationType::CONVOLUTION_2D:
+    case OperationType::kConvolution2D:
       return "convolution_2d";
-    case OperationType::CONVOLUTION_TRANSPOSED:
+    case OperationType::kConvolutionTransposed:
       return "convolution_transposed";
-    case OperationType::COPY:
+    case OperationType::kCopy:
       return "copy";
-    case OperationType::COS:
+    case OperationType::kCos:
       return "cos";
-    case OperationType::CUMSUM:
+    case OperationType::kCumsum:
       return "cumsum";
-    case OperationType::DEPTHWISE_CONVOLUTION:
+    case OperationType::kDepthwiseConvolution:
       return "depthwise_convolution";
-    case OperationType::DEPTH_TO_SPACE:
+    case OperationType::kDepthToSpace:
       return "depth_to_space";
-    case OperationType::DIV:
+    case OperationType::kDiv:
       return "div";
-    case OperationType::DOT_GENERAL:
+    case OperationType::kDotGeneral:
       return "dot_general";
-    case OperationType::DYNAMIC_UPDATE_SLICE:
+    case OperationType::kDynamicUpdateSlice:
       return "dynamic_update_slice";
-    case OperationType::ELU:
+    case OperationType::kElu:
       return "elu";
-    case OperationType::EMBEDDING_LOOKUP:
+    case OperationType::kEmbeddingLookup:
       return "embedding_lookup";
-    case OperationType::EQUAL:
+    case OperationType::kEqual:
       return "equal";
-    case OperationType::EXP:
+    case OperationType::kExp:
       return "exp";
-    case OperationType::FLOOR:
+    case OperationType::kFloor:
       return "floor";
-    case OperationType::FLOOR_DIV:
+    case OperationType::kFloorDiv:
       return "floor_div";
-    case OperationType::FLOOR_MOD:
+    case OperationType::kFloorMod:
       return "floor_mod";
-    case OperationType::FULLY_CONNECTED:
+    case OperationType::kFullyConnected:
       return "fully_connected";
-    case OperationType::FULLY_CONNECTED_INT2:
+    case OperationType::kFullyConnectedInt2:
       return "fully_connected_int2";
-    case OperationType::FULLY_CONNECTED_INT4:
+    case OperationType::kFullyConnectedInt4:
       return "fully_connected_int4";
-    case OperationType::FULLY_CONNECTED_INT8:
+    case OperationType::kFullyConnectedInt8:
       return "fully_connected_int8";
-    case OperationType::GATHER:
+    case OperationType::kGather:
       return "gather";
-    case OperationType::GELU:
+    case OperationType::kGelu:
       return "gelu";
-    case OperationType::GELU_TANH_APPROX:
+    case OperationType::kGeluTanhApprox:
       return "gelu_tanh_approx";
-    case OperationType::GREATER:
+    case OperationType::kGreater:
       return "greater";
-    case OperationType::GREATER_EQUAL:
+    case OperationType::kGreaterEqual:
       return "greater_equal";
-    case OperationType::GROUP_NORM:
+    case OperationType::kGroupNorm:
       return "group_norm";
-    case OperationType::HARD_SWISH:
+    case OperationType::kHardSwish:
       return "hard_swish";
-    case OperationType::LAYER_NORM:
+    case OperationType::kLayerNorm:
       return "layer_norm";
-    case OperationType::LESS:
+    case OperationType::kLess:
       return "less";
-    case OperationType::LESS_EQUAL:
+    case OperationType::kLessEqual:
       return "less_equal";
-    case OperationType::LOG:
+    case OperationType::kLog:
       return "log";
-    case OperationType::LOGICAL_NOT:
+    case OperationType::kLogicalNot:
       return "logical_not";
-    case OperationType::LOGICAL_AND:
+    case OperationType::kLogicalAnd:
       return "logical_and";
-    case OperationType::LOGICAL_OR:
+    case OperationType::kLogicalOr:
       return "logical_or";
-    case OperationType::LOGICAL_XOR:
+    case OperationType::kLogicalXor:
       return "logical_xor";
-    case OperationType::LSTM:
+    case OperationType::kLstm:
       return "lstm";
-    case OperationType::MAXIMUM:
+    case OperationType::kMaximum:
       return "maximum";
-    case OperationType::MAX_INDEX:
+    case OperationType::kMaxIndex:
       return "max_index";
-    case OperationType::MAX_UNPOOLING_2D:
+    case OperationType::kMaxUnpooling2D:
       return "max_unpooling";
-    case OperationType::MEAN:
+    case OperationType::kMean:
       return "mean";
-    case OperationType::MEAN_STDDEV_NORMALIZATION:
+    case OperationType::kMeanStddevNormalization:
       return "mean_stddev_normalization";
-    case OperationType::MINIMUM:
+    case OperationType::kMinimum:
       return "minimum";
-    case OperationType::MISH:
+    case OperationType::kMish:
       return "mish";
-    case OperationType::MOD:
+    case OperationType::kMod:
       return "mod";
-    case OperationType::MUL:
+    case OperationType::kMul:
       return "mul";
-    case OperationType::NEG:
+    case OperationType::kNeg:
       return "neg";
-    case OperationType::NOT_EQUAL:
+    case OperationType::kNotEqual:
       return "not_equal";
-    case OperationType::ONE_HOT:
+    case OperationType::kOneHot:
       return "one_hot";
-    case OperationType::PAD:
+    case OperationType::kPad:
       return "pad";
-    case OperationType::POOLING_2D:
+    case OperationType::kPooling2D:
       return "pooling_2d";
-    case OperationType::POSITIONAL_EMBEDDING:
+    case OperationType::kPositionalEmbedding:
       return "positional_embedding";
-    case OperationType::POW:
+    case OperationType::kPow:
       return "pow";
-    case OperationType::PRELU:
+    case OperationType::kPrelu:
       return "prelu";
-    case OperationType::QUANTIZE_AND_DEQUANTIZE:
+    case OperationType::kQuantizeAndDequantize:
       return "quantize_and_dequantize";
-    case OperationType::REDUCE_ALL:
+    case OperationType::kReduceAll:
       return "reduce_all";
-    case OperationType::REDUCE_ANY:
+    case OperationType::kReduceAny:
       return "reduce_any";
-    case OperationType::REDUCE_MAXIMUM:
+    case OperationType::kReduceMaximum:
       return "reduce_maximum";
-    case OperationType::REDUCE_MINIMUM:
+    case OperationType::kReduceMinimum:
       return "reduce_minimum";
-    case OperationType::REDUCE_PRODUCT:
+    case OperationType::kReduceProduct:
       return "reduce_product";
-    case OperationType::REDUCE_SUM:
+    case OperationType::kReduceSum:
       return "reduce_sum";
-    case OperationType::RELU:
+    case OperationType::kRelu:
       return "relu";
-    case OperationType::REMAINDER:
+    case OperationType::kRemainder:
       return "remainder";
-    case OperationType::RESAMPLER:
+    case OperationType::kResampler:
       return "resampler";
-    case OperationType::RESHAPE:
+    case OperationType::kReshape:
       return "reshape";
-    case OperationType::RESIZE:
+    case OperationType::kResize:
       return "resize";
-    case OperationType::REVERSE:
+    case OperationType::kReverse:
       return "reverse";
-    case OperationType::RMS_NORM:
+    case OperationType::kRmsNorm:
       return "rms_norm";
-    case OperationType::ROPE:
+    case OperationType::kRope:
       return "rope";
-    case OperationType::ROUND:
+    case OperationType::kRound:
       return "round";
-    case OperationType::RSQRT:
+    case OperationType::kRsqrt:
       return "rsqrt";
-    case OperationType::SCALED_DOT_PRODUCT_ATTENTION:
+    case OperationType::kScaledDotProductAttention:
       return "scaled_dot_product_attention";
-    case OperationType::SELECT_V2:
+    case OperationType::kSelectV2:
       return "select_v2";
-    case OperationType::SHIFT_LEFT:
+    case OperationType::kShiftLeft:
       return "shift_left";
-    case OperationType::SHIFT_RIGHT:
+    case OperationType::kShiftRight:
       return "shift_right";
-    case OperationType::SIGMOID:
+    case OperationType::kSigmoid:
       return "sigmoid";
-    case OperationType::SIGN:
+    case OperationType::kSign:
       return "sign";
-    case OperationType::SIN:
+    case OperationType::kSin:
       return "sin";
-    case OperationType::SLICE:
+    case OperationType::kSlice:
       return "slice";
-    case OperationType::SOFTMAX:
+    case OperationType::kSoftmax:
       return "softmax";
-    case OperationType::SPACE_TO_BATCH:
+    case OperationType::kSpaceToBatch:
       return "space_to_batch";
-    case OperationType::SPACE_TO_DEPTH:
+    case OperationType::kSpaceToDepth:
       return "space_to_depth";
-    case OperationType::SPLIT:
+    case OperationType::kSplit:
       return "split";
-    case OperationType::SQRT:
+    case OperationType::kSqrt:
       return "sqrt";
-    case OperationType::SQUARE:
+    case OperationType::kSquare:
       return "square";
-    case OperationType::SQUARED_DIFF:
+    case OperationType::kSquaredDiff:
       return "squared_diff";
-    case OperationType::SUB:
+    case OperationType::kSub:
       return "subtract";
-    case OperationType::TANH:
+    case OperationType::kTanh:
       return "tanh";
-    case OperationType::TILE:
+    case OperationType::kTile:
       return "tile";
-    case OperationType::TOP_K:
+    case OperationType::kTopK:
       return "top_k";
-    case OperationType::TRANSPOSE:
+    case OperationType::kTranspose:
       return "transpose";
-    case OperationType::UNKNOWN:
+    case OperationType::kUnknown:
       return "unknown_operation";
   }
 }
@@ -296,112 +296,112 @@ std::string ToString(enum OperationType op) {
 OperationType OperationTypeFromString(const std::string& name) {
   static const auto operations =
       new absl::flat_hash_map<std::string, OperationType>({
-          {"abs", OperationType::ABS},
-          {"add", OperationType::ADD},
-          {"atan2", OperationType::ATAN2},
-          {"batch_normalization", OperationType::BATCH_NORMALIZATION},
-          {"batched_matmul", OperationType::BATCHED_MATMUL},
-          {"bitcast", OperationType::BITCAST},
-          {"broadcast_in_dim", OperationType::BROADCAST_IN_DIM},
-          {"cast", OperationType::CAST},
-          {"ceil", OperationType::CEIL},
-          {"concat", OperationType::CONCAT},
-          {"const", OperationType::CONSTANT},
-          {"convolution_2d", OperationType::CONVOLUTION_2D},
-          {"convolution_transposed", OperationType::CONVOLUTION_TRANSPOSED},
-          {"copy", OperationType::COPY},
-          {"cos", OperationType::COS},
-          {"cumsum", OperationType::CUMSUM},
-          {"depthwise_convolution", OperationType::DEPTHWISE_CONVOLUTION},
-          {"depth_to_space", OperationType::DEPTH_TO_SPACE},
-          {"div", OperationType::DIV},
-          {"dot_general", OperationType::DOT_GENERAL},
-          {"dynamic_update_slice", OperationType::DYNAMIC_UPDATE_SLICE},
-          {"elu", OperationType::ELU},
-          {"embedding_lookup", OperationType::EMBEDDING_LOOKUP},
-          {"equal", OperationType::EQUAL},
-          {"exp", OperationType::EXP},
-          {"floor", OperationType::FLOOR},
-          {"floor_div", OperationType::FLOOR_DIV},
-          {"floor_mod", OperationType::FLOOR_MOD},
-          {"fully_connected", OperationType::FULLY_CONNECTED},
-          {"fully_connected_int2", OperationType::FULLY_CONNECTED_INT2},
-          {"fully_connected_int4", OperationType::FULLY_CONNECTED_INT4},
-          {"fully_connected_int8", OperationType::FULLY_CONNECTED_INT8},
-          {"gather", OperationType::GATHER},
-          {"gelu", OperationType::GELU},
-          {"gelu_tanh_approx", OperationType::GELU_TANH_APPROX},
-          {"greater", OperationType::GREATER},
-          {"greater_equal", OperationType::GREATER_EQUAL},
-          {"group_norm", OperationType::GROUP_NORM},
-          {"hard_swish", OperationType::HARD_SWISH},
-          {"layer_norm", OperationType::LAYER_NORM},
-          {"less", OperationType::LESS},
-          {"less_equal", OperationType::LESS_EQUAL},
-          {"log", OperationType::LOG},
-          {"logical_and", OperationType::LOGICAL_AND},
-          {"logical_not", OperationType::LOGICAL_NOT},
-          {"logical_or", OperationType::LOGICAL_OR},
-          {"logical_xor", OperationType::LOGICAL_XOR},
-          {"lstm", OperationType::LSTM},
-          {"maximum", OperationType::MAXIMUM},
-          {"max_index", OperationType::MAX_INDEX},
-          {"max_unpooling", OperationType::MAX_UNPOOLING_2D},
-          {"mean", OperationType::MEAN},
+          {"abs", OperationType::kAbs},
+          {"add", OperationType::kAdd},
+          {"atan2", OperationType::kAtan2},
+          {"batch_normalization", OperationType::kBatchNormalization},
+          {"batched_matmul", OperationType::kBatchedMatmul},
+          {"bitcast", OperationType::kBitcast},
+          {"broadcast_in_dim", OperationType::kBroadcastInDim},
+          {"cast", OperationType::kCast},
+          {"ceil", OperationType::kCeil},
+          {"concat", OperationType::kConcat},
+          {"const", OperationType::kConstant},
+          {"convolution_2d", OperationType::kConvolution2D},
+          {"convolution_transposed", OperationType::kConvolutionTransposed},
+          {"copy", OperationType::kCopy},
+          {"cos", OperationType::kCos},
+          {"cumsum", OperationType::kCumsum},
+          {"depthwise_convolution", OperationType::kDepthwiseConvolution},
+          {"depth_to_space", OperationType::kDepthToSpace},
+          {"div", OperationType::kDiv},
+          {"dot_general", OperationType::kDotGeneral},
+          {"dynamic_update_slice", OperationType::kDynamicUpdateSlice},
+          {"elu", OperationType::kElu},
+          {"embedding_lookup", OperationType::kEmbeddingLookup},
+          {"equal", OperationType::kEqual},
+          {"exp", OperationType::kExp},
+          {"floor", OperationType::kFloor},
+          {"floor_div", OperationType::kFloorDiv},
+          {"floor_mod", OperationType::kFloorMod},
+          {"fully_connected", OperationType::kFullyConnected},
+          {"fully_connected_int2", OperationType::kFullyConnectedInt2},
+          {"fully_connected_int4", OperationType::kFullyConnectedInt4},
+          {"fully_connected_int8", OperationType::kFullyConnectedInt8},
+          {"gather", OperationType::kGather},
+          {"gelu", OperationType::kGelu},
+          {"gelu_tanh_approx", OperationType::kGeluTanhApprox},
+          {"greater", OperationType::kGreater},
+          {"greater_equal", OperationType::kGreaterEqual},
+          {"group_norm", OperationType::kGroupNorm},
+          {"hard_swish", OperationType::kHardSwish},
+          {"layer_norm", OperationType::kLayerNorm},
+          {"less", OperationType::kLess},
+          {"less_equal", OperationType::kLessEqual},
+          {"log", OperationType::kLog},
+          {"logical_and", OperationType::kLogicalAnd},
+          {"logical_not", OperationType::kLogicalNot},
+          {"logical_or", OperationType::kLogicalOr},
+          {"logical_xor", OperationType::kLogicalXor},
+          {"lstm", OperationType::kLstm},
+          {"maximum", OperationType::kMaximum},
+          {"max_index", OperationType::kMaxIndex},
+          {"max_unpooling", OperationType::kMaxUnpooling2D},
+          {"mean", OperationType::kMean},
           {"mean_stddev_normalization",
-           OperationType::MEAN_STDDEV_NORMALIZATION},
-          {"minimum", OperationType::MINIMUM},
-          {"mish", OperationType::MISH},
-          {"mod", OperationType::MOD},
-          {"mul", OperationType::MUL},
-          {"neg", OperationType::NEG},
-          {"not_equal", OperationType::NOT_EQUAL},
-          {"one_hot", OperationType::ONE_HOT},
-          {"pad", OperationType::PAD},
-          {"pooling_2d", OperationType::POOLING_2D},
-          {"positional_embedding", OperationType::POSITIONAL_EMBEDDING},
-          {"pow", OperationType::POW},
-          {"prelu", OperationType::PRELU},
-          {"quantize_and_dequantize", OperationType::QUANTIZE_AND_DEQUANTIZE},
-          {"reduce_all", OperationType::REDUCE_ALL},
-          {"reduce_any", OperationType::REDUCE_ANY},
-          {"reduce_maximum", OperationType::REDUCE_MAXIMUM},
-          {"reduce_minimum", OperationType::REDUCE_MINIMUM},
-          {"reduce_product", OperationType::REDUCE_PRODUCT},
-          {"reduce_sum", OperationType::REDUCE_SUM},
-          {"relu", OperationType::RELU},
-          {"remainder", OperationType::REMAINDER},
-          {"resampler", OperationType::RESAMPLER},
-          {"resize", OperationType::RESIZE},
-          {"reshape", OperationType::RESHAPE},
-          {"reverse", OperationType::REVERSE},
-          {"rms_norm", OperationType::RMS_NORM},
-          {"rope", OperationType::ROPE},
-          {"round", OperationType::ROUND},
-          {"rsqrt", OperationType::RSQRT},
+           OperationType::kMeanStddevNormalization},
+          {"minimum", OperationType::kMinimum},
+          {"mish", OperationType::kMish},
+          {"mod", OperationType::kMod},
+          {"mul", OperationType::kMul},
+          {"neg", OperationType::kNeg},
+          {"not_equal", OperationType::kNotEqual},
+          {"one_hot", OperationType::kOneHot},
+          {"pad", OperationType::kPad},
+          {"pooling_2d", OperationType::kPooling2D},
+          {"positional_embedding", OperationType::kPositionalEmbedding},
+          {"pow", OperationType::kPow},
+          {"prelu", OperationType::kPrelu},
+          {"quantize_and_dequantize", OperationType::kQuantizeAndDequantize},
+          {"reduce_all", OperationType::kReduceAll},
+          {"reduce_any", OperationType::kReduceAny},
+          {"reduce_maximum", OperationType::kReduceMaximum},
+          {"reduce_minimum", OperationType::kReduceMinimum},
+          {"reduce_product", OperationType::kReduceProduct},
+          {"reduce_sum", OperationType::kReduceSum},
+          {"relu", OperationType::kRelu},
+          {"remainder", OperationType::kRemainder},
+          {"resampler", OperationType::kResampler},
+          {"resize", OperationType::kResize},
+          {"reshape", OperationType::kReshape},
+          {"reverse", OperationType::kReverse},
+          {"rms_norm", OperationType::kRmsNorm},
+          {"rope", OperationType::kRope},
+          {"round", OperationType::kRound},
+          {"rsqrt", OperationType::kRsqrt},
           {"scaled_dot_product_attention",
-           OperationType::SCALED_DOT_PRODUCT_ATTENTION},
-          {"select_v2", OperationType::SELECT_V2},
-          {"shift_left", OperationType::SHIFT_LEFT},
-          {"shift_right", OperationType::SHIFT_RIGHT},
-          {"sigmoid", OperationType::SIGMOID},
-          {"sign", OperationType::SIGN},
-          {"sin", OperationType::SIN},
-          {"slice", OperationType::SLICE},
-          {"softmax", OperationType::SOFTMAX},
-          {"space_to_depth", OperationType::SPACE_TO_DEPTH},
-          {"split", OperationType::SPLIT},
-          {"sqrt", OperationType::SQRT},
-          {"square", OperationType::SQUARE},
-          {"squared_diff", OperationType::SQUARED_DIFF},
-          {"subtract", OperationType::SUB},
-          {"tanh", OperationType::TANH},
-          {"tile", OperationType::TILE},
-          {"top_k", OperationType::TOP_K},
-          {"transpose", OperationType::TRANSPOSE},
+           OperationType::kScaledDotProductAttention},
+          {"select_v2", OperationType::kSelectV2},
+          {"shift_left", OperationType::kShiftLeft},
+          {"shift_right", OperationType::kShiftRight},
+          {"sigmoid", OperationType::kSigmoid},
+          {"sign", OperationType::kSign},
+          {"sin", OperationType::kSin},
+          {"slice", OperationType::kSlice},
+          {"softmax", OperationType::kSoftmax},
+          {"space_to_depth", OperationType::kSpaceToDepth},
+          {"split", OperationType::kSplit},
+          {"sqrt", OperationType::kSqrt},
+          {"square", OperationType::kSquare},
+          {"squared_diff", OperationType::kSquaredDiff},
+          {"subtract", OperationType::kSub},
+          {"tanh", OperationType::kTanh},
+          {"tile", OperationType::kTile},
+          {"top_k", OperationType::kTopK},
+          {"transpose", OperationType::kTranspose},
       });
   auto op = operations->find(name);
-  return op == operations->end() ? OperationType::UNKNOWN : op->second;
+  return op == operations->end() ? OperationType::kUnknown : op->second;
 }
 
 namespace {
@@ -561,8 +561,8 @@ int32_t CalculateSamePadding(const BHWDC& input,
 
 Padding2D MakeSamePadding(const BHWC& input,
                           const ConvolutionTransposedAttributes& attr) {
-  int32_t padding_height = CalculateSamePadding<Axis::HEIGHT>(input, attr);
-  int32_t padding_width = CalculateSamePadding<Axis::WIDTH>(input, attr);
+  int32_t padding_height = CalculateSamePadding<Axis::kHeight>(input, attr);
+  int32_t padding_width = CalculateSamePadding<Axis::kWidth>(input, attr);
   Padding2D padding;
   padding.prepended = HW(padding_height / 2, padding_width / 2);
   padding.appended = HW(padding_height - padding_height / 2,
@@ -572,9 +572,9 @@ Padding2D MakeSamePadding(const BHWC& input,
 
 Padding3D MakeSamePadding(const BHWDC& input,
                           const ConvolutionTransposed3DAttributes& attr) {
-  int32_t padding_height = CalculateSamePadding<Axis::HEIGHT>(input, attr);
-  int32_t padding_width = CalculateSamePadding<Axis::WIDTH>(input, attr);
-  int32_t padding_depth = CalculateSamePadding<Axis::DEPTH>(input, attr);
+  int32_t padding_height = CalculateSamePadding<Axis::kHeight>(input, attr);
+  int32_t padding_width = CalculateSamePadding<Axis::kWidth>(input, attr);
+  int32_t padding_depth = CalculateSamePadding<Axis::kDepth>(input, attr);
   Padding3D padding;
   padding.prepended =
       HWD(padding_height / 2, padding_width / 2, padding_depth / 2);
@@ -587,8 +587,8 @@ Padding3D MakeSamePadding(const BHWDC& input,
 // If padding depends on input, convert it into fixed padding.
 template <class AttrT>
 Padding2D MakeSamePadding(const BHWC& input, const AttrT& attr) {
-  int32_t padding_height = CalculateSamePadding<Axis::HEIGHT>(input, attr);
-  int32_t padding_width = CalculateSamePadding<Axis::WIDTH>(input, attr);
+  int32_t padding_height = CalculateSamePadding<Axis::kHeight>(input, attr);
+  int32_t padding_width = CalculateSamePadding<Axis::kWidth>(input, attr);
   Padding2D padding;
   padding.prepended = HW(padding_height / 2, padding_width / 2);
   padding.appended = HW(padding_height - padding_height / 2,
@@ -599,9 +599,9 @@ Padding2D MakeSamePadding(const BHWC& input, const AttrT& attr) {
 // If padding depends on input, convert it into fixed padding.
 template <class AttrT>
 Padding3D MakeSamePadding(const BHWDC& input, const AttrT& attr) {
-  int32_t padding_height = CalculateSamePadding<Axis::HEIGHT>(input, attr);
-  int32_t padding_width = CalculateSamePadding<Axis::WIDTH>(input, attr);
-  int32_t padding_depth = CalculateSamePadding<Axis::DEPTH>(input, attr);
+  int32_t padding_height = CalculateSamePadding<Axis::kHeight>(input, attr);
+  int32_t padding_width = CalculateSamePadding<Axis::kWidth>(input, attr);
+  int32_t padding_depth = CalculateSamePadding<Axis::kDepth>(input, attr);
   Padding3D padding;
   padding.prepended =
       HWD(padding_height / 2, padding_width / 2, padding_depth / 2);
@@ -636,66 +636,66 @@ BHWDC CalculateOutputShape(const BHWDC& input,
 }
 
 BHWC CalculateOutputShape(const BHWC& input, const Pooling2DAttributes& attr) {
-  return BHWC(input.b, CalculateOutput<Axis::HEIGHT>(input, attr),
-              CalculateOutput<Axis::WIDTH>(input, attr), input.c);
+  return BHWC(input.b, CalculateOutput<Axis::kHeight>(input, attr),
+              CalculateOutput<Axis::kWidth>(input, attr), input.c);
 }
 
 BHWDC CalculateOutputShape(const BHWDC& input,
                            const Pooling3DAttributes& attr) {
-  return BHWDC(input.b, CalculateOutput<Axis::HEIGHT>(input, attr),
-               CalculateOutput<Axis::WIDTH>(input, attr),
-               CalculateOutput<Axis::DEPTH>(input, attr), input.c);
+  return BHWDC(input.b, CalculateOutput<Axis::kHeight>(input, attr),
+               CalculateOutput<Axis::kWidth>(input, attr),
+               CalculateOutput<Axis::kDepth>(input, attr), input.c);
 }
 
 BHWC CalculateOutputShape(const BHWC& input,
                           const Convolution2DAttributes& attr) {
   const OHWI& weights_shape =
       std::visit([](const auto& w) { return w.shape; }, attr.weights);
-  return BHWC(input.b, CalculateOutput<Axis::HEIGHT>(input, attr),
-              CalculateOutput<Axis::WIDTH>(input, attr),
-              weights_shape.get<Axis::OUTPUT_CHANNELS>());
+  return BHWC(input.b, CalculateOutput<Axis::kHeight>(input, attr),
+              CalculateOutput<Axis::kWidth>(input, attr),
+              weights_shape.get<Axis::kOutputChannels>());
 }
 
 BHWDC CalculateOutputShape(const BHWDC& input,
                            const Convolution3DAttributes& attr) {
-  return BHWDC(input.b, CalculateOutput<Axis::HEIGHT>(input, attr),
-               CalculateOutput<Axis::WIDTH>(input, attr),
-               CalculateOutput<Axis::DEPTH>(input, attr),
-               attr.weights.shape.get<Axis::OUTPUT_CHANNELS>());
+  return BHWDC(input.b, CalculateOutput<Axis::kHeight>(input, attr),
+               CalculateOutput<Axis::kWidth>(input, attr),
+               CalculateOutput<Axis::kDepth>(input, attr),
+               attr.weights.shape.get<Axis::kOutputChannels>());
 }
 
 BHWC CalculateOutputShape(const BHWC& input,
                           const ConvolutionTransposedAttributes& attr) {
-  return BHWC(input.b, CalculateOutput<Axis::HEIGHT>(input, attr),
-              CalculateOutput<Axis::WIDTH>(input, attr),
-              attr.weights.shape.get<Axis::OUTPUT_CHANNELS>());
+  return BHWC(input.b, CalculateOutput<Axis::kHeight>(input, attr),
+              CalculateOutput<Axis::kWidth>(input, attr),
+              attr.weights.shape.get<Axis::kOutputChannels>());
 }
 
 BHWDC CalculateOutputShape(const BHWDC& input,
                            const ConvolutionTransposed3DAttributes& attr) {
-  return BHWDC(input.b, CalculateOutput<Axis::HEIGHT>(input, attr),
-               CalculateOutput<Axis::WIDTH>(input, attr),
-               CalculateOutput<Axis::DEPTH>(input, attr),
-               attr.weights.shape.get<Axis::OUTPUT_CHANNELS>());
+  return BHWDC(input.b, CalculateOutput<Axis::kHeight>(input, attr),
+               CalculateOutput<Axis::kWidth>(input, attr),
+               CalculateOutput<Axis::kDepth>(input, attr),
+               attr.weights.shape.get<Axis::kOutputChannels>());
 }
 
 BHWC CalculateOutputShape(const BHWC& input,
                           const DepthwiseConvolution2DAttributes& attr) {
   const OHWI& weights_shape =
       std::visit([](const auto& w) { return w.shape; }, attr.weights);
-  return BHWC(input.b, CalculateOutput<Axis::HEIGHT>(input, attr),
-              CalculateOutput<Axis::WIDTH>(input, attr),
-              weights_shape.get<Axis::OUTPUT_CHANNELS>() *
-                  weights_shape.get<Axis::INPUT_CHANNELS>());
+  return BHWC(input.b, CalculateOutput<Axis::kHeight>(input, attr),
+              CalculateOutput<Axis::kWidth>(input, attr),
+              weights_shape.get<Axis::kOutputChannels>() *
+                  weights_shape.get<Axis::kInputChannels>());
 }
 
 BHWDC CalculateOutputShape(const BHWDC& input,
                            const DepthwiseConvolution3DAttributes& attr) {
-  return BHWDC(input.b, CalculateOutput<Axis::HEIGHT>(input, attr),
-               CalculateOutput<Axis::WIDTH>(input, attr),
-               CalculateOutput<Axis::DEPTH>(input, attr),
-               attr.weights.shape.get<Axis::OUTPUT_CHANNELS>() *
-                   attr.weights.shape.get<Axis::INPUT_CHANNELS>());
+  return BHWDC(input.b, CalculateOutput<Axis::kHeight>(input, attr),
+               CalculateOutput<Axis::kWidth>(input, attr),
+               CalculateOutput<Axis::kDepth>(input, attr),
+               attr.weights.shape.get<Axis::kOutputChannels>() *
+                   attr.weights.shape.get<Axis::kInputChannels>());
 }
 
 BHWC CalculateOutputShape(const BHWC& input, const SliceAttributes& attr) {
@@ -734,11 +734,12 @@ BHWC CalculateOutputShape(const BHWC& input,
 }
 
 bool IsLogicalOp(OperationType op_type) {
-  return op_type == OperationType::GREATER ||
-         op_type == OperationType::GREATER_EQUAL ||
-         op_type == OperationType::LESS ||
-         op_type == OperationType::LESS_EQUAL ||
-         op_type == OperationType::EQUAL || op_type == OperationType::NOT_EQUAL;
+  return op_type == OperationType::kGreater ||
+         op_type == OperationType::kGreaterEqual ||
+         op_type == OperationType::kLess ||
+         op_type == OperationType::kLessEqual ||
+         op_type == OperationType::kEqual ||
+         op_type == OperationType::kNotEqual;
 }
 
 absl::Status CalculateOutputShape(const std::vector<BHWC>& input,
@@ -746,7 +747,7 @@ absl::Status CalculateOutputShape(const std::vector<BHWC>& input,
                                   BHWC* output_shape) {
   BHWC new_shape = input[0];
   switch (attr.axis) {
-    case Axis::CHANNELS:
+    case Axis::kChannels:
       for (int i = 1; i < input.size(); i++) {
         if (input[i].h != new_shape.h || input[i].w != new_shape.w ||
             input[i].b != new_shape.b) {
@@ -757,7 +758,7 @@ absl::Status CalculateOutputShape(const std::vector<BHWC>& input,
         new_shape.c += input[i].c;
       }
       break;
-    case Axis::HEIGHT:
+    case Axis::kHeight:
       for (int i = 1; i < input.size(); i++) {
         if (input[i].w != new_shape.w || input[i].c != new_shape.c ||
             input[i].b != new_shape.b) {
@@ -768,7 +769,7 @@ absl::Status CalculateOutputShape(const std::vector<BHWC>& input,
         new_shape.h += input[i].h;
       }
       break;
-    case Axis::WIDTH:
+    case Axis::kWidth:
       for (int i = 1; i < input.size(); i++) {
         if (input[i].h != new_shape.h || input[i].c != new_shape.c ||
             input[i].b != new_shape.b) {
@@ -779,7 +780,7 @@ absl::Status CalculateOutputShape(const std::vector<BHWC>& input,
         new_shape.w += input[i].w;
       }
       break;
-    case Axis::BATCH:
+    case Axis::kBatch:
       for (int i = 1; i < input.size(); i++) {
         if (input[i].h != new_shape.h || input[i].c != new_shape.c ||
             input[i].w != new_shape.w) {
@@ -803,7 +804,7 @@ absl::Status CalculateOutputShape(const std::vector<BHWDC>& input,
                                   BHWDC* output_shape) {
   BHWDC new_shape = input[0];
   switch (attr.axis) {
-    case Axis::CHANNELS:
+    case Axis::kChannels:
       for (int i = 1; i < input.size(); ++i) {
         if (input[i].h != new_shape.h || input[i].w != new_shape.w ||
             input[i].d != new_shape.d || input[i].b != new_shape.b) {
@@ -815,7 +816,7 @@ absl::Status CalculateOutputShape(const std::vector<BHWDC>& input,
         new_shape.c += input[i].c;
       }
       break;
-    case Axis::HEIGHT:
+    case Axis::kHeight:
       for (int i = 1; i < input.size(); ++i) {
         if (input[i].w != new_shape.w || input[i].c != new_shape.c ||
             input[i].d != new_shape.d || input[i].b != new_shape.b) {
@@ -827,7 +828,7 @@ absl::Status CalculateOutputShape(const std::vector<BHWDC>& input,
         new_shape.h += input[i].h;
       }
       break;
-    case Axis::WIDTH:
+    case Axis::kWidth:
       for (int i = 1; i < input.size(); ++i) {
         if (input[i].h != new_shape.h || input[i].c != new_shape.c ||
             input[i].d != new_shape.d || input[i].b != new_shape.b) {
@@ -839,7 +840,7 @@ absl::Status CalculateOutputShape(const std::vector<BHWDC>& input,
         new_shape.w += input[i].w;
       }
       break;
-    case Axis::DEPTH:
+    case Axis::kDepth:
       for (int i = 1; i < input.size(); ++i) {
         if (input[i].w != new_shape.w || input[i].h != new_shape.h ||
             input[i].c != new_shape.c || input[i].b != new_shape.b) {
@@ -851,7 +852,7 @@ absl::Status CalculateOutputShape(const std::vector<BHWDC>& input,
         new_shape.d += input[i].d;
       }
       break;
-    case Axis::BATCH:
+    case Axis::kBatch:
       for (int i = 1; i < input.size(); ++i) {
         if (input[i].w != new_shape.w || input[i].h != new_shape.h ||
             input[i].c != new_shape.c || input[i].d != new_shape.d) {
@@ -991,11 +992,11 @@ FullyConnectedAttributes ToFloat32(const FullyConnectedInt8Attributes& qattr) {
   return dattr;
 }
 
-Tensor<OHWI, DataType::FLOAT32> DequantizeImpl(
+Tensor<OHWI, DataType::kFloat32> DequantizeImpl(
     const OHWI& weights_ohwi_shape, const int8_t* input_data,
-    const Tensor<OHWI, DataType::FLOAT32>& scale,
-    const Tensor<OHWI, DataType::INT32>& zero_point, bool add_extra_bytes) {
-  Tensor<OHWI, DataType::FLOAT32> flt_tensor;
+    const Tensor<OHWI, DataType::kFloat32>& scale,
+    const Tensor<OHWI, DataType::kInt32>& zero_point, bool add_extra_bytes) {
+  Tensor<OHWI, DataType::kFloat32> flt_tensor;
   flt_tensor.shape = weights_ohwi_shape;
   flt_tensor.data.resize(
       weights_ohwi_shape.DimensionsProduct() +
@@ -1053,9 +1054,9 @@ Tensor<OHWI, DataType::FLOAT32> DequantizeImpl(
 
 FullyConnectedAttributes ToFloat32(const FullyConnectedInt4Attributes& qattr) {
   FullyConnectedAttributes dattr;
-  if (std::holds_alternative<Tensor<OHWI, DataType::INT4>>(qattr.weights)) {
+  if (std::holds_alternative<Tensor<OHWI, DataType::kInt4>>(qattr.weights)) {
     const auto& int4_weights =
-        std::get<Tensor<OHWI, DataType::INT4>>(qattr.weights);
+        std::get<Tensor<OHWI, DataType::kInt4>>(qattr.weights);
     const size_t num_elements = int4_weights.shape.DimensionsProduct();
     auto unpacked_input_data = std::make_unique<int8_t[]>(num_elements);
     UnpackDenseInt4IntoInt8(int4_weights.Data(), num_elements,
@@ -1066,7 +1067,7 @@ FullyConnectedAttributes ToFloat32(const FullyConnectedInt4Attributes& qattr) {
                        /*add_extra_bytes=*/true);
   } else {
     const auto& int8_weights =
-        std::get<Tensor<OHWI, DataType::INT8>>(qattr.weights);
+        std::get<Tensor<OHWI, DataType::kInt8>>(qattr.weights);
     dattr.weights = DequantizeImpl(int8_weights.shape, int8_weights.Data(),
                                    qattr.scale, qattr.zero_point,
                                    /*add_extra_bytes=*/true);
@@ -1078,9 +1079,9 @@ FullyConnectedAttributes ToFloat32(const FullyConnectedInt4Attributes& qattr) {
 
 FullyConnectedAttributes ToFloat32(const FullyConnectedInt2Attributes& qattr) {
   FullyConnectedAttributes dattr;
-  if (std::holds_alternative<Tensor<OHWI, DataType::INT2>>(qattr.weights)) {
+  if (std::holds_alternative<Tensor<OHWI, DataType::kInt2>>(qattr.weights)) {
     const auto& int2_weights =
-        std::get<Tensor<OHWI, DataType::INT2>>(qattr.weights);
+        std::get<Tensor<OHWI, DataType::kInt2>>(qattr.weights);
     const size_t num_elements = int2_weights.shape.DimensionsProduct();
     auto unpacked_input_data = std::make_unique<int8_t[]>(num_elements);
     UnpackDenseInt2IntoInt8(int2_weights.Data(), num_elements,
@@ -1091,7 +1092,7 @@ FullyConnectedAttributes ToFloat32(const FullyConnectedInt2Attributes& qattr) {
                        /*add_extra_bytes=*/true);
   } else {
     const auto& int8_weights =
-        std::get<Tensor<OHWI, DataType::INT8>>(qattr.weights);
+        std::get<Tensor<OHWI, DataType::kInt8>>(qattr.weights);
     dattr.weights = DequantizeImpl(int8_weights.shape, int8_weights.Data(),
                                    qattr.scale, qattr.zero_point,
                                    /*add_extra_bytes=*/true);
@@ -1102,25 +1103,25 @@ FullyConnectedAttributes ToFloat32(const FullyConnectedInt2Attributes& qattr) {
 }
 
 template <DataType QuantizedT>
-Tensor<OHWI, DataType::FLOAT32> DequantizeTensor(
+Tensor<OHWI, DataType::kFloat32> DequantizeTensor(
     const Tensor<OHWI, QuantizedT>& weights,
-    const Tensor<OHWI, DataType::FLOAT32>& scale,
-    const Tensor<OHWI, DataType::INT32>& zero_point, bool add_extra_bytes) {
+    const Tensor<OHWI, DataType::kFloat32>& scale,
+    const Tensor<OHWI, DataType::kInt32>& zero_point, bool add_extra_bytes) {
   const int8_t* input_data;
   std::unique_ptr<int8_t[]> unpacked_input_data = nullptr;
-  if constexpr (QuantizedT == DataType::INT4) {
+  if constexpr (QuantizedT == DataType::kInt4) {
     const size_t num_elements = weights.shape.DimensionsProduct();
     unpacked_input_data = std::make_unique<int8_t[]>(num_elements);
     UnpackDenseInt4IntoInt8(weights.Data(), num_elements,
                             unpacked_input_data.get());
     input_data = unpacked_input_data.get();
-  } else if constexpr (QuantizedT == DataType::INT2) {
+  } else if constexpr (QuantizedT == DataType::kInt2) {
     const size_t num_elements = weights.shape.DimensionsProduct();
     unpacked_input_data = std::make_unique<int8_t[]>(num_elements);
     UnpackDenseInt2IntoInt8(weights.Data(), num_elements,
                             unpacked_input_data.get());
     input_data = unpacked_input_data.get();
-  } else if constexpr (QuantizedT == DataType::INT8) {
+  } else if constexpr (QuantizedT == DataType::kInt8) {
     input_data = weights.Data();
   } else {
     ABSL_LOG(FATAL) << "Unsupported quantized type: " << ToString(QuantizedT);
@@ -1130,12 +1131,12 @@ Tensor<OHWI, DataType::FLOAT32> DequantizeTensor(
                         add_extra_bytes);
 }
 
-Tensor<OHWI, DataType::FLOAT32>& GetFloatWeights(
+Tensor<OHWI, DataType::kFloat32>& GetFloatWeights(
     Convolution2DAttributes& attr) {
   return std::visit(
-      [&attr](auto& weights) -> Tensor<OHWI, DataType::FLOAT32>& {
+      [&attr](auto& weights) -> Tensor<OHWI, DataType::kFloat32>& {
         using T = std::decay_t<decltype(weights)>;
-        if constexpr (std::is_same_v<T, Tensor<OHWI, DataType::FLOAT32>>) {
+        if constexpr (std::is_same_v<T, Tensor<OHWI, DataType::kFloat32>>) {
           return weights;
         } else {
           auto flt_tensor =
@@ -1145,31 +1146,31 @@ Tensor<OHWI, DataType::FLOAT32>& GetFloatWeights(
           // the attributes, because it's equivalent to store the dequantized
           // float tensor or to store the quantized tensor with scale and
           // zero_point.
-          attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>(
+          attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>(
               std::move(flt_tensor));
-          attr.scale = Tensor<OHWI, DataType::FLOAT32>();
-          attr.zero_point = Tensor<OHWI, DataType::INT32>();
+          attr.scale = Tensor<OHWI, DataType::kFloat32>();
+          attr.zero_point = Tensor<OHWI, DataType::kInt32>();
 
-          return std::get<Tensor<OHWI, DataType::FLOAT32>>(attr.weights);
+          return std::get<Tensor<OHWI, DataType::kFloat32>>(attr.weights);
         }
       },
       attr.weights);
 }
 
-template Tensor<OHWI, DataType::FLOAT32> DequantizeTensor<DataType::INT8>(
-    const Tensor<OHWI, DataType::INT8>& weights,
-    const Tensor<OHWI, DataType::FLOAT32>& scale,
-    const Tensor<OHWI, DataType::INT32>& zero_point, bool add_extra_bytes);
+template Tensor<OHWI, DataType::kFloat32> DequantizeTensor<DataType::kInt8>(
+    const Tensor<OHWI, DataType::kInt8>& weights,
+    const Tensor<OHWI, DataType::kFloat32>& scale,
+    const Tensor<OHWI, DataType::kInt32>& zero_point, bool add_extra_bytes);
 
-template Tensor<OHWI, DataType::FLOAT32> DequantizeTensor<DataType::INT4>(
-    const Tensor<OHWI, DataType::INT4>& weights,
-    const Tensor<OHWI, DataType::FLOAT32>& scale,
-    const Tensor<OHWI, DataType::INT32>& zero_point, bool add_extra_bytes);
+template Tensor<OHWI, DataType::kFloat32> DequantizeTensor<DataType::kInt4>(
+    const Tensor<OHWI, DataType::kInt4>& weights,
+    const Tensor<OHWI, DataType::kFloat32>& scale,
+    const Tensor<OHWI, DataType::kInt32>& zero_point, bool add_extra_bytes);
 
-template Tensor<OHWI, DataType::FLOAT32> DequantizeTensor<DataType::INT2>(
-    const Tensor<OHWI, DataType::INT2>& weights,
-    const Tensor<OHWI, DataType::FLOAT32>& scale,
-    const Tensor<OHWI, DataType::INT32>& zero_point, bool add_extra_bytes);
+template Tensor<OHWI, DataType::kFloat32> DequantizeTensor<DataType::kInt2>(
+    const Tensor<OHWI, DataType::kInt2>& weights,
+    const Tensor<OHWI, DataType::kFloat32>& scale,
+    const Tensor<OHWI, DataType::kInt32>& zero_point, bool add_extra_bytes);
 
 bool IsConvEquivalentToFullyConnected(const Convolution2DAttributes& attr) {
   const auto& weights_shape =

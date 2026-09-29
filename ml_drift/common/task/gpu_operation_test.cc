@@ -107,12 +107,12 @@ TEST(GpuOperationTest, TestNoSelector) {
   GPUOperation op;
 
   BufferDescriptor desc;
-  desc.element_type = DataType::FLOAT32;
+  desc.element_type = DataType::kFloat32;
   desc.element_size = 4;
-  desc.memory_type = MemoryType::GLOBAL;
+  desc.memory_type = MemoryType::kGlobal;
 
-  op.args_.AddObjectRef("weights", AccessType::READ,
-                    std::make_unique<BufferDescriptor>(std::move(desc)));
+  op.args_.AddObjectRef("weights", AccessType::kRead,
+                        std::make_unique<BufferDescriptor>(std::move(desc)));
 
   op.code_ = R"(
     if (a < 3) {
@@ -131,7 +131,7 @@ void BM_AssembleCode(benchmark::State& state) {
   conv_attr.strides = HW(1, 1);
   conv_attr.dilations = HW(1, 1);
   auto& attr_weights =
-      conv_attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
+      conv_attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(16, 1, 1, 128);
   attr_weights.data.resize(attr_weights.shape.DimensionsProduct() +
                            XNN_EXTRA_BYTES / sizeof(float));
@@ -140,13 +140,13 @@ void BM_AssembleCode(benchmark::State& state) {
 
   OperationDef op_def;
   op_def.src_tensors.push_back(
-      {DataType::FLOAT32, TensorStorageType::TEXTURE_2D, Layout::HWC});
+      {DataType::kFloat32, TensorStorageType::kTexture2D, Layout::kHWC});
   op_def.dst_tensors.push_back(
-      {DataType::FLOAT32, TensorStorageType::TEXTURE_2D, Layout::HWC});
+      {DataType::kFloat32, TensorStorageType::kTexture2D, Layout::kHWC});
 
   for (auto s : state) {
     ConvGeneric conv_operation = CreateConvGeneric(
-        gpu_info, op_def, CalculationsPrecision::F32, conv_attr);
+        gpu_info, op_def, CalculationsPrecision::kF32, conv_attr);
     ABSL_EXPECT_OK(conv_operation.AssembleCode(gpu_info));
   }
 }
@@ -169,7 +169,7 @@ TEST(GpuOperationTest, AddInputReorderUpdatesDescriptor) {
   GPUOperation op;
   TensorDescriptor orig_desc;
   orig_desc.SetBHWDCShape(BHWDC(1, 8, 1, 1, 8));
-  op.args_.AddObjectRef("src_k", AccessType::READ,
+  op.args_.AddObjectRef("src_k", AccessType::kRead,
                         std::make_unique<TensorDescriptor>(orig_desc));
 
   TensorDescriptor src_desc;
@@ -187,21 +187,21 @@ TEST(GpuOperationTest, AddInputReorderUpdatesDescriptor) {
 
 TEST(GpuOperationTest, AssembleCodeWithInputReorder) {
   GPUOperation op;
-  TensorDescriptor orig_desc(DataType::FLOAT32, TensorStorageType::BUFFER,
-                             Layout::BHWC);
+  TensorDescriptor orig_desc(DataType::kFloat32, TensorStorageType::kBuffer,
+                             Layout::kBHWC);
   orig_desc.SetBHWDCShape(BHWDC(1, 8, 1, 1, 8));
   op.AddSrcTensor("src_k", orig_desc);
 
-  TensorDescriptor dst_tensor_desc(DataType::FLOAT32, TensorStorageType::BUFFER,
-                                   Layout::BHWC);
+  TensorDescriptor dst_tensor_desc(DataType::kFloat32,
+                                   TensorStorageType::kBuffer, Layout::kBHWC);
   dst_tensor_desc.SetBHWDCShape(BHWDC(1, 8, 1, 1, 8));
   op.AddDstTensor("dst_tensor", dst_tensor_desc);
 
-  TensorDescriptor src_desc(DataType::FLOAT32, TensorStorageType::BUFFER,
-                            Layout::BHWC);
+  TensorDescriptor src_desc(DataType::kFloat32, TensorStorageType::kBuffer,
+                            Layout::kBHWC);
   src_desc.SetBHWDCShape(BHWDC(1, 2, 4, 1, 8));
-  TensorDescriptor dst_desc(DataType::FLOAT32, TensorStorageType::BUFFER,
-                            Layout::BHWC);
+  TensorDescriptor dst_desc(DataType::kFloat32, TensorStorageType::kBuffer,
+                            Layout::kBHWC);
   dst_desc.SetBHWDCShape(BHWDC(1, 8, 1, 1, 8));
 
   op.AddInputReorder("src_k", "SRC_X = DST_X; SRC_Y = DST_Y; SRC_S = DST_S;",

@@ -42,8 +42,8 @@ enum class CalculationsPrecision {
 DataType DeduceDataTypeFromPrecision(CalculationsPrecision precision);
 
 constexpr std::array<CalculationsPrecision, 3> GetCalculationsPrecisions() {
-  return {CalculationsPrecision::F32, CalculationsPrecision::F16,
-          CalculationsPrecision::F32_F16};
+  return {CalculationsPrecision::kF32, CalculationsPrecision::kF16,
+          CalculationsPrecision::kF32F16};
 }
 std::string ToString(CalculationsPrecision precision);
 

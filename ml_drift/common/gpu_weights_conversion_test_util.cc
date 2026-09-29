@@ -56,14 +56,14 @@ void InitializeQuantizedWeights(
     zero_point_data[i] = i;
   }
 
-  if (quantization_type == DataType::INT8) {
+  if (quantization_type == DataType::kInt8) {
     weights_data_int8.resize(weights_size + XNN_EXTRA_BYTES / sizeof(int8_t));
     for (int i = 0; i < weights_size; ++i) {
       weights_data_int8[i] = i % 256 - 128;
     }
   } else {
     const int kNumElementsPerInt8 =
-        (SizeInBitsOf(DataType::INT8) / SizeInBitsOf(DataType::INT4));
+        (SizeInBitsOf(DataType::kInt8) / SizeInBitsOf(DataType::kInt4));
     ABSL_CHECK_EQ(input_channels % kNumElementsPerInt8, 0)
         << "Only an even number of input channels is supported.";
     const int weights_data_size = weights_size / kNumElementsPerInt8;
@@ -88,11 +88,11 @@ void InitializeQuantizedWeights(
       int32_t zero_point = zero_point_data[o];
       for (int i = 0; i < input_channels; ++i) {
         int8_t src;
-        if (quantization_type == DataType::INT8) {
+        if (quantization_type == DataType::kInt8) {
           src = weights_data_int8[o * input_channels + i];
         } else {
           const int kNumElementsPerInt8 =
-              (SizeInBitsOf(DataType::INT8) / SizeInBitsOf(DataType::INT4));
+              (SizeInBitsOf(DataType::kInt8) / SizeInBitsOf(DataType::kInt4));
           int8_t source =
               weights_data_int8[(o * input_channels + i) / kNumElementsPerInt8];
           if (i % 2 == 0) {
@@ -113,7 +113,7 @@ void InitializeWeightsSumIData(std::vector<int8_t>& weights_data,
                                const OHWI& weights_shape,
                                const DataType input_data_type) {
   reference_output.resize(weights_shape.o);
-  if (input_data_type == DataType::INT8) {
+  if (input_data_type == DataType::kInt8) {
     weights_data.resize(weights_shape.DimensionsProduct() +
                         XNN_EXTRA_BYTES / sizeof(int8_t));
     for (int i = 0; i < weights_shape.o; ++i) {
@@ -125,9 +125,9 @@ void InitializeWeightsSumIData(std::vector<int8_t>& weights_data,
       }
       reference_output[i] = sum;
     }
-  } else if (input_data_type == DataType::INT4) {
+  } else if (input_data_type == DataType::kInt4) {
     const int kNumElementsPerInt8 =
-        (SizeInBitsOf(DataType::INT8) / SizeInBitsOf(input_data_type));
+        (SizeInBitsOf(DataType::kInt8) / SizeInBitsOf(input_data_type));
     ABSL_CHECK_EQ(weights_shape.i % kNumElementsPerInt8, 0)
         << "Only an even number of input channels is supported.";
     const int weights_data_size =
@@ -162,7 +162,7 @@ absl::StatusOr<GraphFloat32> CreateConvGraph(const BHWC& input_shape,
   auto weights_shape =
       OHWI(output_shape.c, kernel_size, kernel_size, input_shape.c);
   auto& conv_weights =
-      conv_attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
+      conv_attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
   conv_weights.shape = weights_shape;
   conv_weights.data.resize(weights_shape.DimensionsProduct() +
                            XNN_EXTRA_BYTES / sizeof(float));
@@ -182,15 +182,15 @@ absl::StatusOr<GraphFloat32> CreateConvGraph(const BHWC& input_shape,
 
   GraphFloat32 graph;
   auto input = graph.NewValue();
-  input->tensor.type = DataType::FLOAT32;
+  input->tensor.type = DataType::kFloat32;
   input->tensor.shape = input_shape;
   auto conv_node = graph.NewNode();
-  conv_node->operation.type = ToString(OperationType::CONVOLUTION_2D);
+  conv_node->operation.type = ToString(OperationType::kConvolution2D);
   conv_node->operation.attributes = std::move(conv_attr);
   graph.AddConsumer(conv_node->id, input->id);
   Value* conv_output = nullptr;
   ABSL_RETURN_IF_ERROR(AddOutput(&graph, conv_node, &conv_output));
-  conv_output->tensor.type = DataType::FLOAT32;
+  conv_output->tensor.type = DataType::kFloat32;
   conv_output->tensor.shape = output_shape;
   return graph;
 }
@@ -208,15 +208,15 @@ absl::StatusOr<GraphFloat32> FCInt8TestGraph::CreateFCFloat32Graph() {
 
     GraphFloat32 graph;
     auto input = graph.NewValue();
-    input->tensor.type = DataType::FLOAT32;
+    input->tensor.type = DataType::kFloat32;
     input->tensor.shape = input_shape_;
     auto fc_node = graph.NewNode();
-    fc_node->operation.type = ToString(OperationType::FULLY_CONNECTED);
+    fc_node->operation.type = ToString(OperationType::kFullyConnected);
     fc_node->operation.attributes = fc_attr;
     graph.AddConsumer(fc_node->id, input->id);
     Value* fc_output = nullptr;
     ABSL_RETURN_IF_ERROR(AddOutput(&graph, fc_node, &fc_output));
-    fc_output->tensor.type = DataType::FLOAT32;
+    fc_output->tensor.type = DataType::kFloat32;
     fc_output->tensor.shape = output_shape_;
     return graph;
   }
@@ -235,15 +235,15 @@ absl::StatusOr<GraphFloat32> FCInt8TestGraph::CreateFCFloat32Graph() {
 
     GraphFloat32 graph;
     auto input = graph.NewValue();
-    input->tensor.type = DataType::FLOAT32;
+    input->tensor.type = DataType::kFloat32;
     input->tensor.shape = input_shape_;
     auto fc_node = graph.NewNode();
-    fc_node->operation.type = ToString(OperationType::FULLY_CONNECTED_INT8);
+    fc_node->operation.type = ToString(OperationType::kFullyConnectedInt8);
     fc_node->operation.attributes = fc_attr;
     graph.AddConsumer(fc_node->id, input->id);
     Value* fc_output = nullptr;
     ABSL_RETURN_IF_ERROR(AddOutput(&graph, fc_node, &fc_output));
-    fc_output->tensor.type = DataType::FLOAT32;
+    fc_output->tensor.type = DataType::kFloat32;
     fc_output->tensor.shape = output_shape_;
     return graph;
   }

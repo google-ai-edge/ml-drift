@@ -28,7 +28,7 @@ TEST(Winograd, CorrectAttributesFor4x4To6x6) {
   attr.padding.appended = HW(0, 1);
   attr.strides = HW(1, 1);
   attr.dilations = HW(1, 1);
-  auto& weights = attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
+  auto& weights = attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
   weights.shape = OHWI(1, 3, 3, 1);
   EXPECT_TRUE(IsSuitableForWinograd3x3(attr));
 }
@@ -39,7 +39,7 @@ TEST(Winograd, IncorrectAttributesFor4x4To6x6) {
   attr.padding.appended = HW(0, 1);
   attr.strides = HW(1, 1);
   attr.dilations = HW(1, 1);
-  auto& weights = attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
+  auto& weights = attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
   weights.shape = OHWI(1, 2, 3, 1);
   EXPECT_FALSE(IsSuitableForWinograd3x3(attr));
 }

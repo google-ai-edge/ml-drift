@@ -27,26 +27,26 @@ namespace ml_drift {
 namespace {
 
 struct ObjectTypeGetter {
-  ObjectType operator()(std::monostate) const { return ObjectType::UNKNOWN; }
+  ObjectType operator()(std::monostate) const { return ObjectType::kUnknown; }
 #ifndef CL_DELEGATE_NO_GL
-  ObjectType operator()(OpenGlBuffer) const { return ObjectType::OPENGL_SSBO; }
+  ObjectType operator()(OpenGlBuffer) const { return ObjectType::kOpenGlSsbo; }
   ObjectType operator()(OpenGlTexture) const {
-    return ObjectType::OPENGL_TEXTURE;
+    return ObjectType::kOpenGlTexture;
   }
 #endif
   ObjectType operator()(OpenClBuffer) const {
-    return ObjectType::OPENCL_BUFFER;
+    return ObjectType::kOpenClBuffer;
   }
   ObjectType operator()(OpenClTexture) const {
-    return ObjectType::OPENCL_TEXTURE;
+    return ObjectType::kOpenClTexture;
   }
   ObjectType operator()(VulkanBuffer) const {
-    return ObjectType::VULKAN_BUFFER;
+    return ObjectType::kVulkanBuffer;
   }
   ObjectType operator()(VulkanTexture) const {
-    return ObjectType::VULKAN_TEXTURE;
+    return ObjectType::kVulkanTexture;
   }
-  ObjectType operator()(CpuMemory) const { return ObjectType::CPU_MEMORY; }
+  ObjectType operator()(CpuMemory) const { return ObjectType::kCpuMemory; }
 };
 
 struct ObjectValidityChecker {
@@ -63,7 +63,7 @@ struct ObjectValidityChecker {
   bool operator()(VulkanTexture obj) const { return obj.memory; }
   bool operator()(CpuMemory obj) const {
     return obj.data != nullptr && obj.size_bytes > 0 &&
-           (data_type == DataType::UNKNOWN || data_type == DataType::BOOL ||
+           (data_type == DataType::kUnknown || data_type == DataType::kBool ||
             obj.size_bytes % SizeOf(data_type) == 0);
   }
   DataType data_type;
@@ -72,9 +72,9 @@ struct ObjectValidityChecker {
 }  // namespace
 
 bool IsValid(const ObjectDef& def) {
-  return def.data_type != DataType::UNKNOWN &&
-         def.data_layout != DataLayout::UNKNOWN &&
-         def.object_type != ObjectType::UNKNOWN;
+  return def.data_type != DataType::kUnknown &&
+         def.data_layout != DataLayout::kUnknown &&
+         def.object_type != ObjectType::kUnknown;
 }
 
 ObjectType GetType(const TensorObject& object) {
@@ -90,41 +90,41 @@ bool IsValid(const TensorObjectDef& def, const TensorObject& object) {
 
 bool IsObjectPresent(ObjectType type, const TensorObject& obj) {
   switch (type) {
-    case ObjectType::CPU_MEMORY:
+    case ObjectType::kCpuMemory:
       return std::holds_alternative<CpuMemory>(obj);
 #ifndef CL_DELEGATE_NO_GL
-    case ObjectType::OPENGL_SSBO:
+    case ObjectType::kOpenGlSsbo:
       return std::holds_alternative<OpenGlBuffer>(obj);
-    case ObjectType::OPENGL_TEXTURE:
+    case ObjectType::kOpenGlTexture:
       return std::holds_alternative<OpenGlTexture>(obj);
 #endif
-    case ObjectType::OPENCL_BUFFER:
+    case ObjectType::kOpenClBuffer:
       return std::holds_alternative<OpenClBuffer>(obj);
-    case ObjectType::OPENCL_TEXTURE:
+    case ObjectType::kOpenClTexture:
       return std::holds_alternative<OpenClTexture>(obj);
-    case ObjectType::VULKAN_BUFFER:
+    case ObjectType::kVulkanBuffer:
       return std::holds_alternative<VulkanBuffer>(obj);
-    case ObjectType::VULKAN_TEXTURE:
+    case ObjectType::kVulkanTexture:
       return std::holds_alternative<VulkanTexture>(obj);
-    case ObjectType::UNKNOWN:
+    case ObjectType::kUnknown:
       return false;
   }
 }
 
 bool IsObjectInitialized(const TensorObject& obj) {
-  return GetType(obj) != ObjectType::UNKNOWN;
+  return GetType(obj) != ObjectType::kUnknown;
 }
 
 uint32_t NumElements(const TensorObjectDef& def) {
   const auto& d = def.dimensions;
   switch (def.object_def.data_layout) {
-    case DataLayout::BHWC:
+    case DataLayout::kBHWC:
       return d.product();
-    case DataLayout::HWDC4:
-    case DataLayout::HDWC4:
-    case DataLayout::DHWC4:
+    case DataLayout::kHWDC4:
+    case DataLayout::kHDWC4:
+    case DataLayout::kDHWC4:
       return d.b * d.h * d.w * AlignByN(d.c, 4);
-    case DataLayout::UNKNOWN:
+    case DataLayout::kUnknown:
       return 0;
   }
   return 0;

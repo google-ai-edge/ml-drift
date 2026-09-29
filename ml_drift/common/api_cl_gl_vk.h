@@ -142,9 +142,9 @@ struct VulkanMemory {
 
 // Defines object representation.
 struct ObjectDef {
-  DataType data_type = DataType::UNKNOWN;
-  DataLayout data_layout = DataLayout::UNKNOWN;
-  ObjectType object_type = ObjectType::UNKNOWN;
+  DataType data_type = DataType::kUnknown;
+  DataLayout data_layout = DataLayout::kUnknown;
+  ObjectType object_type = ObjectType::kUnknown;
 
   // If true, then object is managed externally and needs to be provided to
   // InferenceRunner by a user before running inference.

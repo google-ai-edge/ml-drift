@@ -77,7 +77,7 @@ struct GPUBufferDescriptor {
   DataType data_type;
   AccessType access_type;
   int element_size;
-  MemoryType memory_type = MemoryType::GLOBAL;
+  MemoryType memory_type = MemoryType::kGlobal;
   std::vector<std::string> attributes;
 };
 
@@ -119,22 +119,22 @@ struct GPUResources {
   int GetReadImagesCount() const {
     int counter = 0;
     for (const auto& t : images2d) {
-      if (t.second.access_type == AccessType::READ) {
+      if (t.second.access_type == AccessType::kRead) {
         counter++;
       }
     }
     for (const auto& t : image2d_arrays) {
-      if (t.second.access_type == AccessType::READ) {
+      if (t.second.access_type == AccessType::kRead) {
         counter++;
       }
     }
     for (const auto& t : images3d) {
-      if (t.second.access_type == AccessType::READ) {
+      if (t.second.access_type == AccessType::kRead) {
         counter++;
       }
     }
     for (const auto& t : image_buffers) {
-      if (t.second.access_type == AccessType::READ) {
+      if (t.second.access_type == AccessType::kRead) {
         counter++;
       }
     }
@@ -144,22 +144,22 @@ struct GPUResources {
   int GetWriteImagesCount() const {
     int counter = 0;
     for (const auto& t : images2d) {
-      if (t.second.access_type == AccessType::WRITE) {
+      if (t.second.access_type == AccessType::kWrite) {
         counter++;
       }
     }
     for (const auto& t : image2d_arrays) {
-      if (t.second.access_type == AccessType::WRITE) {
+      if (t.second.access_type == AccessType::kWrite) {
         counter++;
       }
     }
     for (const auto& t : images3d) {
-      if (t.second.access_type == AccessType::WRITE) {
+      if (t.second.access_type == AccessType::kWrite) {
         counter++;
       }
     }
     for (const auto& t : image_buffers) {
-      if (t.second.access_type == AccessType::WRITE) {
+      if (t.second.access_type == AccessType::kWrite) {
         counter++;
       }
     }

@@ -50,14 +50,15 @@ absl::Status CreateConvReluGpuModel(
   conv_attr.strides = HW(1, 1);
   conv_attr.dilations = HW(1, 1);
   auto& attr_weights =
-      conv_attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
+      conv_attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(16, 1, 1, 16);
   attr_weights.data.resize(attr_weights.shape.DimensionsProduct() +
                            XNN_EXTRA_BYTES / sizeof(float));
   conv_attr.bias.shape = Linear(16);
   conv_attr.bias.data.resize(conv_attr.bias.shape.DimensionsProduct());
 
-  auto src_th = model_builder.AddTensor(BHWC(1, 32, 32, 16), DataType::FLOAT32);
+  auto src_th =
+      model_builder.AddTensor(BHWC(1, 32, 32, 16), DataType::kFloat32);
   GpuModelBuilder::OptionalNodeContext optional_context;
   if (optional_conv_tag >= 0) {
     optional_context =
@@ -66,7 +67,7 @@ absl::Status CreateConvReluGpuModel(
   GpuModelBuilder::TensorHandle conv_out;
   if (conv_subgraph) {
     GpuModelBuilder sub_builder = model_builder.CreateBuilder();
-    auto in = sub_builder.AddTensor(BHWC(1, 32, 32, 16), DataType::FLOAT32);
+    auto in = sub_builder.AddTensor(BHWC(1, 32, 32, 16), DataType::kFloat32);
     auto out = sub_builder.Convolution(in, conv_attr);
     ABSL_RETURN_IF_ERROR(model_builder.RegisterSubgraph(
         std::move(sub_builder), "conv_subgraph", {in}, {out}));
@@ -182,7 +183,8 @@ absl::Status CreateTransposeTransposeGpuModel(
     int optional_transpose0_tag = -1, int optional_transpose1_tag = -1) {
   GpuModelBuilder model_builder(gpu_info, {});
 
-  auto src_th = model_builder.AddTensor(BHWC(4, 32, 32, 16), DataType::FLOAT32);
+  auto src_th =
+      model_builder.AddTensor(BHWC(4, 32, 32, 16), DataType::kFloat32);
   GpuModelBuilder::OptionalNodeContext optional_context;
   if (optional_transpose0_tag >= 0) {
     optional_context =
@@ -250,7 +252,8 @@ absl::Status CreateAddReluGpuModel(const GpuInfo& gpu_info, GpuModel& gpu_model,
                                        -1, -1}) {
   GpuModelBuilder model_builder(gpu_info, {});
 
-  auto src_th = model_builder.AddTensor(BHWC(1, 32, 32, 16), DataType::FLOAT32);
+  auto src_th =
+      model_builder.AddTensor(BHWC(1, 32, 32, 16), DataType::kFloat32);
   GpuModelBuilder::OptionalNodeContext optional_context;
   if (optional_tags[0] >= 0) {
     optional_context =
@@ -258,7 +261,8 @@ absl::Status CreateAddReluGpuModel(const GpuInfo& gpu_info, GpuModel& gpu_model,
   }
   ElementwiseAttributes add_attr;
   add_attr.param = 1.0f;
-  auto interm = model_builder.Elementwise(src_th, add_attr, OperationType::ADD);
+  auto interm =
+      model_builder.Elementwise(src_th, add_attr, OperationType::kAdd);
   if (optional_tags[0] >= 0) {
     ABSL_RETURN_IF_ERROR(
         model_builder.EndOptionalNodes(optional_context, interm,
@@ -320,14 +324,15 @@ absl::Status CreateSumReluAddGpuModel(const GpuInfo& gpu_info,
                                           -1, -1, -1}) {
   GpuModelBuilder model_builder(gpu_info, {});
 
-  auto src_th = model_builder.AddTensor(BHWC(1, 32, 32, 16), DataType::FLOAT32);
+  auto src_th =
+      model_builder.AddTensor(BHWC(1, 32, 32, 16), DataType::kFloat32);
   GpuModelBuilder::OptionalNodeContext optional_context;
   if (optional_tags[0] >= 0) {
     optional_context =
         model_builder.BeginOptionalNodes(optional_tags[0], src_th);
   }
   auto interm0 =
-      model_builder.Reduce(src_th, Reduce::Type::kSum, {Axis::CHANNELS});
+      model_builder.Reduce(src_th, Reduce::Type::kSum, {Axis::kChannels});
   if (optional_tags[0] >= 0) {
     ABSL_RETURN_IF_ERROR(
         model_builder.EndOptionalNodes(optional_context, interm0,
@@ -406,7 +411,8 @@ absl::Status CreateTransposeReluMulAddGpuModel(
     std::vector<GpuModelBuilder::TensorHandle>& outputs,
     const std::vector<int>& optional_tags = {-1, -1, -1, -1},
     bool relu_output = false, bool mul_output = false) {
-  auto src_th = model_builder.AddTensor(BHWC(1, 32, 32, 16), DataType::FLOAT32);
+  auto src_th =
+      model_builder.AddTensor(BHWC(1, 32, 32, 16), DataType::kFloat32);
   GpuModelBuilder::OptionalNodeContext optional_context;
   if (optional_tags[0] >= 0) {
     optional_context =
@@ -440,7 +446,7 @@ absl::Status CreateTransposeReluMulAddGpuModel(
   ElementwiseAttributes mul_attr;
   mul_attr.param = 1.0f;
   auto interm2 =
-      model_builder.Elementwise(interm0, mul_attr, OperationType::MUL);
+      model_builder.Elementwise(interm0, mul_attr, OperationType::kMul);
   if (optional_tags[2] >= 0) {
     ABSL_RETURN_IF_ERROR(
         model_builder.EndOptionalNodes(optional_context, interm2,
@@ -589,7 +595,8 @@ TEST(MergeNodesTest, ExpandSubgraphNodes) {
   ABSL_ASSERT_OK(model_builder.RegisterSubgraph(std::move(builder_b), "b_subgraph",
                                            {inputs_b}, {outputs_b}));
 
-  auto src_th = model_builder.AddTensor(BHWC(1, 32, 32, 16), DataType::FLOAT32);
+  auto src_th =
+      model_builder.AddTensor(BHWC(1, 32, 32, 16), DataType::kFloat32);
   auto a0_ths_or = model_builder.Subgraph("a_subgraph", {src_th});
   ABSL_ASSERT_OK(a0_ths_or);
   auto a0_ths = std::move(a0_ths_or.value());
@@ -632,16 +639,17 @@ TEST(MergeNodesTest, ExpandSubgraphWithConstTensor) {
   GpuModelBuilder model_builder(gpu_info, {});
 
   GpuModelBuilder sub_builder = model_builder.CreateBuilder();
-  auto sub_in = sub_builder.AddTensor(BHWC(1, 32, 32, 16), DataType::FLOAT32);
-  TensorDescriptor const_desc = {DataType::FLOAT32, TensorStorageType::BUFFER,
-                                 Layout::HWC};
+  auto sub_in = sub_builder.AddTensor(BHWC(1, 32, 32, 16), DataType::kFloat32);
+  TensorDescriptor const_desc = {DataType::kFloat32, TensorStorageType::kBuffer,
+                                 Layout::kHWC};
   const_desc.SetBHWCShape(BHWC(1, 32, 32, 16));
   auto const_tensor = sub_builder.AddConstantTensor(std::move(const_desc));
   auto sub_out = sub_builder.Add(sub_in, const_tensor);
   ABSL_ASSERT_OK(model_builder.RegisterSubgraph(
       std::move(sub_builder), "add_subgraph", {sub_in}, {sub_out}));
 
-  auto src_th = model_builder.AddTensor(BHWC(1, 32, 32, 16), DataType::FLOAT32);
+  auto src_th =
+      model_builder.AddTensor(BHWC(1, 32, 32, 16), DataType::kFloat32);
   auto dsts_or = model_builder.Subgraph("add_subgraph", {src_th});
   ABSL_ASSERT_OK(dsts_or);
   auto dsts = std::move(dsts_or.value());
@@ -660,10 +668,10 @@ TEST(MergeNodesTest, MergeLinear1DReshapes) {
   gpu_info.vendor = GpuVendor::kApple;
 
   GpuModelBuilderOptions options;
-  options.storage = TensorStorageType::BUFFER;
+  options.storage = TensorStorageType::kBuffer;
   GpuModelBuilder model_builder(gpu_info, options);
-  auto src_th = model_builder.AddTensor(BHWC(1, 1, 32, 16), DataType::FLOAT32);
-  auto pos_th = model_builder.AddTensor(BHWC(1, 1, 1, 1), DataType::INT32);
+  auto src_th = model_builder.AddTensor(BHWC(1, 1, 32, 16), DataType::kFloat32);
+  auto pos_th = model_builder.AddTensor(BHWC(1, 1, 1, 1), DataType::kInt32);
   auto reshaped = model_builder.Reshape(src_th, BHWC(1, 32, 1, 16));
   RoPEAttributes rope_attr;
   auto out = model_builder.SplitRoPEConcat(reshaped, pos_th, rope_attr);
@@ -682,10 +690,10 @@ TEST(MergeNodesTest, MergeLinear1DReshapesVulkanTexture2D) {
   gpu_info.gpu_api = GpuApi::kVulkan;
 
   GpuModelBuilderOptions options;
-  options.storage = TensorStorageType::TEXTURE_2D;
+  options.storage = TensorStorageType::kTexture2D;
   GpuModelBuilder model_builder(gpu_info, options);
-  auto src_th = model_builder.AddTensor(BHWC(1, 1, 32, 16), DataType::FLOAT32);
-  auto pos_th = model_builder.AddTensor(BHWC(1, 1, 1, 1), DataType::INT32);
+  auto src_th = model_builder.AddTensor(BHWC(1, 1, 32, 16), DataType::kFloat32);
+  auto pos_th = model_builder.AddTensor(BHWC(1, 1, 1, 1), DataType::kInt32);
   auto reshaped = model_builder.Reshape(src_th, BHWC(1, 32, 1, 16));
   RoPEAttributes rope_attr;
   auto out = model_builder.SplitRoPEConcat(reshaped, pos_th, rope_attr);
@@ -705,10 +713,10 @@ TEST(MergeNodesTest, MergeLinear2DReshapes) {
   gpu_info.vendor = GpuVendor::kApple;
 
   GpuModelBuilderOptions options;
-  options.storage = TensorStorageType::BUFFER;
+  options.storage = TensorStorageType::kBuffer;
   GpuModelBuilder model_builder(gpu_info, options);
-  auto src_th = model_builder.AddTensor(BHWC(1, 2, 32, 16), DataType::FLOAT32);
-  auto pos_th = model_builder.AddTensor(BHWC(1, 1, 1, 1), DataType::INT32);
+  auto src_th = model_builder.AddTensor(BHWC(1, 2, 32, 16), DataType::kFloat32);
+  auto pos_th = model_builder.AddTensor(BHWC(1, 1, 1, 1), DataType::kInt32);
   auto reshaped = model_builder.Reshape(src_th, BHWC(1, 32, 2, 16));
   RoPEAttributes rope_attr;
   auto out = model_builder.SplitRoPEConcat(reshaped, pos_th, rope_attr);
@@ -728,10 +736,10 @@ TEST(MergeNodesTest, DontMergeLinear1DReshapesUnsupportedConsumer) {
   gpu_info.vendor = GpuVendor::kApple;
 
   GpuModelBuilderOptions options;
-  options.storage = TensorStorageType::BUFFER;
+  options.storage = TensorStorageType::kBuffer;
   GpuModelBuilder model_builder(gpu_info, options);
-  auto src_th = model_builder.AddTensor(BHWC(1, 1, 32, 16), DataType::FLOAT32);
-  auto pos_th = model_builder.AddTensor(BHWC(1, 1, 1, 1), DataType::INT32);
+  auto src_th = model_builder.AddTensor(BHWC(1, 1, 32, 16), DataType::kFloat32);
+  auto pos_th = model_builder.AddTensor(BHWC(1, 1, 1, 1), DataType::kInt32);
   auto reshaped = model_builder.Reshape(src_th, BHWC(1, 32, 1, 16));
   auto out = model_builder.PositionalEmbedding(reshaped, pos_th);
 
@@ -752,10 +760,10 @@ TEST(MergeNodesTest, DontMergeLinear1DReshapesGraphOutput) {
   gpu_info.vendor = GpuVendor::kApple;
 
   GpuModelBuilderOptions options;
-  options.storage = TensorStorageType::BUFFER;
+  options.storage = TensorStorageType::kBuffer;
   GpuModelBuilder model_builder(gpu_info, options);
-  auto src_th = model_builder.AddTensor(BHWC(1, 1, 32, 16), DataType::FLOAT32);
-  auto pos_th = model_builder.AddTensor(BHWC(1, 1, 1, 1), DataType::INT32);
+  auto src_th = model_builder.AddTensor(BHWC(1, 1, 32, 16), DataType::kFloat32);
+  auto pos_th = model_builder.AddTensor(BHWC(1, 1, 1, 1), DataType::kInt32);
   auto reshaped = model_builder.Reshape(src_th, BHWC(1, 32, 1, 16));
   RoPEAttributes rope_attr;
   auto out = model_builder.SplitRoPEConcat(reshaped, pos_th, rope_attr);

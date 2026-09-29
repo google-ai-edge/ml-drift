@@ -28,11 +28,11 @@ WeightsDescription CreateWeightsDescription(bool is_i4o4,
   WeightsDescription desc;
   desc.layout = WeightsLayout::kCustomGroups;
   if (is_i4o4) {
-    desc.group_sizes.push_back({Axis::OUTPUT_CHANNELS, 4});
-    desc.group_sizes.push_back({Axis::INPUT_CHANNELS, 4});
+    desc.group_sizes.push_back({Axis::kOutputChannels, 4});
+    desc.group_sizes.push_back({Axis::kInputChannels, 4});
   } else {
-    desc.group_sizes.push_back({Axis::INPUT_CHANNELS, 4});
-    desc.group_sizes.push_back({Axis::OUTPUT_CHANNELS, 4});
+    desc.group_sizes.push_back({Axis::kInputChannels, 4});
+    desc.group_sizes.push_back({Axis::kOutputChannels, 4});
   }
   for (Axis axis : axes) {
     desc.group_sizes.push_back({axis, 0});
@@ -43,102 +43,103 @@ WeightsDescription CreateWeightsDescription(bool is_i4o4,
 TEST(WeightsLayoutTest, IsOIOI4O4) {
   WeightsDescription desc;
   desc.layout = WeightsLayout::kCustomGroups;
-  desc.group_sizes = {{Axis::OUTPUT_CHANNELS, 4},
-                      {Axis::INPUT_CHANNELS, 4},
-                      {Axis::OUTPUT_CHANNELS, 0},
-                      {Axis::INPUT_CHANNELS, 0},
-                      {Axis::OUTPUT_CHANNELS, 0}};
+  desc.group_sizes = {{Axis::kOutputChannels, 4},
+                      {Axis::kInputChannels, 4},
+                      {Axis::kOutputChannels, 0},
+                      {Axis::kInputChannels, 0},
+                      {Axis::kOutputChannels, 0}};
   EXPECT_TRUE(desc.IsOISpatialOGroupI4O4());
 }
 
 TEST(WeightsLayoutTest, IsIOO4I4) {
   WeightsDescription desc;
   desc.layout = WeightsLayout::kCustomGroups;
-  desc.group_sizes = {{Axis::INPUT_CHANNELS, 4},
-                      {Axis::OUTPUT_CHANNELS, 4},
-                      {Axis::OUTPUT_CHANNELS, 0},
-                      {Axis::INPUT_CHANNELS, 0}};
+  desc.group_sizes = {{Axis::kInputChannels, 4},
+                      {Axis::kOutputChannels, 4},
+                      {Axis::kOutputChannels, 0},
+                      {Axis::kInputChannels, 0}};
   EXPECT_TRUE(desc.IsOISpatialOGroupO4I4());
 }
 
 TEST(WeightsLayoutTest, IsOII4O4) {
   WeightsDescription desc;
   desc.layout = WeightsLayout::kCustomGroups;
-  desc.group_sizes = {{Axis::OUTPUT_CHANNELS, 4},
-                      {Axis::INPUT_CHANNELS, 4},
-                      {Axis::INPUT_CHANNELS, 0},
-                      {Axis::OUTPUT_CHANNELS, 0}};
+  desc.group_sizes = {{Axis::kOutputChannels, 4},
+                      {Axis::kInputChannels, 4},
+                      {Axis::kInputChannels, 0},
+                      {Axis::kOutputChannels, 0}};
   EXPECT_TRUE(desc.IsOISpatialOGroupI4O4());
 }
 
 TEST(WeightsLayoutTest, IsIIO4I4) {
   WeightsDescription desc;
   desc.layout = WeightsLayout::kCustomGroups;
-  desc.group_sizes = {{Axis::INPUT_CHANNELS, 4},
-                      {Axis::OUTPUT_CHANNELS, 4},
-                      {Axis::INPUT_CHANNELS, 16},
-                      {Axis::INPUT_CHANNELS, 0}};
+  desc.group_sizes = {{Axis::kInputChannels, 4},
+                      {Axis::kOutputChannels, 4},
+                      {Axis::kInputChannels, 16},
+                      {Axis::kInputChannels, 0}};
   EXPECT_FALSE(desc.IsOISpatialOGroupO4I4());
 }
 
 TEST(WeightsLayoutTest, IsOIHWOI4O4) {
   WeightsDescription desc;
   desc.layout = WeightsLayout::kCustomGroups;
-  desc.group_sizes = {{Axis::OUTPUT_CHANNELS, 4}, {Axis::INPUT_CHANNELS, 4},
-                      {Axis::OUTPUT_CHANNELS, 0}, {Axis::WIDTH, 0},
-                      {Axis::HEIGHT, 0},          {Axis::INPUT_CHANNELS, 0},
-                      {Axis::OUTPUT_CHANNELS, 0}};
+  desc.group_sizes = {{Axis::kOutputChannels, 4}, {Axis::kInputChannels, 4},
+                      {Axis::kOutputChannels, 0}, {Axis::kWidth, 0},
+                      {Axis::kHeight, 0},         {Axis::kInputChannels, 0},
+                      {Axis::kOutputChannels, 0}};
   EXPECT_TRUE(desc.IsOISpatialOGroupI4O4());
 }
 
 TEST(WeightsLayoutTest, IsOWHIOO4I4) {
   WeightsDescription desc;
   desc.layout = WeightsLayout::kCustomGroups;
-  desc.group_sizes = {{Axis::INPUT_CHANNELS, 4},  {Axis::OUTPUT_CHANNELS, 4},
-                      {Axis::OUTPUT_CHANNELS, 0}, {Axis::INPUT_CHANNELS, 0},
-                      {Axis::HEIGHT, 0},          {Axis::WIDTH, 0},
-                      {Axis::OUTPUT_CHANNELS, 0}};
+  desc.group_sizes = {{Axis::kInputChannels, 4},  {Axis::kOutputChannels, 4},
+                      {Axis::kOutputChannels, 0}, {Axis::kInputChannels, 0},
+                      {Axis::kHeight, 0},         {Axis::kWidth, 0},
+                      {Axis::kOutputChannels, 0}};
   EXPECT_FALSE(desc.IsOISpatialOGroupO4I4());
 }
 
 TEST(WeightsLayoutTest, IsIHOI4O4) {
   WeightsDescription desc;
   desc.layout = WeightsLayout::kCustomGroups;
-  desc.group_sizes = {{Axis::OUTPUT_CHANNELS, 4},
-                      {Axis::INPUT_CHANNELS, 4},
-                      {Axis::OUTPUT_CHANNELS, 0},
-                      {Axis::HEIGHT, 0},
-                      {Axis::INPUT_CHANNELS, 0}};
+  desc.group_sizes = {{Axis::kOutputChannels, 4},
+                      {Axis::kInputChannels, 4},
+                      {Axis::kOutputChannels, 0},
+                      {Axis::kHeight, 0},
+                      {Axis::kInputChannels, 0}};
   EXPECT_TRUE(desc.IsOISpatialOGroupI4O4());
 }
 
 TEST(WeightsLayoutTest, IsHIOO4I4) {
   WeightsDescription desc;
   desc.layout = WeightsLayout::kCustomGroups;
-  desc.group_sizes = {{Axis::INPUT_CHANNELS, 4},
-                      {Axis::OUTPUT_CHANNELS, 4},
-                      {Axis::OUTPUT_CHANNELS, 0},
-                      {Axis::INPUT_CHANNELS, 0},
-                      {Axis::HEIGHT, 0}};
+  desc.group_sizes = {{Axis::kInputChannels, 4},
+                      {Axis::kOutputChannels, 4},
+                      {Axis::kOutputChannels, 0},
+                      {Axis::kInputChannels, 0},
+                      {Axis::kHeight, 0}};
   EXPECT_FALSE(desc.IsOISpatialOGroupO4I4());
 }
 
 TEST(WeightsLayoutTest, IsI4O4) {
   WeightsDescription desc;
   desc.layout = WeightsLayout::kCustomGroups;
-  desc.group_sizes = {{Axis::OUTPUT_CHANNELS, 4}, {Axis::INPUT_CHANNELS, 4}};
+  desc.group_sizes = {{Axis::kOutputChannels, 4}, {Axis::kInputChannels, 4}};
   EXPECT_TRUE(desc.IsOISpatialOGroupI4O4());
 }
 
 TEST(WeightsLayoutTest, IsOISpatialOGroupSingleAxis) {
-  for (Axis axis : {Axis::OUTPUT_CHANNELS, Axis::INPUT_CHANNELS, Axis::DEPTH,
-                    Axis::HEIGHT, Axis::WIDTH}) {
+  for (Axis axis : {Axis::kOutputChannels, Axis::kInputChannels, Axis::kDepth,
+                    Axis::kHeight, Axis::kWidth}) {
     EXPECT_TRUE(CreateWeightsDescription(true, {axis}).IsOISpatialOGroupI4O4());
     EXPECT_TRUE(
         CreateWeightsDescription(false, {axis}).IsOISpatialOGroupO4I4());
   }
 
-  for (Axis axis : {Axis::BATCH, Axis::CHANNELS, Axis::UNKNOWN, Axis::VALUE}) {
+  for (Axis axis :
+       {Axis::kBatch, Axis::kChannels, Axis::kUnknown, Axis::kValue}) {
     EXPECT_FALSE(
         CreateWeightsDescription(true, {axis}).IsOISpatialOGroupI4O4());
     EXPECT_FALSE(

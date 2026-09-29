@@ -149,8 +149,8 @@ std::vector<float> BtMatrixForWinograd3x3TileNxN(int tile_size) {
 }
 
 void RearrangeWeightsToWinograd3x3TileNxN(
-    const Tensor<OHWI, DataType::FLOAT32>& src_weights,
-    Tensor<OHWI, DataType::FLOAT32>* dst_weights, int tile_size) {
+    const Tensor<OHWI, DataType::kFloat32>& src_weights,
+    Tensor<OHWI, DataType::kFloat32>* dst_weights, int tile_size) {
   OHWI dst_shape;
   dst_shape.o = src_weights.shape.o;
   dst_shape.h = tile_size;

@@ -123,15 +123,15 @@ absl::Status SelectConcat(const ConcatAttributes& attr,
                           const OperationDef& op_def, const GpuInfo& gpu_info,
                           std::unique_ptr<GPUOperation>* ptr) {
   switch (attr.axis) {
-    case Axis::CHANNELS: {
+    case Axis::kChannels: {
       GPUOperation operation = CreateConcatZ(op_def, channels, gpu_info);
       *ptr = std::make_unique<GPUOperation>(std::move(operation));
       return absl::OkStatus();
     }
-    case Axis::BATCH:
-    case Axis::DEPTH:
-    case Axis::HEIGHT:
-    case Axis::WIDTH: {
+    case Axis::kBatch:
+    case Axis::kDepth:
+    case Axis::kHeight:
+    case Axis::kWidth: {
       GPUOperation operation = CreateConcatXY(op_def, attr);
       *ptr = std::make_unique<GPUOperation>(std::move(operation));
       return absl::OkStatus();
@@ -209,7 +209,7 @@ std::unique_ptr<GPUOperation> SelectWinograd3x3Forward(
 
 std::unique_ptr<GPUOperation> SelectWinograd3x3Backward(
     const GpuInfo& gpu_info, const OperationDef& op_def, int tile_size,
-    const Tensor<Linear, DataType::FLOAT32>& biases) {
+    const Tensor<Linear, DataType::kFloat32>& biases) {
   if (gpu_info.IsAMD() && tile_size == 6) {
     Winograd36To4x4 operation = CreateWinograd36To4x4(op_def, biases);
     return std::make_unique<Winograd36To4x4>(std::move(operation));

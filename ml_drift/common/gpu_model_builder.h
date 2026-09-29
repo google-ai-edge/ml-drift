@@ -55,7 +55,7 @@ class WeightsManager;
 
 struct GpuModelBuilderOptions {
   ModelHints hints;
-  TensorStorageType storage = TensorStorageType::BUFFER;
+  TensorStorageType storage = TensorStorageType::kBuffer;
   bool use_f32_accum_for_f16_convolutions = false;
 };
 
@@ -79,7 +79,7 @@ class GpuModelBuilder {
   GpuModelBuilder(const GpuInfo& gpu_info, ModelHints hints,
                   CalculationsPrecision precision, TensorStorageType storage)
       : use_f32_accum_for_f16_convolutions_(precision ==
-                                            CalculationsPrecision::F32_F16),
+                                            CalculationsPrecision::kF32F16),
         gpu_info_(gpu_info),
         hints_(hints),
         default_storage_(storage) {}
@@ -121,14 +121,14 @@ class GpuModelBuilder {
   GpuModelBuilder CreateBuilder() const;
 
   CalculationsPrecision GetConvPrecision(DataType data_type) const {
-    if (data_type != DataType::FLOAT16) {
-      return CalculationsPrecision::F32;
+    if (data_type != DataType::kFloat16) {
+      return CalculationsPrecision::kF32;
     }
     // FLOAT16
     if (use_f32_accum_for_f16_convolutions_) {
-      return CalculationsPrecision::F32_F16;
+      return CalculationsPrecision::kF32F16;
     } else {
-      return CalculationsPrecision::F16;
+      return CalculationsPrecision::kF16;
     }
   }
 
@@ -148,7 +148,7 @@ class GpuModelBuilder {
 
   TensorHandle AddConstantTensor(TensorDescriptor&& tensor_desc);
   TensorHandle AddConstantTensor(
-      const Tensor<Linear, DataType::FLOAT32>& tensor, DataType data_type);
+      const Tensor<Linear, DataType::kFloat32>& tensor, DataType data_type);
   TensorHandle AddConstantTensor(const TensorFloat32& tensor,
                                  DataType data_type);
 
@@ -177,7 +177,7 @@ class GpuModelBuilder {
       const ConvolutionTransposedAttributes& attr);
   TensorHandle EmbeddingLookup(const TensorHandle& src, const Weights& weights,
                                DataType dst_type,
-                               Axis lookup_axis = Axis::CHANNELS);
+                               Axis lookup_axis = Axis::kChannels);
   WeightsDescription GetFullyConnectedWeightsDesc(
       DataType data_type, const OHWI& weights_shape) const;
   absl::StatusOr<TensorHandle> FullyConnectedExternalWeights(
@@ -264,14 +264,14 @@ class GpuModelBuilder {
   TensorHandle Add(const TensorHandle& src, double value);
   TensorHandle Add(const TensorHandle& src, int value);
   TensorHandle Add(const TensorHandle& src,
-                   const Tensor<Linear, DataType::FLOAT32>& value);
+                   const Tensor<Linear, DataType::kFloat32>& value);
   TensorHandle Add(const TensorHandle& left, const TensorHandle& right);
 
   TensorHandle Multiplication(const TensorHandle& src, float value);
   TensorHandle Multiplication(const TensorHandle& src, double value);
   TensorHandle Multiplication(const TensorHandle& src, int value);
   TensorHandle Multiplication(const TensorHandle& src,
-                              const Tensor<Linear, DataType::FLOAT32>& value);
+                              const Tensor<Linear, DataType::kFloat32>& value);
   TensorHandle Multiplication(const TensorHandle& left,
                               const TensorHandle& right);
 
@@ -332,18 +332,18 @@ class GpuModelBuilder {
                        const Pooling2DAttributes& attr);
 
   TensorHandle LayerNormalization(
-      const TensorHandle& src, const Tensor<Linear, DataType::FLOAT32>& gamma,
-      const Tensor<Linear, DataType::FLOAT32>& beta, float epsilon);
+      const TensorHandle& src, const Tensor<Linear, DataType::kFloat32>& gamma,
+      const Tensor<Linear, DataType::kFloat32>& beta, float epsilon);
 
   TensorHandle HWCGroupNormalization(
       const TensorHandle& src, int groups,
-      const Tensor<Linear, DataType::FLOAT32>& gamma,
-      const Tensor<Linear, DataType::FLOAT32>& beta, float epsilon);
+      const Tensor<Linear, DataType::kFloat32>& gamma,
+      const Tensor<Linear, DataType::kFloat32>& beta, float epsilon);
 
   TensorHandle RMSNormalization(
       const TensorHandle& src, float epsilon,
-      const Tensor<Linear, DataType::FLOAT32>* gamma = nullptr,
-      const Tensor<Linear, DataType::FLOAT32>* beta = nullptr);
+      const Tensor<Linear, DataType::kFloat32>* gamma = nullptr,
+      const Tensor<Linear, DataType::kFloat32>* beta = nullptr);
 
   TensorHandle StatisticalTopK(const TensorHandle& src,
                                float stddev_multiplier);
@@ -439,12 +439,12 @@ class GpuModelBuilder {
                                const TensorHandle& mean,
                                const TensorHandle& mean_squares,
                                const TensorHandle& dst,
-                               const Tensor<HWC, DataType::FLOAT32>& gamma,
-                               const Tensor<HWC, DataType::FLOAT32>& beta,
+                               const Tensor<HWC, DataType::kFloat32>& gamma,
+                               const Tensor<HWC, DataType::kFloat32>& beta,
                                float epsilon);
   TensorHandle HWCGroupNorm(const TensorHandle& src, int groups, float epsilon,
-                            const Tensor<Linear, DataType::FLOAT32>& gamma,
-                            const Tensor<Linear, DataType::FLOAT32>& beta);
+                            const Tensor<Linear, DataType::kFloat32>& gamma,
+                            const Tensor<Linear, DataType::kFloat32>& beta);
 
   TensorHandle SiLU(const TensorHandle& src);
 
@@ -622,15 +622,17 @@ class GpuModelBuilder {
       const ConvRuntimeCheckDesc& runtime_check = {},
       const TensorHandle* runtime_check_tensor = nullptr);
 
-  Weights GetWeights(const std::variant<Tensor<OHWI, DataType::INT8>,
-                                        Tensor<OHWI, DataType::INT2>>& weights);
-  Weights GetWeights(const std::variant<Tensor<OHWI, DataType::INT8>,
-                                        Tensor<OHWI, DataType::INT4>>& weights);
+  Weights GetWeights(
+      const std::variant<Tensor<OHWI, DataType::kInt8>,
+                         Tensor<OHWI, DataType::kInt2>>& weights);
+  Weights GetWeights(
+      const std::variant<Tensor<OHWI, DataType::kInt8>,
+                         Tensor<OHWI, DataType::kInt4>>& weights);
 
-  TensorHandle GetWeightsScale(const Tensor<OHWI, DataType::FLOAT32>& scale,
+  TensorHandle GetWeightsScale(const Tensor<OHWI, DataType::kFloat32>& scale,
                                DataType float_type);
   TensorHandle GetWeightsZeroPoint(
-      const Tensor<OHWI, DataType::INT32>& zero_point, DataType float_type);
+      const Tensor<OHWI, DataType::kInt32>& zero_point, DataType float_type);
 
   // returns 2 tensors: quantized and params(min/max/sum)
   std::vector<TensorHandle> Quantize(const TensorHandle& src,
@@ -646,12 +648,12 @@ class GpuModelBuilder {
   TensorHandle ToDHWBCC4(const TensorHandle& src);
 
   std::vector<TensorHandle> GetWeights(
-      const Tensor<OHWI, DataType::FLOAT32>& weights,
+      const Tensor<OHWI, DataType::kFloat32>& weights,
       WeightsDescription weights_desc);
   std::vector<TensorHandle> GetWeights(const Convolution2DAttributes& attr,
                                        WeightsDescription weights_desc);
   std::vector<TensorHandle> GetWinograd3x3Weights(
-      const Tensor<OHWI, DataType::FLOAT32>& weights,
+      const Tensor<OHWI, DataType::kFloat32>& weights,
       WeightsDescription conv_weights_desc, int tile_size);
 
   absl::StatusOr<std::pair<int, int>> GetNodeAndIndexByOutputId(

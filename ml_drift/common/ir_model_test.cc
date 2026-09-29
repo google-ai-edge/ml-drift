@@ -42,11 +42,11 @@ TEST(IrModelTest, SingleNode1Input1Output) {
   // input -> node -> output
   IrModel model;
   const IrOp* op = model.add_op();
-  const IrTensor* input =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  const IrTensor* input = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                           ::ml_drift::HWC(1, 1, 1));
   model.add_input(input->id);
-  const IrTensor* output =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  const IrTensor* output = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                            ::ml_drift::HWC(1, 1, 1));
   model.add_output(output->id);
   model.AddConsumer(input->id, op->id);
   model.SetProducer(output->id, op->id);
@@ -82,14 +82,14 @@ TEST(IrModelTest, SingleNode1Input2Outputs) {
   // input -> node -> (output1, output2)
   IrModel model;
   const IrOp* op = model.add_op();
-  const IrTensor* input =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  const IrTensor* input = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                           ::ml_drift::HWC(1, 1, 1));
   model.add_input(input->id);
-  const IrTensor* output1 =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  const IrTensor* output1 = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                             ::ml_drift::HWC(1, 1, 1));
   model.add_output(output1->id);
-  const IrTensor* output2 =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  const IrTensor* output2 = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                             ::ml_drift::HWC(1, 1, 1));
   model.add_output(output2->id);
   model.AddConsumer(input->id, op->id);
   model.SetProducer(output1->id, op->id);
@@ -135,12 +135,12 @@ TEST(IrModelTest, RemoveSimpleOp_KeepInput) {
   IrOp* op1 = model.add_op();
   IrOp* op2 = model.add_op();
 
-  IrTensor* input =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
-  IrTensor* intermediate =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
-  IrTensor* output =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  IrTensor* input = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                     ::ml_drift::HWC(1, 1, 1));
+  IrTensor* intermediate = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                            ::ml_drift::HWC(1, 1, 1));
+  IrTensor* output = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                      ::ml_drift::HWC(1, 1, 1));
 
   model.add_input(input->id);
   model.add_output(output->id);
@@ -176,12 +176,12 @@ TEST(IrModelTest, RemoveSimpleOp_KeepOutput) {
   IrOp* op1 = model.add_op();
   IrOp* op2 = model.add_op();
 
-  IrTensor* input =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
-  IrTensor* intermediate =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
-  IrTensor* output =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  IrTensor* input = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                     ::ml_drift::HWC(1, 1, 1));
+  IrTensor* intermediate = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                            ::ml_drift::HWC(1, 1, 1));
+  IrTensor* output = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                      ::ml_drift::HWC(1, 1, 1));
 
   model.add_input(input->id);
   model.add_output(output->id);
@@ -216,10 +216,10 @@ TEST(IrModelTest, RemoveSimpleOp_FailsWhenBothAreGraphBoundaries) {
   IrModel model;
   IrOp* op = model.add_op();
 
-  IrTensor* input =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
-  IrTensor* output =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  IrTensor* input = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                     ::ml_drift::HWC(1, 1, 1));
+  IrTensor* output = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                      ::ml_drift::HWC(1, 1, 1));
 
   model.add_input(input->id);
   model.add_output(output->id);
@@ -244,14 +244,14 @@ TEST(IrModelTest,
   IrOp* op2 = model.add_op();
   IrOp* op3 = model.add_op();
 
-  IrTensor* input =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
-  IrTensor* intermediate =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
-  IrTensor* output =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
-  IrTensor* output2 =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  IrTensor* input = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                     ::ml_drift::HWC(1, 1, 1));
+  IrTensor* intermediate = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                            ::ml_drift::HWC(1, 1, 1));
+  IrTensor* output = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                      ::ml_drift::HWC(1, 1, 1));
+  IrTensor* output2 = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                       ::ml_drift::HWC(1, 1, 1));
 
   model.add_input(input->id);
   model.add_output(output->id);
@@ -301,12 +301,12 @@ TEST(IrModelTest, RemoveSimpleOp_FailsInvalidNumInputsOutputs) {
   IrOp* op_no_io = model.add_op();
 
   IrOp* op_2_in = model.add_op();
-  IrTensor* in1 =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
-  IrTensor* in2 =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
-  IrTensor* out1 =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  IrTensor* in1 = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                   ::ml_drift::HWC(1, 1, 1));
+  IrTensor* in2 = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                   ::ml_drift::HWC(1, 1, 1));
+  IrTensor* out1 = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                    ::ml_drift::HWC(1, 1, 1));
   model.AddConsumer(in1->id, op_2_in->id);
   model.AddConsumer(in2->id, op_2_in->id);
   model.SetProducer(out1->id, op_2_in->id);
@@ -320,10 +320,10 @@ TEST(IrModelTest, RemoveSimpleOp_FailsInputHasNoProducerWhenKeepingOutput) {
   IrModel model;
   IrOp* op = model.add_op();
 
-  IrTensor* input =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
-  IrTensor* output =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  IrTensor* input = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                     ::ml_drift::HWC(1, 1, 1));
+  IrTensor* output = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                      ::ml_drift::HWC(1, 1, 1));
 
   model.add_output(output->id);
 
@@ -342,14 +342,14 @@ TEST(IrModelTest, RemoveSimpleOp_IntermediateNode) {
   IrOp* op2 = model.add_op();
   IrOp* op3 = model.add_op();
 
-  IrTensor* input =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
-  IrTensor* intermediate1 =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
-  IrTensor* intermediate2 =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
-  IrTensor* output =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  IrTensor* input = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                     ::ml_drift::HWC(1, 1, 1));
+  IrTensor* intermediate1 = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                             ::ml_drift::HWC(1, 1, 1));
+  IrTensor* intermediate2 = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                             ::ml_drift::HWC(1, 1, 1));
+  IrTensor* output = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                      ::ml_drift::HWC(1, 1, 1));
 
   model.add_input(input->id);
   model.add_output(output->id);
@@ -392,16 +392,16 @@ TEST(IrModelTest, RemoveSimpleOp_IntermediateNode_MultipleConsumers) {
   IrOp* op3 = model.add_op();
   IrOp* op4 = model.add_op();
 
-  IrTensor* input =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
-  IrTensor* intermediate1 =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
-  IrTensor* intermediate2 =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
-  IrTensor* output1 =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
-  IrTensor* output2 =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  IrTensor* input = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                     ::ml_drift::HWC(1, 1, 1));
+  IrTensor* intermediate1 = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                             ::ml_drift::HWC(1, 1, 1));
+  IrTensor* intermediate2 = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                             ::ml_drift::HWC(1, 1, 1));
+  IrTensor* output1 = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                       ::ml_drift::HWC(1, 1, 1));
+  IrTensor* output2 = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                       ::ml_drift::HWC(1, 1, 1));
 
   model.add_input(input->id);
   model.add_output(output1->id);
@@ -446,10 +446,10 @@ TEST(IrModelTest, RemoveSimpleOp_IntermediateNode_MultipleConsumers) {
 TEST(IrModelTest, ReplaceInput_Success) {
   IrModel model;
   IrOp* op = model.add_op();
-  IrTensor* old_tensor =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
-  IrTensor* new_tensor =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  IrTensor* old_tensor = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                          ::ml_drift::HWC(1, 1, 1));
+  IrTensor* new_tensor = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                          ::ml_drift::HWC(1, 1, 1));
 
   model.AddConsumer(old_tensor->id, op->id);
 
@@ -467,10 +467,10 @@ TEST(IrModelTest, ReplaceInput_Success) {
 TEST(IrModelTest, ReplaceInput_Errors) {
   IrModel model;
   IrOp* op = model.add_op();
-  IrTensor* t1 =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
-  IrTensor* t2 =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  IrTensor* t1 = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                  ::ml_drift::HWC(1, 1, 1));
+  IrTensor* t2 = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                  ::ml_drift::HWC(1, 1, 1));
 
   model.AddConsumer(t1->id, op->id);
 
@@ -490,10 +490,10 @@ TEST(IrModelTest, ReplaceInput_Errors) {
 TEST(IrModelTest, RemoveOp_Success) {
   IrModel model;
   IrOp* op = model.add_op();
-  IrTensor* in_tensor =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
-  IrTensor* out_tensor =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  IrTensor* in_tensor = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                         ::ml_drift::HWC(1, 1, 1));
+  IrTensor* out_tensor = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                          ::ml_drift::HWC(1, 1, 1));
 
   model.AddConsumer(in_tensor->id, op->id);
   model.SetProducer(out_tensor->id, op->id);
@@ -518,12 +518,12 @@ TEST(IrModelTest, RemoveOp_BoundaryPromotion) {
   IrModel model;
   IrOp* op1 = model.add_op();
   IrOp* op2 = model.add_op();
-  IrTensor* input =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
-  IrTensor* intermediate =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
-  IrTensor* output =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  IrTensor* input = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                     ::ml_drift::HWC(1, 1, 1));
+  IrTensor* intermediate = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                            ::ml_drift::HWC(1, 1, 1));
+  IrTensor* output = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                      ::ml_drift::HWC(1, 1, 1));
 
   model.add_input(input->id);
   model.add_output(output->id);
@@ -552,14 +552,14 @@ TEST(IrModelTest, RemoveOp_SequentialWithOrphanPruning) {
   IrOp* op1 = model.add_op();
   IrOp* op2 = model.add_op();
   IrOp* op3 = model.add_op();
-  IrTensor* input =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
-  IrTensor* t1 =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
-  IrTensor* t2 =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
-  IrTensor* output =
-      model.add_tensor(::ml_drift::DataType::FLOAT32, ::ml_drift::HWC(1, 1, 1));
+  IrTensor* input = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                     ::ml_drift::HWC(1, 1, 1));
+  IrTensor* t1 = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                  ::ml_drift::HWC(1, 1, 1));
+  IrTensor* t2 = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                  ::ml_drift::HWC(1, 1, 1));
+  IrTensor* output = model.add_tensor(::ml_drift::DataType::kFloat32,
+                                      ::ml_drift::HWC(1, 1, 1));
 
   model.add_input(input->id);
   model.add_output(output->id);

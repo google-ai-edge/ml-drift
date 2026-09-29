@@ -118,9 +118,9 @@ absl::Status MakeRmsNorm(const GpuInfo& gpu_info,
         "RmsNorm operation expects a single input and a single output.");
   }
   ABSL_ASSIGN_OR_RETURN(auto src_tensor, model_builder->GetTensor(inputs[0]));
-  Tensor<Linear, DataType::FLOAT32> gamma, beta;
-  Tensor<Linear, DataType::FLOAT32>* gamma_ptr = nullptr;
-  Tensor<Linear, DataType::FLOAT32>* beta_ptr = nullptr;
+  Tensor<Linear, DataType::kFloat32> gamma, beta;
+  Tensor<Linear, DataType::kFloat32>* gamma_ptr = nullptr;
+  Tensor<Linear, DataType::kFloat32>* beta_ptr = nullptr;
   if (attr.scale.has_value()) {
     gamma.shape = Linear(attr.scale.value().data.size());
     gamma.data = attr.scale.value().data;
@@ -224,9 +224,9 @@ absl::Status MakeQuantizedFullyConnectedExternalWeights(
     const std::vector<ValueId>& inputs, const std::vector<ValueId>& outputs,
     GpuModelBuilder* model_builder, const OHWI& weights_shape_ohwi,
     const OHWI& scale_zp_shape) {
-  if (op_type != OperationType::FULLY_CONNECTED_INT2 &&
-      op_type != OperationType::FULLY_CONNECTED_INT4 &&
-      op_type != OperationType::FULLY_CONNECTED_INT8) {
+  if (op_type != OperationType::kFullyConnectedInt2 &&
+      op_type != OperationType::kFullyConnectedInt4 &&
+      op_type != OperationType::kFullyConnectedInt8) {
     return absl::InternalError(
         "Expected only int2, int4, or int8 Fully Connected.");
   }
@@ -245,7 +245,7 @@ absl::Status MakeQuantizedFullyConnectedExternalWeights(
     ABSL_ASSIGN_OR_RETURN(auto fifth_tensor,
                           model_builder->GetTensor(inputs[4]));
     const bool has_weight_sum_i =
-        fifth_tensor.tensor_desc.GetDataType() == DataType::INT32;
+        fifth_tensor.tensor_desc.GetDataType() == DataType::kInt32;
     if (has_weight_sum_i) {
       weights_sum_i = fifth_tensor;
       weights_sum_i_ptr = &weights_sum_i;
@@ -267,7 +267,7 @@ absl::Status MakeQuantizedFullyConnectedExternalWeights(
   WeightsDescription weights_desc;
   GpuModelBuilder::TensorHandle out;
   switch (op_type) {
-    case OperationType::FULLY_CONNECTED_INT8: {
+    case OperationType::kFullyConnectedInt8: {
       weights_desc = GetFullyConnectedInt8WeightsDesc(
           gpu_info, weights_shape_ohwi,
           /*prefer_textures=*/
@@ -279,7 +279,7 @@ absl::Status MakeQuantizedFullyConnectedExternalWeights(
           src, external_weights, bias_th_ptr);
       break;
     }
-    case OperationType::FULLY_CONNECTED_INT4: {
+    case OperationType::kFullyConnectedInt4: {
       weights_desc = GetFullyConnectedInt4WeightsDesc(
           gpu_info, weights_shape_ohwi,
           /*prefer_textures=*/
@@ -291,7 +291,7 @@ absl::Status MakeQuantizedFullyConnectedExternalWeights(
           src, external_weights, bias_th_ptr);
       break;
     }
-    case OperationType::FULLY_CONNECTED_INT2: {
+    case OperationType::kFullyConnectedInt2: {
       weights_desc = GetFullyConnectedInt2WeightsDesc(
           gpu_info, weights_shape_ohwi,
           /*prefer_textures=*/
@@ -322,7 +322,7 @@ absl::Status MakeLayerNorm(const GpuInfo& gpu_info,
   ABSL_ASSIGN_OR_RETURN(auto src_tensor, model_builder->GetTensor(inputs[0]));
   auto input_shape = src_tensor.tensor_desc.GetBHWCShape();
 
-  Tensor<Linear, DataType::FLOAT32> gamma, beta;
+  Tensor<Linear, DataType::kFloat32> gamma, beta;
   if (attr.scale.has_value()) {
     gamma.shape = Linear(attr.scale.value().data.size());
     gamma.data = attr.scale.value().data;
@@ -361,7 +361,7 @@ absl::Status MakeGroupNorm(const GpuInfo& gpu_info,
   }
   ABSL_ASSIGN_OR_RETURN(auto src_tensor, model_builder->GetTensor(inputs[0]));
   auto input_shape = src_tensor.tensor_desc.GetBHWCShape();
-  Tensor<Linear, DataType::FLOAT32> gamma, beta;
+  Tensor<Linear, DataType::kFloat32> gamma, beta;
   if (attr.gamma.has_value()) {
     gamma.shape = Linear(attr.gamma.value().data.size());
     gamma.data = attr.gamma.value().data;
@@ -459,7 +459,7 @@ absl::Status MakeRoPE(const GpuInfo& gpu_info,
     if (outputs.size() != 1) {
       return absl::InvalidArgumentError("RoPE expects 1 output for 2 inputs.");
     }
-    if (attr.kernel_type == RoPEKernelType::INTERLEAVED_2D) {
+    if (attr.kernel_type == RoPEKernelType::kInterleaved2D) {
       ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]));
       auto shape = src.tensor_desc.GetBHWCShape();
       if (shape.c % 8 != 0) {
@@ -479,7 +479,7 @@ absl::Status MakeRoPE(const GpuInfo& gpu_info,
     if (outputs.size() != 2) {
       return absl::InvalidArgumentError("RoPE expects 2 outputs for 3 inputs.");
     }
-    if (attr.kernel_type == RoPEKernelType::INTERLEAVED_2D) {
+    if (attr.kernel_type == RoPEKernelType::kInterleaved2D) {
       // RoPE (3 inputs case) only supports PLANAR_1D so far.
       return absl::InvalidArgumentError(
           "RoPE does not support INTERLEAVED_2D for 3 inputs.");
@@ -553,27 +553,27 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
   }
   auto op_type = OperationTypeFromString(node.operation.type);
   switch (op_type) {
-    case OperationType::ABS:
-    case OperationType::CEIL:
-    case OperationType::COPY:
-    case OperationType::COS:
-    case OperationType::ELU:
-    case OperationType::EXP:
-    case OperationType::FLOOR:
-    case OperationType::GELU:
-    case OperationType::GELU_TANH_APPROX:
-    case OperationType::HARD_SWISH:
-    case OperationType::LOG:
-    case OperationType::LOGICAL_NOT:
-    case OperationType::NEG:
-    case OperationType::ROUND:
-    case OperationType::RSQRT:
-    case OperationType::SIGMOID:
-    case OperationType::SIGN:
-    case OperationType::SIN:
-    case OperationType::SQRT:
-    case OperationType::SQUARE:
-    case OperationType::TANH: {
+    case OperationType::kAbs:
+    case OperationType::kCeil:
+    case OperationType::kCopy:
+    case OperationType::kCos:
+    case OperationType::kElu:
+    case OperationType::kExp:
+    case OperationType::kFloor:
+    case OperationType::kGelu:
+    case OperationType::kGeluTanhApprox:
+    case OperationType::kHardSwish:
+    case OperationType::kLog:
+    case OperationType::kLogicalNot:
+    case OperationType::kNeg:
+    case OperationType::kRound:
+    case OperationType::kRsqrt:
+    case OperationType::kSigmoid:
+    case OperationType::kSign:
+    case OperationType::kSin:
+    case OperationType::kSqrt:
+    case OperationType::kSquare:
+    case OperationType::kTanh: {
       GPUOperation operation;
       if (inputs[0]->tensor.shape != outputs[0]->tensor.shape) {
         operation = CreateElementwiseOneInputWithBroadcast(
@@ -588,32 +588,32 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
           node.operation.type);
       return absl::OkStatus();
     }
-    case OperationType::ADD:
-    case OperationType::ATAN2:
-    case OperationType::DIV:
-    case OperationType::EQUAL:
-    case OperationType::FLOOR_DIV:
-    case OperationType::FLOOR_MOD:
-    case OperationType::GREATER:
-    case OperationType::GREATER_EQUAL:
-    case OperationType::LESS:
-    case OperationType::LESS_EQUAL:
-    case OperationType::LOGICAL_AND:
-    case OperationType::LOGICAL_OR:
-    case OperationType::LOGICAL_XOR:
-    case OperationType::MAXIMUM:
-    case OperationType::MINIMUM:
-    case OperationType::MISH:
-    case OperationType::MOD:
-    case OperationType::MUL:
-    case OperationType::NOT_EQUAL:
-    case OperationType::POW:
-    case OperationType::REMAINDER:
-    case OperationType::SHIFT_LEFT:
-    case OperationType::SHIFT_RIGHT:
-    case OperationType::SQUARED_DIFF:
-    case OperationType::SUB: {
-      if (op_type == OperationType::ADD && inputs.size() >= 2) {
+    case OperationType::kAdd:
+    case OperationType::kAtan2:
+    case OperationType::kDiv:
+    case OperationType::kEqual:
+    case OperationType::kFloorDiv:
+    case OperationType::kFloorMod:
+    case OperationType::kGreater:
+    case OperationType::kGreaterEqual:
+    case OperationType::kLess:
+    case OperationType::kLessEqual:
+    case OperationType::kLogicalAnd:
+    case OperationType::kLogicalOr:
+    case OperationType::kLogicalXor:
+    case OperationType::kMaximum:
+    case OperationType::kMinimum:
+    case OperationType::kMish:
+    case OperationType::kMod:
+    case OperationType::kMul:
+    case OperationType::kNotEqual:
+    case OperationType::kPow:
+    case OperationType::kRemainder:
+    case OperationType::kShiftLeft:
+    case OperationType::kShiftRight:
+    case OperationType::kSquaredDiff:
+    case OperationType::kSub: {
+      if (op_type == OperationType::kAdd && inputs.size() >= 2) {
         const bool first_input_pad_with_zero =
             inputs[0]->tensor.shape.c % 4 == 0 &&
             inputs[0]->tensor.shape.c != outputs[0]->tensor.shape.c;
@@ -674,20 +674,20 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
           node.operation.type);
       return absl::OkStatus();
     }
-    case OperationType::MEAN:
-    case OperationType::REDUCE_ALL:
-    case OperationType::REDUCE_ANY:
-    case OperationType::REDUCE_MAXIMUM:
-    case OperationType::REDUCE_MINIMUM:
-    case OperationType::REDUCE_PRODUCT:
-    case OperationType::REDUCE_SUM: {
+    case OperationType::kMean:
+    case OperationType::kReduceAll:
+    case OperationType::kReduceAny:
+    case OperationType::kReduceMaximum:
+    case OperationType::kReduceMinimum:
+    case OperationType::kReduceProduct:
+    case OperationType::kReduceSum: {
       const auto& attr =
           std::any_cast<const ReduceAttributes&>(node.operation.attributes);
       ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       return model_builder->UpdateOutputTensor(
           model_builder->Reduce(src, op_type, attr.dims), outputs[0]->id);
     }
-    case OperationType::BATCHED_MATMUL: {
+    case OperationType::kBatchedMatmul: {
       const auto& batched_mat_mul_attr =
           std::any_cast<const BatchedMatMulAttributes&>(
               node.operation.attributes);
@@ -706,19 +706,19 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
           model_builder->BatchedMatMul(left, right, batched_mat_mul_attr));
       return model_builder->UpdateOutputTensor(output, outputs[0]->id);
     }
-    case OperationType::BITCAST: {
+    case OperationType::kBitcast: {
       ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       return model_builder->UpdateOutputTensor(
           model_builder->BitCast(src, op_def.dst_tensors[0].GetDataType()),
           outputs[0]->id);
     }
-    case OperationType::CAST: {
+    case OperationType::kCast: {
       ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       return model_builder->UpdateOutputTensor(
           model_builder->Cast(src, op_def.dst_tensors[0].GetDataType()),
           outputs[0]->id);
     }
-    case OperationType::CONCAT: {
+    case OperationType::kConcat: {
       const auto& attr =
           std::any_cast<const ConcatAttributes&>(node.operation.attributes);
       std::vector<GpuModelBuilder::TensorHandle> src_handles(inputs.size());
@@ -729,18 +729,18 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
       return model_builder->UpdateOutputTensor(
           model_builder->Concat(src_handles, attr.axis), outputs[0]->id);
     }
-    case OperationType::CONVOLUTION_2D: {
+    case OperationType::kConvolution2D: {
       const auto& attr = std::any_cast<const Convolution2DAttributes&>(
           node.operation.attributes);
       if (inputs.size() == 1) {
         ABSL_ASSIGN_OR_RETURN(auto src,
                               model_builder->GetTensor(inputs[0]->id));
         if (gpu_info.IsApiWebGpu() &&
-            op_def.src_tensors[0].GetDataType() == DataType::FLOAT32 &&
-            op_def.dst_tensors[0].GetDataType() == DataType::FLOAT16) {
+            op_def.src_tensors[0].GetDataType() == DataType::kFloat32 &&
+            op_def.dst_tensors[0].GetDataType() == DataType::kFloat16) {
           // see CheckExternalTensorDescription in
           // ml_drift/common/gpu_model_util.cc
-          src = model_builder->Cast(src, DataType::FLOAT16);
+          src = model_builder->Cast(src, DataType::kFloat16);
         }
         return model_builder->UpdateOutputTensor(
             model_builder->Convolution(src, attr), outputs[0]->id);
@@ -762,7 +762,7 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
         return model_builder->UpdateOutputTensor(output, outputs[0]->id);
       }
     }
-    case OperationType::CONVOLUTION_TRANSPOSED: {
+    case OperationType::kConvolutionTransposed: {
       const auto& attr = std::any_cast<const ConvolutionTransposedAttributes&>(
           node.operation.attributes);
       ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
@@ -788,7 +788,7 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
             outputs[0]->id);
       }
     }
-    case OperationType::CUMSUM: {
+    case OperationType::kCumsum: {
       const auto& attr =
           std::any_cast<const CumsumAttributes&>(node.operation.attributes);
       std::unique_ptr<GPUOperation> gpu_op;
@@ -797,7 +797,7 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
                                      node.operation.type);
       return absl::OkStatus();
     }
-    case OperationType::DEPTHWISE_CONVOLUTION: {
+    case OperationType::kDepthwiseConvolution: {
       const auto& attr = std::any_cast<const DepthwiseConvolution2DAttributes&>(
           node.operation.attributes);
       ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
@@ -815,7 +815,7 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
       }
       return model_builder->UpdateOutputTensor(output, outputs[0]->id);
     }
-    case OperationType::DEPTH_TO_SPACE: {
+    case OperationType::kDepthToSpace: {
       const auto& attr = std::any_cast<const SpaceToDepthAttributes&>(
           node.operation.attributes);
       std::unique_ptr<GPUOperation> gpu_op;
@@ -824,13 +824,13 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
                                      node.operation.type);
       return absl::OkStatus();
     }
-    case OperationType::DYNAMIC_UPDATE_SLICE: {
+    case OperationType::kDynamicUpdateSlice: {
       auto gpu_op = SelectDynamicUpdateSlice(op_def, gpu_info);
       model_builder->AddGpuOperation(src_ids, dst_ids, std::move(gpu_op),
                                      node.operation.type);
       return absl::OkStatus();
     }
-    case OperationType::EMBEDDING_LOOKUP: {
+    case OperationType::kEmbeddingLookup: {
       const auto& attr = std::any_cast<const EmbeddingLookupAttributes&>(
           node.operation.attributes);
       if (IsEmbeddingLookupQuantized(attr) &&
@@ -845,7 +845,7 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
                                      node.operation.type);
       return absl::OkStatus();
     }
-    case OperationType::FULLY_CONNECTED: {
+    case OperationType::kFullyConnected: {
       const auto& attr = std::any_cast<const FullyConnectedAttributes&>(
           node.operation.attributes);
       ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
@@ -867,7 +867,7 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
         conv_attr.padding.appended = HW(0, 0);
         conv_attr.padding.prepended = HW(0, 0);
         auto& conv_weights =
-            conv_attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
+            conv_attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
         auto weights_shape = inputs[1]->tensor.shape;
         conv_weights.shape = OHWI(weights_shape.b, weights_shape.h,
                                   weights_shape.w, weights_shape.c);
@@ -880,12 +880,12 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
             model_builder->FullyConnected(src, attr), outputs[0]->id);
       }
     }
-    case OperationType::FULLY_CONNECTED_INT2: {
+    case OperationType::kFullyConnectedInt2: {
       const auto& attr = std::any_cast<const FullyConnectedInt2Attributes&>(
           node.operation.attributes);
       if (inputs.size() >= 4) {
         return MakeQuantizedFullyConnectedExternalWeights(
-            gpu_info, create_info, op_def, OperationType::FULLY_CONNECTED_INT2,
+            gpu_info, create_info, op_def, OperationType::kFullyConnectedInt2,
             src_ids, dst_ids, model_builder,
             std::visit([](const auto& w) { return w.shape; }, attr.weights),
             attr.scale.shape);
@@ -894,12 +894,12 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
       auto output = model_builder->FullyConnected(src, attr);
       return model_builder->UpdateOutputTensor(output, outputs[0]->id);
     }
-    case OperationType::FULLY_CONNECTED_INT4: {
+    case OperationType::kFullyConnectedInt4: {
       const auto& attr = std::any_cast<const FullyConnectedInt4Attributes&>(
           node.operation.attributes);
       if (inputs.size() >= 4) {
         return MakeQuantizedFullyConnectedExternalWeights(
-            gpu_info, create_info, op_def, OperationType::FULLY_CONNECTED_INT4,
+            gpu_info, create_info, op_def, OperationType::kFullyConnectedInt4,
             src_ids, dst_ids, model_builder,
             std::visit([](const auto& w) { return w.shape; }, attr.weights),
             attr.scale.shape);
@@ -908,12 +908,12 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
       auto output = model_builder->FullyConnected(src, attr);
       return model_builder->UpdateOutputTensor(output, outputs[0]->id);
     }
-    case OperationType::FULLY_CONNECTED_INT8: {
+    case OperationType::kFullyConnectedInt8: {
       const auto& attr = std::any_cast<const FullyConnectedInt8Attributes&>(
           node.operation.attributes);
       if (inputs.size() >= 4) {
         return MakeQuantizedFullyConnectedExternalWeights(
-            gpu_info, create_info, op_def, OperationType::FULLY_CONNECTED_INT8,
+            gpu_info, create_info, op_def, OperationType::kFullyConnectedInt8,
             src_ids, dst_ids, model_builder, attr.weights.shape,
             attr.scale.shape);
       }
@@ -921,7 +921,7 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
       auto output = model_builder->FullyConnected(src, attr);
       return model_builder->UpdateOutputTensor(output, outputs[0]->id);
     }
-    case OperationType::GATHER: {
+    case OperationType::kGather: {
       const auto& attr =
           std::any_cast<const GatherAttributes&>(node.operation.attributes);
       ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
@@ -930,25 +930,25 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
       auto output = model_builder->Gather(src, indices, attr.axis);
       return model_builder->UpdateOutputTensor(output, outputs[0]->id);
     }
-    case OperationType::GROUP_NORM: {
+    case OperationType::kGroupNorm: {
       const auto& attr =
           std::any_cast<const GroupNormAttributes&>(node.operation.attributes);
       return MakeGroupNorm(gpu_info, create_info, attr, src_ids, dst_ids,
                            model_builder);
     }
-    case OperationType::LAYER_NORM: {
+    case OperationType::kLayerNorm: {
       const auto& attr =
           std::any_cast<const LayerNormAttributes&>(node.operation.attributes);
       return MakeLayerNorm(gpu_info, create_info, attr, src_ids, dst_ids,
                            model_builder);
     }
-    case OperationType::LSTM: {
+    case OperationType::kLstm: {
       auto gpu_op = SelectLSTM(op_def, gpu_info);
       model_builder->AddGpuOperation(src_ids, dst_ids, std::move(gpu_op),
                                      node.operation.type);
       return absl::OkStatus();
     }
-    case OperationType::MAX_INDEX: {
+    case OperationType::kMaxIndex: {
       const auto& attr =
           std::any_cast<const MaxIndexAttributes&>(node.operation.attributes);
       auto gpu_op = std::make_unique<Reduce>(
@@ -958,7 +958,7 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
                                      node.operation.type);
       return absl::OkStatus();
     }
-    case OperationType::MAX_UNPOOLING_2D: {
+    case OperationType::kMaxUnpooling2D: {
       const auto& attr =
           std::any_cast<MaxUnpooling2DAttributes>(node.operation.attributes);
       auto gpu_op = SelectMaxUnpooling(attr, gpu_info, op_def);
@@ -966,7 +966,7 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
                                      node.operation.type);
       return absl::OkStatus();
     }
-    case OperationType::MEAN_STDDEV_NORMALIZATION: {
+    case OperationType::kMeanStddevNormalization: {
       MeanStdDevNormalization operation = CreateMeanStdDevNormalization(
           op_def, gpu_info, inputs[0]->tensor.shape);
       auto gpu_op =
@@ -975,7 +975,7 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
                                      node.operation.type);
       return absl::OkStatus();
     }
-    case OperationType::ONE_HOT: {
+    case OperationType::kOneHot: {
       const auto& attr =
           std::any_cast<const OneHotAttributes&>(node.operation.attributes);
       std::unique_ptr<GPUOperation> gpu_op;
@@ -984,7 +984,7 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
                                      node.operation.type);
       return absl::OkStatus();
     }
-    case OperationType::PAD: {
+    case OperationType::kPad: {
       const auto& attr =
           std::any_cast<const PadAttributes&>(node.operation.attributes);
       auto gpu_op =
@@ -993,7 +993,7 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
                                      node.operation.type);
       return absl::OkStatus();
     }
-    case OperationType::POOLING_2D: {
+    case OperationType::kPooling2D: {
       const auto& attr =
           std::any_cast<const Pooling2DAttributes&>(node.operation.attributes);
       auto gpu_op = SelectPooling(attr, gpu_info, op_def);
@@ -1001,10 +1001,10 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
                                      node.operation.type);
       return absl::OkStatus();
     }
-    case OperationType::POSITIONAL_EMBEDDING:
+    case OperationType::kPositionalEmbedding:
       return MakePositionalEmbedding(gpu_info, create_info, inputs, outputs,
                                      model_builder);
-    case OperationType::PRELU: {
+    case OperationType::kPrelu: {
       const auto& attr =
           std::any_cast<const PReLUAttributes&>(node.operation.attributes);
       auto gpu_op = SelectPReLU(attr, gpu_info, op_def);
@@ -1012,23 +1012,23 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
                                      node.operation.type);
       return absl::OkStatus();
     }
-    case OperationType::QUANTIZE_AND_DEQUANTIZE: {
+    case OperationType::kQuantizeAndDequantize: {
       const auto& attr = std::any_cast<const QuantizeAndDequantizeAttributes&>(
           node.operation.attributes);
       ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       GpuModelBuilder::TensorHandle output;
-      if (src.tensor_desc.GetDataType() == DataType::FLOAT16 &&
+      if (src.tensor_desc.GetDataType() == DataType::kFloat16 &&
           UseFp32ForQuantizeAndDequantize(gpu_info)) {
         output = model_builder->Cast(
             model_builder->QuantizeAndDequantize(
-                model_builder->Cast(src, DataType::FLOAT32), attr),
-            DataType::FLOAT16);
+                model_builder->Cast(src, DataType::kFloat32), attr),
+            DataType::kFloat16);
       } else {
         output = model_builder->QuantizeAndDequantize(src, attr);
       }
       return model_builder->UpdateOutputTensor(output, outputs[0]->id);
     }
-    case OperationType::RELU: {
+    case OperationType::kRelu: {
       const auto& attr =
           std::any_cast<const ReLUAttributes&>(node.operation.attributes);
       auto gpu_op = SelectReLU(attr, op_def);
@@ -1036,20 +1036,20 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
                                      node.operation.type);
       return absl::OkStatus();
     }
-    case OperationType::RESAMPLER: {
+    case OperationType::kResampler: {
       auto gpu_op = SelectResampler(op_def, gpu_info);
       model_builder->AddGpuOperation(src_ids, dst_ids, std::move(gpu_op),
                                      node.operation.type);
       return absl::OkStatus();
     }
-    case OperationType::RESHAPE: {
+    case OperationType::kReshape: {
       const auto& attr =
           std::any_cast<const ReshapeAttributes&>(node.operation.attributes);
       ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       auto output = model_builder->Reshape(src, attr.new_shape);
       return model_builder->UpdateOutputTensor(output, outputs[0]->id);
     }
-    case OperationType::RESIZE: {
+    case OperationType::kResize: {
       const auto& attr =
           std::any_cast<const Resize2DAttributes&>(node.operation.attributes);
       std::unique_ptr<GPUOperation> gpu_op;
@@ -1058,7 +1058,7 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
                                      node.operation.type);
       return absl::OkStatus();
     }
-    case OperationType::REVERSE: {
+    case OperationType::kReverse: {
       const auto& attr =
           std::any_cast<const ReverseAttributes&>(node.operation.attributes);
       auto gpu_op = SelectReverse(attr, op_def);
@@ -1066,13 +1066,13 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
                                      node.operation.type);
       return absl::OkStatus();
     }
-    case OperationType::RMS_NORM: {
+    case OperationType::kRmsNorm: {
       const auto& attr =
           std::any_cast<const RmsNormAttributes&>(node.operation.attributes);
       return MakeRmsNorm(gpu_info, create_info, src_ids, dst_ids, attr,
                          model_builder);
     }
-    case OperationType::ROPE: {
+    case OperationType::kRope: {
       RoPEAttributes attr;
       if (node.operation.attributes.has_value()) {
         attr = std::any_cast<const RoPEAttributes&>(node.operation.attributes);
@@ -1080,7 +1080,7 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
       return MakeRoPE(gpu_info, create_info, src_ids, dst_ids, attr,
                       model_builder);
     }
-    case OperationType::SELECT_V2: {
+    case OperationType::kSelectV2: {
       const auto& attr =
           std::any_cast<const SelectV2Attributes&>(node.operation.attributes);
       std::unique_ptr<GPUOperation> gpu_op;
@@ -1089,26 +1089,26 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
                                      node.operation.type);
       return absl::OkStatus();
     }
-    case OperationType::SCALED_DOT_PRODUCT_ATTENTION: {
+    case OperationType::kScaledDotProductAttention: {
       const auto& attr =
           std::any_cast<const ScaledDotProductAttentionAttributes&>(
               node.operation.attributes);
       return MakeScaledDotProductAttention(gpu_info, create_info, src_ids,
                                            dst_ids, attr, model_builder);
     }
-    case OperationType::SLICE: {
+    case OperationType::kSlice: {
       const auto& attr =
           std::any_cast<const SliceAttributes&>(node.operation.attributes);
       ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       return model_builder->UpdateOutputTensor(
           model_builder->StridedSlice(src, attr), outputs[0]->id);
     }
-    case OperationType::SOFTMAX: {
+    case OperationType::kSoftmax: {
       ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       return model_builder->UpdateOutputTensor(model_builder->Softmax(src),
                                                outputs[0]->id);
     }
-    case OperationType::SPACE_TO_DEPTH: {
+    case OperationType::kSpaceToDepth: {
       const auto& attr = std::any_cast<const SpaceToDepthAttributes&>(
           node.operation.attributes);
       std::unique_ptr<GPUOperation> gpu_op;
@@ -1117,7 +1117,7 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
                                      node.operation.type);
       return absl::OkStatus();
     }
-    case OperationType::SPLIT: {
+    case OperationType::kSplit: {
       const auto& attr =
           std::any_cast<const SplitAttributes&>(node.operation.attributes);
       std::vector<int> sizes(outputs.size());
@@ -1130,19 +1130,19 @@ absl::Status GPUOperationFromNode(const GpuInfo& gpu_info,
       return model_builder->UpdateOutputTensors(
           model_builder->Split(src, attr.axis, sizes), output_ids);
     }
-    case OperationType::TILE: {
+    case OperationType::kTile: {
       ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       return model_builder->UpdateOutputTensor(
           model_builder->Tile(src, outputs[0]->tensor.shape), outputs[0]->id);
     }
-    case OperationType::TOP_K: {
+    case OperationType::kTopK: {
       const auto& attr =
           std::any_cast<const TopKAttributes&>(node.operation.attributes);
       ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       return model_builder->UpdateOutputTensors(
           model_builder->TopK(src, attr.k), {outputs[0]->id, outputs[1]->id});
     }
-    case OperationType::TRANSPOSE: {
+    case OperationType::kTranspose: {
       const auto& attr =
           std::any_cast<const TransposeAttributes&>(node.operation.attributes);
       ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
@@ -1173,27 +1173,27 @@ absl::Status GPUOperationFromNode(
   }
   auto op_type = OperationTypeFromString(node.name);
   switch (op_type) {
-    case OperationType::ABS:
-    case OperationType::CEIL:
-    case OperationType::COPY:
-    case OperationType::COS:
-    case OperationType::ELU:
-    case OperationType::EXP:
-    case OperationType::FLOOR:
-    case OperationType::GELU:
-    case OperationType::GELU_TANH_APPROX:
-    case OperationType::HARD_SWISH:
-    case OperationType::LOG:
-    case OperationType::LOGICAL_NOT:
-    case OperationType::NEG:
-    case OperationType::ROUND:
-    case OperationType::RSQRT:
-    case OperationType::SIGMOID:
-    case OperationType::SIGN:
-    case OperationType::SIN:
-    case OperationType::SQRT:
-    case OperationType::SQUARE:
-    case OperationType::TANH: {
+    case OperationType::kAbs:
+    case OperationType::kCeil:
+    case OperationType::kCopy:
+    case OperationType::kCos:
+    case OperationType::kElu:
+    case OperationType::kExp:
+    case OperationType::kFloor:
+    case OperationType::kGelu:
+    case OperationType::kGeluTanhApprox:
+    case OperationType::kHardSwish:
+    case OperationType::kLog:
+    case OperationType::kLogicalNot:
+    case OperationType::kNeg:
+    case OperationType::kRound:
+    case OperationType::kRsqrt:
+    case OperationType::kSigmoid:
+    case OperationType::kSign:
+    case OperationType::kSin:
+    case OperationType::kSqrt:
+    case OperationType::kSquare:
+    case OperationType::kTanh: {
       GPUOperation operation;
       if (inputs[0]->desc.GetBHWDCShape() != outputs[0]->desc.GetBHWDCShape()) {
         operation = CreateElementwiseOneInputWithBroadcast(
@@ -1207,31 +1207,31 @@ absl::Status GPUOperationFromNode(
           std::make_unique<GPUOperation>(std::move(operation)), node.name);
       return absl::OkStatus();
     }
-    case OperationType::ADD:
-    case OperationType::ATAN2:
-    case OperationType::DIV:
-    case OperationType::EQUAL:
-    case OperationType::FLOOR_DIV:
-    case OperationType::FLOOR_MOD:
-    case OperationType::GREATER:
-    case OperationType::GREATER_EQUAL:
-    case OperationType::LESS:
-    case OperationType::LESS_EQUAL:
-    case OperationType::LOGICAL_AND:
-    case OperationType::LOGICAL_OR:
-    case OperationType::LOGICAL_XOR:
-    case OperationType::MAXIMUM:
-    case OperationType::MINIMUM:
-    case OperationType::MISH:
-    case OperationType::MOD:
-    case OperationType::MUL:
-    case OperationType::NOT_EQUAL:
-    case OperationType::POW:
-    case OperationType::REMAINDER:
-    case OperationType::SHIFT_LEFT:
-    case OperationType::SHIFT_RIGHT:
-    case OperationType::SQUARED_DIFF:
-    case OperationType::SUB: {
+    case OperationType::kAdd:
+    case OperationType::kAtan2:
+    case OperationType::kDiv:
+    case OperationType::kEqual:
+    case OperationType::kFloorDiv:
+    case OperationType::kFloorMod:
+    case OperationType::kGreater:
+    case OperationType::kGreaterEqual:
+    case OperationType::kLess:
+    case OperationType::kLessEqual:
+    case OperationType::kLogicalAnd:
+    case OperationType::kLogicalOr:
+    case OperationType::kLogicalXor:
+    case OperationType::kMaximum:
+    case OperationType::kMinimum:
+    case OperationType::kMish:
+    case OperationType::kMod:
+    case OperationType::kMul:
+    case OperationType::kNotEqual:
+    case OperationType::kPow:
+    case OperationType::kRemainder:
+    case OperationType::kShiftLeft:
+    case OperationType::kShiftRight:
+    case OperationType::kSquaredDiff:
+    case OperationType::kSub: {
       GPUOperation operation;
       if (inputs.size() == 2) {
         ElementwiseAttributes attr;
@@ -1274,19 +1274,19 @@ absl::Status GPUOperationFromNode(
           std::make_unique<GPUOperation>(std::move(operation)), node.name);
       return absl::OkStatus();
     }
-    case OperationType::MEAN:
-    case OperationType::REDUCE_ALL:
-    case OperationType::REDUCE_ANY:
-    case OperationType::REDUCE_MAXIMUM:
-    case OperationType::REDUCE_MINIMUM:
-    case OperationType::REDUCE_PRODUCT:
-    case OperationType::REDUCE_SUM: {
+    case OperationType::kMean:
+    case OperationType::kReduceAll:
+    case OperationType::kReduceAny:
+    case OperationType::kReduceMaximum:
+    case OperationType::kReduceMinimum:
+    case OperationType::kReduceProduct:
+    case OperationType::kReduceSum: {
       const auto& attr = std::any_cast<const ReduceAttributes&>(node.attr);
       ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       return model_builder->UpdateOutputTensor(
           model_builder->Reduce(src, op_type, attr.dims), outputs[0]->id);
     }
-    case OperationType::BATCHED_MATMUL: {
+    case OperationType::kBatchedMatmul: {
       const auto& batched_mat_mul_attr =
           std::any_cast<const BatchedMatMulAttributes&>(node.attr);
       ABSL_ASSIGN_OR_RETURN(auto left, model_builder->GetTensor(inputs[0]->id));
@@ -1304,19 +1304,19 @@ absl::Status GPUOperationFromNode(
           model_builder->BatchedMatMul(left, right, batched_mat_mul_attr));
       return model_builder->UpdateOutputTensor(output, outputs[0]->id);
     }
-    case OperationType::BITCAST: {
+    case OperationType::kBitcast: {
       ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       return model_builder->UpdateOutputTensor(
           model_builder->BitCast(src, op_def.dst_tensors[0].GetDataType()),
           outputs[0]->id);
     }
-    case OperationType::CAST: {
+    case OperationType::kCast: {
       ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       return model_builder->UpdateOutputTensor(
           model_builder->Cast(src, op_def.dst_tensors[0].GetDataType()),
           outputs[0]->id);
     }
-    case OperationType::CONCAT: {
+    case OperationType::kConcat: {
       const auto& attr = std::any_cast<const ConcatAttributes&>(node.attr);
       std::vector<GpuModelBuilder::TensorHandle> src_handles(inputs.size());
       for (int i = 0; i < inputs.size(); ++i) {
@@ -1326,18 +1326,18 @@ absl::Status GPUOperationFromNode(
       return model_builder->UpdateOutputTensor(
           model_builder->Concat(src_handles, attr.axis), outputs[0]->id);
     }
-    case OperationType::CONVOLUTION_2D: {
+    case OperationType::kConvolution2D: {
       const auto& attr =
           std::any_cast<const Convolution2DAttributes&>(node.attr);
       if (inputs.size() == 1) {
         ABSL_ASSIGN_OR_RETURN(auto src,
                               model_builder->GetTensor(inputs[0]->id));
         if (gpu_info.IsApiWebGpu() &&
-            op_def.src_tensors[0].GetDataType() == DataType::FLOAT32 &&
-            op_def.dst_tensors[0].GetDataType() == DataType::FLOAT16) {
+            op_def.src_tensors[0].GetDataType() == DataType::kFloat32 &&
+            op_def.dst_tensors[0].GetDataType() == DataType::kFloat16) {
           // see CheckExternalTensorDescription in
           // ml_drift/common/gpu_model_util.cc
-          src = model_builder->Cast(src, DataType::FLOAT16);
+          src = model_builder->Cast(src, DataType::kFloat16);
         }
         return model_builder->UpdateOutputTensor(
             model_builder->Convolution(src, attr), outputs[0]->id);
@@ -1362,7 +1362,7 @@ absl::Status GPUOperationFromNode(
         return model_builder->UpdateOutputTensor(output, outputs[0]->id);
       }
     }
-    case OperationType::CONVOLUTION_TRANSPOSED: {
+    case OperationType::kConvolutionTransposed: {
       const auto& attr =
           std::any_cast<const ConvolutionTransposedAttributes&>(node.attr);
       ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
@@ -1389,7 +1389,7 @@ absl::Status GPUOperationFromNode(
             outputs[0]->id);
       }
     }
-    case OperationType::CUMSUM: {
+    case OperationType::kCumsum: {
       const auto& attr = std::any_cast<const CumsumAttributes&>(node.attr);
       std::unique_ptr<GPUOperation> gpu_op;
       SelectCumsum(op_def, attr, &gpu_op);
@@ -1397,7 +1397,7 @@ absl::Status GPUOperationFromNode(
                                      node.name);
       return absl::OkStatus();
     }
-    case OperationType::DEPTHWISE_CONVOLUTION: {
+    case OperationType::kDepthwiseConvolution: {
       const auto& attr =
           std::any_cast<const DepthwiseConvolution2DAttributes&>(node.attr);
       ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
@@ -1415,7 +1415,7 @@ absl::Status GPUOperationFromNode(
       }
       return model_builder->UpdateOutputTensor(output, outputs[0]->id);
     }
-    case OperationType::DEPTH_TO_SPACE: {
+    case OperationType::kDepthToSpace: {
       const auto& attr =
           std::any_cast<const SpaceToDepthAttributes&>(node.attr);
       std::unique_ptr<GPUOperation> gpu_op;
@@ -1424,13 +1424,13 @@ absl::Status GPUOperationFromNode(
                                      node.name);
       return absl::OkStatus();
     }
-    case OperationType::DYNAMIC_UPDATE_SLICE: {
+    case OperationType::kDynamicUpdateSlice: {
       auto gpu_op = SelectDynamicUpdateSlice(op_def, gpu_info);
       model_builder->AddGpuOperation(src_ids, dst_ids, std::move(gpu_op),
                                      node.name);
       return absl::OkStatus();
     }
-    case OperationType::EMBEDDING_LOOKUP: {
+    case OperationType::kEmbeddingLookup: {
       const auto& attr =
           std::any_cast<const EmbeddingLookupAttributes&>(node.attr);
       if (IsEmbeddingLookupQuantized(attr) &&
@@ -1445,7 +1445,7 @@ absl::Status GPUOperationFromNode(
                                      node.name);
       return absl::OkStatus();
     }
-    case OperationType::FULLY_CONNECTED: {
+    case OperationType::kFullyConnected: {
       const auto& attr =
           std::any_cast<const FullyConnectedAttributes&>(node.attr);
       ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
@@ -1467,7 +1467,7 @@ absl::Status GPUOperationFromNode(
         conv_attr.padding.appended = HW(0, 0);
         conv_attr.padding.prepended = HW(0, 0);
         auto& conv_weights =
-            conv_attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
+            conv_attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
         auto weights_shape = inputs[1]->desc.GetBHWCShape();
         conv_weights.shape = OHWI(weights_shape.b, weights_shape.h,
                                   weights_shape.w, weights_shape.c);
@@ -1480,12 +1480,12 @@ absl::Status GPUOperationFromNode(
             model_builder->FullyConnected(src, attr), outputs[0]->id);
       }
     }
-    case OperationType::FULLY_CONNECTED_INT2: {
+    case OperationType::kFullyConnectedInt2: {
       const auto& attr =
           std::any_cast<const FullyConnectedInt2Attributes&>(node.attr);
       if (inputs.size() >= 4) {
         return MakeQuantizedFullyConnectedExternalWeights(
-            gpu_info, create_info, op_def, OperationType::FULLY_CONNECTED_INT2,
+            gpu_info, create_info, op_def, OperationType::kFullyConnectedInt2,
             src_ids, dst_ids, model_builder,
             std::visit([](const auto& w) { return w.shape; }, attr.weights),
             attr.scale.shape);
@@ -1494,12 +1494,12 @@ absl::Status GPUOperationFromNode(
       auto output = model_builder->FullyConnected(src, attr);
       return model_builder->UpdateOutputTensor(output, outputs[0]->id);
     }
-    case OperationType::FULLY_CONNECTED_INT4: {
+    case OperationType::kFullyConnectedInt4: {
       const auto& attr =
           std::any_cast<const FullyConnectedInt4Attributes&>(node.attr);
       if (inputs.size() >= 4) {
         return MakeQuantizedFullyConnectedExternalWeights(
-            gpu_info, create_info, op_def, OperationType::FULLY_CONNECTED_INT4,
+            gpu_info, create_info, op_def, OperationType::kFullyConnectedInt4,
             src_ids, dst_ids, model_builder,
             std::visit([](const auto& w) { return w.shape; }, attr.weights),
             attr.scale.shape);
@@ -1508,12 +1508,12 @@ absl::Status GPUOperationFromNode(
       auto output = model_builder->FullyConnected(src, attr);
       return model_builder->UpdateOutputTensor(output, outputs[0]->id);
     }
-    case OperationType::FULLY_CONNECTED_INT8: {
+    case OperationType::kFullyConnectedInt8: {
       const auto& attr =
           std::any_cast<const FullyConnectedInt8Attributes&>(node.attr);
       if (inputs.size() >= 4) {
         return MakeQuantizedFullyConnectedExternalWeights(
-            gpu_info, create_info, op_def, OperationType::FULLY_CONNECTED_INT8,
+            gpu_info, create_info, op_def, OperationType::kFullyConnectedInt8,
             src_ids, dst_ids, model_builder, attr.weights.shape,
             attr.scale.shape);
       }
@@ -1521,12 +1521,12 @@ absl::Status GPUOperationFromNode(
       auto output = model_builder->FullyConnected(src, attr);
       return model_builder->UpdateOutputTensor(output, outputs[0]->id);
     }
-    case OperationType::GROUP_NORM: {
+    case OperationType::kGroupNorm: {
       const auto& attr = std::any_cast<const GroupNormAttributes&>(node.attr);
       return MakeGroupNorm(gpu_info, create_info, attr, src_ids, dst_ids,
                            model_builder);
     }
-    case OperationType::GATHER: {
+    case OperationType::kGather: {
       const auto& attr = std::any_cast<const GatherAttributes&>(node.attr);
       ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       ABSL_ASSIGN_OR_RETURN(auto indices,
@@ -1534,12 +1534,12 @@ absl::Status GPUOperationFromNode(
       auto output = model_builder->Gather(src, indices, attr.axis);
       return model_builder->UpdateOutputTensor(output, outputs[0]->id);
     }
-    case OperationType::LAYER_NORM: {
+    case OperationType::kLayerNorm: {
       const auto& attr = std::any_cast<const LayerNormAttributes&>(node.attr);
       return MakeLayerNorm(gpu_info, create_info, attr, src_ids, dst_ids,
                            model_builder);
     }
-    case OperationType::MAX_INDEX: {
+    case OperationType::kMaxIndex: {
       const auto& attr = std::any_cast<const MaxIndexAttributes&>(node.attr);
       auto gpu_op = std::make_unique<Reduce>(
           CreateReduce({attr.dim}, inputs[0]->desc.GetBHWCShape(),
@@ -1548,7 +1548,7 @@ absl::Status GPUOperationFromNode(
                                      node.name);
       return absl::OkStatus();
     }
-    case OperationType::MAX_UNPOOLING_2D: {
+    case OperationType::kMaxUnpooling2D: {
       const auto& attr =
           std::any_cast<const MaxUnpooling2DAttributes&>(node.attr);
       auto gpu_op = SelectMaxUnpooling(attr, gpu_info, op_def);
@@ -1556,7 +1556,7 @@ absl::Status GPUOperationFromNode(
                                      node.name);
       return absl::OkStatus();
     }
-    case OperationType::MEAN_STDDEV_NORMALIZATION: {
+    case OperationType::kMeanStddevNormalization: {
       MeanStdDevNormalization operation = CreateMeanStdDevNormalization(
           op_def, gpu_info, inputs[0]->desc.GetBHWCShape());
       auto gpu_op =
@@ -1565,7 +1565,7 @@ absl::Status GPUOperationFromNode(
                                      node.name);
       return absl::OkStatus();
     }
-    case OperationType::ONE_HOT: {
+    case OperationType::kOneHot: {
       const auto& attr = std::any_cast<const OneHotAttributes&>(node.attr);
       std::unique_ptr<GPUOperation> gpu_op;
       SelectOneHot(op_def, attr, &gpu_op);
@@ -1573,7 +1573,7 @@ absl::Status GPUOperationFromNode(
                                      node.name);
       return absl::OkStatus();
     }
-    case OperationType::PAD: {
+    case OperationType::kPad: {
       const auto& attr = std::any_cast<const PadAttributes&>(node.attr);
       auto gpu_op = SelectPadding(gpu_info, attr, op_def,
                                   inputs[0]->desc.GetBHWDCShape().c);
@@ -1581,14 +1581,14 @@ absl::Status GPUOperationFromNode(
                                      node.name);
       return absl::OkStatus();
     }
-    case OperationType::POOLING_2D: {
+    case OperationType::kPooling2D: {
       const auto& attr = std::any_cast<const Pooling2DAttributes&>(node.attr);
       auto gpu_op = SelectPooling(attr, gpu_info, op_def);
       model_builder->AddGpuOperation(src_ids, dst_ids, std::move(gpu_op),
                                      node.name);
       return absl::OkStatus();
     }
-    case OperationType::POSITIONAL_EMBEDDING: {
+    case OperationType::kPositionalEmbedding: {
       if (inputs.size() != 2 || outputs.size() != 1) {
         return absl::InvalidArgumentError(
             "PositionalEmbedding operation expects 2 inputs and a single "
@@ -1600,43 +1600,43 @@ absl::Status GPUOperationFromNode(
       return model_builder->UpdateOutputTensor(
           model_builder->PositionalEmbedding(src, position), outputs[0]->id);
     }
-    case OperationType::PRELU: {
+    case OperationType::kPrelu: {
       const auto& attr = std::any_cast<const PReLUAttributes&>(node.attr);
       auto gpu_op = SelectPReLU(attr, gpu_info, op_def);
       model_builder->AddGpuOperation(src_ids, dst_ids, std::move(gpu_op),
                                      node.name);
       return absl::OkStatus();
     }
-    case OperationType::QUANTIZE_AND_DEQUANTIZE: {
+    case OperationType::kQuantizeAndDequantize: {
       const auto& attr =
           std::any_cast<const QuantizeAndDequantizeAttributes&>(node.attr);
       ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       GpuModelBuilder::TensorHandle output;
-      if (src.tensor_desc.GetDataType() == DataType::FLOAT16 &&
+      if (src.tensor_desc.GetDataType() == DataType::kFloat16 &&
           UseFp32ForQuantizeAndDequantize(gpu_info)) {
         output = model_builder->Cast(
             model_builder->QuantizeAndDequantize(
-                model_builder->Cast(src, DataType::FLOAT32), attr),
-            DataType::FLOAT16);
+                model_builder->Cast(src, DataType::kFloat32), attr),
+            DataType::kFloat16);
       } else {
         output = model_builder->QuantizeAndDequantize(src, attr);
       }
       return model_builder->UpdateOutputTensor(output, outputs[0]->id);
     }
-    case OperationType::RELU: {
+    case OperationType::kRelu: {
       const auto& attr = std::any_cast<const ReLUAttributes&>(node.attr);
       auto gpu_op = SelectReLU(attr, op_def);
       model_builder->AddGpuOperation(src_ids, dst_ids, std::move(gpu_op),
                                      node.name);
       return absl::OkStatus();
     }
-    case OperationType::RESAMPLER: {
+    case OperationType::kResampler: {
       auto gpu_op = SelectResampler(op_def, gpu_info);
       model_builder->AddGpuOperation(src_ids, dst_ids, std::move(gpu_op),
                                      node.name);
       return absl::OkStatus();
     }
-    case OperationType::RESHAPE: {
+    case OperationType::kReshape: {
       ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       if (const auto* attr3d = std::any_cast<Reshape3DAttributes>(&node.attr)) {
         auto output = model_builder->Reshape(src, attr3d->new_shape);
@@ -1647,7 +1647,7 @@ absl::Status GPUOperationFromNode(
         return model_builder->UpdateOutputTensor(output, outputs[0]->id);
       }
     }
-    case OperationType::RESIZE: {
+    case OperationType::kResize: {
       const auto& attr = std::any_cast<const Resize2DAttributes&>(node.attr);
       std::unique_ptr<GPUOperation> gpu_op;
       ABSL_RETURN_IF_ERROR(SelectResize(attr, op_def, &gpu_op));
@@ -1655,19 +1655,19 @@ absl::Status GPUOperationFromNode(
                                      node.name);
       return absl::OkStatus();
     }
-    case OperationType::REVERSE: {
+    case OperationType::kReverse: {
       const auto& attr = std::any_cast<const ReverseAttributes&>(node.attr);
       auto gpu_op = SelectReverse(attr, op_def);
       model_builder->AddGpuOperation(src_ids, dst_ids, std::move(gpu_op),
                                      node.name);
       return absl::OkStatus();
     }
-    case OperationType::RMS_NORM: {
+    case OperationType::kRmsNorm: {
       const auto& attr = std::any_cast<const RmsNormAttributes&>(node.attr);
       return MakeRmsNorm(gpu_info, create_info, src_ids, dst_ids, attr,
                          model_builder);
     }
-    case OperationType::ROPE: {
+    case OperationType::kRope: {
       RoPEAttributes attr;
       if (node.attr.has_value()) {
         attr = std::any_cast<const RoPEAttributes&>(node.attr);
@@ -1675,13 +1675,13 @@ absl::Status GPUOperationFromNode(
       return MakeRoPE(gpu_info, create_info, src_ids, dst_ids, attr,
                       model_builder);
     }
-    case OperationType::SCALED_DOT_PRODUCT_ATTENTION: {
+    case OperationType::kScaledDotProductAttention: {
       const auto& attr =
           std::any_cast<const ScaledDotProductAttentionAttributes&>(node.attr);
       return MakeScaledDotProductAttention(gpu_info, create_info, src_ids,
                                            dst_ids, attr, model_builder);
     }
-    case OperationType::SELECT_V2: {
+    case OperationType::kSelectV2: {
       const auto& attr = std::any_cast<const SelectV2Attributes&>(node.attr);
       std::unique_ptr<GPUOperation> gpu_op;
       SelectSelectV2(op_def, attr, &gpu_op);
@@ -1689,7 +1689,7 @@ absl::Status GPUOperationFromNode(
                                      node.name);
       return absl::OkStatus();
     }
-    case OperationType::SLICE: {
+    case OperationType::kSlice: {
       ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       if (const auto* attr3d = std::any_cast<Slice3DAttributes>(&node.attr)) {
         return model_builder->UpdateOutputTensor(
@@ -1700,13 +1700,13 @@ absl::Status GPUOperationFromNode(
             model_builder->StridedSlice(src, attr), outputs[0]->id);
       }
     }
-    case OperationType::SOFTMAX: {
+    case OperationType::kSoftmax: {
       ABSL_ASSIGN_OR_RETURN(GpuModelBuilder::TensorHandle src,
                             model_builder->GetTensor(inputs[0]->id));
       return model_builder->UpdateOutputTensor(model_builder->Softmax(src),
                                                outputs[0]->id);
     }
-    case OperationType::SPACE_TO_DEPTH: {
+    case OperationType::kSpaceToDepth: {
       const auto& attr =
           std::any_cast<const SpaceToDepthAttributes&>(node.attr);
       std::unique_ptr<GPUOperation> gpu_op;
@@ -1715,7 +1715,7 @@ absl::Status GPUOperationFromNode(
                                      node.name);
       return absl::OkStatus();
     }
-    case OperationType::SPLIT: {
+    case OperationType::kSplit: {
       const auto& attr = std::any_cast<const SplitAttributes&>(node.attr);
       std::vector<int> sizes(outputs.size());
       std::vector<ValueId> output_ids(outputs.size());
@@ -1727,13 +1727,13 @@ absl::Status GPUOperationFromNode(
       return model_builder->UpdateOutputTensors(
           model_builder->Split(src, attr.axis, sizes), output_ids);
     }
-    case OperationType::TILE: {
+    case OperationType::kTile: {
       ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       return model_builder->UpdateOutputTensor(
           model_builder->Tile(src, outputs[0]->desc.GetBHWDCShape()),
           outputs[0]->id);
     }
-    case OperationType::TOP_K: {
+    case OperationType::kTopK: {
       const auto& attr = std::any_cast<const TopKAttributes&>(node.attr);
       ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       return model_builder->UpdateOutputTensors(
@@ -1741,7 +1741,7 @@ absl::Status GPUOperationFromNode(
           {static_cast<ValueId>(outputs[0]->id),
            static_cast<ValueId>(outputs[1]->id)});
     }
-    case OperationType::TRANSPOSE: {
+    case OperationType::kTranspose: {
       ABSL_ASSIGN_OR_RETURN(auto src, model_builder->GetTensor(inputs[0]->id));
       if (const auto* attr3d =
               std::any_cast<Transpose3DAttributes>(&node.attr)) {

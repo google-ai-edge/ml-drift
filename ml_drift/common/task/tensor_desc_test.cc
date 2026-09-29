@@ -41,18 +41,18 @@ namespace {
 
 TEST(TensorDescriptorTest, SupportsAbslHash) {
   TensorDescriptor tensor_default;
-  TensorDescriptor tensor_a(DataType::INT8, TensorStorageType::BUFFER,
-                            Layout::LINEAR);
-  TensorDescriptor tensor_b(DataType::INT16, TensorStorageType::TEXTURE_2D,
-                            Layout::SCALAR);
+  TensorDescriptor tensor_a(DataType::kInt8, TensorStorageType::kBuffer,
+                            Layout::kLinear);
+  TensorDescriptor tensor_b(DataType::kInt16, TensorStorageType::kTexture2D,
+                            Layout::kScalar);
 
   EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(
       {tensor_default, tensor_a, tensor_b}));
 }
 
 TEST(TensorDescriptorTest, UploadDataSuccessfully) {
-  TensorDescriptor desc(DataType::UINT8, TensorStorageType::BUFFER,
-                        Layout::BHWC);
+  TensorDescriptor desc(DataType::kUint8, TensorStorageType::kBuffer,
+                        Layout::kBHWC);
   desc.SetBHWCShape(BHWC(1, 1, 1, 4));
   std::vector<uint8_t> in_data(4, 1);
   desc.UploadData(in_data.data());
@@ -63,13 +63,13 @@ TEST(TensorDescriptorTest, UploadDataSuccessfully) {
 TEST(TensorDescriptorTest, UploadDataWithSpanSuccessfully) {
   // Prepare source data.
   std::vector<uint8_t> source_data(4, 1);
-  Tensor<BHWC, DataType::UINT8> src_tensor;
+  Tensor<BHWC, DataType::kUint8> src_tensor;
   src_tensor.shape = BHWC(1, 1, 1, 4);
   src_tensor.spanned_data = absl::MakeSpan(source_data);
 
   // Prepare the TensorDescriptor
-  TensorDescriptor desc(DataType::UINT8, TensorStorageType::BUFFER,
-                        Layout::BHWC);
+  TensorDescriptor desc(DataType::kUint8, TensorStorageType::kBuffer,
+                        Layout::kBHWC);
 
   // Upload the data using the span.
   desc.UploadData(src_tensor);
@@ -78,8 +78,8 @@ TEST(TensorDescriptorTest, UploadDataWithSpanSuccessfully) {
 }
 
 TEST(TensorDescriptorTest, UploadRawDataToHalfSuccessfullyWithFloat) {
-  TensorDescriptor desc(DataType::FLOAT16, TensorStorageType::BUFFER,
-                        Layout::BHWC);
+  TensorDescriptor desc(DataType::kFloat16, TensorStorageType::kBuffer,
+                        Layout::kBHWC);
   desc.SetBHWCShape(BHWC(1, 1, 1, 2));
   std::vector<float> in_data(2, 0.1f);
   desc.UploadDataRaw(absl::MakeConstSpan(in_data));
@@ -89,15 +89,16 @@ TEST(TensorDescriptorTest, UploadRawDataToHalfSuccessfullyWithFloat) {
 }
 
 TEST(TensorDescriptorTest, UploadDataOutOfBounds) {
-  TensorDescriptor desc(DataType::UINT8, TensorStorageType::BUFFER,
-                        Layout::BHWC);
+  TensorDescriptor desc(DataType::kUint8, TensorStorageType::kBuffer,
+                        Layout::kBHWC);
   desc.SetBHWCShape(BHWC(1, 1, 1, 4));
   std::vector<float> in_data(4, 1);
   // EXPECT_THROW(desc.UploadData(in_data.data()), std::out_of_range);
 }
 
 TEST(TensorDescriptorTest, PerformReadSelectorForHWBuffer) {
-  TensorDescriptor desc(DataType::UINT8, TensorStorageType::BUFFER, Layout::HW);
+  TensorDescriptor desc(DataType::kUint8, TensorStorageType::kBuffer,
+                        Layout::kHW);
   desc.SetBHWCShape(BHWC(1, 1, 1, 4));
   GpuInfo gpu_info;
   std::string result;
@@ -107,8 +108,8 @@ TEST(TensorDescriptorTest, PerformReadSelectorForHWBuffer) {
 }
 
 TEST(TensorDescriptorTest, PerformReadSelectorForHWCBuffer) {
-  TensorDescriptor desc(DataType::UINT8, TensorStorageType::BUFFER,
-                        Layout::HWC);
+  TensorDescriptor desc(DataType::kUint8, TensorStorageType::kBuffer,
+                        Layout::kHWC);
   desc.SetBHWCShape(BHWC(1, 1, 1, 4));
   GpuInfo gpu_info;
   std::string result;
@@ -118,8 +119,8 @@ TEST(TensorDescriptorTest, PerformReadSelectorForHWCBuffer) {
 }
 
 TEST(TensorDescriptorTest, PerformReadSelectorForBHWCBuffer) {
-  TensorDescriptor desc(DataType::UINT8, TensorStorageType::BUFFER,
-                        Layout::BHWC);
+  TensorDescriptor desc(DataType::kUint8, TensorStorageType::kBuffer,
+                        Layout::kBHWC);
   desc.SetBHWCShape(BHWC(1, 1, 1, 4));
   GpuInfo gpu_info;
   std::string result;
@@ -130,8 +131,8 @@ TEST(TensorDescriptorTest, PerformReadSelectorForBHWCBuffer) {
 }
 
 TEST(TensorDescriptorTest, PerformReadSelectorForHWDCBuffer) {
-  TensorDescriptor desc(DataType::UINT8, TensorStorageType::BUFFER,
-                        Layout::BHWC);
+  TensorDescriptor desc(DataType::kUint8, TensorStorageType::kBuffer,
+                        Layout::kBHWC);
   desc.SetBHWCShape(BHWC(1, 1, 1, 4));
   GpuInfo gpu_info;
   std::string result;
@@ -142,8 +143,8 @@ TEST(TensorDescriptorTest, PerformReadSelectorForHWDCBuffer) {
 }
 
 TEST(TensorDescriptorTest, PerformReadSelectorForBHWDCBuffer) {
-  TensorDescriptor desc(DataType::UINT8, TensorStorageType::BUFFER,
-                        Layout::BHWC);
+  TensorDescriptor desc(DataType::kUint8, TensorStorageType::kBuffer,
+                        Layout::kBHWC);
   desc.SetBHWCShape(BHWC(1, 1, 1, 4));
   GpuInfo gpu_info;
   std::string result;
@@ -154,8 +155,8 @@ TEST(TensorDescriptorTest, PerformReadSelectorForBHWDCBuffer) {
 }
 
 TEST(TensorDescriptorTest, PerformWriteLinearSelectorForBuffer) {
-  TensorDescriptor desc(DataType::FLOAT32, TensorStorageType::BUFFER,
-                        Layout::LINEAR);
+  TensorDescriptor desc(DataType::kFloat32, TensorStorageType::kBuffer,
+                        Layout::kLinear);
   desc.SetBHWCShape(BHWC(1, 1, 1, 64));
   GpuInfo gpu_info;
   std::string result;
@@ -166,8 +167,8 @@ TEST(TensorDescriptorTest, PerformWriteLinearSelectorForBuffer) {
 }
 
 TEST(TensorDescriptorTest, PerformWriteLinearSelectorForTexture2D) {
-  TensorDescriptor desc(DataType::FLOAT32, TensorStorageType::TEXTURE_2D,
-                        Layout::LINEAR);
+  TensorDescriptor desc(DataType::kFloat32, TensorStorageType::kTexture2D,
+                        Layout::kLinear);
   desc.SetBHWCShape(BHWC(1, 1, 1, 16));
   GpuInfo gpu_info;
   gpu_info.gpu_api = GpuApi::kOpenCl;
@@ -179,8 +180,8 @@ TEST(TensorDescriptorTest, PerformWriteLinearSelectorForTexture2D) {
 }
 
 TEST(TensorDescriptorTest, ReadFailedDueToEmptyArguments) {
-  TensorDescriptor desc(DataType::UINT8, TensorStorageType::BUFFER,
-                        Layout::BHWC);
+  TensorDescriptor desc(DataType::kUint8, TensorStorageType::kBuffer,
+                        Layout::kBHWC);
   desc.SetBHWCShape(BHWC(1, 1, 1, 4));
   GpuInfo gpu_info;
   std::string result;
@@ -192,8 +193,8 @@ TEST(TensorDescriptorTest, ReadFailedDueToEmptyArguments) {
 }
 
 TEST(TensorDescriptorTest, GetAddressFailedDueToMissingBatchCoord) {
-  TensorDescriptor desc(DataType::UINT8, TensorStorageType::BUFFER,
-                        Layout::BHWC);
+  TensorDescriptor desc(DataType::kUint8, TensorStorageType::kBuffer,
+                        Layout::kBHWC);
   desc.SetBHWCShape(BHWC(1, 1, 1, 4));
   GpuInfo gpu_info;
   std::string result;
@@ -205,8 +206,8 @@ TEST(TensorDescriptorTest, GetAddressFailedDueToMissingBatchCoord) {
 }
 
 TEST(TensorDescriptorTest, GetAddressFailedDueToMissingWidthCoord) {
-  TensorDescriptor desc(DataType::UINT8, TensorStorageType::BUFFER,
-                        Layout::HWC);
+  TensorDescriptor desc(DataType::kUint8, TensorStorageType::kBuffer,
+                        Layout::kHWC);
   desc.SetBHWCShape(BHWC(1, 1, 1, 4));
   GpuInfo gpu_info;
   std::string result;
@@ -218,8 +219,8 @@ TEST(TensorDescriptorTest, GetAddressFailedDueToMissingWidthCoord) {
 }
 
 TEST(TensorDescriptorTest, GetAddressFailedDueToMissingHeightCoord) {
-  TensorDescriptor desc(DataType::UINT8, TensorStorageType::BUFFER,
-                        Layout::HWC);
+  TensorDescriptor desc(DataType::kUint8, TensorStorageType::kBuffer,
+                        Layout::kHWC);
   desc.SetBHWCShape(BHWC(1, 1, 1, 4));
   GpuInfo gpu_info;
   std::string result;
@@ -231,8 +232,8 @@ TEST(TensorDescriptorTest, GetAddressFailedDueToMissingHeightCoord) {
 }
 
 TEST(TensorDescriptorTest, GetAddressFailedDueToMissingChannelsCoord) {
-  TensorDescriptor desc(DataType::UINT8, TensorStorageType::BUFFER,
-                        Layout::BHWC);
+  TensorDescriptor desc(DataType::kUint8, TensorStorageType::kBuffer,
+                        Layout::kBHWC);
   desc.SetBHWCShape(BHWC(1, 1, 1, 4));
   GpuInfo gpu_info;
   std::string result;

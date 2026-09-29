@@ -192,11 +192,11 @@ void UnpackDenseInt2IntoInt8(const int8_t* src_buffer, int num_elements,
 float GetEpsilon(CalculationsPrecision precision, const GpuInfo& gpu_info) {
   constexpr float kHalfEpsilon = 9.7656e-4;
   switch (precision) {
-    case CalculationsPrecision::F32:
+    case CalculationsPrecision::kF32:
       return gpu_info.opencl_info.supports_fp32_rtn ? FLT_EPSILON
                                                     : 4 * FLT_EPSILON;
-    case CalculationsPrecision::F32_F16:
-    case CalculationsPrecision::F16:
+    case CalculationsPrecision::kF32F16:
+    case CalculationsPrecision::kF16:
       return gpu_info.opencl_info.supports_fp16_rtn ? kHalfEpsilon
                                                     : 4 * kHalfEpsilon;
   }
@@ -205,32 +205,32 @@ float GetEpsilon(CalculationsPrecision precision, const GpuInfo& gpu_info) {
 float GetEpsilon(DataType data_type, const GpuInfo& gpu_info) {
   constexpr float kHalfEpsilon = 9.7656e-4;
   switch (data_type) {
-    case DataType::FLOAT32:
+    case DataType::kFloat32:
       return gpu_info.opencl_info.supports_fp32_rtn ? FLT_EPSILON
                                                     : 4 * FLT_EPSILON;
-    case DataType::FLOAT16:
+    case DataType::kFloat16:
       return gpu_info.opencl_info.supports_fp16_rtn ? kHalfEpsilon
                                                     : 4 * kHalfEpsilon;
-    case DataType::UNKNOWN:
-    case DataType::FLOAT64:
-    case DataType::BFLOAT16:
-    case DataType::UINT8:
-    case DataType::INT8:
-    case DataType::UINT16:
-    case DataType::INT16:
-    case DataType::UINT32:
-    case DataType::INT32:
-    case DataType::UINT64:
-    case DataType::INT64:
-    case DataType::BOOL:
-    case DataType::INT4:
-    case DataType::UINT4:
-    case DataType::INT3:
-    case DataType::UINT3:
-    case DataType::INT2:
-    case DataType::UINT2:
-    case DataType::INT1:
-    case DataType::UINT1:
+    case DataType::kUnknown:
+    case DataType::kFloat64:
+    case DataType::kBfloat16:
+    case DataType::kUint8:
+    case DataType::kInt8:
+    case DataType::kUint16:
+    case DataType::kInt16:
+    case DataType::kUint32:
+    case DataType::kInt32:
+    case DataType::kUint64:
+    case DataType::kInt64:
+    case DataType::kBool:
+    case DataType::kInt4:
+    case DataType::kUint4:
+    case DataType::kInt3:
+    case DataType::kUint3:
+    case DataType::kInt2:
+    case DataType::kUint2:
+    case DataType::kInt1:
+    case DataType::kUint1:
       break;
   }
   return 0.0f;

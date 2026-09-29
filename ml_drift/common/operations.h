@@ -250,9 +250,9 @@ OperationType OperationTypeFromString(const std::string& name);
 
 typedef std::variant<float, int, unsigned int> ScalarValue;
 
-typedef std::variant<std::monostate, Tensor<BHWC, DataType::FLOAT32>,
-                     Tensor<BHWDC, DataType::FLOAT32>,
-                     Tensor<Linear, DataType::FLOAT32>, ScalarValue>
+typedef std::variant<std::monostate, Tensor<BHWC, DataType::kFloat32>,
+                     Tensor<BHWDC, DataType::kFloat32>,
+                     Tensor<Linear, DataType::kFloat32>, ScalarValue>
     TensorOrScalar;
 
 bool HoldsFloatScalar(const TensorOrScalar& arg);
@@ -308,7 +308,7 @@ enum class PoolingType {
 };
 
 struct Pooling2DAttributes {
-  PoolingType type = PoolingType::UNDEFINED;
+  PoolingType type = PoolingType::kUndefined;
   // Strides for every axis.
   HW strides = HW(-1, -1);
   HW kernel = HW(-1, -1);
@@ -320,7 +320,7 @@ struct Pooling2DAttributes {
 };
 
 struct Pooling3DAttributes {
-  PoolingType type = PoolingType::UNDEFINED;
+  PoolingType type = PoolingType::kUndefined;
   // Strides for every axis.
   HWD strides = HWD(0, 0, 0);
   HWD kernel = HWD(0, 0, 0);
@@ -352,7 +352,7 @@ struct MeanAttributes {
 
 struct ConcatAttributes {
   // Defines axis by which to concat on.
-  Axis axis = Axis::UNKNOWN;
+  Axis axis = Axis::kUnknown;
 };
 
 // @return shape of a tensor after MaxUnpooling2D operation is applied to
@@ -410,12 +410,12 @@ struct Convolution2DAttributes {
   HW dilations = HW(1, 1);  // Along each axis.
   Padding2D padding;
 
-  std::variant<Tensor<OHWI, DataType::FLOAT32>, Tensor<OHWI, DataType::INT8>,
-               Tensor<OHWI, DataType::INT4>>
+  std::variant<Tensor<OHWI, DataType::kFloat32>, Tensor<OHWI, DataType::kInt8>,
+               Tensor<OHWI, DataType::kInt4>>
       weights;
-  Tensor<Linear, DataType::FLOAT32> bias;  // optional
-  Tensor<OHWI, DataType::FLOAT32> scale;   // optional
-  Tensor<OHWI, DataType::INT32> zero_point;  // optional
+  Tensor<Linear, DataType::kFloat32> bias;    // optional
+  Tensor<OHWI, DataType::kFloat32> scale;     // optional
+  Tensor<OHWI, DataType::kInt32> zero_point;  // optional
 
   int groups = 1;  // optional, split channels dimension on equal groups
   // Restrictions:
@@ -439,8 +439,8 @@ struct Convolution3DAttributes {
   HWD dilations = HWD(0, 0, 0);  // Along each axis.
   Padding3D padding;
 
-  Tensor<OHWDI, DataType::FLOAT32> weights;
-  Tensor<Linear, DataType::FLOAT32> bias;  // optional
+  Tensor<OHWDI, DataType::kFloat32> weights;
+  Tensor<Linear, DataType::kFloat32> bias;  // optional
 
   int groups = 1;  // optional, split channels dimension on equal groups
   // Restrictions:
@@ -483,8 +483,8 @@ struct ConvolutionTransposedAttributes {
   HW adjacent;           // TODO(sorokin): No op on Flow.
   Padding2D padding;
 
-  Tensor<OHWI, DataType::FLOAT32> weights;
-  Tensor<Linear, DataType::FLOAT32> bias;  // optional
+  Tensor<OHWI, DataType::kFloat32> weights;
+  Tensor<Linear, DataType::kFloat32> bias;  // optional
   std::string op_name;                     // optional field for debugging
 };
 
@@ -492,8 +492,8 @@ struct ConvolutionTransposed3DAttributes {
   HWD stride = HWD(0, 0, 0);  // Along each axis.
   Padding3D padding;
 
-  Tensor<OHWDI, DataType::FLOAT32> weights;
-  Tensor<Linear, DataType::FLOAT32> bias;  // optional
+  Tensor<OHWDI, DataType::kFloat32> weights;
+  Tensor<Linear, DataType::kFloat32> bias;  // optional
   std::string op_name;                     // optional field for debugging
 };
 
@@ -539,8 +539,8 @@ struct EmbeddingLookupAttributes {
   // This needs to be a variant if we start support float weights too.
   // TODO(b/350049081): Add support for int4 quantized weights.
   // TODO(b/351847859): Change weights to be a variant.
-  std::variant<Tensor<OHWI, DataType::INT8>, Tensor<OHWI, DataType::FLOAT32>,
-               Tensor<OHWI, DataType::UINT8>>
+  std::variant<Tensor<OHWI, DataType::kInt8>, Tensor<OHWI, DataType::kFloat32>,
+               Tensor<OHWI, DataType::kUint8>>
       weights;
 
   enum class WeightsType {
@@ -553,9 +553,9 @@ struct EmbeddingLookupAttributes {
   OHWI scale_zp_shape;
   OHWI original_weights_shape;
 
-  Tensor<OHWI, DataType::FLOAT32>
+  Tensor<OHWI, DataType::kFloat32>
       weights_scale;  // optional field for quantization cases.
-  Tensor<OHWI, DataType::FLOAT32>
+  Tensor<OHWI, DataType::kFloat32>
       weights_zero_point;  // optional field for quantization cases.
 };
 
@@ -605,8 +605,8 @@ struct ReLUAttributes {
 struct PReLUAttributes {
   // If alpha is linear, then it is sharded across CHANNELS axis, otherwise
   // full shape alpha is required.
-  std::variant<Tensor<Linear, DataType::FLOAT32>,
-               Tensor<HWC, DataType::FLOAT32>>
+  std::variant<Tensor<Linear, DataType::kFloat32>,
+               Tensor<HWC, DataType::kFloat32>>
       alpha;
 };
 
@@ -623,7 +623,7 @@ struct RoPEAttributes {
   float min_timescale = 1.0f;
   float max_timescale = 10000.0f;
   float proportion = 1.0f;  // p-RoPE proportion
-  RoPEKernelType kernel_type = RoPEKernelType::PLANAR_1D;
+  RoPEKernelType kernel_type = RoPEKernelType::kPlanar1D;
 };
 
 struct ReduceAttributes {
@@ -631,7 +631,7 @@ struct ReduceAttributes {
 };
 
 struct SoftmaxAttributes {
-  Axis axis = Axis::UNKNOWN;
+  Axis axis = Axis::kUnknown;
 };
 
 enum LstmKernelType {
@@ -644,7 +644,7 @@ enum LstmKernelType {
 };
 
 struct LstmAttributes {
-  LstmKernelType kernel_type = LstmKernelType::BASIC;
+  LstmKernelType kernel_type = LstmKernelType::kBasic;
 };
 
 enum class SamplingType {
@@ -661,7 +661,7 @@ enum class SamplingType {
 struct Resize2DAttributes {
   HW new_shape;
 
-  SamplingType type = SamplingType::UNKNOWN;
+  SamplingType type = SamplingType::kUnknown;
 
   // If true, the centers of the 4 corner pixels of the input and output tensors
   // are aligned, preserving the values at the corner pixels. Defaults to false.
@@ -674,7 +674,7 @@ struct Resize2DAttributes {
 struct Resize3DAttributes {
   HWD new_shape;
 
-  SamplingType type = SamplingType::NEAREST;
+  SamplingType type = SamplingType::kNearest;
 
   // If true, the centers of the 8 corner pixels of the input and output tensors
   // are aligned, preserving the values at the corner pixels. Defaults to false.
@@ -713,7 +713,7 @@ enum class PaddingContentType {
 };
 
 struct PadAttributes {
-  PaddingContentType type = PaddingContentType::ZEROS;
+  PaddingContentType type = PaddingContentType::kZeros;
 
   BHWC prepended;
   BHWC appended;
@@ -724,7 +724,7 @@ struct PadAttributes {
 BHWC CalculateOutputShape(const BHWC& input, const PadAttributes& attr);
 
 struct Pad3DAttributes {
-  PaddingContentType type = PaddingContentType::ZEROS;
+  PaddingContentType type = PaddingContentType::kZeros;
 
   BHWDC prepended;
   BHWDC appended;
@@ -778,8 +778,8 @@ struct RuntimeCheckParams {
 };
 
 struct FullyConnectedAttributes {
-  Tensor<OHWI, DataType::FLOAT32> weights;
-  Tensor<Linear, DataType::FLOAT32> bias;
+  Tensor<OHWI, DataType::kFloat32> weights;
+  Tensor<Linear, DataType::kFloat32> bias;
 
   // Set if the weights are an external tensor.
   struct ExternalWeightsAttributes {
@@ -794,14 +794,14 @@ struct FullyConnectedAttributes {
 // FullyConnectedInt8Attributes can be used for external weights that only shape
 // for the weights been initialized without data.
 struct FullyConnectedInt8Attributes {
-  Tensor<OHWI, DataType::INT8> weights;
+  Tensor<OHWI, DataType::kInt8> weights;
   // Tensor-wise  quant: scale & zero_point have the shape OHWI(1, 1, 1, 1),
   // Channel-wise quant: scale & zero_point have the shape OHWI(M, 1, 1, 1),
   // Block-wise   quant: scale & zero_point have the shape OHWI(M, 1, 1, N)
   //                     though zero_point can be empty.
-  Tensor<OHWI, DataType::FLOAT32> scale;
-  Tensor<OHWI, DataType::INT32> zero_point;
-  Tensor<Linear, DataType::FLOAT32> bias;
+  Tensor<OHWI, DataType::kFloat32> scale;
+  Tensor<OHWI, DataType::kInt32> zero_point;
+  Tensor<Linear, DataType::kFloat32> bias;
   std::string op_name;
 };
 
@@ -811,15 +811,15 @@ struct FullyConnectedInt4Attributes {
   // Weights can be stored as:
   // - Tensor<OHWI, DataType::INT8>: Unpacked weights (one element per byte).
   // - Tensor<OHWI, DataType::INT4>: Packed weights (two elements per byte).
-  std::variant<Tensor<OHWI, DataType::INT8>, Tensor<OHWI, DataType::INT4>>
+  std::variant<Tensor<OHWI, DataType::kInt8>, Tensor<OHWI, DataType::kInt4>>
       weights;
   // Tensor-wise  quant: scale & zero_point have the shape OHWI(1, 1, 1, 1),
   // Channel-wise quant: scale & zero_point have the shape OHWI(M, 1, 1, 1),
   // Block-wise   quant: scale & zero_point have the shape OHWI(M, 1, 1, N)
   //                     though zero_point can be empty.
-  Tensor<OHWI, DataType::FLOAT32> scale;
-  Tensor<OHWI, DataType::INT32> zero_point;
-  Tensor<Linear, DataType::FLOAT32> bias;
+  Tensor<OHWI, DataType::kFloat32> scale;
+  Tensor<OHWI, DataType::kInt32> zero_point;
+  Tensor<Linear, DataType::kFloat32> bias;
   std::string op_name;
 };
 
@@ -829,13 +829,13 @@ struct FullyConnectedInt2Attributes {
   // Weights can be stored as:
   // - Tensor<OHWI, DataType::INT8>: Unpacked weights (one element per byte).
   // - Tensor<OHWI, DataType::INT2>: Packed weights (four elements per byte).
-  std::variant<Tensor<OHWI, DataType::INT8>, Tensor<OHWI, DataType::INT2>>
+  std::variant<Tensor<OHWI, DataType::kInt8>, Tensor<OHWI, DataType::kInt2>>
       weights;
   // Tensor-wise  quant: scale & zero_point have the shape OHWI(1, 1, 1, 1),
   // Channel-wise quant: scale & zero_point have the shape OHWI(M, 1, 1, 1),
-  Tensor<OHWI, DataType::FLOAT32> scale;
-  Tensor<OHWI, DataType::INT32> zero_point;
-  Tensor<Linear, DataType::FLOAT32> bias;
+  Tensor<OHWI, DataType::kFloat32> scale;
+  Tensor<OHWI, DataType::kInt32> zero_point;
+  Tensor<Linear, DataType::kFloat32> bias;
   std::string op_name;
 };
 
@@ -907,7 +907,7 @@ struct SpaceToDepthAttributes {
 
 struct SplitAttributes {
   // Defines axis by which to split.
-  Axis axis = Axis::UNKNOWN;
+  Axis axis = Axis::kUnknown;
 };
 
 // These help perform a combination of Quantize & Dequantize to adjust float
@@ -919,7 +919,7 @@ struct QuantizeAndDequantizeAttributes {
 };
 
 struct GatherAttributes {
-  Axis axis = Axis::UNKNOWN;
+  Axis axis = Axis::kUnknown;
 };
 
 struct OneHotAttributes {
@@ -930,14 +930,14 @@ struct OneHotAttributes {
 struct SelectV2Attributes {};
 
 struct CumsumAttributes {
-  Axis axis = Axis::UNKNOWN;
+  Axis axis = Axis::kUnknown;
 };
 
 struct GroupNormAttributes {
   int groups;
   float epsilon;
-  std::optional<Tensor<Linear, DataType::FLOAT32>> gamma;
-  std::optional<Tensor<Linear, DataType::FLOAT32>> beta;
+  std::optional<Tensor<Linear, DataType::kFloat32>> gamma;
+  std::optional<Tensor<Linear, DataType::kFloat32>> beta;
 };
 
 struct ScaledDotProductAttentionAttributes {
@@ -952,14 +952,14 @@ struct DynamicUpdateSliceAttributes {
 
 struct LayerNormAttributes {
   float epsilon;
-  std::optional<Tensor<Linear, DataType::FLOAT32>> scale;
-  std::optional<Tensor<Linear, DataType::FLOAT32>> bias;
+  std::optional<Tensor<Linear, DataType::kFloat32>> scale;
+  std::optional<Tensor<Linear, DataType::kFloat32>> bias;
 };
 
 struct RmsNormAttributes {
   float epsilon;
-  std::optional<Tensor<Linear, DataType::FLOAT32>> scale;
-  std::optional<Tensor<Linear, DataType::FLOAT32>> bias;
+  std::optional<Tensor<Linear, DataType::kFloat32>> scale;
+  std::optional<Tensor<Linear, DataType::kFloat32>> bias;
 };
 
 struct BatchedMatMulAttributes {
@@ -974,10 +974,10 @@ struct BatchedMatMulAttributes {
 // this is usually used as the input of XNNPACK weights rearrangement operation,
 // which requires extra bytes.
 template <DataType QuantizedType>
-Tensor<OHWI, DataType::FLOAT32> DequantizeTensor(
+Tensor<OHWI, DataType::kFloat32> DequantizeTensor(
     const Tensor<OHWI, QuantizedType>& weights,
-    const Tensor<OHWI, DataType::FLOAT32>& scale,
-    const Tensor<OHWI, DataType::INT32>& zero_point,
+    const Tensor<OHWI, DataType::kFloat32>& scale,
+    const Tensor<OHWI, DataType::kInt32>& zero_point,
     bool add_extra_bytes = true);
 
 // Get the float weights tensor from Convolution2DAttributes. If the attributes
@@ -986,10 +986,11 @@ Tensor<OHWI, DataType::FLOAT32> DequantizeTensor(
 // weights.
 // This function may modify the internal representation of the attributes'
 // weights, but it won't change them semantically.
-Tensor<OHWI, DataType::FLOAT32>& GetFloatWeights(Convolution2DAttributes& attr);
+Tensor<OHWI, DataType::kFloat32>& GetFloatWeights(
+    Convolution2DAttributes& attr);
 
 // Get the float weights tensor from Convolution2DAttributes.
-inline const Tensor<OHWI, DataType::FLOAT32>& GetFloatWeights(
+inline const Tensor<OHWI, DataType::kFloat32>& GetFloatWeights(
     const Convolution2DAttributes& attr) {
   return GetFloatWeights(const_cast<Convolution2DAttributes&>(attr));
 }

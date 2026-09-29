@@ -45,17 +45,17 @@ std::string ToString(const WeightsDescription& desc) {
 namespace {
 bool IsCustomGroupsI4O4(const std::vector<std::pair<Axis, int>>& group_sizes) {
   return group_sizes.size() >= 2 &&
-         group_sizes[0].first == Axis::OUTPUT_CHANNELS &&
+         group_sizes[0].first == Axis::kOutputChannels &&
          group_sizes[0].second == 4 &&
-         group_sizes[1].first == Axis::INPUT_CHANNELS &&
+         group_sizes[1].first == Axis::kInputChannels &&
          group_sizes[1].second == 4;
 }
 
 bool IsCustomGroupsO4I4(const std::vector<std::pair<Axis, int>>& group_sizes) {
   return group_sizes.size() >= 2 &&
-         group_sizes[0].first == Axis::INPUT_CHANNELS &&
+         group_sizes[0].first == Axis::kInputChannels &&
          group_sizes[0].second == 4 &&
-         group_sizes[1].first == Axis::OUTPUT_CHANNELS &&
+         group_sizes[1].first == Axis::kOutputChannels &&
          group_sizes[1].second == 4;
 }
 
@@ -85,8 +85,8 @@ bool IsSubsequence(const std::vector<T>& expected, const std::vector<T>& sub) {
 
 bool IsOISpatialOGroup(const std::vector<Axis>& axes) {
   const std::vector<Axis> expected_axes = {
-      Axis::OUTPUT_CHANNELS, Axis::WIDTH,          Axis::HEIGHT,
-      Axis::DEPTH,           Axis::INPUT_CHANNELS, Axis::OUTPUT_CHANNELS};
+      Axis::kOutputChannels, Axis::kWidth,         Axis::kHeight,
+      Axis::kDepth,          Axis::kInputChannels, Axis::kOutputChannels};
   return IsSubsequence(expected_axes, axes);
 }
 

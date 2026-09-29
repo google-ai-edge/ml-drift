@@ -131,7 +131,7 @@ enum class InferencePriority {
 };
 
 struct InferenceOptions {
-  InferenceUsage usage = InferenceUsage::SUSTAINED_SPEED;
+  InferenceUsage usage = InferenceUsage::kSustainedSpeed;
 
   // Ordered priorities provide better understanding of desired semantics,
   // where priority(n) is more important than priority(n+1).
@@ -149,9 +149,9 @@ struct InferenceOptions {
   //   INVALID: priority1 = MIN_LATENCY, priority2 = AUTO,
   //            priority3 = MAX_PRECISION
   // Invalid priorities will result in error.
-  InferencePriority priority1 = InferencePriority::MAX_PRECISION;
-  InferencePriority priority2 = InferencePriority::AUTO;
-  InferencePriority priority3 = InferencePriority::AUTO;
+  InferencePriority priority1 = InferencePriority::kMaxPrecision;
+  InferencePriority priority2 = InferencePriority::kAuto;
+  InferencePriority priority3 = InferencePriority::kAuto;
 };
 
 // Returns a position number for the priority. If priority is missing,

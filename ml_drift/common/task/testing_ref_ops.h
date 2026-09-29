@@ -104,23 +104,23 @@ TensorFloat32 FullyConnectedReference(
     const TestingRuntimeChannels& runtime_channels);
 
 TensorFloat32 FullyConnectedRefDifferentWeightsForHeight(
-    Tensor<OHWI, DataType::FLOAT32> weights, const TensorFloat32& src);
+    Tensor<OHWI, DataType::kFloat32> weights, const TensorFloat32& src);
 
 TensorFloat32 FullyConnectedRefDifferentWeightsForHeight(
-    Tensor<OHWI, DataType::FLOAT32> weights, const TensorFloat32& src,
+    Tensor<OHWI, DataType::kFloat32> weights, const TensorFloat32& src,
     const TestingRuntimeChannels& runtime_channels);
 
 TensorFloat32 FullyConnectedWeightsBatchIdsReference(
-    Tensor<OHWI, DataType::FLOAT32> weights, const TensorFloat32& src,
+    Tensor<OHWI, DataType::kFloat32> weights, const TensorFloat32& src,
     const TensorInt32& ids);
 
 TensorInt32 FullyConnectedReference(
-    const ml_drift::Tensor<BHWC, DataType::INT8>& src_tensor_i8,
-    const ml_drift::Tensor<OHWI, DataType::INT8>& weights_i8);
+    const ml_drift::Tensor<BHWC, DataType::kInt8>& src_tensor_i8,
+    const ml_drift::Tensor<OHWI, DataType::kInt8>& weights_i8);
 
 TensorInt32 FullyConnectedReference(
-    const ml_drift::Tensor<BHWC, DataType::UINT8>& src_tensor_ui8,
-    const ml_drift::Tensor<OHWI, DataType::INT8>& weights_i8,
+    const ml_drift::Tensor<BHWC, DataType::kUint8>& src_tensor_ui8,
+    const ml_drift::Tensor<OHWI, DataType::kInt8>& weights_i8,
     int src_sum_scale = 0);
 
 std::vector<TensorFloat32> LSTMReference(const TensorFloat32& active_temp,
@@ -211,27 +211,27 @@ TensorFloat32 Winograd3x3ForwardRef(const TensorFloat32& src_tensor,
 TensorFloat32 Winograd3x3BackwardRef(TensorFloat32 src_tensor,
                                      const BHWC& dst_shape, int tile_size);
 
-Tensor<OHWI, DataType::FLOAT32> MakeWeightsFromInt8(
-    const Tensor<OHWI, DataType::INT8>& weights_i8, float weights_scale,
+Tensor<OHWI, DataType::kFloat32> MakeWeightsFromInt8(
+    const Tensor<OHWI, DataType::kInt8>& weights_i8, float weights_scale,
     float weights_zero_point);
 
-Tensor<OHWI, DataType::FLOAT32> MakeWeightsFromInt8(
-    const Tensor<OHWI, DataType::INT8>& weights_i8,
-    const Tensor<OHWI, DataType::FLOAT32>& weights_scale,
-    const Tensor<OHWI, DataType::FLOAT32>& weights_zero_point);
+Tensor<OHWI, DataType::kFloat32> MakeWeightsFromInt8(
+    const Tensor<OHWI, DataType::kInt8>& weights_i8,
+    const Tensor<OHWI, DataType::kFloat32>& weights_scale,
+    const Tensor<OHWI, DataType::kFloat32>& weights_zero_point);
 
-Tensor<OHWI, DataType::FLOAT32> MakeWeightsFromInt8(
-    const Tensor<OHWI, DataType::INT8>& weights_i8,
-    const Tensor<Linear, DataType::FLOAT32>& weights_scale,
-    const Tensor<Linear, DataType::FLOAT32>* weights_zero_point = nullptr);
+Tensor<OHWI, DataType::kFloat32> MakeWeightsFromInt8(
+    const Tensor<OHWI, DataType::kInt8>& weights_i8,
+    const Tensor<Linear, DataType::kFloat32>& weights_scale,
+    const Tensor<Linear, DataType::kFloat32>* weights_zero_point = nullptr);
 
 // group_ids shape B/H must be 1.
-std::pair<TensorInt32, Tensor<Linear, DataType::INT32>> GroupsMapReference(
+std::pair<TensorInt32, Tensor<Linear, DataType::kInt32>> GroupsMapReference(
     const TensorInt32& group_ids, int num_groups);
 
-std::pair<TensorInt32, Tensor<Linear, DataType::INT32>>
+std::pair<TensorInt32, Tensor<Linear, DataType::kInt32>>
 PackedGroupsMapReference(const TensorInt32& groups_map,
-                         const Tensor<Linear, DataType::INT32>& groups_sizes);
+                         const Tensor<Linear, DataType::kInt32>& groups_sizes);
 
 TensorFloat32 RemapToReference(const TensorFloat32& src,
                                const TensorInt32& packed_map);
@@ -241,7 +241,7 @@ TensorFloat32 RemapFromReference(const TensorFloat32& src,
 
 TensorFloat32 ConvolutionWithIds(
     const TensorFloat32& src_tensor,
-    const ml_drift::Tensor<OHWI, DataType::FLOAT32>& weights,
+    const ml_drift::Tensor<OHWI, DataType::kFloat32>& weights,
     const TensorInt32& ids);
 
 }  // namespace ml_drift

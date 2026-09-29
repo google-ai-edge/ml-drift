@@ -437,7 +437,7 @@ inline uint8_t GetUint4FromUint8(uint8_t value, bool msb) {
 
 // Note that this assumes we shift by 8u
 void Uint4PackedkOSpatialIOGroupI4O4(
-    const Tensor<OHWI, DataType::UINT8>& weights,
+    const Tensor<OHWI, DataType::kUint8>& weights,
     const WeightsDescription& dst_weight_desc, absl::Span<uint8_t> dst,
     absl::Span<int32_t> weights_sum_i, unsigned int pad_value, bool swap_dims) {
   const int dst_group_size = dst_weight_desc.GetOutputGroupSize();
@@ -517,7 +517,7 @@ void Uint4PackedkOSpatialIOGroupI4O4(
 
 // Note that this assumes we shift by 8u
 void Uint4Packedk2DYIsSpatialIOAndXIsOGroupI4O4(
-    const Tensor<OHWI, DataType::UINT8>& weights,
+    const Tensor<OHWI, DataType::kUint8>& weights,
     const WeightsDescription& dst_weight_desc, absl::Span<uint8_t> dst,
     absl::Span<int32_t> weights_sum_i, unsigned int pad_value, bool swap_dims) {
   const int dst_group_size = dst_weight_desc.GetOutputGroupSize();
@@ -602,7 +602,7 @@ inline uint8_t GetUint2FromUint8(uint8_t value, int bit_offset) {
 
 // Note that this assumes we shift by 2u
 void Uint2Packedk2DYIsSpatialIOAndXIsOGroupI4O4(
-    const Tensor<OHWI, DataType::UINT8>& weights,
+    const Tensor<OHWI, DataType::kUint8>& weights,
     const WeightsDescription& dst_weight_desc, absl::Span<uint8_t> dst,
     absl::Span<int32_t> weights_sum_i, unsigned int pad_value, bool swap_dims) {
   const int dst_group_size = dst_weight_desc.GetOutputGroupSize();
@@ -682,7 +682,7 @@ void Uint2Packedk2DYIsSpatialIOAndXIsOGroupI4O4(
 
 // Note that this assumes we shift by 2u
 void Uint2PackedkOSpatialIOGroupI4O4(
-    const Tensor<OHWI, DataType::UINT8>& weights,
+    const Tensor<OHWI, DataType::kUint8>& weights,
     const WeightsDescription& dst_weight_desc, absl::Span<uint8_t> dst,
     absl::Span<int32_t> weights_sum_i, unsigned int pad_value, bool swap_dims) {
   const int dst_group_size = dst_weight_desc.GetOutputGroupSize();
@@ -763,7 +763,7 @@ void Uint2PackedkOSpatialIOGroupI4O4(
 int GetCustomGroupsOutputGroupSize(
     const std::vector<std::pair<Axis, int>>& group_sizes, int output_channels) {
   if (group_sizes.size() >= 2 &&
-      group_sizes[2].first == Axis::OUTPUT_CHANNELS) {
+      group_sizes[2].first == Axis::kOutputChannels) {
     if (group_sizes[2].second > 0) {
       return group_sizes[2].second;
     } else {
@@ -781,7 +781,7 @@ std::unique_ptr<half[]> ConvertF32F16(const std::vector<float>& src) {
 
 #ifdef __aarch64__
 void RearrangeWeightsToOHWIOGroupI4O4(
-    const Tensor<OHWI, DataType::FLOAT32>& weights, int out_group_size,
+    const Tensor<OHWI, DataType::kFloat32>& weights, int out_group_size,
     __fp16* dst) {
   const float* src = weights.data.data();
   const int dst_slices = DivideRoundUp(weights.shape.o, 4);
@@ -895,12 +895,12 @@ uint2 Get2dResourceSize(const WeightsDescription& weight_desc,
 }
 
 // weights.data needs an extra XNN_EXTRA_BYTES/sizeof(float) bytes reserved
-void RearrangeWeights(const Tensor<OHWI, DataType::FLOAT32>& weights,
+void RearrangeWeights(const Tensor<OHWI, DataType::kFloat32>& weights,
                       const WeightsDescription& dst_weight_desc,
                       absl::Span<uint8_t> dst) {
   if (!weights.spanned_data.empty() &&
       weights.spanned_data.size() == weights.shape.DimensionsProduct()) {
-    const_cast<Tensor<OHWI, DataType::FLOAT32>&>(weights)
+    const_cast<Tensor<OHWI, DataType::kFloat32>&>(weights)
         .MoveDataForCpuRearrange(weights.shape.DimensionsProduct() +
                                  XNN_EXTRA_BYTES / sizeof(float));
   }
@@ -917,7 +917,7 @@ void RearrangeWeights(const Tensor<OHWI, DataType::FLOAT32>& weights,
       // kOSpatialIOGroupI4O4 is the most common layout. As such, we have
       // some optimized paths. If we are using Aarch64 on F16, use intrinsics.
 #ifdef __aarch64__
-      if (dst_weight_desc.type == DataType::FLOAT16) {
+      if (dst_weight_desc.type == DataType::kFloat16) {
         RearrangeWeightsToOHWIOGroupI4O4(weights, dst_group_size,
                                          reinterpret_cast<__fp16*>(dst.data()));
         return;
@@ -928,11 +928,11 @@ void RearrangeWeights(const Tensor<OHWI, DataType::FLOAT32>& weights,
         // If we need to use both XNNPACK transpose and pad, benchmarks have
         // shown it to be slightly slower than RearrangeWeightsToOHWIOGroupI4O4.
         // Since this is the most common layout, we keep a custom call.
-        if (dst_weight_desc.type == DataType::FLOAT32) {
+        if (dst_weight_desc.type == DataType::kFloat32) {
           RearrangeWeightsToOHWIOGroupI4O4(weights, dst_group_size,
                                            absl::MakeSpan(f32_ptr, flt_count),
                                            0.0f);
-        } else if (dst_weight_desc.type == DataType::FLOAT16) {
+        } else if (dst_weight_desc.type == DataType::kFloat16) {
           RearrangeWeightsToOHWIOGroupI4O4(weights, dst_group_size,
                                            absl::MakeSpan(f16_ptr, flt_count),
                                            half(0.0f));
@@ -954,10 +954,10 @@ void RearrangeWeights(const Tensor<OHWI, DataType::FLOAT32>& weights,
       reshape_order = {2, 3, 4, 0, 1, 5};
       break;
     case WeightsLayout::kISpatialOI4O4UnalignedIO: {
-      if (dst_weight_desc.type == DataType::FLOAT32) {
+      if (dst_weight_desc.type == DataType::kFloat32) {
         RearrangeWeightsToISpatialOI4O4UnalignedIO(
             weights, absl::MakeSpan(f32_ptr, flt_count));
-      } else if (dst_weight_desc.type == DataType::FLOAT16) {
+      } else if (dst_weight_desc.type == DataType::kFloat16) {
         RearrangeWeightsToISpatialOI4O4UnalignedIO(
             weights, absl::MakeSpan(f16_ptr, flt_count));
       }
@@ -975,11 +975,11 @@ void RearrangeWeights(const Tensor<OHWI, DataType::FLOAT32>& weights,
             dst_weight_desc.group_sizes, weights.shape.o);
         break;
       } else {
-        if (dst_weight_desc.type == DataType::FLOAT32) {
+        if (dst_weight_desc.type == DataType::kFloat32) {
           RearrangeWeightsToCustom(weights, dst_weight_desc.group_sizes,
                                    dst_weight_desc.spatial_remap,
                                    absl::MakeSpan(f32_ptr, flt_count), 0.0f);
-        } else if (dst_weight_desc.type == DataType::FLOAT16) {
+        } else if (dst_weight_desc.type == DataType::kFloat16) {
           RearrangeWeightsToCustom(weights, dst_weight_desc.group_sizes,
                                    dst_weight_desc.spatial_remap,
                                    absl::MakeSpan(f16_ptr, flt_count),
@@ -990,10 +990,10 @@ void RearrangeWeights(const Tensor<OHWI, DataType::FLOAT32>& weights,
     case WeightsLayout::kUnknown:
       return;
   }
-  if (dst_weight_desc.type == DataType::FLOAT32) {
+  if (dst_weight_desc.type == DataType::kFloat32) {
     Reshape(weights.Data(), weights.shape, dst_group_size, reshape_order,
             /*pad_value=*/0.0f, f32_ptr);
-  } else if (dst_weight_desc.type == DataType::FLOAT16) {
+  } else if (dst_weight_desc.type == DataType::kFloat16) {
     Reshape(
         ConvertF32F16(weights.Data(), weights.shape.DimensionsProduct()).get(),
         weights.shape, dst_group_size, reshape_order,
@@ -1002,12 +1002,12 @@ void RearrangeWeights(const Tensor<OHWI, DataType::FLOAT32>& weights,
 }
 
 // weights.data needs an extra XNN_EXTRA_BYTES/sizeof(float) bytes reserved
-void RearrangeWeights(const Tensor<OHWDI, DataType::FLOAT32>& weights,
+void RearrangeWeights(const Tensor<OHWDI, DataType::kFloat32>& weights,
                       const WeightsDescription& dst_weight_desc,
                       absl::Span<uint8_t> dst) {
   if (!weights.spanned_data.empty() &&
       weights.spanned_data.size() == weights.shape.DimensionsProduct()) {
-    const_cast<Tensor<OHWDI, DataType::FLOAT32>&>(weights)
+    const_cast<Tensor<OHWDI, DataType::kFloat32>&>(weights)
         .MoveDataForCpuRearrange(weights.shape.DimensionsProduct() +
                                  XNN_EXTRA_BYTES / sizeof(float));
   }
@@ -1047,11 +1047,11 @@ void RearrangeWeights(const Tensor<OHWDI, DataType::FLOAT32>& weights,
             dst_weight_desc.group_sizes, weights.shape.o);
         break;
       } else {
-        if (dst_weight_desc.type == DataType::FLOAT32) {
+        if (dst_weight_desc.type == DataType::kFloat32) {
           RearrangeWeightsToCustom(weights, dst_weight_desc.group_sizes,
                                    dst_weight_desc.spatial_remap,
                                    absl::MakeSpan(f32_ptr, flt_count), 0.0f);
-        } else if (dst_weight_desc.type == DataType::FLOAT16) {
+        } else if (dst_weight_desc.type == DataType::kFloat16) {
           RearrangeWeightsToCustom(weights, dst_weight_desc.group_sizes,
                                    dst_weight_desc.spatial_remap,
                                    absl::MakeSpan(f16_ptr, flt_count),
@@ -1065,10 +1065,10 @@ void RearrangeWeights(const Tensor<OHWDI, DataType::FLOAT32>& weights,
     case WeightsLayout::kUnknown:
       return;
   }
-  if (dst_weight_desc.type == DataType::FLOAT32) {
+  if (dst_weight_desc.type == DataType::kFloat32) {
     Reshape(weights.Data(), weights.shape, dst_group_size, reshape_order,
             /*pad_value=*/0.0f, f32_ptr);
-  } else if (dst_weight_desc.type == DataType::FLOAT16) {
+  } else if (dst_weight_desc.type == DataType::kFloat16) {
     Reshape(
         ConvertF32F16(weights.Data(), weights.shape.DimensionsProduct()).get(),
         weights.shape, dst_group_size, reshape_order,
@@ -1077,12 +1077,12 @@ void RearrangeWeights(const Tensor<OHWDI, DataType::FLOAT32>& weights,
 }
 
 // weights.data needs an extra XNN_EXTRA_BYTES/sizeof(int8_t) bytes reserved
-void RearrangeWeights(const Tensor<OHWI, DataType::INT8>& weights,
+void RearrangeWeights(const Tensor<OHWI, DataType::kInt8>& weights,
                       const WeightsDescription& dst_weight_desc,
                       absl::Span<uint8_t> dst) {
   if (!weights.spanned_data.empty() &&
       weights.spanned_data.size() == weights.shape.DimensionsProduct()) {
-    const_cast<Tensor<OHWI, DataType::INT8>&>(weights).MoveDataForCpuRearrange(
+    const_cast<Tensor<OHWI, DataType::kInt8>&>(weights).MoveDataForCpuRearrange(
         weights.shape.DimensionsProduct() + XNN_EXTRA_BYTES / sizeof(int8_t));
   }
   ABSL_CHECK_GE(weights.data.size(), weights.shape.DimensionsProduct() +
@@ -1143,13 +1143,14 @@ void RearrangeWeights(const Tensor<OHWI, DataType::INT8>& weights,
 }
 
 // weights.data needs an extra XNN_EXTRA_BYTES/sizeof(uint8_t) bytes reserved
-void RearrangeWeights(const Tensor<OHWI, DataType::UINT8>& weights,
+void RearrangeWeights(const Tensor<OHWI, DataType::kUint8>& weights,
                       const WeightsDescription& dst_weight_desc,
                       absl::Span<uint8_t> dst, uint8_t pad_value) {
   if (!weights.spanned_data.empty() &&
       weights.spanned_data.size() == weights.shape.DimensionsProduct()) {
-    const_cast<Tensor<OHWI, DataType::UINT8>&>(weights).MoveDataForCpuRearrange(
-        weights.shape.DimensionsProduct() + XNN_EXTRA_BYTES / sizeof(uint8_t));
+    const_cast<Tensor<OHWI, DataType::kUint8>&>(weights)
+        .MoveDataForCpuRearrange(weights.shape.DimensionsProduct() +
+                                 XNN_EXTRA_BYTES / sizeof(uint8_t));
   }
   ABSL_CHECK_GE(weights.data.size(), weights.shape.DimensionsProduct() +
                                           XNN_EXTRA_BYTES / sizeof(uint8_t));
@@ -1204,11 +1205,11 @@ void RearrangeWeights(const Tensor<OHWI, DataType::UINT8>& weights,
           /*pad_value=*/pad_value, reinterpret_cast<uint8_t*>(dst.data()));
 }
 
-void RearrangeWeightsInt8AsUint8(const Tensor<OHWI, DataType::INT8>& weights,
+void RearrangeWeightsInt8AsUint8(const Tensor<OHWI, DataType::kInt8>& weights,
                                  const WeightsDescription& dst_weight_desc,
                                  absl::Span<uint8_t> dst, int shift_value,
                                  unsigned int pad_value) {
-  Tensor<OHWI, DataType::UINT8> weights_ui8;
+  Tensor<OHWI, DataType::kUint8> weights_ui8;
   weights_ui8.shape = weights.shape;
   weights_ui8.data.resize(weights_ui8.shape.DimensionsProduct() +
                           XNN_EXTRA_BYTES / sizeof(uint8_t));
@@ -1220,7 +1221,7 @@ void RearrangeWeightsInt8AsUint8(const Tensor<OHWI, DataType::INT8>& weights,
                    static_cast<uint8_t>(pad_value));
 }
 
-void RearrangeWeightsInt8AsUint4(const Tensor<OHWI, DataType::INT8>& weights,
+void RearrangeWeightsInt8AsUint4(const Tensor<OHWI, DataType::kInt8>& weights,
                                  const WeightsDescription& dst_weight_desc,
                                  absl::Span<uint8_t> dst, int shift_value,
                                  unsigned int pad_value) {
@@ -1235,7 +1236,7 @@ void RearrangeWeightsInt8AsUint4(const Tensor<OHWI, DataType::INT8>& weights,
   }
 }
 
-void RearrangeWeightsInt8AsUint2(const Tensor<OHWI, DataType::INT8>& weights,
+void RearrangeWeightsInt8AsUint2(const Tensor<OHWI, DataType::kInt8>& weights,
                                  const WeightsDescription& dst_weight_desc,
                                  absl::Span<uint8_t> dst, int shift_value,
                                  unsigned int pad_value) {
@@ -1252,11 +1253,11 @@ void RearrangeWeightsInt8AsUint2(const Tensor<OHWI, DataType::INT8>& weights,
   }
 }
 
-void RearrangeWeightsInt4(const Tensor<OHWI, DataType::INT8>& weights_i4,
+void RearrangeWeightsInt4(const Tensor<OHWI, DataType::kInt8>& weights_i4,
                           const WeightsDescription& dst_weight_desc,
                           absl::Span<uint8_t> dst) {
   WeightsDescription weight_desc = dst_weight_desc;
-  weight_desc.type = DataType::INT8;
+  weight_desc.type = DataType::kInt8;
   const int elements_count =
       GetTotalElementsCountForLayout(weight_desc, weights_i4.shape);
 
@@ -1274,11 +1275,11 @@ void RearrangeWeightsInt4(const Tensor<OHWI, DataType::INT8>& weights_i4,
   }
 }
 
-void RearrangeWeightsUint2(const Tensor<OHWI, DataType::UINT8>& weights_i2,
+void RearrangeWeightsUint2(const Tensor<OHWI, DataType::kUint8>& weights_i2,
                            const WeightsDescription& dst_weight_desc,
                            absl::Span<uint8_t> dst) {
   WeightsDescription weight_desc = dst_weight_desc;
-  weight_desc.type = DataType::UINT8;
+  weight_desc.type = DataType::kUint8;
   const int elements_count =
       GetTotalElementsCountForLayout(weight_desc, weights_i2.shape);
 
@@ -1296,9 +1297,9 @@ void RearrangeWeightsUint2(const Tensor<OHWI, DataType::UINT8>& weights_i2,
   }
 }
 
-Tensor<Linear, DataType::INT32> GetWeightsAccumulatedInputChannels(
-    const Tensor<OHWI, DataType::INT8>& weights) {
-  Tensor<Linear, DataType::INT32> weights_sum_i;
+Tensor<Linear, DataType::kInt32> GetWeightsAccumulatedInputChannels(
+    const Tensor<OHWI, DataType::kInt8>& weights) {
+  Tensor<Linear, DataType::kInt32> weights_sum_i;
   weights_sum_i.shape = Linear(weights.shape.o);
   weights_sum_i.data.resize(weights_sum_i.shape.DimensionsProduct());
   const int8_t* src = weights.Data();
@@ -1317,7 +1318,7 @@ Tensor<Linear, DataType::INT32> GetWeightsAccumulatedInputChannels(
 }
 
 absl::Status RearrangeWeightsUInt4Packed(
-    const Tensor<OHWI, DataType::UINT8>& weights,
+    const Tensor<OHWI, DataType::kUint8>& weights,
     const WeightsDescription& dst_weight_desc, absl::Span<uint8_t> dst,
     absl::Span<int32_t> weights_sum_i, unsigned int pad_value, bool swap_dims) {
   switch (dst_weight_desc.layout) {
@@ -1335,7 +1336,7 @@ absl::Status RearrangeWeightsUInt4Packed(
 }
 
 absl::Status RearrangeWeightsUInt2Packed(
-    const Tensor<OHWI, DataType::UINT8>& weights,
+    const Tensor<OHWI, DataType::kUint8>& weights,
     const WeightsDescription& dst_weight_desc, absl::Span<uint8_t> dst,
     absl::Span<int32_t> weights_sum_i, unsigned int pad_value, bool swap_dims) {
   switch (dst_weight_desc.layout) {
@@ -1353,7 +1354,7 @@ absl::Status RearrangeWeightsUInt2Packed(
 }
 
 std::vector<TensorDescriptor> GetTensorDescriptorsForWeightsLayout(
-    const ml_drift::Tensor<OHWI, DataType::FLOAT32>& weights,
+    const ml_drift::Tensor<OHWI, DataType::kFloat32>& weights,
     const WeightsDescription& weights_desc) {
   const int flt_count =
       GetTotalElementsCountForLayout(weights_desc, weights.shape);
@@ -1367,7 +1368,7 @@ std::vector<TensorDescriptor> GetTensorDescriptorsForWeightsLayout(
     uint2 tex_size = Get2dResourceSize(weights_desc, weights.shape);
     for (int i = 0; i < 4; ++i) {
       weights_tensors[i] = TensorDescriptor(
-          weights_desc.type, TensorStorageType::TEXTURE_2D, Layout::HW);
+          weights_desc.type, TensorStorageType::kTexture2D, Layout::kHW);
       weights_tensors[i].SetBHWCShape(BHWC(1, tex_size.y, tex_size.x, 4));
       weights_tensors[i].UploadDataRaw(absl::MakeConstSpan(
           weights_data.data() +
@@ -1377,7 +1378,7 @@ std::vector<TensorDescriptor> GetTensorDescriptorsForWeightsLayout(
   } else {
     weights_tensors.resize(1);
     weights_tensors[0] = TensorDescriptor(
-        weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR);
+        weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear);
     weights_tensors[0].SetBHWCShape(BHWC(1, 1, 1, flt_count));
     weights_tensors[0].UploadDataRaw(absl::MakeConstSpan(weights_data));
   }
@@ -1385,39 +1386,39 @@ std::vector<TensorDescriptor> GetTensorDescriptorsForWeightsLayout(
 }
 
 TensorDescriptor GetTensorDescriptorForWeightsLayout(
-    const ml_drift::Tensor<OHWI, DataType::INT8>& weights,
+    const ml_drift::Tensor<OHWI, DataType::kInt8>& weights,
     const WeightsDescription& weights_desc) {
   const int elements_per_8bits = 8 / SizeInBitsOf(weights_desc.type);
   std::vector<uint8_t> data(
       GetTotalElementsCountForLayout(weights_desc, weights.shape) /
       elements_per_8bits);
-  if (weights_desc.type == DataType::UINT8) {
+  if (weights_desc.type == DataType::kUint8) {
     RearrangeWeightsInt8AsUint8(weights, weights_desc, absl::MakeSpan(data),
                                 128, 128u);
-  } else if (weights_desc.type == DataType::UINT4) {
+  } else if (weights_desc.type == DataType::kUint4) {
     RearrangeWeightsInt8AsUint4(weights, weights_desc, absl::MakeSpan(data), 8,
                                 8u);
-  } else if (weights_desc.type == DataType::UINT2) {
+  } else if (weights_desc.type == DataType::kUint2) {
     RearrangeWeightsInt8AsUint2(weights, weights_desc, absl::MakeSpan(data), 2,
                                 2u);
-  } else if (weights_desc.type == DataType::INT8) {
+  } else if (weights_desc.type == DataType::kInt8) {
     RearrangeWeights(weights, weights_desc, absl::MakeSpan(data));
   }
 
   TensorDescriptor weights_td;
   if (weights_desc.IsLinearLayout()) {
-    weights_td = TensorDescriptor(DataType::UINT8, TensorStorageType::BUFFER,
-                                  Layout::LINEAR);
+    weights_td = TensorDescriptor(DataType::kUint8, TensorStorageType::kBuffer,
+                                  Layout::kLinear);
     weights_td.SetBHWCShape(BHWC(1, 1, 1, data.size()));
   } else {
-    DataType texture_type = DataType::UINT32;
-    if (weights_desc.type == DataType::UINT4) {
-      texture_type = DataType::UINT16;
-    } else if (weights_desc.type == DataType::UINT2) {
-      texture_type = DataType::UINT8;
+    DataType texture_type = DataType::kUint32;
+    if (weights_desc.type == DataType::kUint4) {
+      texture_type = DataType::kUint16;
+    } else if (weights_desc.type == DataType::kUint2) {
+      texture_type = DataType::kUint8;
     }
-    weights_td = TensorDescriptor(texture_type, TensorStorageType::TEXTURE_2D,
-                                  Layout::HW);
+    weights_td = TensorDescriptor(texture_type, TensorStorageType::kTexture2D,
+                                  Layout::kHW);
     uint2 tex_size = Get2dResourceSize(weights_desc, weights.shape);
     tex_size.x /= 4;  // because we store 16 elements per pixel
     weights_td.SetBHWDCShape(BHWDC(1, tex_size.y, tex_size.x, 1, 4));
@@ -1434,19 +1435,19 @@ std::vector<TensorDescriptor> GetTensorDescriptorsForWeightsLayout(
       weights_desc.layout == WeightsLayout::k2DX4O4YIsSpatialIAndXIsOOGroupI4) {
     uint2 tex_size = Get2dResourceSize(weights_desc, weights_shape);
     weights_td = TensorDescriptor(weights_desc.type,
-                                  TensorStorageType::TEXTURE_2D, Layout::HW);
+                                  TensorStorageType::kTexture2D, Layout::kHW);
     weights_td.SetBHWCShape(BHWC(1, tex_size.y, tex_size.x, 4));
     return std::vector<TensorDescriptor>(4, weights_td);
   } else if (weights_desc.layout ==
              WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
     uint2 tex_size = Get2dResourceSize(weights_desc, weights_shape);
     DataType texture_type;
-    if (weights_desc.type == DataType::UINT8) {
-      texture_type = DataType::UINT32;
-    } else if (weights_desc.type == DataType::UINT4) {
-      texture_type = DataType::UINT16;
-    } else if (weights_desc.type == DataType::UINT2) {
-      texture_type = DataType::UINT8;
+    if (weights_desc.type == DataType::kUint8) {
+      texture_type = DataType::kUint32;
+    } else if (weights_desc.type == DataType::kUint4) {
+      texture_type = DataType::kUint16;
+    } else if (weights_desc.type == DataType::kUint2) {
+      texture_type = DataType::kUint8;
     } else {
       // TODO: b/378522761 - Support other data types.
       ABSL_LOG(FATAL) << absl::StrCat(
@@ -1456,22 +1457,22 @@ std::vector<TensorDescriptor> GetTensorDescriptorsForWeightsLayout(
           ToString(weights_desc.type), " is unsupported.");
     }
     tex_size.x /= SizeInBitsOf(texture_type) / SizeInBitsOf(weights_desc.type);
-    weights_td = TensorDescriptor(texture_type, TensorStorageType::TEXTURE_2D,
-                                  Layout::HW);
+    weights_td = TensorDescriptor(texture_type, TensorStorageType::kTexture2D,
+                                  Layout::kHW);
     weights_td.SetBHWCShape(BHWC(1, tex_size.y, tex_size.x, 1));
     return {weights_td};
   } else {
-    weights_td = TensorDescriptor(weights_desc.type, TensorStorageType::BUFFER,
-                                  Layout::LINEAR);
+    weights_td = TensorDescriptor(weights_desc.type, TensorStorageType::kBuffer,
+                                  Layout::kLinear);
     size_t elements_count =
         GetTotalElementsCountForLayout(weights_desc, weights_shape);
     // For Int4 or UInt4 weights, we would store them in packed format: two
     // values are stored in one element (one byte).
-    if (weights_desc.type == DataType::INT4 ||
-        weights_desc.type == DataType::UINT4) {
+    if (weights_desc.type == DataType::kInt4 ||
+        weights_desc.type == DataType::kUint4) {
       elements_count = DivideRoundUp(elements_count, 2);
-    } else if (weights_desc.type == DataType::INT2 ||
-               weights_desc.type == DataType::UINT2) {
+    } else if (weights_desc.type == DataType::kInt2 ||
+               weights_desc.type == DataType::kUint2) {
       elements_count = DivideRoundUp(elements_count, 4);
     }
     weights_td.SetBHWCShape(BHWC(1, 1, 1, elements_count));

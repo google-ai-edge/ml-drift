@@ -58,7 +58,7 @@ absl::Status ResolveWaveMemoryToWaveBroadcast(int wave_size,
         DataTypeFromTemplateArg(mem_type, &data_type, &vector_size));
     glsl_broadcast_half4_as_uint2 = gpu_info.IsGlsl() &&
                                     !gpu_info.IsGlslSupportsExplicitFp16() &&
-                                    data_type == DataType::FLOAT16;
+                                    data_type == DataType::kFloat16;
     const int vals_per_thread = DivideRoundUp(array_size, wave_size);
     std::string patch = ToUclDataType(data_type, vector_size) + " ";
     if (glsl_broadcast_half4_as_uint2) {
@@ -80,7 +80,7 @@ absl::Status ResolveWaveMemoryToWaveBroadcast(int wave_size,
   // f16, so cast to u32. This should be fixed since it's slower than f16.
   const bool webgpu_broadcast_half4_as_uint2 =
       gpu_info.IsApiWebGpu() && gpu_info.webgpu_info.supports_fp16 &&
-      data_type == DataType::FLOAT16 && gpu_info.IsIntel() &&
+      data_type == DataType::kFloat16 && gpu_info.IsIntel() &&
       // TODO: b/332394417 - This may be able to be extended down to Gen10.
       !gpu_info.intel_info.IsGenerationOrNewer(IntelGeneration::kGen12);
 #else
@@ -98,7 +98,7 @@ absl::Status ResolveWaveMemoryToWaveBroadcast(int wave_size,
     }
     const bool opencl_broadcast_half4_as_long = gpu_info.IsPowerVR() &&
                                                 gpu_info.IsApiOpenCl() &&
-                                                data_type == DataType::FLOAT16;
+                                                data_type == DataType::kFloat16;
     const bool broadcast_vec4 =
         gpu_info.IsApiMetal() || gpu_info.IsApiWebGpu() || gpu_info.IsGlsl() ||
         (gpu_info.IsApiOpenCl() &&
@@ -368,7 +368,7 @@ absl::Status ResolveWaveMemoryToWorkGroupMemory(const GpuInfo& gpu_info,
     } else {
       std::string src_val =
           absl::StrCat(args[1], "[", args[2], " + tmp_offset]");
-      if (data_type == DataType::FLOAT16 && gpu_info.IsGlsl() &&
+      if (data_type == DataType::kFloat16 && gpu_info.IsGlsl() &&
           !gpu_info.IsGlslSupportsExplicitFp16()) {
         src_val = absl::StrCat("ucl::Reinterpret<uint2, half4>(", src_val, ")");
       }
@@ -397,7 +397,7 @@ absl::Status ResolveWaveMemoryToWorkGroupMemory(const GpuInfo& gpu_info,
 BufferDescriptor GetBufferDescForWaveMemoryUpload(const GpuInfo& gpu_info,
                                                   DataType data_type) {
   BufferDescriptor buffer_desc;
-  buffer_desc.memory_type = MemoryType::GLOBAL;
+  buffer_desc.memory_type = MemoryType::kGlobal;
   buffer_desc.element_type = data_type;
   buffer_desc.element_size = 4;
   return buffer_desc;

@@ -50,7 +50,7 @@ bool IsAssociativeLinkableOp(const IrOp& node,
                              const std::vector<const ir::IrTensor*>& inputs,
                              const std::vector<const ir::IrTensor*>& outputs) {
   const OperationType op_type = OperationTypeFromString(node.name);
-  if (op_type != OperationType::ADD && op_type != OperationType::MUL) {
+  if (op_type != OperationType::kAdd && op_type != OperationType::kMul) {
     return false;
   }
   if (inputs.size() == 1) {
@@ -117,19 +117,19 @@ class TensorReserver {
 absl::Status CheckExternalTensorDescription(const GpuInfo& gpu_info,
                                             const TensorDescriptor& tensor_desc,
                                             const BHWDC& shape) {
-  if (tensor_desc.HasAxis(Axis::BATCH) && shape.b == 1) {
+  if (tensor_desc.HasAxis(Axis::kBatch) && shape.b == 1) {
     return absl::InvalidArgumentError(
         "Batch size must be not 1 if tensor_desc.HasAxis(Axis::BATCH). "
         "Shape: " +
         ToString(shape) + ", layout: " + ToString(tensor_desc.GetLayout()));
   }
-  if (!tensor_desc.HasAxis(Axis::BATCH) && shape.b != 1) {
+  if (!tensor_desc.HasAxis(Axis::kBatch) && shape.b != 1) {
     return absl::InvalidArgumentError(
         "Batch size must be 1 if !tensor_desc.HasAxis(Axis::BATCH). "
         "Shape: " +
         ToString(shape) + ", layout: " + ToString(tensor_desc.GetLayout()));
   }
-  if (tensor_desc.GetLayout() == Layout::LINEAR &&
+  if (tensor_desc.GetLayout() == Layout::kLinear &&
       ((shape.b > 1) + (shape.h > 1) + (shape.w > 1) + (shape.c > 1) > 1)) {
     return absl::InvalidArgumentError(
         "Linear layout can not have more than one non-linear dimension.");
@@ -196,16 +196,16 @@ TensorStorageType GetTensorStorageType(const CreateGpuModelInfo& create_info,
   if (shape.c < 4 && !gpu_info.IsApiWebGpu()) {
     bool can_use_single_texture =
         gpu_info.IsApiMetal() ||
-        stype == ::ml_drift::TensorStorageType::TEXTURE_2D ||
-        stype == ::ml_drift::TensorStorageType::TEXTURE_3D ||
-        stype == ::ml_drift::TensorStorageType::TEXTURE_ARRAY;
+        stype == ::ml_drift::TensorStorageType::kTexture2D ||
+        stype == ::ml_drift::TensorStorageType::kTexture3D ||
+        stype == ::ml_drift::TensorStorageType::kTextureArray;
     can_use_single_texture &=
         ::ml_drift::TensorDescriptor{
-            dtype, ::ml_drift::TensorStorageType::SINGLE_TEXTURE_2D, layout}
+            dtype, ::ml_drift::TensorStorageType::kSingleTexture2D, layout}
             .CanCreateTensorWithShape(gpu_info, shape)
             .ok();
     if (can_use_single_texture) {
-      stype = ::ml_drift::TensorStorageType::SINGLE_TEXTURE_2D;
+      stype = ::ml_drift::TensorStorageType::kSingleTexture2D;
     }
   }
   return stype;
@@ -222,10 +222,10 @@ absl::StatusOr<TensorDescriptor> GetTensorDescForValue(
     return GetExternallyProvidedTensorDesc(create_info, gpu_info, graph,
                                            tensor);
   }
-  if (tensor->desc.GetDataType() == DataType::FLOAT32 &&
-      create_info.precision != CalculationsPrecision::F32 &&
+  if (tensor->desc.GetDataType() == DataType::kFloat32 &&
+      create_info.precision != CalculationsPrecision::kF32 &&
       !cast_graph_outputs.contains(tensor->id)) {
-    tensor->desc.SetDataType(DataType::FLOAT16);
+    tensor->desc.SetDataType(DataType::kFloat16);
   }
   tensor->desc.SetStorageType(GetTensorStorageType(
       create_info, gpu_info, tensor->desc.GetBHWDCShape(),
@@ -234,7 +234,7 @@ absl::StatusOr<TensorDescriptor> GetTensorDescForValue(
       gpu_info, tensor->desc.GetBHWDCShape()));
   if (gpu_info.IsApiMetal() &&
       tensor->desc.GetStorageType() ==
-          ::ml_drift::TensorStorageType::TEXTURE_2D &&
+          ::ml_drift::TensorStorageType::kTexture2D &&
       !gpu_info.apple_info.IsFamilyApple1()) {
     tensor->desc.SetUseBufferForWriteOnlyTexture2d(true);
   }
@@ -260,7 +260,7 @@ absl::Status ReserveGraphTensors(const CreateGpuModelInfo& create_info,
   absl::flat_hash_set<ValueId> cast_graph_outputs;
   for (IrTensorId output : ir_model.outputs()) {
     const IrOp* node = ir_model.FindProducer(output);
-    if (node && OperationTypeFromString(node->name) == OperationType::CAST) {
+    if (node && OperationTypeFromString(node->name) == OperationType::kCast) {
       cast_graph_outputs.insert(output);
     }
   }
@@ -287,7 +287,7 @@ absl::Status ReserveGraphTensors(const CreateGpuModelInfo& create_info,
     }
     const IrOp& node = *model_ops[i];
     auto op_type = OperationTypeFromString(node.name);
-    if (op_type == OperationType::CONSTANT) {
+    if (op_type == OperationType::kConstant) {
       auto attr = std::any_cast<ConstTensorAttributes>(node.attr);
       std::vector<IrTensorId> outputs = node.outputs;
       auto tensor_desc = tensor_reserver->Get(outputs[0]);
@@ -382,7 +382,7 @@ absl::Status ConvertOperations(const IrModel& ir_model,
       continue;
     }
     auto op_type = OperationTypeFromString(node->name);
-    if (op_type == OperationType::CONSTANT) {
+    if (op_type == OperationType::kConstant) {
       // handled in ReserveGraphTensors
       continue;
     }
@@ -447,8 +447,8 @@ absl::Status IrModelToGpuModel(const IrModel& ir_model,
                                std::shared_ptr<WeightsManager> weights_manager,
                                GpuModel* gpu_model) {
   if (!gpu_info.SupportsFP16() && gpu_info.IsApiOpenCl() &&
-      (create_info.precision == CalculationsPrecision::F16 ||
-       create_info.precision == CalculationsPrecision::F32_F16)) {
+      (create_info.precision == CalculationsPrecision::kF16 ||
+       create_info.precision == CalculationsPrecision::kF32F16)) {
     return absl::InvalidArgumentError(
         "CalculationsPrecision::F16/F32_F16 is not supported on this GPU(no "
         "fp16 support).");
@@ -460,7 +460,7 @@ absl::Status IrModelToGpuModel(const IrModel& ir_model,
       .hints = create_info.hints,
       .storage = create_info.storage_type,
       .use_f32_accum_for_f16_convolutions =
-          create_info.precision == CalculationsPrecision::F32_F16,
+          create_info.precision == CalculationsPrecision::kF32F16,
   };
   GpuModelBuilder model_builder(
       gpu_info, options, std::move(tensor_reserver.tensors_),

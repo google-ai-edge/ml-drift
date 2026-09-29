@@ -20,20 +20,20 @@ namespace ml_drift {
 
 std::string ToString(CalculationsPrecision precision) {
   switch (precision) {
-    case CalculationsPrecision::F32_F16:
+    case CalculationsPrecision::kF32F16:
       return "CalculationsPrecision::F32_F16";
-    case CalculationsPrecision::F32:
+    case CalculationsPrecision::kF32:
       return "CalculationsPrecision::F32";
-    case CalculationsPrecision::F16:
+    case CalculationsPrecision::kF16:
       return "CalculationsPrecision::F16";
   }
 }
 
 DataType DeduceDataTypeFromPrecision(CalculationsPrecision precision) {
-  if (precision == CalculationsPrecision::F32) {
-    return DataType::FLOAT32;
+  if (precision == CalculationsPrecision::kF32) {
+    return DataType::kFloat32;
   } else {
-    return DataType::FLOAT16;
+    return DataType::kFloat16;
   }
 }
 

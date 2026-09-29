@@ -98,9 +98,9 @@ absl::Status AssignObjectsToTensors(
     MemoryStrategy strategy, ObjectsAssignment<TensorSizeT>* assignment,
     const UsageGraph* reallocation_graph = nullptr) {
   switch (strategy) {
-    case MemoryStrategy::NAIVE:
+    case MemoryStrategy::kNaive:
       return NaiveAssignment(usage_records, assignment);
-    case MemoryStrategy::EQUALITY:
+    case MemoryStrategy::kEquality:
       return EqualityAssignment(usage_records, assignment);
     default:
       return absl::InternalError(

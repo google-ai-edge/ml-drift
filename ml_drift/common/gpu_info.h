@@ -919,9 +919,9 @@ struct WaveMatMulOpDescriptor {
   int m_size = 0;
   int n_size = 0;
   int k_size = 0;
-  DataType left_type = DataType::UNKNOWN;
-  DataType right_type = DataType::UNKNOWN;
-  DataType result_type = DataType::UNKNOWN;
+  DataType left_type = DataType::kUnknown;
+  DataType right_type = DataType::kUnknown;
+  DataType result_type = DataType::kUnknown;
 
   bool operator==(const WaveMatMulOpDescriptor& d) const {
     return d.m_size == m_size && d.n_size == n_size && d.k_size == k_size &&

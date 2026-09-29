@@ -77,20 +77,20 @@ absl::Status AssignObjectsToTensors(
     MemoryStrategy strategy, ObjectsAssignment<size_t>* assignment,
     const UsageGraph* reallocation_graph) {
   switch (strategy) {
-    case MemoryStrategy::NAIVE:
+    case MemoryStrategy::kNaive:
       return NaiveAssignment(usage_records, assignment);
-    case MemoryStrategy::EQUALITY:
+    case MemoryStrategy::kEquality:
       return EqualityAssignmentWithHash(usage_records, assignment);
-    case MemoryStrategy::GREEDY_IN_ORDER:
+    case MemoryStrategy::kGreedyInOrder:
       return GreedyInOrderAssignment(usage_records, assignment,
                                      reallocation_graph);
-    case MemoryStrategy::GREEDY_BY_BREADTH:
+    case MemoryStrategy::kGreedyByBreadth:
       return GreedyByBreadthAssignment(usage_records, assignment);
-    case MemoryStrategy::GREEDY_BY_SIZE:
+    case MemoryStrategy::kGreedyBySize:
       return GreedyBySizeDistPriorityAssignment(usage_records, assignment);
-    case MemoryStrategy::GREEDY_BEST:
+    case MemoryStrategy::kGreedyBest:
       return BestGreedy(usage_records, assignment);
-    case MemoryStrategy::MINCOSTFLOW:
+    case MemoryStrategy::kMinCostFlow:
       return MinCostFlowAssignment(usage_records, assignment);
     default:
       return absl::InternalError(
@@ -105,9 +105,9 @@ absl::Status AssignObjectsToTensors(
     MemoryStrategy strategy, ObjectsAssignment<BHWC>* assignment,
     const UsageGraph* reallocation_graph) {
   switch (strategy) {
-    case MemoryStrategy::NAIVE:
+    case MemoryStrategy::kNaive:
       return NaiveAssignment(usage_records, assignment);
-    case MemoryStrategy::EQUALITY:
+    case MemoryStrategy::kEquality:
       return EqualityAssignmentWithHash(usage_records, assignment);
     default:
       return absl::InternalError(
@@ -122,11 +122,11 @@ absl::Status AssignObjectsToTensors(
     MemoryStrategy strategy, ObjectsAssignment<uint2>* assignment,
     const UsageGraph* reallocation_graph) {
   switch (strategy) {
-    case MemoryStrategy::NAIVE:
+    case MemoryStrategy::kNaive:
       return NaiveAssignment(usage_records, assignment);
-    case MemoryStrategy::EQUALITY:
+    case MemoryStrategy::kEquality:
       return EqualityAssignment(usage_records, assignment);
-    case MemoryStrategy::GREEDY_IN_ORDER:
+    case MemoryStrategy::kGreedyInOrder:
       return GreedyInOrderAssignmentMultidimensional(usage_records, assignment);
     default:
       return absl::InternalError(
@@ -141,11 +141,11 @@ absl::Status AssignObjectsToTensors(
     MemoryStrategy strategy, ObjectsAssignment<uint3>* assignment,
     const UsageGraph* reallocation_graph) {
   switch (strategy) {
-    case MemoryStrategy::NAIVE:
+    case MemoryStrategy::kNaive:
       return NaiveAssignment(usage_records, assignment);
-    case MemoryStrategy::EQUALITY:
+    case MemoryStrategy::kEquality:
       return EqualityAssignment(usage_records, assignment);
-    case MemoryStrategy::GREEDY_IN_ORDER:
+    case MemoryStrategy::kGreedyInOrder:
       return GreedyInOrderAssignmentMultidimensional(usage_records, assignment);
     default:
       return absl::InternalError(
@@ -158,7 +158,7 @@ absl::Status AssignOffsetsToTensors(
     const std::vector<TensorUsageRecord<size_t>>& usage_records,
     const MemoryStrategy& strategy, OffsetsAssignment* assignment,
     size_t base_addr_align_bytes, const UsageGraph* reallocation_graph) {
-  if (strategy == MemoryStrategy::GREEDY_BY_SIZE) {
+  if (strategy == MemoryStrategy::kGreedyBySize) {
     return GreedyBySizeAssignment(usage_records, base_addr_align_bytes,
                                   assignment);
   }

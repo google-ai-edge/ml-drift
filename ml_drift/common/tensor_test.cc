@@ -43,7 +43,7 @@ class TensorTest : public testing::TestWithParam<bool> {
   TensorFloat32 CreateTensor() {
     TensorFloat32 tensor;
     if (OwnsData()) {
-      tensor = MakeZeroTensor<BHWC, DataType::FLOAT32>(Shape());
+      tensor = MakeZeroTensor<BHWC, DataType::kFloat32>(Shape());
       absl::c_copy(ReferenceData(), tensor.data.begin());
     } else {
       tensor.shape = Shape();

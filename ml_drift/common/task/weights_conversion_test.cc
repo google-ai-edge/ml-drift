@@ -48,7 +48,7 @@ TEST(ConvertF32F16, BaseTest) {
 
 TEST(RearrangeWeightsUInt4Packed, kOSpatialIOGroupI4O4Base) {
   // Prep weights
-  Tensor<OHWI, DataType::UINT8> weights;
+  Tensor<OHWI, DataType::kUint8> weights;
   weights.shape = OHWI(4, 1, 1, 4);
   std::vector<uint8_t> weights_data;
   // Fill weights with 0 to 15 -- packed
@@ -64,7 +64,7 @@ TEST(RearrangeWeightsUInt4Packed, kOSpatialIOGroupI4O4Base) {
 
   // Prep WeightsDescription
   WeightsDescription dst_weight_desc;
-  dst_weight_desc.type = DataType::UINT8;
+  dst_weight_desc.type = DataType::kUint8;
   dst_weight_desc.output_group_size = 1;
   dst_weight_desc.layout = WeightsLayout::kOSpatialIOGroupI4O4;
 
@@ -91,7 +91,7 @@ TEST(RearrangeWeightsUInt4Packed, kOSpatialIOGroupI4O4Base) {
 
 TEST(RearrangeWeightsUInt4Packed, kOSpatialIOGroupI4O4ZeroWeights) {
   // Prep weights
-  Tensor<OHWI, DataType::UINT8> weights;
+  Tensor<OHWI, DataType::kUint8> weights;
   weights.shape = OHWI(4, 1, 1, 4);
   std::vector<uint8_t> weights_data;
   // Fill weights with 0 to 15 -- packed
@@ -107,7 +107,7 @@ TEST(RearrangeWeightsUInt4Packed, kOSpatialIOGroupI4O4ZeroWeights) {
 
   // Prep WeightsDescription
   WeightsDescription dst_weight_desc;
-  dst_weight_desc.type = DataType::UINT8;
+  dst_weight_desc.type = DataType::kUint8;
   dst_weight_desc.output_group_size = 1;
   dst_weight_desc.layout = WeightsLayout::kOSpatialIOGroupI4O4;
 
@@ -135,7 +135,7 @@ TEST(RearrangeWeightsUInt4Packed, kOSpatialIOGroupI4O4ZeroWeights) {
 
 TEST(RearrangeWeightsUInt4Packed, k2DYIsSpatialIOAndXIsOGroupI4O4ZeroWeights) {
   // Prep weights
-  Tensor<OHWI, DataType::UINT8> weights;
+  Tensor<OHWI, DataType::kUint8> weights;
   weights.shape = OHWI(4, 1, 1, 4);
   std::vector<uint8_t> weights_data;
   // Fill weights with 0 to 15 -- packed
@@ -151,7 +151,7 @@ TEST(RearrangeWeightsUInt4Packed, k2DYIsSpatialIOAndXIsOGroupI4O4ZeroWeights) {
 
   // Prep WeightsDescription
   WeightsDescription dst_weight_desc;
-  dst_weight_desc.type = DataType::UINT8;
+  dst_weight_desc.type = DataType::kUint8;
   dst_weight_desc.output_group_size = 1;
   dst_weight_desc.layout = WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4;
 
@@ -180,7 +180,7 @@ TEST(RearrangeWeightsUInt4Packed, k2DYIsSpatialIOAndXIsOGroupI4O4ZeroWeights) {
 uint8_t Int4AsUint4(int8_t value) { return value >= 0 ? value : (value + 16); }
 
 TEST(RearrangeWeightsUInt4Packed, kOSpatialIOGroupI4O4BaseVersusRef) {
-  Tensor<OHWI, DataType::INT8> weights_i8;
+  Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(4, 1, 1, 4);
   weights_i8.data = {-8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7};
 
@@ -192,13 +192,13 @@ TEST(RearrangeWeightsUInt4Packed, kOSpatialIOGroupI4O4BaseVersusRef) {
   }
 
   // Prep weights
-  Tensor<OHWI, DataType::UINT8> weights;
+  Tensor<OHWI, DataType::kUint8> weights;
   weights.shape = OHWI(4, 1, 1, 4);
   weights.data = weights_i8_packed;
 
   // Prep WeightsDescription
   WeightsDescription dst_weight_desc;
-  dst_weight_desc.type = DataType::UINT8;
+  dst_weight_desc.type = DataType::kUint8;
   dst_weight_desc.output_group_size = 1;
   dst_weight_desc.layout = WeightsLayout::kOSpatialIOGroupI4O4;
 
@@ -219,7 +219,7 @@ TEST(RearrangeWeightsUInt4Packed, kOSpatialIOGroupI4O4BaseVersusRef) {
 
 TEST(RearrangeWeightsUInt4Packed,
      k2DYIsSpatialIOAndXIsOGroupI4O4BaseVersusRef) {
-  Tensor<OHWI, DataType::INT8> weights_i8;
+  Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(16, 2, 1, 8);
   weights_i8.data.resize(weights_i8.shape.DimensionsProduct());
   for (int i = 0; i < weights_i8.data.size(); ++i) {
@@ -234,13 +234,13 @@ TEST(RearrangeWeightsUInt4Packed,
   }
 
   // Prep weights
-  Tensor<OHWI, DataType::UINT8> weights;
+  Tensor<OHWI, DataType::kUint8> weights;
   weights.shape = OHWI(16, 2, 1, 8);
   weights.data = weights_i8_packed;
 
   // Prep WeightsDescription
   WeightsDescription dst_weight_desc;
-  dst_weight_desc.type = DataType::UINT8;
+  dst_weight_desc.type = DataType::kUint8;
   dst_weight_desc.output_group_size = 2;
   dst_weight_desc.layout = WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4;
 
@@ -262,7 +262,7 @@ TEST(RearrangeWeightsUInt4Packed,
 
 TEST(RearrangeWeightsUInt4Packed, k2DYIsSpatialIOAndXIsOGroupI4O4Base) {
   // Prep weights
-  Tensor<OHWI, DataType::UINT8> weights;
+  Tensor<OHWI, DataType::kUint8> weights;
   weights.shape = OHWI(4, 1, 1, 4);
   std::vector<uint8_t> weights_data;
   // Fill weights with 0 to 15 -- packed
@@ -278,7 +278,7 @@ TEST(RearrangeWeightsUInt4Packed, k2DYIsSpatialIOAndXIsOGroupI4O4Base) {
 
   // Prep WeightsDescription
   WeightsDescription dst_weight_desc;
-  dst_weight_desc.type = DataType::UINT8;
+  dst_weight_desc.type = DataType::kUint8;
   dst_weight_desc.output_group_size = 1;
   dst_weight_desc.layout = WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4;
 
@@ -305,7 +305,7 @@ TEST(RearrangeWeightsUInt4Packed, k2DYIsSpatialIOAndXIsOGroupI4O4Base) {
 
 TEST(RearrangeWeightsUInt4Packed, kOSpatialIOGroupI4O4Pad) {
   // Prep weights
-  Tensor<OHWI, DataType::UINT8> weights;
+  Tensor<OHWI, DataType::kUint8> weights;
   weights.shape = OHWI(3, 1, 1, 4);
   std::vector<uint8_t> weights_data;
   // Fill weights with 0 to 12 -- packed
@@ -320,7 +320,7 @@ TEST(RearrangeWeightsUInt4Packed, kOSpatialIOGroupI4O4Pad) {
 
   // Prep WeightsDescription
   WeightsDescription dst_weight_desc;
-  dst_weight_desc.type = DataType::UINT8;
+  dst_weight_desc.type = DataType::kUint8;
   dst_weight_desc.output_group_size = 1;
   dst_weight_desc.layout = WeightsLayout::kOSpatialIOGroupI4O4;
 
@@ -349,7 +349,7 @@ TEST(RearrangeWeightsUInt4Packed, kOSpatialIOGroupI4O4Pad) {
 
 TEST(RearrangeWeightsUInt4Packed, k2DYIsSpatialIOAndXIsOGroupI4O4Pad) {
   // Prep weights
-  Tensor<OHWI, DataType::UINT8> weights;
+  Tensor<OHWI, DataType::kUint8> weights;
   weights.shape = OHWI(3, 1, 1, 4);
   std::vector<uint8_t> weights_data;
   // Fill weights with 0 to 12 -- packed
@@ -364,7 +364,7 @@ TEST(RearrangeWeightsUInt4Packed, k2DYIsSpatialIOAndXIsOGroupI4O4Pad) {
 
   // Prep WeightsDescription
   WeightsDescription dst_weight_desc;
-  dst_weight_desc.type = DataType::UINT8;
+  dst_weight_desc.type = DataType::kUint8;
   dst_weight_desc.output_group_size = 1;
   dst_weight_desc.layout = WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4;
 
@@ -393,7 +393,7 @@ TEST(RearrangeWeightsUInt4Packed, k2DYIsSpatialIOAndXIsOGroupI4O4Pad) {
 
 TEST(RearrangeWeightsUInt4Packed, DoublePad) {
   // Prep weights
-  Tensor<OHWI, DataType::UINT8> weights;
+  Tensor<OHWI, DataType::kUint8> weights;
   weights.shape = OHWI(4, 1, 1, 2);
   std::vector<uint8_t> weights_data;
   // Fill weights with 0 to 8 -- packed
@@ -409,7 +409,7 @@ TEST(RearrangeWeightsUInt4Packed, DoublePad) {
 
   // Prep WeightsDescription
   WeightsDescription dst_weight_desc;
-  dst_weight_desc.type = DataType::UINT8;
+  dst_weight_desc.type = DataType::kUint8;
   dst_weight_desc.output_group_size = 1;
   dst_weight_desc.layout = WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4;
 
@@ -438,7 +438,7 @@ TEST(RearrangeWeightsUInt4Packed, DoublePad) {
 
 TEST(RearrangeWeightsUInt4Packed, SwapDims) {
   // Prep weights
-  Tensor<OHWI, DataType::UINT8> weights;
+  Tensor<OHWI, DataType::kUint8> weights;
   weights.shape = OHWI(4, 1, 1, 4);
   std::vector<uint8_t> weights_data;
   // Fill weights with 0 to 15 -- packed
@@ -454,7 +454,7 @@ TEST(RearrangeWeightsUInt4Packed, SwapDims) {
 
   // Prep WeightsDescription
   WeightsDescription dst_weight_desc;
-  dst_weight_desc.type = DataType::UINT8;
+  dst_weight_desc.type = DataType::kUint8;
   dst_weight_desc.output_group_size = 1;
   dst_weight_desc.layout = WeightsLayout::kOSpatialIOGroupI4O4;
 
@@ -489,7 +489,7 @@ std::vector<uint8_t> PackInt2IntoUint8(std::vector<uint8_t> input) {
 
 TEST(RearrangeWeightsUInt2Packed, kOSpatialIOGroupI4O4Base) {
   // Prep weights
-  Tensor<OHWI, DataType::UINT8> weights;
+  Tensor<OHWI, DataType::kUint8> weights;
   weights.shape = OHWI(4, 1, 1, 4);
   std::vector<uint8_t> weights_data =
       PackInt2IntoUint8({0, 1, 2, 3, 3, 1, 2, 3, 0, 1, 2, 1, 3, 0, 1, 2});
@@ -502,7 +502,7 @@ TEST(RearrangeWeightsUInt2Packed, kOSpatialIOGroupI4O4Base) {
 
   // Prep WeightsDescription
   WeightsDescription dst_weight_desc;
-  dst_weight_desc.type = DataType::UINT8;
+  dst_weight_desc.type = DataType::kUint8;
   dst_weight_desc.output_group_size = 1;
   dst_weight_desc.layout = WeightsLayout::kOSpatialIOGroupI4O4;
 
@@ -528,7 +528,7 @@ TEST(RearrangeWeightsUInt2Packed, kOSpatialIOGroupI4O4Base) {
 
 TEST(RearrangeWeightsUInt2Packed, kOSpatialIOGroupI4O4ZeroWeights) {
   // Prep weights
-  Tensor<OHWI, DataType::UINT8> weights;
+  Tensor<OHWI, DataType::kUint8> weights;
   weights.shape = OHWI(4, 1, 1, 4);
   std::vector<uint8_t> weights_data =
       PackInt2IntoUint8({0, 1, 2, 3, 3, 1, 2, 3, 0, 1, 2, 1, 3, 0, 1, 2});
@@ -541,7 +541,7 @@ TEST(RearrangeWeightsUInt2Packed, kOSpatialIOGroupI4O4ZeroWeights) {
 
   // Prep WeightsDescription
   WeightsDescription dst_weight_desc;
-  dst_weight_desc.type = DataType::UINT8;
+  dst_weight_desc.type = DataType::kUint8;
   dst_weight_desc.output_group_size = 1;
   dst_weight_desc.layout = WeightsLayout::kOSpatialIOGroupI4O4;
 
@@ -568,7 +568,7 @@ TEST(RearrangeWeightsUInt2Packed, kOSpatialIOGroupI4O4ZeroWeights) {
 
 TEST(RearrangeWeightsUInt2Packed, k2DYIsSpatialIOAndXIsOGroupI4O4ZeroWeights) {
   // Prep weights
-  Tensor<OHWI, DataType::UINT8> weights;
+  Tensor<OHWI, DataType::kUint8> weights;
   weights.shape = OHWI(4, 1, 1, 4);
   std::vector<uint8_t> weights_data =
       PackInt2IntoUint8({0, 1, 2, 3, 3, 1, 2, 3, 0, 1, 2, 1, 3, 0, 1, 2});
@@ -581,7 +581,7 @@ TEST(RearrangeWeightsUInt2Packed, k2DYIsSpatialIOAndXIsOGroupI4O4ZeroWeights) {
 
   // Prep WeightsDescription
   WeightsDescription dst_weight_desc;
-  dst_weight_desc.type = DataType::UINT8;
+  dst_weight_desc.type = DataType::kUint8;
   dst_weight_desc.output_group_size = 1;
   dst_weight_desc.layout = WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4;
 
@@ -611,7 +611,7 @@ uint8_t Int2AsUint2(int8_t value) {
 }
 
 TEST(RearrangeWeightsUInt2Packed, kOSpatialIOGroupI4O4BaseVersusRef) {
-  Tensor<OHWI, DataType::INT8> weights_i8;
+  Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(4, 1, 1, 4);
   weights_i8.data = {0, 1, -2, -1, 1, -2, -1, 0, -2, -1, 0, 1, -1, 0, 1, -2};
 
@@ -623,13 +623,13 @@ TEST(RearrangeWeightsUInt2Packed, kOSpatialIOGroupI4O4BaseVersusRef) {
       PackInt2IntoUint8(weights_i8_unpacked);
 
   // Prep weights
-  Tensor<OHWI, DataType::UINT8> weights;
+  Tensor<OHWI, DataType::kUint8> weights;
   weights.shape = OHWI(4, 1, 1, 4);
   weights.data = weights_i8_packed;
 
   // Prep WeightsDescription
   WeightsDescription dst_weight_desc;
-  dst_weight_desc.type = DataType::UINT8;
+  dst_weight_desc.type = DataType::kUint8;
   dst_weight_desc.output_group_size = 1;
   dst_weight_desc.layout = WeightsLayout::kOSpatialIOGroupI4O4;
 
@@ -650,7 +650,7 @@ TEST(RearrangeWeightsUInt2Packed, kOSpatialIOGroupI4O4BaseVersusRef) {
 
 TEST(RearrangeWeightsUInt2Packed,
      k2DYIsSpatialIOAndXIsOGroupI4O4BaseVersusRef) {
-  Tensor<OHWI, DataType::INT8> weights_i8;
+  Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(16, 2, 1, 8);
   weights_i8.data.resize(weights_i8.shape.DimensionsProduct());
   for (int i = 0; i < weights_i8.data.size(); ++i) {
@@ -665,13 +665,13 @@ TEST(RearrangeWeightsUInt2Packed,
       PackInt2IntoUint8(weights_i8_unpacked);
 
   // Prep weights
-  Tensor<OHWI, DataType::UINT8> weights;
+  Tensor<OHWI, DataType::kUint8> weights;
   weights.shape = OHWI(16, 2, 1, 8);
   weights.data = weights_i8_packed;
 
   // Prep WeightsDescription
   WeightsDescription dst_weight_desc;
-  dst_weight_desc.type = DataType::UINT8;
+  dst_weight_desc.type = DataType::kUint8;
   dst_weight_desc.output_group_size = 2;
   dst_weight_desc.layout = WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4;
 
@@ -693,7 +693,7 @@ TEST(RearrangeWeightsUInt2Packed,
 
 TEST(RearrangeWeightsUInt2Packed, k2DYIsSpatialIOAndXIsOGroupI4O4Base) {
   // Prep weights
-  Tensor<OHWI, DataType::UINT8> weights;
+  Tensor<OHWI, DataType::kUint8> weights;
   weights.shape = OHWI(4, 1, 1, 4);
   std::vector<uint8_t> weights_data =
       PackInt2IntoUint8({0, 1, 2, 3, 3, 1, 2, 3, 0, 1, 2, 1, 3, 0, 1, 2});
@@ -706,7 +706,7 @@ TEST(RearrangeWeightsUInt2Packed, k2DYIsSpatialIOAndXIsOGroupI4O4Base) {
 
   // Prep WeightsDescription
   WeightsDescription dst_weight_desc;
-  dst_weight_desc.type = DataType::UINT8;
+  dst_weight_desc.type = DataType::kUint8;
   dst_weight_desc.output_group_size = 1;
   dst_weight_desc.layout = WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4;
 
@@ -732,7 +732,7 @@ TEST(RearrangeWeightsUInt2Packed, k2DYIsSpatialIOAndXIsOGroupI4O4Base) {
 
 TEST(RearrangeWeightsUInt2Packed, kOSpatialIOGroupI4O4Pad) {
   // Prep weights
-  Tensor<OHWI, DataType::UINT8> weights;
+  Tensor<OHWI, DataType::kUint8> weights;
   weights.shape = OHWI(3, 1, 1, 4);
   std::vector<uint8_t> weights_data =
       PackInt2IntoUint8({0, 1, 2, 3, 3, 1, 2, 3, 0, 1, 2, 1});
@@ -744,7 +744,7 @@ TEST(RearrangeWeightsUInt2Packed, kOSpatialIOGroupI4O4Pad) {
 
   // Prep WeightsDescription
   WeightsDescription dst_weight_desc;
-  dst_weight_desc.type = DataType::UINT8;
+  dst_weight_desc.type = DataType::kUint8;
   dst_weight_desc.output_group_size = 1;
   dst_weight_desc.layout = WeightsLayout::kOSpatialIOGroupI4O4;
 
@@ -772,7 +772,7 @@ TEST(RearrangeWeightsUInt2Packed, kOSpatialIOGroupI4O4Pad) {
 
 TEST(RearrangeWeightsUInt2Packed, k2DYIsSpatialIOAndXIsOGroupI4O4Pad) {
   // Prep weights
-  Tensor<OHWI, DataType::UINT8> weights;
+  Tensor<OHWI, DataType::kUint8> weights;
   weights.shape = OHWI(3, 1, 1, 4);
   std::vector<uint8_t> weights_data =
       PackInt2IntoUint8({0, 1, 2, 3, 3, 1, 2, 3, 0, 1, 2, 1});
@@ -784,7 +784,7 @@ TEST(RearrangeWeightsUInt2Packed, k2DYIsSpatialIOAndXIsOGroupI4O4Pad) {
 
   // Prep WeightsDescription
   WeightsDescription dst_weight_desc;
-  dst_weight_desc.type = DataType::UINT8;
+  dst_weight_desc.type = DataType::kUint8;
   dst_weight_desc.output_group_size = 1;
   dst_weight_desc.layout = WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4;
 
@@ -812,7 +812,7 @@ TEST(RearrangeWeightsUInt2Packed, k2DYIsSpatialIOAndXIsOGroupI4O4Pad) {
 
 TEST(RearrangeWeightsUInt2Packed, DoublePad) {
   // Prep weights
-  Tensor<OHWI, DataType::UINT8> weights;
+  Tensor<OHWI, DataType::kUint8> weights;
   weights.shape = OHWI(4, 1, 1, 2);
   std::vector<uint8_t> weights_data =
       PackInt2IntoUint8({0, 1, 2, 3, 0, 1, 2, 3});
@@ -825,7 +825,7 @@ TEST(RearrangeWeightsUInt2Packed, DoublePad) {
 
   // Prep WeightsDescription
   WeightsDescription dst_weight_desc;
-  dst_weight_desc.type = DataType::UINT8;
+  dst_weight_desc.type = DataType::kUint8;
   dst_weight_desc.output_group_size = 1;
   dst_weight_desc.layout = WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4;
 
@@ -853,7 +853,7 @@ TEST(RearrangeWeightsUInt2Packed, DoublePad) {
 
 TEST(RearrangeWeightsUInt2Packed, SwapDims) {
   // Prep weights
-  Tensor<OHWI, DataType::UINT8> weights;
+  Tensor<OHWI, DataType::kUint8> weights;
   weights.shape = OHWI(4, 1, 1, 4);
   std::vector<uint8_t> weights_data =
       PackInt2IntoUint8({0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3});
@@ -866,7 +866,7 @@ TEST(RearrangeWeightsUInt2Packed, SwapDims) {
 
   // Prep WeightsDescription
   WeightsDescription dst_weight_desc;
-  dst_weight_desc.type = DataType::UINT8;
+  dst_weight_desc.type = DataType::kUint8;
   dst_weight_desc.output_group_size = 1;
   dst_weight_desc.layout = WeightsLayout::kOSpatialIOGroupI4O4;
 
@@ -1094,11 +1094,11 @@ TEST(ISpatialOI4O4UnalignedIO, CalculateWeightsCoordsFromIndex) {
 TEST(CustomGroups, TotalSizeOIO4I4) {
   const OHWI weights_shape(17, 1, 1, 31);
   WeightsDescription weight_desc;
-  weight_desc.type = DataType::FLOAT32;
-  weight_desc.group_sizes = {{Axis::INPUT_CHANNELS, 4},
-                             {Axis::OUTPUT_CHANNELS, 4},
-                             {Axis::INPUT_CHANNELS, 0},
-                             {Axis::OUTPUT_CHANNELS, 0}};
+  weight_desc.type = DataType::kFloat32;
+  weight_desc.group_sizes = {{Axis::kInputChannels, 4},
+                             {Axis::kOutputChannels, 4},
+                             {Axis::kInputChannels, 0},
+                             {Axis::kOutputChannels, 0}};
   weight_desc.layout = WeightsLayout::kCustomGroups;
   EXPECT_EQ(GetTotalElementsCountForLayout(weight_desc, weights_shape),
             AlignByN(weights_shape.o, 4) * AlignByN(weights_shape.i, 4));
@@ -1107,12 +1107,12 @@ TEST(CustomGroups, TotalSizeOIO4I4) {
 TEST(CustomGroups, TotalSizeIOI4O3I2) {
   const OHWI weights_shape(17, 1, 1, 31);
   WeightsDescription weight_desc;
-  weight_desc.type = DataType::FLOAT32;
-  weight_desc.group_sizes = {{Axis::INPUT_CHANNELS, 2},
-                             {Axis::OUTPUT_CHANNELS, 3},
-                             {Axis::INPUT_CHANNELS, 4},
-                             {Axis::OUTPUT_CHANNELS, 0},
-                             {Axis::INPUT_CHANNELS, 0}};
+  weight_desc.type = DataType::kFloat32;
+  weight_desc.group_sizes = {{Axis::kInputChannels, 2},
+                             {Axis::kOutputChannels, 3},
+                             {Axis::kInputChannels, 4},
+                             {Axis::kOutputChannels, 0},
+                             {Axis::kInputChannels, 0}};
   weight_desc.layout = WeightsLayout::kCustomGroups;
   EXPECT_EQ(GetTotalElementsCountForLayout(weight_desc, weights_shape),
             AlignByN(weights_shape.o, 3) * AlignByN(weights_shape.i, 8));
@@ -1121,11 +1121,11 @@ TEST(CustomGroups, TotalSizeIOI4O3I2) {
 TEST(CustomGroups, TotalSizeIOI4SpatialO2) {
   const OHWI weights_shape(17, 2, 3, 31);
   WeightsDescription weight_desc;
-  weight_desc.type = DataType::FLOAT32;
+  weight_desc.type = DataType::kFloat32;
   weight_desc.group_sizes = {
-      {Axis::OUTPUT_CHANNELS, 2}, {Axis::WIDTH, 0},
-      {Axis::HEIGHT, 0},          {Axis::INPUT_CHANNELS, 4},
-      {Axis::OUTPUT_CHANNELS, 0}, {Axis::INPUT_CHANNELS, 0}};
+      {Axis::kOutputChannels, 2}, {Axis::kWidth, 0},
+      {Axis::kHeight, 0},         {Axis::kInputChannels, 4},
+      {Axis::kOutputChannels, 0}, {Axis::kInputChannels, 0}};
   weight_desc.layout = WeightsLayout::kCustomGroups;
   EXPECT_EQ(GetTotalElementsCountForLayout(weight_desc, weights_shape),
             AlignByN(weights_shape.o, 2) * AlignByN(weights_shape.i, 4) *
@@ -1141,7 +1141,7 @@ void RunConversions(const OHWI& weights_shape,
   const int total_elements_count_ref =
       GetTotalElementsCountForLayout(weight_desc_ref, weights_shape);
 
-  Tensor<OHWI, DataType::FLOAT32> weights;
+  Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = weights_shape;
   weights.data.resize(weights.shape.DimensionsProduct() +
                       XNN_EXTRA_BYTES / sizeof(float));
@@ -1170,7 +1170,7 @@ void RunConversions(const OHWDI& weights_shape,
   const int total_elements_count_ref =
       GetTotalElementsCountForLayout(weight_desc_ref, weights_shape);
 
-  Tensor<OHWDI, DataType::FLOAT32> weights;
+  Tensor<OHWDI, DataType::kFloat32> weights;
   weights.shape = weights_shape;
   weights.data.resize(weights.shape.DimensionsProduct() +
                       XNN_EXTRA_BYTES / sizeof(float));
@@ -1195,16 +1195,16 @@ void RunConversions(const OHWDI& weights_shape,
 TEST(CustomGroups, ConversionOHWIToOSpatialIOGroupI4O4) {
   const OHWI weights_shape(39, 2, 3, 23);
   WeightsDescription weight_desc;
-  weight_desc.type = DataType::FLOAT32;
+  weight_desc.type = DataType::kFloat32;
   weight_desc.group_sizes = {
-      {Axis::OUTPUT_CHANNELS, 4}, {Axis::INPUT_CHANNELS, 4},
-      {Axis::OUTPUT_CHANNELS, 4}, {Axis::INPUT_CHANNELS, 0},
-      {Axis::WIDTH, 0},           {Axis::HEIGHT, 0},
-      {Axis::OUTPUT_CHANNELS, 0}};
+      {Axis::kOutputChannels, 4}, {Axis::kInputChannels, 4},
+      {Axis::kOutputChannels, 4}, {Axis::kInputChannels, 0},
+      {Axis::kWidth, 0},          {Axis::kHeight, 0},
+      {Axis::kOutputChannels, 0}};
   weight_desc.layout = WeightsLayout::kCustomGroups;
 
   WeightsDescription weight_desc_ref;
-  weight_desc_ref.type = DataType::FLOAT32;
+  weight_desc_ref.type = DataType::kFloat32;
   weight_desc_ref.output_group_size = 4;
   weight_desc_ref.layout = WeightsLayout::kOSpatialIOGroupI4O4;
 
@@ -1214,16 +1214,16 @@ TEST(CustomGroups, ConversionOHWIToOSpatialIOGroupI4O4) {
 TEST(CustomGroups, ConversionOHWDIToOSpatialIOGroupI4O4) {
   const OHWDI weights_shape(39, 2, 3, 4, 23);
   WeightsDescription weight_desc;
-  weight_desc.type = DataType::FLOAT32;
+  weight_desc.type = DataType::kFloat32;
   weight_desc.group_sizes = {
-      {Axis::OUTPUT_CHANNELS, 4}, {Axis::INPUT_CHANNELS, 4},
-      {Axis::OUTPUT_CHANNELS, 4}, {Axis::INPUT_CHANNELS, 0},
-      {Axis::WIDTH, 0},           {Axis::HEIGHT, 0},
-      {Axis::DEPTH, 0},           {Axis::OUTPUT_CHANNELS, 0}};
+      {Axis::kOutputChannels, 4}, {Axis::kInputChannels, 4},
+      {Axis::kOutputChannels, 4}, {Axis::kInputChannels, 0},
+      {Axis::kWidth, 0},          {Axis::kHeight, 0},
+      {Axis::kDepth, 0},          {Axis::kOutputChannels, 0}};
   weight_desc.layout = WeightsLayout::kCustomGroups;
 
   WeightsDescription weight_desc_ref;
-  weight_desc_ref.type = DataType::FLOAT32;
+  weight_desc_ref.type = DataType::kFloat32;
   weight_desc_ref.output_group_size = 4;
   weight_desc_ref.layout = WeightsLayout::kOSpatialIOGroupI4O4;
 
@@ -1233,16 +1233,16 @@ TEST(CustomGroups, ConversionOHWDIToOSpatialIOGroupI4O4) {
 TEST(CustomGroups, ConversionOHWIToOSpatialIOGroupO4I4) {
   const OHWI weights_shape(39, 2, 3, 23);
   WeightsDescription weight_desc;
-  weight_desc.type = DataType::FLOAT32;
+  weight_desc.type = DataType::kFloat32;
   weight_desc.group_sizes = {
-      {Axis::INPUT_CHANNELS, 4},  {Axis::OUTPUT_CHANNELS, 4},
-      {Axis::OUTPUT_CHANNELS, 4}, {Axis::INPUT_CHANNELS, 0},
-      {Axis::WIDTH, 0},           {Axis::HEIGHT, 0},
-      {Axis::OUTPUT_CHANNELS, 0}};
+      {Axis::kInputChannels, 4},  {Axis::kOutputChannels, 4},
+      {Axis::kOutputChannels, 4}, {Axis::kInputChannels, 0},
+      {Axis::kWidth, 0},          {Axis::kHeight, 0},
+      {Axis::kOutputChannels, 0}};
   weight_desc.layout = WeightsLayout::kCustomGroups;
 
   WeightsDescription weight_desc_ref;
-  weight_desc_ref.type = DataType::FLOAT32;
+  weight_desc_ref.type = DataType::kFloat32;
   weight_desc_ref.output_group_size = 4;
   weight_desc_ref.layout = WeightsLayout::kOSpatialIOGroupO4I4;
 
@@ -1252,16 +1252,16 @@ TEST(CustomGroups, ConversionOHWIToOSpatialIOGroupO4I4) {
 TEST(CustomGroups, ConversionOHWDIToOSpatialIOGroupO4I4) {
   const OHWDI weights_shape(39, 2, 3, 4, 23);
   WeightsDescription weight_desc;
-  weight_desc.type = DataType::FLOAT32;
+  weight_desc.type = DataType::kFloat32;
   weight_desc.group_sizes = {
-      {Axis::INPUT_CHANNELS, 4},  {Axis::OUTPUT_CHANNELS, 4},
-      {Axis::OUTPUT_CHANNELS, 4}, {Axis::INPUT_CHANNELS, 0},
-      {Axis::WIDTH, 0},           {Axis::HEIGHT, 0},
-      {Axis::DEPTH, 0},           {Axis::OUTPUT_CHANNELS, 0}};
+      {Axis::kInputChannels, 4},  {Axis::kOutputChannels, 4},
+      {Axis::kOutputChannels, 4}, {Axis::kInputChannels, 0},
+      {Axis::kWidth, 0},          {Axis::kHeight, 0},
+      {Axis::kDepth, 0},          {Axis::kOutputChannels, 0}};
   weight_desc.layout = WeightsLayout::kCustomGroups;
 
   WeightsDescription weight_desc_ref;
-  weight_desc_ref.type = DataType::FLOAT32;
+  weight_desc_ref.type = DataType::kFloat32;
   weight_desc_ref.output_group_size = 4;
   weight_desc_ref.layout = WeightsLayout::kOSpatialIOGroupO4I4;
 
@@ -1269,7 +1269,7 @@ TEST(CustomGroups, ConversionOHWDIToOSpatialIOGroupO4I4) {
 }
 
 void RearrangeWeightsToOSpatialIOGroupITileOTile(
-    const Tensor<OHWI, DataType::FLOAT32>& weights, int i_tile_size,
+    const Tensor<OHWI, DataType::kFloat32>& weights, int i_tile_size,
     int o_tile_size, int out_group_size, absl::Span<float> dst,
     float pad_value) {
   const int dst_slices = DivideRoundUp(weights.shape.o, o_tile_size);
@@ -1307,18 +1307,18 @@ void RearrangeWeightsToOSpatialIOGroupITileOTile(
 TEST(CustomGroups, ConversionOHWIToOSpatialIOGroupITileOTile) {
   const OHWI weights_shape(139, 2, 3, 123);
   WeightsDescription weight_desc;
-  weight_desc.type = DataType::FLOAT32;
+  weight_desc.type = DataType::kFloat32;
   weight_desc.group_sizes = {
-      {Axis::OUTPUT_CHANNELS, 8}, {Axis::INPUT_CHANNELS, 8},
-      {Axis::OUTPUT_CHANNELS, 2}, {Axis::INPUT_CHANNELS, 0},
-      {Axis::WIDTH, 0},           {Axis::HEIGHT, 0},
-      {Axis::OUTPUT_CHANNELS, 0}};
+      {Axis::kOutputChannels, 8}, {Axis::kInputChannels, 8},
+      {Axis::kOutputChannels, 2}, {Axis::kInputChannels, 0},
+      {Axis::kWidth, 0},          {Axis::kHeight, 0},
+      {Axis::kOutputChannels, 0}};
   weight_desc.layout = WeightsLayout::kCustomGroups;
 
   const int total_elements_count =
       GetTotalElementsCountForLayout(weight_desc, weights_shape);
 
-  Tensor<OHWI, DataType::FLOAT32> weights;
+  Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = weights_shape;
   weights.data.resize(weights.shape.DimensionsProduct() +
                       XNN_EXTRA_BYTES / sizeof(float));
@@ -1340,7 +1340,7 @@ TEST(CustomGroups, ConversionOHWIToOSpatialIOGroupITileOTile) {
 }
 
 void RearrangeWeightsToOICustomSpatialI4O4(
-    const Tensor<OHWI, DataType::FLOAT32>& weights,
+    const Tensor<OHWI, DataType::kFloat32>& weights,
     const std::vector<int>& spatial_remap, absl::Span<float> dst) {
   const float pad_value = 0.0f;
   const int dst_slices = DivideRoundUp(weights.shape.o, 4);
@@ -1377,18 +1377,18 @@ void RearrangeWeightsToOICustomSpatialI4O4(
 TEST(CustomGroups, ConversionOHWITokOICustomSpatialI4O4) {
   const OHWI weights_shape(139, 3, 3, 123);
   WeightsDescription weight_desc;
-  weight_desc.type = DataType::FLOAT32;
+  weight_desc.type = DataType::kFloat32;
   weight_desc.group_sizes = {
-      {Axis::OUTPUT_CHANNELS, 4}, {Axis::INPUT_CHANNELS, 4},
-      {Axis::WIDTH, 0},           {Axis::HEIGHT, 0},
-      {Axis::INPUT_CHANNELS, 0},  {Axis::OUTPUT_CHANNELS, 0}};
+      {Axis::kOutputChannels, 4}, {Axis::kInputChannels, 4},
+      {Axis::kWidth, 0},          {Axis::kHeight, 0},
+      {Axis::kInputChannels, 0},  {Axis::kOutputChannels, 0}};
   weight_desc.layout = WeightsLayout::kCustomGroups;
   weight_desc.spatial_remap = {4, 5, 3, 7, 1, 8, 6, 2, 0};
 
   const int total_elements_count =
       GetTotalElementsCountForLayout(weight_desc, weights_shape);
 
-  Tensor<OHWI, DataType::FLOAT32> weights;
+  Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = weights_shape;
   weights.data.resize(weights.shape.DimensionsProduct() +
                       XNN_EXTRA_BYTES / sizeof(float));

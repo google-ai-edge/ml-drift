@@ -33,84 +33,84 @@ template <DataType Type>
 struct StorageType;
 
 template <>
-struct StorageType<DataType::FLOAT32> {
+struct StorageType<DataType::kFloat32> {
   using value = std::vector<float>;
   using value_span = absl::Span<float>;
   using value_type = float;
 };
 
 template <>
-struct StorageType<DataType::FLOAT16> {
+struct StorageType<DataType::kFloat16> {
   using value = std::vector<half>;
   using value_span = absl::Span<half>;
   using value_type = half;
 };
 
 template <>
-struct StorageType<DataType::BFLOAT16> {
+struct StorageType<DataType::kBfloat16> {
   using value = std::vector<uint16_t>;
   using value_span = absl::Span<uint16_t>;
   using value_type = uint16_t;
 };
 
 template <>
-struct StorageType<DataType::INT32> {
+struct StorageType<DataType::kInt32> {
   using value = std::vector<int32_t>;
   using value_span = absl::Span<int32_t>;
   using value_type = int32_t;
 };
 
 template <>
-struct StorageType<DataType::INT16> {
+struct StorageType<DataType::kInt16> {
   using value = std::vector<int16_t>;
   using value_span = absl::Span<int16_t>;
   using value_type = int16_t;
 };
 
 template <>
-struct StorageType<DataType::INT2> {
+struct StorageType<DataType::kInt2> {
   using value = std::vector<int8_t>;
   using value_span = absl::Span<int8_t>;
   using value_type = int8_t;
 };
 
 template <>
-struct StorageType<DataType::INT4> {
+struct StorageType<DataType::kInt4> {
   using value = std::vector<int8_t>;
   using value_span = absl::Span<int8_t>;
   using value_type = int8_t;
 };
 
 template <>
-struct StorageType<DataType::INT8> {
+struct StorageType<DataType::kInt8> {
   using value = std::vector<int8_t>;
   using value_span = absl::Span<int8_t>;
   using value_type = int8_t;
 };
 
 template <>
-struct StorageType<DataType::UINT32> {
+struct StorageType<DataType::kUint32> {
   using value = std::vector<uint32_t>;
   using value_span = absl::Span<uint32_t>;
   using value_type = uint32_t;
 };
 
 template <>
-struct StorageType<DataType::UINT16> {
+struct StorageType<DataType::kUint16> {
   using value = std::vector<uint16_t>;
   using value_span = absl::Span<uint16_t>;
   using value_type = uint16_t;
 };
 
 template <>
-struct StorageType<DataType::UINT8> {
+struct StorageType<DataType::kUint8> {
   using value = std::vector<uint8_t>;
   using value_span = absl::Span<uint8_t>;
   using value_type = uint8_t;
 };
 
 template <>
-struct StorageType<DataType::BOOL> {
+struct StorageType<DataType::kBool> {
   using value = std::vector<uint8_t>;
   using value_span = absl::Span<uint8_t>;
   using value_type = bool;
@@ -181,7 +181,7 @@ template <typename ShapeT>
 struct TensorRef {
   using ShapeType = ShapeT;
 
-  DataType type = DataType::UNKNOWN;
+  DataType type = DataType::kUnknown;
 
   ShapeT shape;
 
@@ -208,11 +208,11 @@ Tensor<ShapeT, Type> MakeZeroTensor(const ShapeT& shape) {
   return tensor;
 }
 
-using TensorBool = Tensor<BHWC, DataType::BOOL>;
-using TensorFloat32 = Tensor<BHWC, DataType::FLOAT32>;
-using TensorFloat16 = Tensor<BHWC, DataType::FLOAT16>;
-using TensorInt32 = Tensor<BHWC, DataType::INT32>;
-using Tensor5DFloat32 = Tensor<BHWDC, DataType::FLOAT32>;
+using TensorBool = Tensor<BHWC, DataType::kBool>;
+using TensorFloat32 = Tensor<BHWC, DataType::kFloat32>;
+using TensorFloat16 = Tensor<BHWC, DataType::kFloat16>;
+using TensorInt32 = Tensor<BHWC, DataType::kInt32>;
+using Tensor5DFloat32 = Tensor<BHWDC, DataType::kFloat32>;
 
 }  // namespace ml_drift
 

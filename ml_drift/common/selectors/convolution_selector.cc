@@ -358,7 +358,7 @@ PackedType GetConvolutionInt8SrcType(const GpuInfo& gpu_info,
 
 std::unique_ptr<GPUOperation> SelectConvolutionInt8(
     const GpuInfo& gpu_info, const OperationDef& op_def,
-    PackedType src_packed_type, const Tensor<OHWI, DataType::INT8>& weights,
+    PackedType src_packed_type, const Tensor<OHWI, DataType::kInt8>& weights,
     const BHWC& dst_shape) {
   BHWC src_shape = dst_shape;
   src_shape.c = weights.shape.i;

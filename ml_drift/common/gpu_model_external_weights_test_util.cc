@@ -46,23 +46,23 @@ namespace ml_drift {
 
 absl::Status TestDynamicConvolution(TestExecutionEnvironment* env) {
   CreateGpuModelInfo create_info;
-  create_info.precision = CalculationsPrecision::F32;
-  create_info.storage_type = TensorStorageType::BUFFER;
+  create_info.precision = CalculationsPrecision::kF32;
+  create_info.storage_type = TensorStorageType::kBuffer;
 
   const BHWC input_shape = BHWC(1, 32, 32, 128);
   const BHWC output_shape = BHWC(1, 32, 32, 16);
   GpuModel gpu_model;
   Convolution2DAttributes conv_attr;
   auto& attr_weights =
-      conv_attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
+      conv_attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
   {
     GraphFloat32 graph;
     auto input = graph.NewValue();
-    input->tensor.type = DataType::FLOAT32;
+    input->tensor.type = DataType::kFloat32;
     input->tensor.shape = input_shape;
 
     auto conv_node = graph.NewNode();
-    conv_node->operation.type = ToString(OperationType::CONVOLUTION_2D);
+    conv_node->operation.type = ToString(OperationType::kConvolution2D);
 
     conv_attr.padding.prepended = HW(0, 0);
     conv_attr.padding.appended = HW(0, 0);
@@ -83,7 +83,7 @@ absl::Status TestDynamicConvolution(TestExecutionEnvironment* env) {
     graph.AddConsumer(conv_node->id, input->id);
     Value* conv_output = nullptr;
     ABSL_RETURN_IF_ERROR(AddOutput(&graph, conv_node, &conv_output));
-    conv_output->tensor.type = DataType::FLOAT32;
+    conv_output->tensor.type = DataType::kFloat32;
     conv_output->tensor.shape = output_shape;
 
     ABSL_RETURN_IF_ERROR(
@@ -94,11 +94,11 @@ absl::Status TestDynamicConvolution(TestExecutionEnvironment* env) {
   {
     GraphFloat32 graph_dynamic_conv;
     auto input = graph_dynamic_conv.NewValue();
-    input->tensor.type = DataType::FLOAT32;
+    input->tensor.type = DataType::kFloat32;
     input->tensor.shape = input_shape;
 
     auto const_node = graph_dynamic_conv.NewNode();
-    const_node->operation.type = ToString(OperationType::CONSTANT);
+    const_node->operation.type = ToString(OperationType::kConstant);
     TensorFloat32 const_data;
     const_data.shape = BHWC(attr_weights.shape.o, attr_weights.shape.h,
                             attr_weights.shape.w, attr_weights.shape.i);
@@ -116,7 +116,7 @@ absl::Status TestDynamicConvolution(TestExecutionEnvironment* env) {
     const_value->tensor.shape = const_data.shape;
 
     auto conv_node = graph_dynamic_conv.NewNode();
-    conv_node->operation.type = ToString(OperationType::CONVOLUTION_2D);
+    conv_node->operation.type = ToString(OperationType::kConvolution2D);
     attr_weights.data.clear();
     conv_node->operation.attributes = conv_attr;
     graph_dynamic_conv.AddConsumer(conv_node->id, input->id);
@@ -125,7 +125,7 @@ absl::Status TestDynamicConvolution(TestExecutionEnvironment* env) {
     ABSL_RETURN_IF_ERROR(
         AddOutput(&graph_dynamic_conv, conv_node, &conv_output));
 
-    conv_output->tensor.type = DataType::FLOAT32;
+    conv_output->tensor.type = DataType::kFloat32;
     conv_output->tensor.shape = output_shape;
     ABSL_RETURN_IF_ERROR(GraphToGpuModel(graph_dynamic_conv, create_info,
                                          env->GetGpuInfo(),
@@ -153,8 +153,8 @@ absl::Status TestDynamicConvolution(TestExecutionEnvironment* env) {
 }
 
 absl::Status TestExternalConvWeights(TestExecutionEnvironment* env) {
-  TensorStorageType storage_type = TensorStorageType::BUFFER;
-  CalculationsPrecision precision = CalculationsPrecision::F32;
+  TensorStorageType storage_type = TensorStorageType::kBuffer;
+  CalculationsPrecision precision = CalculationsPrecision::kF32;
   CreateGpuModelInfo create_info;
   create_info.precision = precision;
   create_info.storage_type = storage_type;
@@ -173,7 +173,7 @@ absl::Status TestExternalConvWeights(TestExecutionEnvironment* env) {
     conv_attr.strides = HW(1, 1);
     conv_attr.dilations = HW(1, 1);
     auto& attr_weights =
-        conv_attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
+        conv_attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
     attr_weights.shape = OHWI(kDstChannels, 1, 1, src_shape.c);
     attr_weights.data.resize(attr_weights.shape.DimensionsProduct() +
                              XNN_EXTRA_BYTES / sizeof(float));
@@ -214,7 +214,7 @@ absl::Status TestExternalConvWeights(TestExecutionEnvironment* env) {
                                                      attr_weights.shape);
       {
         weights_td = TensorDescriptor(
-            weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR);
+            weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear);
         std::vector<uint8_t> data(
             GetTotalElementsCountForLayout(weights_desc, attr_weights.shape) *
             SizeOf(weights_desc.type));
@@ -255,8 +255,8 @@ absl::Status TestExternalConvWeights(TestExecutionEnvironment* env) {
 
 absl::Status TestFullyConnected(TestExecutionEnvironment* env,
                                 const BHWC& src_shape) {
-  TensorStorageType storage_type = TensorStorageType::BUFFER;
-  CalculationsPrecision precision = CalculationsPrecision::F32;
+  TensorStorageType storage_type = TensorStorageType::kBuffer;
+  CalculationsPrecision precision = CalculationsPrecision::kF32;
   CreateGpuModelInfo create_info;
   create_info.precision = precision;
   create_info.storage_type = storage_type;

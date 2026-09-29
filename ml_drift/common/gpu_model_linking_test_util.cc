@@ -55,11 +55,11 @@ namespace ml_drift {
 absl::Status TestLinkingConvolutionAndCosOp(TestExecutionEnvironment* env) {
   GraphFloat32 graph;
   auto input = graph.NewValue();
-  input->tensor.type = DataType::FLOAT32;
+  input->tensor.type = DataType::kFloat32;
   input->tensor.shape = BHWC(1, 32, 32, 128);
 
   auto conv_node = graph.NewNode();
-  conv_node->operation.type = ToString(OperationType::CONVOLUTION_2D);
+  conv_node->operation.type = ToString(OperationType::kConvolution2D);
 
   Convolution2DAttributes conv_attr;
   conv_attr.padding.prepended = HW(0, 0);
@@ -67,7 +67,7 @@ absl::Status TestLinkingConvolutionAndCosOp(TestExecutionEnvironment* env) {
   conv_attr.strides = HW(1, 1);
   conv_attr.dilations = HW(1, 1);
   auto& attr_weights =
-      conv_attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::FLOAT32>>();
+      conv_attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(16, 1, 1, 128);
   attr_weights.data.resize(attr_weights.shape.DimensionsProduct() +
                            XNN_EXTRA_BYTES / sizeof(float));
@@ -83,22 +83,22 @@ absl::Status TestLinkingConvolutionAndCosOp(TestExecutionEnvironment* env) {
   graph.AddConsumer(conv_node->id, input->id);
 
   auto cos_node = graph.NewNode();
-  cos_node->operation.type = ToString(OperationType::COS);
+  cos_node->operation.type = ToString(OperationType::kCos);
   Value* conv_output = nullptr;
   ABSL_RETURN_IF_ERROR(
       ConnectTwoNodes(&graph, conv_node, cos_node, &conv_output));
-  conv_output->tensor.type = DataType::FLOAT32;
+  conv_output->tensor.type = DataType::kFloat32;
   conv_output->tensor.shape = BHWC(1, 32, 32, 16);
 
   Value* cos_output = nullptr;
   ABSL_RETURN_IF_ERROR(AddOutput(&graph, cos_node, &cos_output));
-  cos_output->tensor.type = DataType::FLOAT32;
+  cos_output->tensor.type = DataType::kFloat32;
   cos_output->tensor.shape = BHWC(1, 32, 32, 16);
 
-  for (auto data_type : {DataType::FLOAT32, DataType::FLOAT16}) {
-    CalculationsPrecision precision = data_type == DataType::FLOAT32
-                                          ? CalculationsPrecision::F32
-                                          : CalculationsPrecision::F16;
+  for (auto data_type : {DataType::kFloat32, DataType::kFloat16}) {
+    CalculationsPrecision precision = data_type == DataType::kFloat32
+                                          ? CalculationsPrecision::kF32
+                                          : CalculationsPrecision::kF16;
     for (auto storage : env->GetSupportedStorages(data_type)) {
       CreateGpuModelInfo create_info;
       create_info.precision = precision;
@@ -126,8 +126,8 @@ absl::Status TestLinkingConvolutionAndCosOp(TestExecutionEnvironment* env) {
           &gpu_model));
 
       OperationDef op_def;
-      op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-      op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+      op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+      op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
 
       ConvGeneric conv_operation =
           CreateConvGeneric(env->GetGpuInfo(), op_def, precision, conv_attr);
@@ -137,7 +137,7 @@ absl::Status TestLinkingConvolutionAndCosOp(TestExecutionEnvironment* env) {
           conv_output->tensor.shape, &intermediate));
 
       GPUOperation cos_operation = CreateElementwiseOneInput(
-          env->GetGpuInfo(), op_def, OperationType::COS);
+          env->GetGpuInfo(), op_def, OperationType::kCos);
       TensorFloat32 dst_tensor_v0;
       ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           intermediate,
@@ -156,15 +156,15 @@ absl::Status TestLinkingConvolution2InputMul2InputMul(
   auto input0 = graph.NewValue();
   auto input1 = graph.NewValue();
   auto input2 = graph.NewValue();
-  input0->tensor.type = DataType::FLOAT32;
+  input0->tensor.type = DataType::kFloat32;
   input0->tensor.shape = BHWC(1, 32, 32, 128);
-  input1->tensor.type = DataType::FLOAT32;
+  input1->tensor.type = DataType::kFloat32;
   input1->tensor.shape = BHWC(1, 32, 32, 16);
-  input2->tensor.type = DataType::FLOAT32;
+  input2->tensor.type = DataType::kFloat32;
   input2->tensor.shape = BHWC(1, 32, 32, 16);
 
   auto conv_node = graph.NewNode();
-  conv_node->operation.type = ToString(OperationType::CONVOLUTION_2D);
+  conv_node->operation.type = ToString(OperationType::kConvolution2D);
 
   Convolution2DAttributes conv_attr;
   conv_attr.padding.prepended = HW(0, 0);
@@ -172,7 +172,7 @@ absl::Status TestLinkingConvolution2InputMul2InputMul(
   conv_attr.strides = HW(1, 1);
   conv_attr.dilations = HW(1, 1);
   auto& attr_weights =
-      conv_attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::FLOAT32>>();
+      conv_attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(16, 1, 1, 128);
   attr_weights.data.resize(attr_weights.shape.DimensionsProduct() +
                            XNN_EXTRA_BYTES / sizeof(float));
@@ -188,32 +188,32 @@ absl::Status TestLinkingConvolution2InputMul2InputMul(
   graph.AddConsumer(conv_node->id, input0->id);
 
   auto mul0_node = graph.NewNode();
-  mul0_node->operation.type = ToString(OperationType::MUL);
+  mul0_node->operation.type = ToString(OperationType::kMul);
   Value* conv_output = nullptr;
   ABSL_RETURN_IF_ERROR(
       ConnectTwoNodes(&graph, conv_node, mul0_node, &conv_output));
   graph.AddConsumer(mul0_node->id, input1->id);
-  conv_output->tensor.type = DataType::FLOAT32;
+  conv_output->tensor.type = DataType::kFloat32;
   conv_output->tensor.shape = BHWC(1, 32, 32, 16);
 
   auto mul1_node = graph.NewNode();
-  mul1_node->operation.type = ToString(OperationType::MUL);
+  mul1_node->operation.type = ToString(OperationType::kMul);
   Value* mul0_output = nullptr;
   ABSL_RETURN_IF_ERROR(
       ConnectTwoNodes(&graph, mul0_node, mul1_node, &mul0_output));
   graph.AddConsumer(mul1_node->id, input2->id);
-  mul0_output->tensor.type = DataType::FLOAT32;
+  mul0_output->tensor.type = DataType::kFloat32;
   mul0_output->tensor.shape = BHWC(1, 32, 32, 16);
 
   Value* mul1_output = nullptr;
   ABSL_RETURN_IF_ERROR(AddOutput(&graph, mul1_node, &mul1_output));
-  mul1_output->tensor.type = DataType::FLOAT32;
+  mul1_output->tensor.type = DataType::kFloat32;
   mul1_output->tensor.shape = BHWC(1, 32, 32, 16);
 
-  for (auto data_type : {DataType::FLOAT32, DataType::FLOAT16}) {
-    CalculationsPrecision precision = data_type == DataType::FLOAT32
-                                          ? CalculationsPrecision::F32
-                                          : CalculationsPrecision::F16;
+  for (auto data_type : {DataType::kFloat32, DataType::kFloat16}) {
+    CalculationsPrecision precision = data_type == DataType::kFloat32
+                                          ? CalculationsPrecision::kF32
+                                          : CalculationsPrecision::kF16;
     for (auto storage : env->GetSupportedStorages(data_type)) {
       CreateGpuModelInfo create_info;
       create_info.precision = precision;
@@ -253,8 +253,8 @@ absl::Status TestLinkingConvolution2InputMul2InputMul(
           std::vector<TensorFloat32*>{&dst_tensor_v1}, &gpu_model));
 
       OperationDef op_def;
-      op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-      op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+      op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+      op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
 
       ConvGeneric conv_operation =
           CreateConvGeneric(env->GetGpuInfo(), op_def, precision, conv_attr);
@@ -264,12 +264,12 @@ absl::Status TestLinkingConvolution2InputMul2InputMul(
           conv_output->tensor.shape, &intermediate0));
 
       OperationDef op_def_mul;
-      op_def_mul.src_tensors.push_back({data_type, storage, Layout::HWC});
-      op_def_mul.src_tensors.push_back({data_type, storage, Layout::HWC});
-      op_def_mul.dst_tensors.push_back({data_type, storage, Layout::HWC});
+      op_def_mul.src_tensors.push_back({data_type, storage, Layout::kHWC});
+      op_def_mul.src_tensors.push_back({data_type, storage, Layout::kHWC});
+      op_def_mul.dst_tensors.push_back({data_type, storage, Layout::kHWC});
 
       GPUOperation mul0_operation = CreateElementwiseTwoInput(
-          env->GetGpuInfo(), op_def_mul, OperationType::MUL, src1_tensor.shape,
+          env->GetGpuInfo(), op_def_mul, OperationType::kMul, src1_tensor.shape,
           mul0_output->tensor.shape);
       TensorFloat32 intermediate1;
       ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
@@ -278,7 +278,7 @@ absl::Status TestLinkingConvolution2InputMul2InputMul(
           mul0_output->tensor.shape, &intermediate1));
 
       GPUOperation mul1_operation = CreateElementwiseTwoInput(
-          env->GetGpuInfo(), op_def_mul, OperationType::MUL, src2_tensor.shape,
+          env->GetGpuInfo(), op_def_mul, OperationType::kMul, src2_tensor.shape,
           mul1_output->tensor.shape);
       TensorFloat32 dst_tensor_v0;
       ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
@@ -298,15 +298,15 @@ absl::Status TestLinkingConvolution2InputBroadcastMul2InputMul(
   auto input0 = graph.NewValue();
   auto input1 = graph.NewValue();
   auto input2 = graph.NewValue();
-  input0->tensor.type = DataType::FLOAT32;
+  input0->tensor.type = DataType::kFloat32;
   input0->tensor.shape = BHWC(1, 32, 32, 128);
-  input1->tensor.type = DataType::FLOAT32;
+  input1->tensor.type = DataType::kFloat32;
   input1->tensor.shape = BHWC(1, 32, 32, 1);
-  input2->tensor.type = DataType::FLOAT32;
+  input2->tensor.type = DataType::kFloat32;
   input2->tensor.shape = BHWC(1, 32, 32, 16);
 
   auto conv_node = graph.NewNode();
-  conv_node->operation.type = ToString(OperationType::CONVOLUTION_2D);
+  conv_node->operation.type = ToString(OperationType::kConvolution2D);
 
   Convolution2DAttributes conv_attr;
   conv_attr.padding.prepended = HW(0, 0);
@@ -314,7 +314,7 @@ absl::Status TestLinkingConvolution2InputBroadcastMul2InputMul(
   conv_attr.strides = HW(1, 1);
   conv_attr.dilations = HW(1, 1);
   auto& attr_weights =
-      conv_attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::FLOAT32>>();
+      conv_attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(16, 1, 1, 128);
   attr_weights.data.resize(attr_weights.shape.DimensionsProduct() +
                            XNN_EXTRA_BYTES / sizeof(float));
@@ -330,32 +330,32 @@ absl::Status TestLinkingConvolution2InputBroadcastMul2InputMul(
   graph.AddConsumer(conv_node->id, input0->id);
 
   auto mul0_node = graph.NewNode();
-  mul0_node->operation.type = ToString(OperationType::MUL);
+  mul0_node->operation.type = ToString(OperationType::kMul);
   Value* conv_output = nullptr;
   ABSL_RETURN_IF_ERROR(
       ConnectTwoNodes(&graph, conv_node, mul0_node, &conv_output));
   graph.AddConsumer(mul0_node->id, input1->id);
-  conv_output->tensor.type = DataType::FLOAT32;
+  conv_output->tensor.type = DataType::kFloat32;
   conv_output->tensor.shape = BHWC(1, 32, 32, 16);
 
   auto mul1_node = graph.NewNode();
-  mul1_node->operation.type = ToString(OperationType::MUL);
+  mul1_node->operation.type = ToString(OperationType::kMul);
   Value* mul0_output = nullptr;
   ABSL_RETURN_IF_ERROR(
       ConnectTwoNodes(&graph, mul0_node, mul1_node, &mul0_output));
   graph.AddConsumer(mul1_node->id, input2->id);
-  mul0_output->tensor.type = DataType::FLOAT32;
+  mul0_output->tensor.type = DataType::kFloat32;
   mul0_output->tensor.shape = BHWC(1, 32, 32, 16);
 
   Value* mul1_output = nullptr;
   ABSL_RETURN_IF_ERROR(AddOutput(&graph, mul1_node, &mul1_output));
-  mul1_output->tensor.type = DataType::FLOAT32;
+  mul1_output->tensor.type = DataType::kFloat32;
   mul1_output->tensor.shape = BHWC(1, 32, 32, 16);
 
-  for (auto data_type : {DataType::FLOAT32, DataType::FLOAT16}) {
-    CalculationsPrecision precision = data_type == DataType::FLOAT32
-                                          ? CalculationsPrecision::F32
-                                          : CalculationsPrecision::F16;
+  for (auto data_type : {DataType::kFloat32, DataType::kFloat16}) {
+    CalculationsPrecision precision = data_type == DataType::kFloat32
+                                          ? CalculationsPrecision::kF32
+                                          : CalculationsPrecision::kF16;
     for (auto storage : env->GetSupportedStorages(data_type)) {
       CreateGpuModelInfo create_info;
       create_info.precision = precision;
@@ -395,8 +395,8 @@ absl::Status TestLinkingConvolution2InputBroadcastMul2InputMul(
           std::vector<TensorFloat32*>{&dst_tensor_v1}, &gpu_model));
 
       OperationDef op_def;
-      op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-      op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+      op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+      op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
 
       ConvGeneric conv_operation =
           CreateConvGeneric(env->GetGpuInfo(), op_def, precision, conv_attr);
@@ -406,12 +406,12 @@ absl::Status TestLinkingConvolution2InputBroadcastMul2InputMul(
           conv_output->tensor.shape, &intermediate0));
 
       OperationDef op_def_mul;
-      op_def_mul.src_tensors.push_back({data_type, storage, Layout::HWC});
-      op_def_mul.src_tensors.push_back({data_type, storage, Layout::HWC});
-      op_def_mul.dst_tensors.push_back({data_type, storage, Layout::HWC});
+      op_def_mul.src_tensors.push_back({data_type, storage, Layout::kHWC});
+      op_def_mul.src_tensors.push_back({data_type, storage, Layout::kHWC});
+      op_def_mul.dst_tensors.push_back({data_type, storage, Layout::kHWC});
 
       GPUOperation mul0_operation = CreateElementwiseTwoInput(
-          env->GetGpuInfo(), op_def_mul, OperationType::MUL, src1_tensor.shape,
+          env->GetGpuInfo(), op_def_mul, OperationType::kMul, src1_tensor.shape,
           mul0_output->tensor.shape);
       TensorFloat32 intermediate1;
       ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
@@ -420,7 +420,7 @@ absl::Status TestLinkingConvolution2InputBroadcastMul2InputMul(
           mul0_output->tensor.shape, &intermediate1));
 
       GPUOperation mul1_operation = CreateElementwiseTwoInput(
-          env->GetGpuInfo(), op_def_mul, OperationType::MUL, src2_tensor.shape,
+          env->GetGpuInfo(), op_def_mul, OperationType::kMul, src2_tensor.shape,
           mul1_output->tensor.shape);
       TensorFloat32 dst_tensor_v0;
       ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
@@ -440,15 +440,15 @@ absl::Status TestLinkingConvolution2InputMul2InputBroadcastMul(
   auto input0 = graph.NewValue();
   auto input1 = graph.NewValue();
   auto input2 = graph.NewValue();
-  input0->tensor.type = DataType::FLOAT32;
+  input0->tensor.type = DataType::kFloat32;
   input0->tensor.shape = BHWC(1, 32, 32, 128);
-  input1->tensor.type = DataType::FLOAT32;
+  input1->tensor.type = DataType::kFloat32;
   input1->tensor.shape = BHWC(1, 32, 32, 16);
-  input2->tensor.type = DataType::FLOAT32;
+  input2->tensor.type = DataType::kFloat32;
   input2->tensor.shape = BHWC(1, 1, 1, 16);
 
   auto conv_node = graph.NewNode();
-  conv_node->operation.type = ToString(OperationType::CONVOLUTION_2D);
+  conv_node->operation.type = ToString(OperationType::kConvolution2D);
 
   Convolution2DAttributes conv_attr;
   conv_attr.padding.prepended = HW(0, 0);
@@ -456,7 +456,7 @@ absl::Status TestLinkingConvolution2InputMul2InputBroadcastMul(
   conv_attr.strides = HW(1, 1);
   conv_attr.dilations = HW(1, 1);
   auto& attr_weights =
-      conv_attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::FLOAT32>>();
+      conv_attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(16, 1, 1, 128);
   attr_weights.data.resize(attr_weights.shape.DimensionsProduct() +
                            XNN_EXTRA_BYTES / sizeof(float));
@@ -472,32 +472,32 @@ absl::Status TestLinkingConvolution2InputMul2InputBroadcastMul(
   graph.AddConsumer(conv_node->id, input0->id);
 
   auto mul0_node = graph.NewNode();
-  mul0_node->operation.type = ToString(OperationType::MUL);
+  mul0_node->operation.type = ToString(OperationType::kMul);
   Value* conv_output = nullptr;
   ABSL_RETURN_IF_ERROR(
       ConnectTwoNodes(&graph, conv_node, mul0_node, &conv_output));
   graph.AddConsumer(mul0_node->id, input1->id);
-  conv_output->tensor.type = DataType::FLOAT32;
+  conv_output->tensor.type = DataType::kFloat32;
   conv_output->tensor.shape = BHWC(1, 32, 32, 16);
 
   auto mul1_node = graph.NewNode();
-  mul1_node->operation.type = ToString(OperationType::MUL);
+  mul1_node->operation.type = ToString(OperationType::kMul);
   Value* mul0_output = nullptr;
   ABSL_RETURN_IF_ERROR(
       ConnectTwoNodes(&graph, mul0_node, mul1_node, &mul0_output));
   graph.AddConsumer(mul1_node->id, input2->id);
-  mul0_output->tensor.type = DataType::FLOAT32;
+  mul0_output->tensor.type = DataType::kFloat32;
   mul0_output->tensor.shape = BHWC(1, 32, 32, 16);
 
   Value* mul1_output = nullptr;
   ABSL_RETURN_IF_ERROR(AddOutput(&graph, mul1_node, &mul1_output));
-  mul1_output->tensor.type = DataType::FLOAT32;
+  mul1_output->tensor.type = DataType::kFloat32;
   mul1_output->tensor.shape = BHWC(1, 32, 32, 16);
 
-  for (auto data_type : {DataType::FLOAT32, DataType::FLOAT16}) {
-    CalculationsPrecision precision = data_type == DataType::FLOAT32
-                                          ? CalculationsPrecision::F32
-                                          : CalculationsPrecision::F16;
+  for (auto data_type : {DataType::kFloat32, DataType::kFloat16}) {
+    CalculationsPrecision precision = data_type == DataType::kFloat32
+                                          ? CalculationsPrecision::kF32
+                                          : CalculationsPrecision::kF16;
     for (auto storage : env->GetSupportedStorages(data_type)) {
       CreateGpuModelInfo create_info;
       create_info.precision = precision;
@@ -537,8 +537,8 @@ absl::Status TestLinkingConvolution2InputMul2InputBroadcastMul(
           std::vector<TensorFloat32*>{&dst_tensor_v1}, &gpu_model));
 
       OperationDef op_def;
-      op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-      op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+      op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+      op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
 
       ConvGeneric conv_operation =
           CreateConvGeneric(env->GetGpuInfo(), op_def, precision, conv_attr);
@@ -548,12 +548,12 @@ absl::Status TestLinkingConvolution2InputMul2InputBroadcastMul(
           conv_output->tensor.shape, &intermediate0));
 
       OperationDef op_def_mul;
-      op_def_mul.src_tensors.push_back({data_type, storage, Layout::HWC});
-      op_def_mul.src_tensors.push_back({data_type, storage, Layout::HWC});
-      op_def_mul.dst_tensors.push_back({data_type, storage, Layout::HWC});
+      op_def_mul.src_tensors.push_back({data_type, storage, Layout::kHWC});
+      op_def_mul.src_tensors.push_back({data_type, storage, Layout::kHWC});
+      op_def_mul.dst_tensors.push_back({data_type, storage, Layout::kHWC});
 
       GPUOperation mul0_operation = CreateElementwiseTwoInput(
-          env->GetGpuInfo(), op_def_mul, OperationType::MUL, src1_tensor.shape,
+          env->GetGpuInfo(), op_def_mul, OperationType::kMul, src1_tensor.shape,
           mul0_output->tensor.shape);
       TensorFloat32 intermediate1;
       ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
@@ -562,7 +562,7 @@ absl::Status TestLinkingConvolution2InputMul2InputBroadcastMul(
           mul0_output->tensor.shape, &intermediate1));
 
       GPUOperation mul1_operation = CreateElementwiseTwoInput(
-          env->GetGpuInfo(), op_def_mul, OperationType::MUL, src2_tensor.shape,
+          env->GetGpuInfo(), op_def_mul, OperationType::kMul, src2_tensor.shape,
           mul1_output->tensor.shape);
       TensorFloat32 dst_tensor_v0;
       ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
@@ -582,15 +582,15 @@ absl::Status TestLinkingConvolution2InputMul2InputMulCos(
   auto input0 = graph.NewValue();
   auto input1 = graph.NewValue();
   auto input2 = graph.NewValue();
-  input0->tensor.type = DataType::FLOAT32;
+  input0->tensor.type = DataType::kFloat32;
   input0->tensor.shape = BHWC(1, 32, 32, 128);
-  input1->tensor.type = DataType::FLOAT32;
+  input1->tensor.type = DataType::kFloat32;
   input1->tensor.shape = BHWC(1, 32, 32, 16);
-  input2->tensor.type = DataType::FLOAT32;
+  input2->tensor.type = DataType::kFloat32;
   input2->tensor.shape = BHWC(1, 32, 32, 16);
 
   auto conv_node = graph.NewNode();
-  conv_node->operation.type = ToString(OperationType::CONVOLUTION_2D);
+  conv_node->operation.type = ToString(OperationType::kConvolution2D);
 
   Convolution2DAttributes conv_attr;
   conv_attr.padding.prepended = HW(0, 0);
@@ -598,7 +598,7 @@ absl::Status TestLinkingConvolution2InputMul2InputMulCos(
   conv_attr.strides = HW(1, 1);
   conv_attr.dilations = HW(1, 1);
   auto& attr_weights =
-      conv_attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::FLOAT32>>();
+      conv_attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(16, 1, 1, 128);
   attr_weights.data.resize(attr_weights.shape.DimensionsProduct() +
                            XNN_EXTRA_BYTES / sizeof(float));
@@ -614,40 +614,40 @@ absl::Status TestLinkingConvolution2InputMul2InputMulCos(
   graph.AddConsumer(conv_node->id, input0->id);
 
   auto mul0_node = graph.NewNode();
-  mul0_node->operation.type = ToString(OperationType::MUL);
+  mul0_node->operation.type = ToString(OperationType::kMul);
   Value* conv_output = nullptr;
   ABSL_RETURN_IF_ERROR(
       ConnectTwoNodes(&graph, conv_node, mul0_node, &conv_output));
   graph.AddConsumer(mul0_node->id, input1->id);
-  conv_output->tensor.type = DataType::FLOAT32;
+  conv_output->tensor.type = DataType::kFloat32;
   conv_output->tensor.shape = BHWC(1, 32, 32, 16);
 
   auto mul1_node = graph.NewNode();
-  mul1_node->operation.type = ToString(OperationType::MUL);
+  mul1_node->operation.type = ToString(OperationType::kMul);
   Value* mul0_output = nullptr;
   ABSL_RETURN_IF_ERROR(
       ConnectTwoNodes(&graph, mul0_node, mul1_node, &mul0_output));
   graph.AddConsumer(mul1_node->id, input2->id);
-  mul0_output->tensor.type = DataType::FLOAT32;
+  mul0_output->tensor.type = DataType::kFloat32;
   mul0_output->tensor.shape = BHWC(1, 32, 32, 16);
 
   auto cos_node = graph.NewNode();
-  cos_node->operation.type = ToString(OperationType::COS);
+  cos_node->operation.type = ToString(OperationType::kCos);
   Value* mul1_output = nullptr;
   ABSL_RETURN_IF_ERROR(
       ConnectTwoNodes(&graph, mul1_node, cos_node, &mul1_output));
-  mul1_output->tensor.type = DataType::FLOAT32;
+  mul1_output->tensor.type = DataType::kFloat32;
   mul1_output->tensor.shape = BHWC(1, 32, 32, 16);
 
   Value* cos_output = nullptr;
   ABSL_RETURN_IF_ERROR(AddOutput(&graph, cos_node, &cos_output));
-  cos_output->tensor.type = DataType::FLOAT32;
+  cos_output->tensor.type = DataType::kFloat32;
   cos_output->tensor.shape = BHWC(1, 32, 32, 16);
 
-  for (auto data_type : {DataType::FLOAT32, DataType::FLOAT16}) {
-    CalculationsPrecision precision = data_type == DataType::FLOAT32
-                                          ? CalculationsPrecision::F32
-                                          : CalculationsPrecision::F16;
+  for (auto data_type : {DataType::kFloat32, DataType::kFloat16}) {
+    CalculationsPrecision precision = data_type == DataType::kFloat32
+                                          ? CalculationsPrecision::kF32
+                                          : CalculationsPrecision::kF16;
     for (auto storage : env->GetSupportedStorages(data_type)) {
       CreateGpuModelInfo create_info;
       create_info.precision = precision;
@@ -687,8 +687,8 @@ absl::Status TestLinkingConvolution2InputMul2InputMulCos(
           std::vector<TensorFloat32*>{&dst_tensor_v1}, &gpu_model));
 
       OperationDef op_def;
-      op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-      op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+      op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+      op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
 
       ConvGeneric conv_operation =
           CreateConvGeneric(env->GetGpuInfo(), op_def, precision, conv_attr);
@@ -698,12 +698,12 @@ absl::Status TestLinkingConvolution2InputMul2InputMulCos(
           conv_output->tensor.shape, &intermediate0));
 
       OperationDef op_def_mul;
-      op_def_mul.src_tensors.push_back({data_type, storage, Layout::HWC});
-      op_def_mul.src_tensors.push_back({data_type, storage, Layout::HWC});
-      op_def_mul.dst_tensors.push_back({data_type, storage, Layout::HWC});
+      op_def_mul.src_tensors.push_back({data_type, storage, Layout::kHWC});
+      op_def_mul.src_tensors.push_back({data_type, storage, Layout::kHWC});
+      op_def_mul.dst_tensors.push_back({data_type, storage, Layout::kHWC});
 
       GPUOperation mul0_operation = CreateElementwiseTwoInput(
-          env->GetGpuInfo(), op_def_mul, OperationType::MUL, src1_tensor.shape,
+          env->GetGpuInfo(), op_def_mul, OperationType::kMul, src1_tensor.shape,
           mul0_output->tensor.shape);
       TensorFloat32 intermediate1;
       ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
@@ -712,7 +712,7 @@ absl::Status TestLinkingConvolution2InputMul2InputMulCos(
           mul0_output->tensor.shape, &intermediate1));
 
       GPUOperation mul1_operation = CreateElementwiseTwoInput(
-          env->GetGpuInfo(), op_def_mul, OperationType::MUL, src2_tensor.shape,
+          env->GetGpuInfo(), op_def_mul, OperationType::kMul, src2_tensor.shape,
           mul1_output->tensor.shape);
       TensorFloat32 intermediate2;
       ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
@@ -721,7 +721,7 @@ absl::Status TestLinkingConvolution2InputMul2InputMulCos(
           mul1_output->tensor.shape, &intermediate2));
 
       GPUOperation cos_operation = CreateElementwiseOneInput(
-          env->GetGpuInfo(), op_def, OperationType::COS);
+          env->GetGpuInfo(), op_def, OperationType::kCos);
       TensorFloat32 dst_tensor_v0;
       ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           intermediate2,
@@ -738,11 +738,11 @@ absl::Status TestLinkingConvolutionFirstTanh2InputDiff(
     TestExecutionEnvironment* env) {
   GraphFloat32 graph;
   auto input = graph.NewValue();
-  input->tensor.type = DataType::FLOAT32;
+  input->tensor.type = DataType::kFloat32;
   input->tensor.shape = BHWC(1, 32, 32, 128);
 
   auto conv_node = graph.NewNode();
-  conv_node->operation.type = ToString(OperationType::CONVOLUTION_2D);
+  conv_node->operation.type = ToString(OperationType::kConvolution2D);
 
   Convolution2DAttributes conv_attr;
   conv_attr.padding.prepended = HW(0, 0);
@@ -750,7 +750,7 @@ absl::Status TestLinkingConvolutionFirstTanh2InputDiff(
   conv_attr.strides = HW(1, 1);
   conv_attr.dilations = HW(1, 1);
   auto& attr_weights =
-      conv_attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::FLOAT32>>();
+      conv_attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(16, 1, 1, 128);
   attr_weights.data.resize(attr_weights.shape.DimensionsProduct() +
                            XNN_EXTRA_BYTES / sizeof(float));
@@ -766,30 +766,30 @@ absl::Status TestLinkingConvolutionFirstTanh2InputDiff(
   graph.AddConsumer(conv_node->id, input->id);
 
   auto tanh_node = graph.NewNode();
-  tanh_node->operation.type = ToString(OperationType::TANH);
+  tanh_node->operation.type = ToString(OperationType::kTanh);
   Value* conv_output = nullptr;
   ABSL_RETURN_IF_ERROR(
       ConnectTwoNodes(&graph, conv_node, tanh_node, &conv_output));
-  conv_output->tensor.type = DataType::FLOAT32;
+  conv_output->tensor.type = DataType::kFloat32;
   conv_output->tensor.shape = BHWC(1, 32, 32, 16);
 
   auto sub_node = graph.NewNode();
-  sub_node->operation.type = ToString(OperationType::SUB);
+  sub_node->operation.type = ToString(OperationType::kSub);
   auto tanh_output = graph.NewValue();
-  tanh_output->tensor.type = DataType::FLOAT32;
+  tanh_output->tensor.type = DataType::kFloat32;
   tanh_output->tensor.shape = BHWC(1, 32, 32, 16);
   auto sub_output = graph.NewValue();
-  sub_output->tensor.type = DataType::FLOAT32;
+  sub_output->tensor.type = DataType::kFloat32;
   sub_output->tensor.shape = BHWC(1, 32, 32, 16);
   graph.SetProducer(tanh_node->id, tanh_output->id);
   graph.AddConsumer(sub_node->id, tanh_output->id);
   graph.AddConsumer(sub_node->id, conv_output->id);
   graph.SetProducer(sub_node->id, sub_output->id);
 
-  for (auto data_type : {DataType::FLOAT32, DataType::FLOAT16}) {
-    CalculationsPrecision precision = data_type == DataType::FLOAT32
-                                          ? CalculationsPrecision::F32
-                                          : CalculationsPrecision::F16;
+  for (auto data_type : {DataType::kFloat32, DataType::kFloat16}) {
+    CalculationsPrecision precision = data_type == DataType::kFloat32
+                                          ? CalculationsPrecision::kF32
+                                          : CalculationsPrecision::kF16;
     for (auto storage : env->GetSupportedStorages(data_type)) {
       CreateGpuModelInfo create_info;
       create_info.precision = precision;
@@ -817,8 +817,8 @@ absl::Status TestLinkingConvolutionFirstTanh2InputDiff(
           &gpu_model));
 
       OperationDef op_def;
-      op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-      op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+      op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+      op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
 
       ConvGeneric conv_operation =
           CreateConvGeneric(env->GetGpuInfo(), op_def, precision, conv_attr);
@@ -828,7 +828,7 @@ absl::Status TestLinkingConvolutionFirstTanh2InputDiff(
           conv_output->tensor.shape, &intermediate0));
 
       GPUOperation tanh_operation = CreateElementwiseOneInput(
-          env->GetGpuInfo(), op_def, OperationType::TANH);
+          env->GetGpuInfo(), op_def, OperationType::kTanh);
       TensorFloat32 intermediate1;
       ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           intermediate0,
@@ -836,11 +836,11 @@ absl::Status TestLinkingConvolutionFirstTanh2InputDiff(
           tanh_output->tensor.shape, &intermediate1));
 
       OperationDef op_def_sub;
-      op_def_sub.src_tensors.push_back({data_type, storage, Layout::HWC});
-      op_def_sub.src_tensors.push_back({data_type, storage, Layout::HWC});
-      op_def_sub.dst_tensors.push_back({data_type, storage, Layout::HWC});
+      op_def_sub.src_tensors.push_back({data_type, storage, Layout::kHWC});
+      op_def_sub.src_tensors.push_back({data_type, storage, Layout::kHWC});
+      op_def_sub.dst_tensors.push_back({data_type, storage, Layout::kHWC});
       GPUOperation sub_operation = CreateElementwiseTwoInput(
-          env->GetGpuInfo(), op_def_sub, OperationType::SUB,
+          env->GetGpuInfo(), op_def_sub, OperationType::kSub,
           conv_output->tensor.shape, sub_output->tensor.shape);
       TensorFloat32 dst_tensor_v0;
       ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
@@ -858,11 +858,11 @@ absl::Status TestLinkingConvolutionSecondTanh2InputDiff(
     TestExecutionEnvironment* env) {
   GraphFloat32 graph;
   auto input = graph.NewValue();
-  input->tensor.type = DataType::FLOAT32;
+  input->tensor.type = DataType::kFloat32;
   input->tensor.shape = BHWC(1, 32, 32, 128);
 
   auto conv_node = graph.NewNode();
-  conv_node->operation.type = ToString(OperationType::CONVOLUTION_2D);
+  conv_node->operation.type = ToString(OperationType::kConvolution2D);
 
   Convolution2DAttributes conv_attr;
   conv_attr.padding.prepended = HW(0, 0);
@@ -870,7 +870,7 @@ absl::Status TestLinkingConvolutionSecondTanh2InputDiff(
   conv_attr.strides = HW(1, 1);
   conv_attr.dilations = HW(1, 1);
   auto& attr_weights =
-      conv_attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::FLOAT32>>();
+      conv_attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(16, 1, 1, 128);
   attr_weights.data.resize(attr_weights.shape.DimensionsProduct() +
                            XNN_EXTRA_BYTES / sizeof(float));
@@ -886,30 +886,30 @@ absl::Status TestLinkingConvolutionSecondTanh2InputDiff(
   graph.AddConsumer(conv_node->id, input->id);
 
   auto tanh_node = graph.NewNode();
-  tanh_node->operation.type = ToString(OperationType::TANH);
+  tanh_node->operation.type = ToString(OperationType::kTanh);
   Value* conv_output = nullptr;
   ABSL_RETURN_IF_ERROR(
       ConnectTwoNodes(&graph, conv_node, tanh_node, &conv_output));
-  conv_output->tensor.type = DataType::FLOAT32;
+  conv_output->tensor.type = DataType::kFloat32;
   conv_output->tensor.shape = BHWC(1, 32, 32, 16);
 
   auto sub_node = graph.NewNode();
-  sub_node->operation.type = ToString(OperationType::SUB);
+  sub_node->operation.type = ToString(OperationType::kSub);
   auto tanh_output = graph.NewValue();
-  tanh_output->tensor.type = DataType::FLOAT32;
+  tanh_output->tensor.type = DataType::kFloat32;
   tanh_output->tensor.shape = BHWC(1, 32, 32, 16);
   auto sub_output = graph.NewValue();
-  sub_output->tensor.type = DataType::FLOAT32;
+  sub_output->tensor.type = DataType::kFloat32;
   sub_output->tensor.shape = BHWC(1, 32, 32, 16);
   graph.SetProducer(tanh_node->id, tanh_output->id);
   graph.AddConsumer(sub_node->id, conv_output->id);
   graph.AddConsumer(sub_node->id, tanh_output->id);
   graph.SetProducer(sub_node->id, sub_output->id);
 
-  for (auto data_type : {DataType::FLOAT32, DataType::FLOAT16}) {
-    CalculationsPrecision precision = data_type == DataType::FLOAT32
-                                          ? CalculationsPrecision::F32
-                                          : CalculationsPrecision::F16;
+  for (auto data_type : {DataType::kFloat32, DataType::kFloat16}) {
+    CalculationsPrecision precision = data_type == DataType::kFloat32
+                                          ? CalculationsPrecision::kF32
+                                          : CalculationsPrecision::kF16;
     for (auto storage : env->GetSupportedStorages(data_type)) {
       CreateGpuModelInfo create_info;
       create_info.precision = precision;
@@ -937,8 +937,8 @@ absl::Status TestLinkingConvolutionSecondTanh2InputDiff(
           &gpu_model));
 
       OperationDef op_def;
-      op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-      op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+      op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+      op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
 
       ConvGeneric conv_operation =
           CreateConvGeneric(env->GetGpuInfo(), op_def, precision, conv_attr);
@@ -948,7 +948,7 @@ absl::Status TestLinkingConvolutionSecondTanh2InputDiff(
           conv_output->tensor.shape, &intermediate0));
 
       GPUOperation tanh_operation = CreateElementwiseOneInput(
-          env->GetGpuInfo(), op_def, OperationType::TANH);
+          env->GetGpuInfo(), op_def, OperationType::kTanh);
       TensorFloat32 intermediate1;
       ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           intermediate0,
@@ -956,11 +956,11 @@ absl::Status TestLinkingConvolutionSecondTanh2InputDiff(
           tanh_output->tensor.shape, &intermediate1));
 
       OperationDef op_def_sub;
-      op_def_sub.src_tensors.push_back({data_type, storage, Layout::HWC});
-      op_def_sub.src_tensors.push_back({data_type, storage, Layout::HWC});
-      op_def_sub.dst_tensors.push_back({data_type, storage, Layout::HWC});
+      op_def_sub.src_tensors.push_back({data_type, storage, Layout::kHWC});
+      op_def_sub.src_tensors.push_back({data_type, storage, Layout::kHWC});
+      op_def_sub.dst_tensors.push_back({data_type, storage, Layout::kHWC});
       GPUOperation sub_operation = CreateElementwiseTwoInput(
-          env->GetGpuInfo(), op_def_sub, OperationType::SUB,
+          env->GetGpuInfo(), op_def_sub, OperationType::kSub,
           conv_output->tensor.shape, sub_output->tensor.shape);
       TensorFloat32 dst_tensor_v0;
       ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
@@ -987,11 +987,11 @@ absl::Status TestLinkingConvolutionFirstTanhSecondCos2InputDiff(
     TestExecutionEnvironment* env) {
   GraphFloat32 graph;
   auto input = graph.NewValue();
-  input->tensor.type = DataType::FLOAT32;
+  input->tensor.type = DataType::kFloat32;
   input->tensor.shape = BHWC(1, 32, 32, 128);
 
   auto conv_node = graph.NewNode();
-  conv_node->operation.type = ToString(OperationType::CONVOLUTION_2D);
+  conv_node->operation.type = ToString(OperationType::kConvolution2D);
 
   Convolution2DAttributes conv_attr;
   conv_attr.padding.prepended = HW(0, 0);
@@ -999,7 +999,7 @@ absl::Status TestLinkingConvolutionFirstTanhSecondCos2InputDiff(
   conv_attr.strides = HW(1, 1);
   conv_attr.dilations = HW(1, 1);
   auto& attr_weights =
-      conv_attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::FLOAT32>>();
+      conv_attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(16, 1, 1, 128);
   attr_weights.data.resize(attr_weights.shape.DimensionsProduct() +
                            XNN_EXTRA_BYTES / sizeof(float));
@@ -1015,38 +1015,38 @@ absl::Status TestLinkingConvolutionFirstTanhSecondCos2InputDiff(
   graph.AddConsumer(conv_node->id, input->id);
 
   auto tanh_node = graph.NewNode();
-  tanh_node->operation.type = ToString(OperationType::TANH);
+  tanh_node->operation.type = ToString(OperationType::kTanh);
   Value* conv_output = nullptr;
   ABSL_RETURN_IF_ERROR(
       ConnectTwoNodes(&graph, conv_node, tanh_node, &conv_output));
-  conv_output->tensor.type = DataType::FLOAT32;
+  conv_output->tensor.type = DataType::kFloat32;
   conv_output->tensor.shape = BHWC(1, 32, 32, 16);
 
   auto cos_node = graph.NewNode();
-  cos_node->operation.type = ToString(OperationType::COS);
+  cos_node->operation.type = ToString(OperationType::kCos);
   auto cos_output = graph.NewValue();
-  cos_output->tensor.type = DataType::FLOAT32;
+  cos_output->tensor.type = DataType::kFloat32;
   cos_output->tensor.shape = BHWC(1, 32, 32, 16);
   graph.AddConsumer(cos_node->id, conv_output->id);
   graph.SetProducer(cos_node->id, cos_output->id);
 
   auto sub_node = graph.NewNode();
-  sub_node->operation.type = ToString(OperationType::SUB);
+  sub_node->operation.type = ToString(OperationType::kSub);
   auto tanh_output = graph.NewValue();
-  tanh_output->tensor.type = DataType::FLOAT32;
+  tanh_output->tensor.type = DataType::kFloat32;
   tanh_output->tensor.shape = BHWC(1, 32, 32, 16);
   auto sub_output = graph.NewValue();
-  sub_output->tensor.type = DataType::FLOAT32;
+  sub_output->tensor.type = DataType::kFloat32;
   sub_output->tensor.shape = BHWC(1, 32, 32, 16);
   graph.SetProducer(tanh_node->id, tanh_output->id);
   graph.AddConsumer(sub_node->id, tanh_output->id);
   graph.AddConsumer(sub_node->id, cos_output->id);
   graph.SetProducer(sub_node->id, sub_output->id);
 
-  for (auto data_type : {DataType::FLOAT32, DataType::FLOAT16}) {
-    CalculationsPrecision precision = data_type == DataType::FLOAT32
-                                          ? CalculationsPrecision::F32
-                                          : CalculationsPrecision::F16;
+  for (auto data_type : {DataType::kFloat32, DataType::kFloat16}) {
+    CalculationsPrecision precision = data_type == DataType::kFloat32
+                                          ? CalculationsPrecision::kF32
+                                          : CalculationsPrecision::kF16;
     for (auto storage : env->GetSupportedStorages(data_type)) {
       CreateGpuModelInfo create_info;
       create_info.precision = precision;
@@ -1074,8 +1074,8 @@ absl::Status TestLinkingConvolutionFirstTanhSecondCos2InputDiff(
           &gpu_model));
 
       OperationDef op_def;
-      op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-      op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+      op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+      op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
 
       ConvGeneric conv_operation =
           CreateConvGeneric(env->GetGpuInfo(), op_def, precision, conv_attr);
@@ -1085,7 +1085,7 @@ absl::Status TestLinkingConvolutionFirstTanhSecondCos2InputDiff(
           conv_output->tensor.shape, &intermediate0));
 
       GPUOperation tanh_operation = CreateElementwiseOneInput(
-          env->GetGpuInfo(), op_def, OperationType::TANH);
+          env->GetGpuInfo(), op_def, OperationType::kTanh);
       TensorFloat32 intermediate1;
       ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           intermediate0,
@@ -1093,7 +1093,7 @@ absl::Status TestLinkingConvolutionFirstTanhSecondCos2InputDiff(
           tanh_output->tensor.shape, &intermediate1));
 
       GPUOperation cos_operation = CreateElementwiseOneInput(
-          env->GetGpuInfo(), op_def, OperationType::COS);
+          env->GetGpuInfo(), op_def, OperationType::kCos);
       TensorFloat32 intermediate2;
       ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           intermediate0,
@@ -1101,11 +1101,11 @@ absl::Status TestLinkingConvolutionFirstTanhSecondCos2InputDiff(
           cos_output->tensor.shape, &intermediate2));
 
       OperationDef op_def_sub;
-      op_def_sub.src_tensors.push_back({data_type, storage, Layout::HWC});
-      op_def_sub.src_tensors.push_back({data_type, storage, Layout::HWC});
-      op_def_sub.dst_tensors.push_back({data_type, storage, Layout::HWC});
+      op_def_sub.src_tensors.push_back({data_type, storage, Layout::kHWC});
+      op_def_sub.src_tensors.push_back({data_type, storage, Layout::kHWC});
+      op_def_sub.dst_tensors.push_back({data_type, storage, Layout::kHWC});
       GPUOperation sub_operation = CreateElementwiseTwoInput(
-          env->GetGpuInfo(), op_def_sub, OperationType::SUB,
+          env->GetGpuInfo(), op_def_sub, OperationType::kSub,
           conv_output->tensor.shape, sub_output->tensor.shape);
       TensorFloat32 dst_tensor_v0;
       ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
@@ -1139,11 +1139,11 @@ absl::Status TestLinkingConvolutionFirstTanhSecondCos2InputDiff(
 absl::Status TestLinkingComplex0(TestExecutionEnvironment* env) {
   GraphFloat32 graph;
   auto input = graph.NewValue();
-  input->tensor.type = DataType::FLOAT32;
+  input->tensor.type = DataType::kFloat32;
   input->tensor.shape = BHWC(1, 32, 32, 128);
 
   auto conv_node = graph.NewNode();
-  conv_node->operation.type = ToString(OperationType::CONVOLUTION_2D);
+  conv_node->operation.type = ToString(OperationType::kConvolution2D);
 
   Convolution2DAttributes conv_attr;
   conv_attr.padding.prepended = HW(0, 0);
@@ -1151,7 +1151,7 @@ absl::Status TestLinkingComplex0(TestExecutionEnvironment* env) {
   conv_attr.strides = HW(1, 1);
   conv_attr.dilations = HW(1, 1);
   auto& attr_weights =
-      conv_attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::FLOAT32>>();
+      conv_attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(16, 1, 1, 128);
   attr_weights.data.resize(attr_weights.shape.DimensionsProduct() +
                            XNN_EXTRA_BYTES / sizeof(float));
@@ -1165,31 +1165,31 @@ absl::Status TestLinkingComplex0(TestExecutionEnvironment* env) {
   }
   conv_node->operation.attributes = conv_attr;
   auto conv_output = graph.NewValue();
-  conv_output->tensor.type = DataType::FLOAT32;
+  conv_output->tensor.type = DataType::kFloat32;
   conv_output->tensor.shape = BHWC(1, 32, 32, 16);
   graph.AddConsumer(conv_node->id, input->id);
   graph.SetProducer(conv_node->id, conv_output->id);
 
   auto tanh_node = graph.NewNode();
-  tanh_node->operation.type = ToString(OperationType::TANH);
+  tanh_node->operation.type = ToString(OperationType::kTanh);
   auto tanh_output = graph.NewValue();
-  tanh_output->tensor.type = DataType::FLOAT32;
+  tanh_output->tensor.type = DataType::kFloat32;
   tanh_output->tensor.shape = BHWC(1, 32, 32, 16);
   graph.AddConsumer(tanh_node->id, conv_output->id);
   graph.SetProducer(tanh_node->id, tanh_output->id);
 
   auto cos_node = graph.NewNode();
-  cos_node->operation.type = ToString(OperationType::COS);
+  cos_node->operation.type = ToString(OperationType::kCos);
   auto cos_output = graph.NewValue();
-  cos_output->tensor.type = DataType::FLOAT32;
+  cos_output->tensor.type = DataType::kFloat32;
   cos_output->tensor.shape = BHWC(1, 32, 32, 16);
   graph.AddConsumer(cos_node->id, conv_output->id);
   graph.SetProducer(cos_node->id, cos_output->id);
 
   auto prelu_node = graph.NewNode();
-  prelu_node->operation.type = ToString(OperationType::PRELU);
+  prelu_node->operation.type = ToString(OperationType::kPrelu);
   PReLUAttributes prelu_attr;
-  Tensor<Linear, DataType::FLOAT32> parameters;
+  Tensor<Linear, DataType::kFloat32> parameters;
   parameters.shape = Linear(16);
   parameters.data.resize(parameters.shape.DimensionsProduct());
   for (int i = 0; i < parameters.data.size(); ++i) {
@@ -1198,57 +1198,57 @@ absl::Status TestLinkingComplex0(TestExecutionEnvironment* env) {
   prelu_attr.alpha = parameters;
   prelu_node->operation.attributes = prelu_attr;
   auto prelu_output = graph.NewValue();
-  prelu_output->tensor.type = DataType::FLOAT32;
+  prelu_output->tensor.type = DataType::kFloat32;
   prelu_output->tensor.shape = BHWC(1, 32, 32, 16);
   graph.AddConsumer(prelu_node->id, cos_output->id);
   graph.SetProducer(prelu_node->id, prelu_output->id);
 
   auto abs_node = graph.NewNode();
-  abs_node->operation.type = ToString(OperationType::ABS);
+  abs_node->operation.type = ToString(OperationType::kAbs);
   auto abs_output = graph.NewValue();
-  abs_output->tensor.type = DataType::FLOAT32;
+  abs_output->tensor.type = DataType::kFloat32;
   abs_output->tensor.shape = BHWC(1, 32, 32, 16);
   graph.AddConsumer(abs_node->id, prelu_output->id);
   graph.SetProducer(abs_node->id, abs_output->id);
 
   auto sin_node = graph.NewNode();
-  sin_node->operation.type = ToString(OperationType::SIN);
+  sin_node->operation.type = ToString(OperationType::kSin);
   auto sin_output = graph.NewValue();
-  sin_output->tensor.type = DataType::FLOAT32;
+  sin_output->tensor.type = DataType::kFloat32;
   sin_output->tensor.shape = BHWC(1, 32, 32, 16);
   graph.AddConsumer(sin_node->id, cos_output->id);
   graph.SetProducer(sin_node->id, sin_output->id);
 
   auto pow_node = graph.NewNode();
-  pow_node->operation.type = ToString(OperationType::POW);
+  pow_node->operation.type = ToString(OperationType::kPow);
   auto pow_output = graph.NewValue();
-  pow_output->tensor.type = DataType::FLOAT32;
+  pow_output->tensor.type = DataType::kFloat32;
   pow_output->tensor.shape = BHWC(1, 32, 32, 16);
   graph.AddConsumer(pow_node->id, abs_output->id);
   graph.AddConsumer(pow_node->id, sin_output->id);
   graph.SetProducer(pow_node->id, pow_output->id);
 
   auto exp_node = graph.NewNode();
-  exp_node->operation.type = ToString(OperationType::EXP);
+  exp_node->operation.type = ToString(OperationType::kExp);
   auto exp_output = graph.NewValue();
-  exp_output->tensor.type = DataType::FLOAT32;
+  exp_output->tensor.type = DataType::kFloat32;
   exp_output->tensor.shape = BHWC(1, 32, 32, 16);
   graph.AddConsumer(exp_node->id, pow_output->id);
   graph.SetProducer(exp_node->id, exp_output->id);
 
   auto sub_node = graph.NewNode();
-  sub_node->operation.type = ToString(OperationType::SUB);
+  sub_node->operation.type = ToString(OperationType::kSub);
   auto sub_output = graph.NewValue();
-  sub_output->tensor.type = DataType::FLOAT32;
+  sub_output->tensor.type = DataType::kFloat32;
   sub_output->tensor.shape = BHWC(1, 32, 32, 16);
   graph.AddConsumer(sub_node->id, tanh_output->id);
   graph.AddConsumer(sub_node->id, exp_output->id);
   graph.SetProducer(sub_node->id, sub_output->id);
 
-  for (auto data_type : {DataType::FLOAT32, DataType::FLOAT16}) {
-    CalculationsPrecision precision = data_type == DataType::FLOAT32
-                                          ? CalculationsPrecision::F32
-                                          : CalculationsPrecision::F16;
+  for (auto data_type : {DataType::kFloat32, DataType::kFloat16}) {
+    CalculationsPrecision precision = data_type == DataType::kFloat32
+                                          ? CalculationsPrecision::kF32
+                                          : CalculationsPrecision::kF16;
     for (auto storage : env->GetSupportedStorages(data_type)) {
       CreateGpuModelInfo create_info;
       create_info.precision = precision;
@@ -1276,13 +1276,16 @@ absl::Status TestLinkingComplex0(TestExecutionEnvironment* env) {
           &gpu_model));
 
       OperationDef op_def;
-      op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-      op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+      op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+      op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
 
       OperationDef op_def_two_input;
-      op_def_two_input.src_tensors.push_back({data_type, storage, Layout::HWC});
-      op_def_two_input.src_tensors.push_back({data_type, storage, Layout::HWC});
-      op_def_two_input.dst_tensors.push_back({data_type, storage, Layout::HWC});
+      op_def_two_input.src_tensors.push_back(
+          {data_type, storage, Layout::kHWC});
+      op_def_two_input.src_tensors.push_back(
+          {data_type, storage, Layout::kHWC});
+      op_def_two_input.dst_tensors.push_back(
+          {data_type, storage, Layout::kHWC});
 
       ConvGeneric conv_operation =
           CreateConvGeneric(env->GetGpuInfo(), op_def, precision, conv_attr);
@@ -1292,7 +1295,7 @@ absl::Status TestLinkingComplex0(TestExecutionEnvironment* env) {
           conv_output->tensor.shape, &intermediate0));
 
       GPUOperation tanh_operation = CreateElementwiseOneInput(
-          env->GetGpuInfo(), op_def, OperationType::TANH);
+          env->GetGpuInfo(), op_def, OperationType::kTanh);
       TensorFloat32 intermediate1;
       ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           intermediate0,
@@ -1300,7 +1303,7 @@ absl::Status TestLinkingComplex0(TestExecutionEnvironment* env) {
           tanh_output->tensor.shape, &intermediate1));
 
       GPUOperation cos_operation = CreateElementwiseOneInput(
-          env->GetGpuInfo(), op_def, OperationType::COS);
+          env->GetGpuInfo(), op_def, OperationType::kCos);
       TensorFloat32 intermediate2;
       ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           intermediate0,
@@ -1316,7 +1319,7 @@ absl::Status TestLinkingComplex0(TestExecutionEnvironment* env) {
           prelu_output->tensor.shape, &intermediate3));
 
       GPUOperation abs_operation = CreateElementwiseOneInput(
-          env->GetGpuInfo(), op_def, OperationType::ABS);
+          env->GetGpuInfo(), op_def, OperationType::kAbs);
       TensorFloat32 intermediate4;
       ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           intermediate3,
@@ -1324,7 +1327,7 @@ absl::Status TestLinkingComplex0(TestExecutionEnvironment* env) {
           prelu_output->tensor.shape, &intermediate4));
 
       GPUOperation sin_operation = CreateElementwiseOneInput(
-          env->GetGpuInfo(), op_def, OperationType::SIN);
+          env->GetGpuInfo(), op_def, OperationType::kSin);
       TensorFloat32 intermediate5;
       ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           intermediate2,
@@ -1332,7 +1335,7 @@ absl::Status TestLinkingComplex0(TestExecutionEnvironment* env) {
           sin_output->tensor.shape, &intermediate5));
 
       GPUOperation pow_operation = CreateElementwiseTwoInput(
-          env->GetGpuInfo(), op_def_two_input, OperationType::POW,
+          env->GetGpuInfo(), op_def_two_input, OperationType::kPow,
           sin_output->tensor.shape, pow_output->tensor.shape);
       TensorFloat32 intermediate6;
       ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
@@ -1341,7 +1344,7 @@ absl::Status TestLinkingComplex0(TestExecutionEnvironment* env) {
           pow_output->tensor.shape, &intermediate6));
 
       GPUOperation exp_operation = CreateElementwiseOneInput(
-          env->GetGpuInfo(), op_def, OperationType::EXP);
+          env->GetGpuInfo(), op_def, OperationType::kExp);
       TensorFloat32 intermediate7;
       ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           intermediate6,
@@ -1349,7 +1352,7 @@ absl::Status TestLinkingComplex0(TestExecutionEnvironment* env) {
           exp_output->tensor.shape, &intermediate7));
 
       GPUOperation sub_operation = CreateElementwiseTwoInput(
-          env->GetGpuInfo(), op_def_two_input, OperationType::SUB,
+          env->GetGpuInfo(), op_def_two_input, OperationType::kSub,
           conv_output->tensor.shape, sub_output->tensor.shape);
       TensorFloat32 dst_tensor_v0;
       ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
@@ -1383,13 +1386,13 @@ absl::Status TestLinkingConvElem2InputAddElemsOp(
   GraphFloat32 graph;
   auto input0 = graph.NewValue();
   auto input1 = graph.NewValue();
-  input0->tensor.type = DataType::FLOAT32;
+  input0->tensor.type = DataType::kFloat32;
   input0->tensor.shape = BHWC(1, 32, 32, 16);
-  input1->tensor.type = DataType::FLOAT32;
+  input1->tensor.type = DataType::kFloat32;
   input1->tensor.shape = BHWC(1, 32, 32, 8);
 
   auto conv_node = graph.NewNode();
-  conv_node->operation.type = ToString(OperationType::CONVOLUTION_2D);
+  conv_node->operation.type = ToString(OperationType::kConvolution2D);
 
   Convolution2DAttributes conv_attr;
   conv_attr.padding.prepended = HW(0, 0);
@@ -1397,7 +1400,7 @@ absl::Status TestLinkingConvElem2InputAddElemsOp(
   conv_attr.strides = HW(1, 1);
   conv_attr.dilations = HW(1, 1);
   auto& attr_weights =
-      conv_attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::FLOAT32>>();
+      conv_attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(16, 1, 1, 8);
   attr_weights.data.resize(attr_weights.shape.DimensionsProduct() +
                            XNN_EXTRA_BYTES / sizeof(float));
@@ -1411,57 +1414,57 @@ absl::Status TestLinkingConvElem2InputAddElemsOp(
   }
   conv_node->operation.attributes = conv_attr;
   auto conv_output = graph.NewValue();
-  conv_output->tensor.type = DataType::FLOAT32;
+  conv_output->tensor.type = DataType::kFloat32;
   conv_output->tensor.shape = BHWC(1, 32, 32, 16);
   graph.AddConsumer(conv_node->id, input1->id);
   graph.SetProducer(conv_node->id, conv_output->id);
 
   auto cos0_node = graph.NewNode();
-  cos0_node->operation.type = ToString(OperationType::COS);
+  cos0_node->operation.type = ToString(OperationType::kCos);
   auto cos0_output = graph.NewValue();
-  cos0_output->tensor.type = DataType::FLOAT32;
+  cos0_output->tensor.type = DataType::kFloat32;
   cos0_output->tensor.shape = BHWC(1, 32, 32, 16);
   graph.AddConsumer(cos0_node->id, conv_output->id);
   graph.SetProducer(cos0_node->id, cos0_output->id);
 
   auto add_node = graph.NewNode();
-  add_node->operation.type = ToString(OperationType::ADD);
+  add_node->operation.type = ToString(OperationType::kAdd);
   auto add_output = graph.NewValue();
-  add_output->tensor.type = DataType::FLOAT32;
+  add_output->tensor.type = DataType::kFloat32;
   add_output->tensor.shape = BHWC(1, 32, 32, 16);
   graph.AddConsumer(add_node->id, input0->id);
   graph.AddConsumer(add_node->id, cos0_output->id);
   graph.SetProducer(add_node->id, add_output->id);
 
   auto cos1_node = graph.NewNode();
-  cos1_node->operation.type = ToString(OperationType::COS);
+  cos1_node->operation.type = ToString(OperationType::kCos);
   auto cos1_output = graph.NewValue();
-  cos1_output->tensor.type = DataType::FLOAT32;
+  cos1_output->tensor.type = DataType::kFloat32;
   cos1_output->tensor.shape = BHWC(1, 32, 32, 16);
   graph.AddConsumer(cos1_node->id, add_output->id);
   graph.SetProducer(cos1_node->id, cos1_output->id);
 
   auto sin_node = graph.NewNode();
-  sin_node->operation.type = ToString(OperationType::SIN);
+  sin_node->operation.type = ToString(OperationType::kSin);
   auto sin_output = graph.NewValue();
-  sin_output->tensor.type = DataType::FLOAT32;
+  sin_output->tensor.type = DataType::kFloat32;
   sin_output->tensor.shape = BHWC(1, 32, 32, 16);
   graph.AddConsumer(sin_node->id, cos1_output->id);
   graph.SetProducer(sin_node->id, sin_output->id);
 
   auto abs_node = graph.NewNode();
-  abs_node->operation.type = ToString(OperationType::ABS);
+  abs_node->operation.type = ToString(OperationType::kAbs);
   auto abs_output = graph.NewValue();
-  abs_output->tensor.type = DataType::FLOAT32;
+  abs_output->tensor.type = DataType::kFloat32;
   abs_output->tensor.shape = BHWC(1, 32, 32, 16);
   graph.AddConsumer(abs_node->id, sin_output->id);
   graph.SetProducer(abs_node->id, abs_output->id);
 
-  for (auto data_type : {DataType::FLOAT32, DataType::FLOAT16}) {
-    CalculationsPrecision precision = data_type == DataType::FLOAT32
-                                          ? CalculationsPrecision::F32
-                                          : CalculationsPrecision::F16;
-    if (precision != CalculationsPrecision::F16) {
+  for (auto data_type : {DataType::kFloat32, DataType::kFloat16}) {
+    CalculationsPrecision precision = data_type == DataType::kFloat32
+                                          ? CalculationsPrecision::kF32
+                                          : CalculationsPrecision::kF16;
+    if (precision != CalculationsPrecision::kF16) {
       continue;
     }
     for (auto storage : env->GetSupportedStorages(data_type)) {
@@ -1496,13 +1499,16 @@ absl::Status TestLinkingConvElem2InputAddElemsOp(
           std::vector<TensorFloat32*>{&dst_tensor_v1}, &gpu_model));
 
       OperationDef op_def;
-      op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-      op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+      op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+      op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
 
       OperationDef op_def_two_input;
-      op_def_two_input.src_tensors.push_back({data_type, storage, Layout::HWC});
-      op_def_two_input.src_tensors.push_back({data_type, storage, Layout::HWC});
-      op_def_two_input.dst_tensors.push_back({data_type, storage, Layout::HWC});
+      op_def_two_input.src_tensors.push_back(
+          {data_type, storage, Layout::kHWC});
+      op_def_two_input.src_tensors.push_back(
+          {data_type, storage, Layout::kHWC});
+      op_def_two_input.dst_tensors.push_back(
+          {data_type, storage, Layout::kHWC});
 
       ConvGeneric conv_operation =
           CreateConvGeneric(env->GetGpuInfo(), op_def, precision, conv_attr);
@@ -1512,7 +1518,7 @@ absl::Status TestLinkingConvElem2InputAddElemsOp(
           conv_output->tensor.shape, &intermediate1));
 
       GPUOperation cos0_operation = CreateElementwiseOneInput(
-          env->GetGpuInfo(), op_def, OperationType::COS);
+          env->GetGpuInfo(), op_def, OperationType::kCos);
       TensorFloat32 intermediate2;
       ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           intermediate1,
@@ -1520,7 +1526,7 @@ absl::Status TestLinkingConvElem2InputAddElemsOp(
           cos0_output->tensor.shape, &intermediate2));
 
       GPUOperation add_operation = CreateElementwiseTwoInput(
-          env->GetGpuInfo(), op_def_two_input, OperationType::ADD,
+          env->GetGpuInfo(), op_def_two_input, OperationType::kAdd,
           add_output->tensor.shape, add_output->tensor.shape);
       TensorFloat32 intermediate3;
       ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
@@ -1529,7 +1535,7 @@ absl::Status TestLinkingConvElem2InputAddElemsOp(
           add_output->tensor.shape, &intermediate3));
 
       GPUOperation cos1_operation = CreateElementwiseOneInput(
-          env->GetGpuInfo(), op_def, OperationType::COS);
+          env->GetGpuInfo(), op_def, OperationType::kCos);
       TensorFloat32 intermediate4;
       ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           intermediate3,
@@ -1537,7 +1543,7 @@ absl::Status TestLinkingConvElem2InputAddElemsOp(
           cos1_output->tensor.shape, &intermediate4));
 
       GPUOperation sin_operation = CreateElementwiseOneInput(
-          env->GetGpuInfo(), op_def, OperationType::SIN);
+          env->GetGpuInfo(), op_def, OperationType::kSin);
       TensorFloat32 intermediate5;
       ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           intermediate4,
@@ -1545,7 +1551,7 @@ absl::Status TestLinkingConvElem2InputAddElemsOp(
           sin_output->tensor.shape, &intermediate5));
 
       GPUOperation abs_operation = CreateElementwiseOneInput(
-          env->GetGpuInfo(), op_def, OperationType::ABS);
+          env->GetGpuInfo(), op_def, OperationType::kAbs);
       TensorFloat32 dst_tensor_v0;
       ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           intermediate5,
@@ -1568,11 +1574,11 @@ absl::Status TestLinkingConvElem2InputAddElemsOp(
 absl::Status TestLinkingSliceCastOp(TestExecutionEnvironment* env) {
   GraphFloat32 graph;
   auto input = graph.NewValue();
-  input->tensor.type = DataType::FLOAT32;
+  input->tensor.type = DataType::kFloat32;
   input->tensor.shape = BHWC(1, 1, 1, 4);
 
   auto slice_node = graph.NewNode();
-  slice_node->operation.type = ToString(OperationType::SLICE);
+  slice_node->operation.type = ToString(OperationType::kSlice);
 
   SliceAttributes slice_attr;
   slice_attr.strides = BHWC(1, 1, 1, 1);
@@ -1583,22 +1589,22 @@ absl::Status TestLinkingSliceCastOp(TestExecutionEnvironment* env) {
   graph.AddConsumer(slice_node->id, input->id);
 
   auto cast_int_node = graph.NewNode();
-  cast_int_node->operation.type = ToString(OperationType::CAST);
+  cast_int_node->operation.type = ToString(OperationType::kCast);
   Value* slice_output = nullptr;
   ABSL_RETURN_IF_ERROR(
       ConnectTwoNodes(&graph, slice_node, cast_int_node, &slice_output));
-  slice_output->tensor.type = DataType::FLOAT32;
+  slice_output->tensor.type = DataType::kFloat32;
   slice_output->tensor.shape = BHWC(1, 1, 1, 1);
 
   Value* cast_int_output = nullptr;
   ABSL_RETURN_IF_ERROR(AddOutput(&graph, cast_int_node, &cast_int_output));
-  cast_int_output->tensor.type = DataType::INT32;
+  cast_int_output->tensor.type = DataType::kInt32;
   cast_int_output->tensor.shape = BHWC(1, 1, 1, 1);
 
-  for (auto data_type : {DataType::FLOAT32, DataType::FLOAT16}) {
-    CalculationsPrecision precision = data_type == DataType::FLOAT32
-                                          ? CalculationsPrecision::F32
-                                          : CalculationsPrecision::F16;
+  for (auto data_type : {DataType::kFloat32, DataType::kFloat16}) {
+    CalculationsPrecision precision = data_type == DataType::kFloat32
+                                          ? CalculationsPrecision::kF32
+                                          : CalculationsPrecision::kF16;
     for (auto storage : env->GetSupportedStorages(data_type)) {
       CreateGpuModelInfo create_info;
       create_info.precision = precision;
@@ -1623,8 +1629,8 @@ absl::Status TestLinkingSliceCastOp(TestExecutionEnvironment* env) {
 
       TensorFloat32 intermediate;
       OperationDef op_def;
-      op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-      op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+      op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+      op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
 
       StridedSlice slice_operation = CreateStridedSlice(op_def, slice_attr);
       ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
@@ -1633,14 +1639,14 @@ absl::Status TestLinkingSliceCastOp(TestExecutionEnvironment* env) {
           slice_output->tensor.shape, &intermediate));
 
       OperationDef cast_int_op_def;
-      DataType int_data_type = DataType::INT32;
-      cast_int_op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
+      DataType int_data_type = DataType::kInt32;
+      cast_int_op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
       cast_int_op_def.dst_tensors.push_back(
-          {int_data_type, storage, Layout::HWC});
+          {int_data_type, storage, Layout::kHWC});
 
       GPUOperation cast_int_operation =
           CreateCast(cast_int_op_def, env->GetGpuInfo());
-      using TensorInt32 = Tensor<BHWC, DataType::INT32>;
+      using TensorInt32 = Tensor<BHWC, DataType::kInt32>;
       TensorInt32 dst_tensor_v0;
       ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           std::vector<TensorFloat32>{intermediate},
@@ -1669,10 +1675,10 @@ absl::Status TestLinkingAddAddMulOp(TestExecutionEnvironment* env,
                                     bool use_second_input_add) {
   GraphFloat32 graph;
   auto input = graph.NewValue();
-  input->tensor.type = DataType::FLOAT32;
+  input->tensor.type = DataType::kFloat32;
   input->tensor.shape = BHWC(1, 1, 5, 4);
   auto reshape_node = graph.NewNode();
-  reshape_node->operation.type = ToString(OperationType::RESHAPE);
+  reshape_node->operation.type = ToString(OperationType::kReshape);
   ReshapeAttributes reshape_attr;
   reshape_attr.new_shape = BHWC(1, 1, 1, 20);
   reshape_node->operation.attributes = reshape_attr;
@@ -1681,35 +1687,35 @@ absl::Status TestLinkingAddAddMulOp(TestExecutionEnvironment* env,
   ElementwiseAttributes add_attr;
   add_attr.param = 1.0f;
   auto add_left_node = graph.NewNode();
-  add_left_node->operation.type = ToString(OperationType::ADD);
+  add_left_node->operation.type = ToString(OperationType::kAdd);
   add_left_node->operation.attributes = add_attr;
   Value* reshape_output = nullptr;
   ABSL_RETURN_IF_ERROR(
       ConnectTwoNodes(&graph, reshape_node, add_left_node, &reshape_output));
-  reshape_output->tensor.type = DataType::FLOAT32;
+  reshape_output->tensor.type = DataType::kFloat32;
   reshape_output->tensor.shape = BHWC(1, 1, 1, 20);
 
   Node* second_input_node = reshape_node;
   if (use_second_input_add) {
     auto add_right_node = graph.NewNode();
-    add_right_node->operation.type = ToString(OperationType::ADD);
+    add_right_node->operation.type = ToString(OperationType::kAdd);
     add_right_node->operation.attributes = add_attr;
     ABSL_RETURN_IF_ERROR(
         ConnectTwoNodes(&graph, reshape_node, add_right_node, &reshape_output));
     second_input_node = add_right_node;
   }
   auto mul_node = graph.NewNode();
-  mul_node->operation.type = ToString(OperationType::MUL);
+  mul_node->operation.type = ToString(OperationType::kMul);
   Value* add_left_output = nullptr;
   ABSL_RETURN_IF_ERROR(
       ConnectTwoNodes(&graph, add_left_node, mul_node, &add_left_output));
-  add_left_output->tensor.type = DataType::FLOAT32;
+  add_left_output->tensor.type = DataType::kFloat32;
   add_left_output->tensor.shape = BHWC(1, 1, 1, 20);
   if (use_second_input_add) {
     Value* add_right_output = nullptr;
     ABSL_RETURN_IF_ERROR(ConnectTwoNodes(&graph, second_input_node, mul_node,
                                          &add_right_output));
-    add_right_output->tensor.type = DataType::FLOAT32;
+    add_right_output->tensor.type = DataType::kFloat32;
     add_right_output->tensor.shape = BHWC(1, 1, 1, 20);
   } else {
     ABSL_RETURN_IF_ERROR(
@@ -1717,13 +1723,13 @@ absl::Status TestLinkingAddAddMulOp(TestExecutionEnvironment* env,
   }
   Value* mul_output = nullptr;
   ABSL_RETURN_IF_ERROR(AddOutput(&graph, mul_node, &mul_output));
-  mul_output->tensor.type = DataType::FLOAT32;
+  mul_output->tensor.type = DataType::kFloat32;
   mul_output->tensor.shape = BHWC(1, 1, 1, 20);
 
-  for (auto data_type : {DataType::FLOAT32, DataType::FLOAT16}) {
-    CalculationsPrecision precision = data_type == DataType::FLOAT32
-                                          ? CalculationsPrecision::F32
-                                          : CalculationsPrecision::F16;
+  for (auto data_type : {DataType::kFloat32, DataType::kFloat16}) {
+    CalculationsPrecision precision = data_type == DataType::kFloat32
+                                          ? CalculationsPrecision::kF32
+                                          : CalculationsPrecision::kF16;
     for (auto storage : env->GetSupportedStorages(data_type)) {
       CreateGpuModelInfo create_info;
       create_info.precision = precision;
@@ -1744,9 +1750,9 @@ absl::Status TestLinkingAddAddMulOp(TestExecutionEnvironment* env,
           &gpu_model));
       TensorFloat32 intermediate;
       OperationDef op_def;
-      op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-      op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-      op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+      op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+      op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+      op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
 
       GPUOperation reshape_operation = CreateReshape(op_def);
       ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
@@ -1759,7 +1765,7 @@ absl::Status TestLinkingAddAddMulOp(TestExecutionEnvironment* env,
       ones.shape = intermediate.shape;
       ones.data = std::vector(ones.shape.DimensionsProduct(), 1.0f);
       GPUOperation add_operation = CreateElementwiseTwoInput(
-          env->GetGpuInfo(), op_def, OperationType::ADD,
+          env->GetGpuInfo(), op_def, OperationType::kAdd,
           reshape_output->tensor.shape, add_left_output->tensor.shape);
       ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           {intermediate, ones},
@@ -1771,7 +1777,7 @@ absl::Status TestLinkingAddAddMulOp(TestExecutionEnvironment* env,
       }
       TensorFloat32 dst_tensor_v0;
       GPUOperation mul_operation = CreateElementwiseTwoInput(
-          env->GetGpuInfo(), op_def, OperationType::MUL,
+          env->GetGpuInfo(), op_def, OperationType::kMul,
           add_left_output->tensor.shape, add_left_output->tensor.shape);
       ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           {add, second_input},
@@ -1786,39 +1792,39 @@ absl::Status TestLinkingAddAddMulOp(TestExecutionEnvironment* env,
 absl::Status TestLinkingConcatAndCosOp(TestExecutionEnvironment* env) {
   GraphFloat32 graph;
   auto input0 = graph.NewValue();
-  input0->tensor.type = DataType::FLOAT32;
+  input0->tensor.type = DataType::kFloat32;
   input0->tensor.shape = BHWC(1, 32, 32, 21);
   auto input1 = graph.NewValue();
-  input1->tensor.type = DataType::FLOAT32;
+  input1->tensor.type = DataType::kFloat32;
   input1->tensor.shape = BHWC(1, 32, 32, 7);
 
   auto concat_node = graph.NewNode();
-  concat_node->operation.type = ToString(OperationType::CONCAT);
+  concat_node->operation.type = ToString(OperationType::kConcat);
 
   ConcatAttributes concat_attr;
-  concat_attr.axis = Axis::CHANNELS;
+  concat_attr.axis = Axis::kChannels;
 
   concat_node->operation.attributes = concat_attr;
   graph.AddConsumer(concat_node->id, input0->id);
   graph.AddConsumer(concat_node->id, input1->id);
 
   auto cos_node = graph.NewNode();
-  cos_node->operation.type = ToString(OperationType::COS);
+  cos_node->operation.type = ToString(OperationType::kCos);
   Value* concat_output = nullptr;
   ABSL_RETURN_IF_ERROR(
       ConnectTwoNodes(&graph, concat_node, cos_node, &concat_output));
-  concat_output->tensor.type = DataType::FLOAT32;
+  concat_output->tensor.type = DataType::kFloat32;
   concat_output->tensor.shape = BHWC(1, 32, 32, 28);
 
   Value* cos_output = nullptr;
   ABSL_RETURN_IF_ERROR(AddOutput(&graph, cos_node, &cos_output));
-  cos_output->tensor.type = DataType::FLOAT32;
+  cos_output->tensor.type = DataType::kFloat32;
   cos_output->tensor.shape = BHWC(1, 32, 32, 28);
 
-  for (auto data_type : {DataType::FLOAT32, DataType::FLOAT16}) {
-    CalculationsPrecision precision = data_type == DataType::FLOAT32
-                                          ? CalculationsPrecision::F32
-                                          : CalculationsPrecision::F16;
+  for (auto data_type : {DataType::kFloat32, DataType::kFloat16}) {
+    CalculationsPrecision precision = data_type == DataType::kFloat32
+                                          ? CalculationsPrecision::kF32
+                                          : CalculationsPrecision::kF16;
     for (auto storage : env->GetSupportedStorages(data_type)) {
       CreateGpuModelInfo create_info;
       create_info.precision = precision;
@@ -1851,13 +1857,16 @@ absl::Status TestLinkingConcatAndCosOp(TestExecutionEnvironment* env) {
           std::vector<TensorFloat32*>{&dst_tensor_v1}, &gpu_model));
 
       OperationDef op_def;
-      op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-      op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+      op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+      op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
 
       OperationDef op_def_two_input;
-      op_def_two_input.src_tensors.push_back({data_type, storage, Layout::HWC});
-      op_def_two_input.src_tensors.push_back({data_type, storage, Layout::HWC});
-      op_def_two_input.dst_tensors.push_back({data_type, storage, Layout::HWC});
+      op_def_two_input.src_tensors.push_back(
+          {data_type, storage, Layout::kHWC});
+      op_def_two_input.src_tensors.push_back(
+          {data_type, storage, Layout::kHWC});
+      op_def_two_input.dst_tensors.push_back(
+          {data_type, storage, Layout::kHWC});
 
       GPUOperation concat_operation =
           CreateConcatZ(op_def_two_input, {21, 7}, env->GetGpuInfo());
@@ -1868,7 +1877,7 @@ absl::Status TestLinkingConcatAndCosOp(TestExecutionEnvironment* env) {
           concat_output->tensor.shape, &intermediate));
 
       GPUOperation cos_operation = CreateElementwiseOneInput(
-          env->GetGpuInfo(), op_def, OperationType::COS);
+          env->GetGpuInfo(), op_def, OperationType::kCos);
       TensorFloat32 dst_tensor_v0;
       ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           intermediate,
@@ -1884,31 +1893,31 @@ absl::Status TestLinkingConcatAndCosOp(TestExecutionEnvironment* env) {
 absl::Status TestLinkingCosAndCosOp(TestExecutionEnvironment* env) {
   GraphFloat32 graph;
   auto input = graph.NewValue();
-  input->tensor.type = DataType::FLOAT32;
+  input->tensor.type = DataType::kFloat32;
   input->tensor.shape = BHWC(1, 32, 32, 16);
 
   auto cos0_node = graph.NewNode();
-  cos0_node->operation.type = ToString(OperationType::COS);
+  cos0_node->operation.type = ToString(OperationType::kCos);
 
   graph.AddConsumer(cos0_node->id, input->id);
 
   auto cos1_node = graph.NewNode();
-  cos1_node->operation.type = ToString(OperationType::COS);
+  cos1_node->operation.type = ToString(OperationType::kCos);
   Value* cos0_output = nullptr;
   ABSL_RETURN_IF_ERROR(
       ConnectTwoNodes(&graph, cos0_node, cos1_node, &cos0_output));
-  cos0_output->tensor.type = DataType::FLOAT32;
+  cos0_output->tensor.type = DataType::kFloat32;
   cos0_output->tensor.shape = BHWC(1, 32, 32, 16);
 
   Value* cos1_output = nullptr;
   ABSL_RETURN_IF_ERROR(AddOutput(&graph, cos1_node, &cos1_output));
-  cos1_output->tensor.type = DataType::FLOAT32;
+  cos1_output->tensor.type = DataType::kFloat32;
   cos1_output->tensor.shape = BHWC(1, 32, 32, 16);
 
-  for (auto data_type : {DataType::FLOAT32, DataType::FLOAT16}) {
-    CalculationsPrecision precision = data_type == DataType::FLOAT32
-                                          ? CalculationsPrecision::F32
-                                          : CalculationsPrecision::F16;
+  for (auto data_type : {DataType::kFloat32, DataType::kFloat16}) {
+    CalculationsPrecision precision = data_type == DataType::kFloat32
+                                          ? CalculationsPrecision::kF32
+                                          : CalculationsPrecision::kF16;
     for (auto storage : env->GetSupportedStorages(data_type)) {
       CreateGpuModelInfo create_info;
       create_info.precision = precision;
@@ -1936,18 +1945,18 @@ absl::Status TestLinkingCosAndCosOp(TestExecutionEnvironment* env) {
           &gpu_model));
 
       OperationDef op_def;
-      op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-      op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+      op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+      op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
 
       GPUOperation cos0_operation = CreateElementwiseOneInput(
-          env->GetGpuInfo(), op_def, OperationType::COS);
+          env->GetGpuInfo(), op_def, OperationType::kCos);
       TensorFloat32 intermediate;
       ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           src_tensor, std::make_unique<GPUOperation>(std::move(cos0_operation)),
           cos0_output->tensor.shape, &intermediate));
 
       GPUOperation cos1_operation = CreateElementwiseOneInput(
-          env->GetGpuInfo(), op_def, OperationType::COS);
+          env->GetGpuInfo(), op_def, OperationType::kCos);
       TensorFloat32 dst_tensor_v0;
       ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
           intermediate,
@@ -1963,31 +1972,31 @@ absl::Status TestLinkingCosAndCosOp(TestExecutionEnvironment* env) {
 absl::Status TestFloatCastToBoolCastToFloat(TestExecutionEnvironment* env) {
   GraphFloat32 graph;
   auto input = graph.NewValue();
-  input->tensor.type = DataType::FLOAT32;
+  input->tensor.type = DataType::kFloat32;
   input->tensor.shape = BHWC(1, 32, 32, 16);
 
   auto cast0_node = graph.NewNode();
-  cast0_node->operation.type = ToString(OperationType::CAST);
+  cast0_node->operation.type = ToString(OperationType::kCast);
 
   graph.AddConsumer(cast0_node->id, input->id);
 
   auto cast1_node = graph.NewNode();
-  cast1_node->operation.type = ToString(OperationType::CAST);
+  cast1_node->operation.type = ToString(OperationType::kCast);
   Value* cast0_output = nullptr;
   ABSL_RETURN_IF_ERROR(
       ConnectTwoNodes(&graph, cast0_node, cast1_node, &cast0_output));
-  cast0_output->tensor.type = DataType::BOOL;
+  cast0_output->tensor.type = DataType::kBool;
   cast0_output->tensor.shape = BHWC(1, 32, 32, 16);
 
   Value* cast1_output = nullptr;
   ABSL_RETURN_IF_ERROR(AddOutput(&graph, cast1_node, &cast1_output));
-  cast1_output->tensor.type = DataType::FLOAT32;
+  cast1_output->tensor.type = DataType::kFloat32;
   cast1_output->tensor.shape = BHWC(1, 32, 32, 16);
 
-  for (auto float_storage : env->GetSupportedStorages(DataType::FLOAT32)) {
-    for (auto bool_storage : env->GetSupportedStorages(DataType::BOOL)) {
+  for (auto float_storage : env->GetSupportedStorages(DataType::kFloat32)) {
+    for (auto bool_storage : env->GetSupportedStorages(DataType::kBool)) {
       CreateGpuModelInfo create_info;
-      create_info.precision = CalculationsPrecision::F32;
+      create_info.precision = CalculationsPrecision::kF32;
       create_info.storage_type = float_storage;
       create_info.hints.Add(ModelHints::kAllowSpecialKernels);
 
@@ -2013,18 +2022,18 @@ absl::Status TestFloatCastToBoolCastToFloat(TestExecutionEnvironment* env) {
 
       OperationDef op0_def;
       op0_def.src_tensors.push_back(
-          {DataType::FLOAT32, float_storage, Layout::HWC});
+          {DataType::kFloat32, float_storage, Layout::kHWC});
       op0_def.dst_tensors.push_back(
-          {DataType::BOOL, bool_storage, Layout::HWC});
+          {DataType::kBool, bool_storage, Layout::kHWC});
 
       OperationDef op1_def;
       op1_def.src_tensors.push_back(
-          {DataType::BOOL, bool_storage, Layout::HWC});
+          {DataType::kBool, bool_storage, Layout::kHWC});
       op1_def.dst_tensors.push_back(
-          {DataType::FLOAT32, float_storage, Layout::HWC});
+          {DataType::kFloat32, float_storage, Layout::kHWC});
 
       GPUOperation cast0_operation = CreateCast(op0_def, env->GetGpuInfo());
-      Tensor<BHWC, DataType::BOOL> intermediate;
+      Tensor<BHWC, DataType::kBool> intermediate;
       {
         std::vector<TensorDescriptor> src_cpu_descs(1);
         std::vector<TensorDescriptor*> src_cpu_desc_ptrs(1);
@@ -2079,11 +2088,11 @@ absl::Status TestFloatCastToBoolCastToFloat(TestExecutionEnvironment* env) {
 absl::Status TestReshapeTranspose(TestExecutionEnvironment* env) {
   GraphFloat32 graph;
   auto input = graph.NewValue();
-  input->tensor.type = DataType::FLOAT32;
+  input->tensor.type = DataType::kFloat32;
   input->tensor.shape = BHWC(1, 2, 4, 8);
 
   auto reshape_node = graph.NewNode();
-  reshape_node->operation.type = ToString(OperationType::RESHAPE);
+  reshape_node->operation.type = ToString(OperationType::kReshape);
   ReshapeAttributes reshape_attr;
   reshape_attr.new_shape = BHWC(1, 2, 8, 4);
   reshape_node->operation.attributes = reshape_attr;
@@ -2091,25 +2100,25 @@ absl::Status TestReshapeTranspose(TestExecutionEnvironment* env) {
   graph.AddConsumer(reshape_node->id, input->id);
 
   auto transpose_node = graph.NewNode();
-  transpose_node->operation.type = ToString(OperationType::TRANSPOSE);
+  transpose_node->operation.type = ToString(OperationType::kTranspose);
   TransposeAttributes transpose_attr;
   transpose_attr.perm = BHWC(0, 2, 1, 3);
   transpose_node->operation.attributes = transpose_attr;
   Value* interm_tensor_ptr = nullptr;
   ABSL_RETURN_IF_ERROR(ConnectTwoNodes(&graph, reshape_node, transpose_node,
                                        &interm_tensor_ptr));
-  interm_tensor_ptr->tensor.type = DataType::FLOAT32;
+  interm_tensor_ptr->tensor.type = DataType::kFloat32;
   interm_tensor_ptr->tensor.shape = BHWC(1, 2, 8, 4);
 
   Value* output_tensor_ptr = nullptr;
   ABSL_RETURN_IF_ERROR(AddOutput(&graph, transpose_node, &output_tensor_ptr));
-  output_tensor_ptr->tensor.type = DataType::FLOAT32;
+  output_tensor_ptr->tensor.type = DataType::kFloat32;
   output_tensor_ptr->tensor.shape = BHWC(1, 8, 2, 4);
 
-  for (auto data_type : {DataType::FLOAT32, DataType::FLOAT16}) {
-    CalculationsPrecision precision = data_type == DataType::FLOAT32
-                                          ? CalculationsPrecision::F32
-                                          : CalculationsPrecision::F16;
+  for (auto data_type : {DataType::kFloat32, DataType::kFloat16}) {
+    CalculationsPrecision precision = data_type == DataType::kFloat32
+                                          ? CalculationsPrecision::kF32
+                                          : CalculationsPrecision::kF16;
     for (auto storage : env->GetSupportedStorages(data_type)) {
       CreateGpuModelInfo create_info;
       create_info.precision = precision;
@@ -2137,8 +2146,8 @@ absl::Status TestReshapeTranspose(TestExecutionEnvironment* env) {
           &gpu_model));
 
       OperationDef op_def;
-      op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-      op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+      op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+      op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
 
       Reshapex4 reshape_operation = CreateReshapex4(op_def);
       reshape_operation.ResolveReorderFinalShape(
@@ -2178,11 +2187,11 @@ absl::Status TestReshapeTranspose(TestExecutionEnvironment* env) {
 absl::Status TestReshapeTransposeReshape(TestExecutionEnvironment* env) {
   GraphFloat32 graph;
   auto input = graph.NewValue();
-  input->tensor.type = DataType::FLOAT32;
+  input->tensor.type = DataType::kFloat32;
   input->tensor.shape = BHWC(1, 2, 4, 8);
 
   auto reshape0_node = graph.NewNode();
-  reshape0_node->operation.type = ToString(OperationType::RESHAPE);
+  reshape0_node->operation.type = ToString(OperationType::kReshape);
   ReshapeAttributes reshape0_attr;
   reshape0_attr.new_shape = BHWC(1, 2, 8, 4);
   reshape0_node->operation.attributes = reshape0_attr;
@@ -2190,36 +2199,36 @@ absl::Status TestReshapeTransposeReshape(TestExecutionEnvironment* env) {
   graph.AddConsumer(reshape0_node->id, input->id);
 
   auto transpose_node = graph.NewNode();
-  transpose_node->operation.type = ToString(OperationType::TRANSPOSE);
+  transpose_node->operation.type = ToString(OperationType::kTranspose);
   TransposeAttributes transpose_attr;
   transpose_attr.perm = BHWC(0, 2, 1, 3);
   transpose_node->operation.attributes = transpose_attr;
   Value* interm0_tensor_ptr = nullptr;
   ABSL_RETURN_IF_ERROR(ConnectTwoNodes(&graph, reshape0_node, transpose_node,
                                        &interm0_tensor_ptr));
-  interm0_tensor_ptr->tensor.type = DataType::FLOAT32;
+  interm0_tensor_ptr->tensor.type = DataType::kFloat32;
   interm0_tensor_ptr->tensor.shape = BHWC(1, 2, 8, 4);
 
   auto reshape1_node = graph.NewNode();
-  reshape1_node->operation.type = ToString(OperationType::RESHAPE);
+  reshape1_node->operation.type = ToString(OperationType::kReshape);
   ReshapeAttributes reshape1_attr;
   reshape1_attr.new_shape = BHWC(1, 2, 8, 4);
   reshape1_node->operation.attributes = reshape1_attr;
   Value* interm1_tensor_ptr = nullptr;
   ABSL_RETURN_IF_ERROR(ConnectTwoNodes(&graph, transpose_node, reshape1_node,
                                        &interm1_tensor_ptr));
-  interm1_tensor_ptr->tensor.type = DataType::FLOAT32;
+  interm1_tensor_ptr->tensor.type = DataType::kFloat32;
   interm1_tensor_ptr->tensor.shape = BHWC(1, 8, 2, 4);
 
   Value* output_tensor_ptr = nullptr;
   ABSL_RETURN_IF_ERROR(AddOutput(&graph, reshape1_node, &output_tensor_ptr));
-  output_tensor_ptr->tensor.type = DataType::FLOAT32;
+  output_tensor_ptr->tensor.type = DataType::kFloat32;
   output_tensor_ptr->tensor.shape = BHWC(1, 1, 1, 64);
 
-  for (auto data_type : {DataType::FLOAT32, DataType::FLOAT16}) {
-    CalculationsPrecision precision = data_type == DataType::FLOAT32
-                                          ? CalculationsPrecision::F32
-                                          : CalculationsPrecision::F16;
+  for (auto data_type : {DataType::kFloat32, DataType::kFloat16}) {
+    CalculationsPrecision precision = data_type == DataType::kFloat32
+                                          ? CalculationsPrecision::kF32
+                                          : CalculationsPrecision::kF16;
     for (auto storage : env->GetSupportedStorages(data_type)) {
       CreateGpuModelInfo create_info;
       create_info.precision = precision;
@@ -2247,8 +2256,8 @@ absl::Status TestReshapeTransposeReshape(TestExecutionEnvironment* env) {
           &gpu_model));
 
       OperationDef op_def;
-      op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-      op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+      op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+      op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
 
       Reshapex4 reshape0_operation = CreateReshapex4(op_def);
       reshape0_operation.ResolveReorderFinalShape(
@@ -2298,72 +2307,72 @@ absl::Status TestReshapeTransposeReshape(TestExecutionEnvironment* env) {
 absl::Status TestTwoInputTwise(TestExecutionEnvironment* env) {
   GraphFloat32 graph;
   auto input = graph.NewValue();
-  input->tensor.type = DataType::FLOAT32;
+  input->tensor.type = DataType::kFloat32;
   input->tensor.shape = BHWC(1, 64, 64, 32);
 
   auto reshape_node = graph.NewNode();
-  reshape_node->operation.type = ToString(OperationType::RESHAPE);
+  reshape_node->operation.type = ToString(OperationType::kReshape);
   ReshapeAttributes reshape_attr;
   reshape_attr.new_shape = BHWC(1, 32, 32, 128);
   reshape_node->operation.attributes = reshape_attr;
   auto reshape_output = graph.NewValue();
-  reshape_output->tensor.type = DataType::FLOAT32;
+  reshape_output->tensor.type = DataType::kFloat32;
   reshape_output->tensor.shape = BHWC(1, 32, 32, 128);
   graph.AddConsumer(reshape_node->id, input->id);
   graph.SetProducer(reshape_node->id, reshape_output->id);
 
   auto sin0_node = graph.NewNode();
-  sin0_node->operation.type = ToString(OperationType::SIN);
+  sin0_node->operation.type = ToString(OperationType::kSin);
   auto sin0_output = graph.NewValue();
-  sin0_output->tensor.type = DataType::FLOAT32;
+  sin0_output->tensor.type = DataType::kFloat32;
   sin0_output->tensor.shape = BHWC(1, 32, 32, 128);
   graph.AddConsumer(sin0_node->id, reshape_output->id);
   graph.SetProducer(sin0_node->id, sin0_output->id);
 
   auto cos0_node = graph.NewNode();
-  cos0_node->operation.type = ToString(OperationType::COS);
+  cos0_node->operation.type = ToString(OperationType::kCos);
   auto cos0_output = graph.NewValue();
-  cos0_output->tensor.type = DataType::FLOAT32;
+  cos0_output->tensor.type = DataType::kFloat32;
   cos0_output->tensor.shape = BHWC(1, 32, 32, 128);
   graph.AddConsumer(cos0_node->id, reshape_output->id);
   graph.SetProducer(cos0_node->id, cos0_output->id);
 
   auto sub0_node = graph.NewNode();
-  sub0_node->operation.type = ToString(OperationType::SUB);
+  sub0_node->operation.type = ToString(OperationType::kSub);
   auto sub0_output = graph.NewValue();
-  sub0_output->tensor.type = DataType::FLOAT32;
+  sub0_output->tensor.type = DataType::kFloat32;
   sub0_output->tensor.shape = BHWC(1, 32, 32, 128);
   graph.AddConsumer(sub0_node->id, sin0_output->id);
   graph.AddConsumer(sub0_node->id, cos0_output->id);
   graph.SetProducer(sub0_node->id, sub0_output->id);
 
   auto sin1_node = graph.NewNode();
-  sin1_node->operation.type = ToString(OperationType::SIN);
+  sin1_node->operation.type = ToString(OperationType::kSin);
   auto sin1_output = graph.NewValue();
-  sin1_output->tensor.type = DataType::FLOAT32;
+  sin1_output->tensor.type = DataType::kFloat32;
   sin1_output->tensor.shape = BHWC(1, 32, 32, 128);
   graph.AddConsumer(sin1_node->id, sub0_output->id);
   graph.SetProducer(sin1_node->id, sin1_output->id);
 
   auto cos1_node = graph.NewNode();
-  cos1_node->operation.type = ToString(OperationType::COS);
+  cos1_node->operation.type = ToString(OperationType::kCos);
   auto cos1_output = graph.NewValue();
-  cos1_output->tensor.type = DataType::FLOAT32;
+  cos1_output->tensor.type = DataType::kFloat32;
   cos1_output->tensor.shape = BHWC(1, 32, 32, 128);
   graph.AddConsumer(cos1_node->id, sub0_output->id);
   graph.SetProducer(cos1_node->id, cos1_output->id);
 
   auto sub1_node = graph.NewNode();
-  sub1_node->operation.type = ToString(OperationType::SUB);
+  sub1_node->operation.type = ToString(OperationType::kSub);
   auto sub1_output = graph.NewValue();
-  sub1_output->tensor.type = DataType::FLOAT32;
+  sub1_output->tensor.type = DataType::kFloat32;
   sub1_output->tensor.shape = BHWC(1, 32, 32, 128);
   graph.AddConsumer(sub1_node->id, sin1_output->id);
   graph.AddConsumer(sub1_node->id, cos1_output->id);
   graph.SetProducer(sub1_node->id, sub1_output->id);
 
-  TensorStorageType storage_type = TensorStorageType::BUFFER;
-  CalculationsPrecision precision = CalculationsPrecision::F32;
+  TensorStorageType storage_type = TensorStorageType::kBuffer;
+  CalculationsPrecision precision = CalculationsPrecision::kF32;
   DataType data_type = DeduceDataTypeFromPrecision(precision);
   CreateGpuModelInfo create_info;
   create_info.precision = precision;
@@ -2390,13 +2399,13 @@ absl::Status TestTwoInputTwise(TestExecutionEnvironment* env) {
       {src_tensor}, std::vector<TensorFloat32*>{&dst_tensor_v1}, &gpu_model));
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage_type, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage_type, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage_type, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage_type, Layout::kHWC});
 
   OperationDef op_def_sub;
-  op_def_sub.src_tensors.push_back({data_type, storage_type, Layout::HWC});
-  op_def_sub.src_tensors.push_back({data_type, storage_type, Layout::HWC});
-  op_def_sub.dst_tensors.push_back({data_type, storage_type, Layout::HWC});
+  op_def_sub.src_tensors.push_back({data_type, storage_type, Layout::kHWC});
+  op_def_sub.src_tensors.push_back({data_type, storage_type, Layout::kHWC});
+  op_def_sub.dst_tensors.push_back({data_type, storage_type, Layout::kHWC});
 
   Reshapex4 reshape_operation = CreateReshapex4(op_def);
   reshape_operation.ResolveReorderFinalShape(reshape_output->tensor.shape);
@@ -2406,14 +2415,14 @@ absl::Status TestTwoInputTwise(TestExecutionEnvironment* env) {
       reshape_output->tensor.shape, &input_reshaped));
 
   GPUOperation sin0_operation =
-      CreateElementwiseOneInput(env->GetGpuInfo(), op_def, OperationType::SIN);
+      CreateElementwiseOneInput(env->GetGpuInfo(), op_def, OperationType::kSin);
   TensorFloat32 interm0;
   ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
       input_reshaped, std::make_unique<GPUOperation>(std::move(sin0_operation)),
       sin0_output->tensor.shape, &interm0));
 
   GPUOperation cos0_operation =
-      CreateElementwiseOneInput(env->GetGpuInfo(), op_def, OperationType::COS);
+      CreateElementwiseOneInput(env->GetGpuInfo(), op_def, OperationType::kCos);
   TensorFloat32 interm1;
   ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
       input_reshaped, std::make_unique<GPUOperation>(std::move(cos0_operation)),
@@ -2421,7 +2430,7 @@ absl::Status TestTwoInputTwise(TestExecutionEnvironment* env) {
 
   TensorFloat32 interm2;
   GPUOperation sub0_operation = CreateElementwiseTwoInput(
-      env->GetGpuInfo(), op_def_sub, OperationType::SUB,
+      env->GetGpuInfo(), op_def_sub, OperationType::kSub,
       cos0_output->tensor.shape, sub0_output->tensor.shape);
   ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
       {interm0, interm1},
@@ -2429,14 +2438,14 @@ absl::Status TestTwoInputTwise(TestExecutionEnvironment* env) {
       sub0_output->tensor.shape, &interm2));
 
   GPUOperation sin1_operation =
-      CreateElementwiseOneInput(env->GetGpuInfo(), op_def, OperationType::SIN);
+      CreateElementwiseOneInput(env->GetGpuInfo(), op_def, OperationType::kSin);
   TensorFloat32 interm3;
   ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
       interm2, std::make_unique<GPUOperation>(std::move(sin1_operation)),
       sin1_output->tensor.shape, &interm3));
 
   GPUOperation cos1_operation =
-      CreateElementwiseOneInput(env->GetGpuInfo(), op_def, OperationType::COS);
+      CreateElementwiseOneInput(env->GetGpuInfo(), op_def, OperationType::kCos);
   TensorFloat32 interm4;
   ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
       interm2, std::make_unique<GPUOperation>(std::move(cos1_operation)),
@@ -2444,7 +2453,7 @@ absl::Status TestTwoInputTwise(TestExecutionEnvironment* env) {
 
   TensorFloat32 interm5;
   GPUOperation sub1_operation = CreateElementwiseTwoInput(
-      env->GetGpuInfo(), op_def_sub, OperationType::SUB,
+      env->GetGpuInfo(), op_def_sub, OperationType::kSub,
       cos1_output->tensor.shape, sub1_output->tensor.shape);
   ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(
       {interm3, interm4},
@@ -2466,7 +2475,7 @@ absl::Status TestTwoInputTwise(TestExecutionEnvironment* env) {
 absl::Status TestConvWithPaddedAdd(TestExecutionEnvironment* env) {
   GraphFloat32 graph;
   auto input = graph.NewValue();
-  input->tensor.type = DataType::FLOAT32;
+  input->tensor.type = DataType::kFloat32;
   input->tensor.shape = BHWC(1, 32, 32, 36);
 
   Convolution2DAttributes conv_attr;
@@ -2475,7 +2484,7 @@ absl::Status TestConvWithPaddedAdd(TestExecutionEnvironment* env) {
   conv_attr.strides = HW(1, 1);
   conv_attr.dilations = HW(1, 1);
   auto& attr_weights =
-      conv_attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::FLOAT32>>();
+      conv_attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(42, 1, 1, 36);
   attr_weights.data.resize(attr_weights.shape.DimensionsProduct() +
                            XNN_EXTRA_BYTES / sizeof(float));
@@ -2489,10 +2498,10 @@ absl::Status TestConvWithPaddedAdd(TestExecutionEnvironment* env) {
   }
 
   auto conv_node = graph.NewNode();
-  conv_node->operation.type = ToString(OperationType::CONVOLUTION_2D);
+  conv_node->operation.type = ToString(OperationType::kConvolution2D);
   conv_node->operation.attributes = conv_attr;
   auto conv_output = graph.NewValue();
-  conv_output->tensor.type = DataType::FLOAT32;
+  conv_output->tensor.type = DataType::kFloat32;
   conv_output->tensor.shape = BHWC(1, 32, 32, 42);
   graph.AddConsumer(conv_node->id, input->id);
   graph.SetProducer(conv_node->id, conv_output->id);
@@ -2500,30 +2509,30 @@ absl::Status TestConvWithPaddedAdd(TestExecutionEnvironment* env) {
   PadAttributes pad_attr;
   pad_attr.prepended = BHWC(0, 0, 0, 0);
   pad_attr.appended = BHWC(0, 0, 0, 6);
-  pad_attr.type = PaddingContentType::ZEROS;
+  pad_attr.type = PaddingContentType::kZeros;
 
   auto pad_node = graph.NewNode();
-  pad_node->operation.type = ToString(OperationType::PAD);
+  pad_node->operation.type = ToString(OperationType::kPad);
   pad_node->operation.attributes = pad_attr;
   auto pad_output = graph.NewValue();
-  pad_output->tensor.type = DataType::FLOAT32;
+  pad_output->tensor.type = DataType::kFloat32;
   pad_output->tensor.shape = BHWC(1, 32, 32, 42);
   graph.AddConsumer(pad_node->id, input->id);
   graph.SetProducer(pad_node->id, pad_output->id);
 
   auto add_node = graph.NewNode();
-  add_node->operation.type = ToString(OperationType::ADD);
+  add_node->operation.type = ToString(OperationType::kAdd);
   ElementwiseAttributes add_attr;
   add_node->operation.attributes = add_attr;
   auto add_output = graph.NewValue();
-  add_output->tensor.type = DataType::FLOAT32;
+  add_output->tensor.type = DataType::kFloat32;
   add_output->tensor.shape = BHWC(1, 32, 32, 42);
   graph.AddConsumer(add_node->id, conv_output->id);
   graph.AddConsumer(add_node->id, pad_output->id);
   graph.SetProducer(add_node->id, add_output->id);
 
-  TensorStorageType storage_type = TensorStorageType::BUFFER;
-  CalculationsPrecision precision = CalculationsPrecision::F32;
+  TensorStorageType storage_type = TensorStorageType::kBuffer;
+  CalculationsPrecision precision = CalculationsPrecision::kF32;
   DataType data_type = DeduceDataTypeFromPrecision(precision);
   CreateGpuModelInfo create_info;
   create_info.precision = precision;
@@ -2538,17 +2547,17 @@ absl::Status TestConvWithPaddedAdd(TestExecutionEnvironment* env) {
   }
 
   OperationDef op_def_conv;
-  op_def_conv.src_tensors.push_back({data_type, storage_type, Layout::HWC});
-  op_def_conv.dst_tensors.push_back({data_type, storage_type, Layout::HWC});
+  op_def_conv.src_tensors.push_back({data_type, storage_type, Layout::kHWC});
+  op_def_conv.dst_tensors.push_back({data_type, storage_type, Layout::kHWC});
 
   OperationDef op_def_pad;
-  op_def_pad.src_tensors.push_back({data_type, storage_type, Layout::HWC});
-  op_def_pad.dst_tensors.push_back({data_type, storage_type, Layout::HWC});
+  op_def_pad.src_tensors.push_back({data_type, storage_type, Layout::kHWC});
+  op_def_pad.dst_tensors.push_back({data_type, storage_type, Layout::kHWC});
 
   OperationDef op_def_add;
-  op_def_add.src_tensors.push_back({data_type, storage_type, Layout::HWC});
-  op_def_add.src_tensors.push_back({data_type, storage_type, Layout::HWC});
-  op_def_add.dst_tensors.push_back({data_type, storage_type, Layout::HWC});
+  op_def_add.src_tensors.push_back({data_type, storage_type, Layout::kHWC});
+  op_def_add.src_tensors.push_back({data_type, storage_type, Layout::kHWC});
+  op_def_add.dst_tensors.push_back({data_type, storage_type, Layout::kHWC});
 
   ConvGeneric conv_operation =
       CreateConvGeneric(env->GetGpuInfo(), op_def_conv, precision, conv_attr);
@@ -2565,7 +2574,7 @@ absl::Status TestConvWithPaddedAdd(TestExecutionEnvironment* env) {
       pad_output->tensor.shape, &interm1));
 
   GPUOperation add_operation = CreateElementwiseTwoInput(
-      env->GetGpuInfo(), op_def_add, OperationType::ADD,
+      env->GetGpuInfo(), op_def_add, OperationType::kAdd,
       pad_output->tensor.shape, add_output->tensor.shape);
   TensorFloat32 interm2;
   ABSL_RETURN_IF_ERROR(env->ExecuteGPUOperation(

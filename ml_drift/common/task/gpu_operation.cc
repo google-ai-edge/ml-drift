@@ -83,7 +83,7 @@ int3 GetWorkGroupsCountInternal(int grid_dimension, const int3& grid_size,
 std::string GetElementWiseCode(const TensorDescriptor& dst_desc) {
   std::string c;
   c += "MAIN_FUNCTION($0) {\n";
-  if (dst_desc.HasAxis(Axis::BATCH)) {
+  if (dst_desc.HasAxis(Axis::kBatch)) {
     c += "  int linear_id = ucl::GetGlobalId<0>();\n";
     c += "  int X = linear_id / args.dst_tensor.Batch();\n";
     c += "  int B = linear_id % args.dst_tensor.Batch();\n";
@@ -94,7 +94,7 @@ std::string GetElementWiseCode(const TensorDescriptor& dst_desc) {
   }
 
   std::string coords = "X, Y";
-  if (dst_desc.HasAxis(Axis::DEPTH)) {
+  if (dst_desc.HasAxis(Axis::kDepth)) {
     c += "  int linear_y = ucl::GetGlobalId<1>();\n";
     c += "  int Y = linear_y / args.dst_tensor.Depth();\n";
     c += "  int Z = linear_y % args.dst_tensor.Depth();\n";
@@ -119,7 +119,7 @@ bool NeedsBroadcast(const TensorDescriptor& src_desc, const BHWDC& src_shape,
   bool needs_broadcast = src_shape.w < dst_shape.w ||
                          src_shape.h < dst_shape.h ||
                          src_shape.c < dst_shape.c || src_shape.d < dst_shape.d;
-  if (src_desc.HasAxis(Axis::BATCH)) {
+  if (src_desc.HasAxis(Axis::kBatch)) {
     needs_broadcast = needs_broadcast || src_shape.b < dst_shape.b;
   }
   return needs_broadcast;
@@ -173,45 +173,47 @@ absl::Status AddConvertFromBfloat(const GpuInfo& gpu_info,
       return absl::OkStatus();
     }
     std::string read = dst_cl + " ConvertFromBfloatTo$0(" +
-                       ToUclDataType(DataType::UINT16, type_size) + " src) {\n";
-    read += "  " + ToCLDataType(DataType::UINT32, type_size) +
+                       ToUclDataType(DataType::kUint16, type_size) +
+                       " src) {\n";
+    read += "  " + ToCLDataType(DataType::kUint32, type_size) +
             " src_ui32 = ucl::Convert<$1>(src);\n";
     read += "  src_ui32 <<= 16;\n";
-    if (dst_data_type == DataType::FLOAT32) {
+    if (dst_data_type == DataType::kFloat32) {
       read += "  return ucl::Reinterpret<$1, $2>(src_ui32);\n";
     } else {
-      read += "  " + ToCLDataType(DataType::FLOAT32, type_size) +
+      read += "  " + ToCLDataType(DataType::kFloat32, type_size) +
               " dst_float ucl::Reinterpret<$1, $2>(src_ui32);\n";
       read += "  return ucl::Convert<$0>(dst_float);\n";
     }
     read += "}\n\n";
     read = absl::Substitute(read, dst_ucl,
-                            ToUclDataType(DataType::UINT32, type_size),
-                            ToUclDataType(DataType::FLOAT32, type_size));
+                            ToUclDataType(DataType::kUint32, type_size),
+                            ToUclDataType(DataType::kFloat32, type_size));
     *code = read + *code;
   } else if (gpu_info.IsApiWebGpu()) {
     if (absl::StrContains(*code, "fn ConvertFromBfloatTo" + dst_ucl)) {
       return absl::OkStatus();
     }
     std::string read = "fn ConvertFromBfloatTo$0(src : " +
-                       ToWebGpuDataType(DataType::UINT32, type_size) + ") -> " +
-                       ToWebGpuDataType(dst_data_type, type_size) + " {\n";
+                       ToWebGpuDataType(DataType::kUint32, type_size) +
+                       ") -> " + ToWebGpuDataType(dst_data_type, type_size) +
+                       " {\n";
     read += "  var src_ui32 : $3 = src;\n";
     read += "  const shift_vec : $3 = ucl::Init<$1>(16);\n";
     read += "  src_ui32 <<= shift_vec;\n";
-    if (dst_data_type == DataType::FLOAT32) {
+    if (dst_data_type == DataType::kFloat32) {
       read += "  return ucl::Reinterpret<$1, $2>(src_ui32);\n";
     } else {
       read += "  var dst_float : " +
-              ToWebGpuDataType(DataType::FLOAT32, type_size) +
+              ToWebGpuDataType(DataType::kFloat32, type_size) +
               " = ucl::Reinterpret<$1, $2>(src_ui32);\n";
       read += "  return ucl::Convert<$0>(dst_float);\n";
     }
     read += "}\n\n";
     read = absl::Substitute(read, dst_ucl,
-                            ToUclDataType(DataType::UINT32, type_size),
-                            ToUclDataType(DataType::FLOAT32, type_size),
-                            ToWebGpuDataType(DataType::UINT32, type_size));
+                            ToUclDataType(DataType::kUint32, type_size),
+                            ToUclDataType(DataType::kFloat32, type_size),
+                            ToWebGpuDataType(DataType::kUint32, type_size));
     *code = read + *code;
   } else if (gpu_info.IsGlsl()) {
     const std::string dst_gl = ToGlslShaderDataType(dst_data_type, type_size);
@@ -219,28 +221,28 @@ absl::Status AddConvertFromBfloat(const GpuInfo& gpu_info,
       return absl::OkStatus();
     }
     std::string read = dst_gl + " ConvertFromBfloatTo$0(" +
-                       ToGlslShaderDataType(DataType::UINT16, type_size) +
+                       ToGlslShaderDataType(DataType::kUint16, type_size) +
                        " src) {\n";
-    read += "  " + ToGlslShaderDataType(DataType::UINT32, type_size) +
+    read += "  " + ToGlslShaderDataType(DataType::kUint32, type_size) +
             " src_ui32 = ucl::Convert<$1>(src);\n";
     read += "  src_ui32 <<= 16;\n";
-    read += "  " + ToGlslShaderDataType(DataType::FLOAT32, type_size) +
+    read += "  " + ToGlslShaderDataType(DataType::kFloat32, type_size) +
             " dst_float;\n";
     for (int i = 0; i < type_size; ++i) {
       read += "  dst_float[" + std::to_string(i) + "] = ucl::Reinterpret<" +
-              ToUclDataType(DataType::UINT32, 1) + ", " +
-              ToUclDataType(DataType::FLOAT32, 1) + ">(src_ui32[" +
+              ToUclDataType(DataType::kUint32, 1) + ", " +
+              ToUclDataType(DataType::kFloat32, 1) + ">(src_ui32[" +
               std::to_string(i) + "]);\n";
     }
-    if (dst_data_type == DataType::FLOAT32) {
+    if (dst_data_type == DataType::kFloat32) {
       read += "  return dst_float;\n";
     } else {
       read += "  return ucl::Convert<$0>(dst_float);\n";
     }
     read += "}\n\n";
     read = absl::Substitute(read, dst_ucl,
-                            ToUclDataType(DataType::UINT32, type_size),
-                            ToUclDataType(DataType::FLOAT32, type_size));
+                            ToUclDataType(DataType::kUint32, type_size),
+                            ToUclDataType(DataType::kFloat32, type_size));
     *code = read + *code;
   } else if (gpu_info.IsApiMetal()) {
     if (gpu_info.metal_info.IsNativeBfloatSupported()) {
@@ -252,19 +254,19 @@ absl::Status AddConvertFromBfloat(const GpuInfo& gpu_info,
       return absl::OkStatus();
     }
     std::string read = dst_metal + " ConvertFromBfloatTo" + dst_ucl + "(" +
-                       ToMetalDataType(DataType::UINT16, type_size) +
+                       ToMetalDataType(DataType::kUint16, type_size) +
                        " src) {\n";
     read += "  $0 src_ui32 = ucl::Convert<$0>(src);\n";
     read += "  src_ui32 <<= 16;\n";
-    if (dst_data_type == DataType::FLOAT32) {
+    if (dst_data_type == DataType::kFloat32) {
       read += "  return ucl::Reinterpret<$0, $1>(src_ui32);\n";
     } else {
       read += "  $1 dst_float = ucl::Convert<$1>(src_ui32);\n";
       read += "  return ucl::Reinterpret<$1, " + dst_metal + ">(dst_float);\n";
     }
     read += "}\n\n";
-    read = absl::Substitute(read, ToMetalDataType(DataType::UINT32, type_size),
-                            ToMetalDataType(DataType::FLOAT32, type_size));
+    read = absl::Substitute(read, ToMetalDataType(DataType::kUint32, type_size),
+                            ToMetalDataType(DataType::kFloat32, type_size));
     *code = read + *code;
   } else {
     return absl::UnimplementedError(
@@ -305,37 +307,37 @@ absl::Status AddConvertToBfloat(const GpuInfo& gpu_info,
                           "ConvertToBfloatFrom" + src_ucl + "(" + src_cl)) {
       return absl::OkStatus();
     }
-    const std::string ui32_cl = ToCLDataType(DataType::UINT32, type_size);
-    const std::string float_vec = ToUclDataType(DataType::FLOAT32, type_size);
-    std::string write = ToCLDataType(DataType::UINT16, type_size) +
+    const std::string ui32_cl = ToCLDataType(DataType::kUint32, type_size);
+    const std::string float_vec = ToUclDataType(DataType::kFloat32, type_size);
+    std::string write = ToCLDataType(DataType::kUint16, type_size) +
                         " ConvertToBfloatFrom" + src_ucl + "(" + src_cl +
                         " src) {\n";
-    if (src_data_type != DataType::FLOAT32) {
+    if (src_data_type != DataType::kFloat32) {
       write += "  " + ui32_cl +
                " src_ui32 = ucl::Reinterpret<$1, "
                "$0>(ucl::Convert<$1>(src));\n";
     } else {
       write += "  " + ui32_cl + " src_ui32 = ucl::Reinterpret<$1, $0>(src);\n";
     }
-    write += "  " + ToCLDataType(DataType::INT32, type_size) +
+    write += "  " + ToCLDataType(DataType::kInt32, type_size) +
              " to_round = (src_ui32 & 0x00018000) == 0x00018000;\n";
     write += "  src_ui32 = to_round ? src_ui32 + 0x00008000 : src_ui32;\n";
     write += "  src_ui32 >>= 16;\n";
     write += "  return ucl::Convert<" +
-             ToUclDataType(DataType::UINT16, type_size) + ">(src_ui32);\n";
+             ToUclDataType(DataType::kUint16, type_size) + ">(src_ui32);\n";
     write += "}\n\n";
-    write = absl::Substitute(write, ToUclDataType(DataType::UINT32, type_size),
+    write = absl::Substitute(write, ToUclDataType(DataType::kUint32, type_size),
                              float_vec);
     *code = write + *code;
   } else if (gpu_info.IsApiWebGpu()) {
     if (absl::StrContains(*code, "fn ConvertToBfloatFrom" + src_ucl)) {
       return absl::OkStatus();
     }
-    const std::string float_vec = ToUclDataType(DataType::FLOAT32, type_size);
+    const std::string float_vec = ToUclDataType(DataType::kFloat32, type_size);
     std::string write = "fn ConvertToBfloatFrom" + src_ucl +
                         "(src : " + ToWebGpuDataType(src_data_type, type_size) +
                         ") -> $2 {\n";
-    if (src_data_type != DataType::FLOAT32) {
+    if (src_data_type != DataType::kFloat32) {
       write +=
           "  var src_ui32 : $2 = ucl::Reinterpret<$1, "
           "$0>(ucl::Convert<$1>(src));\n";
@@ -343,15 +345,16 @@ absl::Status AddConvertToBfloat(const GpuInfo& gpu_info,
       write += "  var src_ui32 : $2 = ucl::Reinterpret<$1, $0>(src);\n";
     }
     write += "  const magic_vec : $2 = ucl::Init<$0>(0x00018000);\n";
-    write += "  let to_round : " + ToWebGpuDataType(DataType::BOOL, type_size) +
-             " = (src_ui32 & magic_vec) == magic_vec;\n";
+    write +=
+        "  let to_round : " + ToWebGpuDataType(DataType::kBool, type_size) +
+        " = (src_ui32 & magic_vec) == magic_vec;\n";
     write += "  src_ui32 = to_round ? src_ui32 + 0x00008000 : src_ui32;\n";
     write += "  const shift_vec : $2 = ucl::Init<$0>(16);\n";
     write += "  return src_ui32 >> shift_vec;\n";
     write += "}\n\n";
-    write = absl::Substitute(write, ToUclDataType(DataType::UINT32, type_size),
+    write = absl::Substitute(write, ToUclDataType(DataType::kUint32, type_size),
                              float_vec,
-                             ToWebGpuDataType(DataType::UINT32, type_size));
+                             ToWebGpuDataType(DataType::kUint32, type_size));
     *code = write + *code;
   } else if (gpu_info.IsGlsl()) {
     const std::string src_gl = ToGlslShaderDataType(src_data_type, type_size);
@@ -360,21 +363,21 @@ absl::Status AddConvertToBfloat(const GpuInfo& gpu_info,
       return absl::OkStatus();
     }
     const std::string ushort_gl =
-        ToGlslShaderDataType(DataType::UINT16, type_size);
+        ToGlslShaderDataType(DataType::kUint16, type_size);
     const std::string float_gl =
-        ToGlslShaderDataType(DataType::FLOAT32, type_size);
+        ToGlslShaderDataType(DataType::kFloat32, type_size);
     std::string write = ushort_gl + " ConvertToBfloatFrom" + src_ucl + "(" +
                         src_gl + " src) {\n";
-    if (src_data_type != DataType::FLOAT32) {
+    if (src_data_type != DataType::kFloat32) {
       write += "  $0 src_float = ucl::Convert<" +
-               ToUclDataType(DataType::FLOAT32, type_size) + ">(src);\n";
+               ToUclDataType(DataType::kFloat32, type_size) + ">(src);\n";
     } else {
       write += "  $0 src_float = src;\n";
     }
-    write += "  " + ToGlslShaderDataType(DataType::UINT32, type_size) +
+    write += "  " + ToGlslShaderDataType(DataType::kUint32, type_size) +
              " src_ui32;\n";
-    write +=
-        "  " + ToGlslShaderDataType(DataType::BOOL, type_size) + " to_round;\n";
+    write += "  " + ToGlslShaderDataType(DataType::kBool, type_size) +
+             " to_round;\n";
     write +=
         "  for (int i = 0; i < " + std::to_string(type_size) + "; ++i) {\n";
     write += R"(
@@ -385,7 +388,7 @@ absl::Status AddConvertToBfloat(const GpuInfo& gpu_info,
     )";
     write += "  src_ui32 >>= 16;\n";
     write += "  return ucl::Convert<" +
-             ToUclDataType(DataType::UINT16, type_size) + ">(src_ui32);\n";
+             ToUclDataType(DataType::kUint16, type_size) + ">(src_ui32);\n";
     write += "}\n\n";
     write = absl::Substitute(write, float_gl);
     *code = write + *code;
@@ -399,22 +402,23 @@ absl::Status AddConvertToBfloat(const GpuInfo& gpu_info,
       return absl::OkStatus();
     }
     const std::string ushort_metal =
-        ToMetalDataType(DataType::UINT16, type_size);
+        ToMetalDataType(DataType::kUint16, type_size);
     const std::string float_metal =
-        ToMetalDataType(DataType::FLOAT32, type_size);
-    const std::string uint_metal = ToMetalDataType(DataType::UINT32, type_size);
+        ToMetalDataType(DataType::kFloat32, type_size);
+    const std::string uint_metal =
+        ToMetalDataType(DataType::kUint32, type_size);
     std::string write =
         "$0 ConvertToBfloatFrom" + src_ucl + "(" + src_metal + " src) {\n";
-    if (src_data_type != DataType::FLOAT32) {
+    if (src_data_type != DataType::kFloat32) {
       write += "  " + float_metal + " src_float = ucl::Convert<" +
-               ToUclDataType(DataType::FLOAT32, type_size) + src_ucl + ">(" +
+               ToUclDataType(DataType::kFloat32, type_size) + src_ucl + ">(" +
                src_metal + ")(src);\n";
     } else {
       write += "  " + float_metal + " src_float = src;\n";
     }
     write += "  $1 src_ui32 = ucl::Reinterpret<" + float_metal + ", " +
              uint_metal + ">(src_float);\n";
-    write += "  " + ToUclDataType(DataType::BOOL, type_size) + " to_round = " +
+    write += "  " + ToUclDataType(DataType::kBool, type_size) + " to_round = " +
              "(src_ui32 & ($1)(0x00018000)) == ($1)(0x00018000);\n";
     write +=
         "  for (int i = 0; i < " + std::to_string(type_size) + "; ++i) {\n";
@@ -437,9 +441,9 @@ absl::Status AddQuantizedBufferWrite(const GpuInfo& gpu_info, DataType type,
                                      std::string* code) {
   std::string fcn;
   if (gpu_info.IsGlsl()) {
-    if (type == DataType::UINT16 || type == DataType::INT16 ||
-        type == DataType::BFLOAT16) {
-      if (type == DataType::UINT16 || type == DataType::BFLOAT16) {
+    if (type == DataType::kUint16 || type == DataType::kInt16 ||
+        type == DataType::kBfloat16) {
+      if (type == DataType::kUint16 || type == DataType::kBfloat16) {
         fcn += "uvec2 QuantizedBufferWrite(ushort4 src) {\n";
         if (absl::StrContains(*code, fcn)) {
           return absl::OkStatus();
@@ -459,9 +463,9 @@ absl::Status AddQuantizedBufferWrite(const GpuInfo& gpu_info, DataType type,
       fcn += "  return dst;\n}\n";
       *code = fcn + *code;
       return absl::OkStatus();
-    } else if (type == DataType::UINT8 || type == DataType::INT8 ||
-               type == DataType::BOOL) {
-      if (type == DataType::UINT8 || type == DataType::BOOL) {
+    } else if (type == DataType::kUint8 || type == DataType::kInt8 ||
+               type == DataType::kBool) {
+      if (type == DataType::kUint8 || type == DataType::kBool) {
         fcn += "uint QuantizedBufferWrite(uchar4 src) {\n";
         if (absl::StrContains(*code, fcn)) {
           return absl::OkStatus();
@@ -486,9 +490,9 @@ absl::Status AddQuantizedBufferWrite(const GpuInfo& gpu_info, DataType type,
           "QuantizedBufferWrite is not used for GlSl for this type");
     }
   } else if (gpu_info.IsApiWebGpu()) {
-    if (type == DataType::UINT16 || type == DataType::INT16 ||
-        type == DataType::BFLOAT16) {
-      if (type == DataType::UINT16 || type == DataType::BFLOAT16) {
+    if (type == DataType::kUint16 || type == DataType::kInt16 ||
+        type == DataType::kBfloat16) {
+      if (type == DataType::kUint16 || type == DataType::kBfloat16) {
         fcn += "fn QuantizedBufferWrite(src : vec4<u32>) -> vec2<u32> {\n";
         if (absl::StrContains(*code, fcn)) {
           return absl::OkStatus();
@@ -508,9 +512,9 @@ absl::Status AddQuantizedBufferWrite(const GpuInfo& gpu_info, DataType type,
       fcn += "  return dst;\n}\n";
       *code = fcn + *code;
       return absl::OkStatus();
-    } else if (type == DataType::UINT8 || type == DataType::INT8 ||
-               type == DataType::BOOL) {
-      if (type == DataType::UINT8 || type == DataType::BOOL) {
+    } else if (type == DataType::kUint8 || type == DataType::kInt8 ||
+               type == DataType::kBool) {
+      if (type == DataType::kUint8 || type == DataType::kBool) {
         fcn += "fn QuantizedBufferWrite(src : vec4<u32>) -> u32 {\n";
         if (absl::StrContains(*code, fcn)) {
           return absl::OkStatus();
@@ -636,12 +640,13 @@ absl::Status AddGlslBitsToVec(const GpuInfo& gpu_info,
 
   // Reinterpret for vectors of different sizes
   // Convert from float to int if necessary (bitfield fcns only work with ints)
-  if (src_data_type == DataType::FLOAT16 ||
-      src_data_type == DataType::FLOAT32 ||
-      src_data_type == DataType::FLOAT64) {  // float src type
+  if (src_data_type == DataType::kFloat16 ||
+      src_data_type == DataType::kFloat32 ||
+      src_data_type == DataType::kFloat64) {  // float src type
     std::string src_int_type_str;
-    if (dst_data_type == DataType::INT8 || dst_data_type == DataType::INT16 ||
-        dst_data_type == DataType::INT32 || dst_data_type == DataType::INT64) {
+    if (dst_data_type == DataType::kInt8 || dst_data_type == DataType::kInt16 ||
+        dst_data_type == DataType::kInt32 ||
+        dst_data_type == DataType::kInt64) {
       src_int_type_str = "int";
     } else {
       src_int_type_str = "uint";
@@ -664,11 +669,11 @@ absl::Status AddGlslBitsToVec(const GpuInfo& gpu_info,
 
   // Determine type of int to use for bitfield operations
   bool signed_convert =
-      src_data_type == DataType::INT8 || src_data_type == DataType::INT16 ||
-      src_data_type == DataType::INT32 || src_data_type == DataType::INT64;
+      src_data_type == DataType::kInt8 || src_data_type == DataType::kInt16 ||
+      src_data_type == DataType::kInt32 || src_data_type == DataType::kInt64;
   const std::string dst_int_type_str =
-      signed_convert ? ToGlslShaderDataType(DataType::INT32, dst_type_size)
-                     : ToGlslShaderDataType(DataType::UINT32, dst_type_size);
+      signed_convert ? ToGlslShaderDataType(DataType::kInt32, dst_type_size)
+                     : ToGlslShaderDataType(DataType::kUint32, dst_type_size);
   fcn += "  " + dst_int_type_str + " dst_int;\n";
 
   // bitfieldExtract
@@ -693,9 +698,9 @@ absl::Status AddGlslBitsToVec(const GpuInfo& gpu_info,
   }
 
   // Convert from int to float if necessary (bitfield fcns only work with ints)
-  if (dst_data_type == DataType::FLOAT16 ||
-      dst_data_type == DataType::FLOAT32 ||
-      dst_data_type == DataType::FLOAT64) {  // float dst type
+  if (dst_data_type == DataType::kFloat16 ||
+      dst_data_type == DataType::kFloat32 ||
+      dst_data_type == DataType::kFloat64) {  // float dst type
     std::string dst_int_type_str;
     if (signed_convert) {
       dst_int_type_str = "int";
@@ -706,7 +711,7 @@ absl::Status AddGlslBitsToVec(const GpuInfo& gpu_info,
       fcn += "  float dst = ucl::Reinterpret<" + dst_int_type_str +
              ", float>(dst_int);\n";
     } else {
-      fcn += "  " + ToGlslShaderDataType(DataType::FLOAT32, dst_type_size) +
+      fcn += "  " + ToGlslShaderDataType(DataType::kFloat32, dst_type_size) +
              " dst;\n";
       for (int i = 0; i < src_type_size; ++i) {
         fcn += "  dst[" + std::to_string(i) + "] = ucl::Reinterpret<" +
@@ -759,7 +764,7 @@ absl::StatusOr<std::string> ResolveLinking(
   DataType type = linkable_context.tensor_desc->GetDataType();
   if (!(gpu_info.IsApiMetal() &&
         gpu_info.metal_info.IsNativeBfloatSupported())) {
-    type = type == DataType::BFLOAT16 ? DataType::FLOAT32 : type;
+    type = type == DataType::kBfloat16 ? DataType::kFloat32 : type;
   }
   const std::string type_decl = ToUclDataType(type, 4);
   const std::string out_var_declaration =
@@ -806,7 +811,7 @@ absl::StatusOr<std::string> ResolveReorderLinking(
 
   function_args->clear();
   *function_args = {"r_s_x", "r_s_y", "r_s_s"};
-  if (linkable_context.tensor_desc->HasAxis(Axis::BATCH)) {
+  if (linkable_context.tensor_desc->HasAxis(Axis::kBatch)) {
     function_args->push_back("r_s_b");
   }
   return reorder_patch;
@@ -935,13 +940,13 @@ absl::Status ResolveSelectorsPass(
         bool add_quantized_write = true;
         add_quantized_write &= (gpu_info.IsGlsl() || gpu_info.IsApiWebGpu());
         add_quantized_write &=
-            (tensor_desc->GetStorageType() == TensorStorageType::BUFFER ||
-             tensor_desc->GetStorageType() == TensorStorageType::IMAGE_BUFFER);
+            (tensor_desc->GetStorageType() == TensorStorageType::kBuffer ||
+             tensor_desc->GetStorageType() == TensorStorageType::kImageBuffer);
         DataType type = tensor_desc->GetDataType();
         add_quantized_write &=
-            (type == DataType::BOOL || type == DataType::UINT8 ||
-             type == DataType::INT8 || type == DataType::UINT16 ||
-             type == DataType::INT16 || type == DataType::BFLOAT16);
+            (type == DataType::kBool || type == DataType::kUint8 ||
+             type == DataType::kInt8 || type == DataType::kUint16 ||
+             type == DataType::kInt16 || type == DataType::kBfloat16);
         add_quantized_write &=
             (selector_name == "Write" || selector_name == "WriteLinear");
         if (add_quantized_write) {
@@ -1261,7 +1266,7 @@ absl::Status GPUOperation::AddReorderOperation(const BHWC& interm_shape,
   std::string code = "  int " + interm_xc;
   code += ", " + interm_yc;
   code += ", " + interm_sc;
-  if (src_tensor_desc->HasAxis(Axis::BATCH)) {
+  if (src_tensor_desc->HasAxis(Axis::kBatch)) {
     code += ", " + interm_bc;
   }
   code += ";\n";
@@ -1314,11 +1319,11 @@ absl::Status GPUOperation::ResolveSecondElementwiseInput(
   ABSL_RETURN_IF_ERROR(
       GetTensorDescriptor(second_elementwise_tensor_name_, &tensor_desc));
   std::string coords = "X_COORD, Y_COORD";
-  if (tensor_desc->HasAxis(Axis::DEPTH)) {
+  if (tensor_desc->HasAxis(Axis::kDepth)) {
     coords += ", Z_COORD";
   }
   coords += ", S_COORD";
-  if (tensor_desc->HasAxis(Axis::BATCH)) {
+  if (tensor_desc->HasAxis(Axis::kBatch)) {
     coords += ", B_COORD";
   }
   const std::string type =
@@ -1346,7 +1351,7 @@ absl::Status GPUOperation::GetTensorDescriptor(const std::string& tensor_name,
     BufferDescriptor* buf_desc = AsBufferDescriptor(desc_ptr);
     if (buf_desc != nullptr) {
       *result = TensorDescriptor(buf_desc->element_type,
-                                 TensorStorageType::BUFFER, Layout::HWC);
+                                 TensorStorageType::kBuffer, Layout::kHWC);
       return absl::OkStatus();
     }
   }
@@ -1367,28 +1372,28 @@ void GPUOperation::AddSrcTensor(const std::string& tensor_name,
   TensorDescriptor desc_copy;
   desc.CopyWithoutData(&desc_copy);
   auto desc_new = std::make_unique<TensorDescriptor>(std::move(desc_copy));
-  args_.AddObjectRef(tensor_name, AccessType::READ, std::move(desc_new));
+  args_.AddObjectRef(tensor_name, AccessType::kRead, std::move(desc_new));
 }
 
 void GPUOperation::AddSrcBuffer(const std::string& buffer_name,
                                 const BufferDescriptor& desc) {
   src_objects_names_.push_back(buffer_name);
   auto desc_new = std::make_unique<BufferDescriptor>(desc);
-  args_.AddObjectRef(buffer_name, AccessType::READ, std::move(desc_new));
+  args_.AddObjectRef(buffer_name, AccessType::kRead, std::move(desc_new));
 }
 
 void GPUOperation::AddDstTensor(const std::string& tensor_name,
                                 const TensorDescriptor& desc) {
   dst_objects_names_.push_back(tensor_name);
   auto desc_new = std::make_unique<TensorDescriptor>(desc);
-  args_.AddObjectRef(tensor_name, AccessType::WRITE, std::move(desc_new));
+  args_.AddObjectRef(tensor_name, AccessType::kWrite, std::move(desc_new));
 }
 
 void GPUOperation::AddDstBuffer(const std::string& buffer_name,
                                 const BufferDescriptor& desc) {
   dst_objects_names_.push_back(buffer_name);
   auto desc_new = std::make_unique<BufferDescriptor>(desc);
-  args_.AddObjectRef(buffer_name, AccessType::WRITE, std::move(desc_new));
+  args_.AddObjectRef(buffer_name, AccessType::kWrite, std::move(desc_new));
 }
 
 absl::Status GPUOperation::AssembleCode(const GpuInfo& gpu_info) {
@@ -1575,7 +1580,7 @@ GPUOperation CreateGpuOperation(const OperationDef& definition,
   if (definition.src_tensors.size() > 1 &&
       absl::StrContains(op.elementwise_code_, "in2_value")) {
     const auto second_tensor_def = definition.src_tensors[1];
-    if (second_tensor_def.GetLayout() == Layout::LINEAR) {
+    if (second_tensor_def.GetLayout() == Layout::kLinear) {
       std::string s_coord = second_shape.c == 1 ? "0" : "S_COORD";
       std::string read_value_code = absl::StrCat(
           "args.src_tensor_1::type in2_value = args.src_tensor_1.Read(",
@@ -1606,7 +1611,7 @@ GPUOperation CreateGpuOperation(const OperationDef& definition,
             absl::StrCat("(S_COORD % ", DivideRoundUp(second_shape.c, 4), ")");
       }
       std::string coords = absl::StrCat(x_coord, ", ", y_coord);
-      if (second_tensor_def.HasAxis(Axis::DEPTH)) {
+      if (second_tensor_def.HasAxis(Axis::kDepth)) {
         std::string z_coord = second_shape.d == 1 ? "0" : "Z_COORD";
         if (second_shape.d != dst_shape.d && second_shape.d != 1) {
           z_coord = absl::StrCat("(Z_COORD % ", second_shape.d, ")");
@@ -1614,7 +1619,7 @@ GPUOperation CreateGpuOperation(const OperationDef& definition,
         coords += ", " + z_coord;
       }
       coords += ", " + s_coord;
-      if (second_tensor_def.HasAxis(Axis::BATCH)) {
+      if (second_tensor_def.HasAxis(Axis::kBatch)) {
         const std::string b_coord = second_shape.b == 1 ? "0" : "B_COORD";
         coords += ", " + b_coord;
       }

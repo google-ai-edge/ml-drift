@@ -29,18 +29,18 @@ std::string ToGlslType(const std::string& scalar_type,
 
 std::string GetGlslPrecisionModifier(DataType data_type) {
   switch (data_type) {
-    case DataType::UINT8:
-    case DataType::INT8:
+    case DataType::kUint8:
+    case DataType::kInt8:
       return "lowp ";
-    case DataType::FLOAT16:
-    case DataType::INT16:
-    case DataType::UINT16:
+    case DataType::kFloat16:
+    case DataType::kInt16:
+    case DataType::kUint16:
       return "mediump ";
-    case DataType::FLOAT32:
-    case DataType::INT32:
-    case DataType::UINT32:
+    case DataType::kFloat32:
+    case DataType::kInt32:
+    case DataType::kUint32:
       return "highp ";
-    case DataType::BOOL:
+    case DataType::kBool:
       return "";
     default:
       return "";
@@ -50,32 +50,32 @@ std::string GetGlslPrecisionModifier(DataType data_type) {
 
 size_t SizeOf(DataType data_type) {
   switch (data_type) {
-    case DataType::UINT8:
-    case DataType::INT8:
-    case DataType::BOOL:
-    case DataType::UINT4:
-    case DataType::INT4:
-    case DataType::UINT3:
-    case DataType::INT3:
-    case DataType::UINT2:
-    case DataType::INT2:
-    case DataType::UINT1:
-    case DataType::INT1:
+    case DataType::kUint8:
+    case DataType::kInt8:
+    case DataType::kBool:
+    case DataType::kUint4:
+    case DataType::kInt4:
+    case DataType::kUint3:
+    case DataType::kInt3:
+    case DataType::kUint2:
+    case DataType::kInt2:
+    case DataType::kUint1:
+    case DataType::kInt1:
       return 1;
-    case DataType::FLOAT16:
-    case DataType::INT16:
-    case DataType::UINT16:
-    case DataType::BFLOAT16:
+    case DataType::kFloat16:
+    case DataType::kInt16:
+    case DataType::kUint16:
+    case DataType::kBfloat16:
       return 2;
-    case DataType::FLOAT32:
-    case DataType::INT32:
-    case DataType::UINT32:
+    case DataType::kFloat32:
+    case DataType::kInt32:
+    case DataType::kUint32:
       return 4;
-    case DataType::FLOAT64:
-    case DataType::INT64:
-    case DataType::UINT64:
+    case DataType::kFloat64:
+    case DataType::kInt64:
+    case DataType::kUint64:
       return 8;
-    case DataType::UNKNOWN:
+    case DataType::kUnknown:
       return 0;
   }
   return 0;
@@ -83,37 +83,37 @@ size_t SizeOf(DataType data_type) {
 
 size_t SizeInBitsOf(DataType data_type) {
   switch (data_type) {
-    case DataType::UINT8:
-    case DataType::INT8:
+    case DataType::kUint8:
+    case DataType::kInt8:
       return 8;
-    case DataType::BOOL:
+    case DataType::kBool:
       return 1;
-    case DataType::UINT4:
-    case DataType::INT4:
+    case DataType::kUint4:
+    case DataType::kInt4:
       return 4;
-    case DataType::UINT3:
-    case DataType::INT3:
+    case DataType::kUint3:
+    case DataType::kInt3:
       return 3;
-    case DataType::UINT2:
-    case DataType::INT2:
+    case DataType::kUint2:
+    case DataType::kInt2:
       return 2;
-    case DataType::UINT1:
-    case DataType::INT1:
+    case DataType::kUint1:
+    case DataType::kInt1:
       return 1;
-    case DataType::FLOAT16:
-    case DataType::INT16:
-    case DataType::UINT16:
-    case DataType::BFLOAT16:
+    case DataType::kFloat16:
+    case DataType::kInt16:
+    case DataType::kUint16:
+    case DataType::kBfloat16:
       return 16;
-    case DataType::FLOAT32:
-    case DataType::INT32:
-    case DataType::UINT32:
+    case DataType::kFloat32:
+    case DataType::kInt32:
+    case DataType::kUint32:
       return 32;
-    case DataType::FLOAT64:
-    case DataType::INT64:
-    case DataType::UINT64:
+    case DataType::kFloat64:
+    case DataType::kInt64:
+    case DataType::kUint64:
       return 64;
-    case DataType::UNKNOWN:
+    case DataType::kUnknown:
       return 0;
   }
   return 0;
@@ -121,29 +121,29 @@ size_t SizeInBitsOf(DataType data_type) {
 
 bool IsFloatType(DataType data_type) {
   switch (data_type) {
-    case DataType::FLOAT16:
-    case DataType::BFLOAT16:
-    case DataType::FLOAT32:
-    case DataType::FLOAT64:
+    case DataType::kFloat16:
+    case DataType::kBfloat16:
+    case DataType::kFloat32:
+    case DataType::kFloat64:
       return true;
-    case DataType::UINT8:
-    case DataType::INT8:
-    case DataType::BOOL:
-    case DataType::UINT4:
-    case DataType::INT4:
-    case DataType::UINT3:
-    case DataType::INT3:
-    case DataType::UINT2:
-    case DataType::INT2:
-    case DataType::UINT1:
-    case DataType::INT1:
-    case DataType::INT16:
-    case DataType::UINT16:
-    case DataType::INT32:
-    case DataType::UINT32:
-    case DataType::INT64:
-    case DataType::UINT64:
-    case DataType::UNKNOWN:
+    case DataType::kUint8:
+    case DataType::kInt8:
+    case DataType::kBool:
+    case DataType::kUint4:
+    case DataType::kInt4:
+    case DataType::kUint3:
+    case DataType::kInt3:
+    case DataType::kUint2:
+    case DataType::kInt2:
+    case DataType::kUint1:
+    case DataType::kInt1:
+    case DataType::kInt16:
+    case DataType::kUint16:
+    case DataType::kInt32:
+    case DataType::kUint32:
+    case DataType::kInt64:
+    case DataType::kUint64:
+    case DataType::kUnknown:
       return false;
   }
   return false;
@@ -151,31 +151,31 @@ bool IsFloatType(DataType data_type) {
 
 bool IsSigned(DataType data_type) {
   switch (data_type) {
-    case DataType::UINT64:
-    case DataType::UINT32:
-    case DataType::UINT16:
-    case DataType::UINT8:
-    case DataType::UINT4:
-    case DataType::UINT3:
-    case DataType::UINT2:
-    case DataType::UINT1:
+    case DataType::kUint64:
+    case DataType::kUint32:
+    case DataType::kUint16:
+    case DataType::kUint8:
+    case DataType::kUint4:
+    case DataType::kUint3:
+    case DataType::kUint2:
+    case DataType::kUint1:
       return false;
-    case DataType::INT64:
-    case DataType::INT32:
-    case DataType::INT16:
-    case DataType::INT8:
-    case DataType::INT4:
-    case DataType::INT3:
-    case DataType::INT2:
-    case DataType::INT1:
+    case DataType::kInt64:
+    case DataType::kInt32:
+    case DataType::kInt16:
+    case DataType::kInt8:
+    case DataType::kInt4:
+    case DataType::kInt3:
+    case DataType::kInt2:
+    case DataType::kInt1:
       return true;
-    case DataType::FLOAT16:
-    case DataType::BFLOAT16:
-    case DataType::FLOAT32:
-    case DataType::FLOAT64:
+    case DataType::kFloat16:
+    case DataType::kBfloat16:
+    case DataType::kFloat32:
+    case DataType::kFloat64:
       return false;
-    case DataType::BOOL:
-    case DataType::UNKNOWN:
+    case DataType::kBool:
+    case DataType::kUnknown:
       return false;
   }
   return false;
@@ -183,49 +183,49 @@ bool IsSigned(DataType data_type) {
 
 std::string ToString(DataType data_type) {
   switch (data_type) {
-    case DataType::FLOAT16:
+    case DataType::kFloat16:
       return "float16";
-    case DataType::FLOAT32:
+    case DataType::kFloat32:
       return "float32";
-    case DataType::FLOAT64:
+    case DataType::kFloat64:
       return "float64";
-    case DataType::BFLOAT16:
+    case DataType::kBfloat16:
       return "bfloat16";
-    case DataType::INT16:
+    case DataType::kInt16:
       return "int16";
-    case DataType::INT32:
+    case DataType::kInt32:
       return "int32";
-    case DataType::INT64:
+    case DataType::kInt64:
       return "int64";
-    case DataType::INT8:
+    case DataType::kInt8:
       return "int8";
-    case DataType::INT4:
+    case DataType::kInt4:
       return "int4";
-    case DataType::INT3:
+    case DataType::kInt3:
       return "int3";
-    case DataType::INT2:
+    case DataType::kInt2:
       return "int2";
-    case DataType::INT1:
+    case DataType::kInt1:
       return "int1";
-    case DataType::UINT16:
+    case DataType::kUint16:
       return "uint16";
-    case DataType::UINT32:
+    case DataType::kUint32:
       return "uint32";
-    case DataType::UINT64:
+    case DataType::kUint64:
       return "uint64";
-    case DataType::UINT8:
+    case DataType::kUint8:
       return "uint8";
-    case DataType::UINT4:
+    case DataType::kUint4:
       return "uint4";
-    case DataType::UINT3:
+    case DataType::kUint3:
       return "uint3";
-    case DataType::UINT2:
+    case DataType::kUint2:
       return "uint2";
-    case DataType::UINT1:
+    case DataType::kUint1:
       return "uint1";
-    case DataType::BOOL:
+    case DataType::kBool:
       return "bool";
-    case DataType::UNKNOWN:
+    case DataType::kUnknown:
       return "unknown";
   }
   return "undefined";
@@ -234,40 +234,40 @@ std::string ToString(DataType data_type) {
 std::string ToCLDataType(DataType data_type, int vec_size) {
   const std::string postfix = vec_size == 1 ? "" : std::to_string(vec_size);
   switch (data_type) {
-    case DataType::FLOAT16:
+    case DataType::kFloat16:
       return "half" + postfix;
-    case DataType::FLOAT32:
+    case DataType::kFloat32:
       return "float" + postfix;
-    case DataType::FLOAT64:
+    case DataType::kFloat64:
       return "double" + postfix;
-    case DataType::INT16:
+    case DataType::kInt16:
       return "short" + postfix;
-    case DataType::INT32:
+    case DataType::kInt32:
       return "int" + postfix;
-    case DataType::INT64:
+    case DataType::kInt64:
       return "long" + postfix;
-    case DataType::INT8:
+    case DataType::kInt8:
       return "char" + postfix;
-    case DataType::UINT16:
+    case DataType::kUint16:
       return "ushort" + postfix;
-    case DataType::UINT32:
+    case DataType::kUint32:
       return "uint" + postfix;
-    case DataType::UINT64:
+    case DataType::kUint64:
       return "ulong" + postfix;
-    case DataType::UINT8:
+    case DataType::kUint8:
       return "uchar" + postfix;
-    case DataType::BOOL:
+    case DataType::kBool:
       return "bool" + postfix;
-    case DataType::UNKNOWN:
-    case DataType::BFLOAT16:
-    case DataType::UINT4:
-    case DataType::INT4:
-    case DataType::UINT3:
-    case DataType::INT3:
-    case DataType::UINT2:
-    case DataType::INT2:
-    case DataType::UINT1:
-    case DataType::INT1:
+    case DataType::kUnknown:
+    case DataType::kBfloat16:
+    case DataType::kUint4:
+    case DataType::kInt4:
+    case DataType::kUint3:
+    case DataType::kInt3:
+    case DataType::kUint2:
+    case DataType::kInt2:
+    case DataType::kUint1:
+    case DataType::kInt1:
       return "unknown";
   }
   return "undefined";
@@ -280,49 +280,49 @@ std::string ToWebGpuDataType(DataType data_type, int vec_size) {
   // into an i32.
   int num_packed = 0;
   switch (data_type) {
-    case DataType::FLOAT16:
+    case DataType::kFloat16:
       scalar = "f16";
       num_packed = 1;
       break;
-    case DataType::FLOAT32:
+    case DataType::kFloat32:
       scalar = "f32";
       num_packed = 1;
       break;
-    case DataType::INT32:
+    case DataType::kInt32:
       scalar = "i32";
       num_packed = 1;
       break;
-    case DataType::INT8:
+    case DataType::kInt8:
       scalar = "i32";
       num_packed = 4;
       break;
-    case DataType::UINT32:
+    case DataType::kUint32:
       scalar = "u32";
       num_packed = 1;
       break;
-    case DataType::UINT8:
+    case DataType::kUint8:
       scalar = "u32";
       num_packed = 4;
       break;
-    case DataType::BOOL:
+    case DataType::kBool:
       scalar = "bool";
       num_packed = 1;
       break;
-    case DataType::BFLOAT16:
-    case DataType::UINT64:
-    case DataType::UINT16:
-    case DataType::INT64:
-    case DataType::INT16:
-    case DataType::FLOAT64:
-    case DataType::UNKNOWN:
-    case DataType::UINT4:
-    case DataType::INT4:
-    case DataType::UINT3:
-    case DataType::INT3:
-    case DataType::UINT2:
-    case DataType::INT2:
-    case DataType::UINT1:
-    case DataType::INT1:
+    case DataType::kBfloat16:
+    case DataType::kUint64:
+    case DataType::kUint16:
+    case DataType::kInt64:
+    case DataType::kInt16:
+    case DataType::kFloat64:
+    case DataType::kUnknown:
+    case DataType::kUint4:
+    case DataType::kInt4:
+    case DataType::kUint3:
+    case DataType::kInt3:
+    case DataType::kUint2:
+    case DataType::kInt2:
+    case DataType::kUint1:
+    case DataType::kInt1:
       return "unknown";
   }
   if (vec_size == 1) {
@@ -337,41 +337,41 @@ std::string ToWebGpuDataType(DataType data_type, int vec_size) {
 std::string ToMetalDataType(DataType data_type, int vec_size) {
   const std::string postfix = vec_size == 1 ? "" : std::to_string(vec_size);
   switch (data_type) {
-    case DataType::FLOAT16:
+    case DataType::kFloat16:
       return "half" + postfix;
-    case DataType::FLOAT32:
+    case DataType::kFloat32:
       return "float" + postfix;
-    case DataType::FLOAT64:
+    case DataType::kFloat64:
       return "double" + postfix;
-    case DataType::INT16:
+    case DataType::kInt16:
       return "short" + postfix;
-    case DataType::INT32:
+    case DataType::kInt32:
       return "int" + postfix;
-    case DataType::INT64:
+    case DataType::kInt64:
       return "long" + postfix;
-    case DataType::INT8:
+    case DataType::kInt8:
       return "char" + postfix;
-    case DataType::BFLOAT16:
+    case DataType::kBfloat16:
       return "bfloat" + postfix;
-    case DataType::UINT16:
+    case DataType::kUint16:
       return "ushort" + postfix;
-    case DataType::UINT32:
+    case DataType::kUint32:
       return "uint" + postfix;
-    case DataType::UINT64:
+    case DataType::kUint64:
       return "ulong" + postfix;
-    case DataType::UINT8:
+    case DataType::kUint8:
       return "uchar" + postfix;
-    case DataType::BOOL:
+    case DataType::kBool:
       return "bool" + postfix;
-    case DataType::UNKNOWN:
-    case DataType::UINT4:
-    case DataType::INT4:
-    case DataType::UINT3:
-    case DataType::INT3:
-    case DataType::UINT2:
-    case DataType::INT2:
-    case DataType::UINT1:
-    case DataType::INT1:
+    case DataType::kUnknown:
+    case DataType::kUint4:
+    case DataType::kInt4:
+    case DataType::kUint3:
+    case DataType::kInt3:
+    case DataType::kUint2:
+    case DataType::kInt2:
+    case DataType::kUint1:
+    case DataType::kInt1:
       return "unknown";
   }
   return "undefined";
@@ -379,21 +379,21 @@ std::string ToMetalDataType(DataType data_type, int vec_size) {
 
 DataType ToMetalTextureType(DataType data_type) {
   switch (data_type) {
-    case DataType::FLOAT32:
-    case DataType::FLOAT16:
-    case DataType::INT32:
-    case DataType::INT16:
-    case DataType::UINT32:
-    case DataType::UINT16:
+    case DataType::kFloat32:
+    case DataType::kFloat16:
+    case DataType::kInt32:
+    case DataType::kInt16:
+    case DataType::kUint32:
+    case DataType::kUint16:
       return data_type;
-    case DataType::INT8:
-      return DataType::INT16;
-    case DataType::BFLOAT16:
-    case DataType::UINT8:
-    case DataType::BOOL:
-      return DataType::UINT16;
+    case DataType::kInt8:
+      return DataType::kInt16;
+    case DataType::kBfloat16:
+    case DataType::kUint8:
+    case DataType::kBool:
+      return DataType::kUint16;
     default:
-      return DataType::UNKNOWN;
+      return DataType::kUnknown;
   }
 }
 
@@ -402,38 +402,38 @@ std::string ToGlslShaderDataType(DataType data_type, int vec_size,
   const std::string precision_modifier =
       add_precision ? GetGlslPrecisionModifier(data_type) : "";
   switch (data_type) {
-    case DataType::FLOAT16:
+    case DataType::kFloat16:
       if (explicit_fp16) {
         return ToGlslType("float16_t", "f16vec", vec_size);
       } else {
         return precision_modifier + ToGlslType("float", "vec", vec_size);
       }
-    case DataType::FLOAT32:
+    case DataType::kFloat32:
       return precision_modifier + ToGlslType("float", "vec", vec_size);
-    case DataType::FLOAT64:
+    case DataType::kFloat64:
       return precision_modifier + ToGlslType("double", "dvec", vec_size);
-    case DataType::INT8:
-    case DataType::INT16:
-    case DataType::INT32:
-    case DataType::INT64:
+    case DataType::kInt8:
+    case DataType::kInt16:
+    case DataType::kInt32:
+    case DataType::kInt64:
       return precision_modifier + ToGlslType("int", "ivec", vec_size);
-    case DataType::UINT8:
-    case DataType::UINT16:
-    case DataType::UINT32:
-    case DataType::UINT64:
+    case DataType::kUint8:
+    case DataType::kUint16:
+    case DataType::kUint32:
+    case DataType::kUint64:
       return precision_modifier + ToGlslType("uint", "uvec", vec_size);
-    case DataType::BOOL:
+    case DataType::kBool:
       return ToGlslType("bool", "bvec", vec_size);
-    case DataType::UNKNOWN:
-    case DataType::BFLOAT16:
-    case DataType::UINT4:
-    case DataType::INT4:
-    case DataType::UINT3:
-    case DataType::INT3:
-    case DataType::UINT2:
-    case DataType::INT2:
-    case DataType::UINT1:
-    case DataType::INT1:
+    case DataType::kUnknown:
+    case DataType::kBfloat16:
+    case DataType::kUint4:
+    case DataType::kInt4:
+    case DataType::kUint3:
+    case DataType::kInt3:
+    case DataType::kUint2:
+    case DataType::kInt2:
+    case DataType::kUint1:
+    case DataType::kInt1:
       return "unknown";
   }
   return "unknown";
@@ -441,17 +441,17 @@ std::string ToGlslShaderDataType(DataType data_type, int vec_size,
 
 std::string ToWebGpuType(DataType data_type, int vec_size, bool explicit_fp16) {
   std::string type_name;
-  if (data_type == DataType::FLOAT32) {
+  if (data_type == DataType::kFloat32) {
     type_name = "f32";
-  } else if (data_type == DataType::FLOAT16) {
+  } else if (data_type == DataType::kFloat16) {
     type_name = explicit_fp16 ? "f16" : "f32";
-  } else if (data_type == DataType::INT32 || data_type == DataType::INT16 ||
-             data_type == DataType::INT8) {
+  } else if (data_type == DataType::kInt32 || data_type == DataType::kInt16 ||
+             data_type == DataType::kInt8) {
     type_name = "i32";
-  } else if (data_type == DataType::UINT32 || data_type == DataType::UINT16 ||
-             data_type == DataType::UINT8) {
+  } else if (data_type == DataType::kUint32 || data_type == DataType::kUint16 ||
+             data_type == DataType::kUint8) {
     type_name = "u32";
-  } else if (data_type == DataType::BOOL) {
+  } else if (data_type == DataType::kBool) {
     type_name = "bool";
   } else {
     return "no_type";
@@ -465,41 +465,41 @@ std::string ToWebGpuType(DataType data_type, int vec_size, bool explicit_fp16) {
 std::string ToUclDataType(DataType data_type, int vec_size) {
   const std::string postfix = vec_size == 1 ? "" : std::to_string(vec_size);
   switch (data_type) {
-    case DataType::FLOAT16:
+    case DataType::kFloat16:
       return "half" + postfix;
-    case DataType::FLOAT32:
+    case DataType::kFloat32:
       return "float" + postfix;
-    case DataType::FLOAT64:
+    case DataType::kFloat64:
       return "double" + postfix;
-    case DataType::INT16:
+    case DataType::kInt16:
       return "short" + postfix;
-    case DataType::INT32:
+    case DataType::kInt32:
       return "int" + postfix;
-    case DataType::INT64:
+    case DataType::kInt64:
       return "long" + postfix;
-    case DataType::INT8:
+    case DataType::kInt8:
       return "char" + postfix;
-    case DataType::BFLOAT16:
+    case DataType::kBfloat16:
       return "bfloat" + postfix;
-    case DataType::UINT16:
+    case DataType::kUint16:
       return "ushort" + postfix;
-    case DataType::UINT32:
+    case DataType::kUint32:
       return "uint" + postfix;
-    case DataType::UINT64:
+    case DataType::kUint64:
       return "ulong" + postfix;
-    case DataType::UINT8:
+    case DataType::kUint8:
       return "uchar" + postfix;
-    case DataType::BOOL:
+    case DataType::kBool:
       return "bool" + postfix;
-    case DataType::UNKNOWN:
-    case DataType::UINT4:
-    case DataType::INT4:
-    case DataType::UINT3:
-    case DataType::INT3:
-    case DataType::UINT2:
-    case DataType::INT2:
-    case DataType::UINT1:
-    case DataType::INT1:
+    case DataType::kUnknown:
+    case DataType::kUint4:
+    case DataType::kInt4:
+    case DataType::kUint3:
+    case DataType::kInt3:
+    case DataType::kUint2:
+    case DataType::kInt2:
+    case DataType::kUint1:
+    case DataType::kInt1:
       return "unknown";
   }
   return "undefined";
@@ -564,23 +564,23 @@ size_t GetTypeSizeInBits(PackedType type) {
 DataType ToSpatialTensorType(PackedType type) {
   switch (type) {
     case PackedType::kUnknown:
-      return DataType::UNKNOWN;
+      return DataType::kUnknown;
     case PackedType::kUint8C4:
-      return DataType::UINT8;
+      return DataType::kUint8;
     case PackedType::kUint8W4C4:
-      return DataType::UINT32;
+      return DataType::kUint32;
     case PackedType::kUint8C16:
-      return DataType::UINT32;
+      return DataType::kUint32;
     case PackedType::kInt8C4:
-      return DataType::INT8;
+      return DataType::kInt8;
     case PackedType::kInt8W4C4:
-      return DataType::INT32;
+      return DataType::kInt32;
     case PackedType::kInt8C16:
-      return DataType::INT32;
+      return DataType::kInt32;
     case PackedType::kInt4C32:
-      return DataType::INT32;
+      return DataType::kInt32;
     case PackedType::kUint4C32:
-      return DataType::UINT32;
+      return DataType::kUint32;
   }
 }
 

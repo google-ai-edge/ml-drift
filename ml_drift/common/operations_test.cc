@@ -30,13 +30,13 @@ using ::testing::FloatNear;
 using ::testing::Pointwise;
 
 TEST(DequantizeTensorTest, DequantizeINT8) {
-  Tensor<OHWI, DataType::FLOAT32> scale;
+  Tensor<OHWI, DataType::kFloat32> scale;
   scale.shape = OHWI(1, 1, 1, 1);
   scale.data = {2.0f};
-  Tensor<OHWI, DataType::INT32> zero_point;
+  Tensor<OHWI, DataType::kInt32> zero_point;
   zero_point.shape = OHWI(1, 1, 1, 1);
   zero_point.data = {1};
-  Tensor<OHWI, DataType::INT8> q_tensor;
+  Tensor<OHWI, DataType::kInt8> q_tensor;
   q_tensor.shape = OHWI(1, 2, 2, 1);
   q_tensor.data = {1, 2, 3, 4};
   auto result = DequantizeTensor(q_tensor, scale, zero_point, false);
@@ -45,13 +45,13 @@ TEST(DequantizeTensorTest, DequantizeINT8) {
 }
 
 TEST(DequantizeTensorTest, DequantizeINT4) {
-  Tensor<OHWI, DataType::FLOAT32> scale;
+  Tensor<OHWI, DataType::kFloat32> scale;
   scale.shape = OHWI(1, 1, 1, 1);
   scale.data = {2.0f};
-  Tensor<OHWI, DataType::INT32> zero_point;
+  Tensor<OHWI, DataType::kInt32> zero_point;
   zero_point.shape = OHWI(1, 1, 1, 1);
   zero_point.data = {1};
-  Tensor<OHWI, DataType::INT4> q_tensor;
+  Tensor<OHWI, DataType::kInt4> q_tensor;
   q_tensor.shape = OHWI(1, 2, 2, 1);
   q_tensor.data.push_back(0x21);
   q_tensor.data.push_back(0x43);
@@ -61,13 +61,13 @@ TEST(DequantizeTensorTest, DequantizeINT4) {
 }
 
 TEST(DequantizeTensorTest, DequantizePerChannelINT8) {
-  Tensor<OHWI, DataType::INT8> q_tensor;
+  Tensor<OHWI, DataType::kInt8> q_tensor;
   q_tensor.shape = OHWI(2, 2, 1, 1);
   q_tensor.data = {1, 2, 3, 4};
-  Tensor<OHWI, DataType::FLOAT32> scale;
+  Tensor<OHWI, DataType::kFloat32> scale;
   scale.shape = OHWI(2, 1, 1, 1);
   scale.data = {2.0f, 3.0f};
-  Tensor<OHWI, DataType::INT32> zero_point;
+  Tensor<OHWI, DataType::kInt32> zero_point;
   zero_point.shape = OHWI(2, 1, 1, 1);
   zero_point.data = {1, 2};
   auto result = DequantizeTensor(q_tensor, scale, zero_point, false);
@@ -76,14 +76,14 @@ TEST(DequantizeTensorTest, DequantizePerChannelINT8) {
 }
 
 TEST(DequantizeTensorTest, DequantizePerChannelINT4) {
-  Tensor<OHWI, DataType::INT4> q_tensor;
+  Tensor<OHWI, DataType::kInt4> q_tensor;
   q_tensor.shape = OHWI(2, 2, 1, 1);
   q_tensor.data.push_back(0x21);
   q_tensor.data.push_back(0x43);
-  Tensor<OHWI, DataType::FLOAT32> scale;
+  Tensor<OHWI, DataType::kFloat32> scale;
   scale.shape = OHWI(2, 1, 1, 1);
   scale.data = {2.0f, 3.0f};
-  Tensor<OHWI, DataType::INT32> zero_point;
+  Tensor<OHWI, DataType::kInt32> zero_point;
   zero_point.shape = OHWI(2, 1, 1, 1);
   zero_point.data = {1, 2};
   auto result = DequantizeTensor(q_tensor, scale, zero_point, false);
@@ -92,13 +92,13 @@ TEST(DequantizeTensorTest, DequantizePerChannelINT4) {
 }
 
 TEST(DequantizeTensorTest, DequantizePerChannelScalePerTensorZeroPointINT8) {
-  Tensor<OHWI, DataType::INT8> q_tensor;
+  Tensor<OHWI, DataType::kInt8> q_tensor;
   q_tensor.shape = OHWI(2, 2, 1, 1);  // 2 channels, 2 elements per channel
   q_tensor.data = {1, 2, 3, 4};
-  Tensor<OHWI, DataType::FLOAT32> scale;
+  Tensor<OHWI, DataType::kFloat32> scale;
   scale.shape = OHWI(2, 1, 1, 1);
   scale.data = {2.0f, 3.0f};
-  Tensor<OHWI, DataType::INT32> zero_point;
+  Tensor<OHWI, DataType::kInt32> zero_point;
   zero_point.shape = OHWI(1, 1, 1, 1);  // Per-tensor zero point
   zero_point.data = {1};
   auto result = DequantizeTensor(q_tensor, scale, zero_point, false);
@@ -109,14 +109,14 @@ TEST(DequantizeTensorTest, DequantizePerChannelScalePerTensorZeroPointINT8) {
 }
 
 TEST(DequantizeTensorTest, DequantizePerChannelScalePerTensorZeroPointINT4) {
-  Tensor<OHWI, DataType::INT4> q_tensor;
+  Tensor<OHWI, DataType::kInt4> q_tensor;
   q_tensor.shape = OHWI(2, 2, 1, 1);  // 2 channels, 2 elements per channel
   q_tensor.data.push_back(0x21);      // Unpacks to {1, 2}
   q_tensor.data.push_back(0x43);      // Unpacks to {3, 4}
-  Tensor<OHWI, DataType::FLOAT32> scale;
+  Tensor<OHWI, DataType::kFloat32> scale;
   scale.shape = OHWI(2, 1, 1, 1);
   scale.data = {2.0f, 3.0f};
-  Tensor<OHWI, DataType::INT32> zero_point;
+  Tensor<OHWI, DataType::kInt32> zero_point;
   zero_point.shape = OHWI(1, 1, 1, 1);  // Per-tensor zero point
   zero_point.data = {1};
   auto result = DequantizeTensor(q_tensor, scale, zero_point, false);
@@ -127,13 +127,13 @@ TEST(DequantizeTensorTest, DequantizePerChannelScalePerTensorZeroPointINT4) {
 }
 
 TEST(DequantizeTensorTest, DequantizeINT4OddElements) {
-  Tensor<OHWI, DataType::FLOAT32> scale;
+  Tensor<OHWI, DataType::kFloat32> scale;
   scale.shape = OHWI(1, 1, 1, 1);
   scale.data = {2.0f};
-  Tensor<OHWI, DataType::INT32> zero_point;
+  Tensor<OHWI, DataType::kInt32> zero_point;
   zero_point.shape = OHWI(1, 1, 1, 1);
   zero_point.data = {1};
-  Tensor<OHWI, DataType::INT4> q_tensor;
+  Tensor<OHWI, DataType::kInt4> q_tensor;
   q_tensor.shape = OHWI(1, 1, 3, 1);  // 3 elements
   q_tensor.data.push_back(0x21);      // Unpacks to {1, 2}
   q_tensor.data.push_back(0x03);      // Unpacks to {3}
@@ -144,13 +144,13 @@ TEST(DequantizeTensorTest, DequantizeINT4OddElements) {
 }
 
 TEST(DequantizeTensorTest, DequantizeINT2) {
-  Tensor<OHWI, DataType::FLOAT32> scale;
+  Tensor<OHWI, DataType::kFloat32> scale;
   scale.shape = OHWI(1, 1, 1, 1);
   scale.data = {2.0f};
-  Tensor<OHWI, DataType::INT32> zero_point;
+  Tensor<OHWI, DataType::kInt32> zero_point;
   zero_point.shape = OHWI(1, 1, 1, 1);
   zero_point.data = {1};
-  Tensor<OHWI, DataType::INT2> q_tensor;
+  Tensor<OHWI, DataType::kInt2> q_tensor;
   q_tensor.shape = OHWI(1, 4, 1, 1);  // 4 elements
   q_tensor.data.push_back(0xE4);      // {0, 1, -2, -1}
   auto result = DequantizeTensor(q_tensor, scale, zero_point, false);
@@ -161,7 +161,7 @@ TEST(DequantizeTensorTest, DequantizeINT2) {
 
 TEST(ToFloat32Test, ToFloat32INT4) {
   FullyConnectedInt4Attributes qattr;
-  Tensor<OHWI, DataType::INT4> int4_weights;
+  Tensor<OHWI, DataType::kInt4> int4_weights;
   int4_weights.shape = OHWI(1, 1, 2, 1);  // 2 elements
   int4_weights.data.push_back(0x21);      // {1, 2}
   qattr.weights = int4_weights;
@@ -174,7 +174,7 @@ TEST(ToFloat32Test, ToFloat32INT4) {
   auto result = ToFloat32(qattr);
   EXPECT_EQ(result.op_name, "test_op");
   result.weights.data.resize(
-      std::get<Tensor<OHWI, DataType::INT4>>(qattr.weights)
+      std::get<Tensor<OHWI, DataType::kInt4>>(qattr.weights)
           .shape.DimensionsProduct());
   EXPECT_THAT(result.weights.data,
               Pointwise(FloatNear(1e-5), std::vector<float>{0.0, 2.0}));

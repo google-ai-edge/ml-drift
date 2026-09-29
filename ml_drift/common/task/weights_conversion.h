@@ -50,65 +50,65 @@ uint2 Get2dResourceSize(const WeightsDescription& weight_desc,
 uint2 Get2dResourceSize(const WeightsDescription& weight_desc,
                         const OHWDI& shape);
 
-void RearrangeWeights(const Tensor<OHWI, DataType::FLOAT32>& weights,
+void RearrangeWeights(const Tensor<OHWI, DataType::kFloat32>& weights,
                       const WeightsDescription& dst_weight_desc,
                       absl::Span<uint8_t> dst);
 
-void RearrangeWeights(const Tensor<OHWDI, DataType::FLOAT32>& weights,
+void RearrangeWeights(const Tensor<OHWDI, DataType::kFloat32>& weights,
                       const WeightsDescription& dst_weight_desc,
                       absl::Span<uint8_t> dst);
 
-void RearrangeWeights(const Tensor<OHWI, DataType::INT8>& weights,
+void RearrangeWeights(const Tensor<OHWI, DataType::kInt8>& weights,
                       const WeightsDescription& dst_weight_desc,
                       absl::Span<uint8_t> dst);
 
-void RearrangeWeights(const Tensor<OHWI, DataType::UINT8>& weights,
+void RearrangeWeights(const Tensor<OHWI, DataType::kUint8>& weights,
                       const WeightsDescription& dst_weight_desc,
                       absl::Span<uint8_t> dst, uint8_t pad_value = 0);
 
-void RearrangeWeightsInt8AsUint8(const Tensor<OHWI, DataType::INT8>& weights,
+void RearrangeWeightsInt8AsUint8(const Tensor<OHWI, DataType::kInt8>& weights,
                                  const WeightsDescription& dst_weight_desc,
                                  absl::Span<uint8_t> dst, int shift_value,
                                  unsigned int pad_value);
 
-void RearrangeWeightsInt8AsUint4(const Tensor<OHWI, DataType::INT8>& weights,
+void RearrangeWeightsInt8AsUint4(const Tensor<OHWI, DataType::kInt8>& weights,
                                  const WeightsDescription& dst_weight_desc,
                                  absl::Span<uint8_t> dst, int shift_value,
                                  unsigned int pad_value);
 
-void RearrangeWeightsInt8AsUint2(const Tensor<OHWI, DataType::INT8>& weights,
+void RearrangeWeightsInt8AsUint2(const Tensor<OHWI, DataType::kInt8>& weights,
                                  const WeightsDescription& dst_weight_desc,
                                  absl::Span<uint8_t> dst, int shift_value,
                                  unsigned int pad_value);
 
-void RearrangeWeightsInt4(const Tensor<OHWI, DataType::INT8>& weights_i4,
+void RearrangeWeightsInt4(const Tensor<OHWI, DataType::kInt8>& weights_i4,
                           const WeightsDescription& dst_weight_desc,
                           absl::Span<uint8_t> dst);
 
-void RearrangeWeightsUint2(const Tensor<OHWI, DataType::UINT8>& weights_i2,
+void RearrangeWeightsUint2(const Tensor<OHWI, DataType::kUint8>& weights_i2,
                            const WeightsDescription& dst_weight_desc,
                            absl::Span<uint8_t> dst);
 
 absl::Status RearrangeWeightsUInt4Packed(
-    const Tensor<OHWI, DataType::UINT8>& weights,
+    const Tensor<OHWI, DataType::kUint8>& weights,
     const WeightsDescription& dst_weight_desc, absl::Span<uint8_t> dst,
     absl::Span<int32_t> weights_sum_i, unsigned int pad_value, bool swap_dims);
 
 absl::Status RearrangeWeightsUInt2Packed(
-    const Tensor<OHWI, DataType::UINT8>& weights,
+    const Tensor<OHWI, DataType::kUint8>& weights,
     const WeightsDescription& dst_weight_desc, absl::Span<uint8_t> dst,
     absl::Span<int32_t> weights_sum_i, unsigned int pad_value, bool swap_dims);
 
-Tensor<Linear, DataType::INT32> GetWeightsAccumulatedInputChannels(
-    const Tensor<OHWI, DataType::INT8>& weights);
+Tensor<Linear, DataType::kInt32> GetWeightsAccumulatedInputChannels(
+    const Tensor<OHWI, DataType::kInt8>& weights);
 
 // Returns tensor descriptor(s) with a proper shape, layout, and rearranged
 // weights from the weights_desc.
 std::vector<TensorDescriptor> GetTensorDescriptorsForWeightsLayout(
-    const ml_drift::Tensor<OHWI, DataType::FLOAT32>& weights,
+    const ml_drift::Tensor<OHWI, DataType::kFloat32>& weights,
     const WeightsDescription& weights_desc);
 TensorDescriptor GetTensorDescriptorForWeightsLayout(
-    const ml_drift::Tensor<OHWI, DataType::INT8>& weights,
+    const ml_drift::Tensor<OHWI, DataType::kInt8>& weights,
     const WeightsDescription& weights_desc);
 
 // Returns descriptors without data.

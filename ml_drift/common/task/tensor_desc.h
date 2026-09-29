@@ -172,13 +172,13 @@ class TensorDescriptor : public GPUObjectDescriptor {
     UploadData(data_ptr);
   }
 
-  void UploadData(const Tensor<HWC, DataType::FLOAT32>& src);
+  void UploadData(const Tensor<HWC, DataType::kFloat32>& src);
 
   template <typename T>
   void UploadData(const T* src) {
     data_.resize(GetSizeInBytesForShape(shape_));
-    if (layout_ == Layout::LINEAR) {
-      if (data_type_ == DataType::FLOAT16) {
+    if (layout_ == Layout::kLinear) {
+      if (data_type_ == DataType::kFloat16) {
         half* gpu_data = reinterpret_cast<half*>(data_.data());
         DataFromLinear(src, *this, gpu_data);
       } else {
@@ -186,7 +186,7 @@ class TensorDescriptor : public GPUObjectDescriptor {
         DataFromLinear(src, *this, gpu_data);
       }
     } else {  // HWC/BHWC/HWDC/BHWDC
-      if (data_type_ == DataType::FLOAT16) {
+      if (data_type_ == DataType::kFloat16) {
         half* gpu_data = reinterpret_cast<half*>(data_.data());
         int gpu_data_byte_size = data_.size() / sizeof(half);
         DataFromBHWDC(src, shape_, *this,
@@ -222,7 +222,7 @@ class TensorDescriptor : public GPUObjectDescriptor {
 
   template <typename T>
   void DownloadData(T* dst) const {
-    if (data_type_ == DataType::FLOAT16) {
+    if (data_type_ == DataType::kFloat16) {
       const half* gpu_data = reinterpret_cast<const half*>(data_.data());
       DataToBHWDC(gpu_data, shape_, *this, dst);
     } else {
@@ -333,18 +333,18 @@ class TensorDescriptor : public GPUObjectDescriptor {
 
   friend TensorDescriptor CreateConstantLinearTensorDescriptor(
       DataType data_type, TensorStorageType storage_type,
-      const Tensor<Linear, DataType::FLOAT32>& src);
+      const Tensor<Linear, DataType::kFloat32>& src);
   friend TensorDescriptor CreateConstantLinearTensorDescriptor(
       DataType data_type, TensorStorageType storage_type,
-      const Tensor<Linear, DataType::FLOAT16>& src);
+      const Tensor<Linear, DataType::kFloat16>& src);
   friend TensorDescriptor CreateConstantLinearTensorDescriptor(
       const GpuInfo& gpu_info, DataType data_type,
-      const Tensor<Linear, DataType::FLOAT32>& src);
+      const Tensor<Linear, DataType::kFloat32>& src);
   friend TensorDescriptor CreateConstantLinearTensorDescriptor(
       const GpuInfo& gpu_info, DataType data_type,
-      const Tensor<Linear, DataType::FLOAT16>& src);
+      const Tensor<Linear, DataType::kFloat16>& src);
   friend TensorDescriptor CreateConstantLinearTensorDescriptor(
-      const GpuInfo& gpu_info, const Tensor<Linear, DataType::INT32>& src);
+      const GpuInfo& gpu_info, const Tensor<Linear, DataType::kInt32>& src);
   template <typename T>
   friend TensorDescriptor CreateRawConstantOHWITensorDescriptor(
       DataType data_type, const OHWI& shape, absl::Span<const T> weights_span);
@@ -432,14 +432,14 @@ class TensorDescriptor : public GPUObjectDescriptor {
                                    std::string* zc, std::string* sc,
                                    std::string* bc) const;
 
-  DataType data_type_ = DataType::UNKNOWN;
-  TensorStorageType storage_type_ = TensorStorageType::UNKNOWN;
+  DataType data_type_ = DataType::kUnknown;
+  TensorStorageType storage_type_ = TensorStorageType::kUnknown;
 
   // This field describes logical layout, actual(physical) GPU layout can be
   // totally different.
   Layout layout_ =
-      Layout::UNKNOWN;  // Supported layouts is HWC, BHWC, HWDC, BHWDC
-                        // HW and LINEAR (for constant objects only)
+      Layout::kUnknown;  // Supported layouts is HWC, BHWC, HWDC, BHWDC
+                         // HW and LINEAR (for constant objects only)
 
   // applicable only for BUFFER/IMAGE_BUFFER.
   PhysicalLayout1D physical_layout_1d_ = PhysicalLayout1D::kDCHWBC4;
@@ -469,7 +469,7 @@ class TensorDescriptor : public GPUObjectDescriptor {
 template <>
 inline void TensorDescriptor::UploadDataRaw(const absl::Span<const float> src) {
   data_.resize(GetMemorySizeInBytes());
-  if (data_type_ == DataType::FLOAT16) {
+  if (data_type_ == DataType::kFloat16) {
     // TODO: who/impjdi - Use xnn_run_unary_elementwise_nc instead.
     half* dst = reinterpret_cast<half*>(&data_[0]);
     for (int i = 0; i < shape_.DimensionsProduct(); ++i) {
@@ -492,18 +492,18 @@ TensorStorageType GetStorageTypeForLinearTensor(const GpuInfo& gpu_info,
                                                 const Linear& shape);
 TensorDescriptor CreateConstantLinearTensorDescriptor(
     DataType data_type, TensorStorageType storage_type,
-    const Tensor<Linear, DataType::FLOAT32>& src);
+    const Tensor<Linear, DataType::kFloat32>& src);
 TensorDescriptor CreateConstantLinearTensorDescriptor(
     DataType data_type, TensorStorageType storage_type,
-    const Tensor<Linear, DataType::FLOAT16>& src);
+    const Tensor<Linear, DataType::kFloat16>& src);
 TensorDescriptor CreateConstantLinearTensorDescriptor(
     const GpuInfo& gpu_info, DataType data_type,
-    const Tensor<Linear, DataType::FLOAT32>& src);
+    const Tensor<Linear, DataType::kFloat32>& src);
 TensorDescriptor CreateConstantLinearTensorDescriptor(
     const GpuInfo& gpu_info, DataType data_type,
-    const Tensor<Linear, DataType::FLOAT16>& src);
+    const Tensor<Linear, DataType::kFloat16>& src);
 TensorDescriptor CreateConstantLinearTensorDescriptor(
-    const GpuInfo& gpu_info, const Tensor<Linear, DataType::INT32>& src);
+    const GpuInfo& gpu_info, const Tensor<Linear, DataType::kInt32>& src);
 
 TensorDescriptor CreateConstantHWVec4TensorDescriptor(
     DataType data_type, TensorStorageType storage_type, int width, int height,
@@ -511,9 +511,8 @@ TensorDescriptor CreateConstantHWVec4TensorDescriptor(
 
 // Converts a scale or zero point tensor to a tensor descriptor.
 TensorDescriptor ScaleOrZeroPointToTensorDesc(
-    const GpuInfo& gpu_info, const Tensor<OHWI, DataType::FLOAT32>& src,
+    const GpuInfo& gpu_info, const Tensor<OHWI, DataType::kFloat32>& src,
     DataType dst_data_type);
-
 
 template <typename H>
 H AbslHashValue(H h, const TensorDescriptor& tensor_desc) {
@@ -548,8 +547,8 @@ template <typename FromType, typename ToType>
 void DataFromBHWDC(const FromType* src, const BHWDC& shape,
                    const TensorDescriptor& desc, absl::Span<ToType> dst) {
   const int channels_alignment =
-      desc.GetStorageType() == TensorStorageType::SINGLE_TEXTURE_2D ? shape.c
-                                                                    : 4;
+      desc.GetStorageType() == TensorStorageType::kSingleTexture2D ? shape.c
+                                                                   : 4;
   const int slices = DivideRoundUp(shape.c, 4);
   for (int b = 0; b < shape.b; ++b) {
     for (int s = 0; s < slices; ++s) {
@@ -579,8 +578,8 @@ template <typename FromType, typename ToType>
 void DataToBHWDC(const FromType* src, const BHWDC& shape,
                  const TensorDescriptor& desc, ToType* dst) {
   const int channels_alignment =
-      desc.GetStorageType() == TensorStorageType::SINGLE_TEXTURE_2D ? shape.c
-                                                                    : 4;
+      desc.GetStorageType() == TensorStorageType::kSingleTexture2D ? shape.c
+                                                                   : 4;
   const int slices = DivideRoundUp(shape.c, 4);
   for (int b = 0; b < shape.b; ++b) {
     for (int s = 0; s < slices; ++s) {
@@ -603,20 +602,17 @@ void DataToBHWDC(const FromType* src, const BHWDC& shape,
 }
 
 constexpr std::array<TensorStorageType, 6> GetTensorStoragesTypes() {
-  return {TensorStorageType::BUFFER,
-          TensorStorageType::TEXTURE_ARRAY,
-          TensorStorageType::TEXTURE_2D,
-          TensorStorageType::TEXTURE_3D,
-          TensorStorageType::SINGLE_TEXTURE_2D,
-          TensorStorageType::IMAGE_BUFFER};
+  return {TensorStorageType::kBuffer,          TensorStorageType::kTextureArray,
+          TensorStorageType::kTexture2D,       TensorStorageType::kTexture3D,
+          TensorStorageType::kSingleTexture2D, TensorStorageType::kImageBuffer};
 }
 
 // SingleTexture2D not suitable for all tensor shapes.
 constexpr std::array<TensorStorageType, 5>
 GetTensorStoragesTypesWithoutSingleTexture2D() {
-  return {TensorStorageType::BUFFER, TensorStorageType::TEXTURE_ARRAY,
-          TensorStorageType::TEXTURE_2D, TensorStorageType::TEXTURE_3D,
-          TensorStorageType::IMAGE_BUFFER};
+  return {TensorStorageType::kBuffer, TensorStorageType::kTextureArray,
+          TensorStorageType::kTexture2D, TensorStorageType::kTexture3D,
+          TensorStorageType::kImageBuffer};
 }
 std::string ToString(TensorStorageType type);
 std::string ToStringWithShape(const TensorDescriptor& desc);
