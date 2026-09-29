@@ -352,7 +352,13 @@ MaliInfo GetMaliInfo(const std::string& gpu_description) {
       {"g1-premium", MaliInfo{/*gpu_version=*/MaliGpu::kG1Premium,
                               /*generation=*/MaliInfo::Gen::kV5}},
       {"g1-ultra", MaliInfo{/*gpu_version=*/MaliGpu::kG1Ultra,
-                            /*generation=*/MaliInfo::Gen::kV5}}};
+                            /*generation=*/MaliInfo::Gen::kV5}},
+      {"g2-pro", MaliInfo{/*gpu_version=*/MaliGpu::kG2Pro,
+                          /*generation=*/MaliInfo::Gen::kV6}},
+      {"g2-premium", MaliInfo{/*gpu_version=*/MaliGpu::kG2Premium,
+                              /*generation=*/MaliInfo::Gen::kV6}},
+      {"g2-ultra", MaliInfo{/*gpu_version=*/MaliGpu::kG2Ultra,
+                            /*generation=*/MaliInfo::Gen::kV6}}};
   MaliInfo mali_info;
   mali_info.gpu_version = MaliGpu::kUnknown;
   for (const auto& v : kMapping) {
@@ -1042,6 +1048,11 @@ bool MaliInfo::IsMaliG1() const {
          gpu_version == MaliGpu::kG1Ultra;
 }
 
+bool MaliInfo::IsMaliG2() const {
+  return gpu_version == MaliGpu::kG2Pro || gpu_version == MaliGpu::kG2Premium ||
+         gpu_version == MaliGpu::kG2Ultra;
+}
+
 int MaliInfo::GetApproximateComputeUnitsCount() const {
   if (IsMidgard()) {
     // Mali Midgard can have 1-16 cores
@@ -1074,6 +1085,12 @@ int MaliInfo::GetApproximateComputeUnitsCount() const {
     } else if (gpu_version == MaliGpu::kG1Premium) {
       return 6;
     } else if (gpu_version == MaliGpu::kG1Ultra) {
+      return 12;
+    } else if (gpu_version == MaliGpu::kG2Pro) {
+      return 2;
+    } else if (gpu_version == MaliGpu::kG2Premium) {
+      return 6;
+    } else if (gpu_version == MaliGpu::kG2Ultra) {
       return 12;
     }
   }

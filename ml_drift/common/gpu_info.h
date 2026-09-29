@@ -385,6 +385,9 @@ enum class MaliGpu {
   kG1Pro,
   kG1Premium,
   kG1Ultra,
+  kG2Pro,
+  kG2Premium,
+  kG2Ultra,
 };
 
 struct MaliInfo {
@@ -401,6 +404,7 @@ struct MaliInfo {
     kValhallV3 = 9,
     kValhallV4 = 10,
     kV5 = 11,
+    kV6 = 12,
   };
   MaliGpu gpu_version = MaliGpu::kUnknown;
   Gen generation = Gen::kUnknown;
@@ -420,6 +424,7 @@ struct MaliInfo {
   bool IsValhall() const;
   bool IsGen5() const;
   bool IsMaliG1() const;
+  bool IsMaliG2() const;
 
   // returns approximate compute units count using GPU name
   int GetApproximateComputeUnitsCount() const;
