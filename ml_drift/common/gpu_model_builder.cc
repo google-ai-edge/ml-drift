@@ -1025,26 +1025,6 @@ std::vector<GpuModelBuilder::TensorHandle> GpuModelBuilder::WeightsConversion(
 }
 
 std::vector<GpuModelBuilder::TensorHandle> GpuModelBuilder::WeightsConversion(
-    const TensorHandle& src_weights, const TensorHandle* weights_scale,
-    const TensorHandle* weights_zero_point, const WeightsDescription& src_desc,
-    const WeightsDescription& dst_desc, const OHWI& weights_shape,
-    const ConvRuntimeCheckDesc& runtime_check,
-    const TensorHandle* runtime_check_tensor) {
-  Weights weights;
-  weights.weights = src_weights;
-  weights.desc = src_desc;
-  weights.shape = weights_shape;
-  if (weights_scale) {
-    weights.scale = *weights_scale;
-  }
-  if (weights_zero_point) {
-    weights.zero_point = *weights_zero_point;
-  }
-  return WeightsConversion(weights, dst_desc, runtime_check,
-                           runtime_check_tensor);
-}
-
-std::vector<GpuModelBuilder::TensorHandle> GpuModelBuilder::WeightsConversion(
     const Weights& weights, const WeightsDescription& dst_desc,
     const ConvRuntimeCheckDesc& runtime_check,
     const TensorHandle* runtime_check_tensor) {

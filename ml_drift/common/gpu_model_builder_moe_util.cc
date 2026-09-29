@@ -195,13 +195,8 @@ absl::StatusOr<GpuModelBuilder::TensorHandle> MakeConvWithPackedGroups(
     conv = std::make_unique<ConvWaveMemory>(std::move(conv_wave_memory));
     if (!(conv_weights_desc == weights.desc)) {
       weights_conversion = true;
-      const GpuModelBuilder::TensorHandle* weights_scale =
-          weights.scale ? &(*weights.scale) : nullptr;
-      const GpuModelBuilder::TensorHandle* weights_zero_point =
-          weights.zero_point ? &(*weights.zero_point) : nullptr;
-      auto weights_tensors = builder.WeightsConversion(
-          weights.weights, weights_scale, weights_zero_point, weights.desc,
-          conv_weights_desc, weights.shape);
+      auto weights_tensors =
+          builder.WeightsConversion(weights, conv_weights_desc);
       src_ids.push_back(weights_tensors[0]);
     }
   } else {

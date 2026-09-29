@@ -523,12 +523,6 @@ class GpuModelBuilder {
       const TensorHandle* weights_scale = nullptr,
       const TensorHandle* weights_zero_point = nullptr);
   std::vector<TensorHandle> WeightsConversion(
-      const TensorHandle& src_weights, const TensorHandle* weights_scale,
-      const TensorHandle* weights_zero_point,
-      const WeightsDescription& src_desc, const WeightsDescription& dst_desc,
-      const OHWI& weights_shape, const ConvRuntimeCheckDesc& runtime_check = {},
-      const TensorHandle* runtime_check_tensor = nullptr);
-  std::vector<TensorHandle> WeightsConversion(
       const Weights& weights, const WeightsDescription& dst_desc,
       const ConvRuntimeCheckDesc& runtime_check = {},
       const TensorHandle* runtime_check_tensor = nullptr);
