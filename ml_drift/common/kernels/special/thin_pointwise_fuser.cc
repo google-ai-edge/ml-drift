@@ -150,16 +150,16 @@ class ThinPointwiseFuser {
   uint64_t GetNodeFlops(Node* node) const;
   // node_index for std::vector<Node*> nodes_
   absl::Status AddNode(const GpuInfo& gpu_info, int node_index);
-  void AddElementwiseNode(ElementwiseDescriptor&& op_desc);
+  absl::Status AddElementwiseNode(ElementwiseDescriptor&& op_desc);
   void AddConv1x1Node(const GpuInfo& gpu_info,
                       const Convolution2DAttributes& attr, bool last_op);
   void AddConv2dNode(const GpuInfo& gpu_info,
                      const Convolution2DAttributes& attr);
-  void AddReluNode(const ReLUAttributes& attr);
-  void AddPreluNode(const PReLUAttributes& attr);
+  absl::Status AddReluNode(const ReLUAttributes& attr);
+  absl::Status AddPreluNode(const PReLUAttributes& attr);
   absl::Status AddAddNode(ValueId add_new_input_id);
-  void AddElementwiseOneInputNode(const GpuInfo& gpu_info,
-                                  const OperationType& op_type);
+  absl::Status AddElementwiseOneInputNode(const GpuInfo& gpu_info,
+                                          const OperationType& op_type);
   void AddDepthwiseConvNode(const GpuInfo& gpu_info,
                             const DepthwiseConvolution2DAttributes& attr);
   void AddConv1x1Data(const Convolution2DAttributes& conv_attr);
@@ -542,11 +542,11 @@ absl::Status ThinPointwiseFuser::AddNode(const GpuInfo& gpu_info,
   if (op_type == OperationType::kRelu) {
     ReLUAttributes* attr =
         std::any_cast<ReLUAttributes>(&node->operation.attributes);
-    AddReluNode(*attr);
+    ABSL_RETURN_IF_ERROR(AddReluNode(*attr));
   } else if (op_type == OperationType::kPrelu) {
     PReLUAttributes* attr =
         std::any_cast<PReLUAttributes>(&node->operation.attributes);
-    AddPreluNode(*attr);
+    ABSL_RETURN_IF_ERROR(AddPreluNode(*attr));
   } else if (op_type == OperationType::kAdd) {
     Node* prev_node = nodes_[node_index - 1];
     auto add_inputs = graph_->FindInputs(node->id);
@@ -557,7 +557,7 @@ absl::Status ThinPointwiseFuser::AddNode(const GpuInfo& gpu_info,
     inputs_.push_back(add_new_input);
     ABSL_RETURN_IF_ERROR(AddAddNode(add_new_input->id));
   } else if (IsElementwiseOneInput(op_type)) {
-    AddElementwiseOneInputNode(gpu_info, op_type);
+    ABSL_RETURN_IF_ERROR(AddElementwiseOneInputNode(gpu_info, op_type));
   } else if (op_type == OperationType::kDepthwiseConvolution) {
     DepthwiseConvolution2DAttributes* attr =
         std::any_cast<DepthwiseConvolution2DAttributes>(
@@ -672,11 +672,12 @@ void ThinPointwiseFuser::AddDepthwiseConvNode(
   }
 }
 
-void ThinPointwiseFuser::AddElementwiseNode(ElementwiseDescriptor&& op_desc) {
+absl::Status ThinPointwiseFuser::AddElementwiseNode(
+    ElementwiseDescriptor&& op_desc) {
   std::string unique_postfix = absl::StrCat("_link_internal", link_counter_);
   link_counter_++;
   op_desc.args.RenameArgs(unique_postfix, &op_desc.code);
-  auto status = args_.Merge(std::move(op_desc.args), unique_postfix);
+  ABSL_RETURN_IF_ERROR(args_.Merge(std::move(op_desc.args), unique_postfix));
   for (int i = 0; i < outputs_.size(); ++i) {
     const std::string elementwise_new_code =
         absl::StrReplaceAll(op_desc.code, {{"in_value", outputs_[i]},
@@ -687,17 +688,18 @@ void ThinPointwiseFuser::AddElementwiseNode(ElementwiseDescriptor&& op_desc) {
                                            {"B_COORD", "B"}});
     code_ += "  {  " + elementwise_new_code + "  }\n";
   }
+  return absl::OkStatus();
 }
 
-void ThinPointwiseFuser::AddReluNode(const ReLUAttributes& attr) {
+absl::Status ThinPointwiseFuser::AddReluNode(const ReLUAttributes& attr) {
   ElementwiseDescriptor op_desc =
       CreateReLU(attr, op_def_.src_tensors[0].GetDataType());
-  AddElementwiseNode(std::move(op_desc));
+  return AddElementwiseNode(std::move(op_desc));
 }
 
-void ThinPointwiseFuser::AddPreluNode(const PReLUAttributes& attr) {
+absl::Status ThinPointwiseFuser::AddPreluNode(const PReLUAttributes& attr) {
   ElementwiseDescriptor op_desc = CreatePReLU(attr, op_def_.dst_tensors[0]);
-  AddElementwiseNode(std::move(op_desc));
+  return AddElementwiseNode(std::move(op_desc));
 }
 
 absl::Status ThinPointwiseFuser::AddAddNode(ValueId add_new_input_id) {
@@ -715,11 +717,11 @@ absl::Status ThinPointwiseFuser::AddAddNode(ValueId add_new_input_id) {
   return absl::OkStatus();
 }
 
-void ThinPointwiseFuser::AddElementwiseOneInputNode(
+absl::Status ThinPointwiseFuser::AddElementwiseOneInputNode(
     const GpuInfo& gpu_info, const OperationType& op_type) {
   ElementwiseDescriptor op_desc = CreateElementwiseOneInput(
       gpu_info, op_type, op_def_.src_tensors[0].GetDataType());
-  AddElementwiseNode(std::move(op_desc));
+  return AddElementwiseNode(std::move(op_desc));
 }
 
 void ThinPointwiseFuser::AddConv1x1Node(const GpuInfo& gpu_info,
@@ -1058,16 +1060,16 @@ class ThinPointwiseFuserIr {
   bool IsDwConvOp(ir::IrOp* op) const;
   uint64_t GetOpFlops(ir::IrOp* op) const;
   absl::Status AddOp(const GpuInfo& gpu_info, int op_index);
-  void AddElementwiseOp(ElementwiseDescriptor&& op_desc);
+  absl::Status AddElementwiseOp(ElementwiseDescriptor&& op_desc);
   void AddConv1x1Op(const GpuInfo& gpu_info,
                     const Convolution2DAttributes& attr, bool last_op);
   void AddConv2dOp(const GpuInfo& gpu_info,
                    const Convolution2DAttributes& attr);
-  void AddReluOp(const ReLUAttributes& attr);
-  void AddPreluOp(const PReLUAttributes& attr);
+  absl::Status AddReluOp(const ReLUAttributes& attr);
+  absl::Status AddPreluOp(const PReLUAttributes& attr);
   absl::Status AddAddOp(ir::IrTensorId add_new_input_id);
-  void AddElementwiseOneInputOp(const GpuInfo& gpu_info,
-                                const OperationType& op_type);
+  absl::Status AddElementwiseOneInputOp(const GpuInfo& gpu_info,
+                                        const OperationType& op_type);
   void AddDepthwiseConvOp(const GpuInfo& gpu_info,
                           const DepthwiseConvolution2DAttributes& attr);
   void AddConv1x1Data(const Convolution2DAttributes& conv_attr);
@@ -1448,10 +1450,10 @@ absl::Status ThinPointwiseFuserIr::AddOp(const GpuInfo& gpu_info,
   auto op_type = OperationTypeFromString(op->name);
   if (op_type == OperationType::kRelu) {
     ReLUAttributes* attr = std::any_cast<ReLUAttributes>(&op->attr);
-    AddReluOp(*attr);
+    ABSL_RETURN_IF_ERROR(AddReluOp(*attr));
   } else if (op_type == OperationType::kPrelu) {
     PReLUAttributes* attr = std::any_cast<PReLUAttributes>(&op->attr);
-    AddPreluOp(*attr);
+    ABSL_RETURN_IF_ERROR(AddPreluOp(*attr));
   } else if (op_type == OperationType::kAdd) {
     ir::IrOp* prev_op = ops_[op_index - 1];
     auto add_inputs = op->inputs;
@@ -1461,7 +1463,7 @@ absl::Status ThinPointwiseFuserIr::AddOp(const GpuInfo& gpu_info,
     input_tensors_.push_back(add_new_input_id);
     ABSL_RETURN_IF_ERROR(AddAddOp(add_new_input_id));
   } else if (IsElementwiseOneInput(op_type)) {
-    AddElementwiseOneInputOp(gpu_info, op_type);
+    ABSL_RETURN_IF_ERROR(AddElementwiseOneInputOp(gpu_info, op_type));
   } else if (op_type == OperationType::kDepthwiseConvolution) {
     DepthwiseConvolution2DAttributes* attr =
         std::any_cast<DepthwiseConvolution2DAttributes>(&op->attr);
@@ -1575,11 +1577,12 @@ void ThinPointwiseFuserIr::AddDepthwiseConvOp(
   }
 }
 
-void ThinPointwiseFuserIr::AddElementwiseOp(ElementwiseDescriptor&& op_desc) {
+absl::Status ThinPointwiseFuserIr::AddElementwiseOp(
+    ElementwiseDescriptor&& op_desc) {
   std::string unique_postfix = absl::StrCat("_link_internal", link_counter_);
   link_counter_++;
   op_desc.args.RenameArgs(unique_postfix, &op_desc.code);
-  auto status = args_.Merge(std::move(op_desc.args), unique_postfix);
+  ABSL_RETURN_IF_ERROR(args_.Merge(std::move(op_desc.args), unique_postfix));
   for (int i = 0; i < outputs_.size(); ++i) {
     const std::string elementwise_new_code =
         absl::StrReplaceAll(op_desc.code, {{"in_value", outputs_[i]},
@@ -1590,17 +1593,18 @@ void ThinPointwiseFuserIr::AddElementwiseOp(ElementwiseDescriptor&& op_desc) {
                                            {"B_COORD", "B"}});
     code_ += "  {  " + elementwise_new_code + "  }\n";
   }
+  return absl::OkStatus();
 }
 
-void ThinPointwiseFuserIr::AddReluOp(const ReLUAttributes& attr) {
+absl::Status ThinPointwiseFuserIr::AddReluOp(const ReLUAttributes& attr) {
   ElementwiseDescriptor op_desc =
       CreateReLU(attr, op_def_.src_tensors[0].GetDataType());
-  AddElementwiseOp(std::move(op_desc));
+  return AddElementwiseOp(std::move(op_desc));
 }
 
-void ThinPointwiseFuserIr::AddPreluOp(const PReLUAttributes& attr) {
+absl::Status ThinPointwiseFuserIr::AddPreluOp(const PReLUAttributes& attr) {
   ElementwiseDescriptor op_desc = CreatePReLU(attr, op_def_.dst_tensors[0]);
-  AddElementwiseOp(std::move(op_desc));
+  return AddElementwiseOp(std::move(op_desc));
 }
 
 absl::Status ThinPointwiseFuserIr::AddAddOp(ir::IrTensorId add_new_input_id) {
@@ -1618,11 +1622,11 @@ absl::Status ThinPointwiseFuserIr::AddAddOp(ir::IrTensorId add_new_input_id) {
   return absl::OkStatus();
 }
 
-void ThinPointwiseFuserIr::AddElementwiseOneInputOp(
+absl::Status ThinPointwiseFuserIr::AddElementwiseOneInputOp(
     const GpuInfo& gpu_info, const OperationType& op_type) {
   ElementwiseDescriptor op_desc = CreateElementwiseOneInput(
       gpu_info, op_type, op_def_.src_tensors[0].GetDataType());
-  AddElementwiseOp(std::move(op_desc));
+  return AddElementwiseOp(std::move(op_desc));
 }
 
 void ThinPointwiseFuserIr::AddConv1x1Op(const GpuInfo& gpu_info,
