@@ -44,12 +44,12 @@ std::vector<GpuModelBuilder::TensorHandle> CreateExpertsRemap(
     int num_experts) {
   const BHWC& indices_shape = indices.tensor_desc.GetBHWCShape();
   auto experts_remap = builder.AddTensor(
-      BHWC(1, num_experts, indices_shape.w, 2), DataType::INT32);
+      BHWC(1, num_experts, indices_shape.w, 2), DataType::kInt32);
   auto experts_remap_op =
       CreateExpertsRemapOp(indices.tensor_desc, experts_remap.tensor_desc);
 
-  TensorDescriptor dst_count_desc =
-      TensorDescriptor(DataType::INT32, TensorStorageType::BUFFER, Layout::HWC);
+  TensorDescriptor dst_count_desc = TensorDescriptor(
+      DataType::kInt32, TensorStorageType::kBuffer, Layout::kHWC);
   dst_count_desc.SetBHWCShape(BHWC(1, 1, 1, num_experts));
   auto experts_count = builder.AddTensor(dst_count_desc);
 
@@ -63,7 +63,7 @@ std::vector<GpuModelBuilder::TensorHandle> CreateExpertsRemap(
                           "create_experts_offsets");
 
   auto experts_remap_packed = builder.AddTensor(
-      BHWC(1, 1, indices_shape.c * indices_shape.w, 2), DataType::INT32);
+      BHWC(1, 1, indices_shape.c * indices_shape.w, 2), DataType::kInt32);
   auto experts_remap_packed_op = CreateLinearizeMapOp(
       experts_remap.tensor_desc, experts_remap_packed.tensor_desc);
   experts_remap_packed_op->read_size_ =
@@ -73,9 +73,9 @@ std::vector<GpuModelBuilder::TensorHandle> CreateExpertsRemap(
       std::move(experts_remap_packed_op), "linearize_experts_remap");
 
   auto storage = builder.default_storage();
-  builder.SetDefaultStorage(TensorStorageType::BUFFER);
+  builder.SetDefaultStorage(TensorStorageType::kBuffer);
   auto experts_params =
-      builder.Concat({experts_count, experts_offsets}, Axis::CHANNELS);
+      builder.Concat({experts_count, experts_offsets}, Axis::kChannels);
   builder.SetDefaultStorage(storage);
 
   return {experts_remap, experts_params, experts_remap_packed};
@@ -153,7 +153,7 @@ absl::StatusOr<GpuModelBuilder::TensorHandle> MakeConvWithPackedGroups(
   conv_attr.strides = HW(1, 1);
   conv_attr.dilations = HW(1, 1);
   auto& conv_attr_weights =
-      conv_attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
+      conv_attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
   conv_attr_weights.shape = weights.shape;
 
   std::vector<GpuModelBuilder::TensorHandle> src_ids;
@@ -161,7 +161,7 @@ absl::StatusOr<GpuModelBuilder::TensorHandle> MakeConvWithPackedGroups(
   bool weights_conversion = false;
   if (average_task_size >= 32 &&
       SupportsConvAppleMPP(builder.gpu_info(), external_weights) &&
-      precision == CalculationsPrecision::F16) {
+      precision == CalculationsPrecision::kF16) {
     auto conv_apple_mpp = CreateConvAppleMPPExternalWeights(
         src.tensor_desc, dst.tensor_desc, external_weights,
         /*bias=*/nullptr, /*src_exp=*/nullptr,
