@@ -46,4 +46,30 @@ TEST(WorkGroupPickingTest, GetPossibleWorkGroups) {
   }
 }
 
+TEST(WorkGroupPickingTest, PreVoltaNvidiaWebGpuUsesFallbackWorkGroup) {
+  ml_drift::GpuInfo gpu_info;
+  gpu_info.gpu_api = ml_drift::GpuApi::kWebGpu;
+  gpu_info.vendor = ml_drift::GpuVendor::kNvidia;
+  gpu_info.nvidia_info.architecture = ml_drift::NvidiaArchitecture::kPascal;
+  gpu_info.webgpu_info.max_compute_workgroup_size_x = 1024;
+  gpu_info.webgpu_info.max_compute_workgroup_size_y = 1024;
+  gpu_info.webgpu_info.max_compute_workgroup_size_z = 64;
+  gpu_info.webgpu_info.max_compute_invocations_per_workgroup = 1024;
+
+  ml_drift::KernelInfo kernel_info;
+  kernel_info.max_work_group_size = 1536;
+
+  const ml_drift::int3 grid(64, 6, 8);
+  auto pascal_wgs = ml_drift::GetPossibleWorkGroups(
+      ml_drift::TuningType::kFast, gpu_info, kernel_info, grid);
+  ASSERT_EQ(pascal_wgs.size(), 1);
+  EXPECT_EQ(pascal_wgs[0], ml_drift::int3(8, 4, 1));
+
+  gpu_info.nvidia_info.architecture = ml_drift::NvidiaArchitecture::kVolta;
+  auto volta_wgs = ml_drift::GetPossibleWorkGroups(ml_drift::TuningType::kFast,
+                                                   gpu_info, kernel_info, grid);
+  ASSERT_EQ(volta_wgs.size(), 1);
+  EXPECT_EQ(volta_wgs[0], ml_drift::int3(32, 6, 8));
+}
+
 }  // namespace
