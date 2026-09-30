@@ -913,6 +913,20 @@ GpuModelBuilder::FullyConnectedExternalWeights(
     gpu_node.outputs = {dst.id};
     gpu_node.gpu_operation->flops_ =
         GetConvolutionFlops(dst_shape, weights.shape) / weights.shape.h;
+    if (runtime_check.ring_size.has_value()) {
+      // ringed weights, not entire object read, manually calculate read size.
+      uint64_t read_size = 0;
+      read_size += src.tensor_desc.GetMemorySizeInBytes();
+      read_size += weights.shape.DimensionsProduct() *
+                   SizeInBitsOf(external_weights.desc.type) / 8;
+      if (biases) {
+        read_size += biases->tensor_desc.GetMemorySizeInBytes();
+      }
+      if (src_exp) {
+        read_size += src_exp->tensor_desc.GetMemorySizeInBytes();
+      }
+      gpu_node.gpu_operation->read_size_ = read_size;
+    }
     return dst;
   } else {
     return FullyConnectedSrcFloatExternalWeightsWithConversion(
