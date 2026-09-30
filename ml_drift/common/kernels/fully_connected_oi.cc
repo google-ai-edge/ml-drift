@@ -283,7 +283,7 @@ std::string GetFullyConnectedOIO4KernelCode(
   const bool blocked_quantization = fc::IsBlockQuantized(
       conv_params.weights_type, conv_params.scale_zp_shape);
   if (blocked_quantization) {
-    c += "  int src_group = -1;\n";
+    c += "  int src_group_id = -1;\n";
     // reading later in loop
   } else if (fc::IsLinearQuantized(conv_params.weights_type,
                                    conv_params.scale_zp_shape)) {
@@ -313,8 +313,8 @@ std::string GetFullyConnectedOIO4KernelCode(
   if (blocked_quantization) {
     c += "  int group_id = src_s / " + std::to_string(scale_zp_group_size) +
          ";\n";
-    c += "  if (group_id != src_group) {\n";
-    c += "    src_group = group_id;\n";
+    c += "  if (group_id != src_group_id) {\n";
+    c += "    src_group_id = group_id;\n";
     c += fc::ReadScaleZeroPointBlock("dst_s", conv_params.scale_zp_shape,
                                      conv_params.has_zero_point,
                                      conv_params.weights_type);
