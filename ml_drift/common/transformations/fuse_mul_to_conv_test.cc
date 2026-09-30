@@ -69,11 +69,11 @@ TEST(MergeConvolutionWithMulTest, Smoke) {
   graph.AddConsumer(conv_node->id, input->id);
 
   Value* output = nullptr;
-  ASSERT_TRUE(AddOutput(&graph, mul_node, &output).ok());
+  ABSL_ASSERT_OK(AddOutput(&graph, mul_node, &output));
   output->tensor.shape = BHWC(1, 4, 4, 16);
 
   Value* link1 = nullptr;
-  ASSERT_TRUE(ConnectTwoNodes(&graph, conv_node, mul_node, &link1).ok());
+  ABSL_ASSERT_OK(ConnectTwoNodes(&graph, conv_node, mul_node, &link1));
   link1->tensor.shape = BHWC(1, 4, 4, 16);
 
   ASSERT_EQ(2, graph.nodes().size());
@@ -122,11 +122,11 @@ TEST(MergeMulWithConvolutionTest, Smoke) {
   graph.AddConsumer(mul_node->id, input->id);
 
   Value* output = nullptr;
-  ASSERT_TRUE(AddOutput(&graph, conv_node, &output).ok());
+  ABSL_ASSERT_OK(AddOutput(&graph, conv_node, &output));
   output->tensor.shape = BHWC(1, 4, 4, 16);
 
   Value* link1 = nullptr;
-  ASSERT_TRUE(ConnectTwoNodes(&graph, mul_node, conv_node, &link1).ok());
+  ABSL_ASSERT_OK(ConnectTwoNodes(&graph, mul_node, conv_node, &link1));
   link1->tensor.shape = BHWC(1, 4, 4, 16);
 
   ASSERT_EQ(2, graph.nodes().size());

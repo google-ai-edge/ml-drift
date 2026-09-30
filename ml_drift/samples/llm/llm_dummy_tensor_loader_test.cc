@@ -16,6 +16,7 @@
 
 #include <vector>
 
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/status_matchers.h"
 #include "absl/status/statusor.h"
@@ -61,7 +62,7 @@ TEST(LlmDummyTensorLoaderTest, LoadScaleDefaultFallback) {
   LlmDummyTensorLoader loader;
   OHWI shape(2, 1, 1, 1);
   auto result = loader.LoadScale("test_scale", shape);
-  ASSERT_TRUE(result.ok());
+  ABSL_ASSERT_OK(result);
   EXPECT_NE(result.value(), nullptr);
 }
 

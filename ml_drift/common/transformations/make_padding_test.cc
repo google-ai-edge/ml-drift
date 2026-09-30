@@ -20,6 +20,7 @@
 #include <utility>
 #include <vector>
 
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/status_matchers.h"
 #include "absl/status/status.h"
@@ -45,7 +46,7 @@ TEST(MakePadding, Smoke) {
   concat_node->operation.attributes = attr;
 
   Value* output = nullptr;
-  ASSERT_TRUE(AddOutput(&graph, concat_node, &output).ok());
+  ABSL_ASSERT_OK(AddOutput(&graph, concat_node, &output));
   output->tensor.shape = BHWC(1, 7, 3, 5);
 
   auto const_node = graph.NewNode();
@@ -58,8 +59,7 @@ TEST(MakePadding, Smoke) {
   const_node->operation.attributes = const_attr;
 
   Value* const_link = nullptr;
-  ASSERT_TRUE(
-      ConnectTwoNodes(&graph, const_node, concat_node, &const_link).ok());
+  ABSL_ASSERT_OK(ConnectTwoNodes(&graph, const_node, concat_node, &const_link));
   const_link->tensor.shape = BHWC(1, 5, 3, 5);
 
   ASSERT_EQ(2, graph.nodes().size());

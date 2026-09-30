@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/status_matchers.h"
 #include "absl/status/status.h"
@@ -46,8 +47,8 @@ TEST(MergePaddingWith, Smoke) {
 
   auto conv_node = graph.NewNode();
   Value* temp = nullptr;
-  ASSERT_TRUE(ConnectTwoNodes(&graph, pad_node, conv_node, &temp).ok());
-  ASSERT_TRUE(AddOutput(&graph, conv_node, &temp).ok());
+  ABSL_ASSERT_OK(ConnectTwoNodes(&graph, pad_node, conv_node, &temp));
+  ABSL_ASSERT_OK(AddOutput(&graph, conv_node, &temp));
   conv_node->operation.type = ToString(OperationType::kConvolution2D);
   Convolution2DAttributes conv_attr;
   conv_attr.padding.appended = HW(0, 0);
@@ -83,7 +84,7 @@ TEST(MergePaddingWith, MergeTwo) {
 
   auto pad_node2 = graph.NewNode();
   Value* temp1 = nullptr;
-  ASSERT_TRUE(ConnectTwoNodes(&graph, pad_node1, pad_node2, &temp1).ok());
+  ABSL_ASSERT_OK(ConnectTwoNodes(&graph, pad_node1, pad_node2, &temp1));
   pad_node2->operation.type = ToString(OperationType::kPad);
   attr.prepended = BHWC(0, 0, 0, 0);
   attr.appended = BHWC(0, 2, 2, 0);
@@ -91,8 +92,8 @@ TEST(MergePaddingWith, MergeTwo) {
 
   auto conv_node = graph.NewNode();
   Value* temp2 = nullptr;
-  ASSERT_TRUE(ConnectTwoNodes(&graph, pad_node2, conv_node, &temp2).ok());
-  ASSERT_TRUE(AddOutput(&graph, conv_node, &temp2).ok());
+  ABSL_ASSERT_OK(ConnectTwoNodes(&graph, pad_node2, conv_node, &temp2));
+  ABSL_ASSERT_OK(AddOutput(&graph, conv_node, &temp2));
   conv_node->operation.type = ToString(OperationType::kConvolution2D);
   Convolution2DAttributes conv_attr;
   conv_attr.padding.appended = HW(0, 0);

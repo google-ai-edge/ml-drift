@@ -19,6 +19,7 @@
 #include <utility>
 #include <vector>
 
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/status_matchers.h"
 #include "absl/status/status.h"
@@ -482,12 +483,10 @@ TEST(Gemma4ModelBuilderTest, BuildModelWithRingBufferKVCache) {
   std::vector<GpuModelBuilder::TensorHandle> k_caches_in_handles;
   std::vector<GpuModelBuilder::TensorHandle> v_caches_in_handles;
 
-  absl::Status status = builder.Build(
+  ABSL_ASSERT_OK(builder.Build(
       &prefill_model, &decode_model, &input_handle, &decode_input_handle,
       &params_i32_handle, &output_handle, &decode_output_handle,
-      &k_caches_in_handles, &v_caches_in_handles);
-
-  ASSERT_TRUE(status.ok());
+      &k_caches_in_handles, &v_caches_in_handles));
   EXPECT_FALSE(prefill_model.nodes.empty());
   EXPECT_FALSE(decode_model.nodes.empty());
   ASSERT_EQ(k_caches_in_handles.size(), 2);

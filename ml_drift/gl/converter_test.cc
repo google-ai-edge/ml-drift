@@ -47,8 +47,7 @@ TEST_F(OpenGlOperationTest, TensorToTensorConverterTest) {
           TensorDescriptor src_desc(src_type, src_storage, Layout::kHWC);
           TensorDescriptor dst_desc(dst_type, dst_storage, Layout::kHWC);
           TensorToTensorConverter converter;
-          ASSERT_TRUE(
-              converter.Init(exec_env_.GetGpuInfo(), src_desc, dst_desc).ok());
+          ABSL_ASSERT_OK(converter.Init(exec_env_.GetGpuInfo(), src_desc, dst_desc));
 
           const BHWC shape(1, 18, 37, 17);
           TensorFloat32 src_tensor;
@@ -60,12 +59,12 @@ TEST_F(OpenGlOperationTest, TensorToTensorConverterTest) {
 
           GlSpatialTensor src, dst;
           src_desc.UploadData(src_tensor);
-          ASSERT_TRUE(src.CreateFromDescriptor(src_desc).ok());
+          ABSL_ASSERT_OK(src.CreateFromDescriptor(src_desc));
           dst_desc.SetBHWCShape(shape);
-          ASSERT_TRUE(dst.CreateFromDescriptor(dst_desc).ok());
-          ASSERT_TRUE(converter.Convert(&src, &dst).ok());
+          ABSL_ASSERT_OK(dst.CreateFromDescriptor(dst_desc));
+          ABSL_ASSERT_OK(converter.Convert(&src, &dst));
           glFinish();
-          ASSERT_TRUE(dst.ToDescriptor(&dst_desc).ok());
+          ABSL_ASSERT_OK(dst.ToDescriptor(&dst_desc));
 
           TensorFloat32 dst_tensor;
           dst_desc.DownloadData(&dst_tensor);
@@ -89,8 +88,7 @@ TEST_F(OpenGlOperationTest, TensorToBHWCBufferConverterTest) {
         dst_desc.memory_type = MemoryType::kGlobal;
 
         TensorToBHWCBufferConverter converter;
-        ASSERT_TRUE(
-            converter.Init(exec_env_.GetGpuInfo(), src_desc, dst_desc).ok());
+        ABSL_ASSERT_OK(converter.Init(exec_env_.GetGpuInfo(), src_desc, dst_desc));
 
         const BHWC shape(1, 18, 37, 17);
         TensorFloat32 src_tensor;
@@ -102,15 +100,15 @@ TEST_F(OpenGlOperationTest, TensorToBHWCBufferConverterTest) {
 
         GlSpatialTensor src;
         src_desc.UploadData(src_tensor);
-        ASSERT_TRUE(src.CreateFromDescriptor(src_desc).ok());
+        ABSL_ASSERT_OK(src.CreateFromDescriptor(src_desc));
 
         GlBuffer dst;
         dst_desc.size = shape.DimensionsProduct() * SizeOf(dst_type);
         dst.CreateFromBufferDescriptor(dst_desc);
-        ASSERT_TRUE(converter.Convert(&src, &dst).ok());
+        ABSL_ASSERT_OK(converter.Convert(&src, &dst));
         glFinish();
         std::vector<float> dst_data;
-        ASSERT_TRUE(dst.ReadData(&dst_data).ok());
+        ABSL_ASSERT_OK(dst.ReadData(&dst_data));
 
         ASSERT_THAT(dst_data, Pointwise(FloatNear(1e-3f), src_tensor.data));
       }
@@ -130,8 +128,7 @@ TEST_F(OpenGlOperationTest, BHWCBufferToTensorConverterTest) {
         src_desc.memory_type = MemoryType::kGlobal;
 
         BHWCBufferToTensorConverter converter;
-        ASSERT_TRUE(
-            converter.Init(exec_env_.GetGpuInfo(), src_desc, dst_desc).ok());
+        ABSL_ASSERT_OK(converter.Init(exec_env_.GetGpuInfo(), src_desc, dst_desc));
 
         const BHWC shape(1, 18, 37, 17);
         TensorFloat32 src_tensor;
@@ -149,10 +146,10 @@ TEST_F(OpenGlOperationTest, BHWCBufferToTensorConverterTest) {
 
         GlSpatialTensor dst;
         dst_desc.SetBHWCShape(shape);
-        ASSERT_TRUE(dst.CreateFromDescriptor(dst_desc).ok());
-        ASSERT_TRUE(converter.Convert(&src, &dst).ok());
+        ABSL_ASSERT_OK(dst.CreateFromDescriptor(dst_desc));
+        ABSL_ASSERT_OK(converter.Convert(&src, &dst));
         glFinish();
-        ASSERT_TRUE(dst.ToDescriptor(&dst_desc).ok());
+        ABSL_ASSERT_OK(dst.ToDescriptor(&dst_desc));
         TensorFloat32 dst_tensor;
         dst_desc.DownloadData(&dst_tensor);
 

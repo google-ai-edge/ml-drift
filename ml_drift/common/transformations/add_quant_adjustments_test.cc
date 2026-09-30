@@ -58,7 +58,7 @@ TEST(AddQuantAdjustmentsTest, OneNode) {
 
   Value* output = nullptr;
   input->quant_params = {.min = 0.0, .max = 2.0, .scale = 0.004};
-  ASSERT_TRUE(AddOutput(&graph, add_node, &output).ok());
+  ABSL_ASSERT_OK(AddOutput(&graph, add_node, &output));
   output->tensor.shape = BHWC(1, 4, 4, 8);
 
   ASSERT_EQ(1, graph.nodes().size());
@@ -119,7 +119,7 @@ TEST(AddQuantAdjustmentsTest, GeneralCase) {
   link2->quant_params = {.min = -1.0, .max = 1.0, .scale = 0.008};
   link2->tensor.shape = BHWC(1, 4, 4, 8);
   Value* output = nullptr;
-  ASSERT_TRUE(AddOutput(&graph, add2_node, &output).ok());
+  ABSL_ASSERT_OK(AddOutput(&graph, add2_node, &output));
   output->quant_params = {.min = -1.0, .max = 1.0, .scale = 0.008};
   output->tensor.shape = BHWC(1, 4, 4, 8);
 

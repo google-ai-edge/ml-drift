@@ -18,6 +18,7 @@
 #include <utility>
 #include <vector>
 
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/status_matchers.h"
 #include "absl/status/status.h"
@@ -335,29 +336,23 @@ TEST(Qwen3ModelBuilderTest, Qwen3ModelConfig8B) {
 
 TEST(Qwen3ModelBuilderTest, GetModelInfo) {
   auto qwen_info = GetModelInfo("qwen3:8b");
-  ASSERT_TRUE(qwen_info.ok());
-  if (qwen_info.ok()) {
-    EXPECT_EQ(qwen_info->type, ModelType::kQwen3);
-    EXPECT_EQ(qwen_info->config.model_dimension, 4096);
-    EXPECT_FALSE(qwen_info->force_fp32);
-    EXPECT_STREQ(GetTokenizerFilename(qwen_info->type), "tokenizer.json");
-  }
+  ABSL_ASSERT_OK(qwen_info);
+  EXPECT_EQ(qwen_info->type, ModelType::kQwen3);
+  EXPECT_EQ(qwen_info->config.model_dimension, 4096);
+  EXPECT_FALSE(qwen_info->force_fp32);
+  EXPECT_STREQ(GetTokenizerFilename(qwen_info->type), "tokenizer.json");
 
   auto gemma3_info = GetModelInfo("gemma3:270m");
-  ASSERT_TRUE(gemma3_info.ok());
-  if (gemma3_info.ok()) {
-    EXPECT_EQ(gemma3_info->type, ModelType::kGemma3);
-    EXPECT_TRUE(gemma3_info->force_fp32);
-    EXPECT_STREQ(GetTokenizerFilename(gemma3_info->type), "tokenizer.model");
-  }
+  ABSL_ASSERT_OK(gemma3_info);
+  EXPECT_EQ(gemma3_info->type, ModelType::kGemma3);
+  EXPECT_TRUE(gemma3_info->force_fp32);
+  EXPECT_STREQ(GetTokenizerFilename(gemma3_info->type), "tokenizer.model");
 
   auto gemma4_info = GetModelInfo("gemma4:12b");
-  ASSERT_TRUE(gemma4_info.ok());
-  if (gemma4_info.ok()) {
-    EXPECT_EQ(gemma4_info->type, ModelType::kGemma4);
-    EXPECT_FALSE(gemma4_info->force_fp32);
-    EXPECT_STREQ(GetTokenizerFilename(gemma4_info->type), "tokenizer.json");
-  }
+  ABSL_ASSERT_OK(gemma4_info);
+  EXPECT_EQ(gemma4_info->type, ModelType::kGemma4);
+  EXPECT_FALSE(gemma4_info->force_fp32);
+  EXPECT_STREQ(GetTokenizerFilename(gemma4_info->type), "tokenizer.json");
 
   EXPECT_FALSE(GetModelInfo("unknown:model").ok());
 }

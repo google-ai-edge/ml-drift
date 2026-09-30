@@ -43,12 +43,12 @@ TEST(RemoveSingleInputAdd, Smoke) {
 
   auto add_node = graph.NewNode();
   Value* output = nullptr;
-  ASSERT_TRUE(AddOutput(&graph, add_node, &output).ok());
+  ABSL_ASSERT_OK(AddOutput(&graph, add_node, &output));
   add_node->operation.type = ToString(OperationType::kAdd);
   add_node->operation.attributes = ElementwiseAttributes();
 
   Value* temp = nullptr;
-  ASSERT_TRUE(ConnectTwoNodes(&graph, first_node, add_node, &temp).ok());
+  ABSL_ASSERT_OK(ConnectTwoNodes(&graph, first_node, add_node, &temp));
   ASSERT_EQ(2, graph.nodes().size());
   ASSERT_EQ(3, graph.values().size());
 
@@ -71,14 +71,14 @@ TEST(RemoveSingleInputAdd, DoNotTrigger_LinearTensor) {
 
   auto add_node = graph.NewNode();
   Value* output = nullptr;
-  ASSERT_TRUE(AddOutput(&graph, add_node, &output).ok());
+  ABSL_ASSERT_OK(AddOutput(&graph, add_node, &output));
   add_node->operation.type = ToString(OperationType::kAdd);
   ElementwiseAttributes attr;
   attr.param = Tensor<Linear, DataType::kFloat32>();
   add_node->operation.attributes = attr;
 
   Value* temp = nullptr;
-  ASSERT_TRUE(ConnectTwoNodes(&graph, first_node, add_node, &temp).ok());
+  ABSL_ASSERT_OK(ConnectTwoNodes(&graph, first_node, add_node, &temp));
   ASSERT_EQ(2, graph.nodes().size());
   ASSERT_EQ(3, graph.values().size());
 
@@ -98,14 +98,14 @@ TEST(RemoveSingleInputAdd, DoNotTrigger_Scalar) {
 
   auto add_node = graph.NewNode();
   Value* output = nullptr;
-  ASSERT_TRUE(AddOutput(&graph, add_node, &output).ok());
+  ABSL_ASSERT_OK(AddOutput(&graph, add_node, &output));
   add_node->operation.type = ToString(OperationType::kAdd);
   ElementwiseAttributes attr;
   attr.param = 0.5f;
   add_node->operation.attributes = attr;
 
   Value* temp = nullptr;
-  ASSERT_TRUE(ConnectTwoNodes(&graph, first_node, add_node, &temp).ok());
+  ABSL_ASSERT_OK(ConnectTwoNodes(&graph, first_node, add_node, &temp));
   ASSERT_EQ(2, graph.nodes().size());
   ASSERT_EQ(3, graph.values().size());
 
@@ -127,13 +127,13 @@ TEST(RemoveSingleInputAdd, DoNotTrigger_Multiple) {
 
   auto add_node = graph.NewNode();
   Value* output = nullptr;
-  ASSERT_TRUE(AddOutput(&graph, add_node, &output).ok());
+  ABSL_ASSERT_OK(AddOutput(&graph, add_node, &output));
   add_node->operation.type = ToString(OperationType::kAdd);
 
   Value* temp_a = nullptr;
   Value* temp_b = nullptr;
-  ASSERT_TRUE(ConnectTwoNodes(&graph, node_a, add_node, &temp_a).ok());
-  ASSERT_TRUE(ConnectTwoNodes(&graph, node_b, add_node, &temp_b).ok());
+  ABSL_ASSERT_OK(ConnectTwoNodes(&graph, node_a, add_node, &temp_a));
+  ABSL_ASSERT_OK(ConnectTwoNodes(&graph, node_b, add_node, &temp_b));
   ASSERT_EQ(3, graph.nodes().size());
   ASSERT_EQ(4, graph.values().size());
 
@@ -153,7 +153,7 @@ TEST(RemoveDegenerateUpsampling, Smoke) {
 
   auto node_to_remove = graph.NewNode();
   Value* output = nullptr;
-  ASSERT_TRUE(AddOutput(&graph, node_to_remove, &output).ok());
+  ABSL_ASSERT_OK(AddOutput(&graph, node_to_remove, &output));
   output->tensor.shape = BHWC(1, 5, 5, 1);
   node_to_remove->operation.type = ToString(OperationType::kResize);
   Resize2DAttributes attr;
@@ -162,7 +162,7 @@ TEST(RemoveDegenerateUpsampling, Smoke) {
   node_to_remove->operation.attributes = attr;
 
   Value* link = nullptr;
-  ASSERT_TRUE(ConnectTwoNodes(&graph, first_node, node_to_remove, &link).ok());
+  ABSL_ASSERT_OK(ConnectTwoNodes(&graph, first_node, node_to_remove, &link));
   link->tensor.shape = output->tensor.shape;
   ASSERT_EQ(2, graph.nodes().size());
   ASSERT_EQ(3, graph.values().size());

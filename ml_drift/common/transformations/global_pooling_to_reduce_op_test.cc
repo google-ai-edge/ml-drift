@@ -18,6 +18,7 @@
 #include <string>
 #include <vector>
 
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/status_matchers.h"
 #include "absl/status/status.h"
@@ -50,7 +51,7 @@ TEST(MakeMeanFromGlobalAveragePooling, Smoke) {
   graph.AddConsumer(pool_node->id, input->id);
 
   Value* output = nullptr;
-  ASSERT_TRUE(AddOutput(&graph, pool_node, &output).ok());
+  ABSL_ASSERT_OK(AddOutput(&graph, pool_node, &output));
   output->tensor.shape = BHWC(1, 1, 1, 8);
 
   ASSERT_EQ(1, graph.nodes().size());

@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/status_matchers.h"
 #include "absl/status/status.h"
@@ -80,17 +81,15 @@ TEST(MakeFullyConnected, Smoke) {
   graph.AddConsumer(conv1x1_node0->id, input->id);
 
   Value* output = nullptr;
-  ASSERT_TRUE(AddOutput(&graph, conv1x1_node2, &output).ok());
+  ABSL_ASSERT_OK(AddOutput(&graph, conv1x1_node2, &output));
   output->tensor.shape = BHWC(1, 1, 1, 32);
 
   Value* link1 = nullptr;
-  ASSERT_TRUE(
-      ConnectTwoNodes(&graph, conv1x1_node0, conv4x4_node1, &link1).ok());
+  ABSL_ASSERT_OK(ConnectTwoNodes(&graph, conv1x1_node0, conv4x4_node1, &link1));
   link1->tensor.shape = BHWC(1, 4, 4, 16);
 
   Value* link2 = nullptr;
-  ASSERT_TRUE(
-      ConnectTwoNodes(&graph, conv4x4_node1, conv1x1_node2, &link2).ok());
+  ABSL_ASSERT_OK(ConnectTwoNodes(&graph, conv4x4_node1, conv1x1_node2, &link2));
   link2->tensor.shape = BHWC(1, 1, 1, 16);
 
   ASSERT_EQ(3, graph.nodes().size());
