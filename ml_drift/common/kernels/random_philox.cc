@@ -58,7 +58,7 @@ std::string CreateWebGpuRandomNormalPhilox() {
   // Mirrors the Metal and OpenCL versions, except it contains a mulhi
   // polyfill adapted from a version of the same from ANGLE, and the syntax
   // and structure have been changed to match WGSL formatting.
-  // TODO(tmullen): Unify these separate implementations as much as possible.
+  // TODO: Unify these separate implementations as much as possible.
   return R"(
 fn MultiplyHighLow(a: u32, b: u32) -> vec2u {
   var result: vec2u;

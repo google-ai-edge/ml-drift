@@ -112,7 +112,7 @@ struct CreateGpuModelInfo {
   absl::flat_hash_map<ValueId, TensorDescriptor> external_mutable_tensors;
 };
 
-// TODO(sorokin): Remove the same fields from CreateGpuModelInfo.
+// TODO: Remove the same fields from CreateGpuModelInfo.
 struct ExternalTensorsInfo {
   absl::flat_hash_map<ValueId, GpuSpatialTensor*> immutable_tensors;
   absl::flat_hash_map<ValueId, TensorDescriptor> mutable_tensors;

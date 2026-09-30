@@ -351,9 +351,9 @@ class WeightsManagerFCTest : public gl::OpenGlOperationTest,
 };
 
 TEST_P(WeightsManagerFCTest, FullyConnectedInt8) {
-  // TODO: b/410044840 - FullyConnectedInt8 test fails on Pixel 9 (Mali
+  // TODO: FullyConnectedInt8 test fails on Pixel 9 (Mali
   // GPU chip) because of the failures of FullyConnectedFloat32VSInt8 test.
-  GTEST_SKIP() << "FullyConnectedInt8 test is skipped due to b/410044840.";
+  GTEST_SKIP() << "FullyConnectedInt8 test is skipped due to.";
 
   auto [input_shape, output_channels] = GetParam();
   BHWC output_shape = input_shape;
@@ -363,13 +363,13 @@ TEST_P(WeightsManagerFCTest, FullyConnectedInt8) {
 }
 
 TEST_P(WeightsManagerFCTest, FullyConnectedFloat32VSInt8) {
-  // TODO: b/410044840 - FullyConnectedFloat32VSInt8 test fails on Pixel 9 (Mali
+  // TODO: FullyConnectedFloat32VSInt8 test fails on Pixel 9 (Mali
   // GPU chip), through it's passed with 'requires-gpu-nvidia' tag.
   // The following test is not in the scope of this test file, as it's comparing
   // results of F32-FullyConnected and Int8-FullyConnected. It's located here,
   // because the above FullyConnectedInt8 test fails because of this issue.
   GTEST_SKIP() << "FullyConnectedFloat32VSInt8 test is skipped due to "
-                  "b/410044840.";
+                  ".";
 
   auto [input_shape, output_channels] = GetParam();
   BHWC output_shape = input_shape;

@@ -55,7 +55,7 @@ and performance suffer significantly without quantization.
 
 *   Run extract_weights_hf.py to get binary weight files with Q4_0 quantization
     (all 4-bit weights and block size 32):
-    *   `blaze run -c opt
+    *   `bazel run -c opt
         //third_party/ml_drift/samples/llm:extract_weights_hf --
         --model_path=/tmp/model.safetensors --output_dir=/tmp/extracted
         --quantize --embedding_quant_bits 4 --attention_quant_bits 4
@@ -68,7 +68,7 @@ and performance suffer significantly without quantization.
 *   Copy `tokenizer.model` or `tokenizer.json` into `output_dir` also
 
 *   Run *llm_runner_webgpu* (_metal and _opencl backends also available)
-    *   `blaze run -c opt
+    *   `bazel run -c opt
         //third_party/ml_drift/samples/llm:llm_runner_webgpu --
         --weights_path=/tmp/extracted/
         --prompt="Write a haiku about coffee."

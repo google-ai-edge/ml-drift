@@ -54,7 +54,7 @@ std::string GetSrcReader(const DataType src_data_type,
 
 std::string GetAccumulateInputChannelsCode(
     const DataType src_data_type, const TensorStorageType storage_type) {
-  // TODO: b/430312327 - Calculate single element per thread with work group
+  // TODO: Calculate single element per thread with work group
   // size as WGX_x_4.
   std::string c = absl::Substitute(
       R"(

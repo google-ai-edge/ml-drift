@@ -88,7 +88,7 @@ class ComputePipelineHolder {
 
  protected:
   struct ThreadData {
-    // TODO: b/418039926 - Remove these after debugging the crash.
+    // TODO: Remove these after debugging the crash.
     std::string code;
     absl::Time start;
     std::string debug_str;

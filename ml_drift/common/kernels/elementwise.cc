@@ -192,7 +192,7 @@ $0.w = $1.w < ucl::Init<SType>(0.0f) ? exp($1.w) - ucl::Init<SType>(1.0f) : $1.w
       // 1).
       // For similar reasons, exp(x) is handled separately for positive and
       // negative values.
-      // See b/383769042 for details.
+      // See for details.
       result += "float4 src_f32 = ucl::Convert<float4>($1);\n";
       result += "float4 tanh_val;\n";
       result +=

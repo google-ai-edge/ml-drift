@@ -2640,7 +2640,7 @@ ConvGeneric::KernelParams GetKernelParamsPowerVRDXT(
       }
     }
   }
-  // TODO(sorokin): try to find more generic solution.
+  // TODO: try to find more generic solution.
   // For winograd convs with sizes(Stable Diffusion):
   //   BHWC(2, 36, 64, 640) -> BHWC(2, 36, 64, 640);
   //   BHWC(2, 36, 16, 1280) -> BHWC(2, 36, 16, 1280);
@@ -3384,7 +3384,7 @@ ConvGeneric::KernelParams GetKernelParams(
     }
   }
 
-  // TODO: b/319525628 - Fix kConstantMemory for WebGPU.
+  // TODO: Fix kConstantMemory for WebGPU.
   if (gpu_info.IsApiWebGpu() &&
       kernel_params.weights_upload_type ==
           ConvGeneric::WeightsUploadType::kConstantMemory) {

@@ -112,7 +112,7 @@ class GlInferenceContext {
   int flush_period_ = 1;
 
   // add GL_TEXTURE_FETCH_BARRIER_BIT for TensorStorageType::BUFFER
-  // bug on some mali devices(?), see b/428712357 for more details
+  // bug on some mali devices(?), see for more details
   bool add_texture_fetch_barrier_for_buffer_ = false;
 
   // Directly mapped nodes from graph, but some of them "inactive" due

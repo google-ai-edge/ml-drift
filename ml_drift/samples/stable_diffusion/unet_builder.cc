@@ -46,7 +46,7 @@ absl::Status UnetBuilder::Build(
     GpuModelBuilder::TensorHandle* latent_ptr,
     GpuModelBuilder::TensorHandle* temb_ptr,
     GpuModelBuilder::TensorHandle* guidance_ptr,
-    // TODO(dlho): Delete text_proj_ptr after all binaries updated.
+    // TODO: Delete text_proj_ptr after all binaries updated.
     GpuModelBuilder::TensorHandle* text_proj_ptr,
     GpuModelBuilder::TensorHandle* masked_image_latent_ptr,
     GpuModelBuilder::TensorHandle* eta0_ptr,

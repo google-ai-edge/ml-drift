@@ -21,7 +21,7 @@ enable_testing()
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# TODO(dlho): actually conditionalize this
+# TODO: actually conditionalize this
 option(MLD_BUILD_SAMPLES "Build sample applications" OFF)
 
 # --- External Dependencies ---

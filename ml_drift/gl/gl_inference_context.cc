@@ -122,7 +122,7 @@ absl::Status GlInferenceContext::InitFromGpuModel(
   }
 
   if (gpu_info.IsMali()) {
-    // maybe clarify driver versions, b/428712357
+    // maybe clarify driver versions,
     // definitely fails on this:
     //   1) Mali-G72
     //   v1.r38p1-01bet0-mbs2v41_0.49c562ebe5faf1a47d2b8e7043cf01b0

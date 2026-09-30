@@ -57,7 +57,7 @@ class Instance {
   // by new clients before refactoring the singleton initialization. It must
   // only be called sequentially during initialization before any concurrent
   // threads invoke Get(), when there is no race condition.
-  // TODO(crbug.com/524317888) - Remove this pattern and refactor singleton
+  // TODO - Remove this pattern and refactor singleton
   // initialization.
   static absl::Status Set(const wgpu::Instance& instance);
 

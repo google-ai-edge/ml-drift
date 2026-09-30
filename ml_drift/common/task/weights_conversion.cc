@@ -1449,7 +1449,7 @@ std::vector<TensorDescriptor> GetTensorDescriptorsForWeightsLayout(
     } else if (weights_desc.type == DataType::kUint2) {
       texture_type = DataType::kUint8;
     } else {
-      // TODO: b/378522761 - Support other data types.
+      // TODO: Support other data types.
       ABSL_LOG(FATAL) << absl::StrCat(
           "Weights conversion to k2DYIsSpatialIOAndXIsOGroupI4O4 layout with "
           "data "

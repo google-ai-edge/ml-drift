@@ -20,7 +20,7 @@
 namespace ml_drift {
 namespace webgpu {
 
-// TODO(cl/432271593): Remove this alias once all users are migrated to
+// TODO: Remove this alias once all users are migrated to
 // Environment.
 using ExecutionEnvironment = ml_drift::webgpu::Environment;
 

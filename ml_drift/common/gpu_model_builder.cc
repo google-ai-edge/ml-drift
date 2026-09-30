@@ -1108,7 +1108,7 @@ GpuModelBuilder::FullyConnectedSrcFloatExternalWeightsWithConversion(
     // flops_per_byte ~32 for M4/A18 and below, GPUs without NA
     flops_per_byte = use_apple_mpp ? 110 : 32;
   } else if (gpu_info_.IsIntel()) {
-    // TODO: sorokin MLDrift conversion has bad results for Intel GPUs.
+    // TODO: MLDrift conversion has bad results for Intel GPUs.
     // Intel LNL:
     // const double device_bandwidth_gbs = 40;  // in some cases
     // const double device_compute_gflops = 10000;  // in MLDrift convolution
@@ -4125,7 +4125,7 @@ std::vector<GpuModelBuilder::TensorHandle> GpuModelBuilder::TopKInternal(
       // the same tensors. Therefore we create new ones for each new step when
       // using one-step reduction. This is already not a problem for two-step
       // reduction.
-      // TODO: b/409896028 - Handle this sort of issue more generically.
+      // TODO: Handle this sort of issue more generically.
       if (reduction_size <= kMaxSizeForOneReductionStep &&
           gpu_info_.IsApiWebGpu()) {
         dst_max = AddTensor(BHWC(1, src_shape.h, 1, top_k_size),
@@ -4325,7 +4325,7 @@ GpuModelBuilder::Subgraph(const std::string& subgraph_id,
     outputs[i] = new_out;
   }
 
-  // TODO: b/328473621 - Implement subgraph node sharing in other backends.
+  // TODO: Implement subgraph node sharing in other backends.
   if (gpu_info_.IsApiWebGpu()) {
     // This op has inputs and outputs matching the subgraph's inputs and
     // outputs. It will be expanded into the subgraph nodes in MergeNodes().
@@ -4383,14 +4383,14 @@ GpuModelBuilder::Weights CreateExternalWeights(
 }
 
 bool WeightsManager::IsGpuWeightsPreparationSupported(const GpuInfo& gpu_info) {
-  // TODO(linchan): Enable weights preparation on Gpu for PowerVR, Broadcom,
+  // TODO: Enable weights preparation on Gpu for PowerVR, Broadcom,
   // and Mali GPUs.
   // Weights preparation on Gpu for PowerVR Gpu is currently disabled
-  // because it's slow on Pixel 10 (Pixel 10: b/435509090) and doesn't
+  // because it's slow on Pixel 10 (Pixel 10:) and doesn't
   // compatible with Broadcom GPUs.
   // Weights preparation on Gpu for Mali Gpu is currently disabled
   // because Mali GPUs crash during weight conversion due to memory
-  // exhaustion and known driver issues (b/514701303).
+  // exhaustion and known driver issues.
   bool is_gpu_chip_supported =
       !gpu_info.IsPowerVR() && !gpu_info.IsBroadcom() && !gpu_info.IsMali();
   bool is_api_supported = gpu_info.gpu_api == GpuApi::kOpenCl ||
@@ -4541,7 +4541,7 @@ bool WeightsManager::ShouldOffloadPreparationToGPU(
   switch (preparation_type) {
     case TargetWeightsType::kStandard:
       if (gpu_info.IsAdreno()) {
-        // TODO: b/487838846 - Update the threshold to 1<<19 when the bug is
+        // TODO: Update the threshold to 1<<19 when the bug is
         // fixed.
         threshold = (1 << 22);
       } else if (gpu_info.IsMali()) {

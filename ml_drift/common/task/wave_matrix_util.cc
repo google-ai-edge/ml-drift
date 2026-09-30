@@ -158,7 +158,7 @@ absl::Status ResolveWaveMatrix(const GpuInfo& gpu_info, std::string* code) {
   }
 
   // ucl::WaveMatrixLoad(matrix, ptr, offset, stride, row_major = true);
-  // TODO(sorokin): change it to matrix.Load(ptr, offset, row_major = true);
+  // TODO: change it to matrix.Load(ptr, offset, row_major = true);
   const std::string load_func_name = "ucl::WaveMatrixLoad";
   size_t load_pos = code->find(load_func_name);
   while (load_pos != std::string::npos) {
@@ -204,7 +204,7 @@ absl::Status ResolveWaveMatrix(const GpuInfo& gpu_info, std::string* code) {
   }
 
   // ucl::WaveMatrixMAC(C, A, B);
-  // TODO(sorokin): change it to C.AccumulateProduct(A, B);
+  // TODO: change it to C.AccumulateProduct(A, B);
   const std::string mac_func_name = "ucl::WaveMatrixMAC";
   size_t mac_pos = code->find(mac_func_name);
   while (mac_pos != std::string::npos) {
@@ -237,7 +237,7 @@ absl::Status ResolveWaveMatrix(const GpuInfo& gpu_info, std::string* code) {
   }
 
   // ucl::WaveMatrixStore(matrix, ptr, offset, stride);
-  // TODO(sorokin): change it to matrix.Store(ptr, offset);
+  // TODO: change it to matrix.Store(ptr, offset);
   const std::string store_func_name = "ucl::WaveMatrixStore";
   size_t store_pos = code->find(store_func_name);
   while (store_pos != std::string::npos) {

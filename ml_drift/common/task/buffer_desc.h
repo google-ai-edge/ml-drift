@@ -26,7 +26,7 @@
 
 namespace ml_drift {
 
-// TODO(linchan): b/427808277 - Change struct BufferDescriptor to class.
+// TODO: Change struct BufferDescriptor to class.
 struct BufferDescriptor : public GPUObjectDescriptor {
   bool IsBufferDescriptor() const override { return true; }
   DataType element_type;

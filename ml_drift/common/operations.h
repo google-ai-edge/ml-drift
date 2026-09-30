@@ -313,7 +313,7 @@ struct Pooling2DAttributes {
   HW strides = HW(-1, -1);
   HW kernel = HW(-1, -1);
   Padding2D padding;
-  // NOTE(akulik): technically the number of outputs from Pooling node indicates
+  // NOTE: technically the number of outputs from Pooling node indicates
   // whether indices are needed or not, but I decided to keep it inside
   // attributes to simplify processing.
   bool output_indices = false;
@@ -325,7 +325,7 @@ struct Pooling3DAttributes {
   HWD strides = HWD(0, 0, 0);
   HWD kernel = HWD(0, 0, 0);
   Padding3D padding;
-  // NOTE(akulik): technically the number of outputs from Pooling node indicates
+  // NOTE: technically the number of outputs from Pooling node indicates
   // whether indices are needed or not, but I decided to keep it inside
   // attributes to simplify processing.
   bool output_indices = false;
@@ -480,7 +480,7 @@ Padding3D CalculateSamePadding(const BHWDC& input,
 
 struct ConvolutionTransposedAttributes {
   HW stride = HW(1, 1);  // Along each axis.
-  HW adjacent;           // TODO(sorokin): No op on Flow.
+  HW adjacent;           // TODO: No op on Flow.
   Padding2D padding;
 
   Tensor<OHWI, DataType::kFloat32> weights;
@@ -537,8 +537,8 @@ struct DotGeneralAttributes {
 
 struct EmbeddingLookupAttributes {
   // This needs to be a variant if we start support float weights too.
-  // TODO(b/350049081): Add support for int4 quantized weights.
-  // TODO(b/351847859): Change weights to be a variant.
+  // TODO: Add support for int4 quantized weights.
+  // TODO: Change weights to be a variant.
   std::variant<Tensor<OHWI, DataType::kInt8>, Tensor<OHWI, DataType::kFloat32>,
                Tensor<OHWI, DataType::kUint8>>
       weights;
@@ -670,7 +670,7 @@ struct Resize2DAttributes {
   bool half_pixel_centers = false;
 };
 
-// TODO(b/147771327): rename to Resize3D
+// TODO: rename to Resize3D
 struct Resize3DAttributes {
   HWD new_shape;
 
@@ -768,7 +768,7 @@ BHWDC CalculateOutputShape(const BHWDC& input, const Slice3DAttributes& attr);
 
 // Runtime check params used by FullyConnected and BatchedMatMul ops.
 // See ConvRuntimeCheckDesc in common/task/gpu_operation.h for more details.
-// TODO: b/475505965 - Clean up parameters as these params are too subtle for
+// TODO: Clean up parameters as these params are too subtle for
 // clients to set properly.
 struct RuntimeCheckParams {
   std::optional<int> src_start_ch_index;

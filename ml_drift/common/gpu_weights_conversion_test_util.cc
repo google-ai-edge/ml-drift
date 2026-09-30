@@ -166,7 +166,7 @@ absl::StatusOr<GraphFloat32> CreateConvGraph(const BHWC& input_shape,
   conv_weights.shape = weights_shape;
   conv_weights.data.resize(weights_shape.DimensionsProduct() +
                            XNN_EXTRA_BYTES / sizeof(float));
-  // TODO: b/410586700 - Remove the following workaround once the bug is fixed,
+  // TODO: Remove the following workaround once the bug is fixed,
   // and only set one field for the weights.
   // The weights.spanned_data field is designed to be a view of an external
   // memory, so the unit tests should maintain a memory for it. At the same

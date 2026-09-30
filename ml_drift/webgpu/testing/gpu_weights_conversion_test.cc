@@ -338,7 +338,7 @@ class WeightsManagerFCTest : public webgpu::WebGpuOperationTest,
                              public WithParamInterface<std::tuple<BHWC, int>> {
 };
 
-// TODO: b/410044840 - FullyConnectedInt8 test fails on Pixel 9 (Mali
+// TODO: FullyConnectedInt8 test fails on Pixel 9 (Mali
 // GPU chip) because of the failures of FullyConnectedFloat32VSInt8 test.
 TEST_P(WeightsManagerFCTest, FullyConnectedInt8) {
   auto [input_shape, output_channels] = GetParam();
@@ -347,7 +347,7 @@ TEST_P(WeightsManagerFCTest, FullyConnectedInt8) {
   ABSL_EXPECT_OK(
       FullyConnectedInt8Test(exec_env_.GetEnv(), input_shape, output_shape));
 }
-// TODO: b/410044840 - FullyConnectedFloat32VSInt8 test fails on Pixel 9 (Mali
+// TODO: FullyConnectedFloat32VSInt8 test fails on Pixel 9 (Mali
 // GPU chip), through it's passed with 'requires-gpu-nvidia' tag.
 // The following test is not in the scope of this test file, as it's comparing
 // results of F32-FullyConnected and Int8-FullyConnected. It's located here,

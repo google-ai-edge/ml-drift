@@ -256,7 +256,7 @@ absl::Status InferenceContext::InitFromGpuModel(
   if (gpu_info_.IsPowerVR()) {
     const PowerVRInfo& info = gpu_info_.powervr_info;
     if (info.gpu_version >= PowerVRGpu::kCXT) {
-      // PowerVR has weird behavior with kExhaustive tuning. b/397798684
+      // PowerVR has weird behavior with kExhaustive tuning.
       tuning_type = TuningType::kFast;
     }
   }

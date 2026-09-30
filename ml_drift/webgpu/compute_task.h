@@ -57,7 +57,7 @@ class ComputeTask {
                     UniformBufferCreator* uniform_buffer_creator = nullptr,
                     bool from_serialized_model = false) {
     operation_ = std::move(gpu_operation);
-    // TODO: b/372296536 - The ComputePipelineCache should be able to be used
+    // TODO: The ComputePipelineCache should be able to be used
     // in all cases, but there seems to be some problem with this (see linked
     // bug). Switch this to always use the cache once the bug is resolved.
 

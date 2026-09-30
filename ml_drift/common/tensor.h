@@ -134,7 +134,7 @@ struct Tensor {
   ShapeType shape;
 
   TensorStorageType data;
-  // TODO: b/389755820 - Support variant<data, span>;
+  // TODO: Support variant<data, span>;
   SpannedStorageType spanned_data;
 
   const ValueType* Data() const {

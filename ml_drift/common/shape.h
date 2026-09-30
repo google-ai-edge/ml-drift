@@ -499,12 +499,12 @@ struct StrongShape : public internal_shape::LayoutTraits<L>::strong_shape_type {
   constexpr static Layout layout = L;
 
   bool operator==(const StrongShape<L>& shape) const {
-    // TODO(akulik): implement better alternative.
+    // TODO: implement better alternative.
     return this->ToShape() == shape.ToShape();
   }
 
   bool operator!=(const StrongShape<L>& shape) const {
-    // TODO(akulik): implement better alternative.
+    // TODO: implement better alternative.
     return this->ToShape() != shape.ToShape();
   }
   bool empty() const { return DimensionsProduct() == 0; }

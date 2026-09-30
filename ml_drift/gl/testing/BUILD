@@ -32,7 +32,7 @@ cc_test(
     name = "gpu_weights_conversion_test",
     srcs = ["gpu_weights_conversion_test.cc"],
     tags = [
-        # TODO: b/454117562 - Fix the failures of the test and re-enable it.
+        # TODO: Fix the failures of the test and re-enable it.
         "notap",
         "requires-gpu-nvidia",
     ],

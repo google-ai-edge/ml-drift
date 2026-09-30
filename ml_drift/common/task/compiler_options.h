@@ -21,7 +21,7 @@ namespace ml_drift {
 
 enum class CompilerOptions {
   kUnknown,
-  // go/keep-sorted start
+  // start
   kAdrenoFullSimd,
   kAdrenoMoreWaves,
   kCl20,
@@ -43,7 +43,7 @@ enum class CompilerOptions {
   kWaveSize32,
   kWaveSize64,
   kWaveSize8,
-  // go/keep-sorted end
+  // end
 };
 
 // Converts a wave size to a CompilerOptions enum value.

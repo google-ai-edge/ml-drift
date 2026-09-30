@@ -104,7 +104,7 @@ struct OpenClTexture {
   explicit OpenClTexture(cl_mem new_memobj) : memobj(new_memobj) {}
 
   cl_mem memobj = nullptr;
-  // TODO(akulik): should it specify texture format?
+  // TODO: should it specify texture format?
 };
 
 struct VulkanBuffer {

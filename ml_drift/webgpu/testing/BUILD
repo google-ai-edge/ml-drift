@@ -23,7 +23,7 @@ cc_test(
     name = "gpu_weights_conversion_test",
     srcs = ["gpu_weights_conversion_test.cc"],
     tags = [
-        # TODO: b/454117562 - Fix the failures of the test and re-enable it.
+        # TODO: Fix the failures of the test and re-enable it.
         "notap",
         "requires-gpu-nvidia",
     ],
@@ -60,7 +60,7 @@ cc_test(
 )
 
 # For running on mac:
-# blaze build -c opt --config=darwin_arm64 ml_drift/webgpu/testing:operation_perf_test
+# bazel build -c opt --config=darwin_arm64 ml_drift/webgpu/testing:operation_perf_test
 cc_test(
     name = "operation_perf_test",
     srcs = ["operation_perf_test.cc"],

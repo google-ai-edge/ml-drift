@@ -34,7 +34,7 @@ std::string IrOp::str() const {
   return absl::StrCat("o#", id, " (", name, ")");
 }
 
-// TODO: who/impjdi - Move shape extraction to TensorDesc::str().
+// TODO: Move shape extraction to TensorDesc::str().
 std::string IrTensor::str() const {
   const auto shape = desc.GetBHWDCShape();
   return absl::StrCat("t#", id, " (", shape.b, "x", shape.h, "x", shape.w, "x",

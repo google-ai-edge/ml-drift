@@ -528,7 +528,7 @@ cc_library(
     ],
 )
 
-# TODO(impjdi): Add unit test for model_transformer.
+# TODO: Add unit test for model_transformer.
 
 cc_library(
     name = "tensor_handle",
@@ -620,7 +620,7 @@ cc_library(
     deps = [":data_type"],
 )
 
-# TODO(impjdi): Add unit test for operations.
+# TODO: Add unit test for operations.
 
 cc_library(
     name = "shape",

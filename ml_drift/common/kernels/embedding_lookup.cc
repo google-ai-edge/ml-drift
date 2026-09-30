@@ -177,7 +177,7 @@ std::string GetCreateEmbeddingLookupCode(bool is_weights_texture,
              "index);\n";
       }
     }
-    // TODO(b/350749105): Centralize shifting logic with all quantization ops.
+    // TODO: Centralize shifting logic with all quantization ops.
     std::string shift = "ucl::Init<SType>(128.0f)";
     if (weights_type == DataType::kUint4) {
       shift = "ucl::Init<SType>(8.0f)";

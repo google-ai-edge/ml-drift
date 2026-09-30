@@ -13,12 +13,12 @@
 # limitations under the License.
 
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_test", "objc_library")
-load("//devtools/python/blaze:pytype.bzl", "pytype_strict_binary")
+load("//devtools/python/bazel:pytype.bzl", "pytype_strict_binary")
 
 package(licenses = ["notice"])
 
 # Extracts weights from a HuggingFace model (safetensors).
-# blaze run //ml_drift/samples/llm:extract_weights_hf -- --model_path=/tmp/model.safetensors --output_dir=/tmp/extracted/
+# bazel run //ml_drift/samples/llm:extract_weights_hf -- --model_path=/tmp/model.safetensors --output_dir=/tmp/extracted/
 pytype_strict_binary(
     name = "extract_weights_hf",
     srcs = ["extract_weights_hf.py"],
@@ -367,7 +367,7 @@ cc_library(
     alwayslink = 1,
 )
 
-# blaze run -c opt //ml_drift/samples/llm:llm_runner_webgpu -- --prompt="Hello world." --model=gemma3:1b --weights_path=/tmp/extracted/
+# bazel run -c opt //ml_drift/samples/llm:llm_runner_webgpu -- --prompt="Hello world." --model=gemma3:1b --weights_path=/tmp/extracted/
 cc_binary(
     name = "llm_runner_webgpu",
     srcs = ["llm_webgpu.cc"],
@@ -414,7 +414,7 @@ cc_binary(
     ],
 )
 
-# blaze run -c opt //ml_drift/samples/llm:llm_runner_opencl -- --prompt="Hello world." --model=gemma3:1b --weights_path=/tmp/extracted/
+# bazel run -c opt //ml_drift/samples/llm:llm_runner_opencl -- --prompt="Hello world." --model=gemma3:1b --weights_path=/tmp/extracted/
 cc_binary(
     name = "llm_runner_opencl",
     srcs = ["llm_opencl.cc"],
@@ -512,7 +512,7 @@ objc_library(
     alwayslink = 1,
 )
 
-# blaze run -c opt //ml_drift/samples/llm:llm_runner_metal -- --prompt="Hello world." --model=gemma3:1b --weights_path=/tmp/extracted/
+# bazel run -c opt //ml_drift/samples/llm:llm_runner_metal -- --prompt="Hello world." --model=gemma3:1b --weights_path=/tmp/extracted/
 cc_binary(
     name = "llm_runner_metal",
     deps = [

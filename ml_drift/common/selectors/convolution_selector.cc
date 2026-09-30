@@ -76,7 +76,7 @@ std::unique_ptr<GPUOperation> SelectConvolutionExternalWeightsAdreno(
     WeightsDescription* weights_desc, const TensorDescriptor* src_exp,
     bool different_weights_for_height,
     const ConvRuntimeCheckDesc& runtime_check) {
-  // TODO(sorokin): driver bug? workaround for b/424603203, may need additional
+  // TODO: driver bug? workaround for, may need additional
   // clarification
   const bool constant_buffer_sync_bug =
       gpu_info.IsApiOpenCl() && gpu_info.adreno_info.IsAdreno8xx();

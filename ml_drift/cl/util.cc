@@ -193,7 +193,7 @@ absl::Status CreateCLBuffer(cl_context context, size_t size_in_bytes,
   }
   cl_int error_code;
   {
-    // TODO: b/279347631 - Remove after Nvidia driver is fixed.
+    // TODO: Remove after Nvidia driver is fixed.
     absl::LeakCheckDisabler disabler;
     *result = clCreateBuffer(context, flags, size_in_bytes, data, &error_code);
   }
@@ -223,7 +223,7 @@ absl::StatusOr<cl_mem> CreateCLSubBuffer(cl_context context, cl_mem parent,
   }
   cl_mem result;
   {
-    // TODO: b/279347631 - Remove after Nvidia driver is fixed.
+    // TODO: Remove after Nvidia driver is fixed.
     absl::LeakCheckDisabler disabler;
     result = clCreateSubBuffer(parent, flags, CL_BUFFER_CREATE_TYPE_REGION,
                                &region, &error_code);

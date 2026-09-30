@@ -28,7 +28,7 @@ namespace ml_drift {
 
 // The VendorID returned by the GPU driver.
 enum class GpuVendor {
-  // go/keep-sorted start
+  // start
   kAMD,
   kApple,
   kBroadcom,
@@ -39,7 +39,7 @@ enum class GpuVendor {
   kNvidia,
   kPowerVR,
   kQualcomm,
-  // go/keep-sorted end
+  // end
   kUnknown
 };
 
@@ -168,12 +168,12 @@ struct AdrenoInfo {
   int GetWaveSize(bool full_wave) const;
 
   // Not supported on some Adreno devices with specific driver version.
-  // b/131099086
+  //
   bool support_one_layer_texture_array = true;
   OpenClCompilerVersion cl_compiler_version;
   OpenGlDriverVersion opengl_driver_version;
 
-  // b/442857864
+  //
   bool IsGlDriverMajor615Minor88_97() const {
     return opengl_driver_version.major == 615 &&
            (opengl_driver_version.minor >= 88 &&

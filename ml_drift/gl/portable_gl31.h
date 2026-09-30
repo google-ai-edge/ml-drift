@@ -23,7 +23,7 @@
 
 #ifdef __ANDROID__
 // Weak-link all GL APIs included from this point on.
-// TODO(camillol): Annotate these with availability attributes for the
+// TODO: Annotate these with availability attributes for the
 // appropriate versions of Android, by including gl{3,31,31}.h and resetting
 // GL_APICALL for each.
 #undef GL_APICALL

@@ -554,7 +554,7 @@ class GpuModelBuilder {
       const OpAttrs& attrs = OpAttrs());
   // GetLastGpuOperation is intended for use by the operation extension
   // framework; avoid using directly in standard graph construction.
-  // TODO(dlho): Remove this after killing stable diffusion OpHolder.
+  // TODO: Remove this after killing stable diffusion OpHolder.
   std::unique_ptr<GPUOperation>& GetLastGpuOperation() {
     return gpu_model_.nodes.back().gpu_operation;
   }

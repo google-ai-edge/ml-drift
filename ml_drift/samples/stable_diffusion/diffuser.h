@@ -60,7 +60,7 @@ namespace stable_diffusion {
 //
 // Note: OpenCL Diffuser is separated from the main implementation due to
 // external dependencies.
-// TODO(dlho): Move Diffuser implementation into binary source when dependency
+// TODO: Move Diffuser implementation into binary source when dependency
 // issue is resolved.
 class Diffuser {
  public:

@@ -144,7 +144,7 @@ void AddCommonArgs(const WeightsDescription& dst_weights_desc,
 // Whether the integer weights can be written with a vector operation.
 // Currently, only custom buffer handles the case when a vector operation is
 // not possible for int8 or uint8.
-// TODO: b/475448239 - Check properly all supported cases, layouts and their
+// TODO: Check properly all supported cases, layouts and their
 // parameters.
 bool IsLastBlockHas4IAnd4OElements(const WeightsDescription& dst_weights_desc) {
   if (dst_weights_desc.layout == WeightsLayout::kCustomGroups &&
@@ -288,7 +288,7 @@ int3 GetGrid(const WeightsDescription& dst_weights_desc,
         dst_weights_desc.type == DataType::kUint2) {
       tex_size.x /= 4;  // storing 16 elements in one 2d texture element
     } else {
-      // TODO: b/378522761 - Support other data types for
+      // TODO: Support other data types for
       // k2DYIsSpatialIOAndXIsOGroupI4O4 layout.
       ABSL_LOG(FATAL) << absl::StrCat(
           "Weights conversion to k2DYIsSpatialIOAndXIsOGroupI4O4 layout with "
@@ -937,7 +937,7 @@ std::string ConverterToConvWeights::GetConverterToConvWeightsCode(
     } else if (weights_desc_.type == DataType::kUint2) {
       texture_type = DataType::kUint8;
     } else {
-      // TODO: b/378522761 - Support other data types for
+      // TODO: Support other data types for
       // k2DYIsSpatialIOAndXIsOGroupI4O4 layout.
       ABSL_LOG(FATAL) << absl::StrCat(
           "Weights conversion to k2DYIsSpatialIOAndXIsOGroupI4O4 layout with "
@@ -1546,7 +1546,7 @@ WeightsConverter::WeightsConverter(const GpuInfo& gpu_info,
       desc = TensorDescriptor(DataType::kUint32, TensorStorageType::kTexture2D,
                               Layout::kHW);
     } else {
-      // TODO: b/378522761 - Support other data types for
+      // TODO: Support other data types for
       // k2DYIsSpatialIOAndXIsOGroupI4O4 layout.
       ABSL_LOG(FATAL) << absl::StrCat(
           "Weights conversion to k2DYIsSpatialIOAndXIsOGroupI4O4 layout with "

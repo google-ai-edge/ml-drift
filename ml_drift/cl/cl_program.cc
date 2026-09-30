@@ -73,7 +73,7 @@ absl::Status GetBinarySize(cl_program program, size_t* binary_size) {
 
 absl::Status BuildProgram(cl_program program, cl_device_id device_id,
                           const std::string& compiler_options) {
-  // TODO: b/279347631 - Remove after Nvidia driver is fixed.
+  // TODO: Remove after Nvidia driver is fixed.
   absl::LeakCheckDisabler disabler;
   const int error_code = clBuildProgram(
       program, 0, nullptr, compiler_options.c_str(), nullptr, nullptr);

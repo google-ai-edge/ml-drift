@@ -2017,7 +2017,7 @@ absl::Status TensorDescriptor::CanCreateTensorWithShape(
       }
     }
     case TensorStorageType::kTextureArray: {
-      // Bug on some Adreno. b/131099086
+      // Bug on some Adreno.
       if (gpu_info.IsApiOpenCl() && slices == 1 && gpu_info.IsAdreno() &&
           !gpu_info.adreno_info.support_one_layer_texture_array) {
         return absl::InternalError(

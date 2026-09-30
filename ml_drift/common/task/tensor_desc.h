@@ -321,7 +321,7 @@ class TensorDescriptor : public GPUObjectDescriptor {
            physical_layout_2d_ == d.physical_layout_2d_;
   }
 
-  // See go/absl-hash#making-hashable-types
+  // See
   template <typename H>
   friend H AbslHashValue(H h, const TensorDescriptor& tensor_desc);
 
@@ -470,7 +470,7 @@ template <>
 inline void TensorDescriptor::UploadDataRaw(const absl::Span<const float> src) {
   data_.resize(GetMemorySizeInBytes());
   if (data_type_ == DataType::kFloat16) {
-    // TODO: who/impjdi - Use xnn_run_unary_elementwise_nc instead.
+    // TODO: Use xnn_run_unary_elementwise_nc instead.
     half* dst = reinterpret_cast<half*>(&data_[0]);
     for (int i = 0; i < shape_.DimensionsProduct(); ++i) {
       dst[i] = static_cast<half>(src.at(i));

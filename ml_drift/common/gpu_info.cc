@@ -1655,7 +1655,7 @@ bool GpuInfo::SupportsAcceleratedDp4a() const {
     return false;
   }
 #endif
-  // TODO(b/367828817): We disable dp4a on web for now, until correctness issues
+  // TODO: We disable dp4a on web for now, until correctness issues
   // are resolved.
 #ifndef __EMSCRIPTEN__
   if (IsIntel()) {

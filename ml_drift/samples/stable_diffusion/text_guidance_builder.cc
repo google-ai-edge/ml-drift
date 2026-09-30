@@ -41,7 +41,7 @@
 
 namespace ml_drift {
 
-// TODO(jqtang): Support the public SD 2.x weights file naming.
+// TODO: Support the public SD 2.x weights file naming.
 absl::Status TextGuidanceBuilder::Build(
     const Config& config, const GpuInfo& gpu_info,
     const CreateGpuModelInfo& create_info, GpuModel* gpu_model,

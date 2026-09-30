@@ -31,7 +31,7 @@ namespace ml_drift {
 namespace gl {
 namespace {
 
-// TODO(akulik): detect power management event when all contexts are destroyed
+// TODO: detect power management event when all contexts are destroyed
 // and OpenGL ES is reinitialized. See eglMakeCurrent
 
 absl::Status InitDisplay(EGLDisplay* egl_display) {
@@ -109,7 +109,7 @@ absl::Status EglEnvironment::Init() {
   if (gpu_info_.vendor == GpuVendor::kUnknown) {
     ABSL_RETURN_IF_ERROR(RequestGpuInfo(&gpu_info_));
   }
-  // TODO(akulik): when do we need ForceSyncTurning?
+  // TODO: when do we need ForceSyncTurning?
   ForceSyncTurning();
   return absl::OkStatus();
 }

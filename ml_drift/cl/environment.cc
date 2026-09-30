@@ -114,7 +114,7 @@ absl::Status Environment::Init() {
   if (device().GetInfo().IsAdreno() &&
       device().GetInfo().SupportsTextureArray()) {
     const auto& adreno_info = device().info_.adreno_info;
-    // Some Adreno < 600 have bug with one layer texture array. b/131099086
+    // Some Adreno < 600 have bug with one layer texture array.
     // If we have one layer texture array and will write smt from kernel to this
     // texture, we will get zeroes instead of actual values.
     // The same kernel will work, if we use texture array with more than one

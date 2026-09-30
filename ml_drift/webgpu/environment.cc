@@ -309,7 +309,7 @@ absl::Status Environment::Initialize(const wgpu::Device& device,
   // MLDrift-WebGPU on Apple laptops and desktops (no mWeb on Apple devices), as
   // a temporary patch to allow for closer-to-proper behavior, we can fall back
   // to the lowest common denominator for our use case as being an M1 GPU.
-  // TODO: b/354237981 - We should detect GPU variations on web better, either
+  // TODO: We should detect GPU variations on web better, either
   // through new WebGPU APIs or perhaps using detected capabilities/features.
   std::string_view architecture_with_overrides(adapter_info.architecture);
   if (std::string(adapter_info.vendor) == "apple" &&

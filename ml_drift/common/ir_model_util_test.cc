@@ -288,7 +288,7 @@ TEST(IrModelUtilTest, TryResizeAddConvLocalMemoryFuser) {
   EXPECT_EQ(gpu_model.nodes.size(), 1);
 }
 
-// Regression test for b/542718690: a RESIZE -> ADD -> CONVOLUTION_2D chain in
+// Regression test for: a RESIZE -> ADD -> CONVOLUTION_2D chain in
 // which the ADD has its second operand folded into its attributes, so it only
 // has a single runtime input. The fuser used to unconditionally read
 // add_op->inputs[1], running off the end of the vector.

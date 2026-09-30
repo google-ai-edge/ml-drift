@@ -76,12 +76,12 @@ absl::Status ResolveWaveMemoryToWaveBroadcast(int wave_size,
     code->replace(mem_pos, end_line - mem_pos, patch);
   }
 #if defined(__linux__)
-  // TODO: b/332394417 - WebGPUs Vulkan backend has a bug when broadcasting
+  // TODO: WebGPUs Vulkan backend has a bug when broadcasting
   // f16, so cast to u32. This should be fixed since it's slower than f16.
   const bool webgpu_broadcast_half4_as_uint2 =
       gpu_info.IsApiWebGpu() && gpu_info.webgpu_info.supports_fp16 &&
       data_type == DataType::kFloat16 && gpu_info.IsIntel() &&
-      // TODO: b/332394417 - This may be able to be extended down to Gen10.
+      // TODO: This may be able to be extended down to Gen10.
       !gpu_info.intel_info.IsGenerationOrNewer(IntelGeneration::kGen12);
 #else
   const bool webgpu_broadcast_half4_as_uint2 = false;

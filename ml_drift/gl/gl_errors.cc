@@ -54,7 +54,7 @@ struct ErrorFormatter {
 
 }  // namespace
 
-// TODO(akulik): create new error space for GL error.
+// TODO: create new error space for GL error.
 
 absl::Status GetOpenGlErrors() {
 #ifdef __EMSCRIPTEN__

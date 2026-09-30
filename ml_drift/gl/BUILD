@@ -340,7 +340,7 @@ cc_library(
 # Call binaries with --define gles_workstation_fix=yes as a workaround for the
 # "version `GLIBC_2.33' not found" error on gLinux workstations. This extra define is needed in
 # order not to break TAP tests, where the workaround does not apply.
-# TODO(b/218917604): Remove workaround linkopts as soon as they are no longer needed.
+# TODO: Remove workaround linkopts as soon as they are no longer needed.
 config_setting(
     name = "enable_gles_workstation_fix",
     define_values = {
