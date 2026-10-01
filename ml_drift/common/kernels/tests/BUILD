@@ -25,6 +25,7 @@ exports_files(
     [
         "kernel_test.h",
         "opencl_kernel_test.cc",
+        "gl_kernel_test.cc",
         "webgpu_kernel_test.cc",
     ],
     visibility = [
