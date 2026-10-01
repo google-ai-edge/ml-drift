@@ -7,12 +7,13 @@ def mld_kernel_test(
         name,
         srcs = [],
         deps = [],
-        platforms = ["opencl", "webgpu"],
+        platforms = ["opencl", "gl", "webgpu"],
         **kwargs):
     """"Multi-backend C++ test macro.
 
     Can be used as a drop-in replacement for cc_test. Given name "my_test", defines these targets:
       my_test_opencl
+      my_test_gl
       my_test_webgpu
 
     Args:
@@ -48,6 +49,23 @@ def mld_kernel_test(
             **test_kwargs
         )
         target_suffixes.append("_opencl")
+
+    if "gl" in platforms:
+        cc_test(
+            name = name + "_gl",
+            srcs = srcs + [
+                "//ml_drift/common/kernels/tests:kernel_test.h",
+                "//ml_drift/common/kernels/tests:gl_kernel_test.cc",
+            ],
+            linkstatic = True,
+            deps = deps + [
+                "@com_google_googletest//:gtest", "@com_google_absl//absl/status:status_matchers",
+                "//ml_drift/gl/testing:gl_test",
+            ],
+            tags = mld_gpu_tests_tags(),
+            **test_kwargs
+        )
+        target_suffixes.append("_gl")
 
     if "webgpu" in platforms:
         cc_test(
