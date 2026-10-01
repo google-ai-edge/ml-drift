@@ -39,6 +39,11 @@ absl::StatusOr<GpuModelBuilder::TensorHandle> MakeConvWithPackedGroups(
     const GpuModelBuilder::TensorHandle& params,
     const GpuModelBuilder::Weights& weights, int num_active_experts);
 
+absl::StatusOr<GpuModelBuilder::TensorHandle> MakeConvWithBatchIds(
+    GpuModelBuilder& builder, const GpuModelBuilder::TensorHandle& src,
+    const GpuModelBuilder::TensorHandle& ids,
+    const GpuModelBuilder::Weights& weights);
+
 }  // namespace ml_drift
 
 #endif  // ML_DRIFT_COMMON_GPU_MODEL_BUILDER_MOE_UTIL_H_

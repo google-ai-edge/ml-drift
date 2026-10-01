@@ -14,6 +14,7 @@
 
 #include "ml_drift/common/gpu_model_builder_moe_util.h"
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <utility>
@@ -222,6 +223,67 @@ absl::StatusOr<GpuModelBuilder::TensorHandle> MakeConvWithPackedGroups(
   builder.AddGpuOperation(src_ids, {dst}, std::move(conv),
                           "conv_packed_groups_" + ToString(weights.desc.type));
   return dst;
+}
+
+absl::StatusOr<GpuModelBuilder::TensorHandle> MakeConvWithBatchIds(
+    GpuModelBuilder& builder, const GpuModelBuilder::TensorHandle& src,
+    const GpuModelBuilder::TensorHandle& ids,
+    const GpuModelBuilder::Weights& weights) {
+  const auto precision =
+      builder.GetConvPrecision(src.tensor_desc.GetDataType());
+
+  ExternalWeights external_weights;
+  external_weights.desc = weights.desc;
+  external_weights.shape = weights.shape;
+  if (weights.scale) {
+    external_weights.scale_zp_shape = weights.scale_zp_shape;
+    external_weights.scale = &(weights.scale->tensor_desc);
+  }
+  if (weights.zero_point) {
+    external_weights.zero_point = &(weights.zero_point->tensor_desc);
+  }
+
+  BHWC dst_shape = src.tensor_desc.GetBHWCShape();
+  dst_shape.c = weights.shape.o;
+  dst_shape.h = ids.tensor_desc.GetBHWCShape().c;
+  auto conv = builder.AddTensor(dst_shape, src.tensor_desc.GetDataType());
+
+  ABSL_ASSIGN_OR_RETURN(auto operation,
+                        CreateFullyConnectedWeightsBatchIds(
+                            builder.gpu_info(), precision, src.tensor_desc,
+                            ids.tensor_desc, conv.tensor_desc, external_weights,
+                            /*bias=*/nullptr, &dst_shape));
+
+  operation.flops_ = dst_shape.DimensionsProduct() * weights.shape.i * 2;
+
+  const int num_active_experts = dst_shape.h;
+  const int num_experts = weights.shape.h;
+  if (num_active_experts < num_experts) {
+    uint64_t partial_read_size =
+        weights.weights.tensor_desc.GetMemorySizeInBytes();
+    if (weights.scale) {
+      partial_read_size += weights.scale->tensor_desc.GetMemorySizeInBytes();
+    }
+    if (weights.zero_point) {
+      partial_read_size +=
+          weights.zero_point->tensor_desc.GetMemorySizeInBytes();
+    }
+    operation.read_size_ = src.tensor_desc.GetMemorySizeInBytes() +
+                           ids.tensor_desc.GetMemorySizeInBytes() +
+                           partial_read_size / num_experts * num_active_experts;
+  }
+  std::vector<GpuModelBuilder::TensorHandle> src_ids = {src, ids,
+                                                        weights.weights};
+  if (weights.scale) {
+    src_ids.push_back(*weights.scale);
+  }
+  if (weights.zero_point) {
+    src_ids.push_back(*weights.zero_point);
+  }
+  builder.AddGpuOperation(
+      src_ids, {conv}, std::make_unique<FullyConnected>(std::move(operation)),
+      "fc1x1_" + ToString(weights.desc.type) + "_batch_ids");
+  return conv;
 }
 
 }  // namespace ml_drift
