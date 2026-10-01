@@ -256,6 +256,29 @@ cc_library(
 )
 
 cc_library(
+    name = "conv_wave_matrix_mali_f16",
+    srcs = ["conv_wave_matrix_mali_f16.cc"],
+    hdrs = ["conv_wave_matrix_mali_f16.h"],
+    deps = [
+        "//ml_drift/common:data_type",
+        "//ml_drift/common:gpu_info",
+        "//ml_drift/common:kernel_info",
+        "//ml_drift/common:shape",
+        "//ml_drift/common:tensor",
+        "//ml_drift/common:types",
+        "//ml_drift/common:util",
+        "//ml_drift/common/task:buffer_desc",
+        "//ml_drift/common/task:compiler_options",
+        "//ml_drift/common/task:gpu_object_desc",
+        "//ml_drift/common/task:gpu_operation",
+        "//ml_drift/common/task:tensor_desc",
+        "//ml_drift/common/task:tuning_type",
+        "//ml_drift/common/task:work_group_picking",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_library(
     name = "conv_wave_memory",
     srcs = ["conv_wave_memory.cc"],
     hdrs = ["conv_wave_memory.h"],
