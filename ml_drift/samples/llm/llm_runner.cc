@@ -28,6 +28,7 @@
 #include "third_party/gloop/base/init_google.h"
 #include "third_party/gloop/base/log_file_flags.h"
 
+// NOLINTBEGIN
 ABSL_FLAG(std::string, prompt, "", "The input prompt for the model.");
 ABSL_FLAG(std::string, prompt_file, "",
           "Path to a text file containing the input prompt.");
@@ -52,6 +53,7 @@ ABSL_FLAG(int, benchmark_prefill_tokens, 512,
           "Number of prefill tokens to benchmark.");
 ABSL_FLAG(int, benchmark_decode_tokens, 128,
           "Number of decode tokens to benchmark.");
+// NOLINTEND
 
 int main(int argc, char** argv) {
   InitGoogle(argv[0], &argc, &argv, true);
