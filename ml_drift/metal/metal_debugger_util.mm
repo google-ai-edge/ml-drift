@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#import "third_party/ml_drift/metal/metal_debugger_util.h"
+#include "ml_drift/metal/metal_debugger_util.h"
 
 namespace ml_drift {
 namespace metal {

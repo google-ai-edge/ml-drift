@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef THIRD_PARTY_ML_DRIFT_SAMPLES_LLM_GEMMA4_MODEL_BUILDER_H_
-#define THIRD_PARTY_ML_DRIFT_SAMPLES_LLM_GEMMA4_MODEL_BUILDER_H_
+#ifndef ML_DRIFT_SAMPLES_LLM_GEMMA4_MODEL_BUILDER_H_
+#define ML_DRIFT_SAMPLES_LLM_GEMMA4_MODEL_BUILDER_H_
 
 #include <memory>
 #include <vector>
@@ -70,4 +70,4 @@ class Gemma4ModelBuilder {
 
 }  // namespace ml_drift
 
-#endif  // THIRD_PARTY_ML_DRIFT_SAMPLES_LLM_GEMMA4_MODEL_BUILDER_H_
+#endif  // ML_DRIFT_SAMPLES_LLM_GEMMA4_MODEL_BUILDER_H_

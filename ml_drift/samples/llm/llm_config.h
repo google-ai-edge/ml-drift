@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef THIRD_PARTY_ML_DRIFT_SAMPLES_LLM_LLM_CONFIG_H_
-#define THIRD_PARTY_ML_DRIFT_SAMPLES_LLM_LLM_CONFIG_H_
+#ifndef ML_DRIFT_SAMPLES_LLM_LLM_CONFIG_H_
+#define ML_DRIFT_SAMPLES_LLM_LLM_CONFIG_H_
 
 #include <algorithm>
 #include <optional>
@@ -240,4 +240,4 @@ inline absl::StatusOr<ModelInfo> GetModelInfo(absl::string_view model_name) {
 
 }  // namespace ml_drift
 
-#endif  // THIRD_PARTY_ML_DRIFT_SAMPLES_LLM_LLM_CONFIG_H_
+#endif  // ML_DRIFT_SAMPLES_LLM_LLM_CONFIG_H_

@@ -14,7 +14,7 @@
 
 #include "ml_drift/metal/environment.h"
 
-#import <sys/utsname.h>
+#include <sys/utsname.h>
 
 #include <string>
 

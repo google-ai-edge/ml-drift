@@ -16,8 +16,8 @@
 #define ML_DRIFT_METAL_METAL_API_H_
 
 #ifdef __OBJC__
-#import "third_party/ml_drift/metal/environment.h"        // IWYU pragma: export
-#import "third_party/ml_drift/metal/inference_context.h"  // IWYU pragma: export
+#include "ml_drift/metal/environment.h"        // IWYU pragma: export
+#include "ml_drift/metal/inference_context.h"  // IWYU pragma: export
 #endif
 
 #endif  // ML_DRIFT_METAL_METAL_API_H_

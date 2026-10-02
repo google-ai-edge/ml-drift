@@ -17,15 +17,15 @@ available). For the following instructions, the working directory will be
 
 - Extract safetensors weights via `extract_weights.py`
 
-  - `bazel run //third_party/ml_drift/samples/stable_diffusion:extract_weights -- --model_path=/tmp/v1-5-pruned-emaonly.safetensors --output_dir=/tmp/sd_1_5/`
+  - `bazel run //ml_drift/samples/stable_diffusion:extract_weights -- --model_path=/tmp/v1-5-pruned-emaonly.safetensors --output_dir=/tmp/sd_1_5/`
 
 ### Build and Run
 
 - Build sample (choose a backend)
 
-  - `bazel build -c opt //third_party/ml_drift/samples/stable_diffusion:sd_gpu_webgpu`
-  - `bazel build -c opt //third_party/ml_drift/samples/stable_diffusion:sd_gpu_metal`
-  - `bazel build -c opt //third_party/ml_drift/samples/stable_diffusion:sd_gpu_opencl`
+  - `bazel build -c opt //ml_drift/samples/stable_diffusion:sd_gpu_webgpu`
+  - `bazel build -c opt //ml_drift/samples/stable_diffusion:sd_gpu_metal`
+  - `bazel build -c opt //ml_drift/samples/stable_diffusion:sd_gpu_opencl`
 
 - Run sample (example with WebGPU)
 

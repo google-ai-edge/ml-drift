@@ -41,7 +41,7 @@
 #include "ml_drift/common/task/tuning_type.h"
 #include "ml_drift/common/tensor.h"
 #include "ml_drift/common/types.h"
-#import "third_party/ml_drift/metal/common.h"
+#include "ml_drift/metal/common.h"
 #include "ml_drift/metal/environment.h"
 #include "ml_drift/metal/inference_context_generated.h"
 #include "ml_drift/metal/metal_spatial_tensor.h"

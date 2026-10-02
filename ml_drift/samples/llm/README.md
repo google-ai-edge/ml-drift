@@ -65,7 +65,7 @@ converts and quantizes them into separate binary tensor files for ML Drift.
 2.  **Run `extract_weights_hf` to generate Q4_0 quantized binary weight files**:
 
     ```bash
-    bazel run -c opt //third_party/ml_drift/samples/llm:extract_weights_hf -- \
+    bazel run -c opt //ml_drift/samples/llm:extract_weights_hf -- \
       --model_path=/tmp/model.safetensors \
       --output_dir=/tmp/extracted \
       --quantize \
@@ -88,10 +88,10 @@ converts and quantizes them into separate binary tensor files for ML Drift.
 
 | Target | Backend | Platform | Description |
 | :--- | :--- | :--- | :--- |
-| `//third_party/ml_drift/samples/llm:llm_runner_metal` | **Metal** | macOS | Native Metal LLM runner binary |
-| `//third_party/ml_drift/samples/llm:llm_runner_webgpu` | **WebGPU** (Dawn/Vulkan/Metal) | Linux & macOS | WebGPU LLM runner binary |
-| `//third_party/ml_drift/samples/llm:llm_runner_opencl` | **OpenCL** | Linux | OpenCL LLM runner binary |
-| `//third_party/ml_drift/samples/llm:extract_weights_hf` | **Python (CPU)** | Linux & macOS | Extracts and quantizes Hugging Face `.safetensors` weights |
+| `//ml_drift/samples/llm:llm_runner_metal` | **Metal** | macOS | Native Metal LLM runner binary |
+| `//ml_drift/samples/llm:llm_runner_webgpu` | **WebGPU** (Dawn/Vulkan/Metal) | Linux & macOS | WebGPU LLM runner binary |
+| `//ml_drift/samples/llm:llm_runner_opencl` | **OpenCL** | Linux | OpenCL LLM runner binary |
+| `//ml_drift/samples/llm:extract_weights_hf` | **Python (CPU)** | Linux & macOS | Extracts and quantizes Hugging Face `.safetensors` weights |
 
 ### Runner Command-Line Flags
 
@@ -113,7 +113,7 @@ converts and quantizes them into separate binary tensor files for ML Drift.
 #### 1. Run Text Generation on macOS (Metal)
 
 ```bash
-bazel run -c opt //third_party/ml_drift/samples/llm:llm_runner_metal -- \
+bazel run -c opt //ml_drift/samples/llm:llm_runner_metal -- \
   --model=gemma4:12b \
   --weights_path=/tmp/extracted/ \
   --prompt="Write a haiku about coffee." \
@@ -124,13 +124,13 @@ bazel run -c opt //third_party/ml_drift/samples/llm:llm_runner_metal -- \
 
 ```bash
 # WebGPU backend:
-bazel run -c opt //third_party/ml_drift/samples/llm:llm_runner_webgpu -- \
+bazel run -c opt //ml_drift/samples/llm:llm_runner_webgpu -- \
   --model=gemma3:1b \
   --weights_path=/tmp/extracted/ \
   --prompt="Write a haiku about coffee."
 
 # OpenCL backend:
-bazel run -c opt //third_party/ml_drift/samples/llm:llm_runner_opencl -- \
+bazel run -c opt //ml_drift/samples/llm:llm_runner_opencl -- \
   --model=qwen3:0.6b \
   --weights_path=/tmp/extracted/ \
   --prompt="Write a haiku about coffee."
@@ -139,7 +139,7 @@ bazel run -c opt //third_party/ml_drift/samples/llm:llm_runner_opencl -- \
 #### 3. Run from a Prompt File with an Explicit Context Window
 
 ```bash
-bazel run -c opt //third_party/ml_drift/samples/llm:llm_runner_metal -- \
+bazel run -c opt //ml_drift/samples/llm:llm_runner_metal -- \
   --model=gemma4:12b \
   --weights_path=/tmp/extracted/ \
   --prompt_file=/tmp/long_prompt.txt \
@@ -153,7 +153,7 @@ Pass `--benchmark=true` to measure prefill and decode speed over a fixed number
 of tokens without needing a text prompt:
 
 ```bash
-bazel run -c opt //third_party/ml_drift/samples/llm:llm_runner_metal -- \
+bazel run -c opt //ml_drift/samples/llm:llm_runner_metal -- \
   --model=gemma4:12b \
   --weights_path=/tmp/extracted/ \
   --benchmark=true \
@@ -182,10 +182,10 @@ configuration without downloading or extracting multi-gigabyte weight files.
 
 | Target | Backend | Platform | Description |
 | :--- | :--- | :--- | :--- |
-| `//third_party/ml_drift/samples/llm:llm_performance_profiling` | **Metal** (macOS) / **WebGPU** (Linux) | macOS & Linux | Default alias that automatically selects Metal on macOS and WebGPU on Linux |
-| `//third_party/ml_drift/samples/llm:llm_performance_profiling_metal` | **Metal** | macOS | Explicit native Metal backend target |
-| `//third_party/ml_drift/samples/llm:llm_performance_profiling_webgpu` | **WebGPU** (Dawn/Vulkan/Metal) | Linux & macOS | Explicit WebGPU backend target |
-| `//third_party/ml_drift/samples/llm:llm_performance_profiling_opencl` | **OpenCL** | Linux | Explicit OpenCL backend target |
+| `//ml_drift/samples/llm:llm_performance_profiling` | **Metal** (macOS) / **WebGPU** (Linux) | macOS & Linux | Default alias that automatically selects Metal on macOS and WebGPU on Linux |
+| `//ml_drift/samples/llm:llm_performance_profiling_metal` | **Metal** | macOS | Explicit native Metal backend target |
+| `//ml_drift/samples/llm:llm_performance_profiling_webgpu` | **WebGPU** (Dawn/Vulkan/Metal) | Linux & macOS | Explicit WebGPU backend target |
+| `//ml_drift/samples/llm:llm_performance_profiling_opencl` | **OpenCL** | Linux | Explicit OpenCL backend target |
 
 ### Profiler Command-Line Flags
 
@@ -214,7 +214,7 @@ To profile the full 48-layer `gemma4:12b` model with `int4` synthetic weights on
 macOS via Metal:
 
 ```bash
-bazel run -c opt //third_party/ml_drift/samples/llm:llm_performance_profiling -- \
+bazel run -c opt //ml_drift/samples/llm:llm_performance_profiling -- \
   --model=gemma4:12b \
   --weight_bits=4 \
   --quantization_group_size=32 \
@@ -234,7 +234,7 @@ Gemma 4 repeats a 6-layer pattern (5 local sliding-window attention layers with
 while capturing the exact per-layer kernel mix:
 
 ```bash
-bazel run -c opt //third_party/ml_drift/samples/llm:llm_performance_profiling -- \
+bazel run -c opt //ml_drift/samples/llm:llm_performance_profiling -- \
   --model=gemma4:12b \
   --num_layers=6 \
   --phase=decode
@@ -245,7 +245,7 @@ bazel run -c opt //third_party/ml_drift/samples/llm:llm_performance_profiling --
 To profile using real converted weights on disk instead of synthetic weights:
 
 ```bash
-bazel run -c opt //third_party/ml_drift/samples/llm:llm_performance_profiling -- \
+bazel run -c opt //ml_drift/samples/llm:llm_performance_profiling -- \
   --model=gemma4:12b \
   --weights_path=/tmp/extracted/ \
   --phase=all
@@ -258,7 +258,7 @@ To inspect how global attention (`Attention Q*K^T (Global)`,
 fills up, increase `--max_seq_len` and `--token_offset`:
 
 ```bash
-bazel run -c opt //third_party/ml_drift/samples/llm:llm_performance_profiling -- \
+bazel run -c opt //ml_drift/samples/llm:llm_performance_profiling -- \
   --model=gemma4:12b \
   --num_layers=6 \
   --phase=decode \
@@ -270,14 +270,14 @@ bazel run -c opt //third_party/ml_drift/samples/llm:llm_performance_profiling --
 
 ```bash
 # Profile Qwen3 8B with int8 weights:
-bazel run -c opt //third_party/ml_drift/samples/llm:llm_performance_profiling -- \
+bazel run -c opt //ml_drift/samples/llm:llm_performance_profiling -- \
   --model=qwen3:8b \
   --num_layers=8 \
   --weight_bits=8 \
   --phase=decode
 
 # Profile Gemma 3 1B with full per-dispatch trace enabled:
-bazel run -c opt //third_party/ml_drift/samples/llm:llm_performance_profiling -- \
+bazel run -c opt //ml_drift/samples/llm:llm_performance_profiling -- \
   --model=gemma3:1b \
   --phase=decode \
   --print_per_dispatch=true
@@ -286,7 +286,7 @@ bazel run -c opt //third_party/ml_drift/samples/llm:llm_performance_profiling --
 #### 6. Run on Linux with OpenCL Instead of WebGPU
 
 ```bash
-bazel run -c opt //third_party/ml_drift/samples/llm:llm_performance_profiling_opencl -- \
+bazel run -c opt //ml_drift/samples/llm:llm_performance_profiling_opencl -- \
   --model=gemma4:12b \
   --num_layers=6 \
   --phase=decode
