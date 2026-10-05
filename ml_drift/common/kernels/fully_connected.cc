@@ -747,6 +747,23 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
       const std::string id = std::to_string(i);
       c += "  " + val_name + " = ucl::Exp<Type>(" + val_name + " - exp_val" +
            id + ".y) * exp_val" + id + ".x;\n";
+      if (conv_params_.runtime_check.src_end_ch_index.has_value() &&
+          conv_params_.runtime_check.softmax_mask_value.has_value()) {
+        args_.AddFloat("softmax_mask_value",
+                       *conv_params_.runtime_check.softmax_mask_value,
+                       dst.GetDataType());
+        c += "  if (src_s >= src_end_slices - 1) {\n";
+        c += "    int src_end_ch = args.params.Read(args.src_end_ch_index);\n";
+        c += "    if (src_s * 4 + 0 >= src_end_ch) " + val_name +
+             ".x = args.softmax_mask_value;\n";
+        c += "    if (src_s * 4 + 1 >= src_end_ch) " + val_name +
+             ".y = args.softmax_mask_value;\n";
+        c += "    if (src_s * 4 + 2 >= src_end_ch) " + val_name +
+             ".z = args.softmax_mask_value;\n";
+        c += "    if (src_s * 4 + 3 >= src_end_ch) " + val_name +
+             ".w = args.softmax_mask_value;\n";
+        c += "  }\n";
+      }
     }
   }
 
