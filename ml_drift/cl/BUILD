@@ -105,7 +105,6 @@ cc_test(
     name = "cl_arguments_test",
     srcs = ["cl_arguments_test.cc"],
     linkstatic = True,
-    tags = mld_gpu_tests_tags(),
     deps = [
         ":cl_arguments",
         "//ml_drift/common:access_type",
@@ -635,7 +634,7 @@ cc_test(
         "noasan",
         "nomsan",
         "notsan",
-        "requires-gpu-nvidia",
+        "requires-gpu-sm90",
     ],
     deps = [
         ":environment",
@@ -709,7 +708,7 @@ cc_test(
         "noasan",
         "nomsan",
         "notsan",
-        "requires-gpu-nvidia",
+        "requires-gpu-sm90",
     ],
     deps = [
         ":cl_test",

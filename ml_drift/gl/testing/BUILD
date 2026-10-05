@@ -34,7 +34,7 @@ cc_test(
     tags = [
         # TODO: Fix the failures of the test and re-enable it.
         "notap",
-        "requires-gpu-nvidia",
+        "requires-gpu-sm90-full",
     ],
     deps = [
         ":gl_test",

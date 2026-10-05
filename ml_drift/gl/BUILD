@@ -1,6 +1,6 @@
 load("@flatbuffers//:build_defs.bzl", "flatbuffer_cc_library")
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
-load("//ml_drift/common:build_config.bzl", "mld_gpu_tests_tags")
+load("//ml_drift/common:build_config.bzl", "mld_gpu_full_tests_tags")
 
 package(
     default_visibility = ["//visibility:public"],
@@ -38,7 +38,7 @@ GL_TEST_DEPS = select({
 cc_test(
     name = "converter_test",
     srcs = ["converter_test.cc"],
-    tags = mld_gpu_tests_tags(),
+    tags = mld_gpu_full_tests_tags(),
     deps = [
         ":converter",
         ":gl_buffer",
@@ -270,7 +270,7 @@ cc_library(
 cc_test(
     name = "gl_spatial_tensor_test",
     srcs = ["gl_spatial_tensor_test.cc"],
-    tags = mld_gpu_tests_tags(),
+    tags = mld_gpu_full_tests_tags(),
     deps = [
         ":gl_spatial_tensor",
         "//ml_drift/common:data_type",
@@ -382,7 +382,7 @@ cc_library(
 cc_test(
     name = "request_gpu_info_test",
     srcs = ["request_gpu_info_test.cc"],
-    tags = mld_gpu_tests_tags(),
+    tags = ["requires-gpu-sm80"],
     deps = [
         ":request_gpu_info",
         "//ml_drift/common:gpu_info",

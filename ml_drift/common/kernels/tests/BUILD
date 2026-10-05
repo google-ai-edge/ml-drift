@@ -13,7 +13,6 @@
 # limitations under the License.
 
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test", "objc_library")
-load("//ml_drift/common:build_config.bzl", "mld_gpu_tests_tags")
 load("//ml_drift/common/kernels/tests:mld_kernel_test.bzl", "mld_kernel_test")
 
 package(
@@ -573,6 +572,9 @@ cc_library(
     ],
 )
 
+# TODO: Migrate conv_wave_matrix_test_vulkan to
+# requires-gpu-sm90-full once GL_NV_integer_cooperative_matrix is added for
+# icoopmatNV in wave_matrix_util.cc.
 mld_kernel_test(
     name = "conv_wave_matrix_test",
     srcs = [

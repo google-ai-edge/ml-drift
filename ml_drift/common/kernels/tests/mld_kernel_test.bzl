@@ -1,7 +1,7 @@
 """Macro for multi-backend C++ tests."""
 
 load("@rules_cc//cc:defs.bzl", "cc_test")
-load("//ml_drift/common:build_config.bzl", "mld_gpu_tests_tags")
+load("//ml_drift/common:build_config.bzl", "mld_gpu_full_tests_tags", "mld_gpu_tests_tags")
 
 def mld_kernel_test(
         name,
@@ -79,7 +79,7 @@ def mld_kernel_test(
                 "@com_google_googletest//:gtest", "@com_google_absl//absl/status:status_matchers",
                 "//ml_drift/webgpu/testing:webgpu_test",
             ],
-            tags = mld_gpu_tests_tags(),
+            tags = mld_gpu_full_tests_tags(),
             **test_kwargs
         )
         target_suffixes.append("_webgpu")

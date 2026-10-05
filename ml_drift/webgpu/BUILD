@@ -105,7 +105,7 @@ cc_library(
 cc_test(
     name = "webgpu_weights_manager_test",
     srcs = ["webgpu_weights_manager_test.cc"],
-    tags = ["requires-gpu-nvidia"],
+    tags = ["requires-gpu-sm90-full"],
     deps = [
         ":execution_environment",
         ":inference_context",
@@ -183,7 +183,7 @@ cc_library(
 cc_test(
     name = "converter_test",
     srcs = ["converter_test.cc"],
-    tags = ["requires-gpu-nvidia"],
+    tags = ["requires-gpu-sm90-full"],
     deps = [
         ":buffer",
         ":converter",
@@ -316,7 +316,7 @@ cc_library(
 cc_test(
     name = "inference_context_test",
     srcs = ["inference_context_test.cc"],
-    tags = ["requires-gpu-nvidia"],
+    tags = ["requires-gpu-sm90-full"],
     deps = [
         ":environment",
         ":inference_context",
@@ -469,7 +469,7 @@ cc_test(
     name = "spatial_tensor_test",
     timeout = "short",
     srcs = ["spatial_tensor_test.cc"],
-    tags = ["requires-gpu-nvidia"],
+    tags = ["requires-gpu-sm90-full"],
     deps = [
         ":environment",
         ":spatial_tensor",
