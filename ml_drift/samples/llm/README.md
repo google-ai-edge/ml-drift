@@ -93,6 +93,11 @@ converts and quantizes them into separate binary tensor files for ML Drift.
 | `//ml_drift/samples/llm:llm_runner_opencl` | **OpenCL** | Linux | OpenCL LLM runner binary |
 | `//ml_drift/samples/llm:extract_weights_hf` | **Python (CPU)** | Linux & macOS | Extracts and quantizes Hugging Face `.safetensors` weights |
 
+> Note: When building WebGPU targets (`llm_runner_webgpu` or
+> `llm_performance_profiling_webgpu`) from the open-source repository, first run
+> `sh third_party/dawn/build_libdawn.sh` from the repository root to build Dawn
+> and configure `@dawn` in `MODULE.bazel`.
+
 ### Runner Command-Line Flags
 
 | Flag | Default | Description |

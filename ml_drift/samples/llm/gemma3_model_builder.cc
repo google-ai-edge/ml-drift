@@ -1518,8 +1518,9 @@ absl::Status Gemma3ModelBuilder::BuildPostProcessGreedy(
       ctx.Reduce(logits, Reduce::Type::kMaximumIndex, {Axis::kChannels});
   *output_token_handle = output_token;
 
-  return model_builder_.GetGpuModel({input_logits_handle->id},
-                                    {output_token_handle->id}, gpu_model);
+  return model_builder_.GetGpuModel(
+      std::vector<ValueId>{input_logits_handle->id},
+      std::vector<ValueId>{output_token_handle->id}, gpu_model);
 }
 
 }  // namespace ml_drift

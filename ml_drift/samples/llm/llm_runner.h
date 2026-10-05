@@ -27,8 +27,8 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "ml_drift/samples/llm/llm_config.h"
-#include "third_party/sentencepiece/src/sentencepiece_processor.h"
-#include "third_party/tokenizers_cpp/include/tokenizers_cpp.h"
+#include "sentencepiece_processor.h"
+#include "tokenizers_cpp.h"
 
 namespace ml_drift {
 

@@ -21,12 +21,14 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/log_severity.h"
 #include "absl/flags/flag.h"
+#include "absl/flags/parse.h"
 #include "absl/log/absl_log.h"
+#include "absl/log/globals.h"
+#include "absl/log/initialize.h"
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
-#include "third_party/gloop/base/init_google.h"
-#include "third_party/gloop/base/log_file_flags.h"
 
 // NOLINTBEGIN
 ABSL_FLAG(std::string, prompt, "", "The input prompt for the model.");
@@ -56,9 +58,10 @@ ABSL_FLAG(int, benchmark_decode_tokens, 128,
 // NOLINTEND
 
 int main(int argc, char** argv) {
-  InitGoogle(argv[0], &argc, &argv, true);
+  absl::ParseCommandLine(argc, argv);
+  absl::InitializeLog();
   // Set log level to see all logs.
-  absl::SetFlag(&FLAGS_alsologtostderr, true);
+  absl::SetStderrThreshold(absl::LogSeverityAtLeast::kInfo);
 
   // Load prompt and benchmark flags.
   std::string prompt = absl::GetFlag(FLAGS_prompt);

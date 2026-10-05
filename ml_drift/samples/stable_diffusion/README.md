@@ -23,6 +23,9 @@ available). For the following instructions, the working directory will be
 
 - Build sample (choose a backend)
 
+  - Note: When building `sd_gpu_webgpu` from the open-source repository, first
+    run `sh third_party/dawn/build_libdawn.sh` from the repository root to build
+    Dawn and configure `@dawn` in `MODULE.bazel`.
   - `bazel build -c opt //ml_drift/samples/stable_diffusion:sd_gpu_webgpu`
   - `bazel build -c opt //ml_drift/samples/stable_diffusion:sd_gpu_metal`
   - `bazel build -c opt //ml_drift/samples/stable_diffusion:sd_gpu_opencl`

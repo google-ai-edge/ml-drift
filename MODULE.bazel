@@ -190,3 +190,63 @@ flatbuffers.build(
     ],
 )
 use_repo(flatbuffers, "flatbuffers")
+
+bazel_dep(
+    name = "protobuf",
+    version = "29.3",
+)
+bazel_dep(
+    name = "rules_rust",
+    version = "0.61.0",
+)
+
+rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
+rust.toolchain(edition = "2021")
+use_repo(rust, "rust_toolchains")
+
+register_toolchains("@rust_toolchains//:all")
+
+crate = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
+crate.spec(
+    default_features = False,
+    features = ["onig"],
+    package = "tokenizers",
+    version = "=0.21.0",
+)
+crate.spec(
+    features = ["derive"],
+    package = "serde",
+    version = "1.0",
+)
+crate.spec(
+    package = "serde_json",
+    version = "1.0",
+)
+crate.from_specs()
+use_repo(crate, crate_index = "crates")
+
+http_archive(
+    name = "sentencepiece",
+    build_file = "//third_party/sentencepiece:sentencepiece.BUILD",
+    patch_cmds = [
+        "printf '#ifndef CONFIG_H_\\n#define CONFIG_H_\\n#define VERSION \"0.2.2\"\\n#define PACKAGE \"sentencepiece\"\\n#define PACKAGE_STRING \"sentencepiece\"\\n#define INSTALL_DATADIR \"\"\\n#endif\\n' > config.h",
+        "mv src/* .",
+        # Replace third_party/absl/ with absl/ in *.h and *.cc files.
+        "sed -i -e 's|#include \"third_party/absl/|#include \"absl/|g' *.h *.cc",
+        # Replace third_party/protobuf-lite/ with google/protobuf/ in *.h and *.cc files.
+        "sed -i -e 's|#include \"third_party/protobuf-lite/google/protobuf/|#include \"google/protobuf/|g' *.h *.cc",
+        "sed -i -e 's|#include \"third_party/protobuf/|#include \"google/protobuf/|g' *.h *.cc",
+        "rm -rf third_party/protobuf-lite third_party/protobuf third_party/absl third_party/abseil-cpp",
+    ],
+    sha256 = "92381f713e094a15a1ccff1ac4a5315a4c4b82a99ac1332d6ac53c9dc8e1bcf1",
+    strip_prefix = "sentencepiece-0.2.2",
+    url = "https://github.com/google/sentencepiece/archive/refs/tags/v0.2.2.tar.gz",
+)
+
+http_archive(
+    name = "tokenizers_cpp",
+    build_file = "//third_party/tokenizers_cpp:tokenizers_cpp.BUILD",
+    sha256 = "3e0b9ec325a326b0a2cef5cf164ee94a74ac372c5881ae5af634036db0441823",
+    strip_prefix = "tokenizers-cpp-0.1.1",
+    url = "https://github.com/mlc-ai/tokenizers-cpp/archive/refs/tags/v0.1.1.tar.gz",
+)

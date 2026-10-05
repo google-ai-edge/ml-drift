@@ -13,7 +13,7 @@
 # limitations under the License.
 
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_test", "objc_library")
-load("//devtools/python/bazel:pytype.bzl", "pytype_strict_binary")
+load("//ml_drift:pytype.default.bzl", "pytype_strict_binary")
 
 package(licenses = ["notice"])
 
@@ -22,12 +22,6 @@ package(licenses = ["notice"])
 pytype_strict_binary(
     name = "extract_weights_hf",
     srcs = ["extract_weights_hf.py"],
-    deps = [
-        "//third_party/py/numpy",
-        "//third_party/py/safetensors:torch",
-        "//third_party/py/torch",
-        "//third_party/py/torch:pytorch",
-    ],
 )
 
 cc_library(
@@ -352,17 +346,19 @@ cc_library(
     hdrs = ["llm_runner.h"],
     deps = [
         ":llm_config",
-        "//third_party/gloop/base:init_google",
-        "//third_party/gloop/base:log_file_flags",
-        "//third_party/sentencepiece/src:sentencepiece_processor",
-        "//third_party/tokenizers_cpp:huggingface_tokenizer",
+        "@com_google_absl//absl/base:log_severity",
         "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/flags:parse",
         "@com_google_absl//absl/log:absl_check",
         "@com_google_absl//absl/log:absl_log",
         "@com_google_absl//absl/log:flags",
+        "@com_google_absl//absl/log:globals",
+        "@com_google_absl//absl/log:initialize",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
+        "@sentencepiece//:sentencepiece_processor",
+        "@tokenizers_cpp//:huggingface_tokenizer",
     ],
     alwayslink = 1,
 )
@@ -382,7 +378,6 @@ cc_binary(
         ":llm_runner",
         ":llm_tensor_loader",
         ":qwen3_model_builder",
-        "//devtools/rust:rust_okay_here",  # copybara:strip
         "//ml_drift/common:data_type",
         "//ml_drift/common:gpu_model",
         "//ml_drift/common:gpu_model_builder",
@@ -429,8 +424,6 @@ cc_binary(
         ":llm_runner",
         ":llm_tensor_loader",
         ":qwen3_model_builder",
-        "//base",
-        "//devtools/rust:rust_okay_here",  # copybara:strip
         "//ml_drift/cl:cl_command_queue",
         "//ml_drift/cl:cl_event",
         "//ml_drift/cl:cl_operation",
@@ -450,7 +443,6 @@ cc_binary(
         "//ml_drift/common/task:gpu_operation",
         "//ml_drift/common/task:gpu_tensor",
         "//ml_drift/common/task:tensor_desc",
-        "//third_party/gloop/base:init_google",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/functional:bind_front",
         "@com_google_absl//absl/log:absl_check",
@@ -518,7 +510,6 @@ cc_binary(
     deps = [
         ":llm_runner",
         ":llm_runner_metal_lib",
-        "//devtools/rust:rust_okay_here",  # copybara:strip
         "//third_party/apple_frameworks:Metal",
     ],
 )
@@ -526,7 +517,7 @@ cc_binary(
 alias(
     name = "llm_performance_profiling",
     actual = select({
-        "//tools/cc_target_os:apple": ":llm_performance_profiling_metal",
+        "//ml_drift:apple": ":llm_performance_profiling_metal",
         "//conditions:default": ":llm_performance_profiling_webgpu",
     }),
 )
@@ -546,7 +537,6 @@ cc_binary(
         ":llm_file_tensor_loader",
         ":llm_tensor_loader",
         ":qwen3_model_builder",
-        "//devtools/rust:rust_okay_here",  # copybara:strip
         "//ml_drift/common:data_type",
         "//ml_drift/common:gpu_info",
         "//ml_drift/common:gpu_model",
@@ -597,7 +587,6 @@ cc_binary(
         ":llm_file_tensor_loader",
         ":llm_tensor_loader",
         ":qwen3_model_builder",
-        "//devtools/rust:rust_okay_here",  # copybara:strip
         "//ml_drift/cl:cl_command_queue",
         "//ml_drift/cl:environment",
         "//ml_drift/cl:inference_context",
@@ -693,7 +682,6 @@ cc_binary(
     name = "llm_performance_profiling_metal",
     deps = [
         ":llm_performance_profiling_metal_lib",
-        "//devtools/rust:rust_okay_here",  # copybara:strip
         "//third_party/apple_frameworks:Metal",
     ],
 )
