@@ -51,6 +51,14 @@ android_sdk_repository_extension = use_extension(
 )
 use_repo(android_sdk_repository_extension, "androidsdk")
 
+# Apple CC toolchain. Required to compile objc_library targets (ml_drift/metal)
+# with Bazel 8+. Must be declared before rules_cc so its toolchain takes
+# precedence on macOS; it is a no-op on other hosts.
+bazel_dep(
+    name = "apple_support",
+    version = "2.6.1",
+    repo_name = "build_bazel_apple_support",
+)
 bazel_dep(
     name = "rules_cc",
     version = "0.2.0",
