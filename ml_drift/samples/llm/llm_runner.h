@@ -73,16 +73,16 @@ class Tokenizer {
 
   absl::Status Init(const std::string& model_path) {
     ABSL_LOG(INFO) << "Loading tokenizer model: " << model_path;
+    auto model_blob = LoadFileToString(model_path);
+    if (!model_blob.ok()) {
+      return model_blob.status();
+    }
+    if (model_blob->empty()) {
+      return absl::InvalidArgumentError(
+          absl::StrCat("Tokenizer file is empty: ", model_path));
+    }
     switch (model_type_) {
       case ModelType::kQwen3: {
-        auto model_blob = LoadFileToString(model_path);
-        if (!model_blob.ok()) {
-          return model_blob.status();
-        }
-        if (model_blob->empty()) {
-          return absl::InvalidArgumentError(
-              absl::StrCat("Tokenizer file is empty: ", model_path));
-        }
         tokenizer_json_ = tokenizers::Tokenizer::FromBlobJSON(*model_blob);
         if (!tokenizer_json_) {
           return absl::InternalError(absl::StrCat(
@@ -94,14 +94,6 @@ class Tokenizer {
         break;
       }
       case ModelType::kGemma4: {
-        auto model_blob = LoadFileToString(model_path);
-        if (!model_blob.ok()) {
-          return model_blob.status();
-        }
-        if (model_blob->empty()) {
-          return absl::InvalidArgumentError(
-              absl::StrCat("Tokenizer file is empty: ", model_path));
-        }
         tokenizer_json_ = tokenizers::Tokenizer::FromBlobJSON(*model_blob);
         if (!tokenizer_json_) {
           return absl::InternalError(absl::StrCat(
@@ -115,7 +107,7 @@ class Tokenizer {
       case ModelType::kGemma3: {
         tokenizer_sp_ =
             std::make_unique<sentencepiece::SentencePieceProcessor>();
-        auto sp_status = tokenizer_sp_->Load(model_path);
+        auto sp_status = tokenizer_sp_->LoadFromSerializedProto(*model_blob);
         if (!sp_status.ok()) {
           return absl::InternalError(
               absl::StrCat("Failed to load sentencepiece tokenizer from ",
