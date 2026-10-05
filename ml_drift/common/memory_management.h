@@ -68,15 +68,6 @@ enum class MemoryStrategy {
   // the minimum-cost flow problem in it. In the end edges with zero residual
   // capacity determine assignment of shared objects to tensors.
   kMinCostFlow,
-
-  // Deprecated aliases:
-  NAIVE = kNaive,
-  EQUALITY = kEquality,
-  GREEDY_IN_ORDER = kGreedyInOrder,
-  GREEDY_BY_BREADTH = kGreedyByBreadth,
-  GREEDY_BY_SIZE = kGreedyBySize,
-  GREEDY_BEST = kGreedyBest,
-  MINCOSTFLOW = kMinCostFlow,
 };
 
 // Chooses greedy algorithm with the lowest memory consumption for given usage

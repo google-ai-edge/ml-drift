@@ -44,30 +44,6 @@ enum class DataType {
   kUint2 = 19,
   kInt1 = 20,
   kUint1 = 21,
-
-  // Deprecated aliases:
-  UNKNOWN = kUnknown,
-  FLOAT16 = kFloat16,
-  FLOAT32 = kFloat32,
-  FLOAT64 = kFloat64,
-  BFLOAT16 = kBfloat16,
-  UINT8 = kUint8,
-  INT8 = kInt8,
-  UINT16 = kUint16,
-  INT16 = kInt16,
-  UINT32 = kUint32,
-  INT32 = kInt32,
-  UINT64 = kUint64,
-  INT64 = kInt64,
-  BOOL = kBool,
-  INT4 = kInt4,
-  UINT4 = kUint4,
-  INT3 = kInt3,
-  UINT3 = kUint3,
-  INT2 = kInt2,
-  UINT2 = kUint2,
-  INT1 = kInt1,
-  UINT1 = kUint1,
 };
 
 enum class PackedType {

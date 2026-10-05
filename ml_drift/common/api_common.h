@@ -36,13 +36,6 @@ enum class DataLayout {
   kDHWC4,
   kHWDC4,
   kHDWC4,
-
-  // Deprecated aliases:
-  UNKNOWN = kUnknown,
-  BHWC = kBHWC,
-  DHWC4 = kDHWC4,
-  HWDC4 = kHWDC4,
-  HDWC4 = kHDWC4,
 };
 
 struct CpuMemory {
@@ -106,12 +99,6 @@ enum class InferenceUsage {
   // higher init latency than FAST_SINGLE_ANSWER but should have inference
   // latency closer to SUSTAINED_SPEED.
   kBalanced,
-
-  // Deprecated aliases:
-  UNKNOWN = kUnknown,
-  FAST_SINGLE_ANSWER = kFastSingleAnswer,
-  SUSTAINED_SPEED = kSustainedSpeed,
-  BALANCED = kBalanced,
 };
 
 // Defines aspects to control while instantiating a runner.
@@ -121,13 +108,6 @@ enum class InferencePriority {
   kMinLatency,
   kMaxPrecision,
   kMinMemoryUsage,
-
-  // Deprecated aliases:
-  UNKNOWN = kUnknown,
-  AUTO = kAuto,
-  MIN_LATENCY = kMinLatency,
-  MAX_PRECISION = kMaxPrecision,
-  MIN_MEMORY_USAGE = kMinMemoryUsage,
 };
 
 struct InferenceOptions {
@@ -171,11 +151,6 @@ enum class PriorityImportance {
   kUnknown,
   kHigher,
   kLower,
-
-  // Deprecated aliases:
-  UNKNOWN = kUnknown,
-  HIGHER = kHigher,
-  LOWER = kLower,
 };
 
 // If both p1 and p2 are not present in options, return UNKNOWN

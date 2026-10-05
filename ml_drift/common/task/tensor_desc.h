@@ -46,15 +46,6 @@ enum class TensorStorageType {
   kTexture3D = 4,
   kTextureArray = 5,
   kSingleTexture2D = 6,
-
-  // Deprecated aliases:
-  UNKNOWN = kUnknown,
-  BUFFER = kBuffer,
-  IMAGE_BUFFER = kImageBuffer,
-  TEXTURE_2D = kTexture2D,
-  TEXTURE_3D = kTexture3D,
-  TEXTURE_ARRAY = kTextureArray,
-  SINGLE_TEXTURE_2D = kSingleTexture2D,
 };
 
 class TensorDescriptor : public GPUObjectDescriptor {

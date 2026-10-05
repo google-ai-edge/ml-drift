@@ -38,17 +38,6 @@ enum class Axis {
   kBatch = 6,
   kValue = 7,
   kDepth = 8,
-
-  // Deprecated aliases:
-  UNKNOWN = kUnknown,
-  CHANNELS = kChannels,
-  INPUT_CHANNELS = kInputChannels,
-  OUTPUT_CHANNELS = kOutputChannels,
-  HEIGHT = kHeight,
-  WIDTH = kWidth,
-  BATCH = kBatch,
-  VALUE = kValue,
-  DEPTH = kDepth,
 };
 
 std::string ToString(Axis axis);
@@ -71,24 +60,6 @@ enum class Layout {
   kHWD = 13,
   kOHWDI = 14,
   kHWIO = 15,
-
-  // Deprecated aliases:
-  UNKNOWN = kUnknown,
-  SCALAR = kScalar,
-  LINEAR = kLinear,
-  HW = kHW,
-  CHW = kCHW,
-  HWC = kHWC,
-  OIHW = kOIHW,
-  OHWI = kOHWI,
-  IHWO = kIHWO,
-  IOHW = kIOHW,
-  BHWC = kBHWC,
-  HWDC = kHWDC,
-  BHWDC = kBHWDC,
-  HWD = kHWD,
-  OHWDI = kOHWDI,
-  HWIO = kHWIO,
 };
 
 std::string ToString(Layout l);
@@ -262,14 +233,14 @@ struct AxisTraits;
     using dimension_holder_type = Holder;                    \
   }
 
-ML_DRIFT_AXIS_TRAITS(CHANNELS, c);
-ML_DRIFT_AXIS_TRAITS(HEIGHT, h);
-ML_DRIFT_AXIS_TRAITS(WIDTH, w);
-ML_DRIFT_AXIS_TRAITS(INPUT_CHANNELS, i);
-ML_DRIFT_AXIS_TRAITS(OUTPUT_CHANNELS, o);
-ML_DRIFT_AXIS_TRAITS(BATCH, b);
-ML_DRIFT_AXIS_TRAITS(VALUE, v);
-ML_DRIFT_AXIS_TRAITS(DEPTH, d);
+ML_DRIFT_AXIS_TRAITS(kChannels, c);
+ML_DRIFT_AXIS_TRAITS(kHeight, h);
+ML_DRIFT_AXIS_TRAITS(kWidth, w);
+ML_DRIFT_AXIS_TRAITS(kInputChannels, i);
+ML_DRIFT_AXIS_TRAITS(kOutputChannels, o);
+ML_DRIFT_AXIS_TRAITS(kBatch, b);
+ML_DRIFT_AXIS_TRAITS(kValue, v);
+ML_DRIFT_AXIS_TRAITS(kDepth, d);
 
 #undef ML_DRIFT_AXIS_TRAITS
 
@@ -384,29 +355,29 @@ struct LayoutTraits;
     using strong_shape_type = StrongShapeImpl<0, __VA_ARGS__>; \
   }
 
-ML_DRIFT_LAYOUT_TRAITS(HW, Axis::kHeight, Axis::kWidth);
-ML_DRIFT_LAYOUT_TRAITS(HWD, Axis::kHeight, Axis::kWidth, Axis::kDepth);
-ML_DRIFT_LAYOUT_TRAITS(OHWI, Axis::kOutputChannels, Axis::kHeight, Axis::kWidth,
-                       Axis::kInputChannels);
-ML_DRIFT_LAYOUT_TRAITS(OIHW, Axis::kOutputChannels, Axis::kInputChannels,
+ML_DRIFT_LAYOUT_TRAITS(kHW, Axis::kHeight, Axis::kWidth);
+ML_DRIFT_LAYOUT_TRAITS(kHWD, Axis::kHeight, Axis::kWidth, Axis::kDepth);
+ML_DRIFT_LAYOUT_TRAITS(kOHWI, Axis::kOutputChannels, Axis::kHeight,
+                       Axis::kWidth, Axis::kInputChannels);
+ML_DRIFT_LAYOUT_TRAITS(kOIHW, Axis::kOutputChannels, Axis::kInputChannels,
                        Axis::kHeight, Axis::kWidth);
-ML_DRIFT_LAYOUT_TRAITS(IOHW, Axis::kInputChannels, Axis::kOutputChannels,
+ML_DRIFT_LAYOUT_TRAITS(kIOHW, Axis::kInputChannels, Axis::kOutputChannels,
                        Axis::kHeight, Axis::kWidth);
-ML_DRIFT_LAYOUT_TRAITS(IHWO, Axis::kInputChannels, Axis::kHeight, Axis::kWidth,
+ML_DRIFT_LAYOUT_TRAITS(kIHWO, Axis::kInputChannels, Axis::kHeight, Axis::kWidth,
                        Axis::kOutputChannels);
-ML_DRIFT_LAYOUT_TRAITS(CHW, Axis::kChannels, Axis::kHeight, Axis::kWidth);
-ML_DRIFT_LAYOUT_TRAITS(HWC, Axis::kHeight, Axis::kWidth, Axis::kChannels);
-ML_DRIFT_LAYOUT_TRAITS(HWDC, Axis::kHeight, Axis::kWidth, Axis::kDepth,
+ML_DRIFT_LAYOUT_TRAITS(kCHW, Axis::kChannels, Axis::kHeight, Axis::kWidth);
+ML_DRIFT_LAYOUT_TRAITS(kHWC, Axis::kHeight, Axis::kWidth, Axis::kChannels);
+ML_DRIFT_LAYOUT_TRAITS(kHWDC, Axis::kHeight, Axis::kWidth, Axis::kDepth,
                        Axis::kChannels);
-ML_DRIFT_LAYOUT_TRAITS(LINEAR, Axis::kValue);
-ML_DRIFT_LAYOUT_TRAITS(SCALAR, Axis::kValue);
-ML_DRIFT_LAYOUT_TRAITS(BHWC, Axis::kBatch, Axis::kHeight, Axis::kWidth,
+ML_DRIFT_LAYOUT_TRAITS(kLinear, Axis::kValue);
+ML_DRIFT_LAYOUT_TRAITS(kScalar, Axis::kValue);
+ML_DRIFT_LAYOUT_TRAITS(kBHWC, Axis::kBatch, Axis::kHeight, Axis::kWidth,
                        Axis::kChannels);
-ML_DRIFT_LAYOUT_TRAITS(BHWDC, Axis::kBatch, Axis::kHeight, Axis::kWidth,
+ML_DRIFT_LAYOUT_TRAITS(kBHWDC, Axis::kBatch, Axis::kHeight, Axis::kWidth,
                        Axis::kDepth, Axis::kChannels);
-ML_DRIFT_LAYOUT_TRAITS(OHWDI, Axis::kOutputChannels, Axis::kHeight,
+ML_DRIFT_LAYOUT_TRAITS(kOHWDI, Axis::kOutputChannels, Axis::kHeight,
                        Axis::kWidth, Axis::kDepth, Axis::kInputChannels);
-ML_DRIFT_LAYOUT_TRAITS(HWIO, Axis::kHeight, Axis::kWidth, Axis::kInputChannels,
+ML_DRIFT_LAYOUT_TRAITS(kHWIO, Axis::kHeight, Axis::kWidth, Axis::kInputChannels,
                        Axis::kOutputChannels);
 
 #undef ML_DRIFT_LAYOUT_TRAITS

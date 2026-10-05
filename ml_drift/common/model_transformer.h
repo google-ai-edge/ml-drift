@@ -46,12 +46,6 @@ enum class TransformStatus {
   // Transformation may partially be applied, but left a model in an invalid
   // state. This error should be considered unrecoverable.
   kInvalid,
-
-  // Deprecated aliases:
-  SKIPPED = kSkipped,
-  DECLINED = kDeclined,
-  APPLIED = kApplied,
-  INVALID = kInvalid,
 };
 
 struct TransformResult {

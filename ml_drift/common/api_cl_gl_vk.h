@@ -60,18 +60,6 @@ enum class ObjectType {
   kOpenClBuffer,
   kVulkanBuffer,
   kVulkanTexture,
-
-  // Deprecated aliases:
-  UNKNOWN = kUnknown,
-#ifndef CL_DELEGATE_NO_GL
-  OPENGL_SSBO = kOpenGlSsbo,
-  OPENGL_TEXTURE = kOpenGlTexture,
-#endif
-  CPU_MEMORY = kCpuMemory,
-  OPENCL_TEXTURE = kOpenClTexture,
-  OPENCL_BUFFER = kOpenClBuffer,
-  VULKAN_BUFFER = kVulkanBuffer,
-  VULKAN_TEXTURE = kVulkanTexture,
 };
 
 #ifndef CL_DELEGATE_NO_GL

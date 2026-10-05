@@ -136,112 +136,6 @@ enum class OperationType {
   kTile,
   kTopK,
   kTranspose,
-
-  // Deprecated aliases:
-  UNKNOWN = kUnknown,
-  ABS = kAbs,
-  ADD = kAdd,
-  ATAN2 = kAtan2,
-  BATCH_TO_SPACE = kBatchToSpace,
-  BATCH_NORMALIZATION = kBatchNormalization,
-  BATCHED_MATMUL = kBatchedMatmul,
-  BITCAST = kBitcast,
-  BROADCAST_IN_DIM = kBroadcastInDim,
-  CAST = kCast,
-  CEIL = kCeil,
-  CONCAT = kConcat,
-  CONSTANT = kConstant,
-  CONVOLUTION_2D = kConvolution2D,
-  CONVOLUTION_TRANSPOSED = kConvolutionTransposed,
-  COPY = kCopy,
-  COS = kCos,
-  CUMSUM = kCumsum,
-  DEPTHWISE_CONVOLUTION = kDepthwiseConvolution,
-  DEPTH_TO_SPACE = kDepthToSpace,
-  DIV = kDiv,
-  DOT_GENERAL = kDotGeneral,
-  DYNAMIC_UPDATE_SLICE = kDynamicUpdateSlice,
-  ELU = kElu,
-  EQUAL = kEqual,
-  EMBEDDING_LOOKUP = kEmbeddingLookup,
-  EXP = kExp,
-  FLOOR = kFloor,
-  FLOOR_DIV = kFloorDiv,
-  FLOOR_MOD = kFloorMod,
-  FULLY_CONNECTED = kFullyConnected,
-  FULLY_CONNECTED_INT2 = kFullyConnectedInt2,
-  FULLY_CONNECTED_INT4 = kFullyConnectedInt4,
-  FULLY_CONNECTED_INT8 = kFullyConnectedInt8,
-  GATHER = kGather,
-  GELU = kGelu,
-  GELU_TANH_APPROX = kGeluTanhApprox,
-  GREATER = kGreater,
-  GREATER_EQUAL = kGreaterEqual,
-  GROUP_NORM = kGroupNorm,
-  HARD_SWISH = kHardSwish,
-  LAYER_NORM = kLayerNorm,
-  LESS = kLess,
-  LESS_EQUAL = kLessEqual,
-  LOG = kLog,
-  LOGICAL_AND = kLogicalAnd,
-  LOGICAL_NOT = kLogicalNot,
-  LOGICAL_OR = kLogicalOr,
-  LOGICAL_XOR = kLogicalXor,
-  LSTM = kLstm,
-  MAXIMUM = kMaximum,
-  MAX_INDEX = kMaxIndex,
-  MAX_UNPOOLING_2D = kMaxUnpooling2D,
-  MEAN = kMean,
-  MEAN_STDDEV_NORMALIZATION = kMeanStddevNormalization,
-  MINIMUM = kMinimum,
-  MISH = kMish,
-  MOD = kMod,
-  MUL = kMul,
-  NEG = kNeg,
-  NOT_EQUAL = kNotEqual,
-  ONE_HOT = kOneHot,
-  PAD = kPad,
-  POOLING_2D = kPooling2D,
-  POSITIONAL_EMBEDDING = kPositionalEmbedding,
-  POW = kPow,
-  PRELU = kPrelu,
-  QUANTIZE_AND_DEQUANTIZE = kQuantizeAndDequantize,
-  REDUCE_ALL = kReduceAll,
-  REDUCE_ANY = kReduceAny,
-  REDUCE_MAXIMUM = kReduceMaximum,
-  REDUCE_MINIMUM = kReduceMinimum,
-  REDUCE_PRODUCT = kReduceProduct,
-  REDUCE_SUM = kReduceSum,
-  RELU = kRelu,
-  REMAINDER = kRemainder,
-  RESAMPLER = kResampler,
-  RESHAPE = kReshape,
-  RESIZE = kResize,
-  REVERSE = kReverse,
-  RMS_NORM = kRmsNorm,
-  ROPE = kRope,
-  ROUND = kRound,
-  RSQRT = kRsqrt,
-  SCALED_DOT_PRODUCT_ATTENTION = kScaledDotProductAttention,
-  SELECT_V2 = kSelectV2,
-  SHIFT_LEFT = kShiftLeft,
-  SHIFT_RIGHT = kShiftRight,
-  SIGMOID = kSigmoid,
-  SIGN = kSign,
-  SIN = kSin,
-  SLICE = kSlice,
-  SOFTMAX = kSoftmax,
-  SPACE_TO_BATCH = kSpaceToBatch,
-  SPACE_TO_DEPTH = kSpaceToDepth,
-  SPLIT = kSplit,
-  SQRT = kSqrt,
-  SQUARE = kSquare,
-  SQUARED_DIFF = kSquaredDiff,
-  SUB = kSub,
-  TANH = kTanh,
-  TILE = kTile,
-  TOP_K = kTopK,
-  TRANSPOSE = kTranspose,
 };
 
 std::string ToString(enum OperationType op);
@@ -300,11 +194,6 @@ enum class PoolingType {
 
   // max pooling
   kMax = 2,
-
-  // Deprecated aliases:
-  UNDEFINED = kUndefined,
-  AVERAGE = kAverage,
-  MAX = kMax,
 };
 
 struct Pooling2DAttributes {
@@ -613,10 +502,6 @@ struct PReLUAttributes {
 enum RoPEKernelType {
   kPlanar1D = 0,       // 1D RoPE along Width
   kInterleaved2D = 1,  // 2D RoPE along Width and Height, interleaved channels
-
-  // Deprecated aliases:
-  PLANAR_1D = kPlanar1D,
-  INTERLEAVED_2D = kInterleaved2D,
 };
 
 struct RoPEAttributes {
@@ -637,10 +522,6 @@ struct SoftmaxAttributes {
 enum LstmKernelType {
   kFull = 0,
   kBasic = 1,  // Currently, only basic is supported.
-
-  // Deprecated aliases:
-  FULL = kFull,
-  BASIC = kBasic,
 };
 
 struct LstmAttributes {
@@ -651,11 +532,6 @@ enum class SamplingType {
   kUnknown = 0,
   kNearest = 1,
   kBilinear = 2,
-
-  // Deprecated aliases:
-  UNKNOWN = kUnknown,
-  NEAREST = kNearest,
-  BILINEAR = kBilinear,
 };
 
 struct Resize2DAttributes {
@@ -705,11 +581,6 @@ enum class PaddingContentType {
   kZeros = 0,
   kReflect = 1,
   kEdge = 2,
-
-  // Deprecated aliases:
-  ZEROS = kZeros,
-  REFLECT = kReflect,
-  EDGE = kEdge,
 };
 
 struct PadAttributes {

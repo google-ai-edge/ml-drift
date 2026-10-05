@@ -66,11 +66,6 @@ enum class MemoryType {
   kGlobal,
   kConstant,
   kLocal,
-
-  // Deprecated aliases:
-  GLOBAL = kGlobal,
-  CONSTANT = kConstant,
-  LOCAL = kLocal,
 };
 
 struct GPUBufferDescriptor {
