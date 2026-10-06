@@ -41,10 +41,10 @@ set(BUILD_TESTING OFF CACHE BOOL "Disable tests by default")
 # --- ML Drift Library Backend Selection ---
 
 # Usage: -D ML_DRIFT_API=...
-set(ML_DRIFT_API "" CACHE STRING "Select the GPU backend API for ML Drift. Options: cl, mtl, wgpu")
+set(ML_DRIFT_API "" CACHE STRING "Select the GPU backend API for ML Drift. Options: cl, gl, mtl, wgpu")
 
 # Input validation
-set(VALID_APIS "cl" "wgpu")
+set(VALID_APIS "cl" "gl" "wgpu")
 list(FIND VALID_APIS "${ML_DRIFT_API}" IS_VALID)
 if(IS_VALID EQUAL -1)
     message(FATAL_ERROR "Invalid ML_DRIFT_API: ${ML_DRIFT_API}. Must be one of: ${VALID_APIS}")
@@ -61,6 +61,9 @@ find_package(re2 REQUIRED)
 
 if(ML_DRIFT_API STREQUAL "cl")
     find_package(opencl_headers REQUIRED)
+elseif(ML_DRIFT_API STREQUAL "gl")
+    find_package(egl_headers REQUIRED)
+    find_package(opengl_headers REQUIRED)
 elseif(ML_DRIFT_API STREQUAL "wgpu")
     find_package(dawn REQUIRED)
 endif()
@@ -75,6 +78,8 @@ add_subdirectory(common)
 if(ML_DRIFT_API STREQUAL "cl")
     add_subdirectory(cl)
     add_subdirectory(samples/stable_diffusion)
+elseif(ML_DRIFT_API STREQUAL "gl")
+    add_subdirectory(gl)
 elseif(ML_DRIFT_API STREQUAL "wgpu")
     add_subdirectory(webgpu)
 endif()
@@ -110,6 +115,16 @@ if(ML_DRIFT_API STREQUAL "cl")
         mld_cl_environment
         mld_cl_inference_context
         mld_cl_tensor
+    )
+elseif(ML_DRIFT_API STREQUAL "gl")
+    message(STATUS "ML Drift: Building with OpenGL (gl) backend")
+    target_compile_definitions(ml_drift INTERFACE ML_DRIFT_API_GL)
+    target_link_libraries(ml_drift
+      INTERFACE
+        mld_gl_egl_environment
+        mld_gl_gl_inference_context
+        mld_gl_gl_spatial_tensor
+        mld_gl_portable
     )
 # elseif(ML_DRIFT_API STREQUAL "mtl")
 #     message(STATUS "ML Drift: Building with Metal (mtl) backend")
