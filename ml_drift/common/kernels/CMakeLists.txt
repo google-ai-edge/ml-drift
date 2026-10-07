@@ -265,6 +265,7 @@ target_link_libraries(mld_common_kernels_mean_stddev_normalization_parser
     mld_common_data_type
     mld_common_gpu_info
     mld_common_gpu_model_builder
+    mld_common_ir_model
     mld_common_kernels_mean_stddev_normalization
     mld_common_model
     mld_common_operations
@@ -282,6 +283,7 @@ target_link_libraries(mld_common_kernels_mish
     absl::statusor
     mld_common_gpu_info
     mld_common_gpu_model_builder
+    mld_common_ir_model
     mld_common_kernels_elementwise
     mld_common_model
     mld_common_operations
@@ -359,6 +361,7 @@ target_link_libraries(mld_common_kernels_reduce_parser
     absl::statusor
     mld_common_gpu_info
     mld_common_gpu_model_builder
+    mld_common_ir_model
     mld_common_kernels_reduce
     mld_common_model
     mld_common_operations

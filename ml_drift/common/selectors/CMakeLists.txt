@@ -38,6 +38,7 @@ target_link_libraries(mld_common_selectors_operation_selector
     mld_common_gpu_info
     mld_common_gpu_model
     mld_common_gpu_model_builder
+    mld_common_ir_model
     mld_common_kernels_elementwise
     mld_common_kernels_fully_connected
     mld_common_kernels_mean_stddev_normalization
@@ -63,6 +64,7 @@ target_link_libraries(mld_common_selectors_special_selector
     absl::statusor
     mld_common_gpu_info
     mld_common_gpu_model_builder
+    mld_common_ir_model
     mld_common_kernels_mean_stddev_normalization_parser
     mld_common_kernels_mish
     mld_common_kernels_reduce_parser

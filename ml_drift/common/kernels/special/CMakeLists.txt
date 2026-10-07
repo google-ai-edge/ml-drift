@@ -24,6 +24,7 @@ target_link_libraries(mld_common_kernels_special_concat_conv
     mld_common_flops_util
     mld_common_gpu_info
     mld_common_gpu_model_builder
+    mld_common_ir_model
     mld_common_kernel_info
     mld_common_model
     mld_common_operations
@@ -51,6 +52,7 @@ target_link_libraries(mld_common_kernels_special_conv_pointwise
     absl::strings
     mld_common_data_type
     mld_common_gpu_model_builder
+    mld_common_ir_model
     mld_common_model
     mld_common_operations
     mld_common_precision
@@ -94,6 +96,7 @@ target_link_libraries(mld_common_kernels_special_dw7x7_conv2to6_concat_conv8to8
     mld_common_flops_util
     mld_common_gpu_info
     mld_common_gpu_model_builder
+    mld_common_ir_model
     mld_common_model
     mld_common_operations
     mld_common_precision
@@ -137,6 +140,7 @@ target_link_libraries(mld_common_kernels_special_thin_local_memory_fuser
     mld_common_flops_util
     mld_common_gpu_info
     mld_common_gpu_model_builder
+    mld_common_ir_model
     mld_common_kernel_info
     mld_common_kernels_resize
     mld_common_model
@@ -166,6 +170,7 @@ target_link_libraries(mld_common_kernels_special_thin_pointwise_fuser
     mld_common_flops_util
     mld_common_gpu_info
     mld_common_gpu_model_builder
+    mld_common_ir_model
     mld_common_kernels_elementwise
     mld_common_kernels_prelu
     mld_common_kernels_relu
