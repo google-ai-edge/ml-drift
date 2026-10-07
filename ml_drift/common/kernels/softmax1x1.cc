@@ -261,9 +261,11 @@ std::string Softmax1x1::GetSoftmaxKernelCode(const OperationDef& op_def,
     c += "}\n";
   }
   const std::string exp_func = gpu_info.IsApiOpenCl() ? "native_exp" : "exp";
-  const std::string end_channel = runtime_check_.end_ch_index.has_value()
-                                      ? "args.params.Read(args.end_ch_index)"
-                                      : "args.src_tensor.Channels()";
+  const std::string end_channel =
+      runtime_check_.end_ch_index.has_value()
+          ? "min(args.params.Read(args.end_ch_index), "
+            "args.src_tensor.Channels())"
+          : "args.src_tensor.Channels()";
   absl::StrReplaceAll(
       {{"EXP_FUNC", exp_func},
        {"END_CHANNEL", end_channel},
