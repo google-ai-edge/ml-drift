@@ -97,15 +97,21 @@ int3 GetWorkGroupSize(const FullyConnected::ConvParams& params,
                       const GpuInfo& gpu_info, const OHWI& weights_shape) {
   const bool is_quantized = fc::IsQuantized(params.weights_type);
   const int dst_slices = DivideRoundUp(weights_shape.o, 4);
+  const int src_slices = DivideRoundUp(weights_shape.i, 4);
+  const int max_y_size =
+      is_quantized ? src_slices : DivideRoundUp(src_slices, 4);
+  int groups_count = 1;
+  if (params.runtime_check.packed_groups.has_value()) {
+    const int w_groups =
+        DivideRoundUp(params.runtime_check.packed_groups->max_group_size,
+                      params.block_size.w);
+    groups_count = w_groups * params.runtime_check.packed_groups->num_groups;
+  } else if (params.batched_weights) {
+    groups_count =
+        params.runtime_batch_ids ? params.runtime_batch_ids : weights_shape.h;
+  }
+  const int total_task_size = dst_slices * groups_count;
   if (gpu_info.IsApple() && gpu_info.IsApiMetal()) {
-    int total_task_size = dst_slices;
-    if (params.batched_weights) {
-      if (params.runtime_batch_ids) {
-        total_task_size *= params.runtime_batch_ids;
-      } else {
-        total_task_size *= weights_shape.h;
-      }
-    }
     const int cu_count = gpu_info.GetComputeUnitsCount();
     double task_size_per_cu = static_cast<double>(total_task_size) / cu_count;
     float multiplier = 1.0;
@@ -137,17 +143,20 @@ int3 GetWorkGroupSize(const FullyConnected::ConvParams& params,
     int wg_total_size = cu_count >= 16 ? 256 : 128;
     y_size = std::min(y_size, wg_total_size);
     x_size = wg_total_size / y_size;
+    while (y_size > max_y_size && y_size > 1 && x_size < dst_slices) {
+      y_size /= 2;
+      x_size *= 2;
+    }
+    while ((x_size > dst_slices ||
+            (total_task_size / x_size < cu_count &&
+             y_size * 2 <= max_y_size)) &&
+           x_size > 1 && y_size * 2 <= wg_total_size) {
+      x_size /= 2;
+      y_size *= 2;
+    }
     return int3(x_size, y_size, 1);
   }
   if (gpu_info.IsIntel() && gpu_info.IsApiOpenCl()) {
-    int total_task_size = dst_slices;
-    if (params.batched_weights) {
-      if (params.runtime_batch_ids) {
-        total_task_size *= params.runtime_batch_ids;
-      } else {
-        total_task_size *= weights_shape.h;
-      }
-    }
     const int cu_count = gpu_info.GetComputeUnitsCount();
     double task_size_per_cu = static_cast<double>(total_task_size) / cu_count;
     float multiplier = 1.0;
@@ -174,6 +183,17 @@ int3 GetWorkGroupSize(const FullyConnected::ConvParams& params,
     int wg_total_size = cu_count >= 64 ? 256 : 128;
     y_size = std::min(y_size, wg_total_size);
     x_size = wg_total_size / y_size;
+    while (y_size > max_y_size && y_size > 1 && x_size < dst_slices) {
+      y_size /= 2;
+      x_size *= 2;
+    }
+    while ((x_size > dst_slices ||
+            (total_task_size / x_size < cu_count &&
+             y_size * 2 <= max_y_size)) &&
+           x_size > 1 && y_size * 2 <= wg_total_size) {
+      x_size /= 2;
+      y_size *= 2;
+    }
     return int3(x_size, y_size, 1);
   }
   const int block_spatial =
@@ -258,7 +278,8 @@ int3 GetWorkGroupSize(const FullyConnected::ConvParams& params,
       }
     }
   }
-  if (dst_slices >= 512) {
+  if (dst_slices >= 512 ||
+      (total_task_size >= 512 && dst_slices >= src_slices)) {
     if (is_quantized) {
       if (params.weights_type == DataType::kInt4 ||
           params.weights_type == DataType::kInt2) {
@@ -269,6 +290,9 @@ int3 GetWorkGroupSize(const FullyConnected::ConvParams& params,
     } else {
       y_size = 4;
     }
+  }
+  if (dst_slices >= 768) {
+    y_size = is_quantized ? 8 : 4;
   }
   if (dst_slices >= 1024) {
     y_size = is_quantized ? 4 : 2;
@@ -296,7 +320,7 @@ int3 GetWorkGroupSize(const FullyConnected::ConvParams& params,
   }
   y_size *= y_size_multiplier;
   int x_size = wg_total_size / y_size;
-  if (dst_slices <= 64 && x_size >= 8) {
+  if (total_task_size <= 64 && x_size >= 8) {
     if (is_quantized) {
       x_size /= 2;
       y_size *= 2;
@@ -305,9 +329,20 @@ int3 GetWorkGroupSize(const FullyConnected::ConvParams& params,
       y_size = std::min(32, wg_total_size / x_size);
     }
   }
-  if (dst_slices <= 64 && gpu_info.IsApple()) {
+  if (total_task_size <= 64 && gpu_info.IsApple()) {
     x_size = 1;
     y_size = 64;
+  }
+  while (y_size > max_y_size && y_size > 1 && x_size < dst_slices) {
+    y_size /= 2;
+    x_size *= 2;
+  }
+  const int cu_count = gpu_info.GetComputeUnitsCount();
+  while ((x_size > dst_slices ||
+          (total_task_size / x_size < cu_count && y_size * 2 <= max_y_size)) &&
+         x_size > 1 && y_size * 2 <= wg_total_size) {
+    x_size /= 2;
+    y_size *= 2;
   }
   return int3(x_size, y_size, 1);
 }
