@@ -814,11 +814,11 @@ cc_library(
     name = "api_cl_gl_vk",
     srcs = ["api_cl_gl_vk.cc"],
     hdrs = ["api_cl_gl_vk.h"],
-    defines = ["CL_DELEGATE_NO_GL"],
     deps = [
         ":api_common",
         ":data_type",
         ":util",
+        "//ml_drift/gl:portable",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:status_macros",
         "@com_google_absl//absl/status:statusor",
