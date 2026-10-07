@@ -766,7 +766,8 @@ class ConvCodeGenerator {
 
     const bool has_dynamic_src_ch =
         conv_params_.runtime_check.src_end_ch_index.has_value();
-    if (kernel_params_.AreWeightsBuffer() && has_dynamic_src_ch) {
+    if (kernel_params_.AreWeightsBuffer() && has_dynamic_src_ch &&
+        !weights_conversion) {
       if (gpu_info_.SupportsPointersInKernels()) {
         c += "  weights_offset = args.weights.GetPtr() + ";
       } else {
