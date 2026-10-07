@@ -156,7 +156,11 @@ int3 GetRecommendedWorkGroupSize(const GpuInfo& gpu_info, const BHWC& shape) {
     desired_work_group_size = 64;
   }
   if (gpu_info.IsApple()) {
-    desired_work_group_size = 64;
+    if (gpu_info.GetComputeUnitsCount() < 10) {
+      desired_work_group_size = 64;
+    } else {
+      desired_work_group_size = 128;
+    }
   }
   if (gpu_info.IsAMD()) {
     if (spatial_per_cu > 16) {
@@ -172,8 +176,13 @@ int3 GetRecommendedWorkGroupSize(const GpuInfo& gpu_info, const BHWC& shape) {
   }
   int3 work_group_size(1, 1, 1);
   if (spatial_per_cu < 2.0f) {
-    desired_work_group_size = gpu_info.GetMaxWorkGroupSizeForZ();
-    while (desired_work_group_size >= tensor_slices * 2) {
+    if (!gpu_info.IsMali()) {
+      desired_work_group_size = gpu_info.GetMaxWorkGroupSizeForZ();
+    }
+    desired_work_group_size =
+        std::min(desired_work_group_size, gpu_info.GetMaxWorkGroupSizeForZ());
+    while (desired_work_group_size >= tensor_slices * 2 &&
+           desired_work_group_size > 1) {
       desired_work_group_size /= 2;
     }
     work_group_size.x = 1;
