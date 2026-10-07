@@ -22,6 +22,11 @@ package(licenses = ["notice"])
 pytype_strict_binary(
     name = "extract_weights_hf",
     srcs = ["extract_weights_hf.py"],
+    deps = [
+        "@pypi//numpy",
+        "@pypi//safetensors",
+        "@pypi//torch",
+    ],
 )
 
 cc_library(

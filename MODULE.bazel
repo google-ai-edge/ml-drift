@@ -13,6 +13,14 @@ python.toolchain(
 )
 use_repo(python, python = "python_3_11")
 
+pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
+pip.parse(
+    hub_name = "pypi",
+    python_version = "3.11",
+    requirements_lock = "//:requirements.txt",
+)
+use_repo(pip, "pypi")
+
 bazel_dep(name = "abseil-cpp", version = "20260817.0", repo_name = "com_google_absl")
 
 # To calculate integrity:
