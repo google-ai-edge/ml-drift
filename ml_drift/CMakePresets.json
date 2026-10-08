@@ -7,6 +7,17 @@
   },
   "configurePresets": [
     {
+      "name": "host-release-cl",
+      "displayName": "Host Release (OpenCL)",
+      "description": "Host release build with OpenCL backend",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/../build/host-release-cl",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "ML_DRIFT_API": "cl"
+      }
+    },
+    {
       "name": "android-arm64-debug-static-cl",
       "displayName": "Android ARM64 Debug (OpenCL)",
       "description": "64-bit ARM Android device debug build (static) with OpenCL backend",
