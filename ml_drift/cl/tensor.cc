@@ -31,6 +31,7 @@
 #include "ml_drift/cl/util.h"
 #include "ml_drift/common/access_type.h"
 #include "ml_drift/common/data_type.h"
+#include "ml_drift/common/shape.h"
 #include "ml_drift/common/task/buffer_desc.h"
 #include "ml_drift/common/task/gpu_object_desc.h"
 #include "ml_drift/common/task/tensor_desc.h"
@@ -395,8 +396,12 @@ absl::Status Tensor::GetGPUResources(const GPUObjectDescriptor* obj_ptr,
     if (tensor_desc_.GetStorageType() != TensorStorageType::kBuffer &&
         tensor_desc_.GetStorageType() != TensorStorageType::kImageBuffer) {
       return absl::InvalidArgumentError(
-          "Tensor can be used with BufferDescriptor only with "
-          "TensorStorageType::BUFFER/TensorStorageType::IMAGE_BUFFER.");
+          absl::StrCat("Tensor can be used with BufferDescriptor only with "
+                       "TensorStorageType::kBuffer/kImageBuffer. "
+                       "tensor storage type: ",
+                       ToString(tensor_desc_.GetStorageType()),
+                       ", shape: ", ToString(tensor_desc_.GetBHWDCShape()),
+                       ", dtype: ", ToString(tensor_desc_.GetDataType())));
     }
     resources->buffers.push_back({"buffer", memory_});
     return absl::OkStatus();
