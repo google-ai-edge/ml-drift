@@ -335,7 +335,7 @@ absl::Status MetalLlmModelRunner::UpdateParams(const LlmRuntimeParams& params,
   const int active_tokens = params.active_tokens;
   const int active_tokens_aligned = std::min(
       config_.cache_size, AlignByN(params.active_tokens, ch_alignment));
-  const int ring_offset = params.token_index_offset + GetRingOffset(config_);
+  const int ring_offset = GetRingOffset(config_, params.token_index_offset);
 
   auto& param_tensor = params_i32_[buffer_index];
 

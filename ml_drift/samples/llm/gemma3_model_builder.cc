@@ -356,6 +356,9 @@ GPUOperation AttentionMaskOp(const TensorDescriptor& params_desc,
   }
   int token_offset;
   args.params_tensor.ReadPerChannel(token_offset, 0, 0, $0);
+  int effective_offset = args.sliding_local_cache == 1
+                             ? min(token_offset, args.window_size - 1)
+                             : token_offset;
 
   args.dst::type mask_value;
   int k;
@@ -363,57 +366,49 @@ GPUOperation AttentionMaskOp(const TensorDescriptor& params_desc,
 
   // x
   k = S * 4 + 0;
-  if (args.sliding_local_cache == 1) {
-    int token_index = k - args.window_size + 1;
+  {
+    int token_index = k - effective_offset;
     visible = (token_index <= X);
     if (args.window_size > 0) visible &= (token_index > X - args.window_size);
-    visible &= (token_offset + token_index >= 0);
-  } else {
-    int token_index = k - token_offset;
-    visible = (token_index <= X);
-    if (args.window_size > 0) visible &= (token_index > X - args.window_size);
+    if (args.sliding_local_cache == 1) {
+      visible &= (token_offset + token_index >= 0);
+    }
   }
   mask_value.x = !visible;
 
   // y
   k = S * 4 + 1;
-  if (args.sliding_local_cache == 1) {
-    int token_index = k - args.window_size + 1;
+  {
+    int token_index = k - effective_offset;
     visible = (token_index <= X);
     if (args.window_size > 0) visible &= (token_index > X - args.window_size);
-    visible &= (token_offset + token_index >= 0);
-  } else {
-    int token_index = k - token_offset;
-    visible = (token_index <= X);
-    if (args.window_size > 0) visible &= (token_index > X - args.window_size);
+    if (args.sliding_local_cache == 1) {
+      visible &= (token_offset + token_index >= 0);
+    }
   }
   mask_value.y = !visible;
 
   // z
   k = S * 4 + 2;
-  if (args.sliding_local_cache == 1) {
-    int token_index = k - args.window_size + 1;
+  {
+    int token_index = k - effective_offset;
     visible = (token_index <= X);
     if (args.window_size > 0) visible &= (token_index > X - args.window_size);
-    visible &= (token_offset + token_index >= 0);
-  } else {
-    int token_index = k - token_offset;
-    visible = (token_index <= X);
-    if (args.window_size > 0) visible &= (token_index > X - args.window_size);
+    if (args.sliding_local_cache == 1) {
+      visible &= (token_offset + token_index >= 0);
+    }
   }
   mask_value.z = !visible;
 
   // w
   k = S * 4 + 3;
-  if (args.sliding_local_cache == 1) {
-    int token_index = k - args.window_size + 1;
+  {
+    int token_index = k - effective_offset;
     visible = (token_index <= X);
     if (args.window_size > 0) visible &= (token_index > X - args.window_size);
-    visible &= (token_offset + token_index >= 0);
-  } else {
-    int token_index = k - token_offset;
-    visible = (token_index <= X);
-    if (args.window_size > 0) visible &= (token_index > X - args.window_size);
+    if (args.sliding_local_cache == 1) {
+      visible &= (token_offset + token_index >= 0);
+    }
   }
   mask_value.w = !visible;
 
@@ -1199,9 +1194,8 @@ TensorHandle SelfAttention(BuildContext& ctx, const TensorHandle& src,
   const DataType cache_dt = ctx.data_type();
 
   const bool use_local_cache_without_copy =
-      (ctx.builder.gpu_info().IsApple() || ctx.builder.gpu_info().IsIntel()) &&
       use_local_cache && SizeInBitsOf(cache_dt) >= 16;
-  const bool use_end_checks = use_local_cache ? is_global : true;
+  const bool use_end_checks = true;
 
   if (use_local_cache_without_copy) {
     cache_size = GetCacheSize(ctx.config, is_global);

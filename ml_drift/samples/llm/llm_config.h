@@ -83,6 +83,13 @@ inline int GetRingOffset(const LlmConfig& config) {
   return 1 - config.sliding_window_size + ring_cache_size;
 }
 
+inline int GetRingOffset(const LlmConfig& config, int token_offset) {
+  if (config.sliding_window_size <= 0) {
+    return 0;
+  }
+  return std::max(0, token_offset + 1 - config.sliding_window_size);
+}
+
 inline int GetCacheSize(const LlmConfig& config, bool is_global) {
   if (UseRingBuffer(config) && !is_global) {
     return GetLocalRingCacheSize(config);

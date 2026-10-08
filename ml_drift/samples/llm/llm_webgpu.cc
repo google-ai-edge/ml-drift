@@ -335,7 +335,7 @@ absl::Status WebGpuLlmModelRunner::UpdateParams(const LlmRuntimeParams& params,
   data[LlmRuntimeParams::kActiveTokensAlignedIndex] = std::min(
       config_.cache_size, AlignByN(params.active_tokens, ch_alignment));
   data[LlmRuntimeParams::kRingOffsetIndex] =
-      params.token_index_offset + GetRingOffset(config_);
+      GetRingOffset(config_, params.token_index_offset);
   return params_i32_[buffer_index]->WriteData(env_->queue(), data);
 }
 

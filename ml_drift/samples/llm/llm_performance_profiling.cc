@@ -663,7 +663,7 @@ void FillRuntimeParamsData(const LlmConfig& config, int token_offset,
   data_out[LlmRuntimeParams::kActiveTokensAlignedIndex] =
       std::min(config.cache_size, AlignByN(active_tokens, ch_alignment));
   data_out[LlmRuntimeParams::kRingOffsetIndex] =
-      token_offset + GetRingOffset(config);
+      GetRingOffset(config, token_offset);
 }
 
 // Dispatches Build() and BuildPostProcessGreedy() on the selected model

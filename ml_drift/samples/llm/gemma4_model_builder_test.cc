@@ -428,6 +428,10 @@ TEST(Gemma4ModelBuilderTest, RingBufferConfigHelpers) {
   EXPECT_EQ(GetLocalRingCacheSize(config), 34);  // min(34, 36) = 34
   EXPECT_EQ(GetCacheSize(config, /*is_global=*/false), 34);
   EXPECT_EQ(GetRingOffset(config), 1 - 32 + 34);  // 3
+  EXPECT_EQ(GetRingOffset(config, /*token_offset=*/0), 0);
+  EXPECT_EQ(GetRingOffset(config, /*token_offset=*/31), 0);
+  EXPECT_EQ(GetRingOffset(config, /*token_offset=*/32), 1);
+  EXPECT_EQ(GetRingOffset(config, /*token_offset=*/64), 33);
 }
 
 TEST(Gemma4ModelBuilderTest, BuildModelWithRingBufferKVCache) {
