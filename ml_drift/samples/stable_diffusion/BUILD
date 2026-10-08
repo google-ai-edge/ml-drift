@@ -13,8 +13,21 @@
 # limitations under the License.
 
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_test", "objc_library")
+load("//ml_drift:pytype.default.bzl", "pytype_strict_binary")
 
 package(licenses = ["notice"])
+
+# Extracts weights from a HuggingFace model (safetensors).
+# bazel run //ml_drift/samples/stable_diffusion:extract_weights -- --model_path=/tmp/v1-5-pruned-emaonly.safetensors --output_dir=/tmp/sd_1_5/
+pytype_strict_binary(
+    name = "extract_weights",
+    srcs = ["extract_weights.py"],
+    deps = [
+        "@pypi//numpy",
+        "@pypi//safetensors",
+        "@pypi//torch",
+    ],
+)
 
 cc_library(
     name = "libimagegenerator_gpu_so",
