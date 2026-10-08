@@ -950,9 +950,10 @@ Tensor5DFloat32 DepthWiseConvolutionReference(
 void FullyConnectedReference(const FullyConnectedAttributes& attr,
                              const TensorFloat32& src, TensorFloat32* dst,
                              const TestingRuntimeChannels& runtime_channels) {
-  const int src_end_ch = runtime_channels.src_end_ch.has_value()
-                       ? *runtime_channels.src_end_ch
-                       : attr.weights.shape.i;
+  const int src_end_ch =
+      runtime_channels.src_end_ch.has_value()
+          ? std::min(*runtime_channels.src_end_ch, attr.weights.shape.i)
+          : attr.weights.shape.i;
   const int dst_end_ch = runtime_channels.dst_end_ch.has_value()
                        ? *runtime_channels.dst_end_ch
                        : attr.weights.shape.o;
@@ -1000,9 +1001,10 @@ TensorFloat32 FullyConnectedRefDifferentWeightsForHeight(
     const TestingRuntimeChannels& runtime_channels) {
   BHWC dst_shape(src.shape.b, src.shape.h, src.shape.w, weights.shape.o);
   TensorFloat32 dst = MakeZeroTensor(dst_shape);
-  const int src_end_ch = runtime_channels.src_end_ch.has_value()
-                       ? *runtime_channels.src_end_ch
-                       : weights.shape.i;
+  const int src_end_ch =
+      runtime_channels.src_end_ch.has_value()
+          ? std::min(*runtime_channels.src_end_ch, weights.shape.i)
+          : weights.shape.i;
   const int dst_end_ch = runtime_channels.dst_end_ch.has_value()
                        ? *runtime_channels.dst_end_ch
                        : weights.shape.o;

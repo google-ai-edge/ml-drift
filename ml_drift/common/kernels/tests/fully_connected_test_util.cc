@@ -15,6 +15,7 @@
 #include "ml_drift/common/kernels/tests/fully_connected_test_util.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <memory>
 #include <utility>
@@ -538,6 +539,7 @@ absl::Status FullyConnectedExternalWeightsBigTest(
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
   const int src_channels = 53;
   const int dst_channels = 17;
+  constexpr int kExtraRuntimeChannels = 4;
   FullyConnectedAttributes attr;
   attr.weights = MakeSyntheticTensor(OHWI(dst_channels, 1, 1, src_channels));
   attr.weights.data.resize(attr.weights.shape.DimensionsProduct() +
@@ -552,6 +554,7 @@ absl::Status FullyConnectedExternalWeightsBigTest(
       TestingRuntimeChannels(),
       {.src_end_ch = 4, .dst_end_ch = 8},
       {.src_end_ch = 8},
+      {.src_end_ch = src_channels + kExtraRuntimeChannels},
       {.dst_end_ch = 14}};
   for (auto weights_layout : {WeightsLayout::kOSpatialIOGroupI4O4,
                               WeightsLayout::kOSpatialIOGroupO4I4}) {
@@ -573,6 +576,7 @@ absl::Status FullyConnectedBatchedWeightsBigTest(
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
   const int src_channels = 53;
   const int dst_channels = 17;
+  constexpr int kExtraRuntimeChannels = 4;
   FullyConnectedAttributes attr;
   attr.weights = MakeSyntheticTensor(OHWI(dst_channels, 4, 1, src_channels));
   attr.weights.data.resize(attr.weights.shape.DimensionsProduct() +
@@ -587,6 +591,7 @@ absl::Status FullyConnectedBatchedWeightsBigTest(
       TestingRuntimeChannels(),
       {.src_end_ch = 4, .dst_end_ch = 9},
       {.src_end_ch = 8},
+      {.src_end_ch = src_channels + kExtraRuntimeChannels},
       {.dst_end_ch = 15}};
   for (auto weights_layout :
        {WeightsLayout::kOSpatialIOGroupI4O4,
@@ -611,98 +616,101 @@ absl::Status FullyConnectedRingedOTest(TestExecutionEnvironment& env,
   const int src_channels = 72;
   const int dst_channels = 20;
   const int weights_o_size = 56;
-  FullyConnectedAttributes attr;
-  attr.weights = MakeSyntheticTensor(OHWI(weights_o_size, 1, 1, src_channels));
-  attr.weights.data.resize(attr.weights.shape.DimensionsProduct() +
-                           XNN_EXTRA_BYTES / sizeof(float));
-  attr.bias = MakeZeroTensor(Linear(dst_channels));
-
-  auto src_shape = BHWC(1, 1, 1, src_channels);
-
-  TensorFloat32 src = MakeSyntheticTensor(src_shape);
-
   auto weights_layout = WeightsLayout::kOSpatialIOGroupO4I4;
-  for (int ring_offset : {0, 17, 20, 33, 49}) {
-    OperationDef op_def;
-    op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
-    op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
+  for (int weights_batch : {1, 3}) {
+    FullyConnectedAttributes attr;
+    attr.weights = MakeSyntheticTensor(
+        OHWI(weights_o_size, weights_batch, 1, src_channels));
+    attr.weights.data.resize(attr.weights.shape.DimensionsProduct() +
+                             XNN_EXTRA_BYTES / sizeof(float));
+    attr.bias = MakeZeroTensor(Linear(dst_channels));
 
-    const BHWC dst_shape =
-        BHWC(src_shape.b, src_shape.h, src_shape.w, dst_channels);
-    TensorFloat32 output_ref = MakeZeroTensor(dst_shape);
-    for (int b = 0; b < src.shape.b; ++b) {
-      for (int y = 0; y < src.shape.h; ++y) {
-        for (int x = 0; x < src.shape.w; ++x) {
-          for (int o = 0; o < dst_channels; o++) {
-            float sum = attr.bias.data.empty() ? 0 : attr.bias.data[o];
-            for (int i = 0; i < src_channels; i++) {
-              const int src_index = src.shape.LinearIndex({b, y, x, i});
-              const int w_o = (o + ring_offset) % weights_o_size;
-              const int f_index =
-                  attr.weights.shape.LinearIndex({w_o, 0, 0, i});
-              sum += src.data[src_index] * attr.weights.data[f_index];
+    auto src_shape = BHWC(1, weights_batch, 1, src_channels);
+    TensorFloat32 src = MakeSyntheticTensor(src_shape);
+
+    for (int ring_offset : {0, 17, 20, 33, 49}) {
+      OperationDef op_def;
+      op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+      op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
+
+      const BHWC dst_shape =
+          BHWC(src_shape.b, src_shape.h, src_shape.w, dst_channels);
+      TensorFloat32 output_ref = MakeZeroTensor(dst_shape);
+      for (int b = 0; b < src.shape.b; ++b) {
+        for (int y = 0; y < src.shape.h; ++y) {
+          for (int x = 0; x < src.shape.w; ++x) {
+            for (int o = 0; o < dst_channels; o++) {
+              float sum = attr.bias.data.empty() ? 0 : attr.bias.data[o];
+              for (int i = 0; i < src_channels; i++) {
+                const int src_index = src.shape.LinearIndex({b, y, x, i});
+                const int w_o = (o + ring_offset) % weights_o_size;
+                const int w_h = attr.weights.shape.h == 1 ? 0 : y;
+                const int f_index =
+                    attr.weights.shape.LinearIndex({w_o, w_h, 0, i});
+                sum += src.data[src_index] * attr.weights.data[f_index];
+              }
+              const int dst_index = output_ref.shape.LinearIndex({b, y, x, o});
+              output_ref.data[dst_index] = sum;
             }
-            const int dst_index = output_ref.shape.LinearIndex({b, y, x, o});
-            output_ref.data[dst_index] = sum;
           }
         }
       }
+
+      TensorDescriptor bias_td = CreateConstantLinearTensorDescriptor(
+          env.GetGpuInfo(), data_type, attr.bias);
+
+      WeightsDescription weights_desc;
+      weights_desc.type = data_type;
+      weights_desc.layout = weights_layout;
+      weights_desc.output_group_size = DivideRoundUp(attr.weights.shape.o, 4);
+
+      std::vector<TensorDescriptor> weights_gpu =
+          GetTensorDescriptorsForWeightsLayout(attr.weights, weights_desc);
+
+      ConvRuntimeCheckDesc runtime_check;
+      runtime_check.ring_o_offset_index = 0;
+      runtime_check.ring_size = weights_o_size;
+
+      ExternalWeights external_weights;
+      external_weights.desc = weights_desc;
+      external_weights.shape = attr.weights.shape;
+      ABSL_ASSIGN_OR_RETURN(
+          auto operation,
+          CreateFullyConnectedExternalWeights(
+              env.GetGpuInfo(), precision, op_def.src_tensors[0],
+              op_def.dst_tensors[0], external_weights, &bias_td, &dst_shape,
+              /*src_exp=*/nullptr, runtime_check));
+
+      TensorDescriptor src_td = op_def.src_tensors[0];
+      src_td.UploadData(src);
+
+      TensorDescriptor dst_td = op_def.dst_tensors[0];
+      dst_td.SetBHWCShape(dst_shape);
+
+      std::vector<TensorDescriptor*> src_cpu;
+      src_cpu.push_back(&src_td);
+      for (int i = 0; i < weights_gpu.size(); ++i) {
+        src_cpu.push_back(&weights_gpu[i]);
+      }
+      src_cpu.push_back(&bias_td);
+
+      TensorInt32 params;
+      params.shape = BHWC(1, 1, 1, 1);
+      params.data = std::vector<int32_t>(1, ring_offset);
+      TensorDescriptor params_td = {DataType::kInt32,
+                                    TensorStorageType::kBuffer, Layout::kHWC};
+      params_td.UploadData(params);
+      src_cpu.push_back(&params_td);
+
+      ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
+          src_cpu, {&dst_td},
+          std::make_unique<FullyConnected>(std::move(operation))));
+      TensorFloat32 dst_tensor;
+      dst_td.DownloadData(&dst_tensor);
+
+      const float eps = GetEpsilon(precision, env.GetGpuInfo(), attr) * 2.0f;
+      EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), output_ref.data));
     }
-
-    TensorDescriptor bias_td = CreateConstantLinearTensorDescriptor(
-        env.GetGpuInfo(), data_type, attr.bias);
-
-    WeightsDescription weights_desc;
-    weights_desc.type = data_type;
-    weights_desc.layout = weights_layout;
-    weights_desc.output_group_size = DivideRoundUp(attr.weights.shape.o, 4);
-
-    std::vector<TensorDescriptor> weights_gpu =
-        GetTensorDescriptorsForWeightsLayout(attr.weights, weights_desc);
-
-    ConvRuntimeCheckDesc runtime_check;
-    runtime_check.ring_o_offset_index = 0;
-    runtime_check.ring_size = weights_o_size;
-
-    ExternalWeights external_weights;
-    external_weights.desc = weights_desc;
-    external_weights.shape = attr.weights.shape;
-    ABSL_ASSIGN_OR_RETURN(
-        auto operation,
-        CreateFullyConnectedExternalWeights(
-            env.GetGpuInfo(), precision, op_def.src_tensors[0],
-            op_def.dst_tensors[0], external_weights, &bias_td, &dst_shape,
-            /*src_exp=*/nullptr, runtime_check));
-
-    TensorDescriptor src_td = op_def.src_tensors[0];
-    src_td.UploadData(src);
-
-    TensorDescriptor dst_td = op_def.dst_tensors[0];
-    dst_td.SetBHWCShape(dst_shape);
-
-    std::vector<TensorDescriptor*> src_cpu;
-    src_cpu.push_back(&src_td);
-    for (int i = 0; i < weights_gpu.size(); ++i) {
-      src_cpu.push_back(&weights_gpu[i]);
-    }
-    src_cpu.push_back(&bias_td);
-
-    TensorInt32 params;
-    params.shape = BHWC(1, 1, 1, 1);
-    params.data = std::vector<int32_t>(1, ring_offset);
-    TensorDescriptor params_td = {DataType::kInt32, TensorStorageType::kBuffer,
-                                  Layout::kHWC};
-    params_td.UploadData(params);
-    src_cpu.push_back(&params_td);
-
-    ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
-        src_cpu, {&dst_td},
-        std::make_unique<FullyConnected>(std::move(operation))));
-    TensorFloat32 dst_tensor;
-    dst_td.DownloadData(&dst_tensor);
-
-    const float eps = GetEpsilon(precision, env.GetGpuInfo(), attr) * 2.0f;
-    EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), output_ref.data));
   }
   return absl::OkStatus();
 }
@@ -714,98 +722,143 @@ absl::Status FullyConnectedRingedITest(TestExecutionEnvironment& env,
   const int src_channels = 20;
   const int dst_channels = 72;
   const int weights_i_size = 56;
-  FullyConnectedAttributes attr;
-  attr.weights = MakeSyntheticTensor(OHWI(dst_channels, 1, 1, weights_i_size));
-  attr.weights.data.resize(attr.weights.shape.DimensionsProduct() +
-                           XNN_EXTRA_BYTES / sizeof(float));
-  attr.bias = MakeZeroTensor(Linear(dst_channels));
-
-  auto src_shape = BHWC(1, 1, 1, src_channels);
-
-  TensorFloat32 src = MakeSyntheticTensor(src_shape);
-
+  constexpr int kExtraRuntimeChannels = 4;
+  constexpr float kSoftmaxMaskValue = 0.25f;
   auto weights_layout = WeightsLayout::kOSpatialIOGroupI4O4;
-  for (int ring_offset : {0, 17, 20, 33, 49}) {
-    OperationDef op_def;
-    op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
-    op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
+  for (int weights_batch : {1, 3}) {
+    FullyConnectedAttributes attr;
+    attr.weights = MakeSyntheticTensor(
+        OHWI(dst_channels, weights_batch, 1, weights_i_size));
+    attr.weights.data.resize(attr.weights.shape.DimensionsProduct() +
+                             XNN_EXTRA_BYTES / sizeof(float));
+    attr.bias = MakeZeroTensor(Linear(dst_channels));
 
-    const BHWC dst_shape =
-        BHWC(src_shape.b, src_shape.h, src_shape.w, dst_channels);
-    TensorFloat32 output_ref = MakeZeroTensor(dst_shape);
-    for (int b = 0; b < src.shape.b; ++b) {
-      for (int y = 0; y < src.shape.h; ++y) {
-        for (int x = 0; x < src.shape.w; ++x) {
-          for (int o = 0; o < dst_channels; o++) {
-            float sum = attr.bias.data.empty() ? 0 : attr.bias.data[o];
-            for (int i = 0; i < src_channels; i++) {
-              const int src_index = src.shape.LinearIndex({b, y, x, i});
-              const int w_i = (i + ring_offset) % weights_i_size;
-              const int f_index =
-                  attr.weights.shape.LinearIndex({o, 0, 0, w_i});
-              sum += src.data[src_index] * attr.weights.data[f_index];
+    auto src_shape = BHWC(1, weights_batch, 1, src_channels);
+    TensorFloat32 src = MakeSyntheticTensor(src_shape);
+    TensorFloat32 src_exp =
+        MakeSyntheticTensor(BHWC(src_shape.b, src_shape.h, src_shape.w, 4));
+
+    for (bool use_src_exp : {false, true}) {
+      std::vector<int> src_end_channels =
+          use_src_exp
+              ? std::vector<int>{13, src_channels + kExtraRuntimeChannels}
+              : std::vector<int>{src_channels};
+      for (int src_end_ch : src_end_channels) {
+        for (int ring_offset : {0, 17, 20, 33, 49}) {
+          OperationDef op_def;
+          op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+          op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
+
+          const BHWC dst_shape =
+              BHWC(src_shape.b, src_shape.h, src_shape.w, dst_channels);
+          TensorFloat32 output_ref = MakeZeroTensor(dst_shape);
+          const int clamped_src_end_ch = std::min(src_end_ch, src_channels);
+          const int active_src_channels =
+              use_src_exp ? DivideRoundUp(clamped_src_end_ch, 4) * 4
+                          : clamped_src_end_ch;
+          for (int b = 0; b < src.shape.b; ++b) {
+            for (int y = 0; y < src.shape.h; ++y) {
+              for (int x = 0; x < src.shape.w; ++x) {
+                const float exp_scale =
+                    src_exp.data[src_exp.shape.LinearIndex({b, y, x, 0})];
+                const float exp_max =
+                    src_exp.data[src_exp.shape.LinearIndex({b, y, x, 1})];
+                for (int o = 0; o < dst_channels; o++) {
+                  float sum = attr.bias.data.empty() ? 0 : attr.bias.data[o];
+                  for (int i = 0; i < active_src_channels; i++) {
+                    const int src_index = src.shape.LinearIndex({b, y, x, i});
+                    float src_val = src.data[src_index];
+                    if (use_src_exp) {
+                      src_val = i < clamped_src_end_ch
+                                    ? std::exp(src_val - exp_max) * exp_scale
+                                    : kSoftmaxMaskValue;
+                    }
+                    const int w_i = (i + ring_offset) % weights_i_size;
+                    const int w_h = attr.weights.shape.h == 1 ? 0 : y;
+                    const int f_index =
+                        attr.weights.shape.LinearIndex({o, w_h, 0, w_i});
+                    sum += src_val * attr.weights.data[f_index];
+                  }
+                  const int dst_index =
+                      output_ref.shape.LinearIndex({b, y, x, o});
+                  output_ref.data[dst_index] = sum;
+                }
+              }
             }
-            const int dst_index = output_ref.shape.LinearIndex({b, y, x, o});
-            output_ref.data[dst_index] = sum;
           }
+
+          TensorDescriptor bias_td = CreateConstantLinearTensorDescriptor(
+              env.GetGpuInfo(), data_type, attr.bias);
+
+          WeightsDescription weights_desc;
+          weights_desc.type = data_type;
+          weights_desc.layout = weights_layout;
+          weights_desc.output_group_size =
+              DivideRoundUp(attr.weights.shape.o, 4);
+
+          std::vector<TensorDescriptor> weights_gpu =
+              GetTensorDescriptorsForWeightsLayout(attr.weights, weights_desc);
+
+          ConvRuntimeCheckDesc runtime_check;
+          runtime_check.ring_i_offset_index = 0;
+          runtime_check.ring_size = weights_i_size;
+          if (use_src_exp) {
+            runtime_check.src_end_ch_index = 1;
+            runtime_check.softmax_mask_value = kSoftmaxMaskValue;
+          }
+
+          TensorDescriptor src_exp_td = {data_type, storage, Layout::kHWC};
+          if (use_src_exp) {
+            src_exp_td.UploadData(src_exp);
+          }
+
+          ExternalWeights external_weights;
+          external_weights.desc = weights_desc;
+          external_weights.shape = attr.weights.shape;
+          ABSL_ASSIGN_OR_RETURN(
+              auto operation,
+              CreateFullyConnectedExternalWeights(
+                  env.GetGpuInfo(), precision, op_def.src_tensors[0],
+                  op_def.dst_tensors[0], external_weights, &bias_td, &dst_shape,
+                  use_src_exp ? &src_exp_td : nullptr, runtime_check));
+
+          TensorDescriptor src_td = op_def.src_tensors[0];
+          src_td.UploadData(src);
+
+          TensorDescriptor dst_td = op_def.dst_tensors[0];
+          dst_td.SetBHWCShape(dst_shape);
+
+          std::vector<TensorDescriptor*> src_cpu;
+          src_cpu.push_back(&src_td);
+          for (int i = 0; i < weights_gpu.size(); ++i) {
+            src_cpu.push_back(&weights_gpu[i]);
+          }
+          src_cpu.push_back(&bias_td);
+          if (use_src_exp) {
+            src_cpu.push_back(&src_exp_td);
+          }
+
+          TensorInt32 params;
+          params.shape = BHWC(1, 1, 1, 2);
+          params.data = {ring_offset, src_end_ch};
+          TensorDescriptor params_td = {
+              DataType::kInt32, TensorStorageType::kBuffer, Layout::kHWC};
+          params_td.UploadData(params);
+          src_cpu.push_back(&params_td);
+
+          ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
+              src_cpu, {&dst_td},
+              std::make_unique<FullyConnected>(std::move(operation))));
+          TensorFloat32 dst_tensor;
+          dst_td.DownloadData(&dst_tensor);
+
+          const float eps =
+              GetEpsilon(precision, env.GetGpuInfo(), attr) * 4.0f;
+          EXPECT_THAT(dst_tensor.data,
+                      Pointwise(FloatNear(eps), output_ref.data));
         }
       }
     }
-
-    TensorDescriptor bias_td = CreateConstantLinearTensorDescriptor(
-        env.GetGpuInfo(), data_type, attr.bias);
-
-    WeightsDescription weights_desc;
-    weights_desc.type = data_type;
-    weights_desc.layout = weights_layout;
-    weights_desc.output_group_size = DivideRoundUp(attr.weights.shape.o, 4);
-
-    std::vector<TensorDescriptor> weights_gpu =
-        GetTensorDescriptorsForWeightsLayout(attr.weights, weights_desc);
-
-    ConvRuntimeCheckDesc runtime_check;
-    runtime_check.ring_i_offset_index = 0;
-    runtime_check.ring_size = weights_i_size;
-
-    ExternalWeights external_weights;
-    external_weights.desc = weights_desc;
-    external_weights.shape = attr.weights.shape;
-    ABSL_ASSIGN_OR_RETURN(
-        auto operation,
-        CreateFullyConnectedExternalWeights(
-            env.GetGpuInfo(), precision, op_def.src_tensors[0],
-            op_def.dst_tensors[0], external_weights, &bias_td, &dst_shape,
-            /*src_exp=*/nullptr, runtime_check));
-
-    TensorDescriptor src_td = op_def.src_tensors[0];
-    src_td.UploadData(src);
-
-    TensorDescriptor dst_td = op_def.dst_tensors[0];
-    dst_td.SetBHWCShape(dst_shape);
-
-    std::vector<TensorDescriptor*> src_cpu;
-    src_cpu.push_back(&src_td);
-    for (int i = 0; i < weights_gpu.size(); ++i) {
-      src_cpu.push_back(&weights_gpu[i]);
-    }
-    src_cpu.push_back(&bias_td);
-
-    TensorInt32 params;
-    params.shape = BHWC(1, 1, 1, 1);
-    params.data = std::vector<int32_t>(1, ring_offset);
-    TensorDescriptor params_td = {DataType::kInt32, TensorStorageType::kBuffer,
-                                  Layout::kHWC};
-    params_td.UploadData(params);
-    src_cpu.push_back(&params_td);
-
-    ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
-        src_cpu, {&dst_td},
-        std::make_unique<FullyConnected>(std::move(operation))));
-    TensorFloat32 dst_tensor;
-    dst_td.DownloadData(&dst_tensor);
-
-    const float eps = GetEpsilon(precision, env.GetGpuInfo(), attr) * 2.0f;
-    EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), output_ref.data));
   }
   return absl::OkStatus();
 }
@@ -1214,10 +1267,12 @@ absl::Status FullyConnectedInt8ExternalBigTest(TestExecutionEnvironment& env,
 
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
+  const int kExtraRuntimeChannels = 4;
   std::vector<TestingRuntimeChannels> test_runtime_channels = {
       TestingRuntimeChannels(),
       {.src_end_ch = 4, .dst_end_ch = 8},
       {.src_end_ch = 8},
+      {.src_end_ch = kSrcChannels + kExtraRuntimeChannels},
       {.dst_end_ch = 14}};
 
   for (auto runtime_channels : test_runtime_channels) {

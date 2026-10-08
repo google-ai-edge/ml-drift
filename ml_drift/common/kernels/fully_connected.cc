@@ -402,51 +402,35 @@ FullyConnected::FullyConnected(const TensorDescriptor& src,
   }
 }
 
-std::string AddBatchOffset(const std::string& stride) {
-  return absl::Substitute(R"(
-    a0 += w_batch_id * $0;
-    a1 += w_batch_id * $0;
-    a2 += w_batch_id * $0;
-    a3 += w_batch_id * $0;
-)",
-                          stride);
-}
-
-std::string GetRingedOAddresses(bool batched_weights) {
+std::string GetRingedOAddresses() {
   std::string c;
   // kOSpatialIOGroupO4I4 -> kBIOI4
   c += R"(
-    int o0 = (dst_s * 4 + ring_o_offset) % ring_size;
-    int o1 = (dst_s * 4 + 1 + ring_o_offset) % ring_size;
-    int o2 = (dst_s * 4 + 2 + ring_o_offset) % ring_size;
-    int o3 = (dst_s * 4 + 3 + ring_o_offset) % ring_size;
-    int a0 = src_s * ring_size + o0;
-    int a1 = src_s * ring_size + o1;
-    int a2 = src_s * ring_size + o2;
-    int a3 = src_s * ring_size + o3;
+    int src_offset = src_s * ring_size;
+    int a0 = src_offset + o0;
+    int a1 = src_offset + o1;
+    int a2 = src_offset + o2;
+    int a3 = src_offset + o3;
 )";
-  if (batched_weights) {
-    c += AddBatchOffset("ring_size * args.src_tensor.Slices()");
-  }
   return c;
 }
 
-std::string GetRingedIAddresses(bool batched_weights) {
+std::string GetRingedIAddresses() {
   std::string c;
   // kOSpatialIOGroupI4O4 -> kBIOI4O4
   c += R"(
     int i0 = (src_s * 4 + ring_i_offset) % ring_size;
-    int i1 = (src_s * 4 + 1 + ring_i_offset) % ring_size;
-    int i2 = (src_s * 4 + 2 + ring_i_offset) % ring_size;
-    int i3 = (src_s * 4 + 3 + ring_i_offset) % ring_size;
-    int a0 = ((i0 / 4) * args.dst_tensor.Slices() + dst_s) * 4 + i0 % 4;
-    int a1 = ((i1 / 4) * args.dst_tensor.Slices() + dst_s) * 4 + i1 % 4;
-    int a2 = ((i2 / 4) * args.dst_tensor.Slices() + dst_s) * 4 + i2 % 4;
-    int a3 = ((i3 / 4) * args.dst_tensor.Slices() + dst_s) * 4 + i3 % 4;
+    int i1 = i0 + 1;
+    int i2 = i0 + 2;
+    int i3 = i0 + 3;
+    i1 = i1 >= ring_size ? i1 - ring_size : i1;
+    i2 = i2 >= ring_size ? i2 - ring_size : i2;
+    i3 = i3 >= ring_size ? i3 - ring_size : i3;
+    int a0 = (i0 >> 2) * dst_stride + (i0 & 3) + ring_i_base;
+    int a1 = (i1 >> 2) * dst_stride + (i1 & 3) + ring_i_base;
+    int a2 = (i2 >> 2) * dst_stride + (i2 & 3) + ring_i_base;
+    int a3 = (i3 >> 2) * dst_stride + (i3 & 3) + ring_i_base;
 )";
-  if (batched_weights) {
-    c += AddBatchOffset("ring_size * args.dst_tensor.Slices()");
-  }
   return c;
 }
 
@@ -456,9 +440,9 @@ std::string ReadRingedWeightsAsFloat(
     const WeightsDescription& weights_desc) {
   std::string c;
   if (conv_params.runtime_check.ring_o_offset_index.has_value()) {
-    c += GetRingedOAddresses(conv_params.batched_weights);
+    c += GetRingedOAddresses();
   } else if (conv_params.runtime_check.ring_i_offset_index.has_value()) {
-    c += GetRingedIAddresses(conv_params.batched_weights);
+    c += GetRingedIAddresses();
   }
   if (conv_params.weights_type == DataType::kInt8) {
     c += R"(
@@ -661,14 +645,39 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
   } else {
     c += "  if (dst_s >= dst_end_slice) return;\n";
   }
+  if (conv_params_.batched_weights) {
+    c += fc::GetWeightsBatchId(conv_params_.runtime_batch_ids);
+  }
   if (conv_params_.runtime_check.ring_o_offset_index.has_value()) {
     c += fc::GetRingOOffset(conv_params_.runtime_check);
+    c += "  ring_o_offset = ((ring_o_offset % ring_size) + ring_size) % "
+         "ring_size;\n";
+    c += "  int o0 = (dst_s * 4 + ring_o_offset) % ring_size;\n";
+    c += "  int o1 = o0 + 1;\n";
+    c += "  int o2 = o0 + 2;\n";
+    c += "  int o3 = o0 + 3;\n";
+    c += "  o1 = o1 >= ring_size ? o1 - ring_size : o1;\n";
+    c += "  o2 = o2 >= ring_size ? o2 - ring_size : o2;\n";
+    c += "  o3 = o3 >= ring_size ? o3 - ring_size : o3;\n";
+    if (conv_params_.batched_weights) {
+      c += "  int ring_batch_offset = w_batch_id * ring_size * "
+           "args.src_tensor.Slices();\n";
+      c += "  o0 += ring_batch_offset;\n";
+      c += "  o1 += ring_batch_offset;\n";
+      c += "  o2 += ring_batch_offset;\n";
+      c += "  o3 += ring_batch_offset;\n";
+    }
   }
   if (conv_params_.runtime_check.ring_i_offset_index.has_value()) {
     c += fc::GetRingIOffset(conv_params_.runtime_check);
-  }
-  if (conv_params_.batched_weights) {
-    c += fc::GetWeightsBatchId(conv_params_.runtime_batch_ids);
+    c += "  ring_i_offset = ((ring_i_offset % ring_size) + ring_size) % "
+         "ring_size;\n";
+    c += "  int dst_stride = args.dst_tensor.Slices() * 4;\n";
+    c += "  int ring_i_base = dst_s * 4;\n";
+    if (conv_params_.batched_weights) {
+      c += "  ring_i_base += w_batch_id * ring_size * "
+           "args.dst_tensor.Slices();\n";
+    }
   }
   if (conv_params_.runtime_check.packed_groups.has_value()) {
     c += fc::GetPackedGroupsParams(conv_params_.runtime_check, /*dim_id=*/1,
@@ -705,8 +714,9 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
   }
   std::string src_end_slices = "args.src_tensor.Slices()";
   if (conv_params_.runtime_check.src_end_ch_index.has_value()) {
-    c += "  int src_end_slices = "
-         "(args.params.Read(args.src_end_ch_index) + 3) / 4;\n";
+    c += "  int src_end_ch = min(args.params.Read(args.src_end_ch_index), "
+         "args.src_tensor.Channels());\n";
+    c += "  int src_end_slices = (src_end_ch + 3) / 4;\n";
     src_end_slices = "src_end_slices";
   }
   if (wg_reduction_) {
@@ -788,7 +798,6 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
                        *conv_params_.runtime_check.softmax_mask_value,
                        dst.GetDataType());
         c += "  if (src_s >= src_end_slices - 1) {\n";
-        c += "    int src_end_ch = args.params.Read(args.src_end_ch_index);\n";
         c += "    if (src_s * 4 + 0 >= src_end_ch) " + val_name +
              ".x = args.softmax_mask_value;\n";
         c += "    if (src_s * 4 + 1 >= src_end_ch) " + val_name +
