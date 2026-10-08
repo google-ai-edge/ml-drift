@@ -22,9 +22,8 @@ functionality.
   highly optimized kernels and runtime.
 * **Cross-Platform:** Seamlessly runs on various operating systems and
   hardware, including mobile, desktop, and servers.
-* **Multiple GPU API Backends:** Comprehensive support for Vulkan, OpenCL
-  (primary for Android), Metal (Apple devices), WebGPU (via Dawn), and
-  OpenGL ES 3.1+.
+* **Multiple GPU API Backends:** Comprehensive support for OpenCL, Metal,
+  WebGPU (via Dawn), and OpenGL ES 3.1+.
 * **Unified Compute Language (UCL):** Write GPU kernels once in an
   abstraction layer over device-specific shading languages (GLSL, MSL, WGSL)
   to be compiled dynamically for different backends.
@@ -67,7 +66,6 @@ functionality.
 
 ## Supported Backends
 
-* Vulkan
 * OpenCL (Primary for Android)
 * Metal (Apple devices)
 * WebGPU (Web browsers, cross-platform via Dawn)
@@ -100,6 +98,8 @@ functionality.
 See "Hello world" examples using ML Drift's
 [OpenCL](docs/hello_world_cl.md) and
 [WebGPU](docs/hello_world_webgpu.md) apis.
+
+Check out the [samples](ml_drift/samples/) directory for more examples.
 
 ## Status
 
