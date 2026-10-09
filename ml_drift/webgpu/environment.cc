@@ -14,6 +14,7 @@
 
 #include "ml_drift/webgpu/environment.h"
 
+#include <cstddef>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -331,6 +332,12 @@ absl::Status Environment::Initialize(const wgpu::Device& device,
     } else if (requested == "subgroups" && DeviceHasSubgroups(device_)) {
       ABSL_LOG(INFO) << "Subgroups Enabled!";
       gpu_info_.webgpu_info.supports_subgroups = true;
+#ifndef __EMSCRIPTEN__
+    } else if (requested == "subgroup_matrix" &&
+               device_.HasFeature(
+                   wgpu::FeatureName::ChromiumExperimentalSubgroupMatrix)) {
+      gpu_info_.webgpu_info.supports_subgroup_matrix = true;
+#endif  // !__EMSCRIPTEN__
     }
   }
 #ifdef __EMSCRIPTEN__
@@ -344,7 +351,27 @@ absl::Status Environment::Initialize(const wgpu::Device& device,
       JsGetDeviceMaxSubgroupSize(reinterpret_cast<void*>(device_.Get()));
   EnsureValidSubgroup(subgroup_limits, &gpu_info_.webgpu_info);
 #else
+  gpu_info_.webgpu_info.supports_timestamp_query =
+      device_.HasFeature(wgpu::FeatureName::TimestampQuery);
+  gpu_info_.webgpu_info.supports_host_mapped_pointer =
+      device_.HasFeature(wgpu::FeatureName::HostMappedPointer);
+
   EnsureValidSubgroup(adapter_info, &gpu_info_.webgpu_info);
+
+  if (gpu_info_.webgpu_info.supports_subgroup_matrix) {
+    wgpu::AdapterPropertiesSubgroupMatrixConfigs subgroup_matrix_configs;
+    wgpu::AdapterInfo info;
+    info.nextInChain = &subgroup_matrix_configs;
+    if (device_.GetAdapterInfo(&info) == wgpu::Status::Success) {
+      for (size_t i = 0; i < subgroup_matrix_configs.configCount; ++i) {
+        gpu_info_.wave_mat_mul_ops.push_back(
+            ToWaveMatMulOpDescriptor(subgroup_matrix_configs.configs[i]));
+      }
+    }
+  }
+
+  gpu_info_.webgpu_info.is_integrated_gpu =
+      adapter_info.adapterType == wgpu::AdapterType::IntegratedGPU;
 #endif  // __EMSCRIPTEN__
 
   AddGpuLimits(device_, gpu_info_.webgpu_info);
