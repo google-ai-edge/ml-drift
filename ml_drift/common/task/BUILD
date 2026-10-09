@@ -242,6 +242,12 @@ cc_library(
     testonly = True,
     srcs = ["testing_ref_ops.cc"],
     hdrs = ["testing_ref_ops.h"],
+    copts = select({
+        "//ml_drift:apple": [
+            "-O0",
+        ],
+        "//conditions:default": [],
+    }),
     deps = [
         ":gpu_operation",
         ":testing_util",

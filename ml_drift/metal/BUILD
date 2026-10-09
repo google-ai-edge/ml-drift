@@ -23,18 +23,6 @@ objc_library(
 )
 
 objc_library(
-    name = "buffer_test_lib",
-    testonly = 1,
-    srcs = ["buffer_test.mm"],
-    deps = [
-        ":buffer",
-        "//ml_drift/common:types",
-        "//third_party/apple_frameworks:Metal",
-        "//third_party/apple_frameworks:XCTest",
-    ],
-)
-
-objc_library(
     name = "common",
     srcs = ["common.mm"],
     hdrs = ["common.h"],
@@ -55,17 +43,6 @@ objc_library(
     deps = [
         "//third_party/apple_frameworks:Foundation",
         "//third_party/apple_frameworks:Metal",
-        "@com_google_absl//absl/status",
-    ],
-)
-
-objc_library(
-    name = "common_test_lib",
-    testonly = 1,
-    srcs = ["common_test.mm"],
-    deps = [
-        ":common",
-        "//third_party/apple_frameworks:XCTest",
         "@com_google_absl//absl/status",
     ],
 )
@@ -111,21 +88,6 @@ objc_library(
         "//third_party/apple_frameworks:Metal",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:status_macros",
-    ],
-)
-
-objc_library(
-    name = "converter_test_lib",
-    testonly = 1,
-    srcs = ["converter_test.mm"],
-    deps = [
-        ":buffer",
-        ":converter",
-        ":environment",
-        ":metal_spatial_tensor",
-        "//ml_drift/metal/testing:test_util",
-        "//third_party/apple_frameworks:Metal",
-        "//third_party/apple_frameworks:XCTest",
     ],
 )
 
@@ -298,20 +260,6 @@ objc_library(
 )
 
 objc_library(
-    name = "metal_spatial_tensor_test_lib",
-    testonly = 1,
-    srcs = ["metal_spatial_tensor_test.mm"],
-    deps = [
-        ":metal_spatial_tensor",
-        "//ml_drift/common:types",
-        "//third_party/apple_frameworks:Metal",
-        "//third_party/apple_frameworks:XCTest",
-        "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:status_macros",
-    ],
-)
-
-objc_library(
     name = "metal_weights_manager",
     srcs = ["metal_weights_manager.mm"],
     hdrs = ["metal_weights_manager.h"],
@@ -330,48 +278,6 @@ objc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:status_macros",
         "@com_google_absl//absl/status:statusor",
-    ],
-)
-
-objc_library(
-    name = "common_tests_lib",
-    testonly = 1,
-    srcs = [
-        ":buffer_test.mm",
-        ":common_test.mm",
-        ":converter_test.mm",
-        ":metal_spatial_tensor_test.mm",
-        ":metal_weights_manager_test.mm",
-        ":residency_test.mm",
-    ],
-    hdrs = [
-    ],
-    deps = [
-        ":buffer",
-        ":common",
-        ":converter",
-        ":environment",
-        ":inference_context",
-        ":memory_manager",
-        ":metal_spatial_tensor",
-        ":metal_weights_manager",
-        "//ml_drift/common:data_type",
-        "//ml_drift/common:gpu_info",
-        "//ml_drift/common:gpu_model",
-        "//ml_drift/common:gpu_model_builder",
-        "//ml_drift/common:model",
-        "//ml_drift/common:precision",
-        "//ml_drift/common:shape",
-        "//ml_drift/common:tensor",
-        "//ml_drift/common:types",
-        "//ml_drift/common/task:tensor_desc",
-        "//ml_drift/common/task:weights_layout",
-        "//ml_drift/metal/testing:test_util",
-        "//third_party/apple_frameworks:Metal",
-        "//third_party/apple_frameworks:XCTest",
-        "@com_google_absl//absl/container:flat_hash_map",
-        "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:status_macros",
     ],
 )
 

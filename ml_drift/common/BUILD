@@ -679,6 +679,10 @@ cc_library(
 cc_library(
     name = "types",
     hdrs = ["types.h"],
+    linkopts = select({
+        "//ml_drift:apple": ["-lc++abi"],
+        "//conditions:default": [],
+    }),
     deps = ["@fp16"],
 )
 

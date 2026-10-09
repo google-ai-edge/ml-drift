@@ -1,13 +1,13 @@
 """Macro for multi-backend C++ tests."""
 
-load("@rules_cc//cc:defs.bzl", "cc_test")
+load("@rules_cc//cc:defs.bzl", "cc_test", "objc_library")
 load("//ml_drift/common:build_config.bzl", "mld_gpu_full_tests_tags", "mld_gpu_tests_tags")
 
 def mld_kernel_test(
         name,
         srcs = [],
         deps = [],
-        platforms = ["opencl", "gl", "webgpu"],
+        platforms = ["opencl", "gl", "webgpu", "mac"],
         **kwargs):
     """"Multi-backend C++ test macro.
 
@@ -15,6 +15,8 @@ def mld_kernel_test(
       my_test_opencl
       my_test_gl
       my_test_webgpu
+      my_test_objc_lib (objc library for mac)
+      my_test_mac
 
     Args:
       name: name of the test target to define.
@@ -83,3 +85,29 @@ def mld_kernel_test(
             **test_kwargs
         )
         target_suffixes.append("_webgpu")
+
+    if "mac" in platforms:
+        objc_library(
+            name = name + "_objc_lib",
+            srcs = srcs + [
+                "//ml_drift/common/kernels/tests:kernel_test.h",
+                "//ml_drift/common/kernels/tests:metal_kernel_test.mm",
+            ],
+            testonly = True,
+            alwayslink = True,
+            deps = deps + [
+                "@com_google_googletest//:gtest",
+                "@com_google_absl//absl/status:status_matchers",
+                "//third_party/apple_frameworks:Metal",
+                "//ml_drift/metal/testing:test_util",
+            ],
+            **library_kwargs
+        )
+        cc_test(
+            name = name + "_mac",
+            tags = ["mac", "nobuilder", "nozapfhahn"],
+            deps = [
+                name + "_objc_lib",
+            ],
+            **test_kwargs
+        )

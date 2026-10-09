@@ -20,7 +20,8 @@
 #include <memory>
 #include <vector>
 
-#include "testing/base/public/gunit.h"
+#include "gtest/gtest.h"
+#include "absl/status/status_matchers.h"
 #include "absl/status/status.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
