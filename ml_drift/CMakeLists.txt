@@ -21,7 +21,6 @@ enable_testing()
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# TODO: actually conditionalize this
 option(MLD_BUILD_SAMPLES "Build sample applications" OFF)
 
 # --- External Dependencies ---
@@ -77,11 +76,14 @@ include(GoogleTest)
 add_subdirectory(common)
 if(ML_DRIFT_API STREQUAL "cl")
     add_subdirectory(cl)
-    add_subdirectory(samples/stable_diffusion)
 elseif(ML_DRIFT_API STREQUAL "gl")
     add_subdirectory(gl)
 elseif(ML_DRIFT_API STREQUAL "wgpu")
     add_subdirectory(webgpu)
+endif()
+
+if(MLD_BUILD_SAMPLES)
+    add_subdirectory(samples/stable_diffusion)
 endif()
 
 add_library(ml_drift INTERFACE)

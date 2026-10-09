@@ -137,6 +137,7 @@ target_link_libraries(mld_samples_stable_diffusion_model_data_loader
 )
 
 
+if(ML_DRIFT_API STREQUAL "cl")
 add_library(mld_samples_stable_diffusion_diffuser
     diffuser.cc
     diffuser.h
@@ -144,10 +145,8 @@ add_library(mld_samples_stable_diffusion_diffuser
 target_include_directories(mld_samples_stable_diffusion_diffuser PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_samples_stable_diffusion_diffuser
   PUBLIC
-    absl::flat_hash_map
     absl::log
     absl::memory
-    absl::span
     absl::status
     absl::status_macros
     absl::statusor
@@ -162,11 +161,9 @@ target_link_libraries(mld_samples_stable_diffusion_diffuser
     mld_common_gpu_model
     mld_common_gpu_model_builder
     mld_common_kernels_cast
-    mld_common_kernels_elementwise
     mld_common_kernels_random_philox
     mld_common_model
     mld_common_model_hints
-    mld_common_operations
     mld_common_precision
     mld_common_shape
     mld_common_task_gpu_operation
@@ -182,41 +179,75 @@ target_link_libraries(mld_samples_stable_diffusion_diffuser
     mld_samples_stable_diffusion_util
 )
 
-add_executable(sd_gpu_opencl
+add_executable(mld_samples_stable_diffusion_sd_gpu_opencl
     sd_gpu_opencl.cc
 )
-target_link_libraries(sd_gpu_opencl
+add_executable(sd_gpu_opencl ALIAS mld_samples_stable_diffusion_sd_gpu_opencl)
+target_include_directories(mld_samples_stable_diffusion_sd_gpu_opencl PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
+target_link_libraries(mld_samples_stable_diffusion_sd_gpu_opencl
   PUBLIC
     absl::status
     absl::status_macros
-    absl::statusor
-    mld_cl_cl_command_queue
-    mld_cl_cl_operation
-    mld_cl_default_util
-    mld_cl_environment
-    mld_cl_inference_context
+    absl::strings
     mld_cl_opencl_wrapper
-    mld_cl_tensor
-    mld_common_data_type
-    mld_common_gpu_model
-    mld_common_gpu_model_builder
-    mld_common_kernels_cast
-    mld_common_kernels_elementwise
-    mld_common_kernels_random_philox
-    mld_common_model_hints
-    mld_common_operations
-    mld_common_precision
-    mld_common_shape
-    mld_common_task_gpu_operation
-    mld_common_task_profiling_info
-    mld_common_task_tensor_desc
     mld_samples_stable_diffusion_diffuser
+    mld_samples_stable_diffusion_util
 )
-target_link_options(sd_gpu_opencl PRIVATE
+target_link_options(mld_samples_stable_diffusion_sd_gpu_opencl PRIVATE
     "-Wl,--whole-archive"
     "$<TARGET_FILE:mld_samples_stable_diffusion_ops_diffusion_step>"
     "$<TARGET_FILE:mld_samples_stable_diffusion_ops_temb_generation>"
     "-Wl,--no-whole-archive"
 )
+endif()
+
+# The WebGPU sample executable links real Dawn symbols. The cached Dawn tarball
+# only ships a host (Linux x86_64) libdawn, so it cannot be linked for a
+# cross-compiled build.
+if(ML_DRIFT_API STREQUAL "wgpu" AND NOT CMAKE_CROSSCOMPILING)
+add_executable(mld_samples_stable_diffusion_sd_gpu_webgpu
+    sd_gpu_webgpu.cc
+)
+add_executable(sd_gpu_webgpu ALIAS mld_samples_stable_diffusion_sd_gpu_webgpu)
+target_include_directories(mld_samples_stable_diffusion_sd_gpu_webgpu PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
+target_link_libraries(mld_samples_stable_diffusion_sd_gpu_webgpu
+  PUBLIC
+    absl::status
+    absl::status_macros
+    absl::time
+    mld_common_data_type
+    mld_common_gpu_info
+    mld_common_gpu_model
+    mld_common_gpu_model_builder
+    mld_common_kernels_cast
+    mld_common_kernels_random_philox
+    mld_common_model
+    mld_common_model_hints
+    mld_common_precision
+    mld_common_shape
+    mld_common_task_gpu_operation
+    mld_common_task_tensor_desc
+    mld_common_tensor
+    mld_samples_stable_diffusion_autoencoder_kl_builder
+    mld_samples_stable_diffusion_bpe_tokenizer
+    mld_samples_stable_diffusion_ops_diffusion_step
+    mld_samples_stable_diffusion_ops_temb_generation
+    mld_samples_stable_diffusion_text_guidance_builder
+    mld_samples_stable_diffusion_unet_builder
+    mld_samples_stable_diffusion_util
+    mld_webgpu_compute_task
+    mld_webgpu_environment
+    mld_webgpu_inference_context
+    mld_webgpu_spatial_tensor
+    mld_webgpu_webgpu_api_util
+    mld_webgpu_webgpu_headers
+)
+target_link_options(mld_samples_stable_diffusion_sd_gpu_webgpu PRIVATE
+    "-Wl,--whole-archive"
+    "$<TARGET_FILE:mld_samples_stable_diffusion_ops_diffusion_step>"
+    "$<TARGET_FILE:mld_samples_stable_diffusion_ops_temb_generation>"
+    "-Wl,--no-whole-archive"
+)
+endif()
 
 add_subdirectory(ops)

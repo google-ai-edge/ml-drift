@@ -19,6 +19,7 @@ target_include_directories(mld_samples_stable_diffusion_ops_temb_generation PUBL
 target_link_libraries(mld_samples_stable_diffusion_ops_temb_generation
   PUBLIC
     absl::status
+    absl::status_macros
     flatbuffers
     mld_common_op_api
     mld_common_shape
