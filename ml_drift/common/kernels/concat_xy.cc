@@ -86,7 +86,7 @@ std::string GetConcatKernelCode(const OperationDef& op_def,
        "S >= args.dst_tensor.Slices()) { \n";
   c += "    return; \n";
   c += "  } \n";
-  c += "  args.src_tensor_0::type result = args.src_tensor_0::zero_value;\n";
+  c += "  args.dst_tensor::type result = args.dst_tensor::zero_value;\n";
   c += "  int coord = " + axis_to_coord[attr.axis] + ";\n";
   for (int i = 0; i < op_def.src_tensors.size(); ++i) {
     const std::string field =
@@ -99,7 +99,8 @@ std::string GetConcatKernelCode(const OperationDef& op_def,
         c += "  args." + tensor_names[i] + ".SetBatchRef(B);\n";
       }
     }
-    c += "    result = args." + tensor_names[i] + ".Read(" + src_coord + ");\n";
+    c += "    result = ucl::Convert<args.dst_tensor::type>(args." +
+         tensor_names[i] + ".Read(" + src_coord + "));\n";
     c += "  } \n";
     c += "  coord -= " + field + ";\n";
   }

@@ -2914,9 +2914,11 @@ void GpuModelBuilder::AddGpuOperation(
 }
 
 GpuModelBuilder::TensorHandle GpuModelBuilder::ConcatInternal(
-    const std::vector<GpuModelBuilder::TensorHandle>& srcs, Axis axis) {
-  GpuModelBuilder::TensorHandle dst = AddTensor(
-      GetOutputShapeConcat(srcs, axis), srcs[0].tensor_desc.GetDataType());
+    const std::vector<GpuModelBuilder::TensorHandle>& srcs, Axis axis,
+    std::optional<DataType> dst_type) {
+  GpuModelBuilder::TensorHandle dst =
+      AddTensor(GetOutputShapeConcat(srcs, axis),
+                dst_type.value_or(srcs[0].tensor_desc.GetDataType()));
   std::vector<int> channels;
   channels.push_back(srcs[0].tensor_desc.GetBHWCShape().c);
   for (int i = 1; i < srcs.size(); ++i) {
@@ -2956,9 +2958,11 @@ BHWC GpuModelBuilder::GetOutputShapeConcat(
 }
 
 GpuModelBuilder::TensorHandle GpuModelBuilder::Concat(
-    const std::vector<GpuModelBuilder::TensorHandle>& srcs, Axis axis) {
-  GpuModelBuilder::TensorHandle dst = AddTensor(
-      GetOutputShapeConcat(srcs, axis), srcs[0].tensor_desc.GetDataType());
+    const std::vector<GpuModelBuilder::TensorHandle>& srcs, Axis axis,
+    std::optional<DataType> dst_type) {
+  GpuModelBuilder::TensorHandle dst =
+      AddTensor(GetOutputShapeConcat(srcs, axis),
+                dst_type.value_or(srcs[0].tensor_desc.GetDataType()));
   const int max_src_images = GetMaxSrcImages(gpu_info_);
   const int max_src_buffers = gpu_info_.GetMaxBufferArguments();
   int max_inputs = std::max(2, std::min(max_src_images, max_src_buffers) - 4);
@@ -2982,15 +2986,16 @@ GpuModelBuilder::TensorHandle GpuModelBuilder::Concat(
       }
       new_srcs.push_back(srcs[src_index]);
     }
-    dst = ConcatInternal(new_srcs, axis);
+    dst = ConcatInternal(new_srcs, axis, dst_type);
   }
   return dst;
 }
 
 GpuModelBuilder::TensorHandle GpuModelBuilder::Concat(
     const GpuModelBuilder::TensorHandle& first,
-    const GpuModelBuilder::TensorHandle& second, Axis axis) {
-  return ConcatInternal({first, second}, axis);
+    const GpuModelBuilder::TensorHandle& second, Axis axis,
+    std::optional<DataType> dst_type) {
+  return ConcatInternal({first, second}, axis, dst_type);
 }
 
 GpuModelBuilder::TensorHandle GpuModelBuilder::Cumsum(
