@@ -51,6 +51,14 @@ class WebGpuExecutionEnvironment : public TestExecutionEnvironment {
   WebGpuExecutionEnvironment() : env_(wgpu::BackendType::Metal) {}
   ~WebGpuExecutionEnvironment() override = default;
   absl::Status Init() { return env_.Initialize(); }
+#elif defined _WIN32
+  // Windows has no Vulkan loader by default: RequestAdapter() with
+  // BackendType::Vulkan returns no adapter, Initialize() fails with "No
+  // adapters found", and every test in this suite reports as skipped rather
+  // than failed -- so the suite looks green while running nothing.
+  WebGpuExecutionEnvironment() : env_(wgpu::BackendType::D3D12) {}
+  ~WebGpuExecutionEnvironment() override = default;
+  absl::Status Init() { return env_.Initialize(); }
 #else
   WebGpuExecutionEnvironment() : env_(wgpu::BackendType::Vulkan) {}
   ~WebGpuExecutionEnvironment() override = default;
