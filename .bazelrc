@@ -21,6 +21,7 @@ build:android --linkopt=-Wl,--gc-sections
 
 build:android_arm64 --config=android
 build:android_arm64 --cpu=arm64-v8a
+build:android_arm64 --platforms=@rules_android//:arm64-v8a
 
 # This bazelrc file is meant to be written by a setup script.
 try-import %workspace%/.configure.bazelrc
