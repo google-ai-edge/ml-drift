@@ -13,7 +13,7 @@
 # limitations under the License.
 
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_test", "objc_library")
-load("//ml_drift:pytype.default.bzl", "pytype_strict_binary")
+load("//ml_drift:pytype.default.bzl", "pytype_strict_binary", "pytype_strict_contrib_test", "pytype_strict_library")
 
 package(licenses = ["notice"])
 
@@ -24,6 +24,27 @@ pytype_strict_binary(
     srcs = ["extract_weights_hf.py"],
     deps = [
         "@pypi//numpy",
+        "@pypi//safetensors",
+        "@pypi//torch",
+    ],
+)
+
+pytype_strict_library(
+    name = "extract_weights_hf_lib",
+    srcs = ["extract_weights_hf.py"],
+    deps = [
+        "@pypi//numpy",
+        "@pypi//safetensors",
+        "@pypi//torch",
+    ],
+)
+
+pytype_strict_contrib_test(
+    name = "extract_weights_hf_test",
+    size = "small",
+    srcs = ["extract_weights_hf_test.py"],
+    deps = [
+        ":extract_weights_hf_lib",
         "@pypi//safetensors",
         "@pypi//torch",
     ],

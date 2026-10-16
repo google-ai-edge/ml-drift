@@ -332,8 +332,12 @@ def extract_model_weights(
     print(f"Found {len(state_dict)} tensors to process.")
 
     for i, (key, tensor) in enumerate(state_dict.items()):
-      tensor_np = tensor.float().numpy()
       layer_type = get_layer_type(key)
+      if layer_type == "SKIP":
+        # Vision tower / multimodal projector weights are not used by the LLM
+        # runners, so don't convert or write them.
+        continue
+      tensor_np = tensor.float().numpy()
 
       should_quantize = False
       quant_bits = None

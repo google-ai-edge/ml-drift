@@ -78,7 +78,7 @@ converts and quantizes them into separate binary tensor files for ML Drift.
     *   `--model_path` can be either a single `.safetensors` file or a directory
         containing sharded `.safetensors` files.
     *   For a slight performance boost, use channel-wise quantization via
-        `--block_size=0 --optimize-scale=True`.
+        `--block_size=0 --optimize_scale`.
 
 3.  **Copy the tokenizer file** (`tokenizer.model` or
     `tokenizer.json`) into `/tmp/extracted/` (or pass its path
@@ -235,7 +235,7 @@ bazel run -c opt //ml_drift/samples/llm:llm_performance_profiling -- \
 
 Gemma 4 repeats a 6-layer pattern (5 local sliding-window attention layers with
 `head_dim=256, kv_heads=8` followed by 1 global full-attention layer with
-`head_dim=512, kv_heads=2, K=V`). Profiling 6 layers compiles and runs 8x faster
+`head_dim=512, kv_heads=1, K=V`). Profiling 6 layers compiles and runs 8x faster
 while capturing the exact per-layer kernel mix:
 
 ```bash
