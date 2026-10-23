@@ -892,9 +892,9 @@ enum class IntelGeneration {
   kGen9,
   kGen10,
   kGen11,
-  kGen12,
-  kGen13,
-  kGen14,
+  kGen12,  // The Xe architecture is also called Gen 12.
+  kXe2,
+  kXe3,
 };
 
 struct IntelInfo {
@@ -902,8 +902,11 @@ struct IntelInfo {
   explicit IntelInfo(const std::string& gpu_description);
 
   IntelGeneration generation = IntelGeneration::kUnknown;
+  // Number of Xe-cores (4 if the product is not recognized).
+  int compute_units_count = 4;
 
   bool IsGenerationOrNewer(IntelGeneration gen) const;
+  int GetComputeUnitsCount() const;
 };
 
 enum class MaleoonGpu {

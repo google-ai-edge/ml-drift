@@ -406,8 +406,8 @@ IntelGeneration GetIntelGeneration(const std::string& gpu_description) {
   const std::vector<std::pair<std::string, IntelGeneration>> kMapping = {
       {"gen-9", IntelGeneration::kGen9},   {"gen-10", IntelGeneration::kGen10},
       {"gen-11", IntelGeneration::kGen11}, {"gen-12", IntelGeneration::kGen12},
-      {"xe-lpg", IntelGeneration::kGen12}, {"gen-13", IntelGeneration::kGen13},
-      {"xe-2", IntelGeneration::kGen13},   {"xe-3", IntelGeneration::kGen14},
+      {"xe-lpg", IntelGeneration::kGen12}, {"xe-2", IntelGeneration::kXe2},
+      {"xe-3", IntelGeneration::kXe3},
   };
   for (const auto& v : kMapping) {
     if (gpu_description.find(v.first) != std::string::npos) {
@@ -1512,12 +1512,36 @@ bool MetalInfo::IsNativeBfloatSupported() const {
   return IsMslVersionEqualOrHigher(3, 1) && !is_simulator;
 }
 
+// Returns the Xe-core count, looked up by model number since the APIs don't
+// expose it. Unlisted GPUs return 4.
+int GetIntelComputeUnitsCount(const std::string& gpu_description) {
+  const std::vector<std::pair<std::string, int>> kMapping = {
+      // Panther Lake (Xe3, xe-3lpg).
+      {"b390", 12},  // Arc B390
+      {"b370", 10},  // Arc B370
+      // Lunar Lake (Xe2, xe-2lpg).
+      {"140v", 8},  // Arc 140V
+      {"130v", 7},  // Arc 130V
+  };
+
+  for (const auto& v : kMapping) {
+    if (gpu_description.find(v.first) != std::string::npos) {
+      return v.second;
+    }
+  }
+
+  return 4;
+}
+
 IntelInfo::IntelInfo(const std::string& gpu_description)
-    : generation(GetIntelGeneration(gpu_description)) {}
+    : generation(GetIntelGeneration(gpu_description)),
+      compute_units_count(GetIntelComputeUnitsCount(gpu_description)) {}
 
 bool IntelInfo::IsGenerationOrNewer(IntelGeneration gen) const {
   return generation >= gen;
 }
+
+int IntelInfo::GetComputeUnitsCount() const { return compute_units_count; }
 
 bool GpuInfo::IsAdreno() const { return vendor == GpuVendor::kQualcomm; }
 
@@ -1799,6 +1823,9 @@ int GpuInfo::GetComputeUnitsCount() const {
   }
   if (IsBroadcom()) {
     return broadcom_info.GetApproximateComputeUnitsCount();
+  }
+  if (IsIntel()) {
+    return intel_info.GetComputeUnitsCount();
   }
   return 4;
 }
