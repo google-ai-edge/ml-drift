@@ -15,7 +15,9 @@
 #include "ml_drift/cl/util.h"
 
 #include <cstddef>
+#include <cstring>
 #include <string>
+#include <vector>
 
 #include "absl/debugging/leak_check.h"
 #include "absl/status/status.h"
@@ -24,6 +26,8 @@
 #include "absl/strings/ascii.h"
 #include "absl/strings/str_cat.h"
 #include "ml_drift/cl/opencl_wrapper.h"
+#include "ml_drift/cl/qcom_wrapper.h"
+#include "ml_drift/cl/util_types.h"
 #include "ml_drift/common/gpu_info.h"
 #include <CL/cl.h>
 #include <CL/cl_ext.h>
@@ -32,6 +36,45 @@
 
 namespace ml_drift {
 namespace cl {
+namespace {
+
+cl_context_properties PerformanceToContextPropertyQcom(PerformanceHint hint) {
+  switch (hint) {
+    default:
+    case PerformanceHint::kHigh:
+      return CL_PERF_HINT_HIGH_QCOM;
+    case PerformanceHint::kNormal:
+      return CL_PERF_HINT_NORMAL_QCOM;
+    case PerformanceHint::kLow:
+      return CL_PERF_HINT_LOW_QCOM;
+  }
+}
+
+cl_context_properties PriorityToContextPropertyQcom(PriorityHint hint) {
+  switch (hint) {
+    case PriorityHint::kHigh:
+      return CL_PRIORITY_HINT_HIGH_QCOM;
+    default:
+    case PriorityHint::kNormal:
+      return CL_PRIORITY_HINT_NORMAL_QCOM;
+    case PriorityHint::kLow:
+      return CL_PRIORITY_HINT_LOW_QCOM;
+  }
+}
+
+cl_context_properties PriorityToContextPropertyKhr(PriorityHint hint) {
+  switch (hint) {
+    case PriorityHint::kHigh:
+      return CL_QUEUE_PRIORITY_HIGH_KHR;
+    default:
+    case PriorityHint::kNormal:
+      return CL_QUEUE_PRIORITY_MED_KHR;
+    case PriorityHint::kLow:
+      return CL_QUEUE_PRIORITY_LOW_KHR;
+  }
+}
+
+}  // namespace
 
 std::string CLErrorCodeToString(cl_int error_code) {
   switch (error_code) {
@@ -283,6 +326,105 @@ absl::StatusOr<cl_mem_flags> GetCLMemObjectFlags(cl_mem memobj) {
                                            CLErrorCodeToString(err)));
   }
   return flags;
+}
+
+absl::Status CreateQcomConvolutionFilter(cl_context context, int kernel_x,
+                                         int kernel_y, cl_mem* filter,
+                                         const void* data) {
+  cl_image_format format;
+  format.image_channel_order = CL_R;
+  format.image_channel_data_type = CL_HALF_FLOAT;
+
+  cl_weight_image_desc_qcom desc;
+  memset(&desc, 0x0, sizeof(cl_weight_image_desc_qcom));
+
+  desc.image_desc.image_type = CL_MEM_OBJECT_WEIGHT_IMAGE_QCOM;
+  desc.image_desc.image_width = kernel_x;
+  desc.image_desc.image_height = kernel_y;
+  desc.image_desc.image_array_size = 1;
+  desc.image_desc.image_row_pitch = 0;
+  desc.image_desc.image_slice_pitch = 0;
+
+  desc.weight_desc.center_coord_x = kernel_x / 2;
+  desc.weight_desc.center_coord_y = kernel_y / 2;
+  desc.weight_desc.flags = 0;  // 2D Convolution Filter
+
+  cl_mem_flags flags = CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR;
+
+  cl_int error_code;
+  *filter = clCreateImage(context, flags, &format,
+                          reinterpret_cast<cl_image_desc*>(&desc),
+                          const_cast<void*>(data), &error_code);
+
+  if (error_code != CL_SUCCESS) {
+    return absl::UnknownError(absl::StrCat(
+        "Failed to create special Qcom filter image(clCreateImage) - ",
+        error_code));
+  }
+
+  return absl::OkStatus();
+}
+
+std::vector<std::string> GetUnsupportedExtensions() { return {}; }
+
+std::vector<std::string> GetPrivateExtensions(const GpuInfo& gpu_info) {
+  std::vector<std::string> extensions;
+  if (gpu_info.IsAdreno()) {
+    if (AdrenoSupportsWaveMemory(gpu_info)) {
+      extensions.push_back("ucl_wave_memory");
+    }
+  }
+  if (gpu_info.IsIntel()) {
+    // On intel we have GPR File that any register can be accessed from any
+    // thread. So usual 'private' registers can be used as wave memory.
+    if (gpu_info.opencl_info.IsCLVK()) {
+      // for CLVK it will work because of specific driver
+      extensions.push_back("ucl_wave_memory");
+    } else {
+      const bool supports_subgroups =
+          (gpu_info.SupportsExtension("cl_khr_subgroups") ||
+           gpu_info.SupportsExtension("cl_intel_subgroups"));
+      if (supports_subgroups &&
+          gpu_info.SupportsExtension("cl_intel_required_subgroup_size")) {
+        extensions.push_back("ucl_wave_memory");
+      }
+    }
+  }
+  if (gpu_info.IsPowerVR()) {
+    if (gpu_info.powervr_info.gpu_version >= PowerVRGpu::kCXT &&
+        gpu_info.SupportsExtension("cl_khr_subgroups")) {
+      extensions.push_back("ucl_wave_memory");
+    }
+  }
+  return extensions;
+}
+
+void AppendContextHints(const GpuInfo& gpu_info,
+                        PerformanceHint performance_hint,
+                        PriorityHint priority_hint,
+                        std::vector<cl_context_properties>* props) {
+  if (gpu_info.SupportsExtension("cl_qcom_perf_hint")) {
+    props->push_back(CL_CONTEXT_PERF_HINT_QCOM);
+    props->push_back(PerformanceToContextPropertyQcom(performance_hint));
+  }
+  if (gpu_info.SupportsExtension("cl_qcom_priority_hint")) {
+    props->push_back(CL_CONTEXT_PRIORITY_HINT_QCOM);
+    props->push_back(PriorityToContextPropertyQcom(priority_hint));
+  }
+}
+
+void AppendCommandQueueHints(const GpuInfo& gpu_info,
+                             PriorityHint priority_hint,
+                             std::vector<cl_queue_properties>* props) {
+  if (gpu_info.IsPowerVR()) {
+    // if cl_khr_priority_hints used, inference can stuck at least on some
+    // powervr
+    return;
+  }
+  if (gpu_info.SupportsExtension("cl_khr_priority_hints")) {
+    props->push_back(CL_QUEUE_PRIORITY_KHR);
+    props->push_back(PriorityToContextPropertyKhr(priority_hint));
+  }
 }
 
 AdrenoInfo::OpenClCompilerVersion GetQualcommOpenClCompilerVersion(

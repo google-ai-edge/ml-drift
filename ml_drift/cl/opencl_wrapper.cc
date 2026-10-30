@@ -15,7 +15,7 @@
 #include "ml_drift/cl/opencl_wrapper.h"
 
 #include "absl/debugging/leak_check.h"
-#include "ml_drift/cl/default/qcom_wrapper.h"
+#include "ml_drift/cl/qcom_wrapper.h"
 
 #if defined(_WIN32)
 #define __WINDOWS__

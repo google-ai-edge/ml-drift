@@ -15,6 +15,7 @@
 add_library(mld_cl_opencl_wrapper
     opencl_wrapper.cc
     opencl_wrapper.h
+    qcom_wrapper.h
 )
 target_link_libraries(mld_cl_opencl_wrapper
   PUBLIC
@@ -154,7 +155,7 @@ target_link_libraries(mld_cl_inference_context
     mld_cl_cl_command_buffer
     mld_cl_cl_operation
     mld_cl_command_buffer
-    mld_cl_default_qcom_command_buffer
+    mld_cl_qcom_command_buffer
     mld_cl_environment
     mld_cl_memory_manager
     mld_cl_serialization_cc_fbs
@@ -216,6 +217,23 @@ target_link_libraries(mld_cl_command_buffer
     mld_cl_cl_command_queue
     mld_cl_cl_event
     mld_cl_cl_operation
+)
+
+add_library(mld_cl_qcom_command_buffer qcom_command_buffer.cc qcom_command_buffer.h)
+target_include_directories(mld_cl_qcom_command_buffer PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
+target_link_libraries(mld_cl_qcom_command_buffer
+  PUBLIC
+    absl::status
+    absl::status_macros
+    absl::statusor
+    mld_cl_cl_command_queue
+    mld_cl_cl_context
+    mld_cl_cl_device
+    mld_cl_cl_event
+    mld_cl_cl_operation
+    mld_cl_command_buffer
+    mld_cl_opencl_wrapper
+    mld_cl_util
 )
 
 add_library(mld_cl_cl_event cl_event.cc cl_event.h)

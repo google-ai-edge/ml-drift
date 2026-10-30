@@ -69,10 +69,15 @@ absl::Status CreateQcomConvolutionFilter(cl_context context, int kernel_x,
                                          int kernel_y, cl_mem* filter,
                                          const void* data);
 
-// Extensions that cannot be used in open-source
+// Device-reported extensions that must be ignored by this build.
 std::vector<std::string> GetUnsupportedExtensions();
-// Extensions that cannot be used in open-source
+// Pseudo-extensions (e.g. "ucl_wave_memory") that this build enables on top of
+// what the device reports.
 std::vector<std::string> GetPrivateExtensions(const GpuInfo& gpu_info);
+
+// Returns true if "ucl_wave_memory" can be enabled on the given Adreno GPU.
+// Provided by the platform-specific util library (cl/default or cl/google).
+bool AdrenoSupportsWaveMemory(const GpuInfo& gpu_info);
 
 void AppendContextHints(const GpuInfo& gpu_info,
                         PerformanceHint performance_hint,
@@ -86,6 +91,8 @@ void AppendCommandQueueHints(const GpuInfo& gpu_info,
 AdrenoInfo::OpenClCompilerVersion GetQualcommOpenClCompilerVersion(
     const std::string& cl_driver_version);
 
+// Patches a compiled Adreno program binary in place. Provided by the
+// platform-specific util library (cl/default or cl/google).
 void FixAdrenoBinary(std::vector<uint8_t>* binary);
 
 std::string GetImgPixelSubgroupDotSample();

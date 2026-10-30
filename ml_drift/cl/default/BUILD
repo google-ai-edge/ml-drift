@@ -20,29 +20,9 @@ package(
 )
 
 cc_library(
-    name = "qcom_command_buffer",
-    srcs = ["qcom_command_buffer.cc"],
-    deps = [
-        "//ml_drift/cl:cl_context",
-        "//ml_drift/cl:cl_device",
-        "//ml_drift/cl:command_buffer",
-        "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:statusor",
-    ],
-)
-
-cc_library(
-    name = "qcom_wrapper",
-    hdrs = ["qcom_wrapper.h"],
-)
-
-cc_library(
     name = "util",
     srcs = ["util.cc"],
     deps = [
-        "//ml_drift/cl:opencl_wrapper",
-        "//ml_drift/cl:util_types",
         "//ml_drift/common:gpu_info",
-        "@com_google_absl//absl/status",
     ],
 )
