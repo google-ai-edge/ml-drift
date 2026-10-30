@@ -67,10 +67,12 @@ std::array<WeightsDescription, 5> WeightsDescsIntOHWIToUInt() {
                         {Axis::kOutputChannels, 0}}}}};
 };
 
-std::array<WeightsDescription, 5> WeightsDescsIntOHWIToFloat() {
+std::array<WeightsDescription, 6> WeightsDescsIntOHWIToFloat() {
   return {
       {{.layout = WeightsLayout::kOSpatialIOGroupI4O4, .output_group_size = 16},
        {.layout = WeightsLayout::kOSpatialIOGroupO4I4, .output_group_size = 16},
+       {.layout = WeightsLayout::kOSpatialIOGroupI2I2gr0O8I2gr1O2,
+        .output_group_size = 4},
        {.layout = WeightsLayout::kCustomGroups,
         .group_sizes = {{Axis::kInputChannels, 2},
                         {Axis::kOutputChannels, 4},
@@ -100,7 +102,7 @@ std::array<WeightsDescription, 5> WeightsDescsIntOHWIToFloat() {
                         {Axis::kOutputChannels, 0}}}}};
 };
 
-std::array<WeightsDescription, 9> WeightsDescsIntToFloat() {
+std::array<WeightsDescription, 10> WeightsDescsIntToFloat() {
   return {{{
                .layout = WeightsLayout::kOSpatialIOGroupI4O4,
                .output_group_size = 16,
@@ -108,6 +110,10 @@ std::array<WeightsDescription, 9> WeightsDescsIntToFloat() {
            {
                .layout = WeightsLayout::kOSpatialIOGroupO4I4,
                .output_group_size = 16,
+           },
+           {
+               .layout = WeightsLayout::kOSpatialIOGroupI2I2gr0O8I2gr1O2,
+               .output_group_size = 4,
            },
            {
                .layout = WeightsLayout::k2DX4I4YIsSpatialIAndXIsOOGroupO4,
@@ -160,7 +166,7 @@ std::array<WeightsDescription, 9> WeightsDescsIntToFloat() {
            }}};
 };
 
-std::array<WeightsDescription, 8> WeightsDescsI8ToUI8() {
+std::array<WeightsDescription, 9> WeightsDescsI8ToUI8() {
   return {{{
                .type = DataType::kUint8,
                .layout = WeightsLayout::kOSpatialIOGroupI4O4,
@@ -170,6 +176,11 @@ std::array<WeightsDescription, 8> WeightsDescsI8ToUI8() {
                .type = DataType::kUint8,
                .layout = WeightsLayout::kOSpatialIOGroupO4I4,
                .output_group_size = 16,
+           },
+           {
+               .type = DataType::kUint8,
+               .layout = WeightsLayout::kOSpatialIOGroupI2I2gr0O8I2gr1O2,
+               .output_group_size = 4,
            },
            {.type = DataType::kUint8,
             .layout = WeightsLayout::kCustomGroups,
@@ -226,7 +237,7 @@ std::array<WeightsDescription, 8> WeightsDescsI8ToUI8() {
            }}};
 };
 
-std::array<WeightsDescription, 9> WeightsDescsF32ToF32() {
+std::array<WeightsDescription, 10> WeightsDescsF32ToF32() {
   return {{{
                .layout = WeightsLayout::kOSpatialIOGroupI4O4,
                .output_group_size = 16,
@@ -234,6 +245,10 @@ std::array<WeightsDescription, 9> WeightsDescsF32ToF32() {
            {
                .layout = WeightsLayout::kOSpatialIOGroupO4I4,
                .output_group_size = 16,
+           },
+           {
+               .layout = WeightsLayout::kOSpatialIOGroupI2I2gr0O8I2gr1O2,
+               .output_group_size = 4,
            },
            {
                .layout = WeightsLayout::k2DX4I4YIsSpatialIAndXIsOOGroupO4,
@@ -285,7 +300,7 @@ std::array<WeightsDescription, 9> WeightsDescsF32ToF32() {
            }}};
 };
 
-std::array<WeightsDescription, 7> WeightsDescsUITo8Bit() {
+std::array<WeightsDescription, 8> WeightsDescsUITo8Bit() {
   return {{{
                .layout = WeightsLayout::kOSpatialIOGroupI4O4,
                .output_group_size = 16,
@@ -293,6 +308,10 @@ std::array<WeightsDescription, 7> WeightsDescsUITo8Bit() {
            {
                .layout = WeightsLayout::kOSpatialIOGroupO4I4,
                .output_group_size = 16,
+           },
+           {
+               .layout = WeightsLayout::kOSpatialIOGroupI2I2gr0O8I2gr1O2,
+               .output_group_size = 4,
            },
            {.layout = WeightsLayout::kCustomGroups,
             .group_sizes = {{Axis::kInputChannels, 2},
@@ -339,7 +358,7 @@ std::array<WeightsDescription, 7> WeightsDescsUITo8Bit() {
            }}};
 };
 
-std::array<WeightsDescription, 4> WeightsDescsUITo4Bit() {
+std::array<WeightsDescription, 5> WeightsDescsUITo4Bit() {
   return {{{
                .layout = WeightsLayout::kOSpatialIOGroupI4O4,
                .output_group_size = 16,
@@ -347,6 +366,10 @@ std::array<WeightsDescription, 4> WeightsDescsUITo4Bit() {
            {
                .layout = WeightsLayout::kOSpatialIOGroupO4I4,
                .output_group_size = 16,
+           },
+           {
+               .layout = WeightsLayout::kOSpatialIOGroupI2I2gr0O8I2gr1O2,
+               .output_group_size = 4,
            },
            {.layout = WeightsLayout::kCustomGroups,
             .group_sizes = {{Axis::kInputChannels, 2},
@@ -557,7 +580,8 @@ INSTANTIATE_TEST_SUITE_P(
     Combine(ValuesIn(GetFloatTypes()),
             ValuesIn(GetTensorStoragesTypesWithoutSingleTexture2D()),
             ValuesIn({WeightsLayout::kOSpatialIOGroupI4O4,
-                      WeightsLayout::kOSpatialIOGroupO4I4})),
+                      WeightsLayout::kOSpatialIOGroupO4I4,
+                      WeightsLayout::kOSpatialIOGroupI2I2gr0O8I2gr1O2})),
     [](const TestParamInfo<OutTest::ParamType>& info) {
       return absl::StrReplaceAll(
           absl::StrCat(ToString(std::get<0>(info.param)), "_",
