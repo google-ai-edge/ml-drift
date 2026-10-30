@@ -654,10 +654,10 @@ struct OpenGlInfo {
 
 struct VulkanInfo {
   std::string vendor_name;
-  uint32_t api_version = -1;
-  uint32_t api_version_major = -1;
-  uint32_t api_version_minor = -1;
-  uint32_t api_version_patch = -1;
+  uint32_t api_version = static_cast<uint32_t>(-1);
+  uint32_t api_version_major = static_cast<uint32_t>(-1);
+  uint32_t api_version_minor = static_cast<uint32_t>(-1);
+  uint32_t api_version_patch = static_cast<uint32_t>(-1);
 
   uint32_t max_per_stage_descriptor_sampled_images = 0;
   uint32_t max_per_stage_descriptor_storage_images = 0;

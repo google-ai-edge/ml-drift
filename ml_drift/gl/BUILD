@@ -201,6 +201,12 @@ flatbuffer_cc_library(
         "--scoped-enums",
         "-I .",
     ],
+    include_paths = [
+        "external/ml_drift",
+        "ml_drift",
+        "ml_drift/common",
+        "ml_drift/common/task",
+    ],
     includes = [
         "//ml_drift/common:gpu_model_cc_fbs_includes",
         "//ml_drift/common/task:serialization_base_cc_fbs_includes",

@@ -567,6 +567,7 @@ cc_library(
             "-ldl",  # opencl_wrapper calls dlopen()
             "-lm",
         ],
+        "//ml_drift:windows": [],  # No -ldl for Windows
         "//conditions:default": ["-ldl"],  # opencl_wrapper calls dlopen()
     }),
     deps = [
