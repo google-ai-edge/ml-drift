@@ -3,7 +3,7 @@ module(
     bazel_compatibility = [">=8.0.0"],
 )
 
-bazel_dep(name = "rules_python", version = "0.40.0")
+bazel_dep(name = "rules_python", version = "1.7.0")
 
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
 python.toolchain(
@@ -38,7 +38,7 @@ archive_override(
     urls = ["https://github.com/abseil/abseil-cpp/releases/download/20260817.0/abseil-cpp-20260817.0.tar.gz"],
 )
 
-bazel_dep(name = "googletest", version = "1.17.0", repo_name = "com_google_googletest")
+bazel_dep(name = "googletest", version = "1.18.0", repo_name = "com_google_googletest")
 bazel_dep(name = "rules_android_ndk", version = "0.1.2")
 
 if_android_ndk_home_extension = use_extension(
@@ -69,11 +69,11 @@ bazel_dep(
 )
 bazel_dep(
     name = "rules_cc",
-    version = "0.2.0",
+    version = "0.2.22",
 )
 bazel_dep(
     name = "rules_java",
-    version = "8.14.0",
+    version = "9.3.0",
 )
 bazel_dep(
     name = "fp16",
@@ -81,11 +81,11 @@ bazel_dep(
 )
 bazel_dep(
     name = "bazel_skylib",
-    version = "1.8.1",
+    version = "1.9.2",
 )
 bazel_dep(
     name = "platforms",
-    version = "1.0.0",
+    version = "1.1.0",
 )
 bazel_dep(
     name = "cpuinfo",
@@ -98,7 +98,7 @@ bazel_dep(
 )
 bazel_dep(
     name = "re2",
-    version = "2024-07-02.bcr.1",
+    version = "2025-11-05.bcr.1",
     repo_name = "com_github_google_re2",
 )
 
@@ -209,11 +209,11 @@ use_repo(flatbuffers, "flatbuffers")
 
 bazel_dep(
     name = "protobuf",
-    version = "29.3",
+    version = "35.0",
 )
 bazel_dep(
     name = "rules_rust",
-    version = "0.61.0",
+    version = "0.69.0",
 )
 
 rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")

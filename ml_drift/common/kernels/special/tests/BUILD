@@ -17,7 +17,6 @@ load("//ml_drift/common:build_config.bzl", "mld_gpu_tests_tags")
 load("//ml_drift/common/kernels/tests:mld_kernel_test.bzl", "mld_kernel_test")
 
 package(
-    default_hdrs_check = "strict",
     default_testonly = 1,
     default_visibility = ["//visibility:public"],
     licenses = ["notice"],
