@@ -2328,8 +2328,6 @@ ConvGeneric::KernelParams GetKernelParamsIntel(
     kernel_params.work_group_size = int3(64, 1, 1);
     kernel_params.weights_upload_type =
         ConvGeneric::WeightsUploadType::kIntelWave16MatMul;
-    // enable in separate CL
-    // kernel_params.use_vec8_accum = true;
     const int task_size_spatial = dst_shape.w * dst_shape.b * dst_shape.h;
     const double task_size = 1.0 * task_size_spatial * conv_params.dst_slices;
     const double task_size_per_cu = task_size / gpu_info.GetComputeUnitsCount();
@@ -2385,6 +2383,7 @@ ConvGeneric::KernelParams GetKernelParamsIntel(
       kernel_params.work_group_size =
           kernel_params.linear_spatial ? int3(16, 8, 1) : int3(16, 1, 8);
     }
+    kernel_params.use_vec8_accum = kernel_params.block_size.w % 2 == 0;
     return kernel_params;
   }
 
