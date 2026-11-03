@@ -146,6 +146,14 @@ class GpuModelBuilder {
 
   TensorHandle AddLinearTensor(int x, DataType data_type);
 
+  // Returns a tensor whose descriptor is compatible with the single-argument
+  // Read selector used by convolution / fully-connected kernels for the
+  // `biases` input. That selector requires either a LINEAR/HW layout or a
+  // BUFFER-family storage type. If `src` already meets this requirement it is
+  // returned unchanged; otherwise a new tensor with BUFFER storage (same
+  // layout and shape) is added and filled via a Copy op.
+  TensorHandle MakeBiasLinear(const TensorHandle& src);
+
   TensorHandle AddConstantTensor(TensorDescriptor&& tensor_desc);
   TensorHandle AddConstantTensor(
       const Tensor<Linear, DataType::kFloat32>& tensor, DataType data_type);
