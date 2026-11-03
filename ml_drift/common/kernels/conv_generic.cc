@@ -3798,28 +3798,6 @@ ConvGeneric CreateConvGeneric(const GpuInfo& gpu_info,
   return result;
 }
 
-ConvGeneric CreateConvGeneric(const GpuInfo& gpu_info,
-                              const OperationDef& definition,
-                              CalculationsPrecision precision,
-                              const FullyConnectedAttributes& attr,
-                              const BHWC* dst_shape) {
-  ConvGeneric result;
-  result.conv_params_.weights_data_type =
-      DeduceDataTypeFromPrecision(precision);
-  result.conv_params_.src_desc = definition.src_tensors[0];
-  result.conv_params_.precision = precision;
-  result.conv_params_.src_slices = DivideRoundUp(attr.weights.shape.i, 4);
-  result.conv_params_.dst_slices = DivideRoundUp(attr.weights.shape.o, 4);
-  result.conv_params_.weights_desc.layout = WeightsLayout::kUnknown;
-  result.kernel_params_ =
-      GetKernelParams(gpu_info, result.conv_params_, dst_shape);
-  result.conv_params_.has_bias = !attr.bias.data.empty();
-  result.GenerateCode(definition, gpu_info);
-  result.UploadWeights(attr.weights);
-  result.UploadBias(gpu_info, attr.bias);
-  return result;
-}
-
 ConvGeneric CreateConvGenericExternalWeights(
     const GpuInfo& gpu_info, const OperationDef& definition,
     CalculationsPrecision precision, const Convolution2DAttributes& attr,

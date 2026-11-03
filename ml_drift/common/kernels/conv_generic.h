@@ -206,12 +206,6 @@ class ConvGeneric : public GPUOperation {
                                        const Convolution2DAttributes& attr,
                                        const BHWC* dst_shape);
 
-  friend ConvGeneric CreateConvGeneric(const GpuInfo& gpu_info,
-                                       const OperationDef& definition,
-                                       CalculationsPrecision precision,
-                                       const FullyConnectedAttributes& attr,
-                                       const BHWC* dst_shape);
-
   friend ConvGeneric CreateConvGenericExternalWeights(
       const GpuInfo& gpu_info, const OperationDef& definition,
       CalculationsPrecision precision, const Convolution2DAttributes& attr,
@@ -328,13 +322,6 @@ ConvGeneric CreateConvGeneric(const GpuInfo& gpu_info,
                               const OperationDef& definition,
                               CalculationsPrecision precision,
                               const Convolution2DAttributes& attr,
-                              const BHWC* dst_shape = nullptr);
-
-// Creates a generic convolution operation for fully connected layers.
-ConvGeneric CreateConvGeneric(const GpuInfo& gpu_info,
-                              const OperationDef& definition,
-                              CalculationsPrecision precision,
-                              const FullyConnectedAttributes& attr,
                               const BHWC* dst_shape = nullptr);
 
 // Creates a generic convolution operation with external weights.
