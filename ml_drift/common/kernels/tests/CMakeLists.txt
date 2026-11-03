@@ -509,6 +509,7 @@ target_link_libraries(mld_common_kernels_tests_conv_wave_matrix_mali_f16_test_ut
     mld_common_task_tensor_desc
     mld_common_task_testing_ref_ops
     mld_common_task_testing_util
+    mld_common_task_weights_conversion
     mld_common_tensor
     XNNPACK
 )

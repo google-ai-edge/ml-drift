@@ -99,6 +99,12 @@ ConvWaveMatrixMaliF16 CreateConvWaveMatrixMaliF16(
     const GpuInfo& gpu_info, const TensorDescriptor& src_desc,
     const TensorDescriptor& dst_desc, const Convolution2DAttributes& attr);
 
+// Creates a convolution operation with wave matrix and external weights.
+ConvWaveMatrixMaliF16 CreateConvWaveMatrixMaliF16ExternalWeights(
+    const GpuInfo& gpu_info, const TensorDescriptor& src_desc,
+    const TensorDescriptor& dst_desc, const Convolution2DAttributes& attr,
+    const TensorDescriptor* bias);
+
 }  // namespace ml_drift
 
 #endif  // ML_DRIFT_COMMON_KERNELS_CONV_WAVE_MATRIX_MALI_F16_H_

@@ -341,4 +341,31 @@ ConvWaveMatrixMaliF16 CreateConvWaveMatrixMaliF16(
   return result;
 }
 
+ConvWaveMatrixMaliF16 CreateConvWaveMatrixMaliF16ExternalWeights(
+    const GpuInfo& gpu_info, const TensorDescriptor& src_desc,
+    const TensorDescriptor& dst_desc, const Convolution2DAttributes& attr,
+    const TensorDescriptor* bias) {
+  ConvWaveMatrixMaliF16::ConvParams conv_params;
+  conv_params.weights_shape = attr.GetWeightsShape();
+  conv_params.InitKernelXY(attr);
+  conv_params.has_bias = bias != nullptr;
+  ConvWaveMatrixMaliF16 result =
+      ConvWaveMatrixMaliF16(gpu_info, conv_params, src_desc, dst_desc);
+  BufferDescriptor buffer_desc;
+  buffer_desc.element_type = DataType::kFloat16;
+  buffer_desc.element_size = 4;
+  buffer_desc.memory_type = MemoryType::kGlobal;
+  result.AddSrcBuffer("weights", buffer_desc);
+  if (bias) {
+    result.AddSrcTensor("biases", *bias);
+  }
+  if (!conv_params.x_kernel_is_1) {
+    AddXKernelParams(attr, &result);
+  }
+  if (!conv_params.y_kernel_is_1) {
+    AddYKernelParams(attr, &result);
+  }
+  return result;
+}
+
 }  // namespace ml_drift
