@@ -39,7 +39,7 @@ archive_override(
 )
 
 bazel_dep(name = "googletest", version = "1.18.0", repo_name = "com_google_googletest")
-bazel_dep(name = "rules_android_ndk", version = "0.1.2")
+bazel_dep(name = "rules_android_ndk", version = "0.1.3")
 
 if_android_ndk_home_extension = use_extension(
     "//third_party:android_ndk.bzl",
@@ -48,10 +48,7 @@ if_android_ndk_home_extension = use_extension(
 if_android_ndk_home_extension.configure(api_level = 21)
 use_repo(if_android_ndk_home_extension, "androidndk")
 
-bazel_dep(
-    name = "rules_android",
-    version = "0.6.0",
-)
+bazel_dep(name = "rules_android", version = "0.7.1")
 
 android_sdk_repository_extension = use_extension(
     "@rules_android//rules/android_sdk_repository:rule.bzl",
