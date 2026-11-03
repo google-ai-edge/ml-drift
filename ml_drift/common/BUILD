@@ -25,8 +25,6 @@ package(
     licenses = ["notice"],
 )
 
-exports_files(["custom_transformations.h"])
-
 cc_library(
     name = "access_type",
     hdrs = ["access_type.h"],
