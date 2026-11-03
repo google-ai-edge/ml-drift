@@ -37,6 +37,7 @@ class ConvWaveMatrixMaliF16 : public GPUOperation {
   struct ConvParams {
     bool x_kernel_is_1 = true;
     bool y_kernel_is_1 = true;
+    bool has_bias = true;
     OHWI weights_shape;
 
     void InitKernelXY(const Convolution2DAttributes& attr) {

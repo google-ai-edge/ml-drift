@@ -198,18 +198,29 @@ MAIN_FUNCTION($0) {
   for (int s = 0; s < kernel_params.s_block_size; s++) {
     c += "  dst_s_final = DST_S + " + std::to_string(s * 4) + ";\n";
     c += "  if (dst_s_final < args.dst.Slices()) {\n";
+    if (conv_params.has_bias) {
+      c += "    half4 bias_val = args.biases.Read(dst_s_final);\n";
+    }
     c += "    int dst_x_final;\n";
     for (int x = 0; x < kernel_params.x_block_size; x++) {
       std::string patch = R"(
     dst_x_final = DST_X + $0 * 8 + 0;
     if (dst_x_final < args.dst.Width()) {
       half4 R = (half4)(r_w$0_s$1.x, r_w$0_s$1.y, r_w$0_s$2.x, r_w$0_s$2.y);
-      args.dst.Write(R, dst_x_final, dst_y, dst_s_final);
+)";
+      if (conv_params.has_bias) {
+        patch += "      R += bias_val;\n";
+      }
+      patch += R"(      args.dst.Write(R, dst_x_final, dst_y, dst_s_final);
     }
     dst_x_final = DST_X + $0 * 8 + 1;
     if (dst_x_final < args.dst.Width()) {
       half4 R = (half4)(r_w$0_s$1.z, r_w$0_s$1.w, r_w$0_s$2.z, r_w$0_s$2.w);
-      args.dst.Write(R, dst_x_final, dst_y, dst_s_final);
+)";
+      if (conv_params.has_bias) {
+        patch += "      R += bias_val;\n";
+      }
+      patch += R"(      args.dst.Write(R, dst_x_final, dst_y, dst_s_final);
     }
 )";
       c += absl::Substitute(patch, x, s * 2 + 0, s * 2 + 1);
@@ -311,9 +322,16 @@ ConvWaveMatrixMaliF16 CreateConvWaveMatrixMaliF16(
   ConvWaveMatrixMaliF16::ConvParams conv_params;
   conv_params.weights_shape = attr.GetWeightsShape();
   conv_params.InitKernelXY(attr);
+  conv_params.has_bias = !attr.bias.empty();
   ConvWaveMatrixMaliF16 result =
       ConvWaveMatrixMaliF16(gpu_info, conv_params, src_desc, dst_desc);
   result.AddWeights(GetFloatWeights(attr));
+  if (conv_params.has_bias) {
+    TensorDescriptor bias_tensor_desc = CreateConstantLinearTensorDescriptor(
+        gpu_info, DataType::kFloat16, attr.bias);
+    result.args_.AddObject("biases", std::make_unique<TensorDescriptor>(
+                                         std::move(bias_tensor_desc)));
+  }
   if (!conv_params.x_kernel_is_1) {
     AddXKernelParams(attr, &result);
   }

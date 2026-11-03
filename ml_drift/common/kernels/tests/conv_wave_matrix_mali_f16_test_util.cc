@@ -70,7 +70,7 @@ absl::Status ConvWaveMatrixMaliF161x1BigTest(TestExecutionEnvironment& env,
   attr.strides = HW(1, 1);
   attr.dilations = HW(1, 1);
   attr.weights = weights;
-  attr.bias = MakeZeroTensor(Linear(dst_channels));
+  attr.bias = MakeSyntheticTensor(Linear(dst_channels));
 
   auto src_shape = BHWC(1, 3, 17, src_channels);
 
@@ -95,7 +95,7 @@ absl::Status ConvWaveMatrixMaliF16BigTest(TestExecutionEnvironment& env,
   attr.strides = HW(1, 2);
   attr.dilations = HW(2, 1);
   attr.weights = weights;
-  attr.bias = MakeZeroTensor(Linear(dst_channels));
+  attr.bias = MakeSyntheticTensor(Linear(dst_channels));
 
   auto src_shape = BHWC(1, 9, 17, src_channels);
 
