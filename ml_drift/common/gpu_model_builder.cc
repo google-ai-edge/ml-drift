@@ -3388,6 +3388,7 @@ absl::StatusOr<GpuModelBuilder::TensorHandle> GpuModelBuilder::BatchedMatMul(
           GetRecommendedMaxTotalSpatialSize(
               gpu_info_, GetConvPrecision(left.tensor_desc.GetDataType())) &&
       batched_mat_mul_attr.transpose_right &&
+      (right_shape.h == 1 || right_shape.h == dst_shape.h) &&
       IsFullyConnectedWeightsAreSpatialTensorSupported(weights_shape_ohwi)) {
     auto weights = AddTensor(w_shape, right.tensor_desc.GetDataType());
 
@@ -3427,6 +3428,8 @@ absl::StatusOr<GpuModelBuilder::TensorHandle> GpuModelBuilder::BatchedMatMul(
         OHWI(right_shape.w, right_shape.b, right_shape.h, right_shape.c);
   }
 
+  const bool different_weights_for_height =
+      weights_shape.h != 1 || weights_shape.w != 1;
   std::unique_ptr<GPUOperation> conv_op;
   WeightsDescription conv_weights_desc;
   {
@@ -3448,11 +3451,17 @@ absl::StatusOr<GpuModelBuilder::TensorHandle> GpuModelBuilder::BatchedMatMul(
         attr, /*bias_desc*/ nullptr, dst_shape, gpu_info_, op_def,
         GetConvPrecision(left.tensor_desc.GetDataType()), hints_,
         &conv_weights_desc, src_exp_td,
-        /*different_weights_for_height=*/true, runtime_check);
+        different_weights_for_height, runtime_check);
   }
 
+  OHWI layout_weights_shape = weights_shape;
+  if (different_weights_for_height) {
+    // Replicate the W weight matrices across H so the converted spatial extent
+    // (H * W) matches dst_shape.h when broadcasting (W < dst_shape.h).
+    layout_weights_shape.h = DivideRoundUp(dst_shape.h, weights_shape.w);
+  }
   std::vector<TensorHandle> conv_weights = WeightsConversion(
-      weights_handle, Layout::kHWIO, conv_weights_desc, weights_shape);
+      weights_handle, Layout::kHWIO, conv_weights_desc, layout_weights_shape);
 
   gpu_model_.nodes.push_back({});
   auto& conv_node = gpu_model_.nodes.back();

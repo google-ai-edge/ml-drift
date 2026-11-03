@@ -394,4 +394,62 @@ absl::Status TestFullyConnected(TestExecutionEnvironment* env,
   return absl::OkStatus();
 }
 
+absl::Status TestBatchedMatMulBroadcast(TestExecutionEnvironment* env) {
+  TensorStorageType storage_type = TensorStorageType::kBuffer;
+  CalculationsPrecision precision = CalculationsPrecision::kF32;
+  CreateGpuModelInfo create_info;
+  create_info.precision = precision;
+  create_info.storage_type = storage_type;
+  DataType float_type = DeduceDataTypeFromPrecision(create_info.precision);
+
+  const BHWC left_shape(1, 4, 8, 16);
+  TensorFloat32 left_tensor;
+  left_tensor.shape = left_shape;
+  left_tensor.data.resize(left_tensor.shape.DimensionsProduct());
+  for (int i = 0; i < left_tensor.data.size(); ++i) {
+    left_tensor.data[i] = std::sin(i * 0.123f);
+  }
+
+  for (const int right_batch : {1, 2, 4}) {
+    for (const bool transpose_right : {false, true}) {
+      const BHWC right_shape = transpose_right ? BHWC(1, right_batch, 32, 16)
+                                               : BHWC(1, right_batch, 16, 32);
+      GpuModelBuilder model_builder(env->GetGpuInfo(), create_info.hints,
+                                    create_info.precision,
+                                    create_info.storage_type);
+      auto left_th = model_builder.AddTensor(left_shape, float_type);
+      auto right_th = model_builder.AddTensor(right_shape, float_type);
+      BatchedMatMulAttributes bmm_attr;
+      bmm_attr.transpose_right = transpose_right;
+      ABSL_ASSIGN_OR_RETURN(
+          auto out, model_builder.BatchedMatMul(left_th, right_th, bmm_attr));
+
+      GpuModel gpu_model;
+      ABSL_RETURN_IF_ERROR(model_builder.GetGpuModel(
+          std::vector<unsigned int>{left_th.id, right_th.id},
+          std::vector<unsigned int>{out.id}, &gpu_model));
+
+      TensorFloat32 right_tensor;
+      right_tensor.shape = right_shape;
+      right_tensor.data.resize(right_tensor.shape.DimensionsProduct());
+      for (int i = 0; i < right_tensor.data.size(); ++i) {
+        right_tensor.data[i] = std::sin(i * 0.12345f);
+      }
+
+      TensorFloat32 dst_tensor_gpu;
+      ABSL_RETURN_IF_ERROR(env->ExecuteGpuModel(
+          {left_tensor, right_tensor},
+          std::vector<TensorFloat32*>{&dst_tensor_gpu}, &gpu_model));
+
+      TensorFloat32 dst_ref_tensor =
+          BatchedMatMulReference(left_tensor, right_tensor, bmm_attr);
+      EXPECT_THAT(
+          dst_tensor_gpu.data,
+          testing::Pointwise(testing::FloatNear(1e-5f), dst_ref_tensor.data));
+    }
+  }
+
+  return absl::OkStatus();
+}
+
 }  // namespace ml_drift
