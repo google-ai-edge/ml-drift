@@ -291,6 +291,80 @@ absl::Status ConcatChannelsTest(TestExecutionEnvironment& env,
   return absl::OkStatus();
 }
 
+absl::Status ConcatChannelsMixedTypesTest(TestExecutionEnvironment& env,
+                                          TensorStorageType storage) {
+  TensorFloat32 src0, src1;
+  src0.shape = BHWC(1, 2, 1, 1);
+  src0.data = {0.0f, -1.0f};
+  src1.shape = BHWC(1, 2, 1, 2);
+  src1.data = {1.0f, 2.0f, 3.0f, 4.0f};
+
+  OperationDef op_def;
+  op_def.src_tensors.push_back({DataType::FLOAT16, storage, Layout::HWC});
+  op_def.src_tensors.push_back({DataType::FLOAT32, storage, Layout::HWC});
+  op_def.dst_tensors.push_back({DataType::FLOAT32, storage, Layout::HWC});
+
+  TensorFloat32 dst_tensor;
+  GPUOperation operation = CreateConcatZ(op_def, {1, 2}, env.GetGpuInfo());
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
+      {src0, src1}, std::make_unique<GPUOperation>(std::move(operation)),
+      BHWC(1, 2, 1, 3), &dst_tensor));
+  EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(1e-3f),
+                                         {0.0f, 1.0f, 2.0f, -1.0f, 3.0f, 4.0f}));
+  return absl::OkStatus();
+}
+
+absl::Status ConcatChannelsMixedTypesF16DstTest(TestExecutionEnvironment& env,
+                                                TensorStorageType storage) {
+  TensorFloat32 src0, src1;
+  src0.shape = BHWC(1, 2, 1, 1);
+  src0.data = {0.0f, -1.0f};
+  src1.shape = BHWC(1, 2, 1, 2);
+  src1.data = {1.0f, 2.0f, 3.0f, 4.0f};
+
+  OperationDef op_def;
+  op_def.src_tensors.push_back({DataType::FLOAT16, storage, Layout::HWC});
+  op_def.src_tensors.push_back({DataType::FLOAT32, storage, Layout::HWC});
+  op_def.dst_tensors.push_back({DataType::FLOAT16, storage, Layout::HWC});
+
+  TensorFloat32 dst_tensor;
+  GPUOperation operation = CreateConcatZ(op_def, {1, 2}, env.GetGpuInfo());
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
+      {src0, src1}, std::make_unique<GPUOperation>(std::move(operation)),
+      BHWC(1, 2, 1, 3), &dst_tensor));
+  EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(1e-3f),
+                                         {0.0f, 1.0f, 2.0f, -1.0f, 3.0f, 4.0f}));
+  return absl::OkStatus();
+}
+
+absl::Status ConcatWidthMixedTypesTest(TestExecutionEnvironment& env,
+                                       TensorStorageType storage) {
+  TensorFloat32 src0, src1;
+  src0.shape = BHWC(1, 2, 1, 2);
+  src0.data = {0.0f, -1.0f, -0.05f, 0.045f};
+  src1.shape = BHWC(1, 2, 2, 2);
+  src1.data = {1.0f, -1.2f, -0.45f, 1.045f, 1.1f, -1.3f, -0.55f, 2.045f};
+
+  ConcatAttributes attr;
+  attr.axis = Axis::WIDTH;
+
+  OperationDef op_def;
+  op_def.src_tensors.push_back({DataType::FLOAT16, storage, Layout::HWC});
+  op_def.src_tensors.push_back({DataType::FLOAT32, storage, Layout::HWC});
+  op_def.dst_tensors.push_back({DataType::FLOAT32, storage, Layout::HWC});
+
+  TensorFloat32 dst_tensor;
+  GPUOperation operation = CreateConcatXY(op_def, attr);
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
+      {src0, src1}, std::make_unique<GPUOperation>(std::move(operation)),
+      BHWC(1, 2, 3, 2), &dst_tensor));
+  EXPECT_THAT(
+      dst_tensor.data,
+      Pointwise(FloatNear(1e-3f), {0.0f, -1.0f, 1.0f, -1.2f, -0.45f, 1.045f,
+                                   -0.05f, 0.045f, 1.1f, -1.3f, -0.55f, 2.045f}));
+  return absl::OkStatus();
+}
+
 absl::Status ConcatChannelsAlignedx4Test(TestExecutionEnvironment& env,
                                          DataType data_type,
                                          TensorStorageType storage) {

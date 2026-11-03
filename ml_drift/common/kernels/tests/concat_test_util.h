@@ -37,6 +37,18 @@ absl::Status ConcatChannelsAlignedx4Test(TestExecutionEnvironment& env,
                                          DataType data_type,
                                          TensorStorageType storage);
 
+// Concat sources need not share a data type. The delegate folds fp16 weight
+// DEQUANTIZEs away, so under CalculationsPrecision::F32 -- where per-value
+// types are preserved -- an f16 constant can be concatenated with an f32
+// computed value. These cover both kernels, and both directions of narrowing,
+// with the destination type stated explicitly rather than inferred.
+absl::Status ConcatChannelsMixedTypesTest(TestExecutionEnvironment& env,
+                                          TensorStorageType storage);
+absl::Status ConcatWidthMixedTypesTest(TestExecutionEnvironment& env,
+                                       TensorStorageType storage);
+absl::Status ConcatChannelsMixedTypesF16DstTest(TestExecutionEnvironment& env,
+                                                TensorStorageType storage);
+
 absl::Status ConcatWidthBigTest(TestExecutionEnvironment& env,
                                 DataType data_type, TensorStorageType storage);
 absl::Status ConcatWidthBatchedBigTest(TestExecutionEnvironment& env,

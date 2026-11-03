@@ -131,9 +131,9 @@ std::string GetConcatKernelCode(const OperationDef& op_def,
             "args.src_tensor_" + std::to_string(tensor_index);
         const std::string var_name = "src_var_" + std::to_string(tensor_index) +
                                      "_" + std::to_string(slice_offset);
-        c += "    args.dst_tensor::type " + var_name + " = " + tensor_name +
-             ".Read(" + coords + ", base_s + " + std::to_string(slice_offset) +
-             ");\n";
+        c += "    args.dst_tensor::type " + var_name +
+             " = ucl::Convert<args.dst_tensor::type>(" + tensor_name + ".Read(" +
+             coords + ", base_s + " + std::to_string(slice_offset) + "));\n";
       }
       prev_tensor_index = tensor_index;
       prev_slice_offset = slice_offset;
