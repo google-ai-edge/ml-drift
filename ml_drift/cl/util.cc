@@ -434,10 +434,14 @@ AdrenoInfo::OpenClCompilerVersion GetQualcommOpenClCompilerVersion(
   result.minor = 0;
   result.patch = 0;
   // Searching this part: "Compiler E031.**.**.**" where * is digit
-  const std::string start = "Compiler E031.";
+  std::string start = "Compiler E031.";
   size_t position = cl_driver_version.find(start);
   if (position == std::string::npos) {
-    return result;
+    start = "Compiler E17.";  // Adreno 850 uses this format
+    position = cl_driver_version.find(start);
+    if (position == std::string::npos) {
+      return result;
+    }
   }
   const size_t main_part_length = 8;  // main part is **.**.**
   if (position + start.length() + main_part_length >
