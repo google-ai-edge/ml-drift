@@ -966,6 +966,19 @@ absl::Status TensorDescriptor::GetLinkingContextFromWriteSelector(
   std::string bc;
   ABSL_RETURN_IF_ERROR(ParseCoordsFromArgs(args, 1, &xc, &yc, &zc, &sc, &bc));
   *value_name = args[0];
+  // A batchless or depthless destination does not define a batch/depth
+  // coordinate, so `bc`/`zc` come back empty here. When an elementwise op is
+  // fused into such a destination but one of its source tensors still carries
+  // that axis, the source read substitutes this coordinate for B_COORD/Z_COORD
+  // and needs a concrete index. An empty string would emit invalid WGSL such
+  // as `... + (())`, which fails to compile and silently corrupts the op.
+  // A collapsed axis has extent 1, so index 0 is the correct coordinate.
+  if (bc.empty()) {
+    bc = "0";
+  }
+  if (zc.empty()) {
+    zc = "0";
+  }
   *b_coord = absl::StrCat("(", bc, ")");
   *x_coord = absl::StrCat("(", xc, ")");
   *y_coord = absl::StrCat("(", yc, ")");
