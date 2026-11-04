@@ -19,7 +19,6 @@
 #include <memory>
 #include <string>
 #include <utility>
-#include <variant>
 #include <vector>
 
 #include "absl/container/flat_hash_map.h"
@@ -184,7 +183,7 @@ DataType GetAccumulatorType(const ConvWaveMatrix::ConvParams& conv_params,
 void UpdateOffsetAndStrideForInt8(const GpuInfo& gpu_info, std::string& offset,
                                   std::string& stride) {
   if (gpu_info.IsApiVulkan()) {
-    if (gpu_info.IsMali()) {
+    if (gpu_info.IsMali() || gpu_info.IsAdreno()) {
       offset = "(" + offset + ") / 4";
       stride = "(" + stride + ") / 1";
     } else {
@@ -985,6 +984,16 @@ ConvWaveMatrix::KernelParams InitParamsForTaskSize(
       kernel_params.wave_matrix_n = 16;
       kernel_params.wave_matrix_k = 32;
     }
+  } else if (gpu_info.IsAdreno()) {
+    kernel_params.wave_size = 64;
+    kernel_params.wave_matrix_m = 64;
+    kernel_params.wave_matrix_n = 16;
+    kernel_params.wave_matrix_k = 16;
+    if (params.Is8Bit()) {
+      kernel_params.wave_matrix_k = 32;
+    } else if (params.precision == CalculationsPrecision::kF32) {
+      kernel_params.wave_matrix_k = 8;
+    }
   }
   const int src_slices = DivideRoundUp(weights_shape.i, 4);
   const int dst_slices = DivideRoundUp(weights_shape.o, 4);
@@ -1048,6 +1057,15 @@ ConvWaveMatrix::KernelParams InitParamsForTaskSize(
           std::min(kernel_params.dst_slices_per_thread, 4);
     }
   }
+  if (gpu_info.IsAdreno()) {
+    src_slices_per_wg = 4;
+    kernel_params.dst_slices_per_thread = 8;
+    if (params.Is8Bit()) {
+      src_slices_per_wg = 4;
+      kernel_params.dst_slices_per_thread = 4;
+    }
+  }
+
   if (params.different_weights_for_height) {
     kernel_params.work_group_size =
         int3(kernel_params.wave_size, 1, src_slices_per_wg);
@@ -1162,6 +1180,38 @@ bool SupportsConvWaveMatrix(const GpuInfo& gpu_info,
                                    /*right_type=*/DataType::kFloat16,
                                    /*result_type=*/DataType::kFloat32})) {
       return src_slices % 4 == 0 && dst_slices % 8 == 0;
+    }
+  }
+  if (gpu_info.IsAdreno()) {
+    if (precision == CalculationsPrecision::kF32 &&
+        gpu_info.SupportsWaveMatMulOp(
+            WaveMatMulOpDescriptor{/*m_size=*/64,
+                                   /*n_size=*/16,
+                                   /*k_size=*/8,
+                                   /*left_type=*/DataType::kFloat32,
+                                   /*right_type=*/DataType::kFloat32,
+                                   /*result_type=*/DataType::kFloat32})) {
+      return src_slices % 2 == 0 && dst_slices % 4 == 0;
+    }
+    if (precision == CalculationsPrecision::kF32F16 &&
+        gpu_info.SupportsWaveMatMulOp(
+            WaveMatMulOpDescriptor{/*m_size=*/64,
+                                   /*n_size=*/16,
+                                   /*k_size=*/16,
+                                   /*left_type=*/DataType::kFloat16,
+                                   /*right_type=*/DataType::kFloat16,
+                                   /*result_type=*/DataType::kFloat32})) {
+      return src_slices % 4 == 0 && dst_slices % 4 == 0;
+    }
+    if (precision == CalculationsPrecision::kF16 &&
+        gpu_info.SupportsWaveMatMulOp(
+            WaveMatMulOpDescriptor{/*m_size=*/64,
+                                   /*n_size=*/16,
+                                   /*k_size=*/16,
+                                   /*left_type=*/DataType::kFloat16,
+                                   /*right_type=*/DataType::kFloat16,
+                                   /*result_type=*/DataType::kFloat16})) {
+      return src_slices % 4 == 0 && dst_slices % 4 == 0;
     }
   }
   return false;
@@ -1564,6 +1614,17 @@ bool SupportsConvWaveMatrixInt8(const GpuInfo& gpu_info,
   if (gpu_info.IsIntel()) {
     if (gpu_info.SupportsWaveMatMulOp(
             WaveMatMulOpDescriptor{/*m_size=*/8,
+                                   /*n_size=*/16,
+                                   /*k_size=*/32,
+                                   /*left_type=*/DataType::kInt8,
+                                   /*right_type=*/DataType::kInt8,
+                                   /*result_type=*/DataType::kInt32})) {
+      return src_slices % 8 == 0 && dst_slices % 4 == 0;
+    }
+  }
+  if (gpu_info.IsAdreno()) {
+    if (gpu_info.SupportsWaveMatMulOp(
+            WaveMatMulOpDescriptor{/*m_size=*/64,
                                    /*n_size=*/16,
                                    /*k_size=*/32,
                                    /*left_type=*/DataType::kInt8,
