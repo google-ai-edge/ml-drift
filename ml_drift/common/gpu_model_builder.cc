@@ -4777,17 +4777,11 @@ GpuModelBuilder::AppendOp(std::string_view op_name,
         absl::StrCat("Operation not found in registry: ", op_name));
   }
 
-  ABSL_ASSIGN_OR_RETURN(std::vector<AttrSpec> specs,
-                        OpRegistry::Global().GetAttrSpecs(op_name));
-
-  OpAttrs mutable_attrs = attrs;
-  ABSL_RETURN_IF_ERROR(ValidateAndNormalizeAttrs(specs, mutable_attrs));
-
   std::vector<TensorHandle> outputs;
   size_t initial_nodes = this->gpu_model_.nodes.size();
   uint64_t initial_tensors = this->id_counter_;
 
-  absl::Status status = op->Build(*this, inputs, mutable_attrs, outputs);
+  absl::Status status = op->InvokeBuild(*this, inputs, attrs, outputs);
   if (!status.ok()) {
     this->gpu_model_.nodes.resize(initial_nodes);
     for (uint64_t i = initial_tensors; i < id_counter_; ++i) {

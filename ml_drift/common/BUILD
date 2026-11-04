@@ -545,9 +545,7 @@ cc_library(
         ":demangle",
         ":op_attrs",
         ":tensor_handle",
-        ":types",
         "//ml_drift/common/task:gpu_operation",
-        "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
     ],
@@ -575,9 +573,6 @@ cc_library(
     deps = [
         ":op_base",
         "@com_google_absl//absl/container:flat_hash_map",
-        "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:statusor",
-        "@com_google_absl//absl/strings",
     ],
 )
 
@@ -844,9 +839,10 @@ cc_library(
     name = "op_attrs",
     hdrs = ["op_attrs.h"],
     deps = [
+        ":types",
+        "//ml_drift/common/task:gpu_operation",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
     ],
 )

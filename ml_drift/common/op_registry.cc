@@ -21,9 +21,6 @@
 #include <utility>
 #include <vector>
 
-#include "absl/status/status.h"
-#include "absl/status/statusor.h"
-#include "absl/strings/str_cat.h"
 #include "ml_drift/common/op_base.h"
 
 namespace ml_drift {
@@ -33,30 +30,19 @@ OpRegistry& OpRegistry::Global() {
   return *instance;
 }
 
-void OpRegistry::Register(std::string_view name, OpFactory factory,
-                          const std::vector<AttrSpec>& attr_specs) {
-  registry_[name] = {std::move(factory), attr_specs};
+void OpRegistry::Register(std::string_view name, OpFactory factory) {
+  registry_[name] = std::move(factory);
 }
 
-absl::StatusOr<std::vector<AttrSpec>> OpRegistry::GetAttrSpecs(
-    std::string_view name) const {
+std::unique_ptr<OpBaseImpl> OpRegistry::Create(std::string_view name) const {
   auto it = registry_.find(name);
-  if (it == registry_.end()) {
-    return absl::NotFoundError(
-        absl::StrCat("Operation not found in registry: ", name));
-  }
-  return it->second.attr_specs;
-}
-
-std::unique_ptr<OpBase> OpRegistry::Create(std::string_view name) const {
-  auto it = registry_.find(name);
-  return it != registry_.end() ? it->second.factory() : nullptr;
+  return it != registry_.end() ? it->second() : nullptr;
 }
 
 std::vector<std::string> OpRegistry::GetRegisteredNames() const {
   std::vector<std::string> names;
   names.reserve(registry_.size());
-  for (const auto& [name, entry] : registry_) {
+  for (const auto& [name, factory] : registry_) {
     names.push_back(name);
   }
   std::sort(names.begin(), names.end());
