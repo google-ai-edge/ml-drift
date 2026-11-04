@@ -612,9 +612,6 @@ cc_library(
     ],
 )
 
-# TODO: Migrate conv_wave_matrix_test_vulkan to
-# requires-gpu-sm90-full once GL_NV_integer_cooperative_matrix is added for
-# icoopmatNV in wave_matrix_util.cc.
 mld_kernel_test(
     name = "conv_wave_matrix_test",
     srcs = [
