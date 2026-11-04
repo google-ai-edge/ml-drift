@@ -37,18 +37,9 @@ class ConvWaveMatrixMaliF16 : public GPUOperation {
   struct ConvParams {
     bool x_kernel_is_1 = true;
     bool y_kernel_is_1 = true;
+    bool different_weights_for_height = false;
     bool has_bias = true;
     OHWI weights_shape;
-
-    void InitKernelXY(const Convolution2DAttributes& attr) {
-      const OHWI& weights_shape = attr.GetWeightsShape();
-      x_kernel_is_1 = weights_shape.w == 1 && attr.strides.w == 1 &&
-                      attr.dilations.w == 1 && attr.padding.prepended.w == 0 &&
-                      attr.padding.appended.w == 0;
-      y_kernel_is_1 = weights_shape.h == 1 && attr.strides.h == 1 &&
-                      attr.dilations.h == 1 && attr.padding.prepended.h == 0 &&
-                      attr.padding.appended.h == 0;
-    }
   };
 
   struct KernelParams {
@@ -103,7 +94,7 @@ ConvWaveMatrixMaliF16 CreateConvWaveMatrixMaliF16(
 ConvWaveMatrixMaliF16 CreateConvWaveMatrixMaliF16ExternalWeights(
     const GpuInfo& gpu_info, const TensorDescriptor& src_desc,
     const TensorDescriptor& dst_desc, const Convolution2DAttributes& attr,
-    const TensorDescriptor* bias);
+    const TensorDescriptor* bias, bool different_weights_for_height);
 
 }  // namespace ml_drift
 

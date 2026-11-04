@@ -41,6 +41,18 @@
 
 namespace ml_drift {
 namespace {
+inline bool IsConvKernelXis1(const Convolution2DAttributes& conv_attr) {
+  return conv_attr.GetWeightsShape().w == 1 && conv_attr.dilations.w == 1 &&
+         conv_attr.strides.w == 1 && conv_attr.padding.prepended.w == 0 &&
+         conv_attr.padding.appended.w == 0;
+}
+
+inline bool IsConvKernelYis1(const Convolution2DAttributes& conv_attr) {
+  return conv_attr.GetWeightsShape().h == 1 && conv_attr.dilations.h == 1 &&
+         conv_attr.strides.h == 1 && conv_attr.padding.prepended.h == 0 &&
+         conv_attr.padding.appended.h == 0;
+}
+
 std::string GetCode(const GpuInfo& gpu_info,
                     const ConvWaveMatrixMaliF16::ConvParams& conv_params,
                     const ConvWaveMatrixMaliF16::KernelParams& kernel_params,
@@ -85,7 +97,14 @@ MAIN_FUNCTION($0) {
     return;
   }
 )";
-  std::string weights_offset = "subgroup_dst_s_base * 4 * args.src.Slices()";
+  std::string weights_offset = "subgroup_dst_s_base";
+  if (conv_params.different_weights_for_height) {
+    // subgroup_dst_s_base is already pre-multiplied by
+    // kernel_params.s_block_size * 4
+    weights_offset = "(subgroup_dst_s_base * args.src.Height() + dst_y * " +
+                     std::to_string(kernel_params.s_block_size * 4) + ")";
+  }
+  weights_offset = weights_offset + " * 4 * args.src.Slices()";
   if (!conv_params.x_kernel_is_1) {
     weights_offset += " * args.kernel_size_x";
   }
@@ -321,7 +340,8 @@ ConvWaveMatrixMaliF16 CreateConvWaveMatrixMaliF16(
     const TensorDescriptor& dst_desc, const Convolution2DAttributes& attr) {
   ConvWaveMatrixMaliF16::ConvParams conv_params;
   conv_params.weights_shape = attr.GetWeightsShape();
-  conv_params.InitKernelXY(attr);
+  conv_params.x_kernel_is_1 = IsConvKernelXis1(attr);
+  conv_params.y_kernel_is_1 = IsConvKernelYis1(attr);
   conv_params.has_bias = !attr.bias.empty();
   ConvWaveMatrixMaliF16 result =
       ConvWaveMatrixMaliF16(gpu_info, conv_params, src_desc, dst_desc);
@@ -344,10 +364,15 @@ ConvWaveMatrixMaliF16 CreateConvWaveMatrixMaliF16(
 ConvWaveMatrixMaliF16 CreateConvWaveMatrixMaliF16ExternalWeights(
     const GpuInfo& gpu_info, const TensorDescriptor& src_desc,
     const TensorDescriptor& dst_desc, const Convolution2DAttributes& attr,
-    const TensorDescriptor* bias) {
+    const TensorDescriptor* bias, bool different_weights_for_height) {
   ConvWaveMatrixMaliF16::ConvParams conv_params;
   conv_params.weights_shape = attr.GetWeightsShape();
-  conv_params.InitKernelXY(attr);
+  conv_params.x_kernel_is_1 = IsConvKernelXis1(attr);
+  conv_params.y_kernel_is_1 = IsConvKernelYis1(attr);
+  conv_params.different_weights_for_height = different_weights_for_height;
+  if (different_weights_for_height) {
+    conv_params.y_kernel_is_1 = true;
+  }
   conv_params.has_bias = bias != nullptr;
   ConvWaveMatrixMaliF16 result =
       ConvWaveMatrixMaliF16(gpu_info, conv_params, src_desc, dst_desc);

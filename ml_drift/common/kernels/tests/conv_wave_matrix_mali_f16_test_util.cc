@@ -62,11 +62,15 @@ absl::Status ConvWaveMatrixMaliF16ExternalWeightsTest(
     TestExecutionEnvironment& exec_env, const Convolution2DAttributes& attr,
     const Tensor<OHWI, DataType::kFloat32>& weights,
     const TensorFloat32& src_tensor, const TensorDescriptor& src_desc,
-    const TensorDescriptor& dst_desc) {
-  TensorFloat32 dst_ref_tensor = ConvolutionReference(attr, src_tensor);
+    const TensorDescriptor& dst_desc, bool different_weights_for_height) {
+  TensorFloat32 dst_ref_tensor =
+      different_weights_for_height
+          ? FullyConnectedRefDifferentWeightsForHeight(weights, src_tensor)
+          : ConvolutionReference(attr, src_tensor);
 
   auto operation = CreateConvWaveMatrixMaliF16ExternalWeights(
-      exec_env.GetGpuInfo(), src_desc, dst_desc, attr, /*bias=*/nullptr);
+      exec_env.GetGpuInfo(), src_desc, dst_desc, attr, /*bias=*/nullptr,
+      different_weights_for_height);
   std::vector<TensorDescriptor> weights_gpu =
       GetTensorDescriptorsForWeightsLayout(weights,
                                            operation.GetWeightsDescription());
@@ -167,7 +171,34 @@ absl::Status ConvWaveMatrixMaliF16ExternalWeightsBigTest(
   TensorDescriptor src_desc = {DataType::kFloat16, storage, Layout::kHWC};
   TensorDescriptor dst_desc = {DataType::kFloat16, storage, Layout::kHWC};
   return ConvWaveMatrixMaliF16ExternalWeightsTest(
-      env, attr, weights, src_tensor, src_desc, dst_desc);
+      env, attr, weights, src_tensor, src_desc, dst_desc,
+      /*different_weights_for_height=*/false);
+}
+
+absl::Status ConvWaveMatrixMaliF16ExternalBatchedWeightsBigTest(
+    TestExecutionEnvironment& env, TensorStorageType storage) {
+  const int src_channels = 32;
+  const int dst_channels = 64;
+  auto src_shape = BHWC(1, 6, 17, src_channels);
+  auto weights =
+      MakeSyntheticTensor(OHWI(dst_channels, src_shape.h, 1, src_channels));
+  weights.data.resize(weights.shape.DimensionsProduct() +
+                      XNN_EXTRA_BYTES / sizeof(float));
+  Convolution2DAttributes attr;
+  attr.padding.prepended = HW(0, 0);
+  attr.padding.appended = HW(0, 0);
+  attr.strides = HW(1, 1);
+  attr.dilations = HW(1, 1);
+  attr.weights = weights;
+  attr.bias = MakeZeroTensor(Linear(dst_channels));
+
+  TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
+
+  TensorDescriptor src_desc = {DataType::kFloat16, storage, Layout::kHWC};
+  TensorDescriptor dst_desc = {DataType::kFloat16, storage, Layout::kHWC};
+  return ConvWaveMatrixMaliF16ExternalWeightsTest(
+      env, attr, weights, src_tensor, src_desc, dst_desc,
+      /*different_weights_for_height=*/true);
 }
 
 }  // namespace ml_drift
