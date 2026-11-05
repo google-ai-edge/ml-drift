@@ -1444,6 +1444,42 @@ class ConvCodeGenerator {
     return c;
   }
 
+  std::string ReadWeights() const {
+    const bool quantized_weights =
+        SizeInBitsOf(conv_params_.weights_desc.type) <= 8;
+    std::string c;
+    if (quantized_weights && conv_params_.scale_zp_shape.i != 1) {
+      // grouped quantization
+      std::string src_id = "s";
+      if (conv_params_.src_group_slices % kernel_params_.src_depth_loop_size !=
+          0) {
+        src_id = "(s + sub_i)";
+      }
+      c += "    int src_group_id = " + src_id + " / " +
+           std::to_string(conv_params_.src_group_slices) + ";\n";
+      c += "    if (last_src_group_id != src_group_id) {\n";
+      c += "      last_src_group_id = src_group_id;\n";
+      c += fc::ReadScaleZeroPointBlock(
+          "w_o_slice", conv_params_.scale_zp_shape, conv_params_.has_zero_point,
+          fc::GetDataTypeForWeights(conv_params_.weights_desc.type));
+      c += "    }\n";
+    }
+    if (conv_params_.weights_desc.IsLinearLayout()) {
+      c += ReadWeights1D();
+    } else {
+      c += ReadWeights2D();
+    }
+    if (quantized_weights) {
+      c += R"(
+    w0 = w0 * w_scale + w_bias;
+    w1 = w1 * w_scale + w_bias;
+    w2 = w2 * w_scale + w_bias;
+    w3 = w3 * w_scale + w_bias;
+)";
+    }
+    return c;
+  }
+
   std::string GenerateMainIntelWaveMatMulFp16Srcx4DstxN() {
     std::string c;
     ForSpatial([&](int x, int y, int z) {
@@ -1460,35 +1496,9 @@ class ConvCodeGenerator {
     }
     const bool weights_conversion =
         conv_params_.weights_desc.layout != WeightsLayout::kUnknown;
-    const bool quantized_weights =
-        weights_conversion && SizeInBitsOf(conv_params_.weights_desc.type) <= 8;
     if (weights_conversion) {
-      if (conv_params_.scale_zp_shape.i != 1) {
-        // grouped quantization
-        c += "    int src_group_id = (s + sub_i) / " +
-             std::to_string(conv_params_.src_group_slices) + ";\n";
-        c += "    if (last_src_group_id != src_group_id) {\n";
-        c += "      last_src_group_id = src_group_id;\n";
-        c += fc::ReadScaleZeroPointBlock(
-            "w_o_slice", conv_params_.scale_zp_shape,
-            conv_params_.has_zero_point,
-            fc::GetDataTypeForWeights(conv_params_.weights_desc.type));
-        c += "    }\n";
-      }
       c += "    Type w0, w1, w2, w3;\n";
-      if (conv_params_.weights_desc.IsLinearLayout()) {
-        c += ReadWeights1D();
-      } else {
-        c += ReadWeights2D();
-      }
-      if (quantized_weights) {
-        c += R"(
-    w0 = w0 * w_scale + w_bias;
-    w1 = w1 * w_scale + w_bias;
-    w2 = w2 * w_scale + w_bias;
-    w3 = w3 * w_scale + w_bias;
-)";
-      }
+      c += ReadWeights();
     }
     for (const auto& postfix : postfixes) {
       c += GenerateSrcReading();
