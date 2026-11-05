@@ -19,7 +19,6 @@
 #include <memory>
 #include <string>
 #include <utility>
-#include <variant>
 #include <vector>
 
 #include "absl/log/absl_check.h"
@@ -476,7 +475,7 @@ class ConvCodeGenerator {
                  kernel_params_.block_size.w * 4);
       // WeightsLayout::kBIOI4O4
       const int cache_size = 16 * kernel_params_.work_group_size.x / 4;
-      c += "  __local half4 w_cache[" + std::to_string(cache_size) + "];\n";
+      c += "  __local Type w_cache[" + std::to_string(cache_size) + "];\n";
       c += "  int sub_i = ucl::GetLocalId<0>() / " +
            std::to_string(kernel_params_.block_size.w) + ";\n";
       c += "  int sub_o = ucl::GetLocalId<0>() % " +
@@ -1398,15 +1397,18 @@ class ConvCodeGenerator {
     std::string c;
     if (conv_params_.weights_desc.type == DataType::kUint8) {
       c += "    uint4 u8_i4o4 = args.weights.Read(w_wg_offset);\n";
-      c += "    ucl::U32x4ToU8x16AsVec4x4<half>(u8_i4o4, w0, w1, w2, w3);\n";
+      c += "    ucl::U32x4ToU8x16AsVec4x4<ScalarType>(u8_i4o4, w0, w1, w2, "
+           "w3);\n";
     } else if (conv_params_.weights_desc.type == DataType::kUint4) {
       c += "    uint2 u4_i4o4 = args.weights.Read(w_wg_offset);\n";
-      c += "    ucl::U32x2ToU4x16AsVec4x4<half>(u4_i4o4, w0, w1, w2, w3);\n";
+      c += "    ucl::U32x2ToU4x16AsVec4x4<ScalarType>(u4_i4o4, w0, w1, w2, "
+           "w3);\n";
     } else if (conv_params_.weights_desc.type == DataType::kUint2) {
       c += "    uint u2_i4o4 = args.weights.Read(w_wg_offset);\n";
-      c += "    ucl::U32x1ToU2x16AsVec4x4<half>(u2_i4o4, w0, w1, w2, w3);\n";
+      c += "    ucl::U32x1ToU2x16AsVec4x4<ScalarType>(u2_i4o4, w0, w1, w2, "
+           "w3);\n";
     } else {
-      c += "    args.weights.ReadVec16AsVec4x4(w0, w1, w2, w3, "
+      c += "    args.weights.ReadVec16AsVec4x4<ScalarType>(w0, w1, w2, w3, "
            "w_wg_offset);\n";
     }
     c += "    w_wg_offset += w_wg_stride;\n";
@@ -1422,19 +1424,22 @@ class ConvCodeGenerator {
     const std::string yc = batch_part + " + s + sub_i";
     if (conv_params_.weights_desc.layout ==
         WeightsLayout::k2DX4I4YIsSpatialIAndXIsOOGroupO4) {
-      c += "    w0 = args.weights0.Read<half>(" + xc + ", " + yc + ");\n";
-      c += "    w1 = args.weights1.Read<half>(" + xc + ", " + yc + ");\n";
-      c += "    w2 = args.weights2.Read<half>(" + xc + ", " + yc + ");\n";
-      c += "    w3 = args.weights3.Read<half>(" + xc + ", " + yc + ");\n";
+      c += "    w0 = args.weights0.Read<ScalarType>(" + xc + ", " + yc + ");\n";
+      c += "    w1 = args.weights1.Read<ScalarType>(" + xc + ", " + yc + ");\n";
+      c += "    w2 = args.weights2.Read<ScalarType>(" + xc + ", " + yc + ");\n";
+      c += "    w3 = args.weights3.Read<ScalarType>(" + xc + ", " + yc + ");\n";
     } else if (conv_params_.weights_desc.type == DataType::kUint8) {
       c += "    uint4 u8_i4o4 = args.weights.Read(" + xc + ", " + yc + ");\n";
-      c += "    ucl::U32x4ToU8x16AsVec4x4<half>(u8_i4o4, w0, w1, w2, w3);\n";
+      c += "    ucl::U32x4ToU8x16AsVec4x4<ScalarType>(u8_i4o4, w0, w1, w2, "
+           "w3);\n";
     } else if (conv_params_.weights_desc.type == DataType::kUint4) {
       c += "    ushort4 u4_i4o4 = args.weights.Read(" + xc + ", " + yc + ");\n";
-      c += "    ucl::U16x4ToU4x16AsVec4x4<half>(u4_i4o4, w0, w1, w2, w3);\n";
+      c += "    ucl::U16x4ToU4x16AsVec4x4<ScalarType>(u4_i4o4, w0, w1, w2, "
+           "w3);\n";
     } else if (conv_params_.weights_desc.type == DataType::kUint2) {
       c += "    uchar4 u2_i4o4 = args.weights.Read(" + xc + ", " + yc + ");\n";
-      c += "    ucl::U8x4ToU2x16AsVec4x4<half>(u2_i4o4, w0, w1, w2, w3);\n";
+      c += "    ucl::U8x4ToU2x16AsVec4x4<ScalarType>(u2_i4o4, w0, w1, w2, "
+           "w3);\n";
     }
     return c;
   }
@@ -1470,7 +1475,7 @@ class ConvCodeGenerator {
             fc::GetDataTypeForWeights(conv_params_.weights_desc.type));
         c += "    }\n";
       }
-      c += "    half4 w0, w1, w2, w3;\n";
+      c += "    Type w0, w1, w2, w3;\n";
       if (conv_params_.weights_desc.IsLinearLayout()) {
         c += ReadWeights1D();
       } else {
