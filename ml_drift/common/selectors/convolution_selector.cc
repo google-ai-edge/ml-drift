@@ -149,7 +149,8 @@ std::unique_ptr<GPUOperation> SelectConvolutionMali(
     const GpuInfo& gpu_info, const OperationDef& op_def,
     CalculationsPrecision precision) {
   const size_t threads_count = dst_shape.w * dst_shape.h * dst_shape.b;
-  if (threads_count >= 1024 * 16 && dst_shape.c <= 4 &&
+  const int max_dst_ch = gpu_info.mali_info.IsMaliG2() ? 8 : 4;
+  if (threads_count >= 1024 * 16 && dst_shape.c <= max_dst_ch &&
       IsConvConstantsSupported(gpu_info, precision, attr)) {
     ConvConstants conv = CreateConvConstants(gpu_info, op_def, precision, attr);
     return std::make_unique<ConvConstants>(std::move(conv));

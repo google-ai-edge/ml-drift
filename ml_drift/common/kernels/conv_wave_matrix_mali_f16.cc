@@ -274,7 +274,7 @@ ConvWaveMatrixMaliF16::ConvWaveMatrixMaliF16(const GpuInfo& gpu_info,
                                              const TensorDescriptor& dst_desc)
     : conv_params_(conv_params) {
   kernel_params_.x_block_size = 2;
-  kernel_params_.s_block_size = 2;
+  kernel_params_.s_block_size = conv_params.weights_shape.o <= 16 ? 1 : 2;
   kernel_params_.slices_first = false;
   work_group_size_ = int3(16, 1, 1);
   code_ = GetCode(gpu_info, conv_params_, kernel_params_, src_desc);
