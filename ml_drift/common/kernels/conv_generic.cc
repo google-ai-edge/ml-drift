@@ -332,7 +332,10 @@ class ConvCodeGenerator {
   std::string GenerateMainBody() {
     const int4 block_size = kernel_params_.block_size;
     const auto& src_def = conv_params_.src_desc;
-    const bool need_local_mem = NeedsLocalMemory();
+    // weights_conversion currently supported only for Intel Wave MatMul
+    const bool weights_conversion =
+        conv_params_.weights_desc.layout != WeightsLayout::kUnknown;
+    const bool need_local_mem = NeedsLocalMemory() || weights_conversion;
     const bool is_wave_memory = NeedsWaveMemory();
     const int weights_vals_per_loop = GetWeightsValsPerLoop();
     const bool use_intel_wave_matmul =
@@ -340,9 +343,6 @@ class ConvCodeGenerator {
         ConvGeneric::WeightsUploadType::kIntelWave16MatMul;
     const bool late_oob_check =
         need_local_mem || is_wave_memory || use_intel_wave_matmul;
-    // weights_conversion currently only supported for Intel Wave MatMul
-    const bool weights_conversion =
-        conv_params_.weights_desc.layout != WeightsLayout::kUnknown;
     const bool quantized_weights =
         weights_conversion && SizeInBitsOf(conv_params_.weights_desc.type) <= 8;
     std::string c;
@@ -458,7 +458,8 @@ class ConvCodeGenerator {
       src_group_end_slice = "src_slices_dynamic";
     }
     if (kernel_params_.weights_upload_type ==
-        ConvGeneric::WeightsUploadType::kLocalMemory) {
+            ConvGeneric::WeightsUploadType::kLocalMemory ||
+        weights_conversion) {
       if (kernel_params_.linear_spatial) {
         c += "  int lid = ucl::GetLocalId<0>();\n";
       } else {
@@ -471,14 +472,14 @@ class ConvCodeGenerator {
       c += "  int simd_id = ucl::GetSubGroupLocalId();\n";
     }
     if (weights_conversion) {
-      ABSL_CHECK(kernel_params_.work_group_size.x ==
-                 kernel_params_.block_size.w * 4);
       // WeightsLayout::kBIOI4O4
-      const int cache_size = 16 * kernel_params_.work_group_size.x / 4;
-      c += "  __local Type w_cache[" + std::to_string(cache_size) + "];\n";
-      c += "  int sub_i = ucl::GetLocalId<0>() / " +
+      const int i4o4_blocks =
+          kernel_params_.block_size.w * kernel_params_.src_depth_loop_size;
+      const int wg_size_per_slice = GetWGSpatialCount();
+      ABSL_CHECK(wg_size_per_slice == i4o4_blocks);
+      c += "  int sub_i = lid / " +
            std::to_string(kernel_params_.block_size.w) + ";\n";
-      c += "  int sub_o = ucl::GetLocalId<0>() % " +
+      c += "  int sub_o = lid % " +
            std::to_string(kernel_params_.block_size.w) + ";\n";
       c += "  int w_o_slice = min(DST_S + sub_o, args.dst_tensor.Slices() - "
            "1);\n";
@@ -959,6 +960,15 @@ class ConvCodeGenerator {
       c += "  }\n";
     }
     return c;
+  }
+
+  int GetWGSpatialCount() const {
+    if (kernel_params_.linear_spatial) {
+      return kernel_params_.work_group_size.x;
+    } else {
+      return kernel_params_.work_group_size.x *
+             kernel_params_.work_group_size.y;
+    }
   }
 
   std::string GenerateIdSpatial(const std::string& x, const std::string& y,
@@ -1511,34 +1521,34 @@ class ConvCodeGenerator {
     }
     if (weights_conversion && !kernel_params_.use_vec8_accum) {
       // vec4 accumulators
-      // w_cache WeightsLayout::kBO16I16O4
+      // weights_cache WeightsLayout::kBO16I16O4
       c += R"(
     ucl::SyncThreads<WorkGroup, Local>();
-    w_cache[sub_o * 16 + sub_i * 4 + 0] = w0;
-    w_cache[sub_o * 16 + sub_i * 4 + 1] = w1;
-    w_cache[sub_o * 16 + sub_i * 4 + 2] = w2;
-    w_cache[sub_o * 16 + sub_i * 4 + 3] = w3;
+    weights_cache[sub_o * 16 + sub_i * 4 + 0] = w0;
+    weights_cache[sub_o * 16 + sub_i * 4 + 1] = w1;
+    weights_cache[sub_o * 16 + sub_i * 4 + 2] = w2;
+    weights_cache[sub_o * 16 + sub_i * 4 + 3] = w3;
     ucl::SyncThreads<WorkGroup, Local>();
   )";
       for (int i = 0; i < kernel_params_.block_size.w; ++i) {
         const std::string w_name = "W" + std::to_string(i);
-        c += "    short4 " + w_name + " = as_short4(w_cache[simd_id + " +
+        c += "    short4 " + w_name + " = as_short4(weights_cache[simd_id + " +
              std::to_string(i * 16) + "]);\n";
       }
     } else if (weights_conversion && kernel_params_.use_vec8_accum) {
-      // w_cache WeightsLayout::kBO8I16O8
+      // weights_cache WeightsLayout::kBO8I16O8
       c += R"(
     ucl::SyncThreads<WorkGroup, Local>();
-    w_cache[((sub_o / 2) * 16 + sub_i * 4 + 0) * 2 + sub_o % 2] = w0;
-    w_cache[((sub_o / 2) * 16 + sub_i * 4 + 1) * 2 + sub_o % 2] = w1;
-    w_cache[((sub_o / 2) * 16 + sub_i * 4 + 2) * 2 + sub_o % 2] = w2;
-    w_cache[((sub_o / 2) * 16 + sub_i * 4 + 3) * 2 + sub_o % 2] = w3;
+    weights_cache[((sub_o / 2) * 16 + sub_i * 4 + 0) * 2 + sub_o % 2] = w0;
+    weights_cache[((sub_o / 2) * 16 + sub_i * 4 + 1) * 2 + sub_o % 2] = w1;
+    weights_cache[((sub_o / 2) * 16 + sub_i * 4 + 2) * 2 + sub_o % 2] = w2;
+    weights_cache[((sub_o / 2) * 16 + sub_i * 4 + 3) * 2 + sub_o % 2] = w3;
     ucl::SyncThreads<WorkGroup, Local>();
   )";
       for (int i = 0; i < kernel_params_.block_size.w / 2; ++i) {
         const std::string w_name = "W" + std::to_string(i);
         c += "    short8 " + w_name +
-             " = ((__local short8*)w_cache)[simd_id + " +
+             " = ((__local short8*)weights_cache)[simd_id + " +
              std::to_string(i * 16) + "];\n";
       }
     } else if (!kernel_params_.use_vec8_accum) {
