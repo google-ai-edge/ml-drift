@@ -198,7 +198,6 @@ cc_library(
         ":precision",
         ":shape",
         ":tensor",
-        ":util",
         "//ml_drift/common/task:tensor_desc",
         "//ml_drift/common/task:testing_ref_ops",
         "//ml_drift/common/task:testing_util",

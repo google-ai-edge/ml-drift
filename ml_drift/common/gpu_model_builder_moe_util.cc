@@ -180,6 +180,15 @@ absl::StatusOr<GpuModelBuilder::TensorHandle> MakeConvWithPackedGroups(
         /*bias=*/nullptr, /*src_exp=*/nullptr,
         /*different_weights_for_height=*/true, runtime_check);
     conv = std::make_unique<ConvWaveMatrix>(std::move(conv_wave_matrix));
+  } else if (average_task_size >= 32 &&
+             SupportsConvGeneric(builder.gpu_info(), precision,
+                                 external_weights)) {
+    auto conv_generic = CreateConvGenericExternalWeights(
+        builder.gpu_info(), op_def, precision, external_weights,
+        /*bias=*/nullptr, &dst_shape,
+        /*src_exp=*/nullptr, /*different_weights_for_height=*/true,
+        runtime_check);
+    conv = std::make_unique<ConvGeneric>(std::move(conv_generic));
   } else if (average_task_size >= 64 &&
              IsConvWaveMemorySupported(builder.gpu_info())) {
     auto conv_wave_memory = CreateConvWaveMemoryExternalWeights(
@@ -195,15 +204,6 @@ absl::StatusOr<GpuModelBuilder::TensorHandle> MakeConvWithPackedGroups(
           builder.WeightsConversion(weights, conv_weights_desc);
       src_ids.push_back(weights_tensors[0]);
     }
-  } else if (average_task_size >= 32 &&
-             SupportsConvGeneric(builder.gpu_info(), precision,
-                                 external_weights)) {
-    auto conv_generic = CreateConvGenericExternalWeights(
-        builder.gpu_info(), op_def, precision, external_weights,
-        /*bias=*/nullptr, &dst_shape,
-        /*src_exp=*/nullptr, /*different_weights_for_height=*/true,
-        runtime_check);
-    conv = std::make_unique<ConvGeneric>(std::move(conv_generic));
   } else {
     ABSL_ASSIGN_OR_RETURN(
         auto conv_fc,

@@ -1152,12 +1152,6 @@ GpuModelBuilder::FullyConnectedSrcFloatExternalWeightsWithConversion(
   // conversion is usually ~20% slower than convolution without weights
   // conversion(on Apple GPUs in MLDrift implementation).
   const bool recommended_single_conv = !ringed_weights && conversion_cost > 20;
-  // ConvGeneric with on-the-fly weight conversion uses local memory barriers
-  // instead of wave/subgroup shuffle and caps block_size.w <= 4, adding ~40%
-  // compute overhead compared to ConvGeneric with pre-converted weights.
-  const bool recommended_single_conv_generic =
-      !ringed_weights && ((gpu_info_.IsDesktopGpu() && conversion_cost > 40) ||
-                          (gpu_info_.IsIntel() && conversion_cost > 20));
 
   std::unique_ptr<GPUOperation> conv_op;
   WeightsDescription conv_weights_desc;
@@ -1192,17 +1186,14 @@ GpuModelBuilder::FullyConnectedSrcFloatExternalWeightsWithConversion(
       conv_need_scale_zp = true;
     } else if (recommended_single_conv &&
                SupportsConvWaveMatrix(gpu_info_, conv_precision,
-                                      external_weights) &&
-               (!gpu_info_.IsApple() ||
-                IsGoodTaskSizeForAppleConvSimd(dst_shape, weights.shape,
-                                               conv_precision, gpu_info_))) {
+                                      external_weights)) {
       auto conv_wave_matrix = CreateConvWaveMatrixExternalWeights(
           op_def, conv_precision, dst_shape, external_weights, gpu_info_,
           bias_td, src_exp_td, different_weights_for_height, runtime_check);
       conv_weights_desc = weights.desc;
       conv_op = std::make_unique<ConvWaveMatrix>(std::move(conv_wave_matrix));
       conv_need_scale_zp = true;
-    } else if (recommended_single_conv_generic &&
+    } else if (recommended_single_conv &&
                SupportsConvGeneric(gpu_info_, conv_precision,
                                    external_weights)) {
       auto conv_generic = CreateConvGenericExternalWeights(

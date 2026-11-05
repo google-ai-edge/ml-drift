@@ -14,7 +14,6 @@
 
 #include "ml_drift/common/gpu_model_external_weights_test_util.h"
 
-#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <string>
@@ -42,7 +41,6 @@
 #include "ml_drift/common/task/weights_conversion.h"
 #include "ml_drift/common/task/weights_layout.h"
 #include "ml_drift/common/tensor.h"
-#include "ml_drift/common/util.h"
 
 namespace ml_drift {
 
@@ -251,93 +249,6 @@ absl::Status TestExternalConvWeights(TestExecutionEnvironment* env) {
         &gpu_model_external));
 
     EXPECT_EQ(dst_tensor_v0.data, dst_tensor_v1.data);
-
-    // Also test Q4_0 (int4 block-quantized with group_size = 32, no zero point)
-    // external weights.
-    {
-      GpuModelBuilder q4_builder(env->GetGpuInfo(), create_info.hints,
-                                 create_info.precision,
-                                 create_info.storage_type);
-      constexpr int kGroupSize = 32;
-      const int num_groups = src_shape.c / kGroupSize;
-      ml_drift::Tensor<OHWI, DataType::kInt8> weights_i4;
-      weights_i4.shape = attr_weights.shape;
-      weights_i4.data.resize(weights_i4.shape.DimensionsProduct());
-      for (int i = 0; i < weights_i4.data.size(); ++i) {
-        const int val = (attr_weights.data[i] + 1.0f) * 8.0f;
-        weights_i4.data[i] = std::max(std::min(val, 15), 0) - 8;
-      }
-      auto weights_scales =
-          MakeSyntheticTensor(OHWI(kDstChannels, 1, 1, num_groups));
-      for (int i = 0; i < weights_scales.data.size(); ++i) {
-        weights_scales.data[i] =
-            std::abs(weights_scales.data[i]) / 8.0f + 0.01f;
-      }
-      ml_drift::Tensor<OHWI, DataType::kFloat32> weights_zero_point;
-      weights_zero_point.shape = weights_scales.shape;
-      weights_zero_point.data.resize(weights_scales.shape.DimensionsProduct(),
-                                     0.0f);
-      auto weights_dequant =
-          MakeWeightsFromInt8(weights_i4, weights_scales, weights_zero_point);
-      weights_dequant.data.resize(weights_dequant.shape.DimensionsProduct() +
-                                  XNN_EXTRA_BYTES / sizeof(float));
-
-      Convolution2DAttributes q4_conv_attr = conv_attr;
-      q4_conv_attr.weights = weights_dequant;
-
-      GpuModel gpu_model_q4_ref;
-      {
-        auto src_th = q4_builder.AddTensor(src_shape, float_type);
-        auto out = q4_builder.Convolution(src_th, q4_conv_attr);
-        ABSL_RETURN_IF_ERROR(q4_builder.GetGpuModel(
-            std::vector<unsigned int>{src_th.id},
-            std::vector<unsigned int>{out.id}, &gpu_model_q4_ref));
-      }
-
-      GpuModel gpu_model_q4_external;
-      {
-        TensorDescriptor bias_td = CreateConstantLinearTensorDescriptor(
-            env->GetGpuInfo(), float_type, conv_attr.bias);
-        WeightsDescription weights_desc =
-            q4_builder.GetFullyConnectedInt4WeightsDesc(weights_i4.shape);
-        TensorDescriptor weights_td =
-            GetTensorDescriptorForWeightsLayout(weights_i4, weights_desc);
-        TensorDescriptor scale_td = ScaleOrZeroPointToTensorDesc(
-            env->GetGpuInfo(), weights_scales, float_type);
-
-        auto src_th = q4_builder.AddTensor(src_shape, float_type);
-        auto weights_th = q4_builder.AddConstantTensor(std::move(weights_td));
-        auto scale_th = q4_builder.AddConstantTensor(std::move(scale_td));
-        auto bias_th = q4_builder.AddConstantTensor(std::move(bias_td));
-        const GpuModelBuilder::Weights external_weights =
-            CreateExternalWeights(weights_th, weights_desc, weights_i4.shape,
-                                  weights_scales.shape, &scale_th, nullptr);
-        auto out = q4_builder.FullyConnectedInt4ExternalWeights(
-            src_th, external_weights, &bias_th);
-        ABSL_RETURN_IF_ERROR(q4_builder.GetGpuModel(
-            std::vector<unsigned int>{src_th.id},
-            std::vector<unsigned int>{out.id}, &gpu_model_q4_external));
-      }
-
-      if (env->GetGpuInfo().IsDesktopGpu()) {
-        EXPECT_EQ(gpu_model_q4_external.nodes.size(), 1);
-      }
-
-      TensorFloat32 dst_q4_ref;
-      ABSL_RETURN_IF_ERROR(env->ExecuteGpuModel(
-          {src_tensor}, std::vector<TensorFloat32*>{&dst_q4_ref},
-          &gpu_model_q4_ref));
-
-      TensorFloat32 dst_q4_ext;
-      ABSL_RETURN_IF_ERROR(env->ExecuteGpuModel(
-          {src_tensor}, std::vector<TensorFloat32*>{&dst_q4_ext},
-          &gpu_model_q4_external));
-
-      const float eps =
-          GetEpsilon(precision, env->GetGpuInfo()) * src_shape.c * 4.0f;
-      EXPECT_THAT(dst_q4_ext.data,
-                  testing::Pointwise(testing::FloatNear(eps), dst_q4_ref.data));
-    }
   }
   return absl::OkStatus();
 }

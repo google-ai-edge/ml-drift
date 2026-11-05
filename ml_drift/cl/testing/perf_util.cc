@@ -1373,8 +1373,16 @@ absl::Status ConvMoEPerfTest(int seq_size, int src_channels, int dst_channels,
   packed_groups.max_group_size = seq_size;
   ConvRuntimeCheckDesc runtime_check;
   runtime_check.packed_groups = packed_groups;
-  if (!is_quantized && IsConvWaveMemorySupported(gpu_info) &&
-      gpu_info.IsAdreno()) {
+  if (SupportsConvGeneric(gpu_info, CalculationsPrecision::kF16,
+                          external_weights)) {
+    auto conv_generic = CreateConvGenericExternalWeights(
+        gpu_info, op_def, CalculationsPrecision::kF16, external_weights,
+        /*bias=*/nullptr, &dst_shape,
+        /*src_exp=*/nullptr, /*different_weights_for_height=*/true,
+        runtime_check);
+    conv = std::make_unique<ConvGeneric>(std::move(conv_generic));
+  } else if (!is_quantized && IsConvWaveMemorySupported(gpu_info) &&
+             gpu_info.IsAdreno()) {
     auto conv_wave_memory = CreateConvWaveMemoryExternalWeights(
         gpu_info, op_def, CalculationsPrecision::kF16, conv_attr,
         /*bias=*/nullptr, &dst_shape,
@@ -1382,14 +1390,6 @@ absl::Status ConvMoEPerfTest(int seq_size, int src_channels, int dst_channels,
         runtime_check);
     weights_desc = conv_wave_memory.GetWeightsDescription();
     conv = std::make_unique<ConvWaveMemory>(std::move(conv_wave_memory));
-  } else if (SupportsConvGeneric(gpu_info, CalculationsPrecision::kF16,
-                                 external_weights)) {
-    auto conv_generic = CreateConvGenericExternalWeights(
-        gpu_info, op_def, CalculationsPrecision::kF16, external_weights,
-        /*bias=*/nullptr, &dst_shape,
-        /*src_exp=*/nullptr, /*different_weights_for_height=*/true,
-        runtime_check);
-    conv = std::make_unique<ConvGeneric>(std::move(conv_generic));
   } else {
     ABSL_ASSIGN_OR_RETURN(
         auto conv_fc,

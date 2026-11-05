@@ -838,8 +838,7 @@ absl::Status ConvGenericExternalWi8Test(TestExecutionEnvironment& env,
   TensorDescriptor dst_td = conv_def.dst_tensors[0];
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
 
-  float eps =
-      GetEpsilon(precision, env.GetGpuInfo()) * weights_i8.shape.i * 8.0f;
+  float eps = GetEpsilon(precision, env.GetGpuInfo()) * group_size * 8.0f;
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_td, &weights_i8_td, &scale_desc, &zp_desc}, {&dst_td},
       std::make_unique<ConvGeneric>(std::move(operation))));
@@ -853,8 +852,7 @@ absl::Status ConvGenericExternalWi4Test(TestExecutionEnvironment& env,
                                         CalculationsPrecision precision,
                                         TensorStorageType storage,
                                         const BHWC& src_shape, int dst_channels,
-                                        bool batched_weights, int group_size,
-                                        bool has_zero_point) {
+                                        bool batched_weights, int group_size) {
   TensorFloat32 src_tensor;
   const int src_channels = src_shape.c;
   group_size = group_size != -1 ? group_size : src_channels;
@@ -902,15 +900,15 @@ absl::Status ConvGenericExternalWi4Test(TestExecutionEnvironment& env,
   DataType type = conv_def.src_tensors[0].GetDataType();
   auto scale_desc =
       ScaleOrZeroPointToTensorDesc(env.GetGpuInfo(), weights_scales, type);
-  auto zp_desc =
-      ScaleOrZeroPointToTensorDesc(env.GetGpuInfo(), weights_zero_point, type);
+  auto zp_desc = ScaleOrZeroPointToTensorDesc(env.GetGpuInfo(),
+                                                weights_zero_point, type);
 
   ExternalWeights external_weights;
   external_weights.desc = weights_desc;
   external_weights.shape = weights_i4.shape;
   external_weights.scale_zp_shape = weights_scales.shape;
   external_weights.scale = &scale_desc;
-  external_weights.zero_point = has_zero_point ? &zp_desc : nullptr;
+  external_weights.zero_point = &zp_desc;
 
   if (!SupportsConvGeneric(env.GetGpuInfo(), precision, external_weights)) {
     return absl::UnimplementedError(env.SkipTestMessage());
@@ -931,15 +929,9 @@ absl::Status ConvGenericExternalWi4Test(TestExecutionEnvironment& env,
   TensorDescriptor dst_td = conv_def.dst_tensors[0];
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
 
-  float eps =
-      GetEpsilon(precision, env.GetGpuInfo()) * weights_i4.shape.i * 4.0f;
-  std::vector<TensorDescriptor*> src_descs = {&src_td, &weights_i4_td,
-                                              &scale_desc};
-  if (has_zero_point) {
-    src_descs.push_back(&zp_desc);
-  }
+  float eps = GetEpsilon(precision, env.GetGpuInfo()) * group_size * 4.0f;
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
-      src_descs, {&dst_td},
+      {&src_td, &weights_i4_td, &scale_desc, &zp_desc}, {&dst_td},
       std::make_unique<ConvGeneric>(std::move(operation))));
   TensorFloat32 dst_tensor;
   dst_td.DownloadData(&dst_tensor);
@@ -1028,8 +1020,7 @@ absl::Status ConvGenericExternalWi2Test(TestExecutionEnvironment& env,
   TensorDescriptor dst_td = conv_def.dst_tensors[0];
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
 
-  float eps =
-      GetEpsilon(precision, env.GetGpuInfo()) * weights_i2.shape.i * 2.0f;
+  float eps = GetEpsilon(precision, env.GetGpuInfo()) * group_size * 2.0f;
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_td, &weights_i2_td, &scale_desc, &zp_desc}, {&dst_td},
       std::make_unique<ConvGeneric>(std::move(operation))));
