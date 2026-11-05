@@ -476,7 +476,7 @@ class ConvCodeGenerator {
       const int i4o4_blocks =
           kernel_params_.block_size.w * kernel_params_.src_depth_loop_size;
       const int wg_size_per_slice = GetWGSpatialCount();
-      ABSL_CHECK(wg_size_per_slice == i4o4_blocks);
+      ABSL_CHECK(wg_size_per_slice >= i4o4_blocks);
       c += "  int sub_i = lid / " +
            std::to_string(kernel_params_.block_size.w) + ";\n";
       c += "  int sub_o = lid % " +
@@ -490,7 +490,8 @@ class ConvCodeGenerator {
                 : "0";
         c += "  int w_wg_offset = (" + batch_part +
              " + sub_i) * args.dst_tensor.Slices() + w_o_slice;\n";
-        c += "  int w_wg_stride = args.dst_tensor.Slices() * 4;\n";
+        c += "  int w_wg_stride = args.dst_tensor.Slices() * " +
+             std::to_string(kernel_params_.src_depth_loop_size) + ";\n";
       }
       if (quantized_weights) {
         c += "  Type w_scale, w_bias;\n";
@@ -499,10 +500,16 @@ class ConvCodeGenerator {
           c += "  int last_src_group_id = -1;\n";
         } else if (conv_params_.scale_zp_shape.o != 1) {
           // linear quantization
+          if (wg_size_per_slice > i4o4_blocks) {
+            c += "  if (lid < " + std::to_string(i4o4_blocks) + ") {\n";
+          }
           c += fc::ReadScaleZeroPointLinear(
               "w_o_slice", conv_params_.scale_zp_shape,
               conv_params_.has_zero_point,
               fc::GetDataTypeForWeights(conv_params_.weights_desc.type));
+          if (wg_size_per_slice > i4o4_blocks) {
+            c += "  }\n";
+          }
         } else {
           // scalar quantization
           c += fc::ReadScaleZeroPointScalar(
@@ -1506,9 +1513,18 @@ class ConvCodeGenerator {
     }
     const bool weights_conversion =
         conv_params_.weights_desc.layout != WeightsLayout::kUnknown;
+    const int i4o4_blocks =
+        kernel_params_.block_size.w * kernel_params_.src_depth_loop_size;
+    const int wg_size_per_slice = GetWGSpatialCount();
     if (weights_conversion) {
       c += "    Type w0, w1, w2, w3;\n";
+      if (wg_size_per_slice > i4o4_blocks) {
+        c += "    if (lid < " + std::to_string(i4o4_blocks) + ") {\n";
+      }
       c += ReadWeights();
+      if (wg_size_per_slice > i4o4_blocks) {
+        c += "    }\n";
+      }
     }
     for (const auto& postfix : postfixes) {
       c += GenerateSrcReading();
@@ -1522,14 +1538,20 @@ class ConvCodeGenerator {
     if (weights_conversion && !kernel_params_.use_vec8_accum) {
       // vec4 accumulators
       // weights_cache WeightsLayout::kBO16I16O4
+      c += "    ucl::SyncThreads<WorkGroup, Local>();\n";
+      if (wg_size_per_slice > i4o4_blocks) {
+        c += "    if (lid < " + std::to_string(i4o4_blocks) + ") {\n";
+      }
       c += R"(
-    ucl::SyncThreads<WorkGroup, Local>();
     weights_cache[sub_o * 16 + sub_i * 4 + 0] = w0;
     weights_cache[sub_o * 16 + sub_i * 4 + 1] = w1;
     weights_cache[sub_o * 16 + sub_i * 4 + 2] = w2;
     weights_cache[sub_o * 16 + sub_i * 4 + 3] = w3;
-    ucl::SyncThreads<WorkGroup, Local>();
   )";
+      if (wg_size_per_slice > i4o4_blocks) {
+        c += "    }\n";
+      }
+      c += "    ucl::SyncThreads<WorkGroup, Local>();\n";
       for (int i = 0; i < kernel_params_.block_size.w; ++i) {
         const std::string w_name = "W" + std::to_string(i);
         c += "    short4 " + w_name + " = as_short4(weights_cache[simd_id + " +
@@ -1537,14 +1559,20 @@ class ConvCodeGenerator {
       }
     } else if (weights_conversion && kernel_params_.use_vec8_accum) {
       // weights_cache WeightsLayout::kBO8I16O8
+      c += "    ucl::SyncThreads<WorkGroup, Local>();\n";
+      if (wg_size_per_slice > i4o4_blocks) {
+        c += "    if (lid < " + std::to_string(i4o4_blocks) + ") {\n";
+      }
       c += R"(
-    ucl::SyncThreads<WorkGroup, Local>();
     weights_cache[((sub_o / 2) * 16 + sub_i * 4 + 0) * 2 + sub_o % 2] = w0;
     weights_cache[((sub_o / 2) * 16 + sub_i * 4 + 1) * 2 + sub_o % 2] = w1;
     weights_cache[((sub_o / 2) * 16 + sub_i * 4 + 2) * 2 + sub_o % 2] = w2;
     weights_cache[((sub_o / 2) * 16 + sub_i * 4 + 3) * 2 + sub_o % 2] = w3;
-    ucl::SyncThreads<WorkGroup, Local>();
   )";
+      if (wg_size_per_slice > i4o4_blocks) {
+        c += "    }\n";
+      }
+      c += "    ucl::SyncThreads<WorkGroup, Local>();\n";
       for (int i = 0; i < kernel_params_.block_size.w / 2; ++i) {
         const std::string w_name = "W" + std::to_string(i);
         c += "    short8 " + w_name +
