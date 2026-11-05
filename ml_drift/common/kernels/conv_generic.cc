@@ -332,7 +332,6 @@ class ConvCodeGenerator {
   std::string GenerateMainBody() {
     const int4 block_size = kernel_params_.block_size;
     const auto& src_def = conv_params_.src_desc;
-    // weights_conversion currently supported only for Intel Wave MatMul
     const bool weights_conversion =
         conv_params_.weights_desc.layout != WeightsLayout::kUnknown;
     const bool need_local_mem = NeedsLocalMemory() || weights_conversion;
@@ -1257,13 +1256,6 @@ class ConvCodeGenerator {
   }
 
   std::string GenerateWeightsLoad(int weights_vals) {
-    const int wg_total_size = kernel_params_.work_group_size.x *
-                              kernel_params_.work_group_size.y *
-                              kernel_params_.work_group_size.z;
-    const std::string scope = gpu_info_.IsApiMetal() && wg_total_size == 32 &&
-                                      gpu_info_.IsWaveSizeEqualTo32()
-                                  ? "SubGroup"
-                                  : "WorkGroup";
     const std::string weights_cache_type = GetWeightsCacheType();
     std::string c;
     if (kernel_params_.weights_upload_type ==
@@ -1273,23 +1265,45 @@ class ConvCodeGenerator {
                                /*global_offset_name*/ "", weights_vals);
     } else if (kernel_params_.weights_upload_type ==
                ConvGeneric::WeightsUploadType::kLocalMemory) {
+      const int wg_size_per_slice = GetWGSpatialCount();
+      const std::string scope = gpu_info_.IsApiMetal() &&
+                                        wg_size_per_slice == 32 &&
+                                        gpu_info_.IsWaveSizeEqualTo32()
+                                    ? "SubGroup"
+                                    : "WorkGroup";
       if (gpu_info_.IsApiMetal()) {
         c += "    ucl::SyncThreads<" + scope + ", None>();\n";
       } else {
         c += "    ucl::SyncThreads<" + scope + ", Local>();\n";
       }
 
-      if (gpu_info_.SupportsPointersInKernels()) {
+      const bool weights_conversion =
+          conv_params_.weights_desc.layout != WeightsLayout::kUnknown;
+      if (weights_conversion) {
+        const int i4o4_blocks =
+            kernel_params_.block_size.w * kernel_params_.src_depth_loop_size;
+        if (wg_size_per_slice > i4o4_blocks) {
+          c += "    if (lid < " + std::to_string(i4o4_blocks) + ") {\n";
+        }
+        c += ReadWeights();
+        c += "      weights_cache[lid * 4 + 0] = w0;\n";
+        c += "      weights_cache[lid * 4 + 1] = w1;\n";
+        c += "      weights_cache[lid * 4 + 2] = w2;\n";
+        c += "      weights_cache[lid * 4 + 3] = w3;\n";
+        if (wg_size_per_slice > i4o4_blocks) {
+          c += "    }\n";
+        }
+      } else if (gpu_info_.SupportsPointersInKernels()) {
         c += GenerateUploadByThreads("weights_cache", "weights_offset",
                                      /*use_ptrs*/ true,
                                      /*global_offset_name*/ "",
-                                     weights_cache_type, "lid", wg_total_size,
-                                     weights_vals);
+                                     weights_cache_type, "lid",
+                                     wg_size_per_slice, weights_vals);
       } else {
         c += GenerateUploadByThreads("weights_cache", "args.weights",
                                      /*use_ptrs*/ false, "weights_offset",
-                                     weights_cache_type, "lid", wg_total_size,
-                                     weights_vals);
+                                     weights_cache_type, "lid",
+                                     wg_size_per_slice, weights_vals);
       }
     } else if (kernel_params_.weights_upload_type ==
                ConvGeneric::WeightsUploadType::kWaveMemory) {
@@ -3458,6 +3472,27 @@ ConvGeneric::KernelParams GetKernelParams(
           ConvGeneric::WeightsUploadType::kConstantMemory) {
     kernel_params.weights_upload_type =
         ConvGeneric::WeightsUploadType::kGlobalMemory;
+  }
+
+  if (conv_params.weights_desc.layout != WeightsLayout::kUnknown &&
+      kernel_params.weights_upload_type !=
+          ConvGeneric::WeightsUploadType::kIntelWave16MatMul) {
+    // Add weights conversion optimized parameters here
+    // kernel_params.weights_upload_type =
+    //    ConvGeneric::WeightsUploadType::kLocalMemory;
+    // kernel_params.fixed_work_group_size = true;
+    // kernel_params.linear_all = false;
+
+    // AMD, S22 Exynos, not bad option
+    // kernel_params.block_size = int4(4, 1, 1, 2);
+    // if (kernel_params.linear_spatial) {
+    //   kernel_params.work_group_size = int3(16, 4, 1);
+    //   kernel_params.work_group_launch_order = int3(1, 0, 2);
+    // } else {
+    //   kernel_params.work_group_size = int3(16, 1, 4);
+    //   kernel_params.work_group_launch_order = int3(2, 0, 1);
+    // }
+    // kernel_params.src_depth_loop_size = 8;
   }
 
   if (conv_params.different_weights_for_height) {
