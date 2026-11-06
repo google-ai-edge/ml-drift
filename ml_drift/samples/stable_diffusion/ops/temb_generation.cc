@@ -52,7 +52,7 @@ class TembGeneration : public OpBase<TembGeneration> {
  public:
   // clang-format off
   MLD_OP_ATTRS(
-      MLD_OP_ATTR(int, _channels, 320);
+      MLD_OP_ATTR_NO_BIND(int, channels, 320);
   )
   // clang-format on
 
@@ -64,10 +64,10 @@ class TembGeneration : public OpBase<TembGeneration> {
       return absl::InvalidArgumentError("TembGeneration expects 1 input");
     }
 
-    int half_channels = attrs._channels / 2;
+    int half_channels = attrs.channels / 2;
     int half_slices = half_channels / 4;
 
-    outputs = {graph.AddTensor(1, 1, 1, attrs._channels, DataType::kFloat16)};
+    outputs = {graph.AddTensor(1, 1, 1, attrs.channels, DataType::kFloat16)};
 
     auto* op = AppendNewOp(graph, attrs);
     if (!op) return absl::InternalError("Failed to append new op");

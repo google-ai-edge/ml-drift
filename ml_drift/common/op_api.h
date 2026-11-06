@@ -43,29 +43,30 @@
 // Attributes & Shader Auto-Binding
 // --------------------------------
 // Declare attributes once inside the op class (before `Build()`) using
-// `MLD_OP_ATTRS(...)` and `MLD_OP_ATTR(T, name, default_val)`:
+// `MLD_OP_ATTRS(...)` with `MLD_OP_ATTR` or `MLD_OP_ATTR_NO_BIND`:
 //
-//   Declaration                        Caller key   Shader `args.<name>`
-//   ---------------------------------  -----------  -------------------------
-//   MLD_OP_ATTR(T, name, default)      "name"       auto-bound (bindable T)
-//   MLD_OP_ATTR(T, _name, default)     "name"       not bound  (any C++ T)
+//   Declaration                            Caller key  Shader `args.<name>`
+//   -------------------------------------  ----------  ----------------------
+//   MLD_OP_ATTR(T, name, default)          "name"      auto-bound (scalar T)
+//   MLD_OP_ATTR_NO_BIND(T, name, default)  "name"      not auto-bound (any T)
 //
-// - Shader auto-binding: Passing `attrs` to `AppendNewOp` attaches it to that
-//   kernel. Un-prefixed attributes are automatically bound to `args.<name>` in
-//   the shader. Currently supported auto-bound types `T` are scalars:
+// - Shader auto-binding (`MLD_OP_ATTR`): Passing `attrs` to `AppendNewOp`
+//   attaches it to that kernel. `MLD_OP_ATTR` fields are automatically bound to
+//   `args.<name>` in the shader. Currently supported auto-bound types `T` are
+//   scalars:
 //     - `int`/`int32_t`
 //     - `unsigned int`/`uint32_t`
 //     - `float`
 //     - `half`
 //     - `bool` (uploaded as `int` 0/1)
-// - Host-only (`_` prefix): Prefix `name` with `_` to opt out of shader
-//   binding while keeping the `"name"` key for `AppendOp` callers. Types
-//   without shader auto-bind support must be prefixed with `_`.
+// - Opting out (`MLD_OP_ATTR_NO_BIND`): Parses and validates `"name"` into
+//   `attrs.<name>` without automatic shader binding. Any copy-assignable C++
+//   type `T` is allowed.
 // - Validation: Omitted keys take their declared defaults. Unknown
 //   keys or type mismatches fail `AppendOp` with `InvalidArgumentError` before
 //   `Build()` runs.
 // - Mutable attributes: `attrs` can be modified in `Build()`; any edits to
-//   auto-bound fields take effect because final values are bound to
+//   `MLD_OP_ATTR` fields take effect because final values are bound to
 //   `args.<name>` upon successful return of `Build()`.
 //
 // Lifecycle of an AppendOp Call
@@ -74,7 +75,7 @@
 //     -> OpRegistry instantiates MyOp
 //     -> MyOp::Attrs is constructed and parsed from the caller's map
 //     -> MyOp::Build(graph, inputs, attrs, outputs) runs
-//     -> auto-bound fields on `attrs` are written to attached GPUOperations
+//     -> MLD_OP_ATTR fields on `attrs` are written to attached GPUOperations
 //     -> outputs are returned to the caller
 //
 // Example Usage
@@ -86,9 +87,9 @@
 // class MyCustomOp : public ::ml_drift::OpBase<MyCustomOp> {
 //  public:
 //   MLD_OP_ATTRS(
-//       MLD_OP_ATTR(float, scale, 1.0f);  // "scale" -> shader args.scale
-//       MLD_OP_ATTR(::ml_drift::Axis, _axis,
-//                   ::ml_drift::Axis::kWidth);  // "axis" -> host-only
+//       MLD_OP_ATTR(float, scale, 1.0f);  // -> shader args.scale
+//       MLD_OP_ATTR_NO_BIND(::ml_drift::Axis, axis,
+//                           ::ml_drift::Axis::kWidth);  // not auto-bound
 //   )
 //
 //   absl::Status Build(
@@ -98,9 +99,9 @@
 //       std::vector<::ml_drift::GpuModelBuilder::TensorHandle>& outputs)
 //       const {
 //     std::string read_coords;
-//     if (attrs._axis == ::ml_drift::Axis::kWidth) {
+//     if (attrs.axis == ::ml_drift::Axis::kWidth) {
 //       read_coords = "args.dst.Width() - 1 - X, Y, S";
-//     } else if (attrs._axis == ::ml_drift::Axis::kHeight) {
+//     } else if (attrs.axis == ::ml_drift::Axis::kHeight) {
 //       read_coords = "X, args.dst.Height() - 1 - Y, S";
 //     } else {
 //       return absl::UnimplementedError("Unsupported axis.");

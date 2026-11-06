@@ -62,19 +62,18 @@ class OpAttrs {
       : map_(init) {}
 
  protected:
-  template <typename T, bool kLeadingUnderscore>
+  template <typename T, bool kBindToShader>
   T RegisterAttr(std::string_view name, T* member_ptr, T default_val) {
     static_assert(std::is_copy_assignable_v<T>,
-                  "MLD_OP_ATTR type must be copy-assignable.");
+                  "Attribute type must be copy-assignable.");
     void (*write_fn)(GPUOperation*, std::string_view, const void*) = nullptr;
-    if constexpr (!kLeadingUnderscore) {
+    if constexpr (kBindToShader) {
       static_assert(internal::kIsShaderBindable<T>,
-                    "Non-shader attribute types must be prefixed with '_' to "
-                    "mark them host-only.");
+                    "Type does not support automatic shader binding; use "
+                    "MLD_OP_ATTR_NO_BIND instead.");
       write_fn = &WriteShaderArg<T>;
     }
-    const std::string_view key = kLeadingUnderscore ? name.substr(1) : name;
-    fields_.push_back(Field{key, member_ptr, &ParseAttr<T>, write_fn});
+    fields_.push_back(Field{name, member_ptr, &ParseAttr<T>, write_fn});
     return default_val;
   }
 
@@ -186,9 +185,9 @@ class OpAttrs {
 // `op_api.h` for the full attribute and shader auto-binding guide.
 //
 //   MLD_OP_ATTRS(
-//       MLD_OP_ATTR(int, width, 1);              // "width" -> args.width
-//       MLD_OP_ATTR(float, scale, 1.0f);         // "scale" -> args.scale
-//       MLD_OP_ATTR(Axis, _axis, Axis::kWidth);  // "axis"  -> host-only
+//       MLD_OP_ATTR(int, width, 1);                     // -> args.width
+//       MLD_OP_ATTR(float, scale, 1.0f);                // -> args.scale
+//       MLD_OP_ATTR_NO_BIND(Axis, axis, Axis::kWidth);  // not auto-bound
 //   )
 #define MLD_OP_ATTRS(...)                     \
   struct Attrs : public ::ml_drift::OpAttrs { \
@@ -198,16 +197,19 @@ class OpAttrs {
     __VA_ARGS__                               \
   };
 
-// Defines a caller-configurable attribute on `Attrs`.
-// - Without a leading '_', `type` must support shader auto-binding (currently
-//   scalars: int/int32_t, unsigned int/uint32_t, float, half, bool) and is
-//   automatically bound to `args.<name>` when `Build()` returns OK.
-// - Prefix `name` with '_' to opt out of shader binding (any copy-assignable
-//   C++ type is allowed). The leading '_' is stripped from the caller-facing
-//   key passed to `AppendOp`.
-#define MLD_OP_ATTR(type, name, default_val)                                  \
-  type name = this->RegisterAttr<type, (#name)[0] == '_'>(#name, &this->name, \
-                                                          type{default_val})
+// Defines a caller-configurable attribute on `Attrs` that is automatically
+// bound to `args.<name>` when `Build()` returns OK. `type` must support shader
+// auto-binding (currently scalars: int/int32_t, unsigned int/uint32_t, float,
+// half, bool).
+#define MLD_OP_ATTR(type, name, default_val)                    \
+  type name = this->RegisterAttr<type, /*kBindToShader=*/true>( \
+      #name, &this->name, type{default_val})
+
+// Defines a caller-configurable attribute on `Attrs` without automatic shader
+// binding. Any copy-assignable C++ `type` is allowed.
+#define MLD_OP_ATTR_NO_BIND(type, name, default_val)             \
+  type name = this->RegisterAttr<type, /*kBindToShader=*/false>( \
+      #name, &this->name, type{default_val})
 
 }  // namespace ml_drift
 
