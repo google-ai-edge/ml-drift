@@ -1285,6 +1285,7 @@ class ConvCodeGenerator {
         if (wg_size_per_slice > i4o4_blocks) {
           c += "    if (lid < " + std::to_string(i4o4_blocks) + ") {\n";
         }
+        c += "      Type w0, w1, w2, w3;\n";
         c += ReadWeights();
         c += "      weights_cache[lid * 4 + 0] = w0;\n";
         c += "      weights_cache[lid * 4 + 1] = w1;\n";
