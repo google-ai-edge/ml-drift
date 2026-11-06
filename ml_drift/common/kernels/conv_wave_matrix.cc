@@ -223,10 +223,55 @@ void AddLinearizeWGReplacements(
   replacements["LINEAR_WG_ID"] = patch;
 }
 
+std::string ReadWeights1D(const ConvWaveMatrix::ConvParams& conv_params) {
+  std::string c;
+  if (conv_params.weights_desc.type == DataType::kUint8) {
+    c += "    uint4 u8_i4o4 = args.weights.Read(w_sg_offset);\n";
+    c += "    ucl::U32x4ToU8x16AsVec4x4<SType>(u8_i4o4, w0, w1, w2, w3);\n";
+  } else if (conv_params.weights_desc.type == DataType::kUint4) {
+    c += "    uint2 u4_i4o4 = args.weights.Read(w_sg_offset);\n";
+    c += "    ucl::U32x2ToU4x16AsVec4x4<SType>(u4_i4o4, w0, w1, w2, w3);\n";
+  } else if (conv_params.weights_desc.type == DataType::kUint2) {
+    c += "    uint u2_i4o4 = args.weights.Read(w_sg_offset);\n";
+    c += "    ucl::U32x1ToU2x16AsVec4x4<SType>(u2_i4o4, w0, w1, w2, w3);\n";
+  } else {
+    c += "    args.weights.ReadVec16AsVec4x4<SType>(w0, w1, w2, w3, "
+         "w_sg_offset);\n";
+  }
+  c += "    w_sg_offset += stride;\n";
+  return c;
+}
+
+std::string ReadWeights2D(const ConvWaveMatrix::ConvParams& conv_params) {
+  std::string c;
+  const std::string xc = "w_o_slice";
+  const std::string batch_part = conv_params.different_weights_for_height
+                                     ? "w_batch_id * args.src_tensor.Slices()"
+                                     : "0";
+  const std::string yc = batch_part + " + s + sub_i";
+  if (conv_params.weights_desc.layout ==
+      WeightsLayout::k2DX4I4YIsSpatialIAndXIsOOGroupO4) {
+    c += "    w0 = args.weights0.Read<SType>(" + xc + ", " + yc + ");\n";
+    c += "    w1 = args.weights1.Read<SType>(" + xc + ", " + yc + ");\n";
+    c += "    w2 = args.weights2.Read<SType>(" + xc + ", " + yc + ");\n";
+    c += "    w3 = args.weights3.Read<SType>(" + xc + ", " + yc + ");\n";
+  } else if (conv_params.weights_desc.type == DataType::kUint8) {
+    c += "    uint4 u8_i4o4 = args.weights.Read(" + xc + ", " + yc + ");\n";
+    c += "    ucl::U32x4ToU8x16AsVec4x4<SType>(u8_i4o4, w0, w1, w2, w3);\n";
+  } else if (conv_params.weights_desc.type == DataType::kUint4) {
+    c += "    ushort4 u4_i4o4 = args.weights.Read(" + xc + ", " + yc + ");\n";
+    c += "    ucl::U16x4ToU4x16AsVec4x4<SType>(u4_i4o4, w0, w1, w2, w3);\n";
+  } else if (conv_params.weights_desc.type == DataType::kUint2) {
+    c += "    uchar4 u2_i4o4 = args.weights.Read(" + xc + ", " + yc + ");\n";
+    c += "    ucl::U8x4ToU2x16AsVec4x4<SType>(u2_i4o4, w0, w1, w2, w3);\n";
+  }
+  return c;
+}
+
 std::string ReadWeights(const ConvWaveMatrix::ConvParams& conv_params,
                         int src_x4_slices) {
   const bool weights_conversion =
-      conv_params.weights_desc.layout == WeightsLayout::kOSpatialIOGroupI4O4;
+      conv_params.weights_desc.layout != WeightsLayout::kUnknown;
   const bool quantized_weights =
       weights_conversion && SizeInBitsOf(conv_params.weights_desc.type) <= 8;
   std::string c;
@@ -246,19 +291,11 @@ std::string ReadWeights(const ConvWaveMatrix::ConvParams& conv_params,
     c += "    }\n";
   }
   c += "    Type w0, w1, w2, w3;\n";
-  if (conv_params.weights_desc.type == DataType::kUint8) {
-    c += "    uint4 u8_i4o4 = args.weights.Read(w_sg_offset);\n";
-    c += "    ucl::U32x4ToU8x16AsVec4x4<SType>(u8_i4o4, w0, w1, w2, w3);\n";
-  } else if (conv_params.weights_desc.type == DataType::kUint4) {
-    c += "    uint2 u4_i4o4 = args.weights.Read(w_sg_offset);\n";
-    c += "    ucl::U32x2ToU4x16AsVec4x4<SType>(u4_i4o4, w0, w1, w2, w3);\n";
-  } else if (conv_params.weights_desc.type == DataType::kUint2) {
-    c += "    uint u2_i4o4 = args.weights.Read(w_sg_offset);\n";
-    c += "    ucl::U32x1ToU2x16AsVec4x4<SType>(u2_i4o4, w0, w1, w2, w3);\n";
+  if (conv_params.weights_desc.IsLinearLayout()) {
+    c += ReadWeights1D(conv_params);
   } else {
-    c += "    args.weights.ReadVec16AsVec4x4(w0, w1, w2, w3, w_sg_offset);\n";
+    c += ReadWeights2D(conv_params);
   }
-  c += "    w_sg_offset += stride;\n";
   if (quantized_weights) {
     c += R"(
     w0 = w0 * w_scale + w_bias;
@@ -273,9 +310,8 @@ std::string ReadWeights(const ConvWaveMatrix::ConvParams& conv_params,
 // Local weights cache declaration and thread/quantization index setup before
 // the channel loop.
 std::string GenerateWeightsConversionInit(
-    const ConvWaveMatrix::ConvParams& conv_params,
+    const GpuInfo& gpu_info, const ConvWaveMatrix::ConvParams& conv_params,
     const ConvWaveMatrix::KernelParams& kernel_params) {
-  // WeightsLayout::kBIOI4O4
   const bool quantized_weights =
       SizeInBitsOf(conv_params.weights_desc.type) <= 8;
   const int wm_n_slices = kernel_params.wave_matrix_n / 4;
@@ -285,15 +321,18 @@ std::string GenerateWeightsConversionInit(
   const int wg_slices = kernel_params.GetX4SlicesCount();
   const int i4o4_blocks = src_x4_slices * dst_x4_slices;
   const int weights_per_slice = i4o4_blocks * 16;
+  const bool supports_x4_reinterpret = gpu_info.IsApiMetal();
   std::string c;
   c += "  __local SType weights_cache_wg[" +
        std::to_string(wg_slices * weights_per_slice) + "];\n";
-  c += "  __local SType* weights_cache_sg = weights_cache_wg + slice_id * " +
-       std::to_string(weights_per_slice) + ";\n";
-  c += "  __local Type* weights_cache_sg_x4 = (__local "
-       "Type*)weights_cache_sg;\n";
+  if (supports_x4_reinterpret) {
+    c += "  __local Type* weights_cache_wg_x4 = (__local "
+         "Type*)weights_cache_wg;\n";
+  }
   const int o_groups = dst_x4_slices;
-  c += "  int w_sg_offset, stride;\n";
+  if (conv_params.weights_desc.IsLinearLayout()) {
+    c += "  int w_sg_offset, stride;\n";
+  }
   c += "  int o1, o2, i1, i2;\n";
   c += "  Type w_scale, w_bias;\n";
   c += "  int sub_i, sub_o, w_o_slice;\n";
@@ -315,13 +354,15 @@ std::string GenerateWeightsConversionInit(
   c += "  sub_i = spatial_id / " + std::to_string(o_groups) + ";\n";
   c += "  sub_o = spatial_id % " + std::to_string(o_groups) + ";\n";
   c += "  w_o_slice = min(DST_S + sub_o, args.dst_tensor.Slices()-1);\n";
-  const std::string batch_part = conv_params.different_weights_for_height
-                                     ? "w_batch_id * args.src_tensor.Slices()"
-                                     : "0";
-  c += "  w_sg_offset = (" + batch_part +
-       " + sub_i) * args.dst_tensor.Slices() + w_o_slice;\n";
-  c += "  stride = args.dst_tensor.Slices() * " +
-       std::to_string(src_x4_slices) + ";\n";
+  if (conv_params.weights_desc.IsLinearLayout()) {
+    const std::string batch_part = conv_params.different_weights_for_height
+                                       ? "w_batch_id * args.src_tensor.Slices()"
+                                       : "0";
+    c += "  w_sg_offset = (" + batch_part +
+         " + sub_i) * args.dst_tensor.Slices() + w_o_slice;\n";
+    c += "  stride = args.dst_tensor.Slices() * " +
+         std::to_string(src_x4_slices) + ";\n";
+  }
   if (quantized_weights && conv_params.scale_zp_shape.i == 1 &&
       conv_params.scale_zp_shape.o != 1) {
     // linear quantization
@@ -341,29 +382,46 @@ std::string GenerateWeightsConversionInit(
 
 // Cooperative weights reading/dequantization into weights_cache_wg.
 std::string GenerateLoadWeightsToLocalCache(
-    const ConvWaveMatrix::ConvParams& conv_params,
+    const GpuInfo& gpu_info, const ConvWaveMatrix::ConvParams& conv_params,
     const ConvWaveMatrix::KernelParams& kernel_params) {
   const int wm_n_slices = kernel_params.wave_matrix_n / 4;
   const int wm_k = kernel_params.wave_matrix_k;
   const int src_x4_slices = kernel_params.GetX4SlicesCount();
   const int dst_x4_slices = kernel_params.dst_slices_per_thread;
   const int i4o4_blocks = src_x4_slices * dst_x4_slices;
+  const int weights_per_slice = i4o4_blocks * 16;
+  const bool supports_x4_reinterpret = gpu_info.IsApiMetal();
   std::string c;
   if (i4o4_blocks < kernel_params.wave_size) {
     c += "  if (spatial_id < " + std::to_string(i4o4_blocks) + ") {\n";
+  } else {
+    c += "  {\n";
   }
   c += ReadWeights(conv_params, src_x4_slices);
   for (int i = 0; i < 4; ++i) {
     std::string addr =
-        "((i2 * " + std::to_string(dst_x4_slices / wm_n_slices) + " + o2) * " +
+        "slice_id * " + std::to_string(weights_per_slice / 4) + " + ((i2 * " +
+        std::to_string(dst_x4_slices / wm_n_slices) + " + o2) * " +
         std::to_string(wm_k) + " + i1 * 4 + " + std::to_string(i) + ") * " +
         std::to_string(wm_n_slices) + " + o1";
-    c += "    weights_cache_sg_x4[" + addr + "] = w" + std::to_string(i) +
-         ";\n";
+    if (supports_x4_reinterpret) {
+      c += "    weights_cache_wg_x4[" + addr + "] = w" + std::to_string(i) +
+           ";\n";
+    } else {
+      c += "    {\n";
+      c += "      int base_id = (" + addr + ") * 4;\n";
+      c += "      weights_cache_wg[base_id + 0] = w" + std::to_string(i) +
+           ".x;\n";
+      c += "      weights_cache_wg[base_id + 1] = w" + std::to_string(i) +
+           ".y;\n";
+      c += "      weights_cache_wg[base_id + 2] = w" + std::to_string(i) +
+           ".z;\n";
+      c += "      weights_cache_wg[base_id + 3] = w" + std::to_string(i) +
+           ".w;\n";
+      c += "    }\n";
+    }
   }
-  if (i4o4_blocks < kernel_params.wave_size) {
-    c += "  }\n";
-  }
+  c += "  }\n";
   return c;
 }
 
@@ -389,11 +447,9 @@ std::string GenerateWaveMatrixLoadWeights(
       const std::string dst_range = "o" + std::to_string(dst_s * wm_n) + "_" +
                                     std::to_string(dst_s * wm_n + wm_n);
       const std::string w_name = "w_" + dst_range + "_" + src_range;
-      std::string offset =
-          std::to_string(src_s * dst_xN_slices + dst_s) + " * WM_K * WM_N";
-      if (!base_offset.empty()) {
-        offset = base_offset + " + " + offset;
-      }
+      std::string offset = base_offset + " + " +
+                           std::to_string(src_s * dst_xN_slices + dst_s) +
+                           " * WM_K * WM_N";
       std::string stride =
           kernel_params.load_right_transposed ? "WM_K" : "WM_N";
       if (conv_params.Is8Bit()) {
@@ -539,7 +595,7 @@ std::string GenerateConvolution(
     c += "  int w_batch_id = DST_Y;\n";
   }
   const bool weights_conversion =
-      conv_params.weights_desc.layout == WeightsLayout::kOSpatialIOGroupI4O4;
+      conv_params.weights_desc.layout != WeightsLayout::kUnknown;
   // kOSpatialIOGroupIwmkOwmn
   const int o_group_size_xN = kernel_params.dst_slices_per_thread / wm_n_slices;
   const std::string i_slices_xK = "((args.src_tensor.Slices() * (" +
@@ -740,7 +796,7 @@ std::string GenerateConvolution(
     src_slices_count = "src_slices_dynamic";
   }
   if (weights_conversion) {
-    c += GenerateWeightsConversionInit(conv_params, kernel_params);
+    c += GenerateWeightsConversionInit(gpu_info, conv_params, kernel_params);
   }
   c += "  for (int s = 0; s < " + src_slices_count +
        "; s += " + std::to_string(src_x4_slices) + ") {\n";
@@ -759,7 +815,7 @@ std::string GenerateConvolution(
   }
   c += "    ucl::SyncThreads<WorkGroup, Local>();\n";
   if (weights_conversion) {
-    c += GenerateLoadWeightsToLocalCache(conv_params, kernel_params);
+    c += GenerateLoadWeightsToLocalCache(gpu_info, conv_params, kernel_params);
   } else {
     c += GenerateWaveMatrixLoadWeights(gpu_info, conv_params, kernel_params,
                                        "args.weights.GetPtr()",
@@ -796,8 +852,10 @@ std::string GenerateConvolution(
   }
   c += "    ucl::SyncThreads<WorkGroup, Local>();\n";
   if (weights_conversion) {
-    c += GenerateWaveMatrixLoadWeights(gpu_info, conv_params, kernel_params,
-                                       "weights_cache_sg", "");
+    const int weights_per_slice = src_x4_slices * dst_x4_slices * 16;
+    c += GenerateWaveMatrixLoadWeights(
+        gpu_info, conv_params, kernel_params, "weights_cache_wg",
+        "slice_id * " + std::to_string(weights_per_slice));
   }
   const DataType left_matrix_type =
       conv_params.Is8Bit() ? DataType::kInt8 : src_def.GetDataType();
@@ -1049,7 +1107,7 @@ ConvWaveMatrix::KernelParams InitParamsForTaskSize(
     ABSL_CHECK(params.runtime_check.GetSlicesAlignment() % src_slices_per_wg ==
                0);
   }
-  if (params.weights_desc.layout == WeightsLayout::kOSpatialIOGroupI4O4) {
+  if (params.weights_desc.layout != WeightsLayout::kUnknown) {
     const int src_x4_slices = kernel_params.GetX4SlicesCount();
     const int dst_x4_slices = kernel_params.dst_slices_per_thread;
     const int i4o4_blocks = src_x4_slices * dst_x4_slices;
@@ -1058,6 +1116,7 @@ ConvWaveMatrix::KernelParams InitParamsForTaskSize(
   return kernel_params;
 }
 
+// Checks if GPU wave-matrix instructions and channel alignments are supported.
 bool SupportsConvWaveMatrix(const GpuInfo& gpu_info,
                             CalculationsPrecision precision,
                             const OHWI& weights_shape) {
@@ -1404,20 +1463,7 @@ ConvWaveMatrix CreateConvWaveMatrixExternalWeights(
       AlignByN(dst_slices_xN, kernel_params.dst_slices_per_thread /
                                   (kernel_params.wave_matrix_n / 4)));
 
-  BufferDescriptor buffer_desc;
-  if (SizeInBitsOf(weights.desc.type) >= 16) {
-    // float weights
-    buffer_desc.element_type = weights.desc.type;
-    buffer_desc.element_size = 16;
-  } else {
-    // quantized weights
-    buffer_desc.element_type = DataType::kUint32;
-    buffer_desc.element_size = SizeInBitsOf(weights.desc.type) / 2;
-  }
-  buffer_desc.memory_type = MemoryType::kGlobal;
-  desc.AddSrcBuffer("weights", buffer_desc);
-
-  fc::AddWeightsScaleZeroPointArguments(weights, &desc);
+  fc::AddWeightsArguments(weights, /*vec_size=*/16, &desc);
 
   if (bias) {
     desc.AddSrcTensor("biases", *bias);
@@ -1484,6 +1530,8 @@ ConvWaveMatrix CreateConvWaveMatrixInt8ExternalWeights(
   return desc;
 }
 
+// Checks if 1x1 / batched convolution with on-the-fly weight conversion is
+// supported.
 bool SupportsConvWaveMatrix(const GpuInfo& gpu_info,
                             CalculationsPrecision precision,
                             const ExternalWeights& weights) {
@@ -1503,6 +1551,8 @@ bool SupportsConvWaveMatrix(const GpuInfo& gpu_info,
   return SupportsConvWaveMatrix(gpu_info, precision, weights.shape);
 }
 
+// Checks if general 2D or batched convolution (with pre-rearranged weights) is
+// supported.
 bool SupportsConvWaveMatrix(const GpuInfo& gpu_info,
                             CalculationsPrecision precision,
                             const Convolution2DAttributes& attr) {
@@ -1513,6 +1563,7 @@ bool SupportsConvWaveMatrix(const GpuInfo& gpu_info,
   return SupportsConvWaveMatrix(gpu_info, precision, weights_shape);
 }
 
+// Checks if INT8 1x1 convolution (with pre-rearranged weights) is supported.
 bool SupportsConvWaveMatrixInt8(const GpuInfo& gpu_info,
                                 const OHWI& weights_shape) {
   const int src_slices = DivideRoundUp(weights_shape.i, 4);

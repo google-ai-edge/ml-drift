@@ -64,7 +64,8 @@ absl::Status ConvWaveMatrixExternalWi8Test(
 absl::Status ConvWaveMatrixExternalWi4Test(
     TestExecutionEnvironment& env, CalculationsPrecision precision,
     TensorStorageType storage, const BHWC& src_shape, int dst_channels,
-    bool batched_weights = false, int group_size = -1);
+    bool batched_weights = false, int group_size = -1,
+    bool has_zero_point = true);
 absl::Status ConvWaveMatrixExternalWi2Test(
     TestExecutionEnvironment& env, CalculationsPrecision precision,
     TensorStorageType storage, const BHWC& src_shape, int dst_channels,
