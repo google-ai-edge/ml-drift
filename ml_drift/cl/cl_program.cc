@@ -139,15 +139,36 @@ std::string CompilerOptionToString(const GpuInfo& gpu_info,
     case CompilerOptions::kClUniformWorkGroupSize:
       return "-cl-uniform-work-group-size";
     case CompilerOptions::kClPixelDisableRecompile:
-      return "-pixel-disable-recompile";
+      if (!gpu_info.opencl_info.IsCLVK() && gpu_info.IsPowerVR()) {
+        return "-pixel-disable-recompile";
+      } else {
+        return "";
+      }
     case CompilerOptions::kClPixelDisableKernelBlobCache:
-      return "-pixel-disable-kernelblobcache";
+      if (!gpu_info.opencl_info.IsCLVK() && gpu_info.IsPowerVR()) {
+        return "-pixel-disable-kernelblobcache";
+      } else {
+        return "";
+      }
     case CompilerOptions::kClPixelEnableImmediateRecompile:
-      return "-pixel-enable-immediaterecompile";
+      if (!gpu_info.opencl_info.IsCLVK() && gpu_info.IsPowerVR()) {
+        return "-pixel-enable-immediaterecompile";
+      } else {
+        return "";
+      }
     case CompilerOptions::kClIntel256GRFPerThread:
-      return "-cl-intel-256-GRF-per-thread";
+      if (!gpu_info.opencl_info.IsCLVK() &&
+          gpu_info.SupportsExtension("cl_intel_subgroups")) {
+        return "-cl-intel-256-GRF-per-thread";
+      } else {
+        return "";
+      }
     case CompilerOptions::kClAmdSaveTempsAndroid:
-      return "-save-temps=/data/local/tmp/";
+      if (!gpu_info.opencl_info.IsCLVK() && gpu_info.IsAMD()) {
+        return "-save-temps=/data/local/tmp/";
+      } else {
+        return "";
+      }
     default:
       return "";
   }
