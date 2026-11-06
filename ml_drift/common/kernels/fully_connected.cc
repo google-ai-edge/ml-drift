@@ -899,6 +899,18 @@ int GetRecommendedMaxTotalSpatialSize(const GpuInfo& gpu_info,
   return base_max_size;
 }
 
+bool IsFullyConnectedRecommended(const GpuInfo& gpu_info,
+                                 CalculationsPrecision precision,
+                                 const OHWI& weights_shape,
+                                 const BHWC& dst_shape) {
+  int total_spatial_size = dst_shape.b * dst_shape.w;
+  if (weights_shape.h == 1) {
+    total_spatial_size *= dst_shape.h;
+  }
+  return total_spatial_size <=
+         GetRecommendedMaxTotalSpatialSize(gpu_info, precision);
+}
+
 absl::StatusOr<FullyConnected> CreateFullyConnectedWeightsAreSpatialTensor(
     const GpuInfo& gpu_info, const OperationDef& definition,
     CalculationsPrecision precision, const OHWI& weights_shape,

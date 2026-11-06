@@ -107,6 +107,11 @@ class FullyConnected : public GPUOperation {
 int GetRecommendedMaxTotalSpatialSize(const GpuInfo& gpu_info,
                                       CalculationsPrecision precision);
 
+bool IsFullyConnectedRecommended(const GpuInfo& gpu_info,
+                                 CalculationsPrecision precision,
+                                 const OHWI& weights_shape,
+                                 const BHWC& dst_shape);
+
 // Checks if the fully connected weights are spatial tensor is supported.
 inline bool IsFullyConnectedWeightsAreSpatialTensorSupported(
     const OHWI& weight_shape) {
