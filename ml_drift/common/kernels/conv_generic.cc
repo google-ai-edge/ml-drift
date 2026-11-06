@@ -322,6 +322,7 @@ class ConvCodeGenerator {
             {"Type", ToUclDataType(type, 4)},
             {"AccType", ToUclDataType(GetAccumulatorType(), 4)},
             {"AccSType", ToUclDataType(GetAccumulatorType(), 1)},
+            {"WEIGHTS_PER_SLICE", "weights_cache"},
         },
         &c);
 
@@ -596,14 +597,14 @@ class ConvCodeGenerator {
     const std::string weights_global_ptr =
         weights_space + " " + weights_buffer_type + "*";
     if (need_local_mem) {
-      c += "  __local " + weights_cache_type + " weights_cache[" +
+      c += "  __local " + weights_cache_type + " WEIGHTS_PER_SLICE[" +
            std::to_string(weights_vals_per_loop) + "];\n";
     } else if (is_wave_memory) {
-      c += "  __wave " + weights_cache_type + " weights_cache[" +
+      c += "  __wave " + weights_cache_type + " WEIGHTS_PER_SLICE[" +
            std::to_string(weights_vals_per_loop) + "];\n";
     } else if (kernel_params_.AreWeightsBuffer() &&
                gpu_info_.SupportsPointersInKernels()) {
-      c += "  " + weights_global_ptr + " weights_cache;\n";
+      c += "  " + weights_global_ptr + " WEIGHTS_PER_SLICE;\n";
     } else if (!kernel_params_.AreWeightsBuffer() &&
                !conv_params_.IsTrivialKernelSize()) {
       c += "  int weights_offset = 0;\n";
@@ -1261,7 +1262,7 @@ class ConvCodeGenerator {
     if (kernel_params_.weights_upload_type ==
         ConvGeneric::WeightsUploadType::kLocalMemoryWGLoad) {
       c += "    ucl::SyncThreads<WorkGroup, Local>();\n";
-      c += GenerateAsyncUpload("weights_cache", "weights_offset",
+      c += GenerateAsyncUpload("WEIGHTS_PER_SLICE", "weights_offset",
                                /*global_offset_name*/ "", weights_vals);
     } else if (kernel_params_.weights_upload_type ==
                ConvGeneric::WeightsUploadType::kLocalMemory) {
@@ -1287,21 +1288,21 @@ class ConvCodeGenerator {
         }
         c += "      Type w0, w1, w2, w3;\n";
         c += ReadWeights();
-        c += "      weights_cache[lid * 4 + 0] = w0;\n";
-        c += "      weights_cache[lid * 4 + 1] = w1;\n";
-        c += "      weights_cache[lid * 4 + 2] = w2;\n";
-        c += "      weights_cache[lid * 4 + 3] = w3;\n";
+        c += "      WEIGHTS_PER_SLICE[lid * 4 + 0] = w0;\n";
+        c += "      WEIGHTS_PER_SLICE[lid * 4 + 1] = w1;\n";
+        c += "      WEIGHTS_PER_SLICE[lid * 4 + 2] = w2;\n";
+        c += "      WEIGHTS_PER_SLICE[lid * 4 + 3] = w3;\n";
         if (wg_size_per_slice > i4o4_blocks) {
           c += "    }\n";
         }
       } else if (gpu_info_.SupportsPointersInKernels()) {
-        c += GenerateUploadByThreads("weights_cache", "weights_offset",
+        c += GenerateUploadByThreads("WEIGHTS_PER_SLICE", "weights_offset",
                                      /*use_ptrs*/ true,
                                      /*global_offset_name*/ "",
                                      weights_cache_type, "lid",
                                      wg_size_per_slice, weights_vals);
       } else {
-        c += GenerateUploadByThreads("weights_cache", "args.weights",
+        c += GenerateUploadByThreads("WEIGHTS_PER_SLICE", "args.weights",
                                      /*use_ptrs*/ false, "weights_offset",
                                      weights_cache_type, "lid",
                                      wg_size_per_slice, weights_vals);
@@ -1310,10 +1311,10 @@ class ConvCodeGenerator {
                ConvGeneric::WeightsUploadType::kWaveMemory) {
       c += "    ucl::SyncThreads<WaveLoad>();\n";
       if (gpu_info_.SupportsPointersInKernels()) {
-        c += "    ucl::WaveLoad(weights_cache, weights_offset, 0, " +
+        c += "    ucl::WaveLoad(WEIGHTS_PER_SLICE, weights_offset, 0, " +
              std::to_string(weights_vals) + ");\n";
       } else {
-        c += "    ucl::WaveLoad(weights_cache, args.weights.GetPtr(), "
+        c += "    ucl::WaveLoad(WEIGHTS_PER_SLICE, args.weights.GetPtr(), "
              "weights_offset, " +
              std::to_string(weights_vals) + ");\n";
       }
@@ -1321,7 +1322,7 @@ class ConvCodeGenerator {
     } else if (kernel_params_
                    .AreWeightsBuffer()) {  // kGlobalMemory/kConstantMemory
       if (gpu_info_.SupportsPointersInKernels()) {
-        c += "    weights_cache = weights_offset;\n";
+        c += "    WEIGHTS_PER_SLICE = weights_offset;\n";
       }
     } else {  // TEXTURES_MEM
       for (int dst_s = 0; dst_s < kernel_params_.block_size.w; ++dst_s) {
@@ -1558,10 +1559,10 @@ class ConvCodeGenerator {
         c += "    if (lid < " + std::to_string(i4o4_blocks) + ") {\n";
       }
       c += R"(
-    weights_cache[sub_o * 16 + sub_i * 4 + 0] = w0;
-    weights_cache[sub_o * 16 + sub_i * 4 + 1] = w1;
-    weights_cache[sub_o * 16 + sub_i * 4 + 2] = w2;
-    weights_cache[sub_o * 16 + sub_i * 4 + 3] = w3;
+    WEIGHTS_PER_SLICE[sub_o * 16 + sub_i * 4 + 0] = w0;
+    WEIGHTS_PER_SLICE[sub_o * 16 + sub_i * 4 + 1] = w1;
+    WEIGHTS_PER_SLICE[sub_o * 16 + sub_i * 4 + 2] = w2;
+    WEIGHTS_PER_SLICE[sub_o * 16 + sub_i * 4 + 3] = w3;
   )";
       if (wg_size_per_slice > i4o4_blocks) {
         c += "    }\n";
@@ -1569,7 +1570,8 @@ class ConvCodeGenerator {
       c += "    ucl::SyncThreads<WorkGroup, Local>();\n";
       for (int i = 0; i < kernel_params_.block_size.w; ++i) {
         const std::string w_name = "W" + std::to_string(i);
-        c += "    short4 " + w_name + " = as_short4(weights_cache[simd_id + " +
+        c += "    short4 " + w_name +
+             " = as_short4(WEIGHTS_PER_SLICE[simd_id + " +
              std::to_string(i * 16) + "]);\n";
       }
     } else if (weights_conversion && kernel_params_.use_vec8_accum) {
@@ -1579,10 +1581,10 @@ class ConvCodeGenerator {
         c += "    if (lid < " + std::to_string(i4o4_blocks) + ") {\n";
       }
       c += R"(
-    weights_cache[((sub_o / 2) * 16 + sub_i * 4 + 0) * 2 + sub_o % 2] = w0;
-    weights_cache[((sub_o / 2) * 16 + sub_i * 4 + 1) * 2 + sub_o % 2] = w1;
-    weights_cache[((sub_o / 2) * 16 + sub_i * 4 + 2) * 2 + sub_o % 2] = w2;
-    weights_cache[((sub_o / 2) * 16 + sub_i * 4 + 3) * 2 + sub_o % 2] = w3;
+    WEIGHTS_PER_SLICE[((sub_o / 2) * 16 + sub_i * 4 + 0) * 2 + sub_o % 2] = w0;
+    WEIGHTS_PER_SLICE[((sub_o / 2) * 16 + sub_i * 4 + 1) * 2 + sub_o % 2] = w1;
+    WEIGHTS_PER_SLICE[((sub_o / 2) * 16 + sub_i * 4 + 2) * 2 + sub_o % 2] = w2;
+    WEIGHTS_PER_SLICE[((sub_o / 2) * 16 + sub_i * 4 + 3) * 2 + sub_o % 2] = w3;
   )";
       if (wg_size_per_slice > i4o4_blocks) {
         c += "    }\n";
@@ -1591,7 +1593,7 @@ class ConvCodeGenerator {
       for (int i = 0; i < kernel_params_.block_size.w / 2; ++i) {
         const std::string w_name = "W" + std::to_string(i);
         c += "    short8 " + w_name +
-             " = ((__local short8*)weights_cache)[simd_id + " +
+             " = ((__local short8*)WEIGHTS_PER_SLICE)[simd_id + " +
              std::to_string(i * 16) + "];\n";
       }
     } else if (!kernel_params_.use_vec8_accum) {
@@ -1677,7 +1679,7 @@ class ConvCodeGenerator {
                 if (kernel_params_.AreWeightsBuffer()) {
                   if (gpu_info_.SupportsPointersInKernels() ||
                       use_weights_cache) {
-                    w_val = "weights_cache[" + weight_id + "]";
+                    w_val = "WEIGHTS_PER_SLICE[" + weight_id + "]";
                   } else {
                     w_val =
                         "args.weights.Read(weights_offset + " + weight_id + ")";
@@ -1717,7 +1719,7 @@ class ConvCodeGenerator {
                 if (kernel_params_.AreWeightsBuffer()) {
                   if (gpu_info_.SupportsPointersInKernels() ||
                       use_weights_cache) {
-                    F[i] = "weights_cache[" + weight_id + "]";
+                    F[i] = "WEIGHTS_PER_SLICE[" + weight_id + "]";
                   } else {
                     F[i] =
                         "args.weights.Read(weights_offset + " + weight_id + ")";
@@ -1756,7 +1758,7 @@ class ConvCodeGenerator {
   std::string GetWeightsValue(int offset) const {
     const bool use_weights_cache = NeedsLocalMemory() || NeedsWaveMemory();
     if (use_weights_cache) {
-      return "weights_cache[" + std::to_string(offset) + "]";
+      return "WEIGHTS_PER_SLICE[" + std::to_string(offset) + "]";
     } else if (gpu_info_.SupportsPointersInKernels()) {
       return "weights_offset[" + std::to_string(offset) + "]";
     } else {
@@ -1892,18 +1894,18 @@ class ConvCodeGenerator {
               // img_matmul_float_acc_1x2_2x2 or img_dot_interleaved_acc?
               // layout is the same, but img_dot_interleaved_acc performs better
               c += "  " + R + ".xy = img_dot_interleaved_acc(" + S +
-                   ".xy, weights_cache + " +
+                   ".xy, WEIGHTS_PER_SLICE + " +
                    std::to_string(shared_offset + s * 4) + ", " + R + ".xy);\n";
               c += "  " + R + ".xy = img_dot_interleaved_acc(" + S +
-                   ".zw, weights_cache + " +
+                   ".zw, WEIGHTS_PER_SLICE + " +
                    std::to_string(shared_offset + s * 4 + 1) + ", " + R +
                    ".xy);\n";
               c += "  " + R + ".zw = img_dot_interleaved_acc(" + S +
-                   ".xy, weights_cache + " +
+                   ".xy, WEIGHTS_PER_SLICE + " +
                    std::to_string(shared_offset + s * 4 + 2) + ", " + R +
                    ".zw);\n";
               c += "  " + R + ".zw = img_dot_interleaved_acc(" + S +
-                   ".zw, weights_cache + " +
+                   ".zw, WEIGHTS_PER_SLICE + " +
                    std::to_string(shared_offset + s * 4 + 3) + ", " + R +
                    ".zw);\n";
             } else {
@@ -1912,11 +1914,11 @@ class ConvCodeGenerator {
                       ? "img_matmul_half2_acc_1x2_2x2h"
                       : "img_matmul_half2_acc_1x2_2x2f";
               c += "  " + R + ".xy = " + func_name + "(" + S +
-                   ", (__local half8*)(weights_cache + " +
+                   ", (__local half8*)(WEIGHTS_PER_SLICE + " +
                    std::to_string(shared_offset + s * 4) + "), " + R +
                    ".xy);\n";
               c += "  " + R + ".zw = " + func_name + "(" + S +
-                   ", (__local half8*)(weights_cache + " +
+                   ", (__local half8*)(WEIGHTS_PER_SLICE + " +
                    std::to_string(shared_offset + s * 4 + 2) + "), " + R +
                    ".zw);\n";
             }
