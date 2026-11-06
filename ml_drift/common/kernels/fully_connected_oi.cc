@@ -265,7 +265,7 @@ std::string GetFullyConnectedOIO4KernelCode(
       const int3 bhw = fc::GetBlockSpatialCoords(sp_id, conv_params.block_size);
       std::string y_coord = std::to_string(bhw.y);
       if (conv_params.batched_weights) {
-        y_coord = "w_batch_id";
+        y_coord = "dst_h";
         if (conv_params.runtime_batch_ids) {
           y_coord = "0";
         }
@@ -324,7 +324,7 @@ std::string GetFullyConnectedOIO4KernelCode(
     const int3 bhw = fc::GetBlockSpatialCoords(sp_id, conv_params.block_size);
     std::string y_coord = std::to_string(bhw.y);
     if (conv_params.batched_weights) {
-      y_coord = "w_batch_id";
+      y_coord = "dst_h";
       if (conv_params.runtime_batch_ids) {
         y_coord = "min(dst_h, args.src_tensor.Height() - 1)";
       }

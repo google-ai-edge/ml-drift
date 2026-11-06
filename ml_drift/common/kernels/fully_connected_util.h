@@ -78,7 +78,8 @@ std::string GetReductionCode(int first, int last, int local_batch_size,
 std::string GenerateDstWrite(const BHWC& block_size,
                              const ConvRuntimeCheckDesc& runtime_check,
                              bool has_bias, bool batched_weights,
-                             int runtime_batch_ids);
+                             int runtime_batch_ids,
+                             bool spatial_groups = false);
 
 bool IsQuantized(DataType weights_type);
 bool IsScalarQuantized(DataType weights_type, const OHWI& scale_zp_shape);
