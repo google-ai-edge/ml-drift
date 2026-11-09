@@ -3616,7 +3616,7 @@ std::vector<GpuModelBuilder::TensorHandle> GpuModelBuilder::Split(
   const uint32_t max_buffer_arguments = gpu_info_.GetMaxBufferArguments();
 
   uint32_t max_total_arguments =
-      std::max(max_buffer_arguments, max_image_arguments);
+      std::max(8u, std::min(max_image_arguments, max_buffer_arguments)) - 4;
   if (gpu_info_.IsMali()) {
     // Mali can fail clEnqueueNDRangeKernel with "Out of resources" when it
     // receives too big kernel.

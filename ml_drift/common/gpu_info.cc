@@ -2084,6 +2084,26 @@ uint64_t GpuInfo::GetMaxImageBufferWidth() const {
   return 64 * 1024;
 }
 
+namespace {
+
+int GetMetalMaxTextureArguments(const GpuInfo& gpu_info) {
+  if (gpu_info.IsApple()) {
+    if (gpu_info.apple_info.IsFamilyOrLower(AppleInfo::Family::kApple3)) {
+      return 31;
+    }
+    if (gpu_info.apple_info.IsFamilyOrLower(AppleInfo::Family::kApple5)) {
+      return 96;
+    }
+    return 128;
+  }
+  if (gpu_info.IsDesktopGpu()) {
+    return 128;
+  }
+  return 31;
+}
+
+}  // namespace
+
 int GpuInfo::GetMaxImageArguments() const {
   if (IsApiOpenGl()) {
     return opengl_info.max_image_bindings;
@@ -2092,7 +2112,7 @@ int GpuInfo::GetMaxImageArguments() const {
     return vulkan_info.max_per_stage_descriptor_storage_images;
   }
   if (IsApiMetal()) {
-    return 32;
+    return GetMetalMaxTextureArguments(*this);
   }
   if (IsApiOpenCl()) {
     return 128;
@@ -2111,7 +2131,7 @@ int GpuInfo::GetMaxTextureArguments() const {
     return vulkan_info.max_per_stage_descriptor_sampled_images;
   }
   if (IsApiMetal()) {
-    return 32;
+    return GetMetalMaxTextureArguments(*this);
   }
   if (IsApiOpenCl()) {
     return 128;
@@ -2130,7 +2150,7 @@ int GpuInfo::GetMaxBufferArguments() const {
     return vulkan_info.max_per_stage_descriptor_storage_buffers;
   }
   if (IsApiMetal()) {
-    return 32;
+    return 31;
   }
   if (IsApiOpenCl()) {
     return 128;
