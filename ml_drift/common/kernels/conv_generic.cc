@@ -341,36 +341,20 @@ class ConvCodeGenerator {
     const bool use_intel_wave_matmul =
         kernel_params_.weights_upload_type ==
         ConvGeneric::WeightsUploadType::kIntelWave16MatMul;
-    const bool late_oob_check =
+    const bool late_spatial_oob_check =
         need_local_mem || is_wave_memory || use_intel_wave_matmul;
     const bool quantized_weights =
         weights_conversion && SizeInBitsOf(conv_params_.weights_desc.type) <= 8;
     std::string c;
 
-    std::string dst_oob_check;
-    if (src_def.HasAxis(Axis::kDepth)) {
-      if (kernel_params_.linear_all) {
-        dst_oob_check = "DST_S >= args.dst_tensor.Slices()";
-      } else if (kernel_params_.linear_spatial) {
-        dst_oob_check =
-            "DST_Z >= args.dst_tensor.Depth() || DST_S >= "
-            "args.dst_tensor.Slices()";
-      } else {
-        dst_oob_check =
-            "DST_X >= args.dst_tensor.Width() || DST_Z >= "
-            "args.dst_tensor.Depth() || DST_S >= args.dst_tensor.Slices()";
-      }
-    } else {
-      if (kernel_params_.linear_all) {
-        dst_oob_check = "DST_S >= args.dst_tensor.Slices()";
-      } else if (kernel_params_.linear_spatial) {
-        dst_oob_check =
-            "DST_Y >= args.dst_tensor.Height() || DST_S >= "
-            "args.dst_tensor.Slices()";
-      } else {
-        dst_oob_check =
-            "DST_X >= args.dst_tensor.Width() || DST_Y >= "
-            "args.dst_tensor.Height() || DST_S >= args.dst_tensor.Slices()";
+    std::string dst_spatial_oob_check;
+    if (!kernel_params_.linear_all) {
+      dst_spatial_oob_check = src_def.HasAxis(Axis::kDepth)
+                                  ? "DST_Z >= args.dst_tensor.Depth()"
+                                  : "DST_Y >= args.dst_tensor.Height()";
+      if (!kernel_params_.linear_spatial) {
+        dst_spatial_oob_check =
+            dst_spatial_oob_check + " || DST_X >= args.dst_tensor.Width()";
       }
     }
 
@@ -382,15 +366,16 @@ class ConvCodeGenerator {
     if (!kernel_params_.need_dst_loop) {
       c += "  DST_S = 0;\n";
     }
-    c += "  if (DST_S >= args.dst_tensor.Slices()) return;\n";
+    std::string dst_end_slice = "args.dst_tensor.Slices()";
     if (conv_params_.runtime_check.dst_end_ch_index.has_value()) {
       c += "  int dst_end_slice = " +
            conv_params_.runtime_check.GetRuntimeEndSlice(
                "args.params.Read(args.dst_end_ch_index)",
                "args.dst_tensor.Slices()") +
            ";\n";
-      c += "  if (DST_S >= dst_end_slice) return;\n";
+      dst_end_slice = "dst_end_slice";
     }
+    c += "  if (DST_S >= " + dst_end_slice + ") return;\n";
     if (conv_params_.runtime_check.packed_groups.has_value()) {
       if (gpu_info_.IsApiWebGpu()) {
         c += "  int w_batch_id = " +
@@ -433,8 +418,8 @@ class ConvCodeGenerator {
     } else {
       c += "  int w_batch_id = DST_Y;\n";
     }
-    if (!late_oob_check) {
-      c += "  if (" + dst_oob_check + ") {\n";
+    if (!late_spatial_oob_check && !dst_spatial_oob_check.empty()) {
+      c += "  if (" + dst_spatial_oob_check + ") {\n";
       c += "    return;\n";
       c += "  }\n";
     }
@@ -878,8 +863,8 @@ class ConvCodeGenerator {
         kernel_params_.simd_sizes.size() > 1) {
       c += "__hint__((ucl_wave_memory_scope_end))\n";
     }
-    if (late_oob_check) {
-      c += "  if (" + dst_oob_check + ") {\n";
+    if (late_spatial_oob_check && !dst_spatial_oob_check.empty()) {
+      c += "  if (" + dst_spatial_oob_check + ") {\n";
       c += "    return;\n";
       c += "  }\n";
     }
