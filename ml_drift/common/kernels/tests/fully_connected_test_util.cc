@@ -934,9 +934,10 @@ absl::Status FullyConnectedInt8Test(
 
 absl::Status FullyConnectedInt8BigTest(TestExecutionEnvironment& env,
                                        CalculationsPrecision precision,
-                                       TensorStorageType storage) {
+                                       TensorStorageType storage,
+                                       const BHWC& src_shape) {
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  const int src_channels = 171;
+  const int src_channels = src_shape.c;
   const int dst_channels = 533;
 
   ml_drift::Tensor<OHWI, DataType::kInt8> weights_i8;
@@ -954,47 +955,12 @@ absl::Status FullyConnectedInt8BigTest(TestExecutionEnvironment& env,
   }
   auto biases = MakeSyntheticTensor(Linear(dst_channels));
 
-  auto src_shape = BHWC(1, 1, 1, src_channels);
-
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
-  ABSL_EXPECT_OK(FullyConnectedInt8Test(env, weights_i8, weights_scales, biases,
-                                   src_tensor, op_def, precision));
-  return absl::OkStatus();
-}
-
-absl::Status FullyConnectedInt8Width2Batch2BigTest(
-    TestExecutionEnvironment& env, CalculationsPrecision precision,
-    TensorStorageType storage) {
-  const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  const int src_channels = 171;
-  const int dst_channels = 533;
-
-  ml_drift::Tensor<OHWI, DataType::kInt8> weights_i8;
-  weights_i8.shape = OHWI(dst_channels, 1, 1, src_channels);
-  weights_i8.data.resize(weights_i8.shape.DimensionsProduct());
-  auto weights_f32 =
-      MakeSyntheticTensor(OHWI(dst_channels, 1, 1, src_channels));
-  for (int i = 0; i < weights_i8.data.size(); ++i) {
-    const int val = (weights_f32.data[i] + 1.0f) * 256.0f;
-    weights_i8.data[i] = std::max(std::min(val, 255), 0) - 128;
-  }
-  auto weights_scales = MakeSyntheticTensor(OHWI(dst_channels, 1, 1, 1));
-  for (int i = 0; i < weights_scales.data.size(); ++i) {
-    weights_scales.data[i] /= 128.0f;
-  }
-  auto biases = MakeSyntheticTensor(Linear(dst_channels));
-
-  auto src_shape = BHWC(2, 1, 2, src_channels);
-
-  TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
-
-  OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
+  const Layout layout = src_shape.b == 1 ? Layout::kHWC : Layout::kBHWC;
+  op_def.src_tensors.push_back({data_type, storage, layout});
+  op_def.dst_tensors.push_back({data_type, storage, layout});
   ABSL_EXPECT_OK(FullyConnectedInt8Test(env, weights_i8, weights_scales, biases,
                                    src_tensor, op_def, precision));
   return absl::OkStatus();

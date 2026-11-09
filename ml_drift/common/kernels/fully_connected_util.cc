@@ -290,19 +290,28 @@ std::string GetWeightsBatchId(int runtime_batch_ids) {
 int GetLocalBatchSize(const GpuInfo& gpu_info, CalculationsPrecision precision,
                       int block_spatial, const int3& work_group_size) {
   int local_batch_size = block_spatial;
-  int data_type_size =
-      precision == CalculationsPrecision::kF16 && gpu_info.SupportsFP16() ? 2
-                                                                          : 4;
-  int workgroup_storage_size = work_group_size.x * work_group_size.y *
-                               local_batch_size * data_type_size * 4;
-  if (local_batch_size > 8 ||
-      (gpu_info.IsApiWebGpu() &&
-       workgroup_storage_size >
-           gpu_info.webgpu_info.max_compute_workgroup_storage_size)) {
-    local_batch_size = 1;
+  if (local_batch_size > 8) {
+    for (int i = 8; i > 0; i--) {
+      if (block_spatial % i == 0) {
+        local_batch_size = i;
+        break;
+      }
+    }
   }
   if (gpu_info.IsAdreno() && gpu_info.adreno_info.IsLowEnd()) {
     local_batch_size = 1;
+  }
+
+  const int data_type_size =
+      precision == CalculationsPrecision::kF16 && gpu_info.SupportsFP16() ? 2
+                                                                          : 4;
+  const int wg_storage_size_per_flt4 =
+      work_group_size.x * work_group_size.y * data_type_size * 4;
+  if (gpu_info.IsApiWebGpu()) {
+    if (wg_storage_size_per_flt4 * local_batch_size >
+        gpu_info.webgpu_info.max_compute_workgroup_storage_size) {
+      local_batch_size = 1;
+    }
   }
   return local_batch_size;
 }
@@ -315,8 +324,9 @@ std::string GetReductionCode(int first, int last, int local_batch_size,
   std::string c;
   for (int sp_id = first; sp_id <= last; ++sp_id) {
     const std::string local_mem =
-        local_batch_size == 1 ? "MEM_NAME"
-                              : "MEM_NAME[" + std::to_string(sp_id) + "]";
+        local_batch_size == 1
+            ? "MEM_NAME"
+            : "MEM_NAME[" + std::to_string(sp_id - first) + "]";
     c += "  " + local_mem + "[T_ID * R_SIZE + R_ID] = r_sp" +
          std::to_string(sp_id) + ";\n";
   }
@@ -325,8 +335,9 @@ std::string GetReductionCode(int first, int last, int local_batch_size,
   c += "    if (R_ID < stride) {\n";
   for (int sp_id = first; sp_id <= last; ++sp_id) {
     const std::string local_mem =
-        local_batch_size == 1 ? "MEM_NAME"
-                              : "MEM_NAME[" + std::to_string(sp_id) + "]";
+        local_batch_size == 1
+            ? "MEM_NAME"
+            : "MEM_NAME[" + std::to_string(sp_id - first) + "]";
     c += "      r_sp" + std::to_string(sp_id) + " += " + local_mem +
          "[T_ID * R_SIZE + R_ID + stride];\n";
     c += "      " + local_mem + "[T_ID * R_SIZE + R_ID] = r_sp" +

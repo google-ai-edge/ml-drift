@@ -61,10 +61,8 @@ absl::Status FullyConnectedRingedITest(TestExecutionEnvironment& env,
 
 absl::Status FullyConnectedInt8BigTest(TestExecutionEnvironment& env,
                                        CalculationsPrecision precision,
-                                       TensorStorageType storage);
-absl::Status FullyConnectedInt8Width2Batch2BigTest(
-    TestExecutionEnvironment& env, CalculationsPrecision precision,
-    TensorStorageType storage);
+                                       TensorStorageType storage,
+                                       const BHWC& src_shape);
 absl::Status FullyConnectedInt8GroupedQuantizationBigTest(
     TestExecutionEnvironment& env, CalculationsPrecision precision,
     TensorStorageType storage);
