@@ -33,6 +33,15 @@ absl::Status ConvWaveMatrixMaliF16ExternalWeightsBigTest(
 absl::Status ConvWaveMatrixMaliF16ExternalBatchedWeightsBigTest(
     TestExecutionEnvironment& env, TensorStorageType storage);
 
+absl::Status ConvWaveMatrixMaliF16PackedGroupsTest(
+    TestExecutionEnvironment& env, TensorStorageType storage);
+
+absl::Status ConvWaveMatrixMaliF16RuntimeSrcEndChannelsTest(
+    TestExecutionEnvironment& env, TensorStorageType storage);
+
+absl::Status ConvWaveMatrixMaliF16RuntimeDstEndChannelsTest(
+    TestExecutionEnvironment& env, TensorStorageType storage);
+
 }  // namespace ml_drift
 
 #endif  // ML_DRIFT_COMMON_KERNELS_TESTS_CONV_WAVE_MATRIX_MALI_F16_TEST_UTIL_H_

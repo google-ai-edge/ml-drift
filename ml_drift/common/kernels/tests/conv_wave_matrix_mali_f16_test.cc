@@ -73,6 +73,29 @@ TEST_P(BaseTest, ConvWaveMatrixMaliF16ExternalBatchedWeightsBigTest) {
                                                                GetParam()));
 }
 
+TEST_P(BaseTest, ConvWaveMatrixMaliF16PackedGroupsTest) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kFloat16)) {
+    GTEST_SKIP() << "Unsupported storage: " << ToString(GetParam());
+  }
+  ABSL_ASSERT_OK(ConvWaveMatrixMaliF16PackedGroupsTest(*exec_env, GetParam()));
+}
+
+TEST_P(BaseTest, ConvWaveMatrixMaliF16RuntimeSrcEndChannelsTest) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kFloat16)) {
+    GTEST_SKIP() << "Unsupported storage: " << ToString(GetParam());
+  }
+  ABSL_ASSERT_OK(
+      ConvWaveMatrixMaliF16RuntimeSrcEndChannelsTest(*exec_env, GetParam()));
+}
+
+TEST_P(BaseTest, ConvWaveMatrixMaliF16RuntimeDstEndChannelsTest) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kFloat16)) {
+    GTEST_SKIP() << "Unsupported storage: " << ToString(GetParam());
+  }
+  ABSL_ASSERT_OK(
+      ConvWaveMatrixMaliF16RuntimeDstEndChannelsTest(*exec_env, GetParam()));
+}
+
 INSTANTIATE_TEST_SUITE_P(
     ConvWaveMatrixMaliF16BigTestSuite, BaseTest,
     ValuesIn(GetTensorStoragesTypesWithoutSingleTexture2D()),

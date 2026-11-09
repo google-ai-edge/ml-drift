@@ -89,22 +89,46 @@ MAIN_FUNCTION($0) {
   c += "  int x_sub_id = subgroup_local_id / 2;\n";
   c += "  int subgroup_base_x = subgroup_id * " +
        std::to_string(kernel_params.x_block_size * 8) + ";\n";
-  c += "  int subgroup_dst_s_base = " + GetGlobalID(1) + " * " +
-       std::to_string(kernel_params.s_block_size * 4) + ";\n";
+  c += "  int subgroup_dst_s_base = " + GetGlobalID(1) + ";\n";
   c += "  int dst_y = " + GetGlobalID(2) + ";\n";
+  if (conv_params.runtime_check.packed_groups.has_value()) {
+    c += "  int w_batch_id = dst_y;\n";
+    c += "  dst_y = 0;\n";
+    c += "  int w_group_size = args.params.Read(args.packed_params_offset + "
+         "w_batch_id);\n";
+    c += "  int w_group_offset = args.params.Read(args.packed_params_offset + "
+         "w_batch_id + " +
+         std::to_string(conv_params.runtime_check.packed_groups->num_groups) +
+         ");\n";
+    c += "  if (subgroup_base_x >= w_group_size) return;\n";
+    c += "  subgroup_base_x += w_group_offset;\n";
+  }
   c += R"(
-  if (subgroup_base_x >= args.dst.Width() || dst_y >= args.dst.Height() || subgroup_dst_s_base >= args.dst.Slices()) {
+  if (subgroup_base_x >= args.dst.Width() || dst_y >= args.dst.Height()) {
     return;
   }
 )";
+  std::string dst_end_slice = "args.dst.Slices()";
+  if (conv_params.runtime_check.dst_end_ch_index.has_value()) {
+    c += "  int dst_end_slice_runtime = " +
+         conv_params.runtime_check.GetRuntimeEndSlice(
+             "args.params.Read(args.dst_end_ch_index)", "args.dst.Slices()") +
+         ";\n";
+    dst_end_slice = "dst_end_slice_runtime";
+  }
   std::string weights_offset = "subgroup_dst_s_base";
   if (conv_params.different_weights_for_height) {
-    // subgroup_dst_s_base is already pre-multiplied by
-    // kernel_params.s_block_size * 4
-    weights_offset = "(subgroup_dst_s_base * args.src.Height() + dst_y * " +
-                     std::to_string(kernel_params.s_block_size * 4) + ")";
+    if (conv_params.runtime_check.packed_groups.has_value()) {
+      weights_offset =
+          "(subgroup_dst_s_base * " +
+          std::to_string(conv_params.runtime_check.packed_groups->num_groups) +
+          " + w_batch_id)";
+    } else {
+      weights_offset = "(subgroup_dst_s_base * args.src.Height() + dst_y)";
+    }
   }
-  weights_offset = weights_offset + " * 4 * args.src.Slices()";
+  weights_offset += " * 4 * args.src.Slices()";
+  weights_offset += " * " + std::to_string(kernel_params.s_block_size * 4);
   if (!conv_params.x_kernel_is_1) {
     weights_offset += " * args.kernel_size_x";
   }
@@ -113,6 +137,9 @@ MAIN_FUNCTION($0) {
   }
   c += "  __global half8* w_base = (__global half8*)(args.weights.GetPtr() + " +
        weights_offset + ");\n";
+  c += "  subgroup_dst_s_base *= " +
+       std::to_string(kernel_params.s_block_size * 4) + ";\n";
+  c += "  if (subgroup_dst_s_base >= " + dst_end_slice + ") return;\n";
   for (int s = 0; s < kernel_params.s_block_size; s++) {
     for (int x = 0; x < kernel_params.x_block_size; x++) {
       std::string patch = R"(
@@ -159,7 +186,15 @@ MAIN_FUNCTION($0) {
       c += absl::Substitute(patch, x, x * 8);
     }
   }
-  c += "  for (int src_s = 0; src_s < args.src.Slices(); src_s += 2) {\n";
+  std::string src_end_slice = "args.src.Slices()";
+  if (conv_params.runtime_check.src_end_ch_index.has_value()) {
+    c += "  int src_slices_dynamic = " +
+         conv_params.runtime_check.GetRuntimeEndSlice(
+             "args.params.Read(args.src_end_ch_index)", "args.src.Slices()") +
+         ";\n";
+    src_end_slice = "src_slices_dynamic";
+  }
+  c += "  for (int src_s = 0; src_s < " + src_end_slice + "; src_s += 2) {\n";
   const int src_slices = DivideRoundUp(conv_params.weights_shape.i, 4);
   std::string src_slice = "src_s + slices_sub_id";
   if (src_slices % 2 != 0) {
@@ -221,10 +256,14 @@ MAIN_FUNCTION($0) {
       c += "    half4 bias_val = args.biases.Read(dst_s_final);\n";
     }
     c += "    int dst_x_final;\n";
+    const std::string dst_x_bound =
+        conv_params.runtime_check.packed_groups.has_value()
+            ? "w_group_offset + w_group_size"
+            : "args.dst.Width()";
     for (int x = 0; x < kernel_params.x_block_size; x++) {
       std::string patch = R"(
     dst_x_final = DST_X + $0 * 8 + 0;
-    if (dst_x_final < args.dst.Width()) {
+    if (dst_x_final < $3) {
       half4 R = (half4)(r_w$0_s$1.x, r_w$0_s$1.y, r_w$0_s$2.x, r_w$0_s$2.y);
 )";
       if (conv_params.has_bias) {
@@ -233,7 +272,7 @@ MAIN_FUNCTION($0) {
       patch += R"(      args.dst.Write(R, dst_x_final, dst_y, dst_s_final);
     }
     dst_x_final = DST_X + $0 * 8 + 1;
-    if (dst_x_final < args.dst.Width()) {
+    if (dst_x_final < $3) {
       half4 R = (half4)(r_w$0_s$1.z, r_w$0_s$1.w, r_w$0_s$2.z, r_w$0_s$2.w);
 )";
       if (conv_params.has_bias) {
@@ -242,7 +281,7 @@ MAIN_FUNCTION($0) {
       patch += R"(      args.dst.Write(R, dst_x_final, dst_y, dst_s_final);
     }
 )";
-      c += absl::Substitute(patch, x, s * 2 + 0, s * 2 + 1);
+      c += absl::Substitute(patch, x, s * 2 + 0, s * 2 + 1, dst_x_bound);
     }
     c += "  }\n";
   }
@@ -289,6 +328,9 @@ ConvWaveMatrixMaliF16::ConvWaveMatrixMaliF16(const GpuInfo& gpu_info,
 std::vector<int3> ConvWaveMatrixMaliF16::GetPossibleKernelWorkGroups(
     TuningType tuning_type, const GpuInfo& gpu_info,
     const KernelInfo& kernel_info) const {
+  if (conv_params_.runtime_check.HasValues()) {
+    tuning_type = TuningType::kFast;
+  }
   switch (tuning_type) {
     case TuningType::kExhaustive:
       return GetWorkGroupsXMultipleOf(/*wave_size=*/16, gpu_info, kernel_info,
@@ -300,12 +342,17 @@ std::vector<int3> ConvWaveMatrixMaliF16::GetPossibleKernelWorkGroups(
 }
 
 int3 ConvWaveMatrixMaliF16::GetGridSize() const {
-  int x_tiles =
-      DivideRoundUp(dst_[0]->Width(), 8 * kernel_params_.x_block_size);
+  int dst_width = dst_[0]->Width();
+  int dst_height = dst_[0]->Height();
+  if (conv_params_.runtime_check.packed_groups.has_value()) {
+    dst_width = conv_params_.runtime_check.packed_groups->max_group_size;
+    dst_height = conv_params_.runtime_check.packed_groups->num_groups;
+  }
+  int x_tiles = DivideRoundUp(dst_width, 8 * kernel_params_.x_block_size);
   const int grid_x = x_tiles * /*wave_size=*/16;
   const int grid_y =
       DivideRoundUp(dst_[0]->Slices(), 4 * kernel_params_.s_block_size);
-  const int grid_z = dst_[0]->Height();
+  const int grid_z = dst_height;
   return int3(grid_x, grid_y, grid_z);
 }
 
@@ -364,7 +411,8 @@ ConvWaveMatrixMaliF16 CreateConvWaveMatrixMaliF16(
 ConvWaveMatrixMaliF16 CreateConvWaveMatrixMaliF16ExternalWeights(
     const GpuInfo& gpu_info, const TensorDescriptor& src_desc,
     const TensorDescriptor& dst_desc, const Convolution2DAttributes& attr,
-    const TensorDescriptor* bias, bool different_weights_for_height) {
+    const TensorDescriptor* bias, bool different_weights_for_height,
+    const ConvRuntimeCheckDesc& runtime_check) {
   ConvWaveMatrixMaliF16::ConvParams conv_params;
   conv_params.weights_shape = attr.GetWeightsShape();
   conv_params.x_kernel_is_1 = IsConvKernelXis1(attr);
@@ -374,6 +422,7 @@ ConvWaveMatrixMaliF16 CreateConvWaveMatrixMaliF16ExternalWeights(
     conv_params.y_kernel_is_1 = true;
   }
   conv_params.has_bias = bias != nullptr;
+  conv_params.runtime_check = runtime_check;
   ConvWaveMatrixMaliF16 result =
       ConvWaveMatrixMaliF16(gpu_info, conv_params, src_desc, dst_desc);
   BufferDescriptor buffer_desc;
@@ -383,6 +432,27 @@ ConvWaveMatrixMaliF16 CreateConvWaveMatrixMaliF16ExternalWeights(
   result.AddSrcBuffer("weights", buffer_desc);
   if (bias) {
     result.AddSrcTensor("biases", *bias);
+  }
+  bool has_runtime_check = false;
+  if (runtime_check.src_end_ch_index.has_value()) {
+    result.args_.AddInt("src_end_ch_index", *runtime_check.src_end_ch_index);
+    has_runtime_check = true;
+  }
+  if (runtime_check.dst_end_ch_index.has_value()) {
+    result.args_.AddInt("dst_end_ch_index", *runtime_check.dst_end_ch_index);
+    has_runtime_check = true;
+  }
+  if (runtime_check.packed_groups.has_value()) {
+    result.args_.AddInt("packed_params_offset",
+                        runtime_check.packed_groups->params_offset);
+    has_runtime_check = true;
+  }
+  if (has_runtime_check) {
+    BufferDescriptor params_desc;
+    params_desc.element_type = DataType::kInt32;
+    params_desc.element_size = 1;
+    params_desc.memory_type = MemoryType::kConstant;
+    result.AddSrcBuffer("params", params_desc);
   }
   if (!conv_params.x_kernel_is_1) {
     AddXKernelParams(attr, &result);
