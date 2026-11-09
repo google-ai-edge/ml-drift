@@ -1300,10 +1300,25 @@ GpuModelBuilder::FullyConnectedInt8QuantizedWithSrcQuantization(
   const bool calculate_sum = weights.zero_point.has_value() || use_uint8_math;
   auto outputs = Quantize(src, src_packed_type, calculate_sum);
   auto src_quantized = outputs[0];
-  if (SupportsConvAppleMPP(gpu_info_, src_shape)) {
+  const bool use_apple_mpp = SupportsConvAppleMPP(gpu_info_, src_shape);
+  if (use_apple_mpp) {
     src_quantized = ToDHWBCC4(src_quantized);
   }
   auto src_params = outputs[1];
+
+  const uint64_t flops =
+      GetConvolutionFlops(dst_shape, weights.shape) / weights.shape.h;
+  const uint64_t src_weights_size =
+      weights.shape.DimensionsProduct() * SizeInBitsOf(weights.desc.type) / 8;
+  const uint64_t dst_weights_size =
+      weights.shape.DimensionsProduct() * SizeInBitsOf(DataType::kInt8) / 8;
+  double flops_per_byte = 32;
+  if (gpu_info_.IsApple()) {
+    flops_per_byte = use_apple_mpp ? 120 : 32;
+  }
+  const double conversion_cost =
+      100.0 * (src_weights_size + dst_weights_size) / flops * flops_per_byte;
+  const bool recommended_single_conv = conversion_cost > 40;
 
   std::unique_ptr<GPUOperation> conv_int8;
   WeightsDescription conv_weights_desc;
@@ -1319,9 +1334,19 @@ GpuModelBuilder::FullyConnectedInt8QuantizedWithSrcQuantization(
     const TensorDescriptor* zero_point_desc =
         weights.zero_point.has_value() ? &weights.zero_point->tensor_desc
                                        : nullptr;
-    conv_int8 =
-        SelectConvolutionInt8(gpu_info_, op_def, src_packed_type, weights.shape,
-                              dst_shape, &conv_weights_desc);
+    ExternalWeights external_weights = ToExternalWeights(weights);
+    if (recommended_single_conv && use_apple_mpp &&
+        SupportsConvAppleMPP(gpu_info_, external_weights) &&
+        external_weights.desc.type == DataType::kUint4) {
+      auto conv_apple_mpp = CreateConvAppleMPPInt8(
+          op_def.src_tensors[0], op_def.dst_tensors[0], external_weights);
+      conv_weights_desc = weights.desc;
+      conv_int8 = std::make_unique<ConvAppleMPP>(std::move(conv_apple_mpp));
+    } else {
+      conv_int8 =
+          SelectConvolutionInt8(gpu_info_, op_def, src_packed_type,
+                                weights.shape, dst_shape, &conv_weights_desc);
+    }
 
     auto dequant_op = CreateDequantization(
         weights.shape, gpu_info_, interm_dst, dst.tensor_desc,
@@ -1362,8 +1387,7 @@ GpuModelBuilder::FullyConnectedInt8QuantizedWithSrcQuantization(
   }
   gpu_node.outputs = {dst.id};
   gpu_node.gpu_operation = std::move(conv_int8);
-  gpu_node.gpu_operation->flops_ +=
-      GetConvolutionFlops(dst_shape, weights.shape) / weights.shape.h;
+  gpu_node.gpu_operation->flops_ += flops;
   if (biases) {
     dst = Add(dst, *biases);
   }
