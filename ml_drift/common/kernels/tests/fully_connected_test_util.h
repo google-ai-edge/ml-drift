@@ -46,6 +46,9 @@ absl::Status FullyConnectedInt4Sparse2x4Test(TestExecutionEnvironment& env,
 absl::Status FullyConnectedExternalWeightsBigTest(
     TestExecutionEnvironment& env, CalculationsPrecision precision,
     TensorStorageType storage);
+absl::Status FullyConnectedRuntimeChWfloatTest(
+    TestExecutionEnvironment& env, CalculationsPrecision precision,
+    TensorStorageType storage);
 absl::Status FullyConnectedBatchedWeightsBigTest(
     TestExecutionEnvironment& env, CalculationsPrecision precision,
     TensorStorageType storage);
@@ -68,6 +71,9 @@ absl::Status FullyConnectedInt8GroupedQuantizationBigTest(
 absl::Status FullyConnectedInt8ExternalBigTest(TestExecutionEnvironment& env,
                                                CalculationsPrecision precision,
                                                TensorStorageType storage);
+absl::Status FullyConnectedRuntimeChWi8Test(TestExecutionEnvironment& env,
+                                            CalculationsPrecision precision,
+                                            TensorStorageType storage);
 absl::Status FullyConnectedInt8BatchedWeightsBigTest(
     TestExecutionEnvironment& env, CalculationsPrecision precision,
     TensorStorageType storage);
@@ -97,6 +103,9 @@ absl::Status FullyConnectedInt4GroupedQuantizationBigTest(
 absl::Status FullyConnectedInt4ExternalWeightsBigTest(
     TestExecutionEnvironment& env, CalculationsPrecision precision,
     TensorStorageType storage);
+absl::Status FullyConnectedRuntimeChWi4Test(TestExecutionEnvironment& env,
+                                            CalculationsPrecision precision,
+                                            TensorStorageType storage);
 absl::Status FullyConnectedInt4ExternalGroupedQuantizationBigTest(
     TestExecutionEnvironment& env, CalculationsPrecision precision,
     TensorStorageType storage);
@@ -119,6 +128,9 @@ absl::Status FullyConnectedInt2GroupedQuantizationBigTest(
 absl::Status FullyConnectedInt2ExternalWeightsBigTest(
     TestExecutionEnvironment& env, CalculationsPrecision precision,
     TensorStorageType storage);
+absl::Status FullyConnectedRuntimeChWi2Test(TestExecutionEnvironment& env,
+                                            CalculationsPrecision precision,
+                                            TensorStorageType storage);
 absl::Status FullyConnectedInt2ExternalGroupedQuantizationBigTest(
     TestExecutionEnvironment& env, CalculationsPrecision precision,
     TensorStorageType storage);
