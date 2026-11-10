@@ -162,7 +162,7 @@ class DepthwiseConvTiled : public GPUOperation {
   std::vector<int3> GetPossibleKernelWorkGroups(
       TuningType tuning_type, const GpuInfo& gpu_info,
       const KernelInfo& kernel_info) const override {
-    if (tuning_type == TuningType::kFast) {
+    if (tuning_type != TuningType::kExhaustive) {
       return {work_group_size_};
     } else {
       return GetPossibleWorkGroups(tuning_type, gpu_info, kernel_info,

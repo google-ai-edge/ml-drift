@@ -46,6 +46,56 @@ TEST(WorkGroupPickingTest, GetPossibleWorkGroups) {
   }
 }
 
+TEST(WorkGroupPickingTest, GetPossibleWorkGroupsStableWorkGroupSize) {
+  ml_drift::GpuInfo gpu_info;
+  gpu_info.gpu_api = ml_drift::GpuApi::kWebGpu;
+  gpu_info.webgpu_info.max_compute_workgroup_size_x = 1024;
+  gpu_info.webgpu_info.max_compute_workgroup_size_y = 1024;
+  gpu_info.webgpu_info.max_compute_workgroup_size_z = 64;
+  gpu_info.webgpu_info.max_compute_invocations_per_workgroup = 1024;
+  ml_drift::KernelInfo kernel_info;
+  kernel_info.max_work_group_size = gpu_info.GetMaxWorkGroupTotalSize();
+
+  // By default the fast work group depends on the exact grid size.
+  auto wgs_a =
+      ml_drift::GetPossibleWorkGroups(ml_drift::TuningType::kFast, gpu_info,
+                                      kernel_info, ml_drift::int3(514, 3, 1));
+  auto wgs_b =
+      ml_drift::GetPossibleWorkGroups(ml_drift::TuningType::kFast, gpu_info,
+                                      kernel_info, ml_drift::int3(518, 3, 1));
+  ASSERT_EQ(wgs_a.size(), 1);
+  ASSERT_EQ(wgs_b.size(), 1);
+  EXPECT_NE(wgs_a[0], wgs_b[0]);
+
+  // With kFastStable, grids with the same non-trivial dimensions map to the
+  // same work group regardless of their exact sizes.
+  wgs_a = ml_drift::GetPossibleWorkGroups(ml_drift::TuningType::kFastStable,
+                                          gpu_info, kernel_info,
+                                          ml_drift::int3(514, 3, 1));
+  wgs_b = ml_drift::GetPossibleWorkGroups(ml_drift::TuningType::kFastStable,
+                                          gpu_info, kernel_info,
+                                          ml_drift::int3(518, 3, 1));
+  ASSERT_EQ(wgs_a.size(), 1);
+  ASSERT_EQ(wgs_b.size(), 1);
+  EXPECT_EQ(wgs_a[0], wgs_b[0]);
+  EXPECT_EQ(wgs_a[0], ml_drift::int3(16, 16, 1));
+
+  // 1D and 3D grids, and the total size limit.
+  EXPECT_EQ(ml_drift::GetPossibleWorkGroups(ml_drift::TuningType::kFastStable,
+                                            gpu_info, kernel_info,
+                                            ml_drift::int3(1, 290, 1))[0],
+            ml_drift::int3(1, 256, 1));
+  EXPECT_EQ(ml_drift::GetPossibleWorkGroups(ml_drift::TuningType::kFastStable,
+                                            gpu_info, kernel_info,
+                                            ml_drift::int3(32, 18, 3))[0],
+            ml_drift::int3(8, 8, 4));
+  kernel_info.max_work_group_size = 64;
+  const auto clamped = ml_drift::GetPossibleWorkGroups(
+      ml_drift::TuningType::kFastStable, gpu_info, kernel_info,
+      ml_drift::int3(514, 3, 1))[0];
+  EXPECT_LE(clamped.x * clamped.y * clamped.z, 64);
+}
+
 TEST(WorkGroupPickingTest, GetPossibleWorkGroupsPerDimAndKernelLimits) {
   ml_drift::GpuInfo gpu_info;
   gpu_info.gpu_api = ml_drift::GpuApi::kOpenCl;

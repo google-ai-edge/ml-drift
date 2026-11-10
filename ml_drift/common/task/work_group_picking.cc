@@ -390,6 +390,66 @@ int3 GetWorkGroup(const int3& grid, const GpuInfo& gpu_info,
   return int3(wg_x, wg_y, wg_z);
 }
 
+// Clamps `wg_size` to the per dimension and total work group size limits of
+// the device and the kernel, halving the largest dimension until it fits.
+int3 ClampWorkGroupSize(const int3& wg_size, const GpuInfo& gpu_info,
+                        const KernelInfo& kernel_info) {
+  int3 wg = wg_size;
+  if (gpu_info.GetMaxWorkGroupSizeForX() > 0) {
+    wg.x = std::min(wg.x, gpu_info.GetMaxWorkGroupSizeForX());
+  }
+  if (gpu_info.GetMaxWorkGroupSizeForY() > 0) {
+    wg.y = std::min(wg.y, gpu_info.GetMaxWorkGroupSizeForY());
+  }
+  if (gpu_info.GetMaxWorkGroupSizeForZ() > 0) {
+    wg.z = std::min(wg.z, gpu_info.GetMaxWorkGroupSizeForZ());
+  }
+  int max_total_size = kernel_info.max_work_group_size;
+  if (gpu_info.GetMaxWorkGroupTotalSize() > 0) {
+    max_total_size =
+        max_total_size > 0
+            ? std::min(max_total_size, gpu_info.GetMaxWorkGroupTotalSize())
+            : gpu_info.GetMaxWorkGroupTotalSize();
+  }
+  if (max_total_size > 0) {
+    // Reduce largest dimension if the total size is too big.
+    while (wg.x * wg.y * wg.z > max_total_size) {
+      if (wg.z >= wg.x && wg.z >= wg.y && wg.z > 1) {
+        wg.z /= 2;
+      } else if (wg.y >= wg.x && wg.y > 1) {
+        wg.y /= 2;
+      } else if (wg.x > 1) {
+        wg.x /= 2;
+      } else {
+        break;
+      }
+    }
+  }
+  return wg;
+}
+
+// Picks a work group size that depends only on which grid dimensions are
+// non-trivial (> 1), not on their exact sizes. See TuningType::kFastStable.
+int3 GetStableWorkGroup(const int3& grid, const GpuInfo& gpu_info,
+                        const KernelInfo& kernel_info) {
+  const bool has_x = grid.x > 1;
+  const bool has_y = grid.y > 1;
+  const bool has_z = grid.z > 1;
+  int3 wg;
+  if (has_z) {
+    wg = int3(has_x ? 8 : 1, has_y ? 8 : 1, 4);
+  } else if (has_x && has_y) {
+    wg = int3(16, 16, 1);
+  } else if (has_x) {
+    wg = int3(256, 1, 1);
+  } else if (has_y) {
+    wg = int3(1, 256, 1);
+  } else {
+    wg = int3(1, 1, 1);
+  }
+  return ClampWorkGroupSize(wg, gpu_info, kernel_info);
+}
+
 int3 GetWorkGroupConv(const int3& grid, const GpuInfo& gpu_info, int max_size,
                       int max_z_size) {
   if (gpu_info.GetMaxWorkGroupTotalSize() > 0) {
@@ -502,6 +562,8 @@ std::vector<int3> GetPossibleWorkGroups(TuningType tuning_type,
   switch (tuning_type) {
     case TuningType::kFast:
       return {GetWorkGroup(grid, gpu_info, kernel_info.max_work_group_size)};
+    case TuningType::kFastStable:
+      return {GetStableWorkGroup(grid, gpu_info, kernel_info)};
     case TuningType::kExhaustive:
       return GetWorkGroupsAlignedToGrid(gpu_info, kernel_info, grid);
     default:
@@ -517,7 +579,8 @@ std::vector<int3> GetPossibleWorkGroupsConv(TuningType tuning_type,
     return {GetWorkGroupSizeForApple(grid)};
   }
   switch (tuning_type) {
-    case TuningType::kFast: {
+    case TuningType::kFast:
+    case TuningType::kFastStable: {
       int max_z_size = 16;
       if (gpu_info.IsAdreno()) {
         max_z_size = gpu_info.adreno_info.IsAdreno3xx() ? 16 : 64;
