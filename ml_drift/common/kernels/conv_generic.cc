@@ -244,6 +244,16 @@ std::string GetWorkGroupBaseDstY(const int3& work_group_launch_order) {
          ">() * ucl::GetGroupSize<1>()";
 }
 
+std::string GetSliceGroupId(const int3& work_group_launch_order,
+                            bool linear_spatial) {
+  int3 launch_remap;
+  launch_remap[work_group_launch_order.x] = 0;
+  launch_remap[work_group_launch_order.y] = 1;
+  launch_remap[work_group_launch_order.z] = 2;
+  const int s_id = linear_spatial ? 1 : 2;
+  return "ucl::GetGroupId<" + std::to_string(launch_remap[s_id]) + ">()";
+}
+
 bool SupportsImgMatMul(const GpuInfo& gpu_info,
                        const ConvGeneric::ConvParams& conv_params) {
   return !conv_params.Is8Bit() && gpu_info.IsApiOpenCl() &&
@@ -316,13 +326,18 @@ class ConvCodeGenerator {
     c += "}\n";
 
     const DataType type = DeduceDataTypeFromPrecision(conv_params_.precision);
+    std::string weights_per_slice = "weights_cache";
+    if (NeedsLocalMemory() && GetWGSliceCount() != 1 &&
+        !gpu_info_.SupportsPointersInKernels()) {
+      weights_per_slice = "weights_cache_wg[local_id_s]";
+    }
     absl::StrReplaceAll(
         {
             {"ScalarType", ToUclDataType(type, 1)},
             {"Type", ToUclDataType(type, 4)},
             {"AccType", ToUclDataType(GetAccumulatorType(), 4)},
             {"AccSType", ToUclDataType(GetAccumulatorType(), 1)},
-            {"WEIGHTS_PER_SLICE", "weights_cache"},
+            {"WEIGHTS_PER_SLICE", weights_per_slice},
         },
         &c);
 
@@ -335,7 +350,7 @@ class ConvCodeGenerator {
     const auto& src_def = conv_params_.src_desc;
     const bool weights_conversion =
         conv_params_.weights_desc.layout != WeightsLayout::kUnknown;
-    const bool need_local_mem = NeedsLocalMemory() || weights_conversion;
+    const bool need_local_mem = NeedsLocalMemory();
     const bool is_wave_memory = NeedsWaveMemory();
     const int weights_vals_per_loop = GetWeightsValsPerLoop();
     const bool use_intel_wave_matmul =
@@ -343,6 +358,7 @@ class ConvCodeGenerator {
         ConvGeneric::WeightsUploadType::kIntelWave16MatMul;
     const bool late_spatial_oob_check =
         need_local_mem || is_wave_memory || use_intel_wave_matmul;
+    const bool late_slice_oob_check = need_local_mem && GetWGSliceCount() != 1;
     const bool quantized_weights =
         weights_conversion && SizeInBitsOf(conv_params_.weights_desc.type) <= 8;
     std::string c;
@@ -375,7 +391,19 @@ class ConvCodeGenerator {
            ";\n";
       dst_end_slice = "dst_end_slice";
     }
-    c += "  if (DST_S >= " + dst_end_slice + ") return;\n";
+    c += "  int w_o_slice = DST_S;\n";
+    if (late_slice_oob_check) {
+      c += "  int wg_base_dst_s = (" +
+           GetSliceGroupId(kernel_params_.work_group_launch_order,
+                           kernel_params_.linear_spatial) +
+           ") * " +
+           std::to_string(kernel_params_.block_size.w * GetWGSliceCount()) +
+           ";\n";
+      c += "  if (wg_base_dst_s >= " + dst_end_slice + ") return;\n";
+      c += "  w_o_slice = min(w_o_slice, args.dst_tensor.Slices() - 1);\n";
+    } else {
+      c += "  if (DST_S >= " + dst_end_slice + ") return;\n";
+    }
     if (conv_params_.runtime_check.packed_groups.has_value()) {
       if (gpu_info_.IsApiWebGpu()) {
         c += "  int w_batch_id = " +
@@ -427,7 +455,7 @@ class ConvCodeGenerator {
     std::string src_group_end_slice = "args.src_tensor.Slices()";
     std::string src_group_slices = "args.src_tensor.Slices()";
     if (conv_params_.HasGroups()) {
-      c += "      int conv_group_id = DST_S / args.dst_group_size;\n";
+      c += "      int conv_group_id = w_o_slice / args.dst_group_size;\n";
       c += "      int src_start_slice = conv_group_id * args.src_group_size;\n";
       c += "      int src_end_slice = src_start_slice + args.src_group_size;\n";
       src_group_start_slice = "src_start_slice";
@@ -466,7 +494,7 @@ class ConvCodeGenerator {
            std::to_string(kernel_params_.block_size.w) + ";\n";
       c += "  int sub_o = lid % " +
            std::to_string(kernel_params_.block_size.w) + ";\n";
-      c += "  int w_o_slice = min(DST_S + sub_o, args.dst_tensor.Slices() - "
+      c += "  w_o_slice = min(DST_S + sub_o, args.dst_tensor.Slices() - "
            "1);\n";
       if (conv_params_.weights_desc.IsLinearLayout()) {
         const std::string batch_part =
@@ -582,8 +610,24 @@ class ConvCodeGenerator {
     const std::string weights_global_ptr =
         weights_space + " " + weights_buffer_type + "*";
     if (need_local_mem) {
-      c += "  __local " + weights_cache_type + " WEIGHTS_PER_SLICE[" +
-           std::to_string(weights_vals_per_loop) + "];\n";
+      if (GetWGSliceCount() == 1) {
+        c += "  __local " + weights_cache_type + " WEIGHTS_PER_SLICE[" +
+             std::to_string(weights_vals_per_loop) + "];\n";
+      } else {
+        if (gpu_info_.SupportsPointersInKernels()) {
+          c += "  __local " + weights_cache_type + " weights_cache_wg[" +
+               std::to_string(weights_vals_per_loop * GetWGSliceCount()) +
+               "];\n";
+          c += "  __local " + weights_cache_type +
+               "* WEIGHTS_PER_SLICE = weights_cache_wg + " + GetLocalIdS() +
+               " * " + std::to_string(weights_vals_per_loop) + ";\n";
+        } else {
+          c += "  __local " + weights_cache_type + " weights_cache_wg[" +
+               std::to_string(GetWGSliceCount()) + "][" +
+               std::to_string(weights_vals_per_loop) + "];\n";
+          c += "  int local_id_s = " + GetLocalIdS() + ";\n";
+        }
+      }
     } else if (is_wave_memory) {
       c += "  __wave " + weights_cache_type + " WEIGHTS_PER_SLICE[" +
            std::to_string(weights_vals_per_loop) + "];\n";
@@ -599,12 +643,12 @@ class ConvCodeGenerator {
       if (conv_params_.different_weights_for_height) {
         if (conv_params_.runtime_check.packed_groups.has_value()) {
           weights_offset =
-              "(DST_S * " +
+              "(w_o_slice * " +
               std::to_string(
                   conv_params_.runtime_check.packed_groups->num_groups) +
               " + w_batch_id";
         } else {
-          weights_offset = "(DST_S * args.src_tensor.Height() + DST_Y";
+          weights_offset = "(w_o_slice * args.src_tensor.Height() + DST_Y";
         }
         weights_offset += " * " + std::to_string(block_size.w) +
                           ") * 4 * args.src_tensor.Slices()";
@@ -620,7 +664,7 @@ class ConvCodeGenerator {
           kernel_spatial_offset += " * args.kernel_size_z";
         }
         weights_offset =
-            "DST_S * 4 * " + src_group_slices + kernel_spatial_offset;
+            "w_o_slice * 4 * " + src_group_slices + kernel_spatial_offset;
       }
       if (conv_params_.IsSrcPackedC16() || conv_params_.IsSrcPackedC32()) {
         weights_offset += " * 4";
@@ -868,6 +912,9 @@ class ConvCodeGenerator {
       c += "    return;\n";
       c += "  }\n";
     }
+    if (late_slice_oob_check) {
+      c += "  if (DST_S >= " + dst_end_slice + ") return;\n";
+    }
 
     auto generate_dst_check = [&](int x, int y, int z) {
       std::string check;
@@ -960,6 +1007,22 @@ class ConvCodeGenerator {
     } else {
       return kernel_params_.work_group_size.x *
              kernel_params_.work_group_size.y;
+    }
+  }
+
+  int GetWGSliceCount() const {
+    if (kernel_params_.linear_spatial) {
+      return kernel_params_.work_group_size.y;
+    } else {
+      return kernel_params_.work_group_size.z;
+    }
+  }
+
+  std::string GetLocalIdS() const {
+    if (kernel_params_.linear_spatial) {
+      return "ucl::GetLocalId<1>()";
+    } else {
+      return "ucl::GetLocalId<2>()";
     }
   }
 
@@ -1070,10 +1133,13 @@ class ConvCodeGenerator {
   }
 
   bool NeedsLocalMemory() const {
+    const bool weights_conversion =
+        conv_params_.weights_desc.layout != WeightsLayout::kUnknown;
     return kernel_params_.weights_upload_type ==
                ConvGeneric::WeightsUploadType::kLocalMemory ||
            kernel_params_.weights_upload_type ==
-               ConvGeneric::WeightsUploadType::kLocalMemoryWGLoad;
+               ConvGeneric::WeightsUploadType::kLocalMemoryWGLoad ||
+           weights_conversion;
   }
 
   bool NeedsWaveMemory() const {
@@ -1320,10 +1386,10 @@ class ConvCodeGenerator {
           f_y = "w_batch_id * args.src_tensor.Slices() + s";
         }
         c += absl::Substitute(
-            R"(      Type f$2 = args.weights0.Read(DST_S + $0, $1);
-      Type f$3 = args.weights1.Read(DST_S + $0, $1);
-      Type f$4 = args.weights2.Read(DST_S + $0, $1);
-      Type f$5 = args.weights3.Read(DST_S + $0, $1);
+            R"(      Type f$2 = args.weights0.Read(w_o_slice + $0, $1);
+      Type f$3 = args.weights1.Read(w_o_slice + $0, $1);
+      Type f$4 = args.weights2.Read(w_o_slice + $0, $1);
+      Type f$5 = args.weights3.Read(w_o_slice + $0, $1);
   )",
             dst_s, f_y, dst_s * 4 + 0, dst_s * 4 + 1, dst_s * 4 + 2,
             dst_s * 4 + 3);
