@@ -17,6 +17,7 @@
 
 #include <stdint.h>
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -59,6 +60,7 @@ class FullyConnected : public GPUOperation {
     bool spatial_groups = false;  // should be false if packed_groups used
     BHWC block_size = BHWC(1, 1, 1, 1);
     int3 wg_size = int3(0, 0, 0);
+    std::optional<BHWC> dst_shape;
   };
 
   // Move only

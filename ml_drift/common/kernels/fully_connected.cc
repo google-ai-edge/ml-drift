@@ -15,6 +15,7 @@
 #include "ml_drift/common/kernels/fully_connected.h"
 
 #include <algorithm>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -1004,6 +1005,9 @@ absl::StatusOr<FullyConnected> CreateFullyConnectedWeightsAreSpatialTensor(
   conv_params.batched_weights = weights_shape.h != 1;
   conv_params.has_bias = bias != nullptr;
   conv_params.runtime_check = runtime_check;
+  if (dst_shape_ptr) {
+    conv_params.dst_shape = *dst_shape_ptr;
+  }
   conv_params.block_size =
       fc::GetBlockSize(dst_shape_ptr, conv_params.batched_weights);
   WeightsDescription weights_desc;
@@ -1097,6 +1101,9 @@ absl::StatusOr<FullyConnected> CreateFullyConnectedExternalWeights(
   conv_params.has_zero_point =
       weights.zero_point != nullptr || weights.scalar_zero_point.has_value();
   conv_params.runtime_check = runtime_check;
+  if (dst_shape_ptr) {
+    conv_params.dst_shape = *dst_shape_ptr;
+  }
   conv_params.block_size =
       fc::GetBlockSize(dst_shape_ptr, conv_params.batched_weights);
   if (runtime_check.packed_groups.has_value()) {
@@ -1153,6 +1160,9 @@ absl::StatusOr<FullyConnected> CreateFullyConnectedWeightsBatchIds(
   conv_params.has_zero_point =
       weights.zero_point != nullptr || weights.scalar_zero_point.has_value();
   conv_params.runtime_batch_ids = dst_shape_ptr ? dst_shape_ptr->h : 1;
+  if (dst_shape_ptr) {
+    conv_params.dst_shape = *dst_shape_ptr;
+  }
   conv_params.block_size =
       fc::GetBlockSize(dst_shape_ptr, conv_params.batched_weights);
 
@@ -1238,6 +1248,9 @@ FullyConnected CreateFullyConnectedInt4Sparse2x4(
   conv_params.has_zero_point =
       weights.zero_point != nullptr || weights.scalar_zero_point.has_value();
   conv_params.sparse_2x4 = true;
+  if (dst_shape_ptr) {
+    conv_params.dst_shape = *dst_shape_ptr;
+  }
   conv_params.block_size =
       fc::GetBlockSize(dst_shape_ptr, conv_params.batched_weights);
   if (wg_size) {
