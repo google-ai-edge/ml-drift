@@ -55,7 +55,8 @@ class ConvGeneric : public GPUOperation {
     kWaveMemory,
   };
   struct KernelParams {
-    int4 block_size;  // WHDS
+    // block_size.b must be equal to 1; block_size.c is in slices.
+    BHWDC block_size = BHWDC(1, 1, 1, 1, 1);
     bool fixed_work_group_size;
     int3 work_group_size;
     int3 work_group_launch_order;
