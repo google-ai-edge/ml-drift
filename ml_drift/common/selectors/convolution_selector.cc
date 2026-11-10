@@ -106,7 +106,13 @@ std::unique_ptr<GPUOperation> SelectConvolutionExternalWeightsAdreno(
 std::unique_ptr<GPUOperation> SelectConvolutionApple(
     const Convolution2DAttributes& attr, const BHWC& dst_shape,
     const GpuInfo& gpu_info, const OperationDef& op_def,
-    CalculationsPrecision precision) {
+    CalculationsPrecision precision, ModelHints hints) {
+  if (hints.Check(ModelHints::kReduceKernelsCount)) {
+    // No dst shape: convs with the same weights shape share one kernel.
+    ConvGeneric conv = CreateConvGeneric(gpu_info, op_def, precision, attr,
+                                         /*dst_shape=*/nullptr);
+    return std::make_unique<ConvGeneric>(std::move(conv));
+  }
   if (SupportsConvWaveMatrix(gpu_info, precision, attr) &&
       IsGoodTaskSizeForAppleConvSimd(dst_shape, attr.GetWeightsShape(),
                                      precision, gpu_info)) {
@@ -127,6 +133,14 @@ std::unique_ptr<GPUOperation> SelectConvolutionExternalWeightsApple(
     WeightsDescription* weights_desc, const TensorDescriptor* src_exp,
     bool different_weights_for_height,
     const ConvRuntimeCheckDesc& runtime_check) {
+  if (hints.Check(ModelHints::kReduceKernelsCount)) {
+    // No dst shape: convs with the same weights shape share one kernel.
+    ConvGeneric conv = CreateConvGenericExternalWeights(
+        gpu_info, op_def, precision, attr, bias_desc, /*dst_shape=*/nullptr,
+        src_exp, different_weights_for_height, runtime_check);
+    *weights_desc = conv.GetWeightsDescription();
+    return std::make_unique<ConvGeneric>(std::move(conv));
+  }
   if (SupportsConvWaveMatrix(gpu_info, precision, attr) &&
       IsGoodTaskSizeForAppleConvSimd(dst_shape, attr.GetWeightsShape(),
                                      precision, gpu_info)) {
@@ -199,7 +213,8 @@ std::unique_ptr<GPUOperation> SelectConvolution(
     const GpuInfo& gpu_info, const OperationDef& op_def,
     CalculationsPrecision precision, ModelHints hints) {
   if (gpu_info.IsApple()) {
-    return SelectConvolutionApple(attr, dst_shape, gpu_info, op_def, precision);
+    return SelectConvolutionApple(attr, dst_shape, gpu_info, op_def, precision,
+                                  hints);
   }
   if (gpu_info.IsApiOpenGl() || gpu_info.IsApiVulkan() ||
       gpu_info.IsApiWebGpu()) {
