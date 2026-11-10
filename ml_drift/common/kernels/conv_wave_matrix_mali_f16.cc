@@ -186,6 +186,12 @@ MAIN_FUNCTION($0) {
       c += absl::Substitute(patch, x, x * 8);
     }
   }
+  if (conv_params.softmax_input_activation) {
+    for (int x = 0; x < kernel_params.x_block_size; x++) {
+      c += absl::Substitute(
+          "  half2 exp_val$0 = args.src_exp.Read(src_x$0, src_y, 0).xy;\n", x);
+    }
+  }
   std::string src_end_slice = "args.src.Slices()";
   if (conv_params.runtime_check.src_end_ch_index.has_value()) {
     c += "  int src_slices_dynamic = " +
@@ -217,6 +223,9 @@ MAIN_FUNCTION($0) {
     }
     if (!check.empty()) {
       patch += "    s$0 *= ucl::Convert<half>(" + check + ");\n";
+    }
+    if (conv_params.softmax_input_activation) {
+      patch += "    s$0 = ucl::Exp<half4>(s$0 - exp_val$0.y) * exp_val$0.x;\n";
     }
     c += absl::Substitute(patch, x, src_slice);
   }
@@ -411,7 +420,8 @@ ConvWaveMatrixMaliF16 CreateConvWaveMatrixMaliF16(
 ConvWaveMatrixMaliF16 CreateConvWaveMatrixMaliF16ExternalWeights(
     const GpuInfo& gpu_info, const TensorDescriptor& src_desc,
     const TensorDescriptor& dst_desc, const Convolution2DAttributes& attr,
-    const TensorDescriptor* bias, bool different_weights_for_height,
+    const TensorDescriptor* bias, const TensorDescriptor* src_exp,
+    bool different_weights_for_height,
     const ConvRuntimeCheckDesc& runtime_check) {
   ConvWaveMatrixMaliF16::ConvParams conv_params;
   conv_params.weights_shape = attr.GetWeightsShape();
@@ -422,6 +432,7 @@ ConvWaveMatrixMaliF16 CreateConvWaveMatrixMaliF16ExternalWeights(
     conv_params.y_kernel_is_1 = true;
   }
   conv_params.has_bias = bias != nullptr;
+  conv_params.softmax_input_activation = src_exp != nullptr;
   conv_params.runtime_check = runtime_check;
   ConvWaveMatrixMaliF16 result =
       ConvWaveMatrixMaliF16(gpu_info, conv_params, src_desc, dst_desc);
@@ -432,6 +443,9 @@ ConvWaveMatrixMaliF16 CreateConvWaveMatrixMaliF16ExternalWeights(
   result.AddSrcBuffer("weights", buffer_desc);
   if (bias) {
     result.AddSrcTensor("biases", *bias);
+  }
+  if (src_exp) {
+    result.AddSrcTensor("src_exp", *src_exp);
   }
   bool has_runtime_check = false;
   if (runtime_check.src_end_ch_index.has_value()) {

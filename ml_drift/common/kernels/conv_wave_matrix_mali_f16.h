@@ -39,6 +39,7 @@ class ConvWaveMatrixMaliF16 : public GPUOperation {
     bool y_kernel_is_1 = true;
     bool different_weights_for_height = false;
     bool has_bias = true;
+    bool softmax_input_activation = false;
     OHWI weights_shape;
     ConvRuntimeCheckDesc runtime_check;
   };
@@ -95,7 +96,8 @@ ConvWaveMatrixMaliF16 CreateConvWaveMatrixMaliF16(
 ConvWaveMatrixMaliF16 CreateConvWaveMatrixMaliF16ExternalWeights(
     const GpuInfo& gpu_info, const TensorDescriptor& src_desc,
     const TensorDescriptor& dst_desc, const Convolution2DAttributes& attr,
-    const TensorDescriptor* bias, bool different_weights_for_height,
+    const TensorDescriptor* bias, const TensorDescriptor* src_exp,
+    bool different_weights_for_height,
     const ConvRuntimeCheckDesc& runtime_check = {});
 
 }  // namespace ml_drift

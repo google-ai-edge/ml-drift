@@ -197,6 +197,14 @@ std::unique_ptr<GPUOperation> SelectConvolutionExternalWeightsMali(
         gpu_info, op_def, precision, attr, bias_desc);
     *weights_desc = conv.GetWeightsDescription();
     return std::make_unique<ConvConstants>(std::move(conv));
+  } else if (SupportsConvWaveMatrixMaliF16(gpu_info) &&
+             precision == CalculationsPrecision::kF16 && attr.groups == 1 &&
+             !op_def.dst_tensors[0].HasAxis(Axis::kBatch)) {
+    ConvWaveMatrixMaliF16 conv = CreateConvWaveMatrixMaliF16ExternalWeights(
+        gpu_info, op_def.src_tensors[0], op_def.dst_tensors[0], attr, bias_desc,
+        src_exp, different_weights_for_height, runtime_check);
+    *weights_desc = conv.GetWeightsDescription();
+    return std::make_unique<ConvWaveMatrixMaliF16>(std::move(conv));
   } else {
     ConvGeneric conv = CreateConvGenericExternalWeights(
         gpu_info, op_def, precision, attr, bias_desc, &dst_shape, src_exp,

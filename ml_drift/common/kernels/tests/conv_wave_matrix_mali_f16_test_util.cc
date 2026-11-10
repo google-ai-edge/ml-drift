@@ -74,7 +74,7 @@ absl::Status ConvWaveMatrixMaliF16ExternalWeightsTest(
 
   auto operation = CreateConvWaveMatrixMaliF16ExternalWeights(
       exec_env.GetGpuInfo(), src_desc, dst_desc, attr, /*bias=*/nullptr,
-      different_weights_for_height);
+      /*src_exp=*/nullptr, different_weights_for_height);
   std::vector<TensorDescriptor> weights_gpu =
       GetTensorDescriptorsForWeightsLayout(weights,
                                            operation.GetWeightsDescription());
@@ -253,7 +253,8 @@ absl::Status ConvWaveMatrixMaliF16PackedGroupsTest(
 
   auto convolution = CreateConvWaveMatrixMaliF16ExternalWeights(
       env.GetGpuInfo(), src_desc, dst_desc, conv_attr, /*bias=*/nullptr,
-      /*different_weights_for_height=*/true, runtime_check);
+      /*src_exp=*/nullptr, /*different_weights_for_height=*/true,
+      runtime_check);
 
   std::vector<TensorDescriptor> weights_gpu =
       GetTensorDescriptorsForWeightsLayout(weights,
@@ -311,7 +312,7 @@ absl::Status ConvWaveMatrixMaliF16RuntimeChannelsTest(
 
   auto operation = CreateConvWaveMatrixMaliF16ExternalWeights(
       exec_env.GetGpuInfo(), src_desc, dst_desc, attr, /*bias=*/nullptr,
-      /*different_weights_for_height=*/true,
+      /*src_exp=*/nullptr, /*different_weights_for_height=*/true,
       runtime_channels.GenerateConvRuntimeCheckDesc());
 
   std::vector<TensorDescriptor> weights_gpu =
