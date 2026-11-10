@@ -186,7 +186,7 @@ MAIN_FUNCTION($0) {
          "return;\n";
   }
   if (weights_conversion) {
-    ABSL_CHECK(wg_size == n_tile_slices * k_tile_slices);
+    ABSL_CHECK(wg_size >= n_tile_slices * k_tile_slices);
     const std::string w_loc_type =
         conv_params_.weights_data_type == DataType::kFloat16 ? "half"
                                                              : "int8_t";
@@ -217,10 +217,17 @@ MAIN_FUNCTION($0) {
         c += "  int last_src_group_id = -1;\n";
       } else if (conv_params_.scale_zp_shape.o != 1) {
         // linear quantization
+        if (wg_size > n_tile_slices * k_tile_slices) {
+          c += "  if (loc_id < " +
+               std::to_string(n_tile_slices * k_tile_slices) + ") {\n";
+        }
         c += fc::ReadScaleZeroPointLinear(
             "w_o_slice", conv_params_.scale_zp_shape,
             conv_params_.has_zero_point,
             fc::GetDataTypeForWeights(conv_params_.weights_desc.type));
+        if (wg_size > n_tile_slices * k_tile_slices) {
+          c += "  }\n";
+        }
       } else {
         // scalar quantization
         c += fc::ReadScaleZeroPointScalar(
@@ -320,6 +327,11 @@ MAIN_FUNCTION($0) {
   if (kernel_params_.manual_k_tiling) {
     c += "  for (int k = 0; k < " + src_end_slice + "; k += K_TILE_SLICES) {\n";
     if (weights_conversion) {
+      c += "    threadgroup_barrier(mem_flags::mem_threadgroup);\n";
+      if (wg_size > n_tile_slices * k_tile_slices) {
+        c += "    if (loc_id < " +
+             std::to_string(n_tile_slices * k_tile_slices) + ") {\n";
+      }
       if (conv_params_.weights_data_type == DataType::kFloat16) {
         c += "    half4 w0, w1, w2, w3;\n";
         c += ReadFloatWeights(conv_params_);
@@ -336,14 +348,16 @@ MAIN_FUNCTION($0) {
       }
       c += "    w_wg_offset += w_stride;\n";
       c += R"(
-    threadgroup_barrier(mem_flags::mem_threadgroup);
     // store it in i32o64 or half4 in i32o16
     w_loc_x4[(sub_i * 4 + 0) * N_TILE_SLICES + sub_o] = w0;
     w_loc_x4[(sub_i * 4 + 1) * N_TILE_SLICES + sub_o] = w1;
     w_loc_x4[(sub_i * 4 + 2) * N_TILE_SLICES + sub_o] = w2;
     w_loc_x4[(sub_i * 4 + 3) * N_TILE_SLICES + sub_o] = w3;
-    threadgroup_barrier(mem_flags::mem_threadgroup);
 )";
+      if (wg_size > n_tile_slices * k_tile_slices) {
+        c += "    }\n";
+      }
+      c += "    threadgroup_barrier(mem_flags::mem_threadgroup);\n";
     } else {
       if (!conv_params_.x_kernel_is_1 || !conv_params_.y_kernel_is_1) {
         c += "    b_tile = b_tensor.slice(slice_tile_id * N_TILE, w_offset);\n";
