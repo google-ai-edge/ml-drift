@@ -14,7 +14,6 @@
 
 #include "ml_drift/cl/cl_program.h"
 
-#include <algorithm>
 #include <cstdint>
 #include <cstring>
 #include <string>
@@ -256,17 +255,7 @@ absl::StatusOr<CLProgram> CreateCLProgram(
       CreateCLProgram(
           code, CompilerOptionsToString(device.GetInfo(), compiler_options),
           context, device));
-  const bool fix_adreno_binary =
-      std::find(compiler_options.begin(), compiler_options.end(),
-                CompilerOptions::kClAdrenoFixBinary) != compiler_options.end();
-  if (fix_adreno_binary) {
-    std::vector<uint8_t> binary;
-    ABSL_RETURN_IF_ERROR(program.GetBinary(&binary));
-    FixAdrenoBinary(&binary);
-    return CreateCLProgramFromBinary(context, device, binary);
-  } else {
-    return program;
-  }
+  return program;
 }
 
 absl::StatusOr<CLProgram> CreateCLProgramFromBinary(

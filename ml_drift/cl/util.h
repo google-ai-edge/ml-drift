@@ -75,10 +75,6 @@ std::vector<std::string> GetUnsupportedExtensions();
 // what the device reports.
 std::vector<std::string> GetPrivateExtensions(const GpuInfo& gpu_info);
 
-// Returns true if "ucl_wave_memory" can be enabled on the given Adreno GPU.
-// Provided by the platform-specific util library (cl/default or cl/google).
-bool AdrenoSupportsWaveMemory(const GpuInfo& gpu_info);
-
 void AppendContextHints(const GpuInfo& gpu_info,
                         PerformanceHint performance_hint,
                         PriorityHint priority_hint,
@@ -90,10 +86,6 @@ void AppendCommandQueueHints(const GpuInfo& gpu_info,
 
 AdrenoInfo::OpenClCompilerVersion GetQualcommOpenClCompilerVersion(
     const std::string& cl_driver_version);
-
-// Patches a compiled Adreno program binary in place. Provided by the
-// platform-specific util library (cl/default or cl/google).
-void FixAdrenoBinary(std::vector<uint8_t>* binary);
 
 std::string GetImgPixelSubgroupDotSample();
 

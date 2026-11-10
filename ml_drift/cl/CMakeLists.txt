@@ -282,7 +282,6 @@ target_link_libraries(mld_cl_util
     absl::strings
     mld_cl_cl_device
     mld_cl_cl_image_format
-    mld_cl_default_util
     mld_cl_opencl_wrapper
     mld_common_data_type
     mld_common_gpu_info
@@ -369,7 +368,6 @@ target_link_libraries(cl_test
   INTERFACE
     gmock
     gtest
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
 )
@@ -435,5 +433,4 @@ if(NOT CMAKE_CROSSCOMPILING)
     gtest_discover_tests(inference_context_test)
 endif()
 
-add_subdirectory(default)
 add_subdirectory(testing)

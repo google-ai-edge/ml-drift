@@ -74,6 +74,25 @@ cl_context_properties PriorityToContextPropertyKhr(PriorityHint hint) {
   }
 }
 
+bool AdrenoSupportsWaveMemory(const GpuInfo& gpu_info) {
+  if (!gpu_info.IsAdreno() || gpu_info.opencl_info.IsCLVK()) return false;
+  const auto& adreno_info = gpu_info.adreno_info;
+  const auto& cl_compiler_version = adreno_info.cl_compiler_version;
+  const bool compiler_bugs_in_a630 =
+      adreno_info.adreno_gpu == AdrenoGpu::kAdreno630 &&
+      cl_compiler_version.major <= 30;
+  if ((adreno_info.IsAdreno6xx() && !compiler_bugs_in_a630) ||
+      adreno_info.IsAdreno7xx() || adreno_info.IsAdreno8xx()) {
+    // only since compiler version 37.x supported
+    // __attribute__((qcom_max_concurrent_subgroups(...)))
+    // that is required for ucl_wave_memory
+    // Also compiler version 37.x supported on Adreno 6xx, first devices
+    // that supports ucl_wave_memory.
+    return cl_compiler_version.major >= 37;
+  }
+  return false;
+}
+
 }  // namespace
 
 std::string CLErrorCodeToString(cl_int error_code) {

@@ -14,7 +14,7 @@
 
 load("@flatbuffers//:build_defs.bzl", "flatbuffer_cc_library")
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
-load("//ml_drift/common:build_config.bzl", "mld_gpu_tests_tags", "mld_platform_alias")
+load("//ml_drift/common:build_config.bzl", "mld_gpu_tests_tags")
 
 package(
     default_visibility = ["//visibility:public"],
@@ -737,7 +737,6 @@ cc_library(
         "//ml_drift/common:gpu_info",
         "//ml_drift/common:shape",
         "//ml_drift/common:tensor",
-        "//ml_drift/common:util",
         "@com_google_absl//absl/debugging:leak_check",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:status_macros",
@@ -745,7 +744,7 @@ cc_library(
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:span",
         "@opencl_headers",
-    ] + mld_platform_alias("util", "//ml_drift/cl/"),
+    ],
 )
 
 cc_test(
