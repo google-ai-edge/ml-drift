@@ -1829,8 +1829,9 @@ GpuModelBuilder::Weights GpuModelBuilder::GetWeights(
       gpu_info_, weights_shape,
       hints_.Check(ModelHints::kPreferTextureWeights));
 
+  // Two int4 weights are packed per byte.
   const int elements_count =
-      GetTotalElementsCountForLayout(weights_desc, weights_shape) / 4;
+      GetTotalElementsCountForLayout(weights_desc, weights_shape) / 2;
   std::vector<uint8_t> weights_data(elements_count);
 
   if (std::holds_alternative<Tensor<OHWI, DataType::kInt4>>(weights)) {
