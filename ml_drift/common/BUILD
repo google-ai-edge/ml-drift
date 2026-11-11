@@ -277,6 +277,28 @@ cc_library(
     ],
 )
 
+cc_test(
+    name = "gpu_model_util_test",
+    srcs = ["gpu_model_util_test.cc"],
+    deps = [
+        ":data_type",
+        ":gpu_info",
+        ":gpu_model",
+        ":gpu_model_util",
+        ":model",
+        ":model_hints",
+        ":operations",
+        ":precision",
+        ":shape",
+        ":tensor",
+        ":types",
+        "//ml_drift/common/task:tensor_desc",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_matchers",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
 cc_library(
     name = "gpu_weights_conversion_test_util",
     srcs = ["gpu_weights_conversion_test_util.cc"],
