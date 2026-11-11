@@ -17,15 +17,18 @@
 
 #include <stdint.h>
 
+#include <optional>
 #include <string>
 #include <vector>
 
+#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/kernel_info.h"
 #include "ml_drift/common/precision.h"
 #include "ml_drift/common/shape.h"
+#include "ml_drift/common/task/arguments.h"
 #include "ml_drift/common/task/gpu_operation.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/task/tuning_type.h"
@@ -41,6 +44,7 @@ class FullyConnected : public GPUOperation {
       const KernelInfo& kernel_info) const override {
     return {work_group_size_};
   }
+  absl::Status BindArguments(ArgumentsBinder* args) override;
   int3 GetGridSize() const override;
 
   struct ConvParams {
@@ -53,8 +57,10 @@ class FullyConnected : public GPUOperation {
     bool sparse_2x4 = false;
     int runtime_batch_ids = 0;
     ConvRuntimeCheckDesc runtime_check;
+    bool spatial_groups = false;  // should be false if packed_groups used
     BHWC block_size = BHWC(1, 1, 1, 1);
     int3 wg_size = int3(0, 0, 0);
+    std::optional<BHWC> dst_shape;
   };
 
   // Move only
@@ -106,6 +112,11 @@ class FullyConnected : public GPUOperation {
 // precision.
 int GetRecommendedMaxTotalSpatialSize(const GpuInfo& gpu_info,
                                       CalculationsPrecision precision);
+
+bool IsFullyConnectedRecommended(const GpuInfo& gpu_info,
+                                 CalculationsPrecision precision,
+                                 const OHWI& weights_shape,
+                                 const BHWC& dst_shape);
 
 // Checks if the fully connected weights are spatial tensor is supported.
 inline bool IsFullyConnectedWeightsAreSpatialTensorSupported(

@@ -39,7 +39,7 @@ class ConvAppleMPPFloat16Test : public Test,
                                 public WithParamInterface<TensorStorageType> {
  public:
   void SetUp() override {
-    if (!SupportsConvAppleMPP(exec_env->GetGpuInfo())) {
+    if (!SupportsConvAppleMPP(exec_env->GetGpuInfo(), BHWC(1, 1, 1, 32))) {
       GTEST_SKIP() << "Not supported on this device.";
     }
   }
@@ -224,7 +224,7 @@ INSTANTIATE_TEST_SUITE_P(
 class BaseTest : public Test, public WithParamInterface<TensorStorageType> {
  public:
   void SetUp() override {
-    if (!SupportsConvAppleMPP(exec_env->GetGpuInfo())) {
+    if (!SupportsConvAppleMPP(exec_env->GetGpuInfo(), BHWC(1, 1, 1, 32))) {
       GTEST_SKIP() << "Not supported on this device.";
     }
   }
@@ -264,7 +264,7 @@ class SrcQuantizationTest
           std::tuple<DataType, TensorStorageType, TensorStorageType>> {
  public:
   void SetUp() override {
-    if (!SupportsConvAppleMPP(exec_env->GetGpuInfo())) {
+    if (!SupportsConvAppleMPP(exec_env->GetGpuInfo(), BHWC(1, 1, 1, 32))) {
       GTEST_SKIP() << "Not supported on this device.";
     }
   }

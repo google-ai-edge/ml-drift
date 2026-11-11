@@ -69,13 +69,14 @@ absl::StatusOr<
 ClWeightsManager::GetBatchesForWeightsPreparation(
     const Environment& env, const ScheduleStrategy schedule_strategy,
     size_t total_shared_tensor_size) {
-  std::vector<WeightsPrepOperationInfo> op_infos =
+  absl::StatusOr<std::vector<WeightsPrepOperationInfo>> op_infos =
       ConvertWeightsPrepRequestsToOperations(
           env.GetDevicePtr()->GetInfo(),
           std::move(weights_conversion_requests_));
   weights_conversion_requests_.clear();
+  ABSL_RETURN_IF_ERROR(op_infos.status());
 
-  return BatchGpuOperations(std::move(op_infos), schedule_strategy,
+  return BatchGpuOperations(*std::move(op_infos), schedule_strategy,
                             total_shared_tensor_size);
 }
 

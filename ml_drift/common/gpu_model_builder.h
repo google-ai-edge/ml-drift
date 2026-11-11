@@ -49,8 +49,7 @@
 
 namespace ml_drift {
 
-class OpBase;
-
+class OpBaseImpl;
 class WeightsManager;
 
 struct GpuModelBuilderOptions {
@@ -546,8 +545,9 @@ class GpuModelBuilder {
   //
   // op_name: The string name of the registered operation.
   // inputs:  Input tensor handles.
-  // attrs:   Attributes for the operation. This method will validate and
-  //          normalize them against the defined schema.
+  // attrs:   Attributes for the operation. They are parsed into the
+  //          operation's declared `Attrs` (see op_base.h); an undeclared key
+  //          or a value of the wrong type returns InvalidArgumentError.
   // returns: Output tensor handles.
   absl::StatusOr<std::vector<TensorHandle>> AppendOp(
       std::string_view op_name, const std::vector<TensorHandle>& inputs,
@@ -560,7 +560,7 @@ class GpuModelBuilder {
   }
 
  private:
-  friend class OpBase;
+  friend class OpBaseImpl;
 
   // Adds a source tensor to the GPUOperation and registers the tensor
   // dependency inside the GpuModel graph.
@@ -812,7 +812,9 @@ class WeightsManager {
   std::vector<WeightsConversionRequest> weights_conversion_requests_;
 
   // Convert the collected weights conversion requests to GPU operations.
-  static std::vector<WeightsPrepOperationInfo>
+  // Returns an error if a source or destination tensor of a conversion exceeds
+  // the device limits, e.g. the max buffer size.
+  static absl::StatusOr<std::vector<WeightsPrepOperationInfo>>
   ConvertWeightsPrepRequestsToOperations(
       const GpuInfo& gpu_info,
       std::vector<WeightsConversionRequest>&& requests);

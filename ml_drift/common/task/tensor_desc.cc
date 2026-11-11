@@ -790,24 +790,23 @@ absl::Status TensorDescriptor::PerformReadBilinearSelector(
       std::vector<std::string>(args.begin() + 1, args.end());
   std::string c;
   c += "  {\n";
-  c += "  SType f_x_TMP = ucl::Convert<SType>(floor(" + coord_args[0] + "));\n";
-  c += "  SType x_scale_TMP = ucl::Convert<SType>(" + coord_args[0] +
-       ") - f_x_TMP;\n";
+  c += "  float f_x_TMP = floor(" + coord_args[0] + ");\n";
+  c += "  SType x_scale_TMP = ucl::Convert<SType>((" + coord_args[0] +
+       ") - f_x_TMP);\n";
   c += "  int i_x_TMP = ucl::Convert<int>(f_x_TMP);\n";
   c += "  int start_x_TMP = max(i_x_TMP, 0);\n";
   c += "  int end_x_TMP = min(i_x_TMP + 1, width - 1);\n";
-  c += "  SType f_y_TMP = ucl::Convert<SType>(floor(" + coord_args[1] + "));\n";
-  c += "  SType y_scale_TMP = ucl::Convert<SType>(" + coord_args[1] +
-       ") - f_y_TMP;\n";
+  c += "  float f_y_TMP = floor(" + coord_args[1] + ");\n";
+  c += "  SType y_scale_TMP = ucl::Convert<SType>((" + coord_args[1] +
+       ") - f_y_TMP);\n";
   c += "  int i_y_TMP = ucl::Convert<int>(f_y_TMP);\n";
   c += "  int start_y_TMP = max(i_y_TMP, 0);\n";
   c += "  int end_y_TMP = min(i_y_TMP + 1, height - 1);\n";
   if (HasAxis(Axis::kDepth)) {
     // 3d bilinear read, x, y, z
-    c += "  SType f_z_TMP = ucl::Convert<SType>(floor(" + coord_args[2] +
-         "));\n";
-    c += "  SType z_scale_TMP = ucl::Convert<SType>(" + coord_args[2] +
-         ") - f_z_TMP;\n";
+    c += "  float f_z_TMP = floor(" + coord_args[2] + ");\n";
+    c += "  SType z_scale_TMP = ucl::Convert<SType>((" + coord_args[2] +
+         ") - f_z_TMP);\n";
     c += "  int i_z_TMP = ucl::Convert<int>(f_z_TMP);\n";
     c += "  int start_z_TMP = max(i_z_TMP, 0);\n";
     c += "  int end_z_TMP = min(i_z_TMP + 1, depth - 1);\n";

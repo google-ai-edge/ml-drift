@@ -31,6 +31,7 @@ enum class WeightsLayout {
   kOSpatialIOGroupI4O4,
   kOSpatialIOGroupO4I4,
   kISpatialOI4O4UnalignedIO,
+  kOSpatialIOGroupI2I2gr0O8I2gr1O2,
   k2DX4I4YIsSpatialIAndXIsOOGroupO4,
   k2DX4O4YIsSpatialIAndXIsOOGroupI4,
   k2DYIsSpatialIOAndXIsOGroupI4O4,

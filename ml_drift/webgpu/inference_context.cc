@@ -282,7 +282,9 @@ absl::Status InferenceContext::InitFromGpuModel(
 
   TuningType tuning_type = TuningType::kExhaustive;
   if (create_info.hints.Check(ModelHints::kFastTuning)) {
-    tuning_type = TuningType::kFast;
+    tuning_type = create_info.hints.Check(ModelHints::kReduceKernelsCount)
+                      ? TuningType::kFastStable
+                      : TuningType::kFast;
   }
   ABSL_RETURN_IF_ERROR(
       InitSubgraphNodes(env, std::move(subgraphs), &tuning_type));

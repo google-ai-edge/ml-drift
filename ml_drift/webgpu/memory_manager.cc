@@ -28,6 +28,8 @@
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/str_cat.h"
+#include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/gpu_model.h"
 #include "ml_drift/common/memory_management.h"
 #include "ml_drift/common/memory_management/types.h"
@@ -283,10 +285,19 @@ absl::Status MemoryManager::AllocateMemoryForBuffers(
     const std::map<ValueId, int2>& buffer_usages) {
   std::map<ValueId, int> value_id_to_shared_buffer_tensors;
 
+  // Each tensor is bound as a single storage buffer binding, so it must fit
+  // within both maxBufferSize and maxStorageBufferBindingSize.
+  const uint64_t max_buffer_size = environment.GetInfo().GetMaxBufferSize();
   std::vector<TensorUsageRecord<size_t>> usage_records;
   for (auto& usage : buffer_usages) {
     const auto& td = GetTensorDescriptor(Key(next_model_id_, usage.first));
     size_t buffer_size = td.GetMemorySizeInBytes();
+    if (max_buffer_size > 0 && buffer_size > max_buffer_size) {
+      return absl::ResourceExhaustedError(absl::StrCat(
+          "Intermediate tensor ", usage.first, " requires ", buffer_size,
+          " bytes, which exceeds the device's max buffer size of ",
+          max_buffer_size, " bytes."));
+    }
     value_id_to_shared_buffer_tensors[usage.first] = usage_records.size();
     usage_records.push_back({buffer_size, static_cast<TaskId>(usage.second.x),
                              static_cast<TaskId>(usage.second.y)});

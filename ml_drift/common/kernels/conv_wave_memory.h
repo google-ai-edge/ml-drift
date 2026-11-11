@@ -153,10 +153,6 @@ class ConvWaveMemory : public GPUOperation {
       const GpuInfo& gpu_info, const OperationDef& definition,
       CalculationsPrecision precision, const Convolution2DAttributes& attr,
       const BHWC* dst_shape);
-  friend ConvWaveMemory CreateConvWaveMemory(
-      const GpuInfo& gpu_info, const OperationDef& definition,
-      CalculationsPrecision precision, const FullyConnectedAttributes& attr,
-      const BHWC* dst_shape);
   friend ConvWaveMemory CreateConvWaveMemoryExternalWeights(
       const GpuInfo& gpu_info, const OperationDef& definition,
       CalculationsPrecision precision, const Convolution2DAttributes& attr,
@@ -234,13 +230,6 @@ ConvWaveMemory CreateConvWaveMemory(const GpuInfo& gpu_info,
                                     const OperationDef& definition,
                                     CalculationsPrecision precision,
                                     const Convolution2DAttributes& attr,
-                                    const BHWC* dst_shape = nullptr);
-
-// Creates a convolution operation with wave memory for fully connected layers.
-ConvWaveMemory CreateConvWaveMemory(const GpuInfo& gpu_info,
-                                    const OperationDef& definition,
-                                    CalculationsPrecision precision,
-                                    const FullyConnectedAttributes& attr,
                                     const BHWC* dst_shape = nullptr);
 
 // Creates a convolution operation with wave memory and external weights.

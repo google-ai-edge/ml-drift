@@ -50,10 +50,8 @@
 
 namespace ml_drift {
 namespace {
-std::string GetSecondPart(const GpuInfo& gpu_info, const OHWI& weights_shape,
-                          const int2& block_size, DataType type,
-                          bool need_write_check = true) {
-  const int conv_i_slices = DivideRoundUp(weights_shape.i, 4);
+std::string GetConvAccumulatorsInit(const GpuInfo& gpu_info,
+                                    const int2& block_size, DataType type) {
   std::string c;
   for (int y = 0; y < block_size.y; ++y) {
     for (int x = 0; x < block_size.x; ++x) {
@@ -77,95 +75,109 @@ std::string GetSecondPart(const GpuInfo& gpu_info, const OHWI& weights_shape,
     c += "  __local int4* src_iptr;\n";
     c += "  int4 src_xi;\n";
   }
-  for (int src_s = 0; src_s < conv_i_slices; ++src_s) {
-    const std::string local_mem =
-        conv_i_slices == 1 ? "interm_tensor"
-                           : "interm_tensor[" + std::to_string(src_s) + "]";
-    for (int by = 0; by < block_size.y + 2; ++by) {
-      if (load_src_4half4_as_int8) {
-        c += "  src_iptr = (__local int8*)&(" + local_mem +
-             "[second_local_y * BLOCK_SIZE_Y + " + std::to_string(by) +
-             "][second_local_x * BLOCK_SIZE_X]);\n";
-        for (int x = 0; x < (block_size.x + 2) / 4; ++x) {
-          c += "  src_xi = src_iptr[" + std::to_string(x) + "];\n";
-          c += "  src_x" + std::to_string(x * 4) + " = as_half4(src_xi.s01);\n";
-          c += "  src_x" + std::to_string(x * 4 + 1) +
-               " = as_half4(src_xi.s23);\n";
-          c += "  src_x" + std::to_string(x * 4 + 2) +
-               " = as_half4(src_xi.s45);\n";
-          c += "  src_x" + std::to_string(x * 4 + 3) +
-               " = as_half4(src_xi.s67);\n";
-        }
-      } else if (load_src_2half4_as_int4) {
-        c += "  src_iptr = (__local int4*)&(" + local_mem +
-             "[second_local_y * BLOCK_SIZE_Y + " + std::to_string(by) +
-             "][second_local_x * BLOCK_SIZE_X]);\n";
-        for (int x = 0; x < (block_size.x + 2) / 2; ++x) {
-          c += "  src_xi = src_iptr[" + std::to_string(x) + "];\n";
-          c += "  src_x" + std::to_string(x * 2) + " = as_half4(src_xi.xy);\n";
-          c += "  src_x" + std::to_string(x * 2 + 1) +
-               " = as_half4(src_xi.zw);\n";
-        }
-      } else {
-        for (int bx = 0; bx < block_size.x + 2; ++bx) {
-          const std::string src_idx = std::to_string(bx);
-          c += "  src_x" + src_idx + " = " + local_mem +
-               "[second_local_y * BLOCK_SIZE_Y + " + std::to_string(by) +
-               "][second_local_x * BLOCK_SIZE_X + " + src_idx + "];\n";
-        }
+  return c;
+}
+
+std::string GetConvSliceAccumulate(const GpuInfo& gpu_info,
+                                   const OHWI& weights_shape,
+                                   const int2& block_size, DataType type,
+                                   int src_s, const std::string& local_mem) {
+  const int conv_i_slices = DivideRoundUp(weights_shape.i, 4);
+  const bool load_src_4half4_as_int8 =
+      type == DataType::kFloat16 && gpu_info.IsAdreno() &&
+      gpu_info.IsApiOpenCl() && (block_size.x + 2) % 4 == 0;
+  const bool load_src_2half4_as_int4 =
+      type == DataType::kFloat16 && gpu_info.IsAdreno() &&
+      gpu_info.IsApiOpenCl() && (block_size.x + 2) % 2 == 0;
+  std::string c;
+  for (int by = 0; by < block_size.y + 2; ++by) {
+    if (load_src_4half4_as_int8) {
+      c += "  src_iptr = (__local int8*)&(" + local_mem +
+           "[second_local_y * BLOCK_SIZE_Y + " + std::to_string(by) +
+           "][second_local_x * BLOCK_SIZE_X]);\n";
+      for (int x = 0; x < (block_size.x + 2) / 4; ++x) {
+        c += "  src_xi = src_iptr[" + std::to_string(x) + "];\n";
+        c += "  src_x" + std::to_string(x * 4) + " = as_half4(src_xi.s01);\n";
+        c += "  src_x" + std::to_string(x * 4 + 1) +
+             " = as_half4(src_xi.s23);\n";
+        c += "  src_x" + std::to_string(x * 4 + 2) +
+             " = as_half4(src_xi.s45);\n";
+        c += "  src_x" + std::to_string(x * 4 + 3) +
+             " = as_half4(src_xi.s67);\n";
       }
-      for (int bx = 0; bx < block_size.x; ++bx) {
-        const std::string dst_idx = std::to_string(bx);
-        for (int ky = 0; ky < 3; ++ky) {
-          int dst_idy = by - ky;
-          if (dst_idy < 0 || dst_idy >= block_size.y) {
-            continue;
-          }
-          for (int kx = 0; kx < 3; ++kx) {
-            if (weights_shape.o == 1) {
+    } else if (load_src_2half4_as_int4) {
+      c += "  src_iptr = (__local int4*)&(" + local_mem +
+           "[second_local_y * BLOCK_SIZE_Y + " + std::to_string(by) +
+           "][second_local_x * BLOCK_SIZE_X]);\n";
+      for (int x = 0; x < (block_size.x + 2) / 2; ++x) {
+        c += "  src_xi = src_iptr[" + std::to_string(x) + "];\n";
+        c += "  src_x" + std::to_string(x * 2) + " = as_half4(src_xi.xy);\n";
+        c +=
+            "  src_x" + std::to_string(x * 2 + 1) + " = as_half4(src_xi.zw);\n";
+      }
+    } else {
+      for (int bx = 0; bx < block_size.x + 2; ++bx) {
+        const std::string src_idx = std::to_string(bx);
+        c += "  src_x" + src_idx + " = " + local_mem +
+             "[second_local_y * BLOCK_SIZE_Y + " + std::to_string(by) +
+             "][second_local_x * BLOCK_SIZE_X + " + src_idx + "];\n";
+      }
+    }
+    for (int bx = 0; bx < block_size.x; ++bx) {
+      const std::string dst_idx = std::to_string(bx);
+      for (int ky = 0; ky < 3; ++ky) {
+        int dst_idy = by - ky;
+        if (dst_idy < 0 || dst_idy >= block_size.y) {
+          continue;
+        }
+        for (int kx = 0; kx < 3; ++kx) {
+          if (weights_shape.o == 1) {
+            c += "  dst_x" + dst_idx + "_y" + std::to_string(dst_idy) +
+                 ".x += dot(src_x" + std::to_string(bx + kx) +
+                 ", args.weights.Read(" + std::to_string(ky * 3 + kx) + "));\n";
+          } else {
+            const int w_id = (ky * 3 + kx) * conv_i_slices + src_s;
+            if (weights_shape.i == 3) {
               c += "  dst_x" + dst_idx + "_y" + std::to_string(dst_idy) +
-                   ".x += dot(src_x" + std::to_string(bx + kx) +
-                   ", args.weights.Read(" + std::to_string(ky * 3 + kx) +
-                   "));\n";
+                   " += src_x" + std::to_string(bx + kx) +
+                   ".x * args.weights.Read(" + std::to_string(w_id * 3 + 0) +
+                   ");\n";
+              c += "  dst_x" + dst_idx + "_y" + std::to_string(dst_idy) +
+                   " += src_x" + std::to_string(bx + kx) +
+                   ".y * args.weights.Read(" + std::to_string(w_id * 3 + 1) +
+                   ");\n";
+              c += "  dst_x" + dst_idx + "_y" + std::to_string(dst_idy) +
+                   " += src_x" + std::to_string(bx + kx) +
+                   ".z * args.weights.Read(" + std::to_string(w_id * 3 + 2) +
+                   ");\n";
             } else {
-              const int w_id = (ky * 3 + kx) * conv_i_slices + src_s;
-              if (weights_shape.i == 3) {
-                c += "  dst_x" + dst_idx + "_y" + std::to_string(dst_idy) +
-                     " += src_x" + std::to_string(bx + kx) +
-                     ".x * args.weights.Read(" + std::to_string(w_id * 3 + 0) +
-                     ");\n";
-                c += "  dst_x" + dst_idx + "_y" + std::to_string(dst_idy) +
-                     " += src_x" + std::to_string(bx + kx) +
-                     ".y * args.weights.Read(" + std::to_string(w_id * 3 + 1) +
-                     ");\n";
-                c += "  dst_x" + dst_idx + "_y" + std::to_string(dst_idy) +
-                     " += src_x" + std::to_string(bx + kx) +
-                     ".z * args.weights.Read(" + std::to_string(w_id * 3 + 2) +
-                     ");\n";
-              } else {
-                c += "  dst_x" + dst_idx + "_y" + std::to_string(dst_idy) +
-                     " += src_x" + std::to_string(bx + kx) +
-                     ".x * args.weights.Read(" + std::to_string(w_id * 4 + 0) +
-                     ");\n";
-                c += "  dst_x" + dst_idx + "_y" + std::to_string(dst_idy) +
-                     " += src_x" + std::to_string(bx + kx) +
-                     ".y * args.weights.Read(" + std::to_string(w_id * 4 + 1) +
-                     ");\n";
-                c += "  dst_x" + dst_idx + "_y" + std::to_string(dst_idy) +
-                     " += src_x" + std::to_string(bx + kx) +
-                     ".z * args.weights.Read(" + std::to_string(w_id * 4 + 2) +
-                     ");\n";
-                c += "  dst_x" + dst_idx + "_y" + std::to_string(dst_idy) +
-                     " += src_x" + std::to_string(bx + kx) +
-                     ".w * args.weights.Read(" + std::to_string(w_id * 4 + 3) +
-                     ");\n";
-              }
+              c += "  dst_x" + dst_idx + "_y" + std::to_string(dst_idy) +
+                   " += src_x" + std::to_string(bx + kx) +
+                   ".x * args.weights.Read(" + std::to_string(w_id * 4 + 0) +
+                   ");\n";
+              c += "  dst_x" + dst_idx + "_y" + std::to_string(dst_idy) +
+                   " += src_x" + std::to_string(bx + kx) +
+                   ".y * args.weights.Read(" + std::to_string(w_id * 4 + 1) +
+                   ");\n";
+              c += "  dst_x" + dst_idx + "_y" + std::to_string(dst_idy) +
+                   " += src_x" + std::to_string(bx + kx) +
+                   ".z * args.weights.Read(" + std::to_string(w_id * 4 + 2) +
+                   ");\n";
+              c += "  dst_x" + dst_idx + "_y" + std::to_string(dst_idy) +
+                   " += src_x" + std::to_string(bx + kx) +
+                   ".w * args.weights.Read(" + std::to_string(w_id * 4 + 3) +
+                   ");\n";
             }
           }
         }
       }
     }
   }
+  return c;
+}
+
+std::string GetConvBiasAndWrite(const int2& block_size, bool need_write_check) {
+  std::string c;
   c += "  Type bias_val = args.bias.Read(0);\n";
   for (int by = 0; by < block_size.y; ++by) {
     for (int bx = 0; bx < block_size.x; ++bx) {
@@ -189,12 +201,70 @@ std::string GetSecondPart(const GpuInfo& gpu_info, const OHWI& weights_shape,
   return c;
 }
 
+std::string GetSecondPart(const GpuInfo& gpu_info, const OHWI& weights_shape,
+                          const int2& block_size, DataType type,
+                          bool need_write_check = true) {
+  const int conv_i_slices = DivideRoundUp(weights_shape.i, 4);
+  std::string c = GetConvAccumulatorsInit(gpu_info, block_size, type);
+  for (int src_s = 0; src_s < conv_i_slices; ++src_s) {
+    const std::string local_mem =
+        conv_i_slices == 1 ? "interm_tensor"
+                           : "interm_tensor[" + std::to_string(src_s) + "]";
+    c += GetConvSliceAccumulate(gpu_info, weights_shape, block_size, type,
+                                src_s, local_mem);
+  }
+  c += GetConvBiasAndWrite(block_size, need_write_check);
+  return c;
+}
+
+std::string GetQuantizeAndDequantizeCode(
+    const QuantizeAndDequantizeAttributes& attr, DataType type, int qdq_index,
+    const std::string& value_name, Arguments* args) {
+  QuantizeAndDequantizeAttributes adjusted_attr = attr;
+  const bool is_fp16 = type == DataType::kFloat16;
+  if (is_fp16 && attr.scale < 0.000062f) {
+    adjusted_attr.scale = 0.000062f;
+  }
+  const std::string prefix = absl::StrCat("qdq", qdq_index, "_");
+  const std::string min_name = prefix + "min";
+  const std::string max_name = prefix + "max";
+  const std::string scale_name = prefix + "scale";
+  args->AddFloat(min_name, adjusted_attr.min, type);
+  args->AddFloat(max_name, adjusted_attr.max, type);
+  args->AddFloat(scale_name, adjusted_attr.scale, type);
+  std::string c;
+  c += "        {\n";
+  c += "          Type clamped_val = min(ucl::Init<Type>(args." + max_name +
+       "), max(ucl::Init<Type>(args." + min_name + "), " + value_name + "));\n";
+  if (adjusted_attr.scale == 0.0f) {
+    c += "          Type quant_val = round((clamped_val - "
+         "ucl::Init<Type>(args." +
+         min_name + ")) / ucl::Init<Type>(args." + scale_name + "));\n";
+  } else {
+    const std::string inv_scale_name = prefix + "inv_scale";
+    args->AddFloat(inv_scale_name, 1.0f / adjusted_attr.scale, type);
+    c += "          Type quant_val = round((clamped_val - "
+         "ucl::Init<Type>(args." +
+         min_name + ")) * ucl::Init<Type>(args." + inv_scale_name + "));\n";
+  }
+  c += "          " + value_name + " = quant_val * ucl::Init<Type>(args." +
+       scale_name + ") + ucl::Init<Type>(args." + min_name + ");\n";
+  c += "        }\n";
+  return c;
+}
+
+struct NodeInfo {
+  OperationType type;
+  std::any attributes;
+};
+
 std::string GetCodeWGFirstTensorPrecise(const GpuInfo& gpu_info,
-                                        const std::vector<Node*> nodes,
+                                        const std::vector<NodeInfo>& nodes,
                                         const OHWI& weights_shape,
                                         const int3 wg_size, DataType type,
                                         const int2& block_size,
-                                        bool need_write_check = true) {
+                                        bool need_write_check = true,
+                                        Arguments* args = nullptr) {
   const int conv_i_slices = DivideRoundUp(weights_shape.i, 4);
   std::string c;
   c += "MAIN_FUNCTION($0) {\n";
@@ -214,17 +284,22 @@ std::string GetCodeWGFirstTensorPrecise(const GpuInfo& gpu_info,
   Type value = ucl::Init<Type>(0.0f);
   if (interm_x >= 0 && interm_x < args.dst_tensor.Width() && interm_y >= 0 && interm_y < args.dst_tensor.Height()) {
 )";
-  for (auto* node : nodes) {
-    const OperationType op_type = OperationTypeFromString(node->operation.type);
-    if (op_type == OperationType::kResize) {
-      auto resize_attr =
-          std::any_cast<Resize2DAttributes>(node->operation.attributes);
+  int qdq_index = 0;
+  for (const auto& node : nodes) {
+    if (node.type == OperationType::kResize) {
+      auto resize_attr = std::any_cast<Resize2DAttributes>(node.attributes);
       c += GetResize2dCode(resize_attr, "src_tensor", "interm_x", "interm_y",
                            "local_s", "value");
-    } else if (op_type == OperationType::kAdd) {
+    } else if (node.type == OperationType::kAdd) {
       c += "    value += args.add_tensor.Read(interm_x, interm_y, "
            "local_s);\n";
-    } else if (op_type == OperationType::kConcat) {
+    } else if (node.type == OperationType::kQuantizeAndDequantize &&
+               args != nullptr) {
+      auto qdq_attr =
+          std::any_cast<QuantizeAndDequantizeAttributes>(node.attributes);
+      c += GetQuantizeAndDequantizeCode(qdq_attr, type, qdq_index++, "value",
+                                        args);
+    } else if (node.type == OperationType::kConcat) {
       c += "    value.x = args.src_tensor0.Read(interm_x, interm_y, 0).x;\n";
       c += "    value.y = args.src_tensor1.Read(interm_x, interm_y, 0).x;\n";
       c += "    value.z = args.src_tensor2.Read(interm_x, interm_y, 0).x;\n";
@@ -276,11 +351,12 @@ std::string GetCodeWGFirstTensorPrecise(const GpuInfo& gpu_info,
 }
 
 std::string GetCodeWGSecondTensorPrecise(const GpuInfo& gpu_info,
-                                         const std::vector<Node*> nodes,
+                                         const std::vector<NodeInfo>& nodes,
                                          const OHWI& weights_shape,
                                          const int3 wg_size, DataType type,
                                          const int2& block_size,
-                                         bool need_write_check = true) {
+                                         bool need_write_check = true,
+                                         Arguments* args = nullptr) {
   const int conv_i_slices = DivideRoundUp(weights_shape.i, 4);
   std::string c;
   c += "MAIN_FUNCTION($0) {\n";
@@ -314,17 +390,22 @@ std::string GetCodeWGSecondTensorPrecise(const GpuInfo& gpu_info,
       Type value = ucl::Init<Type>(0.0f);
       if (interm_x >= 0 && interm_x < args.dst_tensor.Width() && interm_y >= 0 && interm_y < args.dst_tensor.Height()) {
 )";
-  for (auto* node : nodes) {
-    const OperationType op_type = OperationTypeFromString(node->operation.type);
-    if (op_type == OperationType::kResize) {
-      auto resize_attr =
-          std::any_cast<Resize2DAttributes>(node->operation.attributes);
+  int qdq_index = 0;
+  for (const auto& node : nodes) {
+    if (node.type == OperationType::kResize) {
+      auto resize_attr = std::any_cast<Resize2DAttributes>(node.attributes);
       c += GetResize2dCode(resize_attr, "src_tensor", "interm_x", "interm_y",
                            "local_s", "value");
-    } else if (op_type == OperationType::kAdd) {
+    } else if (node.type == OperationType::kAdd) {
       c += "        value += args.add_tensor.Read(interm_x, interm_y, "
            "local_s);\n";
-    } else if (op_type == OperationType::kConcat) {
+    } else if (node.type == OperationType::kQuantizeAndDequantize &&
+               args != nullptr) {
+      auto qdq_attr =
+          std::any_cast<QuantizeAndDequantizeAttributes>(node.attributes);
+      c += GetQuantizeAndDequantizeCode(qdq_attr, type, qdq_index++, "value",
+                                        args);
+    } else if (node.type == OperationType::kConcat) {
       c +=
           "        value.x = args.src_tensor0.Read(interm_x, interm_y, 0).x;\n";
       c +=
@@ -366,82 +447,88 @@ std::string GetCodeWGSecondTensorPrecise(const GpuInfo& gpu_info,
           {"BLOCK_SIZE_Y", std::to_string(block_size.y)}});
 }
 
-std::string GetCodeWGFirstTensorPrecise(const GpuInfo& gpu_info,
-                                        const std::vector<const ir::IrOp*>& ops,
-                                        const OHWI& weights_shape,
-                                        const int3 wg_size, DataType type,
-                                        const int2& block_size,
-                                        bool need_write_check = true) {
+std::string GetCodeWGFirstTensorPrecisePerSlice(
+    const GpuInfo& gpu_info, const std::vector<NodeInfo>& nodes,
+    const OHWI& weights_shape, const int3 wg_size, DataType type,
+    const int2& block_size, bool need_write_check = true,
+    Arguments* args = nullptr) {
   const int conv_i_slices = DivideRoundUp(weights_shape.i, 4);
   std::string c;
   c += "MAIN_FUNCTION($0) {\n";
-  if (conv_i_slices == 1) {
-    c += "  __local Type interm_tensor[WG_SIZE_Y][WG_SIZE_X];\n";
-    c += "  int local_s = 0;\n";
-  } else {
-    c += "  __local Type interm_tensor[WG_SIZE_Z][WG_SIZE_Y][WG_SIZE_X];\n";
-    c += "  int local_s = ucl::GetLocalId<2>();\n";
-  }
+  c += "  __local Type interm_tensor[WG_SIZE_Y][WG_SIZE_X];\n";
   c += R"(
   int local_x = ucl::GetLocalId<0>();
   int local_y = ucl::GetLocalId<1>();
 
   int interm_x = (WG_SIZE_X - 2) * ucl::GetGroupId<0>() + local_x - 1;
   int interm_y = (WG_SIZE_Y - 2) * ucl::GetGroupId<1>() + local_y - 1;
-  Type value = ucl::Init<Type>(0.0f);
-  if (interm_x >= 0 && interm_x < args.dst_tensor.Width() && interm_y >= 0 && interm_y < args.dst_tensor.Height()) {
+  bool valid_interm = (interm_x >= 0 && interm_x < args.dst_tensor.Width() &&
+                       interm_y >= 0 && interm_y < args.dst_tensor.Height());
 )";
-  for (const auto* op : ops) {
-    const OperationType op_type = OperationTypeFromString(op->name);
-    if (op_type == OperationType::kResize) {
-      auto resize_attr = std::any_cast<Resize2DAttributes>(op->attr);
-      c += GetResize2dCode(resize_attr, "src_tensor", "interm_x", "interm_y",
-                           "local_s", "value");
-    } else if (op_type == OperationType::kAdd) {
-      c += "    value += args.add_tensor.Read(interm_x, interm_y, "
-           "local_s);\n";
-    } else if (op_type == OperationType::kConcat) {
-      c += "    value.x = args.src_tensor0.Read(interm_x, interm_y, 0).x;\n";
-      c += "    value.y = args.src_tensor1.Read(interm_x, interm_y, 0).x;\n";
-      c += "    value.z = args.src_tensor2.Read(interm_x, interm_y, 0).x;\n";
-    }
-  }
-  c += "  }\n";
-  if (conv_i_slices == 1) {
-    c += "  interm_tensor[local_y][local_x] = value;\n";
-  } else {
-    c += "  interm_tensor[local_s][local_y][local_x] = value;\n";
-  }
-  c += "  ucl::SyncThreads<WorkGroup, Local>();\n";
-  if (conv_i_slices != 1) {
-    c += "  if (local_s != 0) { return; }\n";
-  }
   if (block_size.x != 1 || block_size.y != 1) {
-    // linear remapping:
     c += R"(
   int local_id = local_y * WG_SIZE_X + local_x;
   int second_local_id = local_id;
-  if (second_local_id >= (WG_SIZE_X - 2) * (WG_SIZE_Y - 2) / BLOCK_SIZE_X / BLOCK_SIZE_Y) { return; }
+  bool active_compute = (second_local_id < (WG_SIZE_X - 2) * (WG_SIZE_Y - 2) / BLOCK_SIZE_X / BLOCK_SIZE_Y);
   int second_local_x = second_local_id % ((WG_SIZE_X - 2) / BLOCK_SIZE_X);
   int second_local_y = second_local_id / ((WG_SIZE_X - 2) / BLOCK_SIZE_X);
 )";
   } else {
-    // 2d remapping:
     c += R"(
-  // 2d remapping:
   int second_local_x = local_x;
   int second_local_y = local_y;
-  if (second_local_x >= (WG_SIZE_X - 2) || second_local_y >= (WG_SIZE_Y - 2)) { return; }
+  bool active_compute = (second_local_x < (WG_SIZE_X - 2) && second_local_y < (WG_SIZE_Y - 2));
 )";
   }
+  c += GetConvAccumulatorsInit(gpu_info, block_size, type);
+  for (int src_s = 0; src_s < conv_i_slices; ++src_s) {
+    c += "  {\n";
+    c += "    int local_s = " + std::to_string(src_s) + ";\n";
+    c += "    Type value = ucl::Init<Type>(0.0f);\n";
+    c += "    if (valid_interm) {\n";
+    int qdq_index = 0;
+    for (const auto& node : nodes) {
+      if (node.type == OperationType::kResize) {
+        auto resize_attr = std::any_cast<Resize2DAttributes>(node.attributes);
+        c += GetResize2dCode(resize_attr, "src_tensor", "interm_x", "interm_y",
+                             "local_s", "value");
+      } else if (node.type == OperationType::kAdd) {
+        c += "      value += args.add_tensor.Read(interm_x, interm_y, "
+             "local_s);\n";
+      } else if (node.type == OperationType::kQuantizeAndDequantize &&
+                 args != nullptr) {
+        auto qdq_attr =
+            std::any_cast<QuantizeAndDequantizeAttributes>(node.attributes);
+        c += GetQuantizeAndDequantizeCode(qdq_attr, type, qdq_index++, "value",
+                                          args);
+      } else if (node.type == OperationType::kConcat) {
+        c +=
+            "      value.x = args.src_tensor0.Read(interm_x, interm_y, 0).x;\n";
+        c +=
+            "      value.y = args.src_tensor1.Read(interm_x, interm_y, 0).x;\n";
+        c +=
+            "      value.z = args.src_tensor2.Read(interm_x, interm_y, 0).x;\n";
+      }
+    }
+    c += "    }\n";
+    c += "    interm_tensor[local_y][local_x] = value;\n";
+    c += "  }\n";
+    c += "  ucl::SyncThreads<WorkGroup, Local>();\n";
+    c += "  if (active_compute) {\n";
+    c += GetConvSliceAccumulate(gpu_info, weights_shape, block_size, type,
+                                src_s, "interm_tensor");
+    c += "  }\n";
+    if (src_s + 1 < conv_i_slices) {
+      c += "  ucl::SyncThreads<WorkGroup, Local>();\n";
+    }
+  }
   c += R"(
+  if (!active_compute) { return; }
   int DST_X = (WG_SIZE_X - 2) * ucl::GetGroupId<0>() + second_local_x * BLOCK_SIZE_X;
   int DST_Y = (WG_SIZE_Y - 2) * ucl::GetGroupId<1>() + second_local_y * BLOCK_SIZE_Y;
-
   if (DST_X >= args.dst_tensor.Width() || DST_Y >= args.dst_tensor.Height()) { return; }
 )";
-  c += GetSecondPart(gpu_info, weights_shape, block_size, type,
-                     need_write_check);
+  c += GetConvBiasAndWrite(block_size, need_write_check);
   return absl::StrReplaceAll(c,
                              {{"WG_SIZE_X", std::to_string(wg_size.x)},
                               {"WG_SIZE_Y", std::to_string(wg_size.y)},
@@ -449,94 +536,6 @@ std::string GetCodeWGFirstTensorPrecise(const GpuInfo& gpu_info,
                               {"Type", ToUclDataType(type, 4)},
                               {"BLOCK_SIZE_X", std::to_string(block_size.x)},
                               {"BLOCK_SIZE_Y", std::to_string(block_size.y)}});
-}
-
-std::string GetCodeWGSecondTensorPrecise(
-    const GpuInfo& gpu_info, const std::vector<const ir::IrOp*>& ops,
-    const OHWI& weights_shape, const int3 wg_size, DataType type,
-    const int2& block_size, bool need_write_check = true) {
-  const int conv_i_slices = DivideRoundUp(weights_shape.i, 4);
-  std::string c;
-  c += "MAIN_FUNCTION($0) {\n";
-  if (conv_i_slices == 1) {
-    c += "  __local Type interm_tensor[LOCAL_MEM_SIZE_Y][LOCAL_MEM_SIZE_X];\n";
-  } else {
-    c += "  __local Type "
-         "interm_tensor[LOCAL_MEM_SIZE_S][LOCAL_MEM_SIZE_Y][LOCAL_MEM_SIZE_X];"
-         "\n";
-  }
-  c += R"(
-  int local_x = ucl::GetLocalId<0>();
-  int local_y = ucl::GetLocalId<1>();
-  int local_id = local_y * WG_SIZE_X + local_x;
-  for (int tile_id = 0; tile_id < args.tiles_count; ++tile_id) {
-    int interm_linear_id = local_id + tile_id * WG_SIZE_Y * WG_SIZE_X;
-    if (interm_linear_id < LOCAL_MEM_SIZE_Y * LOCAL_MEM_SIZE_X * LOCAL_MEM_SIZE_S) {
-      int interm_local_x = interm_linear_id % LOCAL_MEM_SIZE_X;
-)";
-  if (conv_i_slices == 1) {
-    c += "      int interm_local_y = interm_linear_id / LOCAL_MEM_SIZE_X;\n";
-    c += "      int local_s = 0;\n";
-  } else {
-    c += "      interm_linear_id /= LOCAL_MEM_SIZE_X;\n";
-    c += "      int interm_local_y = interm_linear_id % LOCAL_MEM_SIZE_Y;\n";
-    c += "      int local_s = interm_linear_id / LOCAL_MEM_SIZE_Y;\n";
-  }
-  c += R"(
-      int interm_x = WG_SIZE_X * BLOCK_SIZE_X * ucl::GetGroupId<0>() + interm_local_x - 1;
-      int interm_y = WG_SIZE_Y * BLOCK_SIZE_Y * ucl::GetGroupId<1>() + interm_local_y - 1;
-      Type value = ucl::Init<Type>(0.0f);
-      if (interm_x >= 0 && interm_x < args.dst_tensor.Width() && interm_y >= 0 && interm_y < args.dst_tensor.Height()) {
-)";
-  for (const auto* op : ops) {
-    const OperationType op_type = OperationTypeFromString(op->name);
-    if (op_type == OperationType::kResize) {
-      auto resize_attr = std::any_cast<Resize2DAttributes>(op->attr);
-      c += GetResize2dCode(resize_attr, "src_tensor", "interm_x", "interm_y",
-                           "local_s", "value");
-    } else if (op_type == OperationType::kAdd) {
-      c += "        value += args.add_tensor.Read(interm_x, interm_y, "
-           "local_s);\n";
-    } else if (op_type == OperationType::kConcat) {
-      c +=
-          "        value.x = args.src_tensor0.Read(interm_x, interm_y, 0).x;\n";
-      c +=
-          "        value.y = args.src_tensor1.Read(interm_x, interm_y, 0).x;\n";
-      c +=
-          "        value.z = args.src_tensor2.Read(interm_x, interm_y, 0).x;\n";
-    }
-  }
-  c += "  }\n";
-  if (conv_i_slices == 1) {
-    c += "      interm_tensor[interm_local_y][interm_local_x] = value;\n";
-  } else {
-    c += "      interm_tensor[local_s][interm_local_y][interm_local_x] = "
-         "value;\n";
-  }
-  c += "    }\n";
-  c += "  }\n";
-  c += "  ucl::SyncThreads<WorkGroup, Local>();\n";
-  c += R"(
-  int DST_X = ucl::GetGlobalId<0>() * BLOCK_SIZE_X;
-  int DST_Y = ucl::GetGlobalId<1>() * BLOCK_SIZE_Y;
-  if (DST_X >= args.dst_tensor.Width() || DST_Y >= args.dst_tensor.Height()) { return; }
-  int second_local_x = local_x;
-  int second_local_y = local_y;
-)";
-  c += GetSecondPart(gpu_info, weights_shape, block_size, type,
-                     need_write_check);
-  const int local_mem_size_x = wg_size.x * block_size.x + 2;
-  const int local_mem_size_y = wg_size.y * block_size.y + 2;
-  return absl::StrReplaceAll(
-      c, {{"LOCAL_MEM_SIZE_X", std::to_string(local_mem_size_x)},
-          {"LOCAL_MEM_SIZE_Y", std::to_string(local_mem_size_y)},
-          {"LOCAL_MEM_SIZE_S", std::to_string(conv_i_slices)},
-          {"WG_SIZE_X", std::to_string(wg_size.x)},
-          {"WG_SIZE_Y", std::to_string(wg_size.y)},
-          {"WG_SIZE_Z", std::to_string(wg_size.z)},
-          {"Type", ToUclDataType(type, 4)},
-          {"BLOCK_SIZE_X", std::to_string(block_size.x)},
-          {"BLOCK_SIZE_Y", std::to_string(block_size.y)}});
 }
 
 void AddConstantsGpuBuffer(const GpuInfo& gpu_info, DataType data_type,
@@ -580,6 +579,24 @@ bool IsResizeAddConvLocalMemoryFuserRecommended(const GpuInfo& gpu_info) {
       gpu_info.IsPowerVR() && gpu_info.powervr_info.IsImgCxx();
   return is_apple_recommended || is_adreno_recommended || is_amd_recommended ||
          is_mali_recommended || is_powervr_recommended;
+}
+
+bool HasSingleQuantizeAndDequantizeConsumer(
+    const GraphFloat32& graph, ValueId val_id,
+    const std::vector<Node*>& consumers) {
+  return !graph.IsGraphOutput(val_id) && consumers.size() == 1 &&
+         consumers[0] != nullptr &&
+         OperationTypeFromString(consumers[0]->operation.type) ==
+             OperationType::kQuantizeAndDequantize;
+}
+
+bool HasSingleQuantizeAndDequantizeConsumer(
+    const ir::IrModel& ir_model, ir::IrTensorId val_id,
+    const std::vector<ir::IrOp*>& consumers) {
+  return !ir_model.IsGraphOutput(val_id) && consumers.size() == 1 &&
+         consumers[0] != nullptr &&
+         OperationTypeFromString(consumers[0]->name) ==
+             OperationType::kQuantizeAndDequantize;
 }
 
 }  // namespace
@@ -754,9 +771,10 @@ absl::Status TryConcatConvLocalMemoryFuser(
           conv_output->tensor.shape.h % operation.block_size_.y == 0;
       const bool need_write_check = !x_div_by_block || !y_div_by_block;
       operation.code_ = GetCodeWGFirstTensorPrecise(
-          gpu_info, std::vector<Node*>{concat_node}, conv_weights.shape,
-          operation.work_group_size_, data_type, operation.block_size_,
-          need_write_check);
+          gpu_info,
+          {{OperationType::kConcat, concat_node->operation.attributes}},
+          conv_weights.shape, operation.work_group_size_, data_type,
+          operation.block_size_, need_write_check);
       break;
     }
     case ThinLocalMemory::TilingType::kWGSecondTensorPrecise: {
@@ -776,9 +794,10 @@ absl::Status TryConcatConvLocalMemoryFuser(
           conv_output->tensor.shape.h % operation.block_size_.y == 0;
       const bool need_write_check = !x_div_by_block || !y_div_by_block;
       operation.code_ = GetCodeWGSecondTensorPrecise(
-          gpu_info, std::vector<Node*>{concat_node}, conv_weights.shape,
-          operation.work_group_size_, data_type, operation.block_size_,
-          need_write_check);
+          gpu_info,
+          {{OperationType::kConcat, concat_node->operation.attributes}},
+          conv_weights.shape, operation.work_group_size_, data_type,
+          operation.block_size_, need_write_check);
       break;
     }
   }
@@ -820,6 +839,13 @@ absl::Status TryResizeAddConvLocalMemoryFuser(
   auto resize_input = graph.FindInputs(resize_node->id)[0];
   auto resize_output = graph.FindOutputs(resize_node->id)[0];
   auto resize_consumers = graph.FindConsumers(resize_output->id);
+  std::vector<Node*> upload_nodes = {resize_node};
+  while (HasSingleQuantizeAndDequantizeConsumer(graph, resize_output->id,
+                                                resize_consumers)) {
+    upload_nodes.push_back(resize_consumers[0]);
+    resize_output = graph.FindOutputs(resize_consumers[0]->id)[0];
+    resize_consumers = graph.FindConsumers(resize_output->id);
+  }
   if (resize_consumers.size() != 1) {
     return absl::NotFoundError("ThinLocalMemoryFuser not suitable.");
   }
@@ -840,8 +866,15 @@ absl::Status TryResizeAddConvLocalMemoryFuser(
   }
   auto add_second_input =
       add_inputs[0]->id == resize_output->id ? add_inputs[1] : add_inputs[0];
+  upload_nodes.push_back(add_node);
   auto add_output_id = graph.FindOutputs(add_node->id)[0]->id;
   auto add_consumers = graph.FindConsumers(add_output_id);
+  while (HasSingleQuantizeAndDequantizeConsumer(graph, add_output_id,
+                                                add_consumers)) {
+    upload_nodes.push_back(add_consumers[0]);
+    add_output_id = graph.FindOutputs(add_consumers[0]->id)[0]->id;
+    add_consumers = graph.FindConsumers(add_output_id);
+  }
   if (add_consumers.size() != 1) {
     return absl::NotFoundError("ThinLocalMemoryFuser not suitable.");
   }
@@ -868,7 +901,7 @@ absl::Status TryResizeAddConvLocalMemoryFuser(
   ABSL_ASSIGN_OR_RETURN(auto src1_handle,
                         model_builder->GetTensor(add_second_input->id));
   ABSL_ASSIGN_OR_RETURN(auto dst_handle,
-                        model_builder->GetTensor(add_output_id));
+                        model_builder->GetTensor(conv_output->id));
 
   OperationDef op_def;
   op_def.src_tensors.push_back(src0_handle.tensor_desc);
@@ -882,7 +915,8 @@ absl::Status TryResizeAddConvLocalMemoryFuser(
 
   const auto& conv_weights = GetFloatWeights(conv_attr);
   bool supported_weights_shape = conv_weights.shape == OHWI(1, 3, 3, 4);
-  if (conv_weights.shape == OHWI(4, 3, 3, 8)) {
+  if (conv_weights.shape == OHWI(3, 3, 3, 8) ||
+      conv_weights.shape == OHWI(4, 3, 3, 8)) {
     if (gpu_info.IsAdreno()) {
       supported_weights_shape = true;
     } else if (gpu_info.IsMali()) {
@@ -899,6 +933,12 @@ absl::Status TryResizeAddConvLocalMemoryFuser(
       supported_weights_shape = true;
     }
   }
+  if (conv_weights.shape == OHWI(3, 3, 3, 16) ||
+      conv_weights.shape == OHWI(4, 3, 3, 16)) {
+    if (gpu_info.IsMali() && gpu_info.mali_info.IsMaliG2()) {
+      supported_weights_shape = true;
+    }
+  }
   if (!supported_weights_shape || conv_attr.strides != HW(1, 1) ||
       conv_attr.dilations != HW(1, 1) ||
       conv_attr.padding.prepended != HW(1, 1) ||
@@ -908,15 +948,21 @@ absl::Status TryResizeAddConvLocalMemoryFuser(
 
   const DataType data_type = op_def.src_tensors[0].GetDataType();
   ThinLocalMemory operation;
-  if (conv_weights.shape == OHWI(4, 3, 3, 8)) {
-    std::vector<float> weights_reordered(4 * 3 * 3 * 8);
-    for (int i = 0; i < 8; ++i) {
+  if (conv_weights.shape.o != 1) {
+    const int dst_ch_aligned = AlignByN(conv_weights.shape.o, 4);
+    std::vector<float> weights_reordered(dst_ch_aligned * conv_weights.shape.h *
+                                             conv_weights.shape.w *
+                                             conv_weights.shape.i,
+                                         0.0f);
+    for (int i = 0; i < conv_weights.shape.i; ++i) {
       for (int ky = 0; ky < 3; ++ky) {
         for (int kx = 0; kx < 3; ++kx) {
-          for (int o = 0; o < 4; ++o) {
+          for (int o = 0; o < conv_weights.shape.o; ++o) {
             int w_index = conv_weights.shape.LinearIndex({o, ky, kx, i});
             float w_val = conv_weights.data[w_index];
-            weights_reordered[((ky * 3 + kx) * 8 + i) * 4 + o] = w_val;
+            weights_reordered[((ky * 3 + kx) * conv_weights.shape.i + i) *
+                                  dst_ch_aligned +
+                              o] = w_val;
           }
         }
       }
@@ -938,11 +984,13 @@ absl::Status TryResizeAddConvLocalMemoryFuser(
   operation.args_.AddFloat("scale_factor_x", scale_factor_x);
   operation.args_.AddFloat("scale_factor_y", scale_factor_y);
   operation.tiling_type_ = ThinLocalMemory::TilingType::kWGFirstTensorPrecise;
+  const int conv_i_slices = DivideRoundUp(conv_weights.shape.i, 4);
   if (gpu_info.IsMali()) {
     operation.tiling_type_ =
-        ThinLocalMemory::TilingType::kWGSecondTensorPrecise;
+        conv_i_slices == 4
+            ? ThinLocalMemory::TilingType::kWGFirstTensorPrecise
+            : ThinLocalMemory::TilingType::kWGSecondTensorPrecise;
   }
-  const int conv_i_slices = DivideRoundUp(conv_weights.shape.i, 4);
   if (conv_i_slices == 2 && gpu_info.IsApple()) {
     operation.tiling_type_ =
         ThinLocalMemory::TilingType::kWGSecondTensorPrecise;
@@ -950,6 +998,12 @@ absl::Status TryResizeAddConvLocalMemoryFuser(
   operation.AddSrcTensor("src_tensor", op_def.src_tensors[0]);
   operation.AddSrcTensor("add_tensor", op_def.src_tensors[1]);
   operation.AddDstTensor("dst_tensor", op_def.dst_tensors[0]);
+  std::vector<NodeInfo> upload_nodes_info;
+  upload_nodes_info.reserve(upload_nodes.size());
+  for (const auto* node : upload_nodes) {
+    upload_nodes_info.push_back({OperationTypeFromString(node->operation.type),
+                                 node->operation.attributes});
+  }
   switch (operation.tiling_type_) {
     case ThinLocalMemory::TilingType::kWGFirstTensorPrecise: {
       // work_group_size_.x - 2 must be divisible by block_size.x
@@ -963,6 +1017,9 @@ absl::Status TryResizeAddConvLocalMemoryFuser(
         } else if (conv_i_slices == 2) {
           operation.block_size_ = int2(2, 1);
           operation.work_group_size_ = int3(18, 18, 2);
+        } else if (conv_i_slices == 4) {
+          operation.block_size_ = int2(1, 2);
+          operation.work_group_size_ = int3(18, 14, 1);
         }
       }
       if (gpu_info.IsAdreno()) {
@@ -992,10 +1049,17 @@ absl::Status TryResizeAddConvLocalMemoryFuser(
       const bool y_div_by_block =
           conv_output->tensor.shape.h % operation.block_size_.y == 0;
       const bool need_write_check = !x_div_by_block || !y_div_by_block;
-      operation.code_ = GetCodeWGFirstTensorPrecise(
-          gpu_info, std::vector<Node*>{resize_node, add_node},
-          conv_weights.shape, operation.work_group_size_, data_type,
-          operation.block_size_, need_write_check);
+      if (conv_i_slices > 1 && operation.work_group_size_.z == 1) {
+        operation.code_ = GetCodeWGFirstTensorPrecisePerSlice(
+            gpu_info, upload_nodes_info, conv_weights.shape,
+            operation.work_group_size_, data_type, operation.block_size_,
+            need_write_check, &operation.args_);
+      } else {
+        operation.code_ = GetCodeWGFirstTensorPrecise(
+            gpu_info, upload_nodes_info, conv_weights.shape,
+            operation.work_group_size_, data_type, operation.block_size_,
+            need_write_check, &operation.args_);
+      }
       break;
     }
     case ThinLocalMemory::TilingType::kWGSecondTensorPrecise: {
@@ -1012,6 +1076,9 @@ absl::Status TryResizeAddConvLocalMemoryFuser(
           } else if (conv_i_slices == 2) {
             operation.block_size_ = int2(2, 2);
             operation.work_group_size_ = int3(16, 8, 1);
+          } else if (conv_i_slices == 4) {
+            operation.block_size_ = int2(1, 1);
+            operation.work_group_size_ = int3(24, 16, 1);
           }
         }
       }
@@ -1033,9 +1100,9 @@ absl::Status TryResizeAddConvLocalMemoryFuser(
           conv_output->tensor.shape.h % operation.block_size_.y == 0;
       const bool need_write_check = !x_div_by_block || !y_div_by_block;
       operation.code_ = GetCodeWGSecondTensorPrecise(
-          gpu_info, std::vector<Node*>{resize_node, add_node},
-          conv_weights.shape, operation.work_group_size_, data_type,
-          operation.block_size_, need_write_check);
+          gpu_info, upload_nodes_info, conv_weights.shape,
+          operation.work_group_size_, data_type, operation.block_size_,
+          need_write_check, &operation.args_);
       break;
     }
   }
@@ -1056,8 +1123,9 @@ absl::Status TryResizeAddConvLocalMemoryFuser(
       std::vector<ValueId>({conv_output->id}),
       std::make_unique<ThinLocalMemory>(std::move(operation)), op_name);
 
-  new_consumed_nodes->insert(resize_node->id);
-  new_consumed_nodes->insert(add_node->id);
+  for (auto* node : upload_nodes) {
+    new_consumed_nodes->insert(node->id);
+  }
   new_consumed_nodes->insert(conv_node->id);
   return absl::OkStatus();
 }
@@ -1213,9 +1281,9 @@ absl::Status TryConcatConvLocalMemoryFuser(
           0;
       const bool need_write_check = !x_div_by_block || !y_div_by_block;
       operation.code_ = GetCodeWGFirstTensorPrecise(
-          gpu_info, std::vector<const ir::IrOp*>{concat_op}, conv_weights.shape,
-          operation.work_group_size_, data_type, operation.block_size_,
-          need_write_check);
+          gpu_info, {{OperationType::kConcat, concat_op->attr}},
+          conv_weights.shape, operation.work_group_size_, data_type,
+          operation.block_size_, need_write_check);
       break;
     }
     case ThinLocalMemory::TilingType::kWGSecondTensorPrecise: {
@@ -1239,9 +1307,9 @@ absl::Status TryConcatConvLocalMemoryFuser(
           0;
       const bool need_write_check = !x_div_by_block || !y_div_by_block;
       operation.code_ = GetCodeWGSecondTensorPrecise(
-          gpu_info, std::vector<const ir::IrOp*>{concat_op}, conv_weights.shape,
-          operation.work_group_size_, data_type, operation.block_size_,
-          need_write_check);
+          gpu_info, {{OperationType::kConcat, concat_op->attr}},
+          conv_weights.shape, operation.work_group_size_, data_type,
+          operation.block_size_, need_write_check);
       break;
     }
   }
@@ -1283,6 +1351,13 @@ absl::Status TryResizeAddConvLocalMemoryFuser(
   auto resize_input = resize_op->inputs[0];
   auto resize_output = resize_op->outputs[0];
   auto resize_consumers = ir_model.FindConsumers(resize_output);
+  std::vector<const ir::IrOp*> upload_ops = {resize_op};
+  while (HasSingleQuantizeAndDequantizeConsumer(ir_model, resize_output,
+                                                resize_consumers)) {
+    upload_ops.push_back(resize_consumers[0]);
+    resize_output = resize_consumers[0]->outputs[0];
+    resize_consumers = ir_model.FindConsumers(resize_output);
+  }
   if (resize_consumers.size() != 1) {
     return absl::NotFoundError("ThinLocalMemoryFuser not suitable. 2");
   }
@@ -1300,8 +1375,15 @@ absl::Status TryResizeAddConvLocalMemoryFuser(
   }
   auto add_second_input =
       add_inputs[0] == resize_output ? add_inputs[1] : add_inputs[0];
+  upload_ops.push_back(add_op);
   auto add_output_id = add_op->outputs[0];
   auto add_consumers = ir_model.FindConsumers(add_output_id);
+  while (HasSingleQuantizeAndDequantizeConsumer(ir_model, add_output_id,
+                                                add_consumers)) {
+    upload_ops.push_back(add_consumers[0]);
+    add_output_id = add_consumers[0]->outputs[0];
+    add_consumers = ir_model.FindConsumers(add_output_id);
+  }
   if (add_consumers.size() != 1) {
     return absl::NotFoundError("ThinLocalMemoryFuser not suitable. 4");
   }
@@ -1332,7 +1414,7 @@ absl::Status TryResizeAddConvLocalMemoryFuser(
   }
   auto src1_handle = status2.value();
 
-  auto status3 = model_builder->GetTensor(add_output_id);
+  auto status3 = model_builder->GetTensor(conv_output);
   if (!status3.ok()) {
     return absl::NotFoundError("ThinLocalMemoryFuser not suitable. GetTensor3");
   }
@@ -1348,7 +1430,8 @@ absl::Status TryResizeAddConvLocalMemoryFuser(
 
   const auto& conv_weights = GetFloatWeights(conv_attr);
   bool supported_weights_shape = conv_weights.shape == OHWI(1, 3, 3, 4);
-  if (conv_weights.shape == OHWI(4, 3, 3, 8)) {
+  if (conv_weights.shape == OHWI(3, 3, 3, 8) ||
+      conv_weights.shape == OHWI(4, 3, 3, 8)) {
     if (gpu_info.IsAdreno()) {
       supported_weights_shape = true;
     } else if (gpu_info.IsMali()) {
@@ -1367,6 +1450,12 @@ absl::Status TryResizeAddConvLocalMemoryFuser(
       supported_weights_shape = true;
     }
   }
+  if (conv_weights.shape == OHWI(3, 3, 3, 16) ||
+      conv_weights.shape == OHWI(4, 3, 3, 16)) {
+    if (gpu_info.IsMali() && gpu_info.mali_info.IsMaliG2()) {
+      supported_weights_shape = true;
+    }
+  }
   if (!supported_weights_shape || conv_attr.strides != HW(1, 1) ||
       conv_attr.dilations != HW(1, 1) ||
       conv_attr.padding.prepended != HW(1, 1) ||
@@ -1376,15 +1465,21 @@ absl::Status TryResizeAddConvLocalMemoryFuser(
 
   const DataType data_type = op_def.src_tensors[0].GetDataType();
   ThinLocalMemory operation;
-  if (conv_weights.shape == OHWI(4, 3, 3, 8)) {
-    std::vector<float> weights_reordered(4 * 3 * 3 * 8);
-    for (int i = 0; i < 8; ++i) {
+  if (conv_weights.shape.o != 1) {
+    const int dst_ch_aligned = AlignByN(conv_weights.shape.o, 4);
+    std::vector<float> weights_reordered(dst_ch_aligned * conv_weights.shape.h *
+                                             conv_weights.shape.w *
+                                             conv_weights.shape.i,
+                                         0.0f);
+    for (int i = 0; i < conv_weights.shape.i; ++i) {
       for (int ky = 0; ky < 3; ++ky) {
         for (int kx = 0; kx < 3; ++kx) {
-          for (int o = 0; o < 4; ++o) {
+          for (int o = 0; o < conv_weights.shape.o; ++o) {
             int w_index = conv_weights.shape.LinearIndex({o, ky, kx, i});
             float w_val = conv_weights.data[w_index];
-            weights_reordered[((ky * 3 + kx) * 8 + i) * 4 + o] = w_val;
+            weights_reordered[((ky * 3 + kx) * conv_weights.shape.i + i) *
+                                  dst_ch_aligned +
+                              o] = w_val;
           }
         }
       }
@@ -1408,11 +1503,13 @@ absl::Status TryResizeAddConvLocalMemoryFuser(
   operation.args_.AddFloat("scale_factor_x", scale_factor_x);
   operation.args_.AddFloat("scale_factor_y", scale_factor_y);
   operation.tiling_type_ = ThinLocalMemory::TilingType::kWGFirstTensorPrecise;
+  const int conv_i_slices = DivideRoundUp(conv_weights.shape.i, 4);
   if (gpu_info.IsMali()) {
     operation.tiling_type_ =
-        ThinLocalMemory::TilingType::kWGSecondTensorPrecise;
+        conv_i_slices == 4
+            ? ThinLocalMemory::TilingType::kWGFirstTensorPrecise
+            : ThinLocalMemory::TilingType::kWGSecondTensorPrecise;
   }
-  const int conv_i_slices = DivideRoundUp(conv_weights.shape.i, 4);
   if (conv_i_slices == 2 && gpu_info.IsApple()) {
     operation.tiling_type_ =
         ThinLocalMemory::TilingType::kWGSecondTensorPrecise;
@@ -1420,6 +1517,11 @@ absl::Status TryResizeAddConvLocalMemoryFuser(
   operation.AddSrcTensor("src_tensor", op_def.src_tensors[0]);
   operation.AddSrcTensor("add_tensor", op_def.src_tensors[1]);
   operation.AddDstTensor("dst_tensor", op_def.dst_tensors[0]);
+  std::vector<NodeInfo> upload_ops_info;
+  upload_ops_info.reserve(upload_ops.size());
+  for (const auto* op : upload_ops) {
+    upload_ops_info.push_back({OperationTypeFromString(op->name), op->attr});
+  }
 
   switch (operation.tiling_type_) {
     case ThinLocalMemory::TilingType::kWGFirstTensorPrecise: {
@@ -1432,6 +1534,9 @@ absl::Status TryResizeAddConvLocalMemoryFuser(
         } else if (conv_i_slices == 2) {
           operation.block_size_ = int2(2, 1);
           operation.work_group_size_ = int3(18, 18, 2);
+        } else if (conv_i_slices == 4) {
+          operation.block_size_ = int2(1, 2);
+          operation.work_group_size_ = int3(18, 14, 1);
         }
       }
       if (gpu_info.IsAdreno()) {
@@ -1465,10 +1570,17 @@ absl::Status TryResizeAddConvLocalMemoryFuser(
               operation.block_size_.y ==
           0;
       const bool need_write_check = !x_div_by_block || !y_div_by_block;
-      operation.code_ = GetCodeWGFirstTensorPrecise(
-          gpu_info, std::vector<const ir::IrOp*>{resize_op, add_op},
-          conv_weights.shape, operation.work_group_size_, data_type,
-          operation.block_size_, need_write_check);
+      if (conv_i_slices > 1 && operation.work_group_size_.z == 1) {
+        operation.code_ = GetCodeWGFirstTensorPrecisePerSlice(
+            gpu_info, upload_ops_info, conv_weights.shape,
+            operation.work_group_size_, data_type, operation.block_size_,
+            need_write_check, &operation.args_);
+      } else {
+        operation.code_ = GetCodeWGFirstTensorPrecise(
+            gpu_info, upload_ops_info, conv_weights.shape,
+            operation.work_group_size_, data_type, operation.block_size_,
+            need_write_check, &operation.args_);
+      }
       break;
     }
     case ThinLocalMemory::TilingType::kWGSecondTensorPrecise: {
@@ -1485,6 +1597,9 @@ absl::Status TryResizeAddConvLocalMemoryFuser(
           } else if (conv_i_slices == 2) {
             operation.block_size_ = int2(2, 2);
             operation.work_group_size_ = int3(16, 8, 1);
+          } else if (conv_i_slices == 4) {
+            operation.block_size_ = int2(1, 1);
+            operation.work_group_size_ = int3(24, 16, 1);
           }
         }
       }
@@ -1510,9 +1625,9 @@ absl::Status TryResizeAddConvLocalMemoryFuser(
           0;
       const bool need_write_check = !x_div_by_block || !y_div_by_block;
       operation.code_ = GetCodeWGSecondTensorPrecise(
-          gpu_info, std::vector<const ir::IrOp*>{resize_op, add_op},
-          conv_weights.shape, operation.work_group_size_, data_type,
-          operation.block_size_, need_write_check);
+          gpu_info, upload_ops_info, conv_weights.shape,
+          operation.work_group_size_, data_type, operation.block_size_,
+          need_write_check, &operation.args_);
       break;
     }
   }
@@ -1536,8 +1651,9 @@ absl::Status TryResizeAddConvLocalMemoryFuser(
           {static_cast<GpuModelBuilder::ValueId>(conv_output)}),
       std::make_unique<ThinLocalMemory>(std::move(operation)), op_name);
 
-  new_consumed_ops->insert(resize_op->id);
-  new_consumed_ops->insert(add_op->id);
+  for (const auto* op : upload_ops) {
+    new_consumed_ops->insert(op->id);
+  }
   new_consumed_ops->insert(conv_op->id);
   return absl::OkStatus();
 }

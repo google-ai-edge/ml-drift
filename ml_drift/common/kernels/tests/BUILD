@@ -506,10 +506,14 @@ cc_library(
         "//ml_drift/common:precision",
         "//ml_drift/common:shape",
         "//ml_drift/common:tensor",
+        "//ml_drift/common:util",
         "//ml_drift/common/kernels:conv_wave_matrix_mali_f16",
+        "//ml_drift/common/task:gpu_operation",
         "//ml_drift/common/task:tensor_desc",
         "//ml_drift/common/task:testing_ref_ops",
         "//ml_drift/common/task:testing_util",
+        "//ml_drift/common/task:weights_conversion",
+        "@XNNPACK",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:status_macros",
         "@com_google_absl//absl/status:status_matchers",
@@ -610,9 +614,6 @@ cc_library(
     ],
 )
 
-# TODO: Migrate conv_wave_matrix_test_vulkan to
-# requires-gpu-sm90-full once GL_NV_integer_cooperative_matrix is added for
-# icoopmatNV in wave_matrix_util.cc.
 mld_kernel_test(
     name = "conv_wave_matrix_test",
     srcs = [

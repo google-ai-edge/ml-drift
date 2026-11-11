@@ -15,6 +15,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/status/status.h"
 #include "absl/strings/str_replace.h"
 #include "ml_drift/common/op_api.h"
 
@@ -30,14 +31,14 @@ std::string GetDiffusionStepCode(DataType dst_type) {
     Type eta_uncond = args.etaUncondIn.Read(X, Y, S);
     Type x_in = args.xIn.Read(X, Y, S);
 
-    Type delta_cond = (eta_cond - eta_uncond) * ucl::Convert<SType>(args.guidance_scale.Read(0, 0, 0).x);
+    Type delta_cond = (eta_cond - eta_uncond) * ucl::Convert<SType>(args.guidance_scale.Read(0));
     Type eta = eta_uncond + delta_cond;
 
-    Type deltaX0 = eta * ucl::Convert<SType>(args.sqrt_one_minus_alpha.Read(0, 0, 0).x);
+    Type deltaX0 = eta * ucl::Convert<SType>(args.sqrt_one_minus_alpha.Read(0));
     Type predX0Unscaled = x_in - deltaX0;
-    Type predX0 = predX0Unscaled / ucl::Convert<SType>(args.sqrt_alpha.Read(0, 0, 0).x);
-    Type dirX = eta * ucl::Convert<SType>(args.sqrt_one_minus_alpha_prev.Read(0, 0, 0).x);
-    Type xPrevBase = predX0 * ucl::Convert<SType>(args.sqrt_alpha_prev.Read(0, 0, 0).x);
+    Type predX0 = predX0Unscaled / ucl::Convert<SType>(args.sqrt_alpha.Read(0));
+    Type dirX = eta * ucl::Convert<SType>(args.sqrt_one_minus_alpha_prev.Read(0));
+    Type xPrevBase = predX0 * ucl::Convert<SType>(args.sqrt_alpha_prev.Read(0));
     Type result = xPrevBase + dirX;
     args.dst.Write(result, X, Y, S);
 })";
@@ -47,13 +48,12 @@ std::string GetDiffusionStepCode(DataType dst_type) {
   return c;
 }
 
-class DiffusionStep : public OpBase {
+class DiffusionStep : public OpBase<DiffusionStep> {
  public:
   absl::Status Build(
       GpuModelBuilder& graph,
-      const std::vector<GpuModelBuilder::TensorHandle>& inputs,
-      const OpAttrs& attrs,
-      std::vector<GpuModelBuilder::TensorHandle>& outputs) const override {
+      const std::vector<GpuModelBuilder::TensorHandle>& inputs, Attrs& attrs,
+      std::vector<GpuModelBuilder::TensorHandle>& outputs) const {
     if (inputs.size() != 8) {
       return absl::InvalidArgumentError("DiffusionStep expects 8 inputs");
     }
@@ -67,11 +67,11 @@ class DiffusionStep : public OpBase {
     AddSrcTensor(graph, op, "xIn", inputs[0]);
     AddSrcTensor(graph, op, "etaUncondIn", inputs[1]);
     AddSrcTensor(graph, op, "etaCondIn", inputs[2]);
-    AddSrcTensor(graph, op, "guidance_scale", inputs[3]);
-    AddSrcTensor(graph, op, "sqrt_alpha", inputs[4]);
-    AddSrcTensor(graph, op, "sqrt_alpha_prev", inputs[5]);
-    AddSrcTensor(graph, op, "sqrt_one_minus_alpha", inputs[6]);
-    AddSrcTensor(graph, op, "sqrt_one_minus_alpha_prev", inputs[7]);
+    AddSrcBuffer(graph, op, "guidance_scale", inputs[3]);
+    AddSrcBuffer(graph, op, "sqrt_alpha", inputs[4]);
+    AddSrcBuffer(graph, op, "sqrt_alpha_prev", inputs[5]);
+    AddSrcBuffer(graph, op, "sqrt_one_minus_alpha", inputs[6]);
+    AddSrcBuffer(graph, op, "sqrt_one_minus_alpha_prev", inputs[7]);
     AddDstTensor(graph, op, "dst", outputs[0]);
 
     const auto& dst_shape = outputs[0].tensor_desc.GetBHWCShape();

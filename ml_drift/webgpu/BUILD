@@ -98,6 +98,7 @@ cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:status_macros",
         "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
         "@com_google_absl//absl/time",
     ],
 )
@@ -366,6 +367,7 @@ cc_library(
         ":environment",
         ":spatial_tensor",
         ":webgpu_headers",
+        "//ml_drift/common:gpu_info",
         "//ml_drift/common:gpu_model",
         "//ml_drift/common:memory_management",
         "//ml_drift/common:model",
@@ -379,6 +381,7 @@ cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:status_macros",
         "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
     ],
 )
 

@@ -17,7 +17,15 @@
 
 namespace ml_drift {
 
-enum class TuningType { kExhaustive, kFast };
+enum class TuningType {
+  // Benchmarks several work group sizes per kernel and keeps the fastest.
+  kExhaustive,
+  // Picks one work group size per kernel from the grid size.
+  kFast,
+  // kFast with grid-independent work group sizes, so identical kernels at
+  // different tensor shapes share one (kernel, work group size) pipeline.
+  kFastStable,
+};
 
 }  // namespace ml_drift
 

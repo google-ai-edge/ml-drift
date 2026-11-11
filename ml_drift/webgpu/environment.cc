@@ -417,15 +417,33 @@ absl::Status Environment::Initialize(const InitParams& params) {
   // Buffer uploads may happen on other threads, so enable synchronization.
   features.push_back(wgpu::FeatureName::ImplicitDeviceSynchronization);
 
+  wgpu::AdapterInfo info;
+  adapter.GetInfo(&info);
+  const auto gpu_description = absl::StrCat(
+      std::string_view(info.vendor), " ", std::string_view(info.device), " ",
+      std::string_view(info.architecture));
+  SetPlatformDescription(gpu_description);
+  GetGpuInfoFromDeviceDescription(gpu_description, GpuApi::kWebGpu, &gpu_info_);
+
   std::vector<const char*> enabled_toggles;
   enabled_toggles.push_back("disable_robustness");
   enabled_toggles.push_back("fxc_optimizations");
   enabled_toggles.push_back("d3d_disable_ieee_strictness");
   enabled_toggles.push_back("disable_polyfills_on_integer_div_and_mod");
   enabled_toggles.push_back("dump_shaders_on_failure");
+
+  std::vector<const char*> disabled_toggles;
+  if (info.backendType == wgpu::BackendType::Vulkan && gpu_info_.IsAdreno()) {
+    // TODO: Remove once the Adreno shader compiler no longer
+    // crashes on SPIR-V reconvergence modes.
+    disabled_toggles.push_back("use_spirv_reconvergence_mode");
+  }
+
   wgpu::DawnTogglesDescriptor toggles_desc;
   toggles_desc.enabledToggles = enabled_toggles.data();
   toggles_desc.enabledToggleCount = enabled_toggles.size();
+  toggles_desc.disabledToggles = disabled_toggles.data();
+  toggles_desc.disabledToggleCount = disabled_toggles.size();
 
   wgpu::DawnCacheDeviceDescriptor cache_desc;
   if (params.cache_descriptor) {
@@ -470,13 +488,6 @@ absl::Status Environment::Initialize(const InitParams& params) {
 
   queue_ = device_.GetQueue();
 
-  wgpu::AdapterInfo info;
-  adapter.GetInfo(&info);
-  const auto gpu_description = absl::StrCat(
-      std::string_view(info.vendor), " ", std::string_view(info.device), " ",
-      std::string_view(info.architecture));
-  SetPlatformDescription(gpu_description);
-  GetGpuInfoFromDeviceDescription(gpu_description, GpuApi::kWebGpu, &gpu_info_);
   gpu_info_.webgpu_info.supports_subgroups =
       device_.HasFeature(wgpu::FeatureName::Subgroups);
   gpu_info_.webgpu_info.supports_fp16 =

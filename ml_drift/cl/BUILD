@@ -14,7 +14,7 @@
 
 load("@flatbuffers//:build_defs.bzl", "flatbuffer_cc_library")
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
-load("//ml_drift/common:build_config.bzl", "mld_gpu_tests_tags", "mld_platform_alias")
+load("//ml_drift/common:build_config.bzl", "mld_gpu_tests_tags")
 
 package(
     default_visibility = ["//visibility:public"],
@@ -567,14 +567,16 @@ cc_library(
             "-ldl",  # opencl_wrapper calls dlopen()
             "-lm",
         ],
+        "//ml_drift:windows": [],  # No -ldl for Windows
         "//conditions:default": ["-ldl"],  # opencl_wrapper calls dlopen()
     }),
     deps = [
+        ":qcom_wrapper",
         "@com_google_absl//absl/debugging:leak_check",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
         "@opencl_headers",
-    ] + mld_platform_alias("qcom_wrapper", "//ml_drift/cl/"),
+    ],
 )
 
 cc_library(
@@ -599,13 +601,30 @@ cc_library(
 
 cc_library(
     name = "qcom_command_buffer",
+    srcs = ["qcom_command_buffer.cc"],
     hdrs = ["qcom_command_buffer.h"],
     deps = [
+        ":cl_command_queue",
         ":cl_context",
         ":cl_device",
+        ":cl_event",
+        ":cl_operation",
         ":command_buffer",
+        ":opencl_wrapper",
+        ":qcom_wrapper",
+        ":util",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
         "@com_google_absl//absl/status:statusor",
-    ] + mld_platform_alias("qcom_command_buffer", "//ml_drift/cl/"),
+    ],
+)
+
+cc_library(
+    name = "qcom_wrapper",
+    hdrs = ["qcom_wrapper.h"],
+    deps = [
+        "@opencl_headers",
+    ],
 )
 
 cc_library(
@@ -712,12 +731,12 @@ cc_library(
     hdrs = ["util.h"],
     deps = [
         ":opencl_wrapper",
+        ":qcom_wrapper",
         ":util_types",
         "//ml_drift/common:data_type",
         "//ml_drift/common:gpu_info",
         "//ml_drift/common:shape",
         "//ml_drift/common:tensor",
-        "//ml_drift/common:util",
         "@com_google_absl//absl/debugging:leak_check",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:status_macros",
@@ -725,7 +744,7 @@ cc_library(
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:span",
         "@opencl_headers",
-    ] + mld_platform_alias("util", "//ml_drift/cl/"),
+    ],
 )
 
 cc_test(

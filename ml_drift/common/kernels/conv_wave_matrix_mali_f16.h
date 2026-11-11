@@ -15,6 +15,7 @@
 #ifndef ML_DRIFT_COMMON_KERNELS_CONV_WAVE_MATRIX_MALI_F16_H_
 #define ML_DRIFT_COMMON_KERNELS_CONV_WAVE_MATRIX_MALI_F16_H_
 
+#include <string_view>
 #include <vector>
 
 #include "ml_drift/common/data_type.h"
@@ -25,6 +26,7 @@
 #include "ml_drift/common/task/gpu_operation.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/task/tuning_type.h"
+#include "ml_drift/common/task/weights_layout.h"
 #include "ml_drift/common/tensor.h"
 #include "ml_drift/common/types.h"
 
@@ -32,6 +34,16 @@ namespace ml_drift {
 
 class ConvWaveMatrixMaliF16 : public GPUOperation {
  public:
+  struct ConvParams {
+    bool x_kernel_is_1 = true;
+    bool y_kernel_is_1 = true;
+    bool different_weights_for_height = false;
+    bool has_bias = true;
+    bool softmax_input_activation = false;
+    OHWI weights_shape;
+    ConvRuntimeCheckDesc runtime_check;
+  };
+
   struct KernelParams {
     int x_block_size = 1;
     int s_block_size = 1;
@@ -39,7 +51,8 @@ class ConvWaveMatrixMaliF16 : public GPUOperation {
   };
 
   ConvWaveMatrixMaliF16() = default;
-  ConvWaveMatrixMaliF16(const TensorDescriptor& src_desc,
+  ConvWaveMatrixMaliF16(const GpuInfo& gpu_info, const ConvParams& conv_params,
+                        const TensorDescriptor& src_desc,
                         const TensorDescriptor& dst_desc);
 
   std::vector<int3> GetPossibleKernelWorkGroups(
@@ -47,6 +60,18 @@ class ConvWaveMatrixMaliF16 : public GPUOperation {
       const KernelInfo& kernel_info) const override;
 
   int3 GetGridSize() const override;
+
+  WeightsDescription GetWeightsDescription() const {
+    WeightsDescription weights_desc;
+    weights_desc.type = DataType::kFloat16;
+    weights_desc.layout = WeightsLayout::kOSpatialIOGroupI2I2gr0O8I2gr1O2;
+    weights_desc.output_group_size = kernel_params_.s_block_size;
+    return weights_desc;
+  }
+
+  std::string_view GetDebugName() const override {
+    return "conv_wave_matrix_mali_f16";
+  }
 
   // Move only
   ConvWaveMatrixMaliF16(ConvWaveMatrixMaliF16&& kernel) = default;
@@ -57,14 +82,23 @@ class ConvWaveMatrixMaliF16 : public GPUOperation {
   void AddWeights(const Tensor<OHWI, DataType::kFloat32>& weights);
 
  private:
+  ConvParams conv_params_;
   KernelParams kernel_params_;
 };
 
 bool SupportsConvWaveMatrixMaliF16(const GpuInfo& gpu_info);
 
 ConvWaveMatrixMaliF16 CreateConvWaveMatrixMaliF16(
-    const TensorDescriptor& src_desc, const TensorDescriptor& dst_desc,
-    const Convolution2DAttributes& attr);
+    const GpuInfo& gpu_info, const TensorDescriptor& src_desc,
+    const TensorDescriptor& dst_desc, const Convolution2DAttributes& attr);
+
+// Creates a convolution operation with wave matrix and external weights.
+ConvWaveMatrixMaliF16 CreateConvWaveMatrixMaliF16ExternalWeights(
+    const GpuInfo& gpu_info, const TensorDescriptor& src_desc,
+    const TensorDescriptor& dst_desc, const Convolution2DAttributes& attr,
+    const TensorDescriptor* bias, const TensorDescriptor* src_exp,
+    bool different_weights_for_height,
+    const ConvRuntimeCheckDesc& runtime_check = {});
 
 }  // namespace ml_drift
 

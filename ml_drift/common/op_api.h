@@ -15,55 +15,117 @@
 #ifndef ML_DRIFT_COMMON_OP_API_H_
 #define ML_DRIFT_COMMON_OP_API_H_
 
-// This header is used to include the core portions of the ML Drift operation
-// framework. The comments that follow describe the main classes within
-// the framework and how they interact.
+// Umbrella header and authoring guide for the ML Drift operation framework.
 //
-// OpBase: A class which clients subclass to define GPU operation logic. It
-// defines the attributes it expects and implements a Build method to append
-// nodes into a GpuModelBuilder graph.
+// Core Components
+// ---------------
+// - OpBase<Self> (op_base.h): CRTP base class for custom GPU operations.
+//   Subclasses implement `Build()` to stage one or more kernels onto a
+//   `GpuModelBuilder` graph via helpers such as `AppendNewOp`:
+//     absl::Status Build(GpuModelBuilder& graph,
+//                        const std::vector<TensorHandle>& inputs,
+//                        Attrs& attrs,
+//                        std::vector<TensorHandle>& outputs) const;
 //
-// OpRegistry: A global repository that keeps track of available operations.
-// Operations can be registered in the file they are defined via the
-// MLD_REGISTER_OP macro.
+// - OpAttrs / MLD_OP_ATTRS (op_attrs.h): Strongly-typed graph-construction
+//   parameters declared inside an op class, with automatic shader binding for
+//   supported types. Ops without attributes omit `MLD_OP_ATTRS` (`Attrs` then
+//   aliases the empty `OpAttrs`).
 //
-// GpuModelBuilder::AppendOp: The primary entry point for clients to add
-// operations onto the graph. It instantiates the target operation via
-// OpRegistry, validates its attributes, and executes the operation's Build()
-// method.
+// - OpRegistry / MLD_REGISTER_OP (op_registry.h): Global operation registry.
+//   Place `MLD_REGISTER_OP(MyOp)` at namespace scope in the `.cc` file after
+//   the class definition; it also verifies `Build()` at compile time.
 //
-// OpAttrs: A data container for operation parameters (e.g., scalars, booleans)
-// configured at initialization time. Attributes defined for an operation are
-// validated before OpBase::Build is called.
+// - GpuModelBuilder::AppendOp (gpu_model_builder.h): Caller entry point that
+//   instantiates a registered op, parses its attributes, and runs `Build()`:
+//     graph.AppendOp("MyOp", {x}, {{"scale", 0.5f}, {"axis", Axis::kWidth}});
 //
+// Attributes & Shader Auto-Binding
+// --------------------------------
+// Declare attributes once inside the op class (before `Build()`) using
+// `MLD_OP_ATTRS(...)` with `MLD_OP_ATTR` or `MLD_OP_ATTR_NO_BIND`:
 //
-// Example usage:
+//   Declaration                            Caller key  Shader `args.<name>`
+//   -------------------------------------  ----------  ----------------------
+//   MLD_OP_ATTR(T, name, default)          "name"      auto-bound (scalar T)
+//   MLD_OP_ATTR_NO_BIND(T, name, default)  "name"      not auto-bound (any T)
+//
+// - Shader auto-binding (`MLD_OP_ATTR`): Passing `attrs` to `AppendNewOp`
+//   attaches it to that kernel. `MLD_OP_ATTR` fields are automatically bound to
+//   `args.<name>` in the shader. Currently supported auto-bound types `T` are
+//   scalars:
+//     - `int`/`int32_t`
+//     - `unsigned int`/`uint32_t`
+//     - `float`
+//     - `half`
+//     - `bool` (uploaded as `int` 0/1)
+// - Opting out (`MLD_OP_ATTR_NO_BIND`): Parses and validates `"name"` into
+//   `attrs.<name>` without automatic shader binding. Any copy-assignable C++
+//   type `T` is allowed.
+// - Validation: Omitted keys take their declared defaults. Unknown
+//   keys or type mismatches fail `AppendOp` with `InvalidArgumentError` before
+//   `Build()` runs.
+// - Mutable attributes: `attrs` can be modified in `Build()`; any edits to
+//   `MLD_OP_ATTR` fields take effect because final values are bound to
+//   `args.<name>` upon successful return of `Build()`.
+//
+// Lifecycle of an AppendOp Call
+// -----------------------------
+//   AppendOp(name, inputs, {key: value, ...})
+//     -> OpRegistry instantiates MyOp
+//     -> MyOp::Attrs is constructed and parsed from the caller's map
+//     -> MyOp::Build(graph, inputs, attrs, outputs) runs
+//     -> MLD_OP_ATTR fields on `attrs` are written to attached GPUOperations
+//     -> outputs are returned to the caller
+//
+// Example Usage
+// -------------
+// #include "ml_drift/common/op_api.h"
+// #include "ml_drift/common/shape.h"
+//
 // namespace custom_ns {
-// class MyCustomOp : public ::ml_drift::OpBase {
+// class MyCustomOp : public ::ml_drift::OpBase<MyCustomOp> {
 //  public:
-//   MLD_DECLARE_OP_ATTRS(
-//       MLD_OP_ATTR(int, int_arg, 3),
-//       MLD_OP_ATTR(float, float_arg, 1.0f)
-//   );
+//   MLD_OP_ATTRS(
+//       MLD_OP_ATTR(float, scale, 1.0f);  // -> shader args.scale
+//       MLD_OP_ATTR_NO_BIND(::ml_drift::Axis, axis,
+//                           ::ml_drift::Axis::kWidth);  // not auto-bound
+//   )
 //
 //   absl::Status Build(
 //       ::ml_drift::GpuModelBuilder& graph,
 //       const std::vector<::ml_drift::GpuModelBuilder::TensorHandle>& inputs,
-//       const ::ml_drift::OpAttrs& attrs,
+//       Attrs& attrs,
 //       std::vector<::ml_drift::GpuModelBuilder::TensorHandle>& outputs)
-//       const override {
-//     auto* op = this->AppendNewOp(graph, attrs);
+//       const {
+//     std::string read_coords;
+//     if (attrs.axis == ::ml_drift::Axis::kWidth) {
+//       read_coords = "args.dst.Width() - 1 - X, Y, S";
+//     } else if (attrs.axis == ::ml_drift::Axis::kHeight) {
+//       read_coords = "X, args.dst.Height() - 1 - Y, S";
+//     } else {
+//       return absl::UnimplementedError("Unsupported axis.");
+//     }
 //
-//     this->AddSrcTensor(graph, op, "src", inputs[0]);
+//     auto* op = AppendNewOp(graph, attrs);
+//     AddSrcTensor(graph, op, "src", inputs[0]);
 //     outputs = graph.AddTensors({inputs[0].tensor_desc});
-//     this->AddDstTensor(graph, op, "dst", outputs[0]);
+//     AddDstTensor(graph, op, "dst", outputs[0]);
 //
-//     // Configure operation parameters
 //     const auto& dst_shape = outputs[0].tensor_desc.GetBHWCShape();
-//     op->SetGridSize(
-//         int3(dst_shape.w * dst_shape.b, dst_shape.h, dst_shape.c));
-//     op->code_ = "void main() { ... }";
-//
+//     op->SetGridSize(int3(dst_shape.w * dst_shape.b, dst_shape.h,
+//                          (dst_shape.c + 3) / 4));
+//     op->code_ =
+//         "MAIN_FUNCTION($0) {\n"
+//         "  int X = ucl::GetGlobalId<0>();\n"
+//         "  int Y = ucl::GetGlobalId<1>();\n"
+//         "  int S = ucl::GetGlobalId<2>();\n"
+//         "  if (X >= args.dst.Width() || Y >= args.dst.Height() ||\n"
+//         "      S >= args.dst.Slices()) return;\n"
+//         "  args.dst::type val = args.src.Read(" + read_coords + ");\n"
+//         "  val *= ucl::Convert<args.dst::scalar_type>(args.scale);\n"
+//         "  args.dst.Write(val, X, Y, S);\n"
+//         "}";
 //     return absl::OkStatus();
 //   }
 // };
@@ -73,7 +135,7 @@
 // MLD_REGISTER_OP(MyCustomOp);
 // }  // namespace custom_ns
 
-#include "absl/status/status.h"
+#include "absl/status/status.h"         // IWYU pragma: export
 #include "ml_drift/common/data_type.h"  // IWYU pragma: export
 #include "ml_drift/common/gpu_model_builder.h"  // IWYU pragma: export
 #include "ml_drift/common/op_attrs.h"     // IWYU pragma: export

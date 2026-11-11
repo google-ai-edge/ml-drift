@@ -488,10 +488,10 @@ absl::Status GlInferenceContext::GetOutputTensor(ValueId id,
 }
 
 TensorStorageType GetFastestStorageType(const GpuInfo& gpu_info) {
-  if (gpu_info.IsMali()) {
-    return TensorStorageType::kBuffer;
-  } else {
+  if (gpu_info.IsAdreno()) {
     return TensorStorageType::kTexture2D;
+  } else {
+    return TensorStorageType::kBuffer;
   }
 }
 

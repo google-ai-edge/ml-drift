@@ -34,6 +34,9 @@
 namespace ml_drift {
 namespace metal {
 namespace {
+// Maximum length of data that can be passed with setBytes:length:atIndex:.
+constexpr NSUInteger kMaxSetBytesLength = 4096;
+
 bool IsWordSymbol(char symbol) {
   return absl::ascii_isalnum(symbol) || symbol == '_';
 }
@@ -242,7 +245,16 @@ void ComputeTask::Encode(id<MTLComputeCommandEncoder> encoder) {
   [encoder setComputePipelineState:program_];
   if (use_arguments_buffer_) {
     metal_args_.AddResourcesToEncoder(encoder);
-    [encoder setBuffer:arg_buffer_ offset:0 atIndex:0];
+    // arg_buffer_ is rewritten by the CPU whenever a tensor is rebound (see
+    // UpdateArgumentBuffer()). Copy it into the command buffer so that this
+    // dispatch keeps the bindings it was encoded with, even if the tensors are
+    // rebound for the next run before this command buffer is executed.
+    const NSUInteger arg_length = arguments_encoder_.encodedLength;
+    if (arg_length <= kMaxSetBytesLength) {
+      [encoder setBytes:[arg_buffer_ contents] length:arg_length atIndex:0];
+    } else {
+      [encoder setBuffer:arg_buffer_ offset:0 atIndex:0];
+    }
   } else {
     metal_args_.Encode(encoder, 0);
   }

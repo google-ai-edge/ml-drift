@@ -232,14 +232,11 @@ class UNet {
                                 create_info.precision,
                                 create_info.storage_type);
 
-    index_val_ = gpu_builder.AddTensor(BHWC(1, 1, 1, 1), DataType::kFloat32);
-    ABSL_ASSIGN_OR_RETURN(
-        auto temb_res,
-        gpu_builder.AppendOp(
-            "TembGeneration", {index_val_},
-            {{"channels", 320},
-             {"storage_type",
-              static_cast<int>(GetFastestStorageType(gpu_info))}}));
+    index_val_ = gpu_builder.AddTensor(1, 1, 1, 1, TensorStorageType::kBuffer,
+                                       DataType::kFloat32);
+    ABSL_ASSIGN_OR_RETURN(auto temb_res,
+                          gpu_builder.AppendOp("TembGeneration", {index_val_},
+                                               {{"channels", 320}}));
     temb_ = temb_res[0];
 
     UnetBuilder builder;
@@ -249,15 +246,16 @@ class UNet {
         /*text_proj_ptr=*/nullptr,
         /*masked_image_latent_ptr=*/nullptr, &eta0_, &eta1_, nullptr));
 
-    guidance_scale_ =
-        gpu_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::kFloat32);
-    sqrt_alpha_ = gpu_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::kFloat32);
-    sqrt_alpha_prev_ =
-        gpu_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::kFloat32);
-    sqrt_one_minus_alpha_ =
-        gpu_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::kFloat32);
-    sqrt_one_minus_alpha_prev_ =
-        gpu_builder.AddTensor(BHWC(1, 1, 1, 4), DataType::kFloat32);
+    guidance_scale_ = gpu_builder.AddTensor(
+        1, 1, 1, 1, TensorStorageType::kBuffer, DataType::kFloat32);
+    sqrt_alpha_ = gpu_builder.AddTensor(1, 1, 1, 1, TensorStorageType::kBuffer,
+                                        DataType::kFloat32);
+    sqrt_alpha_prev_ = gpu_builder.AddTensor(
+        1, 1, 1, 1, TensorStorageType::kBuffer, DataType::kFloat32);
+    sqrt_one_minus_alpha_ = gpu_builder.AddTensor(
+        1, 1, 1, 1, TensorStorageType::kBuffer, DataType::kFloat32);
+    sqrt_one_minus_alpha_prev_ = gpu_builder.AddTensor(
+        1, 1, 1, 1, TensorStorageType::kBuffer, DataType::kFloat32);
     src_input_ = src_;
     ABSL_ASSIGN_OR_RETURN(
         auto _step_res,
@@ -315,8 +313,8 @@ class UNet {
                        float sqrt_one_minus_alpha,
                        float sqrt_one_minus_alpha_prev) {
     TensorFloat32 scalar_tensor;
-    scalar_tensor.shape = BHWC(1, 1, 1, 4);
-    scalar_tensor.data.resize(4, 0.0f);
+    scalar_tensor.shape = BHWC(1, 1, 1, 1);
+    scalar_tensor.data.resize(1, 0.0f);
     scalar_tensor.data[0] = static_cast<float>(step_index);
     ABSL_RETURN_IF_ERROR(
         inference_context_.SetInputTensor(*env, index_val_.id, scalar_tensor));

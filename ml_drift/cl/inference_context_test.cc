@@ -251,7 +251,11 @@ TEST_F(InferenceContextTest, GraphToInferenceContextPopulatesSerializedModel) {
   EXPECT_FALSE(serialized_model.empty());
 
   InferenceContext deserialized_context;
+  EXPECT_NE(deserialized_context.GetGpuInfo().vendor,
+            env_.GetDevicePtr()->GetInfo().vendor);
   ABSL_EXPECT_OK(deserialized_context.RestoreDeserialized(serialized_model, &env_));
+  EXPECT_EQ(deserialized_context.GetGpuInfo().vendor,
+            env_.GetDevicePtr()->GetInfo().vendor);
 }
 
 }  // namespace

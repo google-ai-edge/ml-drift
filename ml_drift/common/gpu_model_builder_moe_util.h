@@ -44,6 +44,12 @@ absl::StatusOr<GpuModelBuilder::TensorHandle> MakeConvWithBatchIds(
     const GpuModelBuilder::TensorHandle& ids,
     const GpuModelBuilder::Weights& weights);
 
+absl::StatusOr<GpuModelBuilder::TensorHandle> ScaleWithBatchIds(
+    GpuModelBuilder& builder, const GpuModelBuilder::TensorHandle& inputs,
+    const GpuModelBuilder::TensorHandle& active_ids,
+    const GpuModelBuilder::TensorHandle& active_scales,
+    const GpuModelBuilder::TensorHandle& scales);
+
 }  // namespace ml_drift
 
 #endif  // ML_DRIFT_COMMON_GPU_MODEL_BUILDER_MOE_UTIL_H_

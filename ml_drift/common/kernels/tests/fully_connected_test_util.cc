@@ -453,7 +453,7 @@ absl::Status FullyConnectedExternalTest(
     TestExecutionEnvironment& exec_env, const FullyConnectedAttributes attr,
     WeightsLayout weights_layout, const TensorFloat32& src_tensor,
     const OperationDef& op_def, CalculationsPrecision precision,
-    const TestingRuntimeChannels& runtime_channels) {
+    const TestingRuntimeChannels& runtime_channels = {}) {
   TensorFloat32 dst_ref_tensor;
   if (attr.weights.shape.h != 1 || attr.weights.shape.w != 1) {
     dst_ref_tensor = FullyConnectedRefDifferentWeightsForHeight(
@@ -539,6 +539,33 @@ absl::Status FullyConnectedExternalWeightsBigTest(
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
   const int src_channels = 53;
   const int dst_channels = 17;
+  FullyConnectedAttributes attr;
+  attr.weights = MakeSyntheticTensor(OHWI(dst_channels, 1, 1, src_channels));
+  attr.weights.data.resize(attr.weights.shape.DimensionsProduct() +
+                           XNN_EXTRA_BYTES / sizeof(float));
+  attr.bias = MakeSyntheticTensor(Linear(dst_channels));
+
+  auto src_shape = BHWC(1, 1, 1, src_channels);
+
+  TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
+
+  for (auto weights_layout : {WeightsLayout::kOSpatialIOGroupI4O4,
+                              WeightsLayout::kOSpatialIOGroupO4I4}) {
+    OperationDef op_def;
+    op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+    op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
+    ABSL_EXPECT_OK(FullyConnectedExternalTest(env, attr, weights_layout, src_tensor,
+                                         op_def, precision));
+  }
+  return absl::OkStatus();
+}
+
+absl::Status FullyConnectedRuntimeChWfloatTest(
+    TestExecutionEnvironment& env, CalculationsPrecision precision,
+    TensorStorageType storage) {
+  const DataType data_type = DeduceDataTypeFromPrecision(precision);
+  const int src_channels = 53;
+  const int dst_channels = 17;
   constexpr int kExtraRuntimeChannels = 4;
   FullyConnectedAttributes attr;
   attr.weights = MakeSyntheticTensor(OHWI(dst_channels, 1, 1, src_channels));
@@ -551,7 +578,6 @@ absl::Status FullyConnectedExternalWeightsBigTest(
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   std::vector<TestingRuntimeChannels> test_runtime_channels = {
-      TestingRuntimeChannels(),
       {.src_end_ch = 4, .dst_end_ch = 8},
       {.src_end_ch = 8},
       {.src_end_ch = src_channels + kExtraRuntimeChannels},
@@ -576,7 +602,6 @@ absl::Status FullyConnectedBatchedWeightsBigTest(
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
   const int src_channels = 53;
   const int dst_channels = 17;
-  constexpr int kExtraRuntimeChannels = 4;
   FullyConnectedAttributes attr;
   attr.weights = MakeSyntheticTensor(OHWI(dst_channels, 4, 1, src_channels));
   attr.weights.data.resize(attr.weights.shape.DimensionsProduct() +
@@ -587,24 +612,15 @@ absl::Status FullyConnectedBatchedWeightsBigTest(
 
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
-  std::vector<TestingRuntimeChannels> test_runtime_channels = {
-      TestingRuntimeChannels(),
-      {.src_end_ch = 4, .dst_end_ch = 9},
-      {.src_end_ch = 8},
-      {.src_end_ch = src_channels + kExtraRuntimeChannels},
-      {.dst_end_ch = 15}};
   for (auto weights_layout :
        {WeightsLayout::kOSpatialIOGroupI4O4,
         WeightsLayout::kOSpatialIOGroupO4I4,
         WeightsLayout::k2DX4I4YIsSpatialIAndXIsOOGroupO4}) {
-    for (auto runtime_channels : test_runtime_channels) {
-      OperationDef op_def;
-      op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
-      op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
-      ABSL_EXPECT_OK(FullyConnectedExternalTest(env, attr, weights_layout,
-                                           src_tensor, op_def, precision,
-                                           runtime_channels));
-    }
+    OperationDef op_def;
+    op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+    op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
+    ABSL_EXPECT_OK(FullyConnectedExternalTest(env, attr, weights_layout, src_tensor,
+                                         op_def, precision));
   }
   return absl::OkStatus();
 }
@@ -918,9 +934,10 @@ absl::Status FullyConnectedInt8Test(
 
 absl::Status FullyConnectedInt8BigTest(TestExecutionEnvironment& env,
                                        CalculationsPrecision precision,
-                                       TensorStorageType storage) {
+                                       TensorStorageType storage,
+                                       const BHWC& src_shape) {
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  const int src_channels = 171;
+  const int src_channels = src_shape.c;
   const int dst_channels = 533;
 
   ml_drift::Tensor<OHWI, DataType::kInt8> weights_i8;
@@ -938,47 +955,12 @@ absl::Status FullyConnectedInt8BigTest(TestExecutionEnvironment& env,
   }
   auto biases = MakeSyntheticTensor(Linear(dst_channels));
 
-  auto src_shape = BHWC(1, 1, 1, src_channels);
-
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
-  ABSL_EXPECT_OK(FullyConnectedInt8Test(env, weights_i8, weights_scales, biases,
-                                   src_tensor, op_def, precision));
-  return absl::OkStatus();
-}
-
-absl::Status FullyConnectedInt8Width2Batch2BigTest(
-    TestExecutionEnvironment& env, CalculationsPrecision precision,
-    TensorStorageType storage) {
-  const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  const int src_channels = 171;
-  const int dst_channels = 533;
-
-  ml_drift::Tensor<OHWI, DataType::kInt8> weights_i8;
-  weights_i8.shape = OHWI(dst_channels, 1, 1, src_channels);
-  weights_i8.data.resize(weights_i8.shape.DimensionsProduct());
-  auto weights_f32 =
-      MakeSyntheticTensor(OHWI(dst_channels, 1, 1, src_channels));
-  for (int i = 0; i < weights_i8.data.size(); ++i) {
-    const int val = (weights_f32.data[i] + 1.0f) * 256.0f;
-    weights_i8.data[i] = std::max(std::min(val, 255), 0) - 128;
-  }
-  auto weights_scales = MakeSyntheticTensor(OHWI(dst_channels, 1, 1, 1));
-  for (int i = 0; i < weights_scales.data.size(); ++i) {
-    weights_scales.data[i] /= 128.0f;
-  }
-  auto biases = MakeSyntheticTensor(Linear(dst_channels));
-
-  auto src_shape = BHWC(2, 1, 2, src_channels);
-
-  TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
-
-  OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
+  const Layout layout = src_shape.b == 1 ? Layout::kHWC : Layout::kBHWC;
+  op_def.src_tensors.push_back({data_type, storage, layout});
+  op_def.dst_tensors.push_back({data_type, storage, layout});
   ABSL_EXPECT_OK(FullyConnectedInt8Test(env, weights_i8, weights_scales, biases,
                                    src_tensor, op_def, precision));
   return absl::OkStatus();
@@ -1155,7 +1137,7 @@ absl::Status FullyConnectedInt8ExternalTest(
     const ml_drift::Tensor<Linear, DataType::kFloat32>& biases,
     const TensorFloat32& src_tensor, const OperationDef& op_def,
     CalculationsPrecision precision,
-    const TestingRuntimeChannels& runtime_channels) {
+    const TestingRuntimeChannels& runtime_channels = {}) {
   ml_drift::Tensor<OHWI, DataType::kFloat32> weights_zero_point;
   weights_zero_point.shape = weights_scale.shape;
   weights_zero_point.data.resize(weights_scale.shape.DimensionsProduct(), 0.0f);
@@ -1267,9 +1249,42 @@ absl::Status FullyConnectedInt8ExternalBigTest(TestExecutionEnvironment& env,
 
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
-  const int kExtraRuntimeChannels = 4;
+  OperationDef op_def;
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
+  ABSL_EXPECT_OK(FullyConnectedInt8ExternalTest(
+      env, weights_i8, weights_scales, biases, src_tensor, op_def, precision));
+  return absl::OkStatus();
+}
+
+absl::Status FullyConnectedRuntimeChWi8Test(TestExecutionEnvironment& env,
+                                            CalculationsPrecision precision,
+                                            TensorStorageType storage) {
+  const DataType data_type = DeduceDataTypeFromPrecision(precision);
+  constexpr int kSrcChannels = 171;
+  constexpr int kDstChannels = 533;
+  constexpr int kExtraRuntimeChannels = 4;
+
+  ml_drift::Tensor<OHWI, DataType::kInt8> weights_i8;
+  weights_i8.shape = OHWI(kDstChannels, 1, 1, kSrcChannels);
+  weights_i8.data.resize(weights_i8.shape.DimensionsProduct());
+  auto weights_f32 =
+      MakeSyntheticTensor(OHWI(kDstChannels, 1, 1, kSrcChannels));
+  for (int i = 0; i < weights_i8.data.size(); ++i) {
+    const int val = (weights_f32.data[i] + 1.0f) * 256.0f;
+    weights_i8.data[i] = std::max(std::min(val, 255), 0) - 128;
+  }
+  auto weights_scales = MakeSyntheticTensor(OHWI(kDstChannels, 1, 1, 1));
+  for (int i = 0; i < weights_scales.data.size(); ++i) {
+    weights_scales.data[i] /= 128.0f;
+  }
+  auto biases = MakeSyntheticTensor(Linear(kDstChannels));
+
+  auto src_shape = BHWC(1, 1, 1, kSrcChannels);
+
+  TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
+
   std::vector<TestingRuntimeChannels> test_runtime_channels = {
-      TestingRuntimeChannels(),
       {.src_end_ch = 4, .dst_end_ch = 8},
       {.src_end_ch = 8},
       {.src_end_ch = kSrcChannels + kExtraRuntimeChannels},
@@ -1390,18 +1405,11 @@ absl::Status FullyConnectedInt8ExternalGroupedQuantizationBigTest(
 
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
-  std::vector<TestingRuntimeChannels> test_runtime_channels = {
-      TestingRuntimeChannels(),
-  };
-
-  for (auto runtime_channels : test_runtime_channels) {
-    OperationDef op_def;
-    op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
-    op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
-    ABSL_EXPECT_OK(FullyConnectedInt8ExternalTest(env, weights_i8, weights_scales,
-                                             biases, src_tensor, op_def,
-                                             precision, runtime_channels));
-  }
+  OperationDef op_def;
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
+  ABSL_EXPECT_OK(FullyConnectedInt8ExternalTest(
+      env, weights_i8, weights_scales, biases, src_tensor, op_def, precision));
   return absl::OkStatus();
 }
 
@@ -1785,7 +1793,8 @@ absl::Status FullyConnectedInt4ExternalTest(
     const ml_drift::Tensor<OHWI, DataType::kFloat32>& weights_scale,
     const ml_drift::Tensor<Linear, DataType::kFloat32>& biases,
     const TensorFloat32& src_tensor, const OperationDef& op_def,
-    CalculationsPrecision precision) {
+    CalculationsPrecision precision,
+    const TestingRuntimeChannels& runtime_channels = {}) {
   ml_drift::Tensor<OHWI, DataType::kFloat32> weights_zero_point;
   weights_zero_point.shape = weights_scale.shape;
   weights_zero_point.data.resize(weights_scale.shape.DimensionsProduct(), 0.0f);
@@ -1793,7 +1802,8 @@ absl::Status FullyConnectedInt4ExternalTest(
   attr.weights =
       MakeWeightsFromInt8(weights_i4, weights_scale, weights_zero_point);
   attr.bias = biases;
-  TensorFloat32 dst_ref_tensor = FullyConnectedReference(attr, src_tensor);
+  TensorFloat32 dst_ref_tensor =
+      FullyConnectedReference(attr, src_tensor, runtime_channels);
 
   DataType type = op_def.src_tensors[0].GetDataType();
   auto scale_desc = ScaleOrZeroPointToTensorDesc(exec_env.GetGpuInfo(),
@@ -1818,7 +1828,9 @@ absl::Status FullyConnectedInt4ExternalTest(
                         CreateFullyConnectedExternalWeights(
                             exec_env.GetGpuInfo(), precision,
                             op_def.src_tensors[0], op_def.dst_tensors[0],
-                            external_weights, &bias_td, &dst_ref_tensor.shape));
+                            external_weights, &bias_td, &dst_ref_tensor.shape,
+                            /*src_exp=*/nullptr,
+                            runtime_channels.GenerateConvRuntimeCheckDesc()));
 
   TensorDescriptor src_td = op_def.src_tensors[0];
   src_td.UploadData(src_tensor);
@@ -1826,14 +1838,39 @@ absl::Status FullyConnectedInt4ExternalTest(
   TensorDescriptor dst_td = op_def.dst_tensors[0];
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
 
+  std::vector<TensorDescriptor*> src_cpu = {&src_td, &weights_i4_td,
+                                            &scale_desc, &zp_desc, &bias_td};
+  TensorDescriptor params_td = {DataType::kInt32, TensorStorageType::kBuffer,
+                                Layout::kHWC};
+  TensorInt32 params_tensor = runtime_channels.GenerateTensorInt32();
+  if (std::any_of(params_tensor.data.begin(), params_tensor.data.end(),
+                  [](int x) { return x != -1; })) {
+    params_td.UploadData(params_tensor);
+    src_cpu.push_back(&params_td);
+  }
+
   float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr) * 2.0f;
 
   ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
-      {&src_td, &weights_i4_td, &scale_desc, &zp_desc, &bias_td}, {&dst_td},
+      src_cpu, {&dst_td},
       std::make_unique<FullyConnected>(std::move(operation))));
   TensorFloat32 dst_tensor;
   dst_td.DownloadData(&dst_tensor);
-  EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), dst_ref_tensor.data));
+
+  const int dst_num_ch = dst_ref_tensor.shape.c;
+  const int dst_end_ch = runtime_channels.dst_end_ch.has_value()
+                             ? *runtime_channels.dst_end_ch
+                             : dst_num_ch;
+  // `dst_tensor.shape.h` and `dst_tensor.shape.w` might not equal 1
+  for (int offset = 0; offset < dst_tensor.data.size(); offset += dst_num_ch) {
+    std::vector<float> actual_data =
+        std::vector<float>(dst_tensor.data.begin() + offset,
+                           dst_tensor.data.begin() + offset + dst_end_ch);
+    std::vector<float> expected_data =
+        std::vector<float>(dst_ref_tensor.data.begin() + offset,
+                           dst_ref_tensor.data.begin() + offset + dst_end_ch);
+    EXPECT_THAT(actual_data, Pointwise(FloatNear(eps), expected_data));
+  }
   return absl::OkStatus();
 }
 
@@ -1868,6 +1905,50 @@ absl::Status FullyConnectedInt4ExternalWeightsBigTest(
   op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   ABSL_EXPECT_OK(FullyConnectedInt4ExternalTest(
       env, weights_i4, weights_scales, biases, src_tensor, op_def, precision));
+  return absl::OkStatus();
+}
+
+absl::Status FullyConnectedRuntimeChWi4Test(TestExecutionEnvironment& env,
+                                            CalculationsPrecision precision,
+                                            TensorStorageType storage) {
+  const DataType data_type = DeduceDataTypeFromPrecision(precision);
+  constexpr int kSrcChannels = 171;
+  constexpr int kDstChannels = 533;
+  constexpr int kExtraRuntimeChannels = 4;
+
+  ml_drift::Tensor<OHWI, DataType::kInt8> weights_i4;
+  weights_i4.shape = OHWI(kDstChannels, 1, 1, kSrcChannels);
+  weights_i4.data.resize(weights_i4.shape.DimensionsProduct());
+  auto weights_f32 =
+      MakeSyntheticTensor(OHWI(kDstChannels, 1, 1, kSrcChannels));
+  for (int i = 0; i < weights_i4.data.size(); ++i) {
+    const int val = (weights_f32.data[i] + 1.0f) * 16.0f;
+    weights_i4.data[i] = std::max(std::min(val, 15), 0) - 8;
+  }
+  auto weights_scales = MakeSyntheticTensor(OHWI(kDstChannels, 1, 1, 1));
+  for (int i = 0; i < weights_scales.data.size(); ++i) {
+    weights_scales.data[i] /= 8.0f;
+  }
+  auto biases = MakeSyntheticTensor(Linear(kDstChannels));
+
+  auto src_shape = BHWC(1, 1, 1, kSrcChannels);
+
+  TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
+
+  std::vector<TestingRuntimeChannels> test_runtime_channels = {
+      {.src_end_ch = 4, .dst_end_ch = 8},
+      {.src_end_ch = 8},
+      {.src_end_ch = kSrcChannels + kExtraRuntimeChannels},
+      {.dst_end_ch = 14}};
+
+  for (auto runtime_channels : test_runtime_channels) {
+    OperationDef op_def;
+    op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+    op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
+    ABSL_EXPECT_OK(FullyConnectedInt4ExternalTest(env, weights_i4, weights_scales,
+                                             biases, src_tensor, op_def,
+                                             precision, runtime_channels));
+  }
   return absl::OkStatus();
 }
 
@@ -2138,7 +2219,8 @@ absl::Status FullyConnectedInt2ExternalTest(
     const ml_drift::Tensor<OHWI, DataType::kFloat32>& weights_scale,
     const ml_drift::Tensor<Linear, DataType::kFloat32>& biases,
     const TensorFloat32& src_tensor, const OperationDef& op_def,
-    CalculationsPrecision precision) {
+    CalculationsPrecision precision,
+    const TestingRuntimeChannels& runtime_channels = {}) {
   ml_drift::Tensor<OHWI, DataType::kFloat32> weights_zero_point;
   weights_zero_point.shape = weights_scale.shape;
   weights_zero_point.data.resize(weights_scale.shape.DimensionsProduct(), 0.0f);
@@ -2146,7 +2228,8 @@ absl::Status FullyConnectedInt2ExternalTest(
   attr.weights =
       MakeWeightsFromInt8(weights_i2, weights_scale, weights_zero_point);
   attr.bias = biases;
-  TensorFloat32 dst_ref_tensor = FullyConnectedReference(attr, src_tensor);
+  TensorFloat32 dst_ref_tensor =
+      FullyConnectedReference(attr, src_tensor, runtime_channels);
 
   DataType type = op_def.src_tensors[0].GetDataType();
   auto scale_desc = ScaleOrZeroPointToTensorDesc(exec_env.GetGpuInfo(),
@@ -2171,7 +2254,9 @@ absl::Status FullyConnectedInt2ExternalTest(
                         CreateFullyConnectedExternalWeights(
                             exec_env.GetGpuInfo(), precision,
                             op_def.src_tensors[0], op_def.dst_tensors[0],
-                            external_weights, &bias_td, &dst_ref_tensor.shape));
+                            external_weights, &bias_td, &dst_ref_tensor.shape,
+                            /*src_exp=*/nullptr,
+                            runtime_channels.GenerateConvRuntimeCheckDesc()));
 
   TensorDescriptor src_td = op_def.src_tensors[0];
   src_td.UploadData(src_tensor);
@@ -2179,14 +2264,39 @@ absl::Status FullyConnectedInt2ExternalTest(
   TensorDescriptor dst_td = op_def.dst_tensors[0];
   dst_td.SetBHWCShape(dst_ref_tensor.shape);
 
+  std::vector<TensorDescriptor*> src_cpu = {&src_td, &weights_i2_td,
+                                            &scale_desc, &zp_desc, &bias_td};
+  TensorDescriptor params_td = {DataType::kInt32, TensorStorageType::kBuffer,
+                                Layout::kHWC};
+  TensorInt32 params_tensor = runtime_channels.GenerateTensorInt32();
+  if (std::any_of(params_tensor.data.begin(), params_tensor.data.end(),
+                  [](int x) { return x != -1; })) {
+    params_td.UploadData(params_tensor);
+    src_cpu.push_back(&params_td);
+  }
+
   float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr) * 2.0f;
 
   ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
-      {&src_td, &weights_i2_td, &scale_desc, &zp_desc, &bias_td}, {&dst_td},
+      src_cpu, {&dst_td},
       std::make_unique<FullyConnected>(std::move(operation))));
   TensorFloat32 dst_tensor;
   dst_td.DownloadData(&dst_tensor);
-  EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), dst_ref_tensor.data));
+
+  const int dst_num_ch = dst_ref_tensor.shape.c;
+  const int dst_end_ch = runtime_channels.dst_end_ch.has_value()
+                             ? *runtime_channels.dst_end_ch
+                             : dst_num_ch;
+  // `dst_tensor.shape.h` and `dst_tensor.shape.w` might not equal 1
+  for (int offset = 0; offset < dst_tensor.data.size(); offset += dst_num_ch) {
+    std::vector<float> actual_data =
+        std::vector<float>(dst_tensor.data.begin() + offset,
+                           dst_tensor.data.begin() + offset + dst_end_ch);
+    std::vector<float> expected_data =
+        std::vector<float>(dst_ref_tensor.data.begin() + offset,
+                           dst_ref_tensor.data.begin() + offset + dst_end_ch);
+    EXPECT_THAT(actual_data, Pointwise(FloatNear(eps), expected_data));
+  }
   return absl::OkStatus();
 }
 
@@ -2221,6 +2331,50 @@ absl::Status FullyConnectedInt2ExternalWeightsBigTest(
   op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   ABSL_EXPECT_OK(FullyConnectedInt2ExternalTest(
       env, weights_i2, weights_scales, biases, src_tensor, op_def, precision));
+  return absl::OkStatus();
+}
+
+absl::Status FullyConnectedRuntimeChWi2Test(TestExecutionEnvironment& env,
+                                            CalculationsPrecision precision,
+                                            TensorStorageType storage) {
+  const DataType data_type = DeduceDataTypeFromPrecision(precision);
+  constexpr int kSrcChannels = 171;
+  constexpr int kDstChannels = 533;
+  constexpr int kExtraRuntimeChannels = 4;
+
+  ml_drift::Tensor<OHWI, DataType::kInt8> weights_i2;
+  weights_i2.shape = OHWI(kDstChannels, 1, 1, kSrcChannels);
+  weights_i2.data.resize(weights_i2.shape.DimensionsProduct());
+  auto weights_f32 =
+      MakeSyntheticTensor(OHWI(kDstChannels, 1, 1, kSrcChannels));
+  for (int i = 0; i < weights_i2.data.size(); ++i) {
+    const int val = (weights_f32.data[i] + 1.0f) * 4.0f;
+    weights_i2.data[i] = std::max(std::min(val, 3), 0) - 2;
+  }
+  auto weights_scales = MakeSyntheticTensor(OHWI(kDstChannels, 1, 1, 1));
+  for (int i = 0; i < weights_scales.data.size(); ++i) {
+    weights_scales.data[i] /= 2.0f;
+  }
+  auto biases = MakeSyntheticTensor(Linear(kDstChannels));
+
+  auto src_shape = BHWC(1, 1, 1, kSrcChannels);
+
+  TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
+
+  std::vector<TestingRuntimeChannels> test_runtime_channels = {
+      {.src_end_ch = 4, .dst_end_ch = 8},
+      {.src_end_ch = 8},
+      {.src_end_ch = kSrcChannels + kExtraRuntimeChannels},
+      {.dst_end_ch = 14}};
+
+  for (auto runtime_channels : test_runtime_channels) {
+    OperationDef op_def;
+    op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+    op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
+    ABSL_EXPECT_OK(FullyConnectedInt2ExternalTest(env, weights_i2, weights_scales,
+                                             biases, src_tensor, op_def,
+                                             precision, runtime_channels));
+  }
   return absl::OkStatus();
 }
 

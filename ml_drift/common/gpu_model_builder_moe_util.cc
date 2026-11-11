@@ -290,4 +290,74 @@ absl::StatusOr<GpuModelBuilder::TensorHandle> MakeConvWithBatchIds(
   return conv;
 }
 
+absl::StatusOr<GpuModelBuilder::TensorHandle> ScaleWithBatchIds(
+    GpuModelBuilder& builder, const GpuModelBuilder::TensorHandle& inputs,
+    const GpuModelBuilder::TensorHandle& active_ids,
+    const GpuModelBuilder::TensorHandle& active_scales,
+    const GpuModelBuilder::TensorHandle& scales) {
+  auto input_shape = inputs.tensor_desc.GetBHWCShape();
+  auto dst_shape = BHWC(input_shape.b, 1, input_shape.h, input_shape.c);
+  auto dst = builder.AddTensor(dst_shape, inputs.tensor_desc.GetDataType());
+
+  // src [B, S, AE, D];
+  // active ids [B, 1, S, AE];
+  // active scales [B, 1, S, AE];
+  // scales [E];
+  // dst [B, 1, S, D];
+  GPUOperation op;
+  op.AddSrcTensor("inputs", inputs.tensor_desc);
+  op.AddSrcTensor("active_ids", active_ids.tensor_desc);
+  op.AddSrcTensor("active_scales", active_scales.tensor_desc);
+  op.AddSrcTensor("scales", scales.tensor_desc);
+  op.AddDstTensor("dst", dst.tensor_desc);
+  const float epsilon =
+      (active_scales.tensor_desc.GetDataType() == DataType::kFloat32) ? 1e-12f
+                                                                      : 1e-3f;
+  op.args_.AddFloat("epsilon", epsilon);
+  op.tensor_to_grid_ = TensorToGrid::kWBToX_HDToY_SToZ;
+
+  const std::string read_scale =
+      scales.tensor_desc.GetLayout() == Layout::kLinear
+          ? "args.scales.ReadPerChannel<float>(scale_value, expert_id);"
+          : "args.scales.ReadPerChannel<float>(scale_value, 0, 0, expert_id);";
+
+  op.code_ = R"(
+MAIN_FUNCTION($0) {
+  int linear_id = ucl::GetGlobalId<0>();
+  int x = linear_id / args.dst.Batch();
+  int b = linear_id % args.dst.Batch();
+  int y = ucl::GetGlobalId<1>();
+  int s = ucl::GetGlobalId<2>();
+  if (x >= args.dst.Width() || y >= args.dst.Height() || s >= args.dst.Slices()) return;
+  args.inputs.SetBatchRef(b);
+  args.active_ids.SetBatchRef(b);
+  args.active_scales.SetBatchRef(b);
+  args.dst.SetBatchRef(b);
+  float4 sum = ucl::Init<float4>(0.0f);
+  float sum_scales = 0.0f;
+  for (int ae_id = 0; ae_id < args.inputs.Width(); ++ae_id) {
+    int expert_id;
+    args.active_ids.ReadPerChannel(expert_id, x, 0, ae_id);
+    float scale_value;
+    )" + read_scale +
+             R"(
+    float4 in_value = ucl::Convert<float4>(args.inputs.Read(ae_id, x, s));
+    in_value *= scale_value;
+    float active_scale;
+    args.active_scales.ReadPerChannel<float>(active_scale, x, 0, ae_id);
+    sum_scales += active_scale;
+    sum += in_value * active_scale;
+  }
+  sum_scales = max(sum_scales, args.epsilon);
+  sum /= sum_scales;
+  args.dst::type dst_value = ucl::Convert<args.dst::type>(sum);
+  args.dst.Write(dst_value, x, y, s);
+}
+)";
+  builder.AddGpuOperation({inputs, active_ids, active_scales, scales}, {dst},
+                          std::make_unique<GPUOperation>(std::move(op)),
+                          "scale_with_batch_ids");
+  return dst;
+}
+
 }  // namespace ml_drift

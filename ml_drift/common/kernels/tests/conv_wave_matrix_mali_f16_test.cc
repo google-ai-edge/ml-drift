@@ -51,6 +51,51 @@ TEST_P(BaseTest, ConvWaveMatrixMaliF161x1BigTest) {
   ABSL_ASSERT_OK(ConvWaveMatrixMaliF161x1BigTest(*exec_env, GetParam()));
 }
 
+TEST_P(BaseTest, ConvWaveMatrixMaliF16BigTest) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kFloat16)) {
+    GTEST_SKIP() << "Unsupported storage: " << ToString(GetParam());
+  }
+  ABSL_ASSERT_OK(ConvWaveMatrixMaliF16BigTest(*exec_env, GetParam()));
+}
+
+TEST_P(BaseTest, ConvWaveMatrixMaliF16ExternalWeightsBigTest) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kFloat16)) {
+    GTEST_SKIP() << "Unsupported storage: " << ToString(GetParam());
+  }
+  ABSL_ASSERT_OK(ConvWaveMatrixMaliF16ExternalWeightsBigTest(*exec_env, GetParam()));
+}
+
+TEST_P(BaseTest, ConvWaveMatrixMaliF16ExternalBatchedWeightsBigTest) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kFloat16)) {
+    GTEST_SKIP() << "Unsupported storage: " << ToString(GetParam());
+  }
+  ABSL_ASSERT_OK(ConvWaveMatrixMaliF16ExternalBatchedWeightsBigTest(*exec_env,
+                                                               GetParam()));
+}
+
+TEST_P(BaseTest, ConvWaveMatrixMaliF16PackedGroupsTest) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kFloat16)) {
+    GTEST_SKIP() << "Unsupported storage: " << ToString(GetParam());
+  }
+  ABSL_ASSERT_OK(ConvWaveMatrixMaliF16PackedGroupsTest(*exec_env, GetParam()));
+}
+
+TEST_P(BaseTest, ConvWaveMatrixMaliF16RuntimeSrcEndChannelsTest) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kFloat16)) {
+    GTEST_SKIP() << "Unsupported storage: " << ToString(GetParam());
+  }
+  ABSL_ASSERT_OK(
+      ConvWaveMatrixMaliF16RuntimeSrcEndChannelsTest(*exec_env, GetParam()));
+}
+
+TEST_P(BaseTest, ConvWaveMatrixMaliF16RuntimeDstEndChannelsTest) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kFloat16)) {
+    GTEST_SKIP() << "Unsupported storage: " << ToString(GetParam());
+  }
+  ABSL_ASSERT_OK(
+      ConvWaveMatrixMaliF16RuntimeDstEndChannelsTest(*exec_env, GetParam()));
+}
+
 INSTANTIATE_TEST_SUITE_P(
     ConvWaveMatrixMaliF16BigTestSuite, BaseTest,
     ValuesIn(GetTensorStoragesTypesWithoutSingleTexture2D()),

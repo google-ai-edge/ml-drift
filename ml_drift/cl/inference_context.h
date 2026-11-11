@@ -153,6 +153,7 @@ class InferenceContext {
 
   const std::vector<ValueId>& GetInputIds() const { return input_ids_; }
   const std::vector<ValueId>& GetOutputIds() const { return output_ids_; }
+  const GpuInfo& GetGpuInfo() const { return gpu_info_; }
 
   // Enables optional nodes with the given tags that were defined via
   // `GpuModelBuilder::BeginOptionalNodes`.

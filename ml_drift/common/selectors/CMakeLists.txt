@@ -88,6 +88,7 @@ target_link_libraries(mld_common_selectors_convolution_selector
     mld_common_kernels_conv_generic
     mld_common_kernels_conv_wave_matrix
     mld_common_kernels_conv_wave_matrix_mali
+    mld_common_kernels_conv_wave_matrix_mali_f16
     mld_common_kernels_conv_wave_memory
     mld_common_model_hints
     mld_common_operations

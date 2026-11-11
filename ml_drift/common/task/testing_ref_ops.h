@@ -57,11 +57,13 @@ Tensor5DFloat32 PaddingReference(const Pad3DAttributes& attr,
                                  const Tensor5DFloat32& input);
 
 TensorFloat32 BatchedMatMulReference(const TensorFloat32& left,
-                                     const TensorFloat32& right);
+                                     const TensorFloat32& right,
+                                     const BatchedMatMulAttributes& attr = {});
 
 TensorFloat32 BatchedMatMulReference(
     const TensorFloat32& left, const TensorFloat32& right,
-    const TestingRuntimeChannels& runtime_channels);
+    const TestingRuntimeChannels& runtime_channels,
+    const BatchedMatMulAttributes& attr = {});
 
 TensorFloat32 ConcatReference(const ConcatAttributes& attr,
                               const std::vector<TensorFloat32>& inputs);

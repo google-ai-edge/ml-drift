@@ -15,14 +15,15 @@
 #include "ml_drift/common/kernels/fully_connected.h"
 
 #include <algorithm>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "absl/status/status.h"
+#include "absl/status/status_macros.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_replace.h"
-#include "absl/strings/substitute.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/kernels/fully_connected_util.h"
@@ -344,6 +345,12 @@ FullyConnected::FullyConnected(const TensorDescriptor& src,
     args_.AddInt("src_group_size", src_slices / src_groups);
   }
 
+  if (conv_params.spatial_groups) {
+    args_.AddInt("groups_count_b");
+    args_.AddInt("groups_count_x");
+    args_.AddInt("groups_count_y");
+  }
+
   work_group_size_ =
       conv_params_.wg_size.x != 0
           ? conv_params_.wg_size
@@ -623,6 +630,25 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
   if (conv_params_.batched_weights) {
     c += fc::GetWeightsBatchId(conv_params_.runtime_batch_ids);
   }
+  if (conv_params_.spatial_groups) {
+    c += "  int spatial_groups = ucl::GetGroupId<1>();\n";
+    if (src.HasAxis(Axis::kBatch)) {
+      c += "  int dst_b = spatial_groups % args.groups_count_b;\n";
+      c += "  spatial_groups /= args.groups_count_b;\n";
+    } else {
+      c += "  int dst_b = 0;\n";
+    }
+    if (conv_params_.batched_weights) {
+      // Initializing dst_h in GetWeightsBatchId from dim2
+      c += "  int dst_w = spatial_groups;\n";
+    } else {
+      c += "  int dst_w = spatial_groups % args.groups_count_x;\n";
+      c += "  int dst_h = spatial_groups / args.groups_count_x;\n";
+      c += "  dst_h *= " + std::to_string(conv_params_.block_size.h) + ";\n";
+    }
+    c += "  dst_b *= " + std::to_string(conv_params_.block_size.b) + ";\n";
+    c += "  dst_w *= " + std::to_string(conv_params_.block_size.w) + ";\n";
+  }
   if (conv_params_.runtime_check.ring_o_offset_index.has_value()) {
     c += fc::GetRingOOffset(conv_params_.runtime_check);
     c += "  ring_o_offset = ((ring_o_offset % ring_size) + ring_size) % "
@@ -675,16 +701,26 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
   if (conv_params_.softmax_input_activation) {
     for (int i = 0; i < block_spatial; ++i) {
       const int3 bhw = fc::GetBlockSpatialCoords(i, conv_params_.block_size);
+      std::string b_coord = std::to_string(bhw.x);
+      std::string x_coord = std::to_string(bhw.z);
       std::string y_coord = std::to_string(bhw.y);
       if (conv_params_.batched_weights) {
-        y_coord = "w_batch_id";
+        y_coord = "dst_h";
         if (conv_params_.runtime_batch_ids) {
           y_coord = "0";
         }
       }
+      if (conv_params_.spatial_groups) {
+        if (src.HasAxis(Axis::kBatch)) {
+          b_coord = "min(dst_b + " + b_coord + ", args.src_exp.Batch() - 1)";
+        }
+        x_coord = "min(dst_w + " + x_coord + ", args.src_exp.Width() - 1)";
+        if (!conv_params_.batched_weights) {
+          y_coord = "min(dst_h + " + y_coord + ", args.src_exp.Height() - 1)";
+        }
+      }
       c += "  SType2 exp_val" + std::to_string(i) + " = args.src_exp.Read(" +
-           std::to_string(bhw.z) + ", " + y_coord + ", 0, " +
-           std::to_string(bhw.x) + ").xy;\n";
+           x_coord + ", " + y_coord + ", 0, " + b_coord + ").xy;\n";
     }
   }
   std::string src_end_slices = "args.src_tensor.Slices()";
@@ -738,14 +774,15 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
   for (int i = 0; i < block_spatial; ++i) {
     const int3 bhw = fc::GetBlockSpatialCoords(i, conv_params_.block_size);
     const std::string val_name = "v" + std::to_string(i);
+    std::string b_coord = std::to_string(bhw.x);
+    std::string x_coord = std::to_string(bhw.z);
     std::string y_coord = std::to_string(bhw.y);
     if (conv_params_.batched_weights) {
-      y_coord = "w_batch_id";
+      y_coord = "dst_h";
       if (conv_params_.runtime_batch_ids) {
         y_coord = "min(dst_h, args.src_tensor.Height() - 1)";
       }
     }
-    std::string x_coord = std::to_string(bhw.z);
     if (conv_params_.runtime_check.packed_groups.has_value()) {
       x_coord = "dst_w + " + x_coord;
       if (!src.CanReadOutOfBorder(Axis::kWidth, gpu_info)) {
@@ -753,9 +790,18 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
       }
       y_coord = "0";
     }
+    if (conv_params_.spatial_groups) {
+      if (src.HasAxis(Axis::kBatch)) {
+        b_coord = "min(dst_b + " + b_coord + ", args.src_tensor.Batch() - 1)";
+      }
+      x_coord = "min(dst_w + " + x_coord + ", args.src_tensor.Width() - 1)";
+      if (!conv_params_.batched_weights) {
+        y_coord = "min(dst_h + " + y_coord + ", args.src_tensor.Height() - 1)";
+      }
+    }
     const std::string read_expression = "args.src_tensor.Read(" + x_coord +
-                                        ", " + y_coord + ", src_s, " +
-                                        std::to_string(bhw.x) + ")";
+                                        ", " + y_coord + ", src_s, " + b_coord +
+                                        ")";
     if (int8_math) {
       c += "    uint " + val_name + ";\n";
       c += "    { char4 t = " + read_expression + "; " + val_name +
@@ -857,7 +903,8 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
   }
   c += fc::GenerateDstWrite(conv_params_.block_size, conv_params_.runtime_check,
                             conv_params_.has_bias, conv_params_.batched_weights,
-                            conv_params_.runtime_batch_ids);
+                            conv_params_.runtime_batch_ids,
+                            conv_params_.spatial_groups);
   c += "}\n";
 
   absl::StrReplaceAll({{"SType", ToUclDataType(dst.GetDataType(), 1)},
@@ -870,16 +917,47 @@ std::string FullyConnected::GetFullyConnectedKernelCode(
   return c;
 }
 
+absl::Status FullyConnected::BindArguments(ArgumentsBinder* args) {
+  if (!conv_params_.spatial_groups) {
+    return absl::OkStatus();
+  }
+  const int b_groups =
+      DivideRoundUp(dst_[0]->Batch(), conv_params_.block_size.b);
+  const int w_groups =
+      DivideRoundUp(dst_[0]->Width(), conv_params_.block_size.w);
+  // if batched_weights, H mapped to dim2, see w_batch_size above
+  const int h_groups =
+      conv_params_.batched_weights
+          ? 1
+          : DivideRoundUp(dst_[0]->Height(), conv_params_.block_size.h);
+  ABSL_RETURN_IF_ERROR(args->SetInt("groups_count_b", b_groups));
+  ABSL_RETURN_IF_ERROR(args->SetInt("groups_count_x", w_groups));
+  ABSL_RETURN_IF_ERROR(args->SetInt("groups_count_y", h_groups));
+  return absl::OkStatus();
+}
+
 int3 FullyConnected::GetGridSize() const {
   int w_batch_size = conv_params_.batched_weights ? dst_[0]->Height() : 1;
-  int w_groups = 1;
+  int spatial_groups = 1;
   if (conv_params_.runtime_check.packed_groups.has_value()) {
-    w_groups =
+    spatial_groups =
         DivideRoundUp(conv_params_.runtime_check.packed_groups->max_group_size,
                       conv_params_.block_size.w);
     w_batch_size = conv_params_.runtime_check.packed_groups->num_groups;
+  } else if (conv_params_.spatial_groups) {
+    const int b_groups =
+        DivideRoundUp(dst_[0]->Batch(), conv_params_.block_size.b);
+    const int w_groups =
+        DivideRoundUp(dst_[0]->Width(), conv_params_.block_size.w);
+    // if batched_weights, H mapped to dim2, see w_batch_size above
+    const int h_groups =
+        conv_params_.batched_weights
+            ? 1
+            : DivideRoundUp(dst_[0]->Height(), conv_params_.block_size.h);
+    spatial_groups = b_groups * h_groups * w_groups;
   }
-  return int3(dst_[0]->Slices(), work_group_size_.y * w_groups, w_batch_size);
+  return int3(dst_[0]->Slices(), work_group_size_.y * spatial_groups,
+              w_batch_size);
 }
 
 int GetRecommendedMaxTotalSpatialSize(const GpuInfo& gpu_info,
@@ -899,6 +977,18 @@ int GetRecommendedMaxTotalSpatialSize(const GpuInfo& gpu_info,
   return base_max_size;
 }
 
+bool IsFullyConnectedRecommended(const GpuInfo& gpu_info,
+                                 CalculationsPrecision precision,
+                                 const OHWI& weights_shape,
+                                 const BHWC& dst_shape) {
+  int total_spatial_size = dst_shape.b * dst_shape.w;
+  if (weights_shape.h == 1) {
+    total_spatial_size *= dst_shape.h;
+  }
+  return total_spatial_size <=
+         GetRecommendedMaxTotalSpatialSize(gpu_info, precision);
+}
+
 absl::StatusOr<FullyConnected> CreateFullyConnectedWeightsAreSpatialTensor(
     const GpuInfo& gpu_info, const OperationDef& definition,
     CalculationsPrecision precision, const OHWI& weights_shape,
@@ -915,6 +1005,9 @@ absl::StatusOr<FullyConnected> CreateFullyConnectedWeightsAreSpatialTensor(
   conv_params.batched_weights = weights_shape.h != 1;
   conv_params.has_bias = bias != nullptr;
   conv_params.runtime_check = runtime_check;
+  if (dst_shape_ptr) {
+    conv_params.dst_shape = *dst_shape_ptr;
+  }
   conv_params.block_size =
       fc::GetBlockSize(dst_shape_ptr, conv_params.batched_weights);
   WeightsDescription weights_desc;
@@ -1008,6 +1101,9 @@ absl::StatusOr<FullyConnected> CreateFullyConnectedExternalWeights(
   conv_params.has_zero_point =
       weights.zero_point != nullptr || weights.scalar_zero_point.has_value();
   conv_params.runtime_check = runtime_check;
+  if (dst_shape_ptr) {
+    conv_params.dst_shape = *dst_shape_ptr;
+  }
   conv_params.block_size =
       fc::GetBlockSize(dst_shape_ptr, conv_params.batched_weights);
   if (runtime_check.packed_groups.has_value()) {
@@ -1064,6 +1160,9 @@ absl::StatusOr<FullyConnected> CreateFullyConnectedWeightsBatchIds(
   conv_params.has_zero_point =
       weights.zero_point != nullptr || weights.scalar_zero_point.has_value();
   conv_params.runtime_batch_ids = dst_shape_ptr ? dst_shape_ptr->h : 1;
+  if (dst_shape_ptr) {
+    conv_params.dst_shape = *dst_shape_ptr;
+  }
   conv_params.block_size =
       fc::GetBlockSize(dst_shape_ptr, conv_params.batched_weights);
 
@@ -1149,6 +1248,9 @@ FullyConnected CreateFullyConnectedInt4Sparse2x4(
   conv_params.has_zero_point =
       weights.zero_point != nullptr || weights.scalar_zero_point.has_value();
   conv_params.sparse_2x4 = true;
+  if (dst_shape_ptr) {
+    conv_params.dst_shape = *dst_shape_ptr;
+  }
   conv_params.block_size =
       fc::GetBlockSize(dst_shape_ptr, conv_params.batched_weights);
   if (wg_size) {

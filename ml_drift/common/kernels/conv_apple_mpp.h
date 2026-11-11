@@ -19,7 +19,6 @@
 #include <string>
 #include <string_view>
 #include <utility>
-#include <variant>
 #include <vector>
 
 #include "absl/types/span.h"
@@ -68,6 +67,15 @@ class ConvAppleMPP : public GPUOperation {
     }
   };
 
+  struct KernelParams {
+    int m_tile = 64;
+    int k_tile = 0;
+    int n_tile = 64;
+    int simdgroups = 4;
+    bool manual_k_tiling = false;
+    bool manual_src_reading = false;
+  };
+
   ConvAppleMPP(const TensorDescriptor& src, const ConvParams& params,
                int m_tile = 64, int n_tile = 128);
   // Move only
@@ -83,22 +91,22 @@ class ConvAppleMPP : public GPUOperation {
   int3 GetGridSize() const override;
 
   WeightsDescription GetWeightsDescription() const {
-    if (params_.weights_desc.layout != WeightsLayout::kUnknown) {
-      return params_.weights_desc;
+    if (conv_params_.weights_desc.layout != WeightsLayout::kUnknown) {
+      return conv_params_.weights_desc;
     }
     WeightsDescription weights_desc;
-    weights_desc.type = params_.weights_data_type;
+    weights_desc.type = conv_params_.weights_data_type;
     weights_desc.layout = WeightsLayout::kCustomGroups;
     weights_desc.group_sizes = {
-        {Axis::kOutputChannels, AlignByN(params_.weights_shape.o, 4)},
-        {Axis::kInputChannels, AlignByN(params_.weights_shape.i, 4)}};
-    if (params_.batched_weights) {
+        {Axis::kOutputChannels, AlignByN(conv_params_.weights_shape.o, 4)},
+        {Axis::kInputChannels, AlignByN(conv_params_.weights_shape.i, 4)}};
+    if (conv_params_.batched_weights) {
       weights_desc.group_sizes.push_back({Axis::kHeight, 0});
     }
-    if (!params_.x_kernel_is_1) {
+    if (!conv_params_.x_kernel_is_1) {
       weights_desc.group_sizes.push_back({Axis::kWidth, 0});
     }
-    if (!params_.y_kernel_is_1) {
+    if (!conv_params_.y_kernel_is_1) {
       weights_desc.group_sizes.push_back({Axis::kHeight, 0});
     }
     return weights_desc;
@@ -112,10 +120,8 @@ class ConvAppleMPP : public GPUOperation {
   void UploadBias(const Tensor<Linear, T>& bias);
 
  private:
-  ConvParams params_;
-  int m_tile_ = 64;
-  int n_tile_ = 64;
-  int simdgroups_ = 4;
+  ConvParams conv_params_;
+  KernelParams kernel_params_;
 
   std::string GetKernelCode(const TensorDescriptor& src) const;
 };
@@ -128,7 +134,7 @@ void ConvAppleMPP::UploadWeights(const Tensor<OHWI, T>& weights) {
       GetTotalElementsCountForLayout(weights_desc, weights.shape);
 
   BufferDescriptor buffer_desc;
-  buffer_desc.element_type = params_.weights_data_type;
+  buffer_desc.element_type = conv_params_.weights_data_type;
   buffer_desc.element_size = 1;
   buffer_desc.size = elements_count * SizeOf(weights_desc.type);
   buffer_desc.data.resize(buffer_desc.size);
@@ -140,13 +146,13 @@ void ConvAppleMPP::UploadWeights(const Tensor<OHWI, T>& weights) {
 template <DataType T>
 void ConvAppleMPP::UploadBias(const Tensor<Linear, T>& bias) {
   TensorDescriptor bias_tensor_desc = CreateConstantLinearTensorDescriptor(
-      params_.weights_data_type, TensorStorageType::kBuffer, bias);
+      conv_params_.weights_data_type, TensorStorageType::kBuffer, bias);
   args_.AddObject("biases", std::make_unique<TensorDescriptor>(
                                 std::move(bias_tensor_desc)));
 }
 
 // Checks if the Apple MPP convolution is supported on the given GPU.
-bool SupportsConvAppleMPP(const GpuInfo& gpu_info);
+bool SupportsConvAppleMPP(const GpuInfo& gpu_info, const BHWC& src_shape);
 bool SupportsConvAppleMPP(const GpuInfo& gpu_info,
                           const ExternalWeights& weights);
 

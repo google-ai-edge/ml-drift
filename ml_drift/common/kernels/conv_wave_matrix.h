@@ -164,17 +164,19 @@ class ConvWaveMatrix : public GPUOperation {
       const OHWI& weights_shape, const BHWC& dst_shape);
 };
 
-// Checks if the convolution with wave matrix is supported on the given GPU.
+// Checks if general 2D or batched convolution (with pre-rearranged weights) is
+// supported.
 bool SupportsConvWaveMatrix(const GpuInfo& gpu_info,
                             CalculationsPrecision precision,
                             const Convolution2DAttributes& attr);
 
+// Checks if 1x1 / batched convolution with on-the-fly weight conversion is
+// supported.
 bool SupportsConvWaveMatrix(const GpuInfo& gpu_info,
                             CalculationsPrecision precision,
                             const ExternalWeights& weights);
 
-// Checks if the INT8 convolution with wave matrix is supported on the given
-// GPU.
+// Checks if INT8 1x1 convolution (with pre-rearranged weights) is supported.
 bool SupportsConvWaveMatrixInt8(const GpuInfo& gpu_info,
                                 const OHWI& weights_shape);
 // Returns the source packed type for the INT8 convolution with wave matrix.

@@ -274,8 +274,11 @@ cc_library(
         "//ml_drift/common/task:gpu_operation",
         "//ml_drift/common/task:tensor_desc",
         "//ml_drift/common/task:tuning_type",
+        "//ml_drift/common/task:weights_conversion",
+        "//ml_drift/common/task:weights_layout",
         "//ml_drift/common/task:work_group_picking",
         "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:span",
     ],
 )
 
@@ -692,6 +695,7 @@ cc_library(
         "//ml_drift/common/task:weights_conversion",
         "//ml_drift/common/task:weights_layout",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
     ],
@@ -703,7 +707,7 @@ exports_files(
         "fully_connected.h",
     ],
     visibility = [
-        "@//ml_drift_delegate/delegate/serialization_weight_cache:__pkg__",
+        "@litert//ml_drift_delegate/delegate/serialization_weight_cache:__pkg__",
     ],
 )
 

@@ -45,7 +45,6 @@ target_link_libraries(add_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -110,7 +109,6 @@ target_link_libraries(bitcast_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -158,7 +156,6 @@ target_link_libraries(buffer_desc_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -206,7 +203,6 @@ target_link_libraries(cast_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -256,7 +252,6 @@ target_link_libraries(concat_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -308,7 +303,6 @@ target_link_libraries(conv_constants_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -369,7 +363,6 @@ target_link_libraries(conv_generic_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -424,7 +417,6 @@ target_link_libraries(conv_transpose_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -477,7 +469,6 @@ target_link_libraries(conv_transpose_thin_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -506,10 +497,14 @@ target_link_libraries(mld_common_kernels_tests_conv_wave_matrix_mali_f16_test_ut
     mld_common_operations
     mld_common_precision
     mld_common_shape
+    mld_common_task_gpu_operation
     mld_common_task_tensor_desc
     mld_common_task_testing_ref_ops
     mld_common_task_testing_util
+    mld_common_task_weights_conversion
     mld_common_tensor
+    mld_common_util
+    XNNPACK
 )
 
 add_executable(conv_wave_matrix_mali_f16_test_opencl opencl_kernel_test.cc conv_wave_matrix_mali_f16_test.cc)
@@ -526,7 +521,6 @@ target_link_libraries(conv_wave_matrix_mali_f16_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -581,7 +575,6 @@ target_link_libraries(conv_wave_matrix_mali_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -640,7 +633,6 @@ target_link_libraries(conv_wave_matrix_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -700,7 +692,6 @@ target_link_libraries(conv_wave_memory_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -751,7 +742,6 @@ target_link_libraries(cumsum_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -803,7 +793,6 @@ target_link_libraries(depthwise_conv_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -853,7 +842,6 @@ target_link_libraries(depthwise_conv_wave_memory_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -903,7 +891,6 @@ target_link_libraries(dot_general_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -951,7 +938,6 @@ target_link_libraries(dynamic_update_slice_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -1000,7 +986,6 @@ target_link_libraries(elementwise_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -1049,7 +1034,6 @@ target_link_libraries(embedding_lookup_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -1106,7 +1090,6 @@ target_link_libraries(fully_connected_oi_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -1159,7 +1142,6 @@ target_link_libraries(fully_connected_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -1208,7 +1190,6 @@ target_link_libraries(gather_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -1237,7 +1218,6 @@ target_link_libraries(group_norm_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -1273,7 +1253,6 @@ target_link_libraries(layer_norm_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -1332,7 +1311,6 @@ target_link_libraries(lstm_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -1381,7 +1359,6 @@ target_link_libraries(max_unpooling_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -1431,7 +1408,6 @@ target_link_libraries(mean_stddev_normalization_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -1481,7 +1457,6 @@ target_link_libraries(one_hot_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -1530,7 +1505,6 @@ target_link_libraries(padding_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -1579,7 +1553,6 @@ target_link_libraries(pooling_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -1607,7 +1580,6 @@ target_link_libraries(positional_embedding_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -1661,7 +1633,6 @@ target_link_libraries(prelu_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -1713,7 +1684,6 @@ target_link_libraries(random_philox_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -1763,7 +1733,6 @@ target_link_libraries(reduce_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -1813,7 +1782,6 @@ target_link_libraries(relu_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -1863,7 +1831,6 @@ target_link_libraries(resampler_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -1913,7 +1880,6 @@ target_link_libraries(reshape_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -1962,7 +1928,6 @@ target_link_libraries(resize_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -2010,7 +1975,6 @@ target_link_libraries(rope_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -2041,7 +2005,6 @@ target_link_libraries(sdpa_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -2098,7 +2061,6 @@ target_link_libraries(select_v2_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -2149,7 +2111,6 @@ target_link_libraries(softmax_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -2199,7 +2160,6 @@ target_link_libraries(space_to_depth_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -2248,7 +2208,6 @@ target_link_libraries(split_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -2297,7 +2256,6 @@ target_link_libraries(strided_slice_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -2345,7 +2303,6 @@ target_link_libraries(tile_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -2393,7 +2350,6 @@ target_link_libraries(top_k_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -2442,7 +2398,6 @@ target_link_libraries(transpose_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test
@@ -2495,7 +2450,6 @@ target_link_libraries(winograd_test_opencl
     mld_cl_cl_kernel
     mld_cl_cl_program
     mld_cl_cl_program_cache
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
     mld_cl_testing_cl_test

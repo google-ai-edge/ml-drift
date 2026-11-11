@@ -17,7 +17,6 @@
 #include <memory>
 
 #include "absl/status/status.h"
-#include "ml_drift/common/custom_transformations.h"
 #include "ml_drift/common/model.h"
 #include "ml_drift/common/model_transformer.h"
 #include "ml_drift/common/transformations/add_quant_adjustments.h"
@@ -85,9 +84,6 @@ bool ApplyGpuSpecificTransformations(ModelTransformer* transformer) {
 
 absl::Status ApplyGpuModelTransformations(GraphFloat32* graph) {
   ModelTransformer transformer(graph);
-  if (!ApplyCustomTransformations(&transformer)) {
-    return absl::InternalError("Graph custom transformations failed");
-  }
   if (!ApplyGeneralTransformations(&transformer)) {
     return absl::InternalError("Graph general transformations failed");
   }

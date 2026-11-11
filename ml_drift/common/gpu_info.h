@@ -654,10 +654,10 @@ struct OpenGlInfo {
 
 struct VulkanInfo {
   std::string vendor_name;
-  uint32_t api_version = -1;
-  uint32_t api_version_major = -1;
-  uint32_t api_version_minor = -1;
-  uint32_t api_version_patch = -1;
+  uint32_t api_version = static_cast<uint32_t>(-1);
+  uint32_t api_version_major = static_cast<uint32_t>(-1);
+  uint32_t api_version_minor = static_cast<uint32_t>(-1);
+  uint32_t api_version_patch = static_cast<uint32_t>(-1);
 
   uint32_t max_per_stage_descriptor_sampled_images = 0;
   uint32_t max_per_stage_descriptor_storage_images = 0;
@@ -892,9 +892,9 @@ enum class IntelGeneration {
   kGen9,
   kGen10,
   kGen11,
-  kGen12,
-  kGen13,
-  kGen14,
+  kGen12,  // The Xe architecture is also called Gen 12.
+  kXe2,
+  kXe3,
 };
 
 struct IntelInfo {
@@ -902,8 +902,11 @@ struct IntelInfo {
   explicit IntelInfo(const std::string& gpu_description);
 
   IntelGeneration generation = IntelGeneration::kUnknown;
+  // Number of Xe-cores (4 if the product is not recognized).
+  int compute_units_count = 4;
 
   bool IsGenerationOrNewer(IntelGeneration gen) const;
+  int GetComputeUnitsCount() const;
 };
 
 enum class MaleoonGpu {

@@ -4,15 +4,24 @@ exports_files(["LICENSE"])
 
 cc_library(
     name = "libdawn",
+    srcs = select({
+        "@platforms//os:android": [],
+        "//conditions:default": [
+            "lib/libdawn.dylib",
+        ],
+    }),
     hdrs = glob([
         "include/**/*.h*",
     ]),
     includes = [
         "include",
     ],
-    srcs = [
-        "lib/libdawn.dylib",
-    ],
+    linkopts = select({
+        "@platforms//os:android": [
+            "-Wl,--warn-unresolved-symbols",
+        ],
+        "//conditions:default": [],
+    }),
     visibility = ["//visibility:public"],
 )
 

@@ -147,6 +147,10 @@ void AddCommonArgs(const WeightsDescription& dst_weights_desc,
 // TODO: Check properly all supported cases, layouts and their
 // parameters.
 bool IsLastBlockHas4IAnd4OElements(const WeightsDescription& dst_weights_desc) {
+  if (dst_weights_desc.layout ==
+      WeightsLayout::kOSpatialIOGroupI2I2gr0O8I2gr1O2) {
+    return false;
+  }
   if (dst_weights_desc.layout == WeightsLayout::kCustomGroups &&
       dst_weights_desc.group_sizes[0].second > 4 &&
       (dst_weights_desc.type == DataType::kInt8 ||
@@ -443,6 +447,27 @@ std::string GetWeightsCoords(const WeightsDescription& dst_weights_desc,
       c += "  int i_slice = dst_i;\n";
       c += "  int o_slice = dst_o * args.dst_o_group_size + dst_ogroup;\n";
       c += "  int spatial_linear = dst_sp;\n";
+    } else if (dst_weights_desc.layout ==
+               WeightsLayout::kOSpatialIOGroupI2I2gr0O8I2gr1O2) {
+      // kOSpatialIOGroupI2I2gr0O8I2gr1O2 similar to:
+      // kOSpatialIOGroupI2I2O8I2O2 that can be expressed with kCustomGroups.
+      // Difference is that last 2 I2 groups are swapped(transposed).
+      // Last block (4i&4o) elements is I2gr0O2I2gr1O2
+      c += "  int last_group_id = linear_index / 4;\n";
+      c += "  int last_local_id = linear_index % 4;\n";
+      c += "  int i2 = last_group_id % 2;\n";
+      c += "  int dst_o_sp_i_ogroup = last_group_id / 2;\n";
+      c += "  int dst_ogroup = dst_o_sp_i_ogroup % args.dst_o_group_size;\n";
+      c += "  int dst_o_sp_i = dst_o_sp_i_ogroup / args.dst_o_group_size;\n";
+      c += "  int i_groups = (args.i_slices + 1) / 2;\n";
+      c += "  int dst_i = dst_o_sp_i % i_groups;\n";
+      c += "  int dst_o_sp = dst_o_sp_i / i_groups;\n";
+      c += "  int dst_sp = dst_o_sp % args.wshape_spatial;\n";
+      c += "  int dst_o = dst_o_sp / args.wshape_spatial;\n";
+      c += "  int i_slice = dst_i * 2 + i2;\n";
+      c += "  int o_slice = (dst_o * args.dst_o_group_size + dst_ogroup) * 4 + "
+           "last_local_id;\n";
+      c += "  int spatial_linear = dst_sp;\n";
     } else if (dst_weights_desc.layout == WeightsLayout::kCustomGroups) {
       c += "  int i_slice = 0;\n";
       c += "  int o_slice = 0;\n";
@@ -616,6 +641,21 @@ std::string WriteResults(const WeightsDescription& dst_weights_desc,
       c += "  Type r2 = ucl::Init<Type>(w0.z, w0.w, w1.z, w1.w);\n";
       c += "  Type r3 = ucl::Init<Type>(w2.z, w2.w, w3.z, w3.w);\n";
     }
+  } else if (dst_weights_desc.layout ==
+             WeightsLayout::kOSpatialIOGroupI2I2gr0O8I2gr1O2) {
+    if (src_layout == BlockLayout::kO4I4) {
+      // O4I4 -> I2gr0O2I2gr1O2
+      c += "  Type r0 = ucl::Init<Type>(w0.x, w1.x, w0.z, w1.z);\n";
+      c += "  Type r1 = ucl::Init<Type>(w2.x, w3.x, w2.z, w3.z);\n";
+      c += "  Type r2 = ucl::Init<Type>(w0.y, w1.y, w0.w, w1.w);\n";
+      c += "  Type r3 = ucl::Init<Type>(w2.y, w3.y, w2.w, w3.w);\n";
+    } else {
+      // I4O4 -> I2gr0O2I2gr1O2
+      c += "  Type r0 = ucl::Init<Type>(w0.x, w0.y, w2.x, w2.y);\n";
+      c += "  Type r1 = ucl::Init<Type>(w0.z, w0.w, w2.z, w2.w);\n";
+      c += "  Type r2 = ucl::Init<Type>(w1.x, w1.y, w3.x, w3.y);\n";
+      c += "  Type r3 = ucl::Init<Type>(w1.z, w1.w, w3.z, w3.w);\n";
+    }
   } else {
     const bool dst_is_o4 =
         dst_weights_desc.IsI4O4() ||
@@ -674,6 +714,27 @@ std::string WriteResults(const WeightsDescription& dst_weights_desc,
     c += "  args.dst_tensor1.Write2D(r1, dst_o_ogroup, dst_sp_i);\n";
     c += "  args.dst_tensor2.Write2D(r2, dst_o_ogroup, dst_sp_i);\n";
     c += "  args.dst_tensor3.Write2D(r3, dst_o_ogroup, dst_sp_i);\n";
+  } else if (dst_weights_desc.layout ==
+             WeightsLayout::kOSpatialIOGroupI2I2gr0O8I2gr1O2) {
+    c += "  int dst_offset = last_group_id * 16 + last_local_id * 2;\n";
+    if (dst_weights_desc.type == DataType::kInt8 ||
+        dst_weights_desc.type == DataType::kUint8) {
+      c += Get8BitPacked();
+      c += "  args.dst_buffer.Write(packed_value.x, dst_offset + 0);\n";
+      c += "  args.dst_buffer.Write(packed_value.y, dst_offset + 1);\n";
+      c += "  args.dst_buffer.Write(packed_value.z, dst_offset + 8);\n";
+      c += "  args.dst_buffer.Write(packed_value.w, dst_offset + 9);\n";
+    } else if (dst_weights_desc.type == DataType::kInt4 ||
+               dst_weights_desc.type == DataType::kUint4) {
+      c += Get4BitPacked();
+      c += "  args.dst_buffer.Write((p1 << 16u) | p0, dst_offset / 2 + 0);\n";
+      c += "  args.dst_buffer.Write((p3 << 16u) | p2, dst_offset / 2 + 4);\n";
+    } else {
+      c += "  args.dst_tensor.WriteLinear(r0, dst_offset + 0);\n";
+      c += "  args.dst_tensor.WriteLinear(r1, dst_offset + 1);\n";
+      c += "  args.dst_tensor.WriteLinear(r2, dst_offset + 8);\n";
+      c += "  args.dst_tensor.WriteLinear(r3, dst_offset + 9);\n";
+    }
   } else if (dst_weights_desc.layout == WeightsLayout::kCustomGroups) {
     const bool is_i_first =
         dst_weights_desc.group_sizes[0].first == Axis::kInputChannels;
@@ -962,7 +1023,7 @@ std::string ConverterToConvWeights::GetConverterToConvWeightsCode(
     } else if (weights_desc_.type == DataType::kUint4) {
       BufferDescriptor desc;
       desc.element_type = DataType::kUint32;
-      desc.element_size = 2;
+      desc.element_size = IsLastBlockHas4IAnd4OElements(weights_desc_) ? 2 : 1;
       AddDstBuffer("dst_buffer", desc);
     } else if (weights_desc_.type == DataType::kUint2) {
       BufferDescriptor desc;
@@ -1569,7 +1630,8 @@ WeightsConverter::WeightsConverter(const GpuInfo& gpu_info,
                dst_weights_desc.type == DataType::kUint4) {
       BufferDescriptor desc;
       desc.element_type = DataType::kUint32;
-      desc.element_size = 2;
+      desc.element_size =
+          IsLastBlockHas4IAnd4OElements(dst_weights_desc) ? 2 : 1;
       AddDstBuffer("dst_buffer", desc);
     } else {
       AddDstTensor("dst_tensor", definition.dst_tensors[0]);

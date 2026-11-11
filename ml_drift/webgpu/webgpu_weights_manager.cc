@@ -26,6 +26,7 @@
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/str_cat.h"
 #include "absl/time/time.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/gpu_model_builder.h"
@@ -80,12 +81,13 @@ absl::StatusOr<
 WebGpuWeightsManager::GetBatchesForWeightsPreparation(
     const Environment& env, const ScheduleStrategy schedule_strategy,
     size_t total_shared_tensor_size) {
-  std::vector<WeightsManager::WeightsPrepOperationInfo> op_infos =
-      ConvertWeightsPrepRequestsToOperations(
+  absl::StatusOr<std::vector<WeightsManager::WeightsPrepOperationInfo>>
+      op_infos = ConvertWeightsPrepRequestsToOperations(
           env.GetInfo(), std::move(weights_conversion_requests_));
   weights_conversion_requests_.clear();
+  ABSL_RETURN_IF_ERROR(op_infos.status());
 
-  return BatchGpuOperations(std::move(op_infos), schedule_strategy,
+  return BatchGpuOperations(*std::move(op_infos), schedule_strategy,
                             total_shared_tensor_size);
 }
 
@@ -96,6 +98,8 @@ WebGpuWeightsManager::PrepareWeightsInBatch(
   absl::flat_hash_map<ValueId, std::unique_ptr<GpuSpatialTensor>>
       main_model_id_to_tensor;
   const size_t num_ops = op_infos.size();
+  // Dawn reports validation errors only via the uncaptured error callback.
+  const int unhandled_errors_before = env.GetDeviceUnhandledErrorsTotalCount();
   // Allocate memory for inputs & Outputs.
   std::vector<std::unique_ptr<SpatialTensor>> src_tensors;
   src_tensors.reserve(num_ops);
@@ -125,6 +129,13 @@ WebGpuWeightsManager::PrepareWeightsInBatch(
                                            std::move(gpu_operations), env));
   ABSL_RETURN_IF_ERROR(
       WaitUntilCompleted(env.queue(), env.device(), absl::Seconds(10)));
+  if (const int new_errors =
+          env.GetDeviceUnhandledErrorsTotalCount() - unhandled_errors_before;
+      new_errors > 0) {
+    return absl::InternalError(absl::StrCat(
+        "WebGPU weights preparation failed with ", new_errors,
+        " device error(s); see the logged WebGPU errors for details."));
+  }
 
   return main_model_id_to_tensor;
 }

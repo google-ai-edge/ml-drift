@@ -276,13 +276,13 @@ std::string GetPackedGroupsParams(const ConvRuntimeCheckDesc& runtime_check,
 
 std::string GetWeightsBatchId(int runtime_batch_ids) {
   std::string c;
+  c += "  int dst_h = ucl::GetGroupId<2>();\n";
   if (runtime_batch_ids) {
-    c += "  int dst_h = ucl::GetGroupId<2>();\n";
     c += "  int w_batch_id;\n";
     c += "  args.batch_ids.ReadPerChannel<int>(w_batch_id, 0, 0, "
          "dst_h);\n";
   } else {
-    c += "  int w_batch_id = ucl::GetGroupId<2>();\n";
+    c += "  int w_batch_id = dst_h;\n";
   }
   return c;
 }
@@ -290,19 +290,28 @@ std::string GetWeightsBatchId(int runtime_batch_ids) {
 int GetLocalBatchSize(const GpuInfo& gpu_info, CalculationsPrecision precision,
                       int block_spatial, const int3& work_group_size) {
   int local_batch_size = block_spatial;
-  int data_type_size =
-      precision == CalculationsPrecision::kF16 && gpu_info.SupportsFP16() ? 2
-                                                                          : 4;
-  int workgroup_storage_size = work_group_size.x * work_group_size.y *
-                               local_batch_size * data_type_size * 4;
-  if (local_batch_size > 8 ||
-      (gpu_info.IsApiWebGpu() &&
-       workgroup_storage_size >
-           gpu_info.webgpu_info.max_compute_workgroup_storage_size)) {
-    local_batch_size = 1;
+  if (local_batch_size > 8) {
+    for (int i = 8; i > 0; i--) {
+      if (block_spatial % i == 0) {
+        local_batch_size = i;
+        break;
+      }
+    }
   }
   if (gpu_info.IsAdreno() && gpu_info.adreno_info.IsLowEnd()) {
     local_batch_size = 1;
+  }
+
+  const int data_type_size =
+      precision == CalculationsPrecision::kF16 && gpu_info.SupportsFP16() ? 2
+                                                                          : 4;
+  const int wg_storage_size_per_flt4 =
+      work_group_size.x * work_group_size.y * data_type_size * 4;
+  if (gpu_info.IsApiWebGpu()) {
+    if (wg_storage_size_per_flt4 * local_batch_size >
+        gpu_info.webgpu_info.max_compute_workgroup_storage_size) {
+      local_batch_size = 1;
+    }
   }
   return local_batch_size;
 }
@@ -315,8 +324,9 @@ std::string GetReductionCode(int first, int last, int local_batch_size,
   std::string c;
   for (int sp_id = first; sp_id <= last; ++sp_id) {
     const std::string local_mem =
-        local_batch_size == 1 ? "MEM_NAME"
-                              : "MEM_NAME[" + std::to_string(sp_id) + "]";
+        local_batch_size == 1
+            ? "MEM_NAME"
+            : "MEM_NAME[" + std::to_string(sp_id - first) + "]";
     c += "  " + local_mem + "[T_ID * R_SIZE + R_ID] = r_sp" +
          std::to_string(sp_id) + ";\n";
   }
@@ -325,8 +335,9 @@ std::string GetReductionCode(int first, int last, int local_batch_size,
   c += "    if (R_ID < stride) {\n";
   for (int sp_id = first; sp_id <= last; ++sp_id) {
     const std::string local_mem =
-        local_batch_size == 1 ? "MEM_NAME"
-                              : "MEM_NAME[" + std::to_string(sp_id) + "]";
+        local_batch_size == 1
+            ? "MEM_NAME"
+            : "MEM_NAME[" + std::to_string(sp_id - first) + "]";
     c += "      r_sp" + std::to_string(sp_id) + " += " + local_mem +
          "[T_ID * R_SIZE + R_ID + stride];\n";
     c += "      " + local_mem + "[T_ID * R_SIZE + R_ID] = r_sp" +
@@ -343,7 +354,7 @@ std::string GetReductionCode(int first, int last, int local_batch_size,
 std::string GenerateDstWrite(const BHWC& block_size,
                              const ConvRuntimeCheckDesc& runtime_check,
                              bool has_bias, bool batched_weights,
-                             int runtime_batch_ids) {
+                             int runtime_batch_ids, bool spatial_groups) {
   std::string c;
   if (has_bias) {
     c += "  Type bias_value = args.biases.Read(dst_s);\n";
@@ -351,15 +362,22 @@ std::string GenerateDstWrite(const BHWC& block_size,
   const int block_spatial = block_size.b * block_size.w * block_size.h;
   for (int sp_id = 0; sp_id < block_spatial; ++sp_id) {
     const int3 bhw = GetBlockSpatialCoords(sp_id, block_size);
+    std::string b_coord = std::to_string(bhw.x);
+    std::string x_coord = std::to_string(bhw.z);
     std::string y_coord = std::to_string(bhw.y);
     if (batched_weights) {
-      y_coord = "w_batch_id";
-      if (runtime_batch_ids) {
-        y_coord = "dst_h";
-      }
+      y_coord = "dst_h";
     }
-    std::string x_coord = std::to_string(bhw.z);
-    if (runtime_check.packed_groups.has_value()) {
+    if (spatial_groups) {
+      b_coord = "dst_b + " + std::to_string(bhw.x);
+      x_coord = "dst_w + " + std::to_string(bhw.z);
+      if (!batched_weights) {
+        y_coord = "dst_h + " + std::to_string(bhw.y);
+      }
+      c += "  if (" + x_coord + " < args.dst_tensor.Width() && " + y_coord +
+           " < args.dst_tensor.Height() && " + b_coord +
+           " < args.dst_tensor.Batch()) {\n";
+    } else if (runtime_check.packed_groups.has_value()) {
       x_coord = "dst_w + " + x_coord;
       y_coord = "0";
       c += "  if (" + x_coord + " < w_group_offset + w_group_size) {\n";
@@ -377,8 +395,9 @@ std::string GenerateDstWrite(const BHWC& block_size,
       c += "  res_value += bias_value;\n";
     }
     c += "  args.dst_tensor.Write(res_value, " + x_coord + ", " + y_coord +
-         ", dst_s, " + std::to_string(bhw.x) + ");\n";
-    if (runtime_check.packed_groups.has_value() || block_spatial != 1) {
+         ", dst_s, " + b_coord + ");\n";
+    if (runtime_check.packed_groups.has_value() || block_spatial != 1 ||
+        spatial_groups) {
       c += "  }\n";
     }
   }

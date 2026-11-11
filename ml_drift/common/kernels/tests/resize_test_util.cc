@@ -184,6 +184,17 @@ absl::Status ResizeBilinearWithHalfPixelTest(TestExecutionEnvironment& env,
   EXPECT_THAT(dst_tensor.data,
               Pointwise(FloatNear(eps), {1.0f, 1.5f, 2.0f, 2.0f, 2.5f, 3.0f,
                                          3.0f, 3.5f, 4.0f}));
+
+  // Also test large width (1024 -> 2048) where coordinates exceed 512 and FP16
+  // has ULP >= 0.5, to verify fractional interpolation weights retain subpixel
+  // precision.
+  Resize2DAttributes large_attr;
+  large_attr.type = SamplingType::kBilinear;
+  large_attr.new_shape = HW(1, 2048);
+  large_attr.align_corners = false;
+  large_attr.half_pixel_centers = true;
+  TensorFloat32 large_src = MakeSyntheticTensor(BHWC(1, 1, 1024, 1));
+  ABSL_RETURN_IF_ERROR(ResizeTest(env, large_attr, large_src, op_def));
   return absl::OkStatus();
 }
 

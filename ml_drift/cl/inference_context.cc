@@ -292,6 +292,7 @@ absl::Status InferenceContext::AddToCommandBuffer(cl_command_buffer_khr cb) {
 absl::Status InferenceContext::RestoreDeserialized(
     const absl::Span<const uint8_t> serialized_model, Environment* env,
     const CreateGpuModelInfo* create_info) {
+  gpu_info_ = env->device().GetInfo();
   flatbuffers::Verifier verifier(serialized_model.data(),
                                  serialized_model.size());
   if (!data::VerifyInferenceContextBuffer(verifier)) {
@@ -331,7 +332,7 @@ absl::Status InferenceContext::RestoreDeserialized(
   }
   GetMutableNodes(create_info_copy.external_mutable_tensors);
 
-  execution_hints_.Init(env->device().GetInfo());
+  execution_hints_.Init(gpu_info_);
 
   for (int i = 0; i < nodes_.size(); ++i) {
     uint64_t fingerprint = (*decoded_fb->fingerprints_per_node())[i];

@@ -85,7 +85,7 @@ absl::Status TestConvolutionPerformance(const Convolution2DAttributes& attr,
   if (precision == CalculationsPrecision::kF16 &&
       SupportsConvWaveMatrixMaliF16(gpu_info)) {
     conv = std::make_unique<ConvWaveMatrixMaliF16>(CreateConvWaveMatrixMaliF16(
-        op_def.src_tensors[0], op_def.dst_tensors[0], attr));
+        gpu_info, op_def.src_tensors[0], op_def.dst_tensors[0], attr));
   } else if (IsConvWaveMemorySupported(gpu_info)) {
     conv = std::make_unique<ConvWaveMemory>(
         CreateConvWaveMemory(gpu_info, op_def, precision, attr, &dst_shape));
@@ -672,6 +672,7 @@ absl::Status ConvolutionInt8PerfTest(const BHWC& src_shape, int dst_channels) {
                              dequant_dst, src_params_td, weights_sum_i_td,
                              weights_scale_td, &weights_zero_point_td);
     ABSL_RETURN_IF_ERROR(conv->AddOperation(gpu_info, &dequant_op));
+    dst_tensor_desc = dequant_dst;
   }
 
   Tensor src, dst;
@@ -1111,6 +1112,7 @@ absl::Status ConvolutionInt4PerfTest(const BHWC& src_shape, int dst_channels) {
     dst_shape = CalculateOutputShape(src_shape, attr);
   }
 
+  const bool dequantize = true;
   const auto precision = CalculationsPrecision::kF16;
   OperationDef op_def;
   auto quantized_type =
@@ -1151,52 +1153,62 @@ absl::Status ConvolutionInt4PerfTest(const BHWC& src_shape, int dst_channels) {
     return absl::InvalidArgumentError("no supported int4 conv");
   }
 
-  ml_drift::TensorFloat32 src_params;
-  src_params.shape = BHWC(src_shape.b, src_shape.h, src_shape.w, 3);
-  src_params.data.resize(src_params.shape.DimensionsProduct());
-  TensorDescriptor src_params_td{DataType::kFloat32, storage_type, layout};
-  src_params_td.UploadData(src_params);
+  TensorDescriptor src_params_td;
+  TensorDescriptor weights_scale_td;
+  TensorDescriptor weights_zero_point_td;
+  TensorDescriptor weights_sum_i_td;
+  if (dequantize) {
+    ml_drift::TensorFloat32 src_params;
+    src_params.shape = BHWC(src_shape.b, src_shape.h, src_shape.w, 3);
+    src_params.data.resize(src_params.shape.DimensionsProduct());
+    src_params_td = TensorDescriptor{DataType::kFloat32, storage_type, layout};
+    src_params_td.UploadData(src_params);
 
-  TensorDescriptor weights_scale_td = CreateConstantLinearTensorDescriptor(
-      gpu_info, DeduceDataTypeFromPrecision(precision), weights_scale);
-  TensorDescriptor weights_zero_point_td = CreateConstantLinearTensorDescriptor(
-      gpu_info, DeduceDataTypeFromPrecision(precision), weights_zero_point);
+    weights_scale_td = CreateConstantLinearTensorDescriptor(
+        gpu_info, DeduceDataTypeFromPrecision(precision), weights_scale);
+    weights_zero_point_td = CreateConstantLinearTensorDescriptor(
+        gpu_info, DeduceDataTypeFromPrecision(precision), weights_zero_point);
 
-  auto weights_sum_i = GetWeightsAccumulatedInputChannels(weights);
-  auto weights_sum_i_td =
-      CreateConstantLinearTensorDescriptor(gpu_info, weights_sum_i);
+    auto weights_sum_i = GetWeightsAccumulatedInputChannels(weights);
+    weights_sum_i_td =
+        CreateConstantLinearTensorDescriptor(gpu_info, weights_sum_i);
 
-  TensorDescriptor dequant_dst = {DeduceDataTypeFromPrecision(precision),
-                                  op_def.dst_tensors[0].GetStorageType(),
-                                  op_def.dst_tensors[0].GetLayout()};
-  auto dequant_op =
-      CreateDequantization(weights.shape, gpu_info, op_def.dst_tensors[0],
-                           dequant_dst, src_params_td, weights_sum_i_td,
-                           weights_scale_td, &weights_zero_point_td);
-  ABSL_RETURN_IF_ERROR(conv->AddOperation(gpu_info, &dequant_op));
+    TensorDescriptor dequant_dst = {DeduceDataTypeFromPrecision(precision),
+                                    op_def.dst_tensors[0].GetStorageType(),
+                                    op_def.dst_tensors[0].GetLayout()};
+    auto dequant_op =
+        CreateDequantization(weights.shape, gpu_info, op_def.dst_tensors[0],
+                             dequant_dst, src_params_td, weights_sum_i_td,
+                             weights_scale_td, &weights_zero_point_td);
+    ABSL_RETURN_IF_ERROR(conv->AddOperation(gpu_info, &dequant_op));
+    dst_tensor_desc = dequant_dst;
+  }
 
   Tensor src, dst;
   TensorDescriptor descriptor_with_shape = op_def.src_tensors[0];
   descriptor_with_shape.SetBHWCShape(src_packed_shape);
   ABSL_RETURN_IF_ERROR(
       CreateTensor(env.context(), descriptor_with_shape, &src));
-  descriptor_with_shape = dequant_dst;
+  descriptor_with_shape = dst_tensor_desc;
   descriptor_with_shape.SetBHWCShape(dst_shape);
   ABSL_RETURN_IF_ERROR(
       CreateTensor(env.context(), descriptor_with_shape, &dst));
 
   Tensor src_params_tensor;
-  ABSL_RETURN_IF_ERROR(
-      CreateTensor(env.context(), src_params_td, &src_params_tensor));
   Tensor weights_scale_tensor;
-  ABSL_RETURN_IF_ERROR(
-      CreateTensor(env.context(), weights_scale_td, &weights_scale_tensor));
   Tensor weights_zero_point_tensor;
-  ABSL_RETURN_IF_ERROR(CreateTensor(env.context(), weights_zero_point_td,
-                                    &weights_zero_point_tensor));
   Tensor weights_sum_i_tensor;
-  ABSL_RETURN_IF_ERROR(
-      CreateTensor(env.context(), weights_sum_i_td, &weights_sum_i_tensor));
+
+  if (dequantize) {
+    ABSL_RETURN_IF_ERROR(
+        CreateTensor(env.context(), src_params_td, &src_params_tensor));
+    ABSL_RETURN_IF_ERROR(
+        CreateTensor(env.context(), weights_scale_td, &weights_scale_tensor));
+    ABSL_RETURN_IF_ERROR(CreateTensor(env.context(), weights_zero_point_td,
+                                      &weights_zero_point_tensor));
+    ABSL_RETURN_IF_ERROR(
+        CreateTensor(env.context(), weights_sum_i_td, &weights_sum_i_tensor));
+  }
 
   const auto w_shape = weights.shape;
 
@@ -1207,14 +1219,20 @@ absl::Status ConvolutionInt4PerfTest(const BHWC& src_shape, int dst_channels) {
 
   ABSL_RETURN_IF_ERROR(conv->AssembleCode(gpu_info));
 
-  const int dst_element_size = SizeOf(dequant_dst.GetDataType());
+  const int dst_element_size = SizeOf(dst_tensor_desc.GetDataType());
   const int64_t flops_per_element = w_shape.i * w_shape.h * w_shape.w * 2;
   const int64_t dst_elements = dst.Width() * dst.Height() * dst.Channels();
   const int64_t flops_count = dst_elements * flops_per_element;
   const double gflops_count = flops_count * 1e-9;
 
   const double kGByte = 1024.0 * 1024.0 * 1024.0;
-  const double src_gbytes = src.GetMemorySizeInBytes() / kGByte;
+  double src_gbytes = src.GetMemorySizeInBytes() / kGByte;
+  if (dequantize) {
+    src_gbytes += src_params_tensor.GetMemorySizeInBytes() / kGByte;
+    src_gbytes += weights_sum_i_tensor.GetMemorySizeInBytes() / kGByte;
+    src_gbytes += weights_scale_tensor.GetMemorySizeInBytes() / kGByte;
+    src_gbytes += weights_zero_point_tensor.GetMemorySizeInBytes() / kGByte;
+  }
   const double dst_gbytes = dst.GetMemorySizeInBytes() / kGByte;
   const double weight_gbytes =
       weights.shape.DimensionsProduct() * sizeof(int8_t) / 2 / kGByte;
@@ -1227,10 +1245,12 @@ absl::Status ConvolutionInt4PerfTest(const BHWC& src_shape, int dst_channels) {
   ABSL_RETURN_IF_ERROR(
       cl_op.Compile(env.GetDevicePtr(), &env.context(), env.program_cache()));
   ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(0, &src));
-  ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(1, &src_params_tensor));
-  ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(2, &weights_sum_i_tensor));
-  ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(3, &weights_scale_tensor));
-  ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(4, &weights_zero_point_tensor));
+  if (dequantize) {
+    ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(1, &src_params_tensor));
+    ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(2, &weights_sum_i_tensor));
+    ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(3, &weights_scale_tensor));
+    ABSL_RETURN_IF_ERROR(cl_op.SetSrcTensor(4, &weights_zero_point_tensor));
+  }
   ABSL_RETURN_IF_ERROR(cl_op.SetDstTensor(0, &dst));
   ABSL_RETURN_IF_ERROR(cl_op.UpdateParams());
   ABSL_RETURN_IF_ERROR(cl_op.Tune(
