@@ -73,6 +73,7 @@ class GlInferenceContext {
   // absl::Status Profile(ProfilingCommandQueue* queue, ProfilingInfo* result);
   // for profiling and memory statistics
   uint64_t GetSizeOfMemoryAllocatedForIntermediateTensors() const;
+  const ProgramCache& program_cache() const { return program_cache_; }
 
   absl::Status SetInputTensor(ValueId id, const TensorFloat32& tensor);
 
