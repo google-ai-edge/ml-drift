@@ -14,6 +14,7 @@
 
 #include "ml_drift/common/kernels/fully_connected_util.h"
 
+#include <algorithm>
 #include <string>
 
 #include "absl/strings/str_replace.h"
@@ -26,6 +27,7 @@
 #include "ml_drift/common/task/gpu_operation.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/types.h"
+#include "ml_drift/common/util.h"
 
 namespace ml_drift {
 namespace fc {
@@ -546,7 +548,8 @@ bool UseFMA(const GpuInfo& gpu_info) {
          (gpu_info.IsMaleoon() && gpu_info.IsApiOpenCl());
 }
 
-BHWC GetBlockSize(const BHWC* dst_shape_ptr, bool batched_weights) {
+BHWC GetBlockSize(const BHWC* dst_shape_ptr, bool batched_weights,
+                  int max_total_spatial_size) {
   if (!dst_shape_ptr) {
     return BHWC(1, 1, 1, 1);
   }
@@ -554,6 +557,23 @@ BHWC GetBlockSize(const BHWC* dst_shape_ptr, bool batched_weights) {
   block_size.c = 1;
   if (batched_weights) {
     block_size.h = 1;
+  }
+  if (max_total_spatial_size > 0) {
+    if (block_size.w > max_total_spatial_size) {
+      const int w_groups = DivideRoundUp(block_size.w, max_total_spatial_size);
+      block_size.w = DivideRoundUp(block_size.w, w_groups);
+    }
+    const int max_hb = std::max(1, max_total_spatial_size / block_size.w);
+    if (!batched_weights && block_size.h > max_hb) {
+      const int h_groups = DivideRoundUp(block_size.h, max_hb);
+      block_size.h = DivideRoundUp(block_size.h, h_groups);
+    }
+    const int max_b =
+        std::max(1, max_total_spatial_size / (block_size.h * block_size.w));
+    if (block_size.b > max_b) {
+      const int b_groups = DivideRoundUp(block_size.b, max_b);
+      block_size.b = DivideRoundUp(block_size.b, b_groups);
+    }
   }
   return block_size;
 }

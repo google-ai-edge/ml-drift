@@ -175,8 +175,10 @@ TEST_P(FullyConnectedFloatTest, FullyConnectedInt8Width2Batch2BigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  ABSL_ASSERT_OK(FullyConnectedInt8BigTest(*exec_env, precision(), storage(),
-                                      BHWC(2, 1, 2, 171)));
+  for (int batch_size : {2, 10, 20}) {
+    ABSL_ASSERT_OK(FullyConnectedInt8BigTest(*exec_env, precision(), storage(),
+                                        BHWC(batch_size, 1, 2, 171)));
+  }
 }
 
 TEST_P(FullyConnectedFloatTest, FullyConnectedInt8GroupedQuantizationBigTest) {

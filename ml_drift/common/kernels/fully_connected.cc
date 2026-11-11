@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/log/absl_check.h"
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
 #include "absl/status/statusor.h"
@@ -115,6 +116,25 @@ int3 RebalanceWorkGroupSize(int x_size, int y_size, int wg_total_size,
   return int3(x_size, y_size, 1);
 }
 
+int GetSpatialGroupsCount(const BHWC& dst_shape, const BHWC& block_size,
+                          bool batched_weights) {
+  const int b_groups = DivideRoundUp(dst_shape.b, block_size.b);
+  const int w_groups = DivideRoundUp(dst_shape.w, block_size.w);
+  // if batched_weights, H mapped to dim2, see w_batch_size in GetGridSize
+  const int h_groups =
+      batched_weights ? 1 : DivideRoundUp(dst_shape.h, block_size.h);
+  return b_groups * h_groups * w_groups;
+}
+
+bool HasSpatialGroups(const BHWC* dst_shape_ptr, const BHWC& block_size,
+                      bool batched_weights) {
+  if (!dst_shape_ptr) {
+    return false;
+  }
+  return block_size.b < dst_shape_ptr->b || block_size.w < dst_shape_ptr->w ||
+         (!batched_weights && block_size.h < dst_shape_ptr->h);
+}
+
 int3 GetWorkGroupSize(const FullyConnected::ConvParams& params,
                       const GpuInfo& gpu_info, const OHWI& weights_shape) {
   const bool is_quantized = fc::IsQuantized(params.weights_type);
@@ -131,6 +151,10 @@ int3 GetWorkGroupSize(const FullyConnected::ConvParams& params,
   } else if (params.batched_weights) {
     groups_count =
         params.runtime_batch_ids ? params.runtime_batch_ids : weights_shape.h;
+  }
+  if (params.spatial_groups && params.dst_shape.has_value()) {
+    groups_count *= GetSpatialGroupsCount(*params.dst_shape, params.block_size,
+                                          params.batched_weights);
   }
   const int total_task_size = dst_slices * groups_count;
   if (gpu_info.IsApple() && gpu_info.IsApiMetal()) {
@@ -945,16 +969,10 @@ int3 FullyConnected::GetGridSize() const {
                       conv_params_.block_size.w);
     w_batch_size = conv_params_.runtime_check.packed_groups->num_groups;
   } else if (conv_params_.spatial_groups) {
-    const int b_groups =
-        DivideRoundUp(dst_[0]->Batch(), conv_params_.block_size.b);
-    const int w_groups =
-        DivideRoundUp(dst_[0]->Width(), conv_params_.block_size.w);
-    // if batched_weights, H mapped to dim2, see w_batch_size above
-    const int h_groups =
-        conv_params_.batched_weights
-            ? 1
-            : DivideRoundUp(dst_[0]->Height(), conv_params_.block_size.h);
-    spatial_groups = b_groups * h_groups * w_groups;
+    spatial_groups = GetSpatialGroupsCount(
+        BHWC(dst_[0]->Batch(), dst_[0]->Height(), dst_[0]->Width(),
+             dst_[0]->Channels()),
+        conv_params_.block_size, conv_params_.batched_weights);
   }
   return int3(dst_[0]->Slices(), work_group_size_.y * spatial_groups,
               w_batch_size);
@@ -985,8 +1003,11 @@ bool IsFullyConnectedRecommended(const GpuInfo& gpu_info,
   if (weights_shape.h == 1) {
     total_spatial_size *= dst_shape.h;
   }
-  return total_spatial_size <=
-         GetRecommendedMaxTotalSpatialSize(gpu_info, precision);
+  const int max_spatial_size =
+      GetRecommendedMaxTotalSpatialSize(gpu_info, precision);
+  const int max_spatial_groups =
+      (gpu_info.IsAMD() && weights_shape.i >= 64) ? 40 : 1;
+  return total_spatial_size <= max_spatial_size * max_spatial_groups;
 }
 
 absl::StatusOr<FullyConnected> CreateFullyConnectedWeightsAreSpatialTensor(
@@ -1008,8 +1029,12 @@ absl::StatusOr<FullyConnected> CreateFullyConnectedWeightsAreSpatialTensor(
   if (dst_shape_ptr) {
     conv_params.dst_shape = *dst_shape_ptr;
   }
+  ABSL_CHECK(!runtime_check.packed_groups.has_value());
   conv_params.block_size =
-      fc::GetBlockSize(dst_shape_ptr, conv_params.batched_weights);
+      fc::GetBlockSize(dst_shape_ptr, conv_params.batched_weights,
+                       GetRecommendedMaxTotalSpatialSize(gpu_info, precision));
+  conv_params.spatial_groups = HasSpatialGroups(
+      dst_shape_ptr, conv_params.block_size, conv_params.batched_weights);
   WeightsDescription weights_desc;
   weights_desc.type = definition.src_tensors[1].GetDataType();
   weights_desc.layout = WeightsLayout::kUnknown;  // Using Spatial tensor as
@@ -1104,8 +1129,6 @@ absl::StatusOr<FullyConnected> CreateFullyConnectedExternalWeights(
   if (dst_shape_ptr) {
     conv_params.dst_shape = *dst_shape_ptr;
   }
-  conv_params.block_size =
-      fc::GetBlockSize(dst_shape_ptr, conv_params.batched_weights);
   if (runtime_check.packed_groups.has_value()) {
     conv_params.block_size = BHWC(1, 1, 1, 1);
     conv_params.block_size.w = 4;
@@ -1117,6 +1140,12 @@ absl::StatusOr<FullyConnected> CreateFullyConnectedExternalWeights(
       conv_params.block_size.w = std::min(max_tile, average_task_size);
     }
     conv_params.wg_size = int3(64, 1, 1);
+  } else {
+    conv_params.block_size = fc::GetBlockSize(
+        dst_shape_ptr, conv_params.batched_weights,
+        GetRecommendedMaxTotalSpatialSize(gpu_info, precision));
+    conv_params.spatial_groups = HasSpatialGroups(
+        dst_shape_ptr, conv_params.block_size, conv_params.batched_weights);
   }
   if (wg_size) {
     conv_params.wg_size = *wg_size;
@@ -1164,7 +1193,10 @@ absl::StatusOr<FullyConnected> CreateFullyConnectedWeightsBatchIds(
     conv_params.dst_shape = *dst_shape_ptr;
   }
   conv_params.block_size =
-      fc::GetBlockSize(dst_shape_ptr, conv_params.batched_weights);
+      fc::GetBlockSize(dst_shape_ptr, conv_params.batched_weights,
+                       GetRecommendedMaxTotalSpatialSize(gpu_info, precision));
+  conv_params.spatial_groups = HasSpatialGroups(
+      dst_shape_ptr, conv_params.block_size, conv_params.batched_weights);
 
   FullyConnected result(src, dst, precision, gpu_info, weights_shape,
                         weights_desc, conv_params);
@@ -1252,7 +1284,10 @@ FullyConnected CreateFullyConnectedInt4Sparse2x4(
     conv_params.dst_shape = *dst_shape_ptr;
   }
   conv_params.block_size =
-      fc::GetBlockSize(dst_shape_ptr, conv_params.batched_weights);
+      fc::GetBlockSize(dst_shape_ptr, conv_params.batched_weights,
+                       GetRecommendedMaxTotalSpatialSize(gpu_info, precision));
+  conv_params.spatial_groups = HasSpatialGroups(
+      dst_shape_ptr, conv_params.block_size, conv_params.batched_weights);
   if (wg_size) {
     conv_params.wg_size = *wg_size;
   }

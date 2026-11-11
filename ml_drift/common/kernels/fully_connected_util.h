@@ -97,7 +97,8 @@ void AddSparseWeightsArguments(const ExternalWeights& weights, int vec_size,
 int3 GetBlockSpatialCoords(int linear_spatial, const BHWC& shape);
 DataType GetDataTypeForWeights(DataType weights_type);
 bool UseFMA(const GpuInfo& gpu_info);
-BHWC GetBlockSize(const BHWC* dst_shape_ptr, bool batched_weights);
+BHWC GetBlockSize(const BHWC* dst_shape_ptr, bool batched_weights,
+                  int max_total_spatial_size = 0);
 
 }  // namespace fc
 }  // namespace ml_drift
