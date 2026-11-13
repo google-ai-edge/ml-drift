@@ -18,6 +18,7 @@ objc_library(
         "//ml_drift/common/task:buffer_desc",
         "//third_party/apple_frameworks:Metal",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:span",
     ],
 )
@@ -29,8 +30,11 @@ objc_library(
     deps = [
         ":buffer",
         "//ml_drift/common:types",
+        "//ml_drift/common/task:buffer_desc",
         "//third_party/apple_frameworks:Metal",
         "//third_party/apple_frameworks:XCTest",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/types:span",
     ],
 )
 
@@ -364,6 +368,7 @@ objc_library(
         "//ml_drift/common:shape",
         "//ml_drift/common:tensor",
         "//ml_drift/common:types",
+        "//ml_drift/common/task:buffer_desc",
         "//ml_drift/common/task:tensor_desc",
         "//ml_drift/common/task:weights_layout",
         "//ml_drift/metal/testing:test_util",
@@ -372,6 +377,7 @@ objc_library(
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:status_macros",
+        "@com_google_absl//absl/types:span",
     ],
 )
 
