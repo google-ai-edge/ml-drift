@@ -1006,7 +1006,7 @@ bool IsFullyConnectedRecommended(const GpuInfo& gpu_info,
   const int max_spatial_size =
       GetRecommendedMaxTotalSpatialSize(gpu_info, precision);
   const int max_spatial_groups =
-      (gpu_info.IsAMD() && weights_shape.i >= 64) ? 40 : 1;
+      (gpu_info.IsAMD() && dst_shape.b > 1 && weights_shape.i >= 64) ? 40 : 1;
   return total_spatial_size <= max_spatial_size * max_spatial_groups;
 }
 
