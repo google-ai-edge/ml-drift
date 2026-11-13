@@ -101,7 +101,6 @@ std::string GetCommonOpenGLDefines() {
 }
 
 std::string GetGlslVersion(const GpuInfo& gpu_info) {
-  std::string glsl_version;
   if (gpu_info.opengl_info.IsApiOpenGl32OrAbove()) {
     return "#version 320 es";
   } else {
