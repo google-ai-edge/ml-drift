@@ -157,6 +157,28 @@ ExternalWeights ToExternalWeights(const GpuModelBuilder::Weights& weights) {
   return external_weights;
 }
 
+// Returns the ResourceExhaustedError that CanCreateTensorWithShape() reports
+// for `tensor_desc` if it is stored in a buffer, and OK otherwise.
+//
+// Constant tensors added from a ready-made descriptor get only this check.
+// Their storage and data type were chosen by the caller and have never been
+// validated here, and the byte size limits in GpuInfo are buffer limits, which
+// do not bound texture storage on every backend.
+absl::Status CheckBufferSizeLimits(const GpuInfo& gpu_info,
+                                   const TensorDescriptor& tensor_desc) {
+  const TensorStorageType storage_type = tensor_desc.GetStorageType();
+  if (storage_type != TensorStorageType::kBuffer &&
+      storage_type != TensorStorageType::kImageBuffer) {
+    return absl::OkStatus();
+  }
+  absl::Status status = tensor_desc.CanCreateTensorWithShape(
+      gpu_info, tensor_desc.GetBHWDCShape());
+  if (!absl::IsResourceExhausted(status)) {
+    return absl::OkStatus();
+  }
+  return status;
+}
+
 }  // namespace
 
 GpuModelBuilder GpuModelBuilder::CreateBuilder() const {
@@ -188,14 +210,23 @@ std::vector<GpuModelBuilder::TensorHandle> GpuModelBuilder::AddTensors(
   return dsts;
 }
 
+void GpuModelBuilder::RecordStatus(absl::Status status) {
+  // Default-constructed synthetic GpuInfo structs in unit tests leave resource
+  // limits at 0; real initialized devices always populate positive limits.
+  if (status_.ok() && !status.ok() && gpu_info_.GetMaxBufferSize() > 0 &&
+      gpu_info_.GetMaxMemoryAllocationSize() > 0) {
+    status_ = std::move(status);
+  }
+}
+
 GpuModelBuilder::TensorHandle GpuModelBuilder::AddTensor(
     int b, int h, int w, int c, TensorStorageType storage_type,
     DataType data_type) {
   Layout layout = b == 1 ? Layout::kHWC : Layout::kBHWC;
   TensorDescriptor tensor_desc =
       TensorDescriptor{data_type, storage_type, layout};
-  auto status =
-      tensor_desc.UpdateToSupportedStorageType(gpu_info_, BHWC(b, h, w, c));
+  RecordStatus(
+      tensor_desc.UpdateToSupportedStorageType(gpu_info_, BHWC(b, h, w, c)));
   tensor_desc.SetBHWCShape(BHWC(b, h, w, c));
   return AddTensor(tensor_desc);
 }
@@ -229,8 +260,8 @@ GpuModelBuilder::TensorHandle GpuModelBuilder::AddTensor(
   }
   TensorDescriptor tensor_desc =
       TensorDescriptor{data_type, storage_type, layout};
-  auto status =
-      tensor_desc.UpdateToSupportedStorageType(gpu_info_, BHWDC(b, h, w, d, c));
+  RecordStatus(tensor_desc.UpdateToSupportedStorageType(gpu_info_,
+                                                        BHWDC(b, h, w, d, c)));
   tensor_desc.SetBHWDCShape(BHWDC(b, h, w, d, c));
   return AddTensor(tensor_desc);
 }
@@ -252,13 +283,14 @@ GpuModelBuilder::TensorHandle GpuModelBuilder::AddLinearTensor(
   TensorDescriptor tensor_desc =
       TensorDescriptor{data_type, default_storage_, Layout::kLinear};
   BHWC shape = BHWC(1, 1, 1, x);
-  auto status = tensor_desc.UpdateToSupportedStorageType(gpu_info_, shape);
+  RecordStatus(tensor_desc.UpdateToSupportedStorageType(gpu_info_, shape));
   tensor_desc.SetBHWCShape(shape);
   return AddTensor(tensor_desc);
 }
 
 GpuModelBuilder::TensorHandle GpuModelBuilder::AddConstantTensor(
     TensorDescriptor&& tensor_desc) {
+  RecordStatus(CheckBufferSizeLimits(gpu_info_, tensor_desc));
   gpu_model_.const_tensors[id_counter_] = std::move(tensor_desc);
   GpuModelBuilder::TensorHandle tensor_handle;
   tensor_handle.id = id_counter_;
@@ -272,6 +304,8 @@ GpuModelBuilder::TensorHandle GpuModelBuilder::AddConstantTensor(
     const Tensor<Linear, DataType::kFloat32>& tensor, DataType data_type) {
   TensorDescriptor tensor_desc =
       CreateConstantLinearTensorDescriptor(gpu_info_, data_type, tensor);
+  RecordStatus(tensor_desc.CanCreateTensorWithShape(
+      gpu_info_, tensor_desc.GetBHWDCShape()));
   return AddConstantTensor(std::move(tensor_desc));
 }
 
@@ -280,8 +314,8 @@ GpuModelBuilder::TensorHandle GpuModelBuilder::AddConstantTensor(
   Layout layout = tensor.shape.b == 1 ? Layout::kHWC : Layout::kBHWC;
   TensorDescriptor tensor_desc =
       TensorDescriptor{data_type, default_storage_, layout};
-  auto status =
-      tensor_desc.UpdateToSupportedStorageType(gpu_info_, tensor.shape);
+  RecordStatus(
+      tensor_desc.UpdateToSupportedStorageType(gpu_info_, tensor.shape));
   tensor_desc.UploadData(tensor);
   return AddConstantTensor(std::move(tensor_desc));
 }
@@ -3981,6 +4015,7 @@ absl::Status GpuModelBuilder::GetGpuModel(
     const std::vector<std::pair<ValueId, ValueId>>& input_ids_and_refs,
     const std::vector<std::pair<ValueId, ValueId>>& output_ids_and_refs,
     GpuModel* gpu_model) {
+  ABSL_RETURN_IF_ERROR(status_);
   gpu_model_.input_ids_and_refs = input_ids_and_refs;
   gpu_model_.output_ids_and_refs = output_ids_and_refs;
   ABSL_RETURN_IF_ERROR(MergeNodes(gpu_info_, &gpu_model_));
@@ -4042,15 +4077,15 @@ GPUOperation GpuModelBuilder::CreateNormalize(
   const DataType float_type = src.tensor_desc.GetDataType();
   TensorDescriptor gamma_tensor_desc =
       TensorDescriptor(float_type, default_storage_, Layout::kHWC);
-  auto status =
-      gamma_tensor_desc.UpdateToSupportedStorageType(gpu_info_, shape);
+  RecordStatus(
+      gamma_tensor_desc.UpdateToSupportedStorageType(gpu_info_, shape));
   gamma_tensor_desc.UploadData(gamma);
   op.args_.AddObject("gamma", std::make_unique<TensorDescriptor>(
                                   std::move(gamma_tensor_desc)));
 
   TensorDescriptor beta_tensor_desc =
       TensorDescriptor(float_type, default_storage_, Layout::kHWC);
-  status = beta_tensor_desc.UpdateToSupportedStorageType(gpu_info_, shape);
+  RecordStatus(beta_tensor_desc.UpdateToSupportedStorageType(gpu_info_, shape));
   beta_tensor_desc.UploadData(beta);
   op.args_.AddObject(
       "beta", std::make_unique<TensorDescriptor>(std::move(beta_tensor_desc)));
@@ -4322,6 +4357,7 @@ absl::Status GpuModelBuilder::RegisterSubgraph(
     GpuModelBuilder subgraph_builder, const std::string& subgraph_id,
     const std::vector<TensorHandle>& inputs,
     const std::vector<TensorHandle>& outputs) {
+  ABSL_RETURN_IF_ERROR(subgraph_builder.status_);
   std::vector<ValueId> input_ids;
   input_ids.reserve(inputs.size());
   for (const auto& input : inputs) {
@@ -4772,9 +4808,11 @@ GpuModelBuilder::AppendOp(std::string_view op_name,
   std::vector<TensorHandle> outputs;
   size_t initial_nodes = this->gpu_model_.nodes.size();
   uint64_t initial_tensors = this->id_counter_;
+  absl::Status initial_status = this->status_;
 
   absl::Status status = op->InvokeBuild(*this, inputs, attrs, outputs);
   if (!status.ok()) {
+    this->status_ = std::move(initial_status);
     this->gpu_model_.nodes.resize(initial_nodes);
     for (uint64_t i = initial_tensors; i < id_counter_; ++i) {
       this->gpu_model_.tensors.erase(i);

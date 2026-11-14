@@ -17,6 +17,7 @@
 #include <cstdint>
 #include <utility>
 #include <variant>
+#include <vector>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -25,6 +26,7 @@
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/gpu_model.h"
+#include "ml_drift/common/gpu_model_builder.h"
 #include "ml_drift/common/model.h"
 #include "ml_drift/common/model_hints.h"
 #include "ml_drift/common/operations.h"
@@ -641,6 +643,103 @@ TEST(GpuModelUtilTest, FullyConnectedInt4PacksInt8WeightsIntoTexture) {
   EXPECT_EQ(weights.GetStorageType(), TensorStorageType::kTexture2D);
   EXPECT_THAT(weights.GetData(),
               ElementsAreArray(kPackedFullyConnectedInt4Weights));
+}
+
+TEST(GpuModelUtilTest,
+     GpuModelBuilderAddTensorExceedingMaxBufferSizeReturnsResourceExhausted) {
+  GpuInfo gpu_info = GetTestGpuInfo();
+  gpu_info.opencl_info.buffer_max_size = 1 * 1024 * 1024;
+  gpu_info.opencl_info.max_allocation_size = 1 * 1024 * 1024;
+
+  {
+    GpuModelBuilder builder(gpu_info,
+                            {.storage = TensorStorageType::kBuffer});
+    auto in = builder.AddTensor(/*b=*/1, /*h=*/1, /*w=*/1024, /*c=*/512,
+                                TensorStorageType::kBuffer, DataType::kFloat32);
+    auto out = builder.Add(in, 1.0f);
+    GpuModel gpu_model;
+    EXPECT_THAT(
+        builder.GetGpuModel(std::vector<ValueId>{in.id},
+                            std::vector<ValueId>{out.id}, &gpu_model),
+        ::absl_testing::StatusIs(absl::StatusCode::kResourceExhausted));
+  }
+
+  {
+    GpuModelBuilder builder(gpu_info,
+                            {.storage = TensorStorageType::kBuffer});
+    auto in = builder.AddLinearTensor(/*x=*/512 * 1024, DataType::kFloat32);
+    GpuModel gpu_model;
+    EXPECT_THAT(
+        builder.GetGpuModel(std::vector<ValueId>{in.id},
+                            std::vector<ValueId>{in.id}, &gpu_model),
+        ::absl_testing::StatusIs(absl::StatusCode::kResourceExhausted));
+  }
+}
+
+TEST(GpuModelUtilTest,
+     GpuModelBuilderRegisterSubgraphPropagatesResourceExhausted) {
+  GpuInfo gpu_info = GetTestGpuInfo();
+  gpu_info.opencl_info.buffer_max_size = 1 * 1024 * 1024;
+  gpu_info.opencl_info.max_allocation_size = 1 * 1024 * 1024;
+
+  GpuModelBuilder builder(gpu_info, {.storage = TensorStorageType::kBuffer});
+  GpuModelBuilder subgraph_builder = builder.CreateBuilder();
+  subgraph_builder.AddTensor(/*b=*/1, /*h=*/1, /*w=*/1024, /*c=*/512,
+                             TensorStorageType::kBuffer, DataType::kFloat32);
+  EXPECT_THAT(
+      builder.RegisterSubgraph(std::move(subgraph_builder), "oversized_sub",
+                               /*inputs=*/{}, /*outputs=*/{}),
+      ::absl_testing::StatusIs(absl::StatusCode::kResourceExhausted));
+}
+
+TEST(GpuModelUtilTest,
+     GpuModelBuilderConstantExceedingMaxBufferSizeReturnsResourceExhausted) {
+  GpuInfo gpu_info = GetTestGpuInfo();
+  gpu_info.opencl_info.buffer_max_size = 1 * 1024 * 1024;
+  gpu_info.opencl_info.max_allocation_size = 1 * 1024 * 1024;
+
+  TensorDescriptor desc(DataType::kFloat32, TensorStorageType::kBuffer,
+                        Layout::kLinear);
+  desc.SetBHWCShape(BHWC(1, 1, 1, 512 * 1024));  // 2 MiB
+  GpuModelBuilder builder(gpu_info, {.storage = TensorStorageType::kBuffer});
+  auto weights = builder.AddConstantTensor(std::move(desc));
+  GpuModel gpu_model;
+  EXPECT_THAT(
+      builder.GetGpuModel(std::vector<ValueId>{weights.id},
+                          std::vector<ValueId>{weights.id}, &gpu_model),
+      ::absl_testing::StatusIs(absl::StatusCode::kResourceExhausted));
+}
+
+TEST(GpuModelUtilTest,
+     GraphToGpuModelExceedingMaxBufferSizeReturnsResourceExhausted) {
+  GraphFloat32 graph;
+  Value* input = graph.NewValue();
+  input->tensor.type = DataType::kFloat32;
+  input->tensor.shape = BHWC(1, 1, 1024, 512);  // 2 MiB
+
+  Node* add_node = graph.NewNode();
+  add_node->operation.type = ToString(OperationType::kAdd);
+  ElementwiseAttributes add_attr;
+  add_attr.param = 1.0f;
+  add_node->operation.attributes = add_attr;
+  graph.AddConsumer(add_node->id, input->id);
+  Value* output = graph.NewValue();
+  output->tensor.type = DataType::kFloat32;
+  output->tensor.shape = BHWC(1, 1, 1024, 512);
+  graph.SetProducer(add_node->id, output->id);
+
+  CreateGpuModelInfo create_info;
+  create_info.precision = CalculationsPrecision::kF32;
+  create_info.storage_type = TensorStorageType::kBuffer;
+
+  GpuInfo gpu_info = GetTestGpuInfo();
+  gpu_info.opencl_info.buffer_max_size = 1 * 1024 * 1024;
+  gpu_info.opencl_info.max_allocation_size = 1 * 1024 * 1024;
+
+  GpuModel gpu_model;
+  EXPECT_THAT(
+      GraphToGpuModel(graph, create_info, gpu_info, &gpu_model),
+      ::absl_testing::StatusIs(absl::StatusCode::kResourceExhausted));
 }
 
 }  // namespace

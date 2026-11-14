@@ -663,12 +663,15 @@ class GpuModelBuilder {
   absl::StatusOr<std::pair<int, int>> GetNodeAndIndexByOutputId(
       ValueId output_id) const;
 
+  void RecordStatus(absl::Status status);
+
   bool use_f32_accum_for_f16_convolutions_ = false;
   GpuInfo gpu_info_;
   ModelHints hints_;
   TensorStorageType default_storage_;
   GpuModel gpu_model_;
   uint64_t id_counter_ = 0;
+  absl::Status status_;
   std::shared_ptr<WeightsManager> weights_manager_ = nullptr;
 
   struct SharedWeights {

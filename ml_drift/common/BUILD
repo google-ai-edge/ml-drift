@@ -284,6 +284,7 @@ cc_test(
         ":data_type",
         ":gpu_info",
         ":gpu_model",
+        ":gpu_model_builder",
         ":gpu_model_util",
         ":model",
         ":model_hints",
