@@ -245,5 +245,45 @@ TEST(TensorDescriptorTest, GetAddressFailedDueToMissingChannelsCoord) {
                HasSubstr("Unable to parse sc coord for Channels axis.")));
 }
 
+TEST(TensorDescriptorTest, GetMemorySizeInBytesHandlesLargeShapesOver2GiB) {
+  // E4B attention scores at 131072 context length:
+  // B=1, H=1024, W=131072, C=8 (slices=2), F16 (8 bytes/slice) -> 2 GiB exact.
+  TensorDescriptor attn_scores_f16(DataType::kFloat16,
+                                   TensorStorageType::kBuffer, Layout::kBHWC);
+  attn_scores_f16.SetBHWCShape(BHWC(1, 1024, 131072, 8));
+  EXPECT_EQ(attn_scores_f16.GetMemorySizeInBytes(), uint64_t{2} << 30);
+
+  // Slice count = 32768 * 131072 * 1 = 4,294,967,296 (exceeds 32-bit int max).
+  TensorDescriptor huge_bhwc(DataType::kFloat16, TensorStorageType::kBuffer,
+                             Layout::kBHWC);
+  huge_bhwc.SetBHWCShape(BHWC(1, 32768, 131072, 4));
+  EXPECT_EQ(huge_bhwc.GetMemorySizeInBytes(), uint64_t{32} << 30);
+
+  // Layout::kHW where w * h = 65536 * 65536 = 2^32 (exceeds 32-bit int max).
+  TensorDescriptor huge_hw(DataType::kFloat16, TensorStorageType::kBuffer,
+                           Layout::kHW);
+  huge_hw.SetBHWCShape(BHWC(1, 65536, 65536, 1));
+  EXPECT_EQ(huge_hw.GetMemorySizeInBytes(), uint64_t{32} << 30);
+
+  // Texture2D where w * h * d * b = 65536 * 65536 = 2^32.
+  TensorDescriptor huge_tex2d(DataType::kFloat16, TensorStorageType::kTexture2D,
+                              Layout::kBHWC);
+  huge_tex2d.SetBHWCShape(BHWC(1, 65536, 65536, 4));
+  EXPECT_EQ(huge_tex2d.GetMemorySizeInBytes(), uint64_t{32} << 30);
+
+  // GetSizeInBytesForShape must also return 64-bit byte counts above 4 GiB so
+  // CanCreateTensorWithShape does not wrap on 32-bit platforms.
+  EXPECT_EQ(huge_bhwc.GetSizeInBytesForShape(BHWDC(1, 32768, 131072, 1, 4)),
+            uint64_t{32} << 30);
+
+  GpuInfo gpu_info;
+  gpu_info.gpu_api = GpuApi::kOpenCl;
+  gpu_info.opencl_info.max_allocation_size = uint64_t{4} << 30;
+  gpu_info.opencl_info.buffer_max_size = uint64_t{4} << 30;
+  EXPECT_THAT(huge_bhwc.CanCreateTensorWithShape(gpu_info,
+                                                 BHWC(1, 32768, 131072, 4)),
+              StatusIs(absl::StatusCode::kResourceExhausted));
+}
+
 }  // namespace
 }  // namespace ml_drift
