@@ -57,7 +57,32 @@ cc_library(
         "//ml_drift/common/task:buffer_desc",
         "//ml_drift/common/task:gpu_object_desc",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:span",
+    ],
+)
+
+cc_test(
+    name = "buffer_test",
+    srcs = ["buffer_test.cc"],
+    deps = [
+        ":buffer",
+        ":environment",
+        ":gpu_object",
+        ":memory_manager",
+        ":spatial_tensor",
+        ":webgpu_headers",
+        "//ml_drift/common:data_type",
+        "//ml_drift/common:gpu_model",
+        "//ml_drift/common:model",
+        "//ml_drift/common:shape",
+        "//ml_drift/common/task:buffer_desc",
+        "//ml_drift/common/task:tensor_desc",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_matchers",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/types:span",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 

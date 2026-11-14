@@ -14,6 +14,7 @@
 
 #include "ml_drift/webgpu/environment.h"
 
+#include <atomic>
 #include <cstddef>
 #include <string>
 #include <string_view>
@@ -49,20 +50,23 @@ void PrintDeviceError(const wgpu::Device& device, wgpu::ErrorType error,
   if (error == wgpu::ErrorType::NoError) {
     return;
   }
-  device_unhandled_errors->total_count++;
+  device_unhandled_errors->total_count.fetch_add(1, std::memory_order_relaxed);
   switch (error) {
     case wgpu::ErrorType::Validation:
       Environment::OnError(
           absl::StrCat("Validation error: ", std::string_view(msg)));
       return;
     case wgpu::ErrorType::OutOfMemory:
+      device_unhandled_errors->out_of_memory_count.fetch_add(
+          1, std::memory_order_relaxed);
       Environment::OnError(
           absl::StrCat("Out of memory: ", std::string_view(msg)));
       return;
     case wgpu::ErrorType::Internal: {
       auto string_view = std::string_view(msg);
       if (absl::StrContains(string_view, "CreateComputePipelines failed")) {
-        device_unhandled_errors->create_compute_pipeline_count++;
+        device_unhandled_errors->create_compute_pipeline_count.fetch_add(
+            1, std::memory_order_relaxed);
       }
       Environment::OnError(
           absl::StrCat("Internal error: ", string_view));
