@@ -39,10 +39,14 @@
 #include "ml_drift/webgpu/gpu_object.h"
 #include "ml_drift/webgpu/webgpu_api_util.h"
 #include "ml_drift/webgpu/webgpu_headers.h"
+#if defined(ML_DRIFT_DAWN_NATIVE)
+#include "dawn/native/DawnNative.h"
+#endif  // defined(ML_DRIFT_DAWN_NATIVE)
 
 namespace ml_drift {
 namespace webgpu {
 namespace {
+
 bool HasStorageSupport(DataType data_type, int channels_count) {
   if (channels_count == 4) {
     return true;
@@ -283,6 +287,10 @@ absl::Status WriteDataToBufferViaStagingBuffer(const Environment& env,
       }
       memcpy(aligned_data.get(), data_ptr, data_size);
       host_mapped_desc.pointer = aligned_data.get();
+      host_mapped_desc.disposeCallback = [](void* userdata) {
+        std::free(userdata);
+      };
+      host_mapped_desc.userdata = aligned_data.get();
     }
     wgpu::BufferDescriptor buffer_desc = {
         .nextInChain = &host_mapped_desc,
@@ -294,6 +302,19 @@ absl::Status WriteDataToBufferViaStagingBuffer(const Environment& env,
       return absl::ResourceExhaustedError(
           absl::StrCat("Failed to create host-mapped WebGPU staging buffer of ",
                        aligned_data_size, " bytes."));
+    }
+#if defined(ML_DRIFT_DAWN_NATIVE)
+    if (dawn::native::IsErrorBuffer(staging_buffer.Get())) {
+      return absl::ResourceExhaustedError(
+          absl::StrCat("Failed to create host-mapped WebGPU staging buffer of ",
+                       aligned_data_size, " bytes."));
+    }
+#endif  // defined(ML_DRIFT_DAWN_NATIVE)
+    if (aligned_data) {
+      // Dawn may defer releasing imported Vulkan memory after Destroy().
+      // Transfer ownership to its dispose callback instead of freeing the
+      // pointer when this function returns.
+      aligned_data.release();
     }
   } else {
 #else
@@ -555,8 +576,7 @@ absl::Status CreateTensor(const wgpu::Device& device,
   return absl::OkStatus();
 }
 
-absl::Status CreateSharedTensor(const wgpu::Buffer& buffer,
-                                size_t offset,
+absl::Status CreateSharedTensor(const wgpu::Buffer& buffer, size_t offset,
                                 const TensorDescriptor& descriptor,
                                 SpatialTensor* result) {
   SpatialTensor::SpatialTensorCreateInfo create_info;
