@@ -15,9 +15,14 @@
 // testing function from unnamed namespace
 #include "ml_drift/cl/util.h"
 
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/status_matchers.h"
+#include "absl/status/status.h"
+#include "absl/status/status_matchers.h"
+#include "ml_drift/cl/cl_errors.h"
 #include "ml_drift/common/gpu_info.h"
+#include <CL/cl.h>
 namespace ml_drift {
 namespace cl {
 
@@ -67,6 +72,35 @@ TEST(QualcommOpenClCompilerVersionParsing, WrongFormat4) {
   EXPECT_EQ(result.major, 0);
   EXPECT_EQ(result.minor, 0);
   EXPECT_EQ(result.patch, 0);
+}
+
+TEST(OpenCLResourceExhaustedTest, AllocationErrorMapsExhaustionCodes) {
+  using ::absl_testing::StatusIs;
+  EXPECT_THAT(OpenCLAllocationError(CL_MEM_OBJECT_ALLOCATION_FAILURE, "alloc"),
+              StatusIs(absl::StatusCode::kResourceExhausted));
+  EXPECT_THAT(OpenCLAllocationError(CL_OUT_OF_RESOURCES, "resources"),
+              StatusIs(absl::StatusCode::kResourceExhausted));
+  EXPECT_THAT(OpenCLAllocationError(CL_OUT_OF_HOST_MEMORY, "host"),
+              StatusIs(absl::StatusCode::kResourceExhausted));
+  EXPECT_THAT(OpenCLAllocationError(CL_INVALID_BUFFER_SIZE, "buf"),
+              StatusIs(absl::StatusCode::kResourceExhausted));
+  EXPECT_THAT(OpenCLAllocationError(CL_INVALID_IMAGE_SIZE, "img"),
+              StatusIs(absl::StatusCode::kResourceExhausted));
+  EXPECT_THAT(OpenCLAllocationError(CL_INVALID_VALUE, "val"),
+              StatusIs(absl::StatusCode::kUnknown));
+}
+
+TEST(OpenCLResourceExhaustedTest, GetOpenCLErrorMapsExhaustionCodes) {
+  using ::absl_testing::StatusIs;
+  ABSL_EXPECT_OK(GetOpenCLError(CL_SUCCESS));
+  EXPECT_THAT(GetOpenCLError(CL_MEM_OBJECT_ALLOCATION_FAILURE),
+              StatusIs(absl::StatusCode::kResourceExhausted));
+  EXPECT_THAT(GetOpenCLError(CL_OUT_OF_RESOURCES),
+              StatusIs(absl::StatusCode::kResourceExhausted));
+  EXPECT_THAT(GetOpenCLError(CL_OUT_OF_HOST_MEMORY),
+              StatusIs(absl::StatusCode::kResourceExhausted));
+  EXPECT_THAT(GetOpenCLError(CL_INVALID_VALUE),
+              StatusIs(absl::StatusCode::kInternal));
 }
 
 }  // namespace cl

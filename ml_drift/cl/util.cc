@@ -25,6 +25,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/ascii.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
 #include "ml_drift/cl/opencl_wrapper.h"
 #include "ml_drift/cl/qcom_wrapper.h"
 #include "ml_drift/cl/util_types.h"
@@ -234,6 +235,22 @@ std::string CLErrorCodeToString(cl_int error_code) {
   }
 }
 
+bool IsOpenCLResourceExhausted(cl_int error_code) {
+  return error_code == CL_MEM_OBJECT_ALLOCATION_FAILURE ||
+         error_code == CL_OUT_OF_RESOURCES ||
+         error_code == CL_OUT_OF_HOST_MEMORY ||
+         error_code == CL_INVALID_BUFFER_SIZE ||
+         error_code == CL_INVALID_IMAGE_SIZE;
+}
+
+absl::Status OpenCLAllocationError(cl_int error_code,
+                                   absl::string_view message) {
+  if (IsOpenCLResourceExhausted(error_code)) {
+    return absl::ResourceExhaustedError(message);
+  }
+  return absl::UnknownError(message);
+}
+
 int ChannelTypeToSizeInBytes(cl_channel_type type) {
   switch (type) {
     case CL_FLOAT:
@@ -260,10 +277,10 @@ absl::Status CreateCLBuffer(cl_context context, size_t size_in_bytes,
     *result = clCreateBuffer(context, flags, size_in_bytes, data, &error_code);
   }
   if (!*result) {
-    return absl::UnknownError(
-        absl::StrCat("Failed to allocate ", size_in_bytes,
-                     " bytes of device memory (clCreateBuffer): ",
-                     CLErrorCodeToString(error_code)));
+    return OpenCLAllocationError(
+        error_code, absl::StrCat("Failed to allocate ", size_in_bytes,
+                                 " bytes of device memory (clCreateBuffer): ",
+                                 CLErrorCodeToString(error_code)));
   }
   return absl::OkStatus();
 }
@@ -292,7 +309,8 @@ absl::StatusOr<cl_mem> CreateCLSubBuffer(cl_context context, cl_mem parent,
   }
 
   if (!result) {
-    return absl::UnknownError(
+    return OpenCLAllocationError(
+        error_code,
         absl::StrCat("Failed to allocate device memory (clCreateSubBuffer): ",
                      CLErrorCodeToString(error_code)));
   }
@@ -326,7 +344,8 @@ absl::Status CreateRGBAImage2D(cl_context context, int width, int height,
   *result =
       CreateImage2DLegacy(context, flags, &format, &desc, data, &error_code);
   if (error_code != CL_SUCCESS) {
-    return absl::UnknownError(
+    return OpenCLAllocationError(
+        error_code,
         absl::StrCat("Failed to create 2D texture (clCreateImage): ",
                      CLErrorCodeToString(error_code)));
   }

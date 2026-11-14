@@ -15,7 +15,10 @@
 #ifndef ML_DRIFT_CL_CL_ERRORS_H_
 #define ML_DRIFT_CL_CL_ERRORS_H_
 
+#include <string>
+
 #include "absl/status/status.h"
+#include "absl/strings/str_cat.h"
 #include "ml_drift/cl/util.h"
 #include <CL/cl.h>
 #include <CL/cl_platform.h>
@@ -29,8 +32,12 @@ inline absl::Status GetOpenCLError(cl_int error_code) {
   if (error_code == CL_SUCCESS) {
     return absl::OkStatus();
   }
-  return absl::InternalError("OpenCL error: " +
-                             CLErrorCodeToString(error_code));
+  const std::string message =
+      absl::StrCat("OpenCL error: ", CLErrorCodeToString(error_code));
+  if (IsOpenCLResourceExhausted(error_code)) {
+    return absl::ResourceExhaustedError(message);
+  }
+  return absl::InternalError(message);
 }
 
 }  // namespace cl

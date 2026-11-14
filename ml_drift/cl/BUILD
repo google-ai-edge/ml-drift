@@ -206,6 +206,7 @@ cc_library(
     deps = [
         ":util",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
         "@opencl_headers",
     ],
 )
@@ -752,10 +753,13 @@ cc_test(
     srcs = ["util_test.cc"],
     linkstatic = 1,
     deps = [
+        ":cl_errors",
         ":util",
         "//ml_drift/common:gpu_info",
+        "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:status_matchers",
         "@com_google_googletest//:gtest_main",
+        "@opencl_headers",
     ],
 )
 
