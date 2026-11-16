@@ -531,16 +531,7 @@ class ConvCodeGenerator {
         }
       }
     }
-    const std::string acc_type = ToUclDataType(
-        GetAccumulatorType(), kernel_params_.use_vec8_accum ? 8 : 4);
-    const std::string zero_value = GetZeroValue(GetAccumulatorType());
-    for (int s = 0; s < block_size.c / (kernel_params_.use_vec8_accum ? 2 : 1);
-         ++s) {
-      ForSpatial([&](int x, int y, int z) {
-        c += "  " + acc_type + " r" + GenerateIdFull(x, y, z, s) +
-             " = ucl::Init<" + acc_type + ">(" + zero_value + ");\n";
-      });
-    }
+    c += InitAccumulators();
     if (!conv_params_.IsXKernelIs1()) {
       for (int x = 0; x < block_size.w; ++x) {
         const std::string xind = std::to_string(x);
@@ -971,19 +962,10 @@ class ConvCodeGenerator {
               c += "  if (DST_X + " + xind +
                    " < w_group_offset + w_group_size) {\n";
             }
-            if (kernel_params_.use_vec8_accum) {
-              const std::string id =
-                  GenerateIdFull(xind, yind, zind, std::to_string(s / 2));
-              std::string postfixes[] = {".s0123", ".s4567"};
-              c += "    args.dst_tensor::type res = "
-                   "ucl::Convert<args.dst_tensor::type>(r" +
-                   id + postfixes[s % 2] + ");\n";
-            } else {
-              const std::string id = GenerateIdFull(xind, yind, zind, sind);
-              c += "    args.dst_tensor::type res = "
-                   "ucl::Convert<args.dst_tensor::type>(r" +
-                   id + ");\n";
-            }
+            const std::string spatial_id = GenerateIdSpatial(xind, yind, zind);
+            c += "    args.dst_tensor::type res = "
+                 "ucl::Convert<args.dst_tensor::type>(" +
+                 GetFinalVec4(spatial_id, s) + ");\n";
             if (conv_params_.has_bias ||
                 (!conv_params_.Is8Bit() && !conv_params_.Is4Bit())) {
               c += "    res += bias_val;\n";
@@ -999,6 +981,52 @@ class ConvCodeGenerator {
       c += "  }\n";
     }
     return c;
+  }
+
+  std::string InitAccumulators() {
+    std::string c;
+    ForSpatial([&](int x, int y, int z) {
+      const std::string spatial_id = GenerateIdSpatial(x, y, z);
+      if (kernel_params_.accumulator_type ==
+          ConvGeneric::KernelParams::AccumulatorType::kVec4) {
+        c += InitAccumulatorsVec4(spatial_id);
+      } else if (kernel_params_.accumulator_type ==
+                 ConvGeneric::KernelParams::AccumulatorType::kVec8) {
+        c += InitAccumulatorsVec8(spatial_id);
+      }
+    });
+    return c;
+  }
+
+  std::string InitAccumulatorsVec4(const std::string& spatial_id) {
+    std::string c;
+    const std::string zero_value = GetZeroValue(GetAccumulatorType());
+    for (int s = 0; s < kernel_params_.block_size.c; ++s) {
+      c += "  AccType r" + spatial_id + "_s" + std::to_string(s) +
+           " = ucl::Init<AccType>(" + zero_value + ");\n";
+    }
+    return c;
+  }
+
+  std::string InitAccumulatorsVec8(const std::string& spatial_id) {
+    std::string c;
+    const std::string acc_type = ToUclDataType(GetAccumulatorType(), 8);
+    const std::string zero_value = GetZeroValue(GetAccumulatorType());
+    for (int s = 0; s < DivideRoundUp(kernel_params_.block_size.c, 2); ++s) {
+      c += "  " + acc_type + " r" + spatial_id + "_s" + std::to_string(s) +
+           " = ucl::Init<" + acc_type + ">(" + zero_value + ");\n";
+    }
+    return c;
+  }
+
+  std::string GetFinalVec4(const std::string& spatial_id, int s) {
+    if (kernel_params_.accumulator_type ==
+        ConvGeneric::KernelParams::AccumulatorType::kVec8) {
+      std::string postfixes[] = {".s0123", ".s4567"};
+      return "r" + spatial_id + "_s" + std::to_string(s / 2) + postfixes[s % 2];
+    } else {
+      return "r" + spatial_id + "_s" + std::to_string(s);
+    }
   }
 
   int GetWGSpatialCount() const {
@@ -1602,8 +1630,9 @@ class ConvCodeGenerator {
       });
       c += "    s += 1;\n";
     }
-    if (weights_conversion && !kernel_params_.use_vec8_accum) {
-      // vec4 accumulators
+    if (weights_conversion &&
+        kernel_params_.accumulator_type ==
+            ConvGeneric::KernelParams::AccumulatorType::kVec4) {
       // weights_cache WeightsLayout::kBO16I16O4
       c += "    ucl::SyncThreads<WorkGroup, Local>();\n";
       if (wg_size_per_slice > i4o4_blocks) {
@@ -1625,7 +1654,9 @@ class ConvCodeGenerator {
              " = as_short4(WEIGHTS_PER_SLICE[simd_id + " +
              std::to_string(i * 16) + "]);\n";
       }
-    } else if (weights_conversion && kernel_params_.use_vec8_accum) {
+    } else if (weights_conversion &&
+               kernel_params_.accumulator_type ==
+                   ConvGeneric::KernelParams::AccumulatorType::kVec8) {
       // weights_cache WeightsLayout::kBO8I16O8
       c += "    ucl::SyncThreads<WorkGroup, Local>();\n";
       if (wg_size_per_slice > i4o4_blocks) {
@@ -1647,8 +1678,8 @@ class ConvCodeGenerator {
              " = ((__local short8*)WEIGHTS_PER_SLICE)[simd_id + " +
              std::to_string(i * 16) + "];\n";
       }
-    } else if (!kernel_params_.use_vec8_accum) {
-      // vec4 accumulators
+    } else if (kernel_params_.accumulator_type ==
+               ConvGeneric::KernelParams::AccumulatorType::kVec4) {
       for (int i = 0; i < kernel_params_.block_size.c; ++i) {
         const std::string w_name = "W" + std::to_string(i);
         c += "    short4 " + w_name + " = as_short4(";
@@ -1657,7 +1688,7 @@ class ConvCodeGenerator {
              std::to_string(i * 16 * 4) + "));\n";
       }
     } else {
-      // kernel_params_.use_vec8_accum
+      // AccumulatorType::kVec8
       for (int i = 0; i < kernel_params_.block_size.c / 2; ++i) {
         const std::string w_name = "W" + std::to_string(i);
         c += "    short8 " + w_name + " = as_short8(";
@@ -1684,8 +1715,12 @@ class ConvCodeGenerator {
     if (conv_params_.Is4Bit()) {
       function_name = "intel_sub_group_i4_i4_matrix_mad_k64";
     }
-    const int num_blocks =
-        kernel_params_.block_size.c / (kernel_params_.use_vec8_accum ? 2 : 1);
+    const int vec4_elements =
+        kernel_params_.accumulator_type ==
+                ConvGeneric::KernelParams::AccumulatorType::kVec4
+            ? 1
+            : 2;
+    const int num_blocks = kernel_params_.block_size.c / vec4_elements;
     for (int i = 0; i < num_blocks; ++i) {
       ForSpatial([&](int x, int y, int z) {
         const std::string r_name = "r" + GenerateIdFull(x, y, z, i);
@@ -2455,7 +2490,10 @@ ConvGeneric::KernelParams GetKernelParamsIntel(
       kernel_params.work_group_size =
           kernel_params.linear_spatial ? int3(16, 8, 1) : int3(16, 1, 8);
     }
-    kernel_params.use_vec8_accum = kernel_params.block_size.c % 2 == 0;
+    if (kernel_params.block_size.c % 2 == 0) {
+      kernel_params.accumulator_type =
+          ConvGeneric::KernelParams::AccumulatorType::kVec8;
+    }
     return kernel_params;
   }
 

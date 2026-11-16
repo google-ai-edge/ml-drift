@@ -87,8 +87,12 @@ class ConvGeneric : public GPUOperation {
     // this option it will be batch-slice-spatial
     bool linear_all_slices_first = false;
 
-    // supported only for Intel GPU with kIntelWave16MatMul weights upload type
-    bool use_vec8_accum = false;
+    enum class AccumulatorType {
+      kVec4,
+      kVec8,  // supported only for Intel GPU with kIntelWave16MatMul weights
+              // upload type
+    };
+    AccumulatorType accumulator_type = AccumulatorType::kVec4;
 
     // Must be in ascending order
     std::vector<int> simd_sizes = {1};
