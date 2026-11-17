@@ -147,10 +147,12 @@ std::string GenerateBlockCoords(const ConvGeneric::KernelParams& kernel_params,
     }
     c += "  int DST_X = linear_spatial % args.task_size_x;\n";
     c += "  linear_spatial = linear_spatial / args.task_size_x;\n";
-    c += "  int DST_Y = linear_spatial % args.task_size_y;\n";
-    c += "  linear_spatial = linear_spatial / args.task_size_y;\n";
     if (src_desc.HasAxis(Axis::kDepth)) {
+      c += "  int DST_Y = linear_spatial % args.task_size_y;\n";
+      c += "  linear_spatial = linear_spatial / args.task_size_y;\n";
       c += "  int DST_Z = linear_spatial;\n";
+    } else {
+      c += "  int DST_Y = linear_spatial;\n";
     }
     if (kernel_params.work_group_launch_order[1] == 1) {
       if (spatial_uniform) {
