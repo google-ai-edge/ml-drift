@@ -211,5 +211,42 @@ TEST(WeightsLayoutTest, CustomGroupsOgr1Ogr2Ogr0Properties) {
   EXPECT_NE(desc, diff_desc);
 }
 
+TEST(WeightsLayoutTest, CustomGroupsOgr0Igr1Ogr1Igr0Properties) {
+  WeightsDescription desc;
+  desc.type = DataType::kFloat16;
+  desc.layout = WeightsLayout::kCustomGroupsOgr0Igr1Ogr1Igr0;
+  desc.output_group_size = 8;
+  desc.params1 = {2, 8, 16, 4};
+  desc.group_sizes = {{Axis::kOutputChannels, 3},
+                      {Axis::kInputChannels, 0},
+                      {Axis::kWidth, 0},
+                      {Axis::kHeight, 0},
+                      {Axis::kOutputChannels, 0}};
+
+  EXPECT_EQ(ToString(WeightsLayout::kCustomGroupsOgr0Igr1Ogr1Igr0),
+            "kCustomGroupsOgr0Igr1Ogr1Igr0");
+  EXPECT_EQ(ToString(desc),
+            "float16_kCustomGroupsO16gr0I8gr1O4gr1I2gr0_o3_i_w_h_o");
+  EXPECT_TRUE(desc.IsLinearLayout());
+  EXPECT_FALSE(desc.IsI4O4());
+  EXPECT_FALSE(desc.IsO4I4());
+  EXPECT_FALSE(desc.IsOISpatialOGroupI4O4());
+  EXPECT_FALSE(desc.IsOISpatialOGroupO4I4());
+  EXPECT_EQ(desc.GetOutputGroupSize(), 1);
+
+  WeightsDescription same_desc = desc;
+  same_desc.output_group_size = 2;
+  same_desc.params0 = {9, 9, 9};
+  EXPECT_EQ(desc, same_desc);
+
+  WeightsDescription diff_o_gr1 = desc;
+  diff_o_gr1.params1.o_gr1_size = 2;
+  EXPECT_NE(desc, diff_o_gr1);
+
+  WeightsDescription diff_desc = desc;
+  diff_desc.group_sizes.back().first = Axis::kInputChannels;
+  EXPECT_NE(desc, diff_desc);
+}
+
 }  // namespace
 }  // namespace ml_drift

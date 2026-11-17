@@ -27,16 +27,21 @@ namespace ml_drift {
 std::string ToString(const WeightsDescription& desc) {
   std::string result;
   if (desc.layout == WeightsLayout::kCustomGroupsOgr1Ogr2Ogr0) {
-    result = absl::StrCat(ToString(desc.type), "_kCustomGroupsO",
-                          desc.params0.o_gr1_size, "gr1O",
-                          desc.params0.o_gr2_size, "gr2O",
-                          desc.params0.o_gr0_size, "gr0");
+    result = absl::StrCat(
+        ToString(desc.type), "_kCustomGroupsO", desc.params0.o_gr1_size, "gr1O",
+        desc.params0.o_gr2_size, "gr2O", desc.params0.o_gr0_size, "gr0");
+  } else if (desc.layout == WeightsLayout::kCustomGroupsOgr0Igr1Ogr1Igr0) {
+    result = absl::StrCat(
+        ToString(desc.type), "_kCustomGroupsO", desc.params1.o_gr0_size, "gr0I",
+        desc.params1.i_gr1_size, "gr1O", desc.params1.o_gr1_size, "gr1I",
+        desc.params1.i_gr0_size, "gr0");
   } else {
     result = absl::StrCat(ToString(desc.type), "_", ToString(desc.layout));
   }
   if (desc.layout == WeightsLayout::kCustomGroups ||
       desc.layout == WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2 ||
-      desc.layout == WeightsLayout::kCustomGroupsOgr1Ogr2Ogr0) {
+      desc.layout == WeightsLayout::kCustomGroupsOgr1Ogr2Ogr0 ||
+      desc.layout == WeightsLayout::kCustomGroupsOgr0Igr1Ogr1Igr0) {
     for (const auto& [axis, group_size] : desc.group_sizes) {
       absl::StrAppend(&result, "_", std::string(1, ToString(axis)[0]));
       if (group_size > 0) {
@@ -116,6 +121,7 @@ bool WeightsDescription::IsI4O4() const {
     case WeightsLayout::kISpatialOI4O4UnalignedIO:
     case WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2:
     case WeightsLayout::kCustomGroupsOgr1Ogr2Ogr0:
+    case WeightsLayout::kCustomGroupsOgr0Igr1Ogr1Igr0:
       return false;
   }
 }
@@ -135,6 +141,7 @@ bool WeightsDescription::IsO4I4() const {
     case WeightsLayout::kISpatialOI4O4UnalignedIO:
     case WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2:
     case WeightsLayout::kCustomGroupsOgr1Ogr2Ogr0:
+    case WeightsLayout::kCustomGroupsOgr0Igr1Ogr1Igr0:
       return false;
   }
 }
@@ -151,6 +158,7 @@ int WeightsDescription::GetOutputGroupSize() const {
     case WeightsLayout::kCustomGroups:
     case WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2:
     case WeightsLayout::kCustomGroupsOgr1Ogr2Ogr0:
+    case WeightsLayout::kCustomGroupsOgr0Igr1Ogr1Igr0:
     case WeightsLayout::kISpatialOI4O4UnalignedIO:
       return 1;
   }
@@ -167,7 +175,9 @@ bool WeightsDescription::operator==(const WeightsDescription& t) const {
          GetOutputGroupSize() == t.GetOutputGroupSize() &&
          spatial_remap == t.spatial_remap && group_sizes == t.group_sizes &&
          (layout != WeightsLayout::kCustomGroupsOgr1Ogr2Ogr0 ||
-          params0 == t.params0);
+          params0 == t.params0) &&
+         (layout != WeightsLayout::kCustomGroupsOgr0Igr1Ogr1Igr0 ||
+          params1 == t.params1);
 }
 
 bool WeightsDescription::IsOISpatialOGroupI4O4() const {
@@ -206,6 +216,8 @@ std::string ToString(const WeightsLayout& layout) {
       return "kCustomGroupsI2gr0O8I2gr1O2";
     case WeightsLayout::kCustomGroupsOgr1Ogr2Ogr0:
       return "kCustomGroupsOgr1Ogr2Ogr0";
+    case WeightsLayout::kCustomGroupsOgr0Igr1Ogr1Igr0:
+      return "kCustomGroupsOgr0Igr1Ogr1Igr0";
     case WeightsLayout::kUnknown:
       return "Unknown";
   }
