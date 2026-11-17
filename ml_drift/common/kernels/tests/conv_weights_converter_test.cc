@@ -190,7 +190,7 @@ std::array<WeightsDescription, 11> WeightsDescsIntToFloat() {
            }}};
 };
 
-std::array<WeightsDescription, 10> WeightsDescsI8ToUI8() {
+std::array<WeightsDescription, 12> WeightsDescsI8ToUI8() {
   return {{{
                .type = DataType::kUint8,
                .layout = WeightsLayout::kOSpatialIOGroupI4O4,
@@ -218,6 +218,24 @@ std::array<WeightsDescription, 10> WeightsDescsI8ToUI8() {
                                {Axis::kInputChannels, 3},
                                {Axis::kOutputChannels, 0},
                                {Axis::kInputChannels, 0}},
+           },
+           {
+               .type = DataType::kUint8,
+               .layout = WeightsLayout::kCustomGroupsOgr1Ogr2Ogr0,
+               .group_sizes = {{Axis::kInputChannels, 32},
+                               {Axis::kOutputChannels, 1},
+                               {Axis::kInputChannels, 0},
+                               {Axis::kOutputChannels, 0}},
+               .params0 = {4, 2, 2},
+           },
+           {
+               .type = DataType::kUint8,
+               .layout = WeightsLayout::kCustomGroupsOgr1Ogr2Ogr0,
+               .group_sizes = {{Axis::kOutputChannels, 2},
+                               {Axis::kInputChannels, 16},
+                               {Axis::kOutputChannels, 0},
+                               {Axis::kInputChannels, 0}},
+               .params0 = {4, 2, 4},
            },
            {.type = DataType::kUint8,
             .layout = WeightsLayout::kCustomGroups,
@@ -350,7 +368,7 @@ std::array<WeightsDescription, 11> WeightsDescsF32ToF32() {
            }}};
 };
 
-std::array<WeightsDescription, 9> WeightsDescsUITo8Bit() {
+std::array<WeightsDescription, 11> WeightsDescsUITo8Bit() {
   return {{{
                .layout = WeightsLayout::kOSpatialIOGroupI4O4,
                .output_group_size = 16,
@@ -375,6 +393,24 @@ std::array<WeightsDescription, 9> WeightsDescsUITo8Bit() {
                                {Axis::kWidth, 0},
                                {Axis::kOutputChannels, 0},
                                {Axis::kInputChannels, 0}},
+           },
+           {
+               .layout = WeightsLayout::kCustomGroupsOgr1Ogr2Ogr0,
+               .group_sizes = {{Axis::kInputChannels, 32},
+                               {Axis::kOutputChannels, 1},
+                               {Axis::kInputChannels, 0},
+                               {Axis::kOutputChannels, 0}},
+               .params0 = {4, 2, 2},
+           },
+           {
+               .layout = WeightsLayout::kCustomGroupsOgr1Ogr2Ogr0,
+               .group_sizes = {{Axis::kOutputChannels, 2},
+                               {Axis::kInputChannels, 16},
+                               {Axis::kHeight, 0},
+                               {Axis::kWidth, 0},
+                               {Axis::kOutputChannels, 0},
+                               {Axis::kInputChannels, 0}},
+               .params0 = {4, 2, 4},
            },
            {.layout = WeightsLayout::kCustomGroups,
             .group_sizes = {{Axis::kInputChannels, 2},
@@ -1310,6 +1346,135 @@ TEST(CustomGroupsI2gr0O8I2gr1O2Test, SpatialRemapAndQuantizedOHWI) {
     u4_desc.type = DataType::kUint4;
     ABSL_ASSERT_OK(ConverterToConvWeightsInt4OHWIToUint4Test(
         *exec_env, OHWI(35, 2, 3, 19), u4_desc));
+  }
+}
+
+TEST(CustomGroupsOgr1Ogr2Ogr0Test, Float16Int8AndSpatialRemap) {
+  // Float16 destination: params0 = {2, 4, s_block_size / 2}
+  if (SupportsHalf2BufferWrite(*exec_env)) {
+    for (int s_block_size : {4, 8, 16}) {
+      WeightsDescription f16_desc = {
+          .type = DataType::kFloat16,
+          .layout = WeightsLayout::kCustomGroupsOgr1Ogr2Ogr0,
+          .group_sizes = {{Axis::kInputChannels, 16},
+                          {Axis::kOutputChannels, 1},
+                          {Axis::kInputChannels, 0},
+                          {Axis::kOutputChannels, 0}},
+          .params0 = {2, 4, s_block_size / 2},
+      };
+      for (TensorStorageType storage :
+           GetTensorStoragesTypesWithoutSingleTexture2D()) {
+        if (!exec_env->IsStorageSupported(storage, DataType::kFloat16)) {
+          continue;
+        }
+        ABSL_ASSERT_OK(ConverterToCustomGroupsTest(*exec_env, OHWI(64, 1, 1, 32),
+                                              storage, DataType::kFloat16,
+                                              f16_desc));
+        ABSL_ASSERT_OK(ConverterToCustomGroupsTest(*exec_env, OHWI(35, 1, 1, 19),
+                                              storage, DataType::kFloat16,
+                                              f16_desc));
+      }
+      ABSL_ASSERT_OK(FloatToFloat16WeightsConverterTest(
+          *exec_env, OHWI(67, 1, 1, 35), WeightsLayout::kOSpatialIOGroupI4O4,
+          f16_desc));
+      ABSL_ASSERT_OK(FloatToFloat16WeightsConverterTest(
+          *exec_env, OHWI(64, 1, 1, 32), WeightsLayout::kOSpatialIOGroupO4I4,
+          f16_desc));
+    }
+
+    // Spatial remap + outer O group before first I group + odd o_gr1_size with
+    // half destination (o_gr0 = 2, o_tile_size = 12).
+    WeightsDescription f16_spatial_desc = {
+        .type = DataType::kFloat16,
+        .layout = WeightsLayout::kCustomGroupsOgr1Ogr2Ogr0,
+        .spatial_remap = {5, 1, 3, 0, 4, 2},
+        .group_sizes = {{Axis::kOutputChannels, 2},
+                        {Axis::kInputChannels, 8},
+                        {Axis::kHeight, 0},
+                        {Axis::kWidth, 0},
+                        {Axis::kOutputChannels, 0},
+                        {Axis::kInputChannels, 0}},
+        .params0 = {2, 3, 2},
+    };
+    ABSL_ASSERT_OK(ConverterToCustomGroupsTest(
+        *exec_env, OHWI(29, 2, 3, 19), TensorStorageType::kBuffer,
+        DataType::kFloat16, f16_spatial_desc));
+    WeightsDescription f16_outer_o_desc = f16_spatial_desc;
+    f16_outer_o_desc.spatial_remap.clear();
+    ABSL_ASSERT_OK(FloatToFloat16WeightsConverterTest(
+        *exec_env, OHWI(29, 2, 3, 19), WeightsLayout::kOSpatialIOGroupI4O4,
+        f16_outer_o_desc));
+
+    WeightsDescription f16_unbounded_i_desc = {
+        .type = DataType::kFloat16,
+        .layout = WeightsLayout::kCustomGroupsOgr1Ogr2Ogr0,
+        .group_sizes = {{Axis::kInputChannels, 0}, {Axis::kOutputChannels, 0}},
+        .params0 = {2, 4, 2},
+    };
+    ABSL_ASSERT_OK(ConverterToCustomGroupsTest(
+        *exec_env, OHWI(29, 1, 1, 20), TensorStorageType::kBuffer,
+        DataType::kFloat16, f16_unbounded_i_desc));
+  }
+
+  // Int8/uint8 destination: params0 = {4, 2, s_block_size / 2}
+  for (int s_block_size : {4, 8, 16}) {
+    WeightsDescription i8_desc = {
+        .type = DataType::kInt8,
+        .layout = WeightsLayout::kCustomGroupsOgr1Ogr2Ogr0,
+        .group_sizes = {{Axis::kInputChannels, 32},
+                        {Axis::kOutputChannels, 1},
+                        {Axis::kInputChannels, 0},
+                        {Axis::kOutputChannels, 0}},
+        .params0 = {4, 2, s_block_size / 2},
+    };
+    if (exec_env->IsStorageSupported(TensorStorageType::kBuffer,
+                                     DataType::kInt8)) {
+      ABSL_ASSERT_OK(ConverterToConvWeightsInt8OHWIToInt8Test(
+          *exec_env, OHWI(64, 1, 1, 64), i8_desc));
+      ABSL_ASSERT_OK(ConverterToConvWeightsInt8OHWIToInt8Test(
+          *exec_env, OHWI(35, 1, 1, 37), i8_desc));
+    }
+    if (exec_env->IsStorageSupported(TensorStorageType::kBuffer,
+                                     DataType::kInt8) &&
+        exec_env->IsStorageSupported(TensorStorageType::kBuffer,
+                                     DataType::kUint8)) {
+      ABSL_ASSERT_OK(Uint8ToInt8WeightsConverterTest(
+          *exec_env, WeightsLayout::kOSpatialIOGroupI4O4, i8_desc));
+      ABSL_ASSERT_OK(Uint8ToInt8WeightsConverterTest(
+          *exec_env, WeightsLayout::kOSpatialIOGroupO4I4, i8_desc));
+
+      WeightsDescription u8_desc = i8_desc;
+      u8_desc.type = DataType::kUint8;
+      ABSL_ASSERT_OK(ConverterToConvWeightsInt8OHWIToUint8Test(
+          *exec_env, OHWI(35, 1, 1, 37), u8_desc));
+      ABSL_ASSERT_OK(Uint8ToUint8WeightsConverterTest(
+          *exec_env, WeightsLayout::kOSpatialIOGroupI4O4, u8_desc));
+    }
+  }
+
+  // Spatial remap with int8/uint8 destination
+  if (exec_env->IsStorageSupported(TensorStorageType::kBuffer,
+                                   DataType::kInt8) &&
+      exec_env->IsStorageSupported(TensorStorageType::kBuffer,
+                                   DataType::kUint8)) {
+    WeightsDescription i8_spatial_desc = {
+        .type = DataType::kInt8,
+        .layout = WeightsLayout::kCustomGroupsOgr1Ogr2Ogr0,
+        .spatial_remap = {5, 1, 3, 0, 4, 2},
+        .group_sizes = {{Axis::kInputChannels, 32},
+                        {Axis::kOutputChannels, 2},
+                        {Axis::kHeight, 0},
+                        {Axis::kWidth, 0},
+                        {Axis::kInputChannels, 0},
+                        {Axis::kOutputChannels, 0}},
+        .params0 = {4, 2, 2},
+    };
+    ABSL_ASSERT_OK(ConverterToConvWeightsInt8OHWIToInt8Test(
+        *exec_env, OHWI(35, 2, 3, 37), i8_spatial_desc));
+    WeightsDescription u8_spatial_desc = i8_spatial_desc;
+    u8_spatial_desc.type = DataType::kUint8;
+    ABSL_ASSERT_OK(ConverterToConvWeightsInt8OHWIToUint8Test(
+        *exec_env, OHWI(35, 2, 3, 37), u8_spatial_desc));
   }
 }
 
