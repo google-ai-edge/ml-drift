@@ -351,6 +351,30 @@ void ReorderI2gr0O8I2gr1O2(const SrcT* linear_ohwdi, const OHWDI& src_shape,
   }
 }
 
+template <typename SrcT, typename T>
+void ReorderOgr1Ogr2Ogr0(
+    const SrcT* linear_ohwdi, const OHWDI& src_shape, const OHWDI& start_ohwdi,
+    const WeightsDescription::CustomGroupsOgr1Ogr2Ogr0Params& params,
+    absl::Span<T> dst, T pad_value) {
+  int counter = 0;
+  for (int o_gr1 = 0; o_gr1 < params.o_gr1_size; o_gr1++) {
+    for (int o_gr2 = 0; o_gr2 < params.o_gr2_size; o_gr2++) {
+      for (int o_gr0 = 0; o_gr0 < params.o_gr0_size; o_gr0++) {
+        const int o_ch =
+            start_ohwdi.o +
+            (o_gr2 * params.o_gr1_size + o_gr1) * params.o_gr0_size + o_gr0;
+        const int i_ch = start_ohwdi.i;
+        if (o_ch < src_shape.o && i_ch < src_shape.i) {
+          dst[counter++] = linear_ohwdi[src_shape.LinearIndex(
+              {o_ch, start_ohwdi.h, start_ohwdi.w, start_ohwdi.d, i_ch})];
+        } else {
+          dst[counter++] = pad_value;
+        }
+      }
+    }
+  }
+}
+
 template <DataType S, typename T>
 void RearrangeWeightsToCustom(const Tensor<OHWI, S>& weights,
                               std::vector<std::pair<Axis, int>> group_sizes,
@@ -524,6 +548,87 @@ void RearrangeWeightsToCustomI2gr0O8I2gr1O2(
   RearrangeWeightsToCustomI2gr0O8I2gr1O2(weights.Data(), weights.shape,
                                          std::move(group_sizes), spatial_remap,
                                          dst, pad_value);
+}
+
+template <typename SrcT, typename T>
+void RearrangeWeightsToCustomOgr1Ogr2Ogr0(
+    const SrcT* linear_ohwdi, const OHWDI& src_shape,
+    const WeightsDescription::CustomGroupsOgr1Ogr2Ogr0Params& params,
+    std::vector<std::pair<Axis, int>> group_sizes,
+    const std::vector<int>& spatial_remap, absl::Span<T> dst, T pad_value) {
+  const int o_tile_size =
+      params.o_gr0_size * params.o_gr1_size * params.o_gr2_size;
+  const size_t block_elements = static_cast<size_t>(o_tile_size);
+  const OHWDI base_block(o_tile_size, 1, 1, 1, 1);
+  std::vector<std::pair<Axis, int>> coords;
+  coords.reserve(group_sizes.size());
+  OHWDI total_size = base_block;
+  size_t blocks_count = 1;
+  for (auto& [axis, size] : group_sizes) {
+    coords.push_back({axis, 0});
+    const int prev_size = total_size.get(axis);
+    if (size <= 0) {
+      size = DivideRoundUp(src_shape.get(axis), prev_size);
+    }
+    total_size.set(axis, prev_size * size);
+    blocks_count *= size;
+  }
+  for (size_t b = 0; b < blocks_count; ++b) {
+    OHWDI src_coords = OHWDI(0, 0, 0, 0, 0);
+    OHWDI prev_sizes = base_block;
+    for (size_t group = 0; group < group_sizes.size(); ++group) {
+      const auto& [axis, group_size] = group_sizes[group];
+      if (coords[group].second == group_size) {
+        coords[group].second = 0;
+        ++coords[group + 1].second;
+      }
+      const int coord_id = coords[group].second;
+      const int prev_value = src_coords.get(axis);
+      const int prev_size = prev_sizes.get(axis);
+      src_coords.set(axis, coord_id * prev_size + prev_value);
+      prev_sizes.set(axis, group_size * prev_size);
+    }
+    if (!spatial_remap.empty()) {
+      const int spatial_linear =
+          (src_coords.d * src_shape.h + src_coords.h) * src_shape.w +
+          src_coords.w;
+      int new_spatial_linear = spatial_remap[spatial_linear];
+      src_coords.w = new_spatial_linear % src_shape.w;
+      new_spatial_linear /= src_shape.w;
+      src_coords.h = new_spatial_linear % src_shape.h;
+      src_coords.d = new_spatial_linear / src_shape.h;
+    }
+    ReorderOgr1Ogr2Ogr0(linear_ohwdi, src_shape, src_coords, params,
+                        dst.subspan(b * block_elements, block_elements),
+                        pad_value);
+    if (!coords.empty()) {
+      ++coords[0].second;
+    }
+  }
+}
+
+template <DataType S, typename T>
+void RearrangeWeightsToCustomOgr1Ogr2Ogr0(
+    const Tensor<OHWI, S>& weights,
+    const WeightsDescription::CustomGroupsOgr1Ogr2Ogr0Params& params,
+    std::vector<std::pair<Axis, int>> group_sizes,
+    const std::vector<int>& spatial_remap, absl::Span<T> dst, T pad_value) {
+  const OHWDI ohwdi_shape(weights.shape.o, weights.shape.h, weights.shape.w, 1,
+                          weights.shape.i);
+  RearrangeWeightsToCustomOgr1Ogr2Ogr0(weights.Data(), ohwdi_shape, params,
+                                       std::move(group_sizes), spatial_remap,
+                                       dst, pad_value);
+}
+
+template <DataType S, typename T>
+void RearrangeWeightsToCustomOgr1Ogr2Ogr0(
+    const Tensor<OHWDI, S>& weights,
+    const WeightsDescription::CustomGroupsOgr1Ogr2Ogr0Params& params,
+    std::vector<std::pair<Axis, int>> group_sizes,
+    const std::vector<int>& spatial_remap, absl::Span<T> dst, T pad_value) {
+  RearrangeWeightsToCustomOgr1Ogr2Ogr0(weights.Data(), weights.shape, params,
+                                       std::move(group_sizes), spatial_remap,
+                                       dst, pad_value);
 }
 
 // Parses the 4 msb/lsb of value, and returns it in the 4 lsb.
@@ -940,11 +1045,17 @@ unsigned int GetTotalElementsCountForLayout(
       return shape.DimensionsProduct();
     }
     case WeightsLayout::kCustomGroups:
-    case WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2: {
-      OHWDI total_size =
-          weight_desc.layout == WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2
-              ? OHWDI(16, 1, 1, 1, 4)
-              : OHWDI(1, 1, 1, 1, 1);
+    case WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2:
+    case WeightsLayout::kCustomGroupsOgr1Ogr2Ogr0: {
+      OHWDI total_size = OHWDI(1, 1, 1, 1, 1);
+      if (weight_desc.layout == WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2) {
+        total_size = OHWDI(16, 1, 1, 1, 4);
+      } else if (weight_desc.layout ==
+                 WeightsLayout::kCustomGroupsOgr1Ogr2Ogr0) {
+        const auto& p = weight_desc.params0;
+        total_size =
+            OHWDI(p.o_gr0_size * p.o_gr1_size * p.o_gr2_size, 1, 1, 1, 1);
+      }
       for (auto [axis, size] : weight_desc.group_sizes) {
         const int prev_size = total_size.get(axis);
         if (size <= 0) {
@@ -1099,6 +1210,20 @@ void RearrangeWeights(const Tensor<OHWI, DataType::kFloat32>& weights,
       }
       return;
     }
+    case WeightsLayout::kCustomGroupsOgr1Ogr2Ogr0: {
+      if (dst_weight_desc.type == DataType::kFloat32) {
+        RearrangeWeightsToCustomOgr1Ogr2Ogr0(
+            weights, dst_weight_desc.params0, dst_weight_desc.group_sizes,
+            dst_weight_desc.spatial_remap, absl::MakeSpan(f32_ptr, flt_count),
+            0.0f);
+      } else if (dst_weight_desc.type == DataType::kFloat16) {
+        RearrangeWeightsToCustomOgr1Ogr2Ogr0(
+            weights, dst_weight_desc.params0, dst_weight_desc.group_sizes,
+            dst_weight_desc.spatial_remap, absl::MakeSpan(f16_ptr, flt_count),
+            half(0.0f));
+      }
+      return;
+    }
     case WeightsLayout::kUnknown:
       return;
   }
@@ -1183,6 +1308,20 @@ void RearrangeWeights(const Tensor<OHWDI, DataType::kFloat32>& weights,
       }
       return;
     }
+    case WeightsLayout::kCustomGroupsOgr1Ogr2Ogr0: {
+      if (dst_weight_desc.type == DataType::kFloat32) {
+        RearrangeWeightsToCustomOgr1Ogr2Ogr0(
+            weights, dst_weight_desc.params0, dst_weight_desc.group_sizes,
+            dst_weight_desc.spatial_remap, absl::MakeSpan(f32_ptr, flt_count),
+            0.0f);
+      } else if (dst_weight_desc.type == DataType::kFloat16) {
+        RearrangeWeightsToCustomOgr1Ogr2Ogr0(
+            weights, dst_weight_desc.params0, dst_weight_desc.group_sizes,
+            dst_weight_desc.spatial_remap, absl::MakeSpan(f16_ptr, flt_count),
+            half(0.0f));
+      }
+      return;
+    }
     case WeightsLayout::kISpatialOI4O4UnalignedIO:
       ABSL_CHECK(false) << "Not implemented";
       return;
@@ -1261,6 +1400,11 @@ void RearrangeWeights(const Tensor<OHWI, DataType::kInt8>& weights,
           weights, dst_weight_desc.group_sizes, dst_weight_desc.spatial_remap,
           dst_span, static_cast<int8_t>(0));
       return;
+    case WeightsLayout::kCustomGroupsOgr1Ogr2Ogr0:
+      RearrangeWeightsToCustomOgr1Ogr2Ogr0(
+          weights, dst_weight_desc.params0, dst_weight_desc.group_sizes,
+          dst_weight_desc.spatial_remap, dst_span, static_cast<int8_t>(0));
+      return;
     case WeightsLayout::kISpatialOI4O4UnalignedIO:
       ABSL_CHECK(false) << "Not implemented";
       return;
@@ -1327,6 +1471,11 @@ void RearrangeWeights(const Tensor<OHWI, DataType::kUint8>& weights,
       RearrangeWeightsToCustomI2gr0O8I2gr1O2(
           weights, dst_weight_desc.group_sizes, dst_weight_desc.spatial_remap,
           dst, pad_value);
+      return;
+    case WeightsLayout::kCustomGroupsOgr1Ogr2Ogr0:
+      RearrangeWeightsToCustomOgr1Ogr2Ogr0(
+          weights, dst_weight_desc.params0, dst_weight_desc.group_sizes,
+          dst_weight_desc.spatial_remap, dst, pad_value);
       return;
     case WeightsLayout::kISpatialOI4O4UnalignedIO:
       ABSL_CHECK(false) << "Not implemented";

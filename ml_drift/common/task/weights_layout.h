@@ -36,6 +36,7 @@ enum class WeightsLayout {
   k2DYIsSpatialIOAndXIsOGroupI4O4,
   kCustomGroups,
   kCustomGroupsI2gr0O8I2gr1O2,
+  kCustomGroupsOgr1Ogr2Ogr0,
 };
 
 struct WeightsDescription {
@@ -46,6 +47,21 @@ struct WeightsDescription {
   std::vector<int> spatial_remap;  // optional, applicable with CustomGroups.
   // applicable with CustomGroups layout.
   std::vector<std::pair<Axis, int>> group_sizes;
+
+  struct CustomGroupsOgr1Ogr2Ogr0Params {
+    int o_gr0_size = 1;
+    int o_gr1_size = 1;
+    int o_gr2_size = 1;
+
+    bool operator==(const CustomGroupsOgr1Ogr2Ogr0Params& t) const {
+      return o_gr0_size == t.o_gr0_size && o_gr1_size == t.o_gr1_size &&
+             o_gr2_size == t.o_gr2_size;
+    }
+    bool operator!=(const CustomGroupsOgr1Ogr2Ogr0Params& t) const {
+      return !(*this == t);
+    }
+  };
+  CustomGroupsOgr1Ogr2Ogr0Params params0;
 
   int GetOutputGroupSize() const;
   bool IsI4O4() const;

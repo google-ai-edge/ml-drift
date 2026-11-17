@@ -25,10 +25,18 @@
 namespace ml_drift {
 
 std::string ToString(const WeightsDescription& desc) {
-  std::string result =
-      absl::StrCat(ToString(desc.type), "_", ToString(desc.layout));
+  std::string result;
+  if (desc.layout == WeightsLayout::kCustomGroupsOgr1Ogr2Ogr0) {
+    result = absl::StrCat(ToString(desc.type), "_kCustomGroupsO",
+                          desc.params0.o_gr1_size, "gr1O",
+                          desc.params0.o_gr2_size, "gr2O",
+                          desc.params0.o_gr0_size, "gr0");
+  } else {
+    result = absl::StrCat(ToString(desc.type), "_", ToString(desc.layout));
+  }
   if (desc.layout == WeightsLayout::kCustomGroups ||
-      desc.layout == WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2) {
+      desc.layout == WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2 ||
+      desc.layout == WeightsLayout::kCustomGroupsOgr1Ogr2Ogr0) {
     for (const auto& [axis, group_size] : desc.group_sizes) {
       absl::StrAppend(&result, "_", std::string(1, ToString(axis)[0]));
       if (group_size > 0) {
@@ -107,6 +115,7 @@ bool WeightsDescription::IsI4O4() const {
     case WeightsLayout::kUnknown:
     case WeightsLayout::kISpatialOI4O4UnalignedIO:
     case WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2:
+    case WeightsLayout::kCustomGroupsOgr1Ogr2Ogr0:
       return false;
   }
 }
@@ -125,6 +134,7 @@ bool WeightsDescription::IsO4I4() const {
     case WeightsLayout::kUnknown:
     case WeightsLayout::kISpatialOI4O4UnalignedIO:
     case WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2:
+    case WeightsLayout::kCustomGroupsOgr1Ogr2Ogr0:
       return false;
   }
 }
@@ -140,6 +150,7 @@ int WeightsDescription::GetOutputGroupSize() const {
     case WeightsLayout::kUnknown:
     case WeightsLayout::kCustomGroups:
     case WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2:
+    case WeightsLayout::kCustomGroupsOgr1Ogr2Ogr0:
     case WeightsLayout::kISpatialOI4O4UnalignedIO:
       return 1;
   }
@@ -154,7 +165,9 @@ bool WeightsDescription::IsLinearLayout() const {
 bool WeightsDescription::operator==(const WeightsDescription& t) const {
   return type == t.type && layout == t.layout &&
          GetOutputGroupSize() == t.GetOutputGroupSize() &&
-         spatial_remap == t.spatial_remap && group_sizes == t.group_sizes;
+         spatial_remap == t.spatial_remap && group_sizes == t.group_sizes &&
+         (layout != WeightsLayout::kCustomGroupsOgr1Ogr2Ogr0 ||
+          params0 == t.params0);
 }
 
 bool WeightsDescription::IsOISpatialOGroupI4O4() const {
@@ -191,6 +204,8 @@ std::string ToString(const WeightsLayout& layout) {
       return "kCustomGroups";
     case WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2:
       return "kCustomGroupsI2gr0O8I2gr1O2";
+    case WeightsLayout::kCustomGroupsOgr1Ogr2Ogr0:
+      return "kCustomGroupsOgr1Ogr2Ogr0";
     case WeightsLayout::kUnknown:
       return "Unknown";
   }
