@@ -311,6 +311,10 @@ class ConvCodeGenerator {
       c += "#pragma OPENCL EXTENSION "
            "cl_intel_subgroup_matrix_multiply_accumulate : enable\n";
     }
+    if (kernel_params_.accumulator_type ==
+        ConvGeneric::KernelParams::AccumulatorType::kHalf4x16AsUint32) {
+      c += "#pragma OPENCL EXTENSION cl_qcom_extra_vector_types : enable\n";
+    }
     if (kernel_params_.fixed_work_group_size && gpu_info_.IsApiOpenCl()) {
       c += "__attribute__((reqd_work_group_size(" +
            std::to_string(kernel_params_.work_group_size.x) + ", " +
@@ -989,12 +993,22 @@ class ConvCodeGenerator {
     std::string c;
     ForSpatial([&](int x, int y, int z) {
       const std::string spatial_id = GenerateIdSpatial(x, y, z);
-      if (kernel_params_.accumulator_type ==
-          ConvGeneric::KernelParams::AccumulatorType::kVec4) {
-        c += InitAccumulatorsVec4(spatial_id);
-      } else if (kernel_params_.accumulator_type ==
-                 ConvGeneric::KernelParams::AccumulatorType::kVec8) {
-        c += InitAccumulatorsVec8(spatial_id);
+      switch (kernel_params_.accumulator_type) {
+        case ConvGeneric::KernelParams::AccumulatorType::kVec4:
+          c += InitAccumulatorsVec4(spatial_id);
+          break;
+        case ConvGeneric::KernelParams::AccumulatorType::kVec8:
+          c += InitAccumulatorsVec8(spatial_id);
+          break;
+        case ConvGeneric::KernelParams::AccumulatorType::kHalf4x4AsUint8:
+          c += InitAccumulatorsHalf4xNAsUint(spatial_id, 4);
+          break;
+        case ConvGeneric::KernelParams::AccumulatorType::kHalf4x8AsUint16:
+          c += InitAccumulatorsHalf4xNAsUint(spatial_id, 8);
+          break;
+        case ConvGeneric::KernelParams::AccumulatorType::kHalf4x16AsUint32:
+          c += InitAccumulatorsHalf4xNAsUint(spatial_id, 16);
+          break;
       }
     });
     return c;
@@ -1021,14 +1035,43 @@ class ConvCodeGenerator {
     return c;
   }
 
-  std::string GetFinalVec4(const std::string& spatial_id, int s) {
-    if (kernel_params_.accumulator_type ==
-        ConvGeneric::KernelParams::AccumulatorType::kVec8) {
-      std::string postfixes[] = {".s0123", ".s4567"};
-      return "r" + spatial_id + "_s" + std::to_string(s / 2) + postfixes[s % 2];
-    } else {
-      return "r" + spatial_id + "_s" + std::to_string(s);
+  std::string InitAccumulatorsHalf4xNAsUint(const std::string& spatial_id,
+                                            int n) {
+    std::string c;
+    const std::string acc_type = "uint" + std::to_string(n * 2);
+    for (int s = 0; s < DivideRoundUp(kernel_params_.block_size.c, n); ++s) {
+      c += "  " + acc_type + " r" + spatial_id + "_s" + std::to_string(s) +
+           " = (" + acc_type + ")(0u);\n";
     }
+    return c;
+  }
+
+  std::string GetFinalVec4(const std::string& spatial_id, int s) {
+    switch (kernel_params_.accumulator_type) {
+      case ConvGeneric::KernelParams::AccumulatorType::kVec4:
+        return "r" + spatial_id + "_s" + std::to_string(s);
+      case ConvGeneric::KernelParams::AccumulatorType::kVec8: {
+        std::string postfixes[] = {".s0123", ".s4567"};
+        return "r" + spatial_id + "_s" + std::to_string(s / 2) +
+               postfixes[s % 2];
+      }
+      case ConvGeneric::KernelParams::AccumulatorType::kHalf4x4AsUint8:
+        return GetFinalVec4Half4xNAsUint(spatial_id, s, 4);
+      case ConvGeneric::KernelParams::AccumulatorType::kHalf4x8AsUint16:
+        return GetFinalVec4Half4xNAsUint(spatial_id, s, 8);
+      case ConvGeneric::KernelParams::AccumulatorType::kHalf4x16AsUint32:
+        return GetFinalVec4Half4xNAsUint(spatial_id, s, 16);
+    }
+    return "";
+  }
+
+  std::string GetFinalVec4Half4xNAsUint(const std::string& spatial_id, int s,
+                                        int n) {
+    static constexpr const char* kSwizzles[] = {
+        ".s01", ".s23", ".s45", ".s67", ".s89", ".sab", ".scd", ".sef",
+        ".sgh", ".sij", ".skl", ".smn", ".sop", ".sqr", ".sst", ".suv"};
+    return "as_half4(r" + spatial_id + "_s" + std::to_string(s / n) +
+           kSwizzles[s % n] + ")";
   }
 
   int GetWGSpatialCount() const {

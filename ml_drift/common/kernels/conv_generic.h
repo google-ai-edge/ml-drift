@@ -91,6 +91,9 @@ class ConvGeneric : public GPUOperation {
       kVec4,
       kVec8,  // supported only for Intel GPU with kIntelWave16MatMul weights
               // upload type
+      kHalf4x4AsUint8,
+      kHalf4x8AsUint16,
+      kHalf4x16AsUint32,
     };
     AccumulatorType accumulator_type = AccumulatorType::kVec4;
 
