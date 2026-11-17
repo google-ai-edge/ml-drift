@@ -98,7 +98,7 @@ class ConvGeneric : public GPUOperation {
     AccumulatorType accumulator_type = AccumulatorType::kVec4;
 
     // Must be in ascending order
-    std::vector<int> simd_sizes = {1};
+    std::vector<int> wave_sizes = {1};
 
     bool AreWeightsBuffer() const {
       return weights_upload_type != WeightsUploadType::kTexturesX4;

@@ -280,11 +280,11 @@ class ConvCodeGenerator {
     if (kernel_params_.weights_upload_type ==
         ConvGeneric::WeightsUploadType::kWaveMemory) {
       c += "#pragma OPENCL EXTENSION ucl_wave_memory: enable\n";
-      if (!kernel_params_.simd_sizes.empty()) {
+      if (!kernel_params_.wave_sizes.empty()) {
         c += "__attribute__((ucl_wave_memory_sizes(" +
-             std::to_string(kernel_params_.simd_sizes[0]);
-        for (int i = 1; i < kernel_params_.simd_sizes.size(); ++i) {
-          c += ", " + std::to_string(kernel_params_.simd_sizes[i]);
+             std::to_string(kernel_params_.wave_sizes[0]);
+        for (int i = 1; i < kernel_params_.wave_sizes.size(); ++i) {
+          c += ", " + std::to_string(kernel_params_.wave_sizes[i]);
         }
         c += ")))\n";
       }
@@ -321,11 +321,11 @@ class ConvCodeGenerator {
            std::to_string(kernel_params_.work_group_size.y) + ", " +
            std::to_string(kernel_params_.work_group_size.z) + ")))\n";
     }
-    if (use_intel_wave_matmul && kernel_params_.simd_sizes.size() == 1 &&
+    if (use_intel_wave_matmul && kernel_params_.wave_sizes.size() == 1 &&
         gpu_info_.IsApiOpenCl() &&
         gpu_info_.SupportsExtension("cl_intel_required_subgroup_size")) {
       c += "__attribute__((intel_reqd_sub_group_size(" +
-           std::to_string(kernel_params_.simd_sizes[0]) + ")))\n";
+           std::to_string(kernel_params_.wave_sizes[0]) + ")))\n";
     }
     c += "MAIN_FUNCTION($0) {\n";
     c += GenerateMainBody();
@@ -437,10 +437,10 @@ class ConvCodeGenerator {
         int tile_size = 1;
         if (use_intel_wave_matmul) {
           tile_size = weights_conversion ? kernel_params_.work_group_size.x
-                                         : kernel_params_.simd_sizes[0];
+                                         : kernel_params_.wave_sizes[0];
         } else if (kernel_params_.weights_upload_type ==
                    ConvGeneric::WeightsUploadType::kWaveMemory) {
-          tile_size = kernel_params_.simd_sizes.back();
+          tile_size = kernel_params_.wave_sizes.back();
         }
         tile_size *= kernel_params_.block_size.w;
         const std::string tile_size_str = std::to_string(tile_size);
@@ -901,7 +901,7 @@ class ConvCodeGenerator {
     }
     if (kernel_params_.weights_upload_type ==
             ConvGeneric::WeightsUploadType::kWaveMemory &&
-        kernel_params_.simd_sizes.size() > 1) {
+        kernel_params_.wave_sizes.size() > 1) {
       c += "__hint__((ucl_wave_memory_scope_end))\n";
     }
     if (late_spatial_oob_check && !dst_spatial_oob_check.empty()) {
@@ -2475,7 +2475,7 @@ ConvGeneric::KernelParams GetKernelParamsIntel(
       kernel_params.linear_spatial = true;
       kernel_params.work_group_launch_order = int3(1, 0, 2);
     }
-    kernel_params.simd_sizes = {16};
+    kernel_params.wave_sizes = {16};
     kernel_params.fixed_work_group_size = false;
     kernel_params.work_group_size = int3(64, 1, 1);
     kernel_params.weights_upload_type =
@@ -2616,7 +2616,7 @@ ConvGeneric::KernelParams GetKernelParamsIntel(
       gpu_info.SupportsExtension("ucl_wave_memory")) {
     kernel_params.weights_upload_type =
         ConvGeneric::WeightsUploadType::kWaveMemory;
-    kernel_params.simd_sizes = {8, 16};
+    kernel_params.wave_sizes = {8, 16};
   }
   if (gpu_info.IsApiOpenCl() && gpu_info.opencl_info.IsCLVK() &&
       conv_params.precision != CalculationsPrecision::kF32F16 &&
@@ -2625,7 +2625,7 @@ ConvGeneric::KernelParams GetKernelParamsIntel(
     // size 16
     kernel_params.weights_upload_type =
         ConvGeneric::WeightsUploadType::kWaveMemory;
-    kernel_params.simd_sizes = {16};
+    kernel_params.wave_sizes = {16};
   }
   if (gpu_info.IsApiOpenCl() && !gpu_info.opencl_info.IsCLVK() &&
       conv_params.precision != CalculationsPrecision::kF32F16 &&
@@ -2636,11 +2636,11 @@ ConvGeneric::KernelParams GetKernelParamsIntel(
         kernel_params.work_group_size.x >= 32) {
       kernel_params.weights_upload_type =
           ConvGeneric::WeightsUploadType::kWaveMemory;
-      kernel_params.simd_sizes = {32};
+      kernel_params.wave_sizes = {32};
     } else if (gpu_info.SupportsSubGroupWithSize(16)) {
       kernel_params.weights_upload_type =
           ConvGeneric::WeightsUploadType::kWaveMemory;
-      kernel_params.simd_sizes = {16};
+      kernel_params.wave_sizes = {16};
     } else {
       // no support of subgroup size control
       // only smallest subgroup size (8) can be used safely, otherwise
@@ -2657,10 +2657,10 @@ ConvGeneric::KernelParams GetKernelParamsIntel(
     kernel_params.weights_upload_type =
         ConvGeneric::WeightsUploadType::kWaveMemory;
     // simd size is determined in the shader.
-    kernel_params.simd_sizes.clear();
+    kernel_params.wave_sizes.clear();
     for (unsigned int simd_size = gpu_info.webgpu_info.min_subgroup_size;
          simd_size <= gpu_info.webgpu_info.max_subgroup_size; simd_size *= 2) {
-      kernel_params.simd_sizes.push_back(simd_size);
+      kernel_params.wave_sizes.push_back(simd_size);
     }
     kernel_params.work_group_size.x =
         std::max(kernel_params.work_group_size.x,
@@ -2772,7 +2772,7 @@ ConvGeneric::KernelParams GetKernelParamsPowerVRDXT(
       gpu_info.SupportsExtension("ucl_wave_memory")
           ? ConvGeneric::WeightsUploadType::kWaveMemory
           : ConvGeneric::WeightsUploadType::kLocalMemory;
-  kernel_params.simd_sizes = {128};
+  kernel_params.wave_sizes = {128};
 
   bool slices_first = true;
   if (conv_params.Is8Bit()) {
@@ -3857,7 +3857,7 @@ std::vector<int3> ConvGeneric::GetPossibleKernelWorkGroups(
   if (kernel_params_.weights_upload_type ==
       WeightsUploadType::kIntelWave16MatMul) {
     if (tuning_type == TuningType::kExhaustive) {
-      return GetWorkGroupsXMultipleOf(kernel_params_.simd_sizes[0], gpu_info,
+      return GetWorkGroupsXMultipleOf(kernel_params_.wave_sizes[0], gpu_info,
                                       kernel_info, grid_size_);
     } else {
       return {work_group_size_};
