@@ -1407,5 +1407,309 @@ TEST(CustomGroups, ConversionOHWITokOICustomSpatialI4O4) {
   EXPECT_EQ(output, output_ref);
 }
 
+TEST(CustomGroupsI2gr0O8I2gr1O2, TotalSize) {
+  const OHWI ohwi_shape(39, 2, 3, 23);
+  WeightsDescription weight_desc;
+  weight_desc.type = DataType::kFloat32;
+  weight_desc.layout = WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2;
+  weight_desc.group_sizes = {
+      {Axis::kInputChannels, 3},  {Axis::kOutputChannels, 2},
+      {Axis::kWidth, 0},          {Axis::kHeight, 0},
+      {Axis::kOutputChannels, 0}, {Axis::kInputChannels, 0}};
+  EXPECT_EQ(GetTotalElementsCountForLayout(weight_desc, ohwi_shape),
+            AlignByN(ohwi_shape.o, 16 * 2) * AlignByN(ohwi_shape.i, 4 * 3) *
+                ohwi_shape.h * ohwi_shape.w);
+
+  const OHWDI ohwdi_shape(39, 2, 3, 5, 23);
+  weight_desc.group_sizes = {
+      {Axis::kInputChannels, 3}, {Axis::kOutputChannels, 2},
+      {Axis::kWidth, 0},         {Axis::kHeight, 0},
+      {Axis::kDepth, 0},         {Axis::kOutputChannels, 0},
+      {Axis::kInputChannels, 0}};
+  EXPECT_EQ(GetTotalElementsCountForLayout(weight_desc, ohwdi_shape),
+            AlignByN(ohwdi_shape.o, 16 * 2) * AlignByN(ohwdi_shape.i, 4 * 3) *
+                ohwdi_shape.h * ohwdi_shape.w * ohwdi_shape.d);
+}
+
+TEST(CustomGroupsI2gr0O8I2gr1O2, ConversionOHWIAllTypes) {
+  const OHWI weights_shape(39, 2, 3, 23);
+  constexpr int kOutputGroupSize = 2;
+  WeightsDescription weight_desc;
+  weight_desc.type = DataType::kFloat32;
+  weight_desc.layout = WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2;
+  weight_desc.group_sizes = {
+      {Axis::kInputChannels, 2}, {Axis::kOutputChannels, kOutputGroupSize},
+      {Axis::kInputChannels, 0}, {Axis::kWidth, 0},
+      {Axis::kHeight, 0},        {Axis::kOutputChannels, 0}};
+
+  const int elements_count =
+      GetTotalElementsCountForLayout(weight_desc, weights_shape);
+  const int src_groups = DivideRoundUp(weights_shape.i, 8);
+  const int dst_groups = DivideRoundUp(weights_shape.o, 16 * kOutputGroupSize);
+
+  auto build_ref = [&](const auto& src_data, auto pad_val) {
+    using ElemT = decltype(pad_val);
+    std::vector<ElemT> ref(elements_count, pad_val);
+    int counter = 0;
+    for (int dst_group = 0; dst_group < dst_groups; ++dst_group) {
+      for (int ky = 0; ky < weights_shape.h; ++ky) {
+        for (int kx = 0; kx < weights_shape.w; ++kx) {
+          for (int src_group = 0; src_group < src_groups; ++src_group) {
+            for (int dst_block = 0; dst_block < kOutputGroupSize; ++dst_block) {
+              const int i_offset = src_group * 8;
+              const int o_offset =
+                  (dst_group * kOutputGroupSize + dst_block) * 16;
+              for (int i2 = 0; i2 < 2; ++i2) {
+                for (int i1 = 0; i1 < 2; ++i1) {
+                  for (int o1 = 0; o1 < 8; ++o1) {
+                    for (int i0 = 0; i0 < 2; ++i0) {
+                      for (int o0 = 0; o0 < 2; ++o0) {
+                        const int i_ch = i_offset + (i2 * 2 + i0) * 2 + i1;
+                        const int o_ch = o_offset + o1 * 2 + o0;
+                        if (o_ch < weights_shape.o && i_ch < weights_shape.i) {
+                          ref[counter++] = static_cast<ElemT>(
+                              src_data[weights_shape.LinearIndex(
+                                  {o_ch, ky, kx, i_ch})]);
+                        } else {
+                          ref[counter++] = pad_val;
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    return ref;
+  };
+
+  // Float32 and Float16 conversions.
+  Tensor<OHWI, DataType::kFloat32> f32_weights;
+  f32_weights.shape = weights_shape;
+  f32_weights.data.resize(weights_shape.DimensionsProduct() +
+                          XNN_EXTRA_BYTES / sizeof(float));
+  for (int i = 0; i < f32_weights.data.size(); ++i) {
+    f32_weights.data[i] = static_cast<float>(i % 31);
+  }
+  std::vector<float> f32_out(elements_count, -1.0f);
+  RearrangeWeights(f32_weights, weight_desc,
+                   absl::MakeSpan(reinterpret_cast<uint8_t*>(f32_out.data()),
+                                  f32_out.size() * sizeof(float)));
+  EXPECT_EQ(f32_out, build_ref(f32_weights.data, 0.0f));
+
+  weight_desc.type = DataType::kFloat16;
+  std::vector<half> f16_out(elements_count, half(-1.0f));
+  RearrangeWeights(f32_weights, weight_desc,
+                   absl::MakeSpan(reinterpret_cast<uint8_t*>(f16_out.data()),
+                                  f16_out.size() * sizeof(half)));
+  EXPECT_EQ(f16_out, build_ref(f32_weights.data, half(0.0f)));
+
+  // Int8 conversion.
+  weight_desc.type = DataType::kInt8;
+  Tensor<OHWI, DataType::kInt8> i8_weights;
+  i8_weights.shape = weights_shape;
+  i8_weights.data.resize(weights_shape.DimensionsProduct() +
+                         XNN_EXTRA_BYTES / sizeof(int8_t));
+  for (int i = 0; i < i8_weights.data.size(); ++i) {
+    i8_weights.data[i] = static_cast<int8_t>((i % 127) - 63);
+  }
+  std::vector<int8_t> i8_out(elements_count, 1);
+  RearrangeWeights(
+      i8_weights, weight_desc,
+      absl::MakeSpan(reinterpret_cast<uint8_t*>(i8_out.data()), i8_out.size()));
+  EXPECT_EQ(i8_out, build_ref(i8_weights.data, static_cast<int8_t>(0)));
+
+  // Uint8 conversion with non-zero pad_value.
+  weight_desc.type = DataType::kUint8;
+  Tensor<OHWI, DataType::kUint8> u8_weights;
+  u8_weights.shape = weights_shape;
+  u8_weights.data.resize(weights_shape.DimensionsProduct() +
+                         XNN_EXTRA_BYTES / sizeof(uint8_t));
+  for (int i = 0; i < u8_weights.data.size(); ++i) {
+    u8_weights.data[i] = static_cast<uint8_t>(i % 251);
+  }
+  std::vector<uint8_t> u8_out(elements_count, 0);
+  RearrangeWeights(u8_weights, weight_desc, absl::MakeSpan(u8_out),
+                   /*pad_value=*/128);
+  EXPECT_EQ(u8_out, build_ref(u8_weights.data, static_cast<uint8_t>(128)));
+}
+
+TEST(CustomGroupsI2gr0O8I2gr1O2, ConversionOHWDI) {
+  const OHWI ohwi_shape(39, 2, 3, 23);
+  const OHWDI ohwdi_1_shape(39, 2, 3, 1, 23);
+  const OHWDI ohwdi_shape(39, 2, 3, 4, 23);
+  constexpr int kOutputGroupSize = 2;
+
+  WeightsDescription ohwi_desc;
+  ohwi_desc.type = DataType::kFloat32;
+  ohwi_desc.layout = WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2;
+  ohwi_desc.group_sizes = {
+      {Axis::kInputChannels, 2}, {Axis::kOutputChannels, kOutputGroupSize},
+      {Axis::kInputChannels, 0}, {Axis::kWidth, 0},
+      {Axis::kHeight, 0},        {Axis::kOutputChannels, 0}};
+
+  WeightsDescription ohwdi_desc = ohwi_desc;
+  ohwdi_desc.group_sizes = {
+      {Axis::kInputChannels, 2}, {Axis::kOutputChannels, kOutputGroupSize},
+      {Axis::kInputChannels, 0}, {Axis::kWidth, 0},
+      {Axis::kHeight, 0},        {Axis::kDepth, 0},
+      {Axis::kOutputChannels, 0}};
+
+  Tensor<OHWI, DataType::kFloat32> ohwi_weights;
+  ohwi_weights.shape = ohwi_shape;
+  ohwi_weights.data.resize(ohwi_shape.DimensionsProduct() +
+                           XNN_EXTRA_BYTES / sizeof(float));
+  for (int i = 0; i < ohwi_weights.data.size(); ++i) {
+    ohwi_weights.data[i] = static_cast<float>(i);
+  }
+
+  Tensor<OHWDI, DataType::kFloat32> ohwdi_1_weights;
+  ohwdi_1_weights.shape = ohwdi_1_shape;
+  ohwdi_1_weights.data = ohwi_weights.data;
+
+  const int ohwi_elements =
+      GetTotalElementsCountForLayout(ohwi_desc, ohwi_shape);
+  ASSERT_EQ(ohwi_elements,
+            GetTotalElementsCountForLayout(ohwdi_desc, ohwdi_1_shape));
+
+  std::vector<float> ohwi_out(ohwi_elements, -1.0f);
+  RearrangeWeights(ohwi_weights, ohwi_desc,
+                   absl::MakeSpan(reinterpret_cast<uint8_t*>(ohwi_out.data()),
+                                  ohwi_out.size() * sizeof(float)));
+
+  std::vector<float> ohwdi_1_out(ohwi_elements, -2.0f);
+  RearrangeWeights(
+      ohwdi_1_weights, ohwdi_desc,
+      absl::MakeSpan(reinterpret_cast<uint8_t*>(ohwdi_1_out.data()),
+                     ohwdi_1_out.size() * sizeof(float)));
+  EXPECT_EQ(ohwi_out, ohwdi_1_out);
+
+  Tensor<OHWDI, DataType::kFloat32> ohwdi_weights;
+  ohwdi_weights.shape = ohwdi_shape;
+  ohwdi_weights.data.resize(ohwdi_shape.DimensionsProduct() +
+                            XNN_EXTRA_BYTES / sizeof(float));
+  for (int i = 0; i < ohwdi_weights.data.size(); ++i) {
+    ohwdi_weights.data[i] = static_cast<float>(i % 31);
+  }
+
+  const int ohwdi_elements =
+      GetTotalElementsCountForLayout(ohwdi_desc, ohwdi_shape);
+  std::vector<float> ohwdi_out(ohwdi_elements, -1.0f);
+  RearrangeWeights(ohwdi_weights, ohwdi_desc,
+                   absl::MakeSpan(reinterpret_cast<uint8_t*>(ohwdi_out.data()),
+                                  ohwdi_out.size() * sizeof(float)));
+
+  std::vector<float> ohwdi_ref(ohwdi_elements, -2.0f);
+  const int src_groups = DivideRoundUp(ohwdi_shape.i, 8);
+  const int dst_groups = DivideRoundUp(ohwdi_shape.o, 16 * kOutputGroupSize);
+  int counter = 0;
+  for (int dst_group = 0; dst_group < dst_groups; ++dst_group) {
+    for (int kz = 0; kz < ohwdi_shape.d; ++kz) {
+      for (int ky = 0; ky < ohwdi_shape.h; ++ky) {
+        for (int kx = 0; kx < ohwdi_shape.w; ++kx) {
+          for (int src_group = 0; src_group < src_groups; ++src_group) {
+            for (int dst_block = 0; dst_block < kOutputGroupSize; ++dst_block) {
+              const int i_offset = src_group * 8;
+              const int o_offset =
+                  (dst_group * kOutputGroupSize + dst_block) * 16;
+              for (int i2 = 0; i2 < 2; ++i2) {
+                for (int i1 = 0; i1 < 2; ++i1) {
+                  for (int o1 = 0; o1 < 8; ++o1) {
+                    for (int i0 = 0; i0 < 2; ++i0) {
+                      for (int o0 = 0; o0 < 2; ++o0) {
+                        const int i_ch = i_offset + (i2 * 2 + i0) * 2 + i1;
+                        const int o_ch = o_offset + o1 * 2 + o0;
+                        if (o_ch < ohwdi_shape.o && i_ch < ohwdi_shape.i) {
+                          ohwdi_ref[counter++] =
+                              ohwdi_weights.data[ohwdi_shape.LinearIndex(
+                                  {o_ch, ky, kx, kz, i_ch})];
+                        } else {
+                          ohwdi_ref[counter++] = 0.0f;
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  EXPECT_EQ(ohwdi_out, ohwdi_ref);
+}
+
+TEST(CustomGroupsI2gr0O8I2gr1O2, ConversionArbitraryOrderAndSpatialRemap) {
+  // Innermost-to-outermost outside I2gr0O8I2gr1O2:
+  // o_tile (2) -> h (2) -> w (3) -> o_outer -> i_outer, with spatial_remap.
+  const OHWI ohwi_shape(35, 2, 3, 19);
+  WeightsDescription ohwi_desc;
+  ohwi_desc.type = DataType::kFloat32;
+  ohwi_desc.layout = WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2;
+  ohwi_desc.group_sizes = {{Axis::kOutputChannels, 2},
+                           {Axis::kHeight, 0},
+                           {Axis::kWidth, 0},
+                           {Axis::kOutputChannels, 0},
+                           {Axis::kInputChannels, 0}};
+  ohwi_desc.spatial_remap = {5, 1, 3, 0, 4, 2};
+
+  Tensor<OHWI, DataType::kFloat32> ohwi_weights;
+  ohwi_weights.shape = ohwi_shape;
+  ohwi_weights.data.resize(ohwi_shape.DimensionsProduct() +
+                           XNN_EXTRA_BYTES / sizeof(float));
+  for (int i = 0; i < ohwi_weights.data.size(); ++i) {
+    ohwi_weights.data[i] = static_cast<float>(i + 1);
+  }
+
+  const int ohwi_elements =
+      GetTotalElementsCountForLayout(ohwi_desc, ohwi_shape);
+  std::vector<float> ohwi_out(ohwi_elements, -1.0f);
+  RearrangeWeights(ohwi_weights, ohwi_desc,
+                   absl::MakeSpan(reinterpret_cast<uint8_t*>(ohwi_out.data()),
+                                  ohwi_out.size() * sizeof(float)));
+
+  std::vector<float> ohwi_ref(ohwi_elements, -2.0f);
+  const int i_blocks = DivideRoundUp(ohwi_shape.i, 4);
+  const int o_outer_blocks = DivideRoundUp(ohwi_shape.o, 16 * 2);
+  int counter = 0;
+  for (int i_blk = 0; i_blk < i_blocks; ++i_blk) {
+    for (int o_outer = 0; o_outer < o_outer_blocks; ++o_outer) {
+      for (int x = 0; x < ohwi_shape.w; ++x) {
+        for (int y = 0; y < ohwi_shape.h; ++y) {
+          const int remapped = ohwi_desc.spatial_remap[y * ohwi_shape.w + x];
+          const int rx = remapped % ohwi_shape.w;
+          const int ry = remapped / ohwi_shape.w;
+          for (int o_tile = 0; o_tile < 2; ++o_tile) {
+            const int i_base = i_blk * 4;
+            const int o_base = (o_outer * 2 + o_tile) * 16;
+            for (int i1 = 0; i1 < 2; ++i1) {
+              for (int o1 = 0; o1 < 8; ++o1) {
+                for (int i0 = 0; i0 < 2; ++i0) {
+                  for (int o0 = 0; o0 < 2; ++o0) {
+                    const int i_ch = i_base + i0 * 2 + i1;
+                    const int o_ch = o_base + o1 * 2 + o0;
+                    if (o_ch < ohwi_shape.o && i_ch < ohwi_shape.i) {
+                      ohwi_ref[counter++] =
+                          ohwi_weights.data[ohwi_shape.LinearIndex(
+                              {o_ch, ry, rx, i_ch})];
+                    } else {
+                      ohwi_ref[counter++] = 0.0f;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  EXPECT_EQ(ohwi_out, ohwi_ref);
+}
+
 }  // namespace
 }  // namespace ml_drift

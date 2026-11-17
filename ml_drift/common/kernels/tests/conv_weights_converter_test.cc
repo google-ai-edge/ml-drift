@@ -67,12 +67,23 @@ std::array<WeightsDescription, 5> WeightsDescsIntOHWIToUInt() {
                         {Axis::kOutputChannels, 0}}}}};
 };
 
-std::array<WeightsDescription, 6> WeightsDescsIntOHWIToFloat() {
+std::array<WeightsDescription, 7> WeightsDescsIntOHWIToFloat() {
   return {
       {{.layout = WeightsLayout::kOSpatialIOGroupI4O4, .output_group_size = 16},
        {.layout = WeightsLayout::kOSpatialIOGroupO4I4, .output_group_size = 16},
-       {.layout = WeightsLayout::kOSpatialIOGroupI2I2gr0O8I2gr1O2,
-        .output_group_size = 4},
+       {.layout = WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2,
+        .group_sizes = {{Axis::kInputChannels, 2},
+                        {Axis::kOutputChannels, 4},
+                        {Axis::kInputChannels, 0},
+                        {Axis::kWidth, 0},
+                        {Axis::kHeight, 0},
+                        {Axis::kOutputChannels, 0}}},
+       {.layout = WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2,
+        .group_sizes = {{Axis::kOutputChannels, 2},
+                        {Axis::kHeight, 0},
+                        {Axis::kWidth, 0},
+                        {Axis::kOutputChannels, 0},
+                        {Axis::kInputChannels, 0}}},
        {.layout = WeightsLayout::kCustomGroups,
         .group_sizes = {{Axis::kInputChannels, 2},
                         {Axis::kOutputChannels, 4},
@@ -102,7 +113,7 @@ std::array<WeightsDescription, 6> WeightsDescsIntOHWIToFloat() {
                         {Axis::kOutputChannels, 0}}}}};
 };
 
-std::array<WeightsDescription, 10> WeightsDescsIntToFloat() {
+std::array<WeightsDescription, 11> WeightsDescsIntToFloat() {
   return {{{
                .layout = WeightsLayout::kOSpatialIOGroupI4O4,
                .output_group_size = 16,
@@ -112,8 +123,21 @@ std::array<WeightsDescription, 10> WeightsDescsIntToFloat() {
                .output_group_size = 16,
            },
            {
-               .layout = WeightsLayout::kOSpatialIOGroupI2I2gr0O8I2gr1O2,
-               .output_group_size = 4,
+               .layout = WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2,
+               .group_sizes = {{Axis::kInputChannels, 2},
+                               {Axis::kOutputChannels, 4},
+                               {Axis::kInputChannels, 0},
+                               {Axis::kWidth, 0},
+                               {Axis::kHeight, 0},
+                               {Axis::kOutputChannels, 0}},
+           },
+           {
+               .layout = WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2,
+               .group_sizes = {{Axis::kOutputChannels, 2},
+                               {Axis::kWidth, 0},
+                               {Axis::kHeight, 0},
+                               {Axis::kOutputChannels, 0},
+                               {Axis::kInputChannels, 0}},
            },
            {
                .layout = WeightsLayout::k2DX4I4YIsSpatialIAndXIsOOGroupO4,
@@ -166,7 +190,7 @@ std::array<WeightsDescription, 10> WeightsDescsIntToFloat() {
            }}};
 };
 
-std::array<WeightsDescription, 9> WeightsDescsI8ToUI8() {
+std::array<WeightsDescription, 10> WeightsDescsI8ToUI8() {
   return {{{
                .type = DataType::kUint8,
                .layout = WeightsLayout::kOSpatialIOGroupI4O4,
@@ -179,8 +203,21 @@ std::array<WeightsDescription, 9> WeightsDescsI8ToUI8() {
            },
            {
                .type = DataType::kUint8,
-               .layout = WeightsLayout::kOSpatialIOGroupI2I2gr0O8I2gr1O2,
-               .output_group_size = 4,
+               .layout = WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2,
+               .group_sizes = {{Axis::kInputChannels, 2},
+                               {Axis::kOutputChannels, 4},
+                               {Axis::kInputChannels, 0},
+                               {Axis::kWidth, 0},
+                               {Axis::kHeight, 0},
+                               {Axis::kOutputChannels, 0}},
+           },
+           {
+               .type = DataType::kUint8,
+               .layout = WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2,
+               .group_sizes = {{Axis::kOutputChannels, 2},
+                               {Axis::kInputChannels, 3},
+                               {Axis::kOutputChannels, 0},
+                               {Axis::kInputChannels, 0}},
            },
            {.type = DataType::kUint8,
             .layout = WeightsLayout::kCustomGroups,
@@ -237,7 +274,7 @@ std::array<WeightsDescription, 9> WeightsDescsI8ToUI8() {
            }}};
 };
 
-std::array<WeightsDescription, 10> WeightsDescsF32ToF32() {
+std::array<WeightsDescription, 11> WeightsDescsF32ToF32() {
   return {{{
                .layout = WeightsLayout::kOSpatialIOGroupI4O4,
                .output_group_size = 16,
@@ -247,8 +284,21 @@ std::array<WeightsDescription, 10> WeightsDescsF32ToF32() {
                .output_group_size = 16,
            },
            {
-               .layout = WeightsLayout::kOSpatialIOGroupI2I2gr0O8I2gr1O2,
-               .output_group_size = 4,
+               .layout = WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2,
+               .group_sizes = {{Axis::kInputChannels, 2},
+                               {Axis::kOutputChannels, 4},
+                               {Axis::kInputChannels, 0},
+                               {Axis::kWidth, 0},
+                               {Axis::kHeight, 0},
+                               {Axis::kOutputChannels, 0}},
+           },
+           {
+               .layout = WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2,
+               .group_sizes = {{Axis::kOutputChannels, 3},
+                               {Axis::kHeight, 0},
+                               {Axis::kWidth, 0},
+                               {Axis::kOutputChannels, 0},
+                               {Axis::kInputChannels, 0}},
            },
            {
                .layout = WeightsLayout::k2DX4I4YIsSpatialIAndXIsOOGroupO4,
@@ -300,7 +350,7 @@ std::array<WeightsDescription, 10> WeightsDescsF32ToF32() {
            }}};
 };
 
-std::array<WeightsDescription, 8> WeightsDescsUITo8Bit() {
+std::array<WeightsDescription, 9> WeightsDescsUITo8Bit() {
   return {{{
                .layout = WeightsLayout::kOSpatialIOGroupI4O4,
                .output_group_size = 16,
@@ -310,8 +360,21 @@ std::array<WeightsDescription, 8> WeightsDescsUITo8Bit() {
                .output_group_size = 16,
            },
            {
-               .layout = WeightsLayout::kOSpatialIOGroupI2I2gr0O8I2gr1O2,
-               .output_group_size = 4,
+               .layout = WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2,
+               .group_sizes = {{Axis::kInputChannels, 2},
+                               {Axis::kOutputChannels, 4},
+                               {Axis::kInputChannels, 0},
+                               {Axis::kWidth, 0},
+                               {Axis::kHeight, 0},
+                               {Axis::kOutputChannels, 0}},
+           },
+           {
+               .layout = WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2,
+               .group_sizes = {{Axis::kOutputChannels, 2},
+                               {Axis::kHeight, 0},
+                               {Axis::kWidth, 0},
+                               {Axis::kOutputChannels, 0},
+                               {Axis::kInputChannels, 0}},
            },
            {.layout = WeightsLayout::kCustomGroups,
             .group_sizes = {{Axis::kInputChannels, 2},
@@ -358,7 +421,7 @@ std::array<WeightsDescription, 8> WeightsDescsUITo8Bit() {
            }}};
 };
 
-std::array<WeightsDescription, 5> WeightsDescsUITo4Bit() {
+std::array<WeightsDescription, 6> WeightsDescsUITo4Bit() {
   return {{{
                .layout = WeightsLayout::kOSpatialIOGroupI4O4,
                .output_group_size = 16,
@@ -368,8 +431,21 @@ std::array<WeightsDescription, 5> WeightsDescsUITo4Bit() {
                .output_group_size = 16,
            },
            {
-               .layout = WeightsLayout::kOSpatialIOGroupI2I2gr0O8I2gr1O2,
-               .output_group_size = 4,
+               .layout = WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2,
+               .group_sizes = {{Axis::kInputChannels, 2},
+                               {Axis::kOutputChannels, 4},
+                               {Axis::kInputChannels, 0},
+                               {Axis::kWidth, 0},
+                               {Axis::kHeight, 0},
+                               {Axis::kOutputChannels, 0}},
+           },
+           {
+               .layout = WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2,
+               .group_sizes = {{Axis::kOutputChannels, 2},
+                               {Axis::kHeight, 0},
+                               {Axis::kWidth, 0},
+                               {Axis::kOutputChannels, 0},
+                               {Axis::kInputChannels, 0}},
            },
            {.layout = WeightsLayout::kCustomGroups,
             .group_sizes = {{Axis::kInputChannels, 2},
@@ -392,8 +468,22 @@ std::array<WeightsDescription, 5> WeightsDescsUITo4Bit() {
                             {Axis::kOutputChannels, 0}}}}};
 };
 
-std::array<WeightsDescription, 12> WeightsDescsCustomGroups() {
+std::array<WeightsDescription, 14> WeightsDescsCustomGroups() {
   return {{{
+               .type = DataType::kFloat32,
+               .layout = WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2,
+               .group_sizes = {{Axis::kInputChannels, 0},
+                               {Axis::kOutputChannels, 0}},
+           },
+           {
+               .type = DataType::kFloat32,
+               .layout = WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2,
+               .group_sizes = {{Axis::kOutputChannels, 2},
+                               {Axis::kInputChannels, 3},
+                               {Axis::kOutputChannels, 0},
+                               {Axis::kInputChannels, 0}},
+           },
+           {
                .type = DataType::kFloat32,
                .layout = WeightsLayout::kCustomGroups,
                .group_sizes = {{Axis::kInputChannels, 8},
@@ -580,8 +670,7 @@ INSTANTIATE_TEST_SUITE_P(
     Combine(ValuesIn(GetFloatTypes()),
             ValuesIn(GetTensorStoragesTypesWithoutSingleTexture2D()),
             ValuesIn({WeightsLayout::kOSpatialIOGroupI4O4,
-                      WeightsLayout::kOSpatialIOGroupO4I4,
-                      WeightsLayout::kOSpatialIOGroupI2I2gr0O8I2gr1O2})),
+                      WeightsLayout::kOSpatialIOGroupO4I4})),
     [](const TestParamInfo<OutTest::ParamType>& info) {
       return absl::StrReplaceAll(
           absl::StrCat(ToString(std::get<0>(info.param)), "_",
@@ -1161,5 +1250,67 @@ INSTANTIATE_TEST_SUITE_P(
                        ToString(std::get<3>(info.param))),
           {{":", ""}});
     });
+
+TEST(CustomGroupsI2gr0O8I2gr1O2Test, SpatialRemapAndQuantizedOHWI) {
+  WeightsDescription f16_desc = {
+      .type = DataType::kFloat16,
+      .layout = WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2,
+      .group_sizes = {{Axis::kInputChannels, 2},
+                      {Axis::kOutputChannels, 2},
+                      {Axis::kInputChannels, 0},
+                      {Axis::kWidth, 0},
+                      {Axis::kHeight, 0},
+                      {Axis::kOutputChannels, 0}},
+  };
+  for (TensorStorageType storage :
+       GetTensorStoragesTypesWithoutSingleTexture2D()) {
+    if (!exec_env->IsStorageSupported(storage, DataType::kFloat16) ||
+        !exec_env->IsStorageSupported(TensorStorageType::kBuffer,
+                                      DataType::kFloat16)) {
+      continue;
+    }
+    ABSL_ASSERT_OK(ConverterToCustomGroupsTest(
+        *exec_env, OHWI(19, 2, 3, 11), storage, DataType::kFloat16, f16_desc));
+  }
+
+  WeightsDescription spatial_desc = {
+      .type = DataType::kFloat32,
+      .layout = WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2,
+      .spatial_remap = {5, 1, 3, 0, 4, 2},
+      .group_sizes = {{Axis::kOutputChannels, 2},
+                      {Axis::kHeight, 0},
+                      {Axis::kWidth, 0},
+                      {Axis::kOutputChannels, 0},
+                      {Axis::kInputChannels, 0}},
+  };
+  for (TensorStorageType storage :
+       GetTensorStoragesTypesWithoutSingleTexture2D()) {
+    if (!exec_env->IsStorageSupported(storage, DataType::kFloat32) ||
+        !exec_env->IsStorageSupported(TensorStorageType::kBuffer,
+                                      DataType::kFloat32)) {
+      continue;
+    }
+    ABSL_ASSERT_OK(ConverterToCustomGroupsTest(*exec_env, OHWI(35, 2, 3, 19),
+                                          storage, DataType::kFloat32,
+                                          spatial_desc));
+  }
+
+  if (exec_env->IsStorageSupported(TensorStorageType::kBuffer,
+                                   DataType::kInt8) &&
+      exec_env->IsStorageSupported(TensorStorageType::kBuffer,
+                                   DataType::kUint8)) {
+    WeightsDescription u8_desc = spatial_desc;
+    u8_desc.type = DataType::kUint8;
+    ABSL_ASSERT_OK(ConverterToConvWeightsInt8OHWIToUint8Test(
+        *exec_env, OHWI(35, 2, 3, 19), u8_desc));
+  }
+  if (exec_env->IsStorageSupported(TensorStorageType::kBuffer,
+                                   DataType::kInt8)) {
+    WeightsDescription u4_desc = spatial_desc;
+    u4_desc.type = DataType::kUint4;
+    ABSL_ASSERT_OK(ConverterToConvWeightsInt4OHWIToUint4Test(
+        *exec_env, OHWI(35, 2, 3, 19), u4_desc));
+  }
+}
 
 }  // namespace ml_drift

@@ -18,6 +18,7 @@
 
 #include "gtest/gtest.h"
 #include "absl/status/status_matchers.h"
+#include "ml_drift/common/data_type.h"
 #include "ml_drift/common/shape.h"
 
 namespace ml_drift {
@@ -145,6 +146,35 @@ TEST(WeightsLayoutTest, IsOISpatialOGroupSingleAxis) {
     EXPECT_FALSE(
         CreateWeightsDescription(false, {axis}).IsOISpatialOGroupO4I4());
   }
+}
+
+TEST(WeightsLayoutTest, CustomGroupsI2gr0O8I2gr1O2Properties) {
+  WeightsDescription desc;
+  desc.type = DataType::kFloat32;
+  desc.layout = WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2;
+  desc.output_group_size = 8;
+  desc.group_sizes = {{Axis::kOutputChannels, 4}, {Axis::kInputChannels, 4},
+                      {Axis::kWidth, 0},          {Axis::kHeight, 0},
+                      {Axis::kInputChannels, 0},  {Axis::kOutputChannels, 0}};
+
+  EXPECT_EQ(ToString(WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2),
+            "kCustomGroupsI2gr0O8I2gr1O2");
+  EXPECT_EQ(ToString(desc),
+            "float32_kCustomGroupsI2gr0O8I2gr1O2_o4_i4_w_h_i_o");
+  EXPECT_TRUE(desc.IsLinearLayout());
+  EXPECT_FALSE(desc.IsI4O4());
+  EXPECT_FALSE(desc.IsO4I4());
+  EXPECT_FALSE(desc.IsOISpatialOGroupI4O4());
+  EXPECT_FALSE(desc.IsOISpatialOGroupO4I4());
+  EXPECT_EQ(desc.GetOutputGroupSize(), 1);
+
+  WeightsDescription same_desc = desc;
+  same_desc.output_group_size = 2;
+  EXPECT_EQ(desc, same_desc);
+
+  WeightsDescription diff_desc = desc;
+  diff_desc.group_sizes.back().first = Axis::kInputChannels;
+  EXPECT_NE(desc, diff_desc);
 }
 
 }  // namespace

@@ -27,7 +27,8 @@ namespace ml_drift {
 std::string ToString(const WeightsDescription& desc) {
   std::string result =
       absl::StrCat(ToString(desc.type), "_", ToString(desc.layout));
-  if (desc.layout == WeightsLayout::kCustomGroups) {
+  if (desc.layout == WeightsLayout::kCustomGroups ||
+      desc.layout == WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2) {
     for (const auto& [axis, group_size] : desc.group_sizes) {
       absl::StrAppend(&result, "_", std::string(1, ToString(axis)[0]));
       if (group_size > 0) {
@@ -105,7 +106,7 @@ bool WeightsDescription::IsI4O4() const {
       return IsCustomGroupsI4O4(group_sizes);
     case WeightsLayout::kUnknown:
     case WeightsLayout::kISpatialOI4O4UnalignedIO:
-    case WeightsLayout::kOSpatialIOGroupI2I2gr0O8I2gr1O2:
+    case WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2:
       return false;
   }
 }
@@ -123,7 +124,7 @@ bool WeightsDescription::IsO4I4() const {
       return IsCustomGroupsO4I4(group_sizes);
     case WeightsLayout::kUnknown:
     case WeightsLayout::kISpatialOI4O4UnalignedIO:
-    case WeightsLayout::kOSpatialIOGroupI2I2gr0O8I2gr1O2:
+    case WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2:
       return false;
   }
 }
@@ -135,10 +136,10 @@ int WeightsDescription::GetOutputGroupSize() const {
     case WeightsLayout::k2DX4I4YIsSpatialIAndXIsOOGroupO4:
     case WeightsLayout::k2DX4O4YIsSpatialIAndXIsOOGroupI4:
     case WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4:
-    case WeightsLayout::kOSpatialIOGroupI2I2gr0O8I2gr1O2:
       return output_group_size;
     case WeightsLayout::kUnknown:
     case WeightsLayout::kCustomGroups:
+    case WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2:
     case WeightsLayout::kISpatialOI4O4UnalignedIO:
       return 1;
   }
@@ -186,10 +187,10 @@ std::string ToString(const WeightsLayout& layout) {
       return "k2DYIsSpatialIOAndXIsOGroupI4O4";
     case WeightsLayout::kISpatialOI4O4UnalignedIO:
       return "kISpatialOI4O4UnalignedIO";
-    case WeightsLayout::kOSpatialIOGroupI2I2gr0O8I2gr1O2:
-      return "kOSpatialIOGroupI2I2gr0O8I2gr1O2";
     case WeightsLayout::kCustomGroups:
       return "kCustomGroups";
+    case WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2:
+      return "kCustomGroupsI2gr0O8I2gr1O2";
     case WeightsLayout::kUnknown:
       return "Unknown";
   }

@@ -64,8 +64,14 @@ class ConvWaveMatrixMaliF16 : public GPUOperation {
   WeightsDescription GetWeightsDescription() const {
     WeightsDescription weights_desc;
     weights_desc.type = DataType::kFloat16;
-    weights_desc.layout = WeightsLayout::kOSpatialIOGroupI2I2gr0O8I2gr1O2;
-    weights_desc.output_group_size = kernel_params_.s_block_size;
+    weights_desc.layout = WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2;
+    weights_desc.group_sizes = {
+        {Axis::kInputChannels, 2},
+        {Axis::kOutputChannels, kernel_params_.s_block_size},
+        {Axis::kInputChannels, 0},
+        {Axis::kWidth, 0},
+        {Axis::kHeight, 0},
+        {Axis::kOutputChannels, 0}};
     return weights_desc;
   }
 
