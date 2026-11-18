@@ -31,6 +31,7 @@
 #include "ml_drift/cl/cl_errors.h"
 #include "ml_drift/cl/cl_event.h"
 #include "ml_drift/cl/cl_operation.h"
+#include "ml_drift/cl/command_buffer.h"
 #include "ml_drift/cl/environment.h"
 #include "ml_drift/cl/opencl_wrapper.h"
 #include "ml_drift/cl/program_cache.h"
@@ -247,6 +248,15 @@ absl::Status TensorToBHWCBufferConverter::ConvertExplicit(CLCommandQueue* queue,
   return op_.AddToQueue(queue, event);
 }
 
+absl::Status TensorToBHWCBufferConverter::AddToCommandBuffer(CommandBuffer* cb,
+                                                             Tensor* src,
+                                                             Buffer* dst) {
+  ABSL_RETURN_IF_ERROR(op_.SetSrcTensor(0, src));
+  ABSL_RETURN_IF_ERROR(op_.SetDstBuffer(0, dst));
+  ABSL_RETURN_IF_ERROR(op_.UpdateParams());
+  return cb->AddOp(&op_);
+}
+
 bool BHWCBufferToTensorConverter::IsSupported(const ObjectDef& input,
                                               const ObjectDef& output) {
   return IsBHWCOpenCLBuffer(input) && IsOpenCLTensor(output);
@@ -304,6 +314,15 @@ absl::Status BHWCBufferToTensorConverter::ConvertExplicit(CLCommandQueue* queue,
   ABSL_RETURN_IF_ERROR(op_.SetDstTensor(0, dst));
   ABSL_RETURN_IF_ERROR(op_.UpdateParams());
   return op_.AddToQueue(queue, event);
+}
+
+absl::Status BHWCBufferToTensorConverter::AddToCommandBuffer(CommandBuffer* cb,
+                                                             Buffer* src,
+                                                             Tensor* dst) {
+  ABSL_RETURN_IF_ERROR(op_.SetSrcBuffer(0, src));
+  ABSL_RETURN_IF_ERROR(op_.SetDstTensor(0, dst));
+  ABSL_RETURN_IF_ERROR(op_.UpdateParams());
+  return cb->AddOp(&op_);
 }
 
 absl::Status BHWCBufferToTensorConverter::Convert(

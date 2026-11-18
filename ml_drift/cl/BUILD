@@ -144,6 +144,20 @@ cc_library(
     ],
 )
 
+cc_test(
+    name = "cl_command_buffer_test",
+    srcs = ["cl_command_buffer_test.cc"],
+    linkstatic = 1,
+    deps = [
+        ":cl_command_buffer",
+        ":opencl_wrapper",
+        "@com_google_absl//absl/cleanup",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_matchers",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
 cc_library(
     name = "cl_command_queue",
     srcs = ["cl_command_queue.cc"],
@@ -361,6 +375,7 @@ cc_library(
         ":cl_errors",
         ":cl_event",
         ":cl_operation",
+        ":command_buffer",
         ":environment",
         ":opencl_wrapper",
         ":program_cache",

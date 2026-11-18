@@ -49,6 +49,11 @@ void CLCommandBuffer::Release() {
 
 absl::Status CLCommandBuffer::Init(CLCommandQueue* queue,
                                    bool simultaneous_use) {
+  if (clCreateCommandBufferKHR == nullptr) {
+    return absl::UnavailableError(
+        "clCreateCommandBufferKHR is null: OpenCL driver does not support "
+        "cl_khr_command_buffer.");
+  }
   cl_int errcode_ret = CL_SUCCESS;
   std::vector<cl_command_buffer_properties_khr> properties;
   if (simultaneous_use) {

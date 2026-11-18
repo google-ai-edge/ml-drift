@@ -24,6 +24,7 @@
 #include "ml_drift/cl/cl_device.h"
 #include "ml_drift/cl/cl_event.h"
 #include "ml_drift/cl/cl_operation.h"
+#include "ml_drift/cl/command_buffer.h"
 #include "ml_drift/cl/environment.h"
 #include "ml_drift/cl/program_cache.h"
 #include "ml_drift/cl/tensor.h"
@@ -98,6 +99,8 @@ class TensorToBHWCBufferConverter : public OpenClConverterImpl {
   // ConvertExplicit can be used only with InitExplicit
   absl::Status ConvertExplicit(CLCommandQueue* queue, Tensor* src, Buffer* dst,
                                CLEvent* event = nullptr);
+  // Appends conversion operation to an OpenCL command buffer.
+  absl::Status AddToCommandBuffer(CommandBuffer* cb, Tensor* src, Buffer* dst);
 
  private:
   TensorDescriptor src_tensor_descriptor_;
@@ -127,6 +130,8 @@ class BHWCBufferToTensorConverter : public OpenClConverterImpl {
   // ConvertExplicit can be used only with InitExplicit
   absl::Status ConvertExplicit(CLCommandQueue* queue, Buffer* src, Tensor* dst,
                                CLEvent* event = nullptr);
+  // Appends conversion operation to an OpenCL command buffer.
+  absl::Status AddToCommandBuffer(CommandBuffer* cb, Buffer* src, Tensor* dst);
 
  private:
   BufferDescriptor src_buffer_descriptor_;
