@@ -1276,7 +1276,8 @@ GpuModelBuilder::FullyConnectedSrcFloatExternalWeightsWithConversion(
 }
 
 std::vector<GpuModelBuilder::TensorHandle> GpuModelBuilder::Quantize(
-    const TensorHandle& src, PackedType quantized_type, bool calculate_sum) {
+    const TensorHandle& src, PackedType quantized_type, bool calculate_sum,
+    bool symmetric) {
   const BHWC src_shape = src.tensor_desc.GetBHWCShape();
   auto quantized = AddTensor(GetShapeForPackedType(src_shape, quantized_type),
                              ToSpatialTensorType(quantized_type));
@@ -1292,12 +1293,13 @@ std::vector<GpuModelBuilder::TensorHandle> GpuModelBuilder::Quantize(
   op_def.dst_tensors.push_back(quantized.tensor_desc);
   op_def.dst_tensors.push_back(src_params.tensor_desc);
   auto quant_op = CreateQuantization(op_def, quantized_type, gpu_info_,
-                                     src_shape, calculate_sum);
+                                     src_shape, calculate_sum, symmetric);
 
   gpu_model_.nodes.push_back({});
   auto& gpu_node = gpu_model_.nodes.back();
-  gpu_node.name = "quantize_" + ToString(src.tensor_desc.GetDataType()) +
-                  "_to_" + ToString(quantized_type);
+  gpu_node.name =
+      absl::StrCat("quantize_", ToString(src.tensor_desc.GetDataType()), "_to_",
+                   ToString(quantized_type), symmetric ? "_symmetric" : "");
   gpu_node.inputs = {src.id};
   gpu_node.outputs = {quantized.id, src_params.id};
   gpu_node.gpu_operation = std::move(quant_op);

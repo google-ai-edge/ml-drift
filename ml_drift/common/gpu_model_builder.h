@@ -231,6 +231,13 @@ class GpuModelBuilder {
       const TensorHandle& src, const QuantizeAndDequantizeAttributes& attr);
   TensorHandle StaticRangeQuantization(
       const TensorHandle& src, const QuantizeAndDequantizeAttributes& attr);
+  // Returns 2 tensors: quantized and params (inv_scale, offset, [sum]). See
+  // CreateQuantization() in kernels/quantize_and_dequantize.h for the params
+  // contract and for `symmetric`.
+  std::vector<TensorHandle> Quantize(const TensorHandle& src,
+                                     PackedType quantized_type,
+                                     bool calculate_sum = false,
+                                     bool symmetric = false);
 
   TensorHandle ReLU(const TensorHandle& src, const ReLUAttributes& attr);
 
@@ -637,11 +644,6 @@ class GpuModelBuilder {
                                DataType float_type);
   TensorHandle GetWeightsZeroPoint(
       const Tensor<OHWI, DataType::kInt32>& zero_point, DataType float_type);
-
-  // returns 2 tensors: quantized and params(min/max/sum)
-  std::vector<TensorHandle> Quantize(const TensorHandle& src,
-                                     PackedType quantized_type,
-                                     bool calculate_sum);
 
   // original top-k works for C dimension, BxHxWxC -> BxHxWxTopK
   // this one works with reshaped src-dst, B = 1, H = BxHxW, W = C / 4, C = 4;

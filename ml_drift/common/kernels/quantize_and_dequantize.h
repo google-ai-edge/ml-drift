@@ -57,11 +57,20 @@ GPUOperation CreateStaticRangeQuantization(
 // Creates a GPU operation for the quantization operation.
 // Supports quantization to int8/uint8/int4/uint4 with packing
 // definition.dst_tensors[0].type must be ToSpatialTensorType(dst_type);
+//
+// definition.dst_tensors[1] receives per-(b, h, w) (inv_scale, offset, [sum])
+// such that x ~= q * inv_scale + offset for quantized values q. sum is the sum
+// of q across C, written when `calculate_sum` is true.
+//
+// If `symmetric` is true, scales by max(|x|) instead of [min, max] and maps 0
+// to the midpoint of a narrow range (e.g. int8 in [-127, 127] with offset = 0,
+// or uint8 in [1, 255] around 128 with offset = -128 * inv_scale).
 std::unique_ptr<GPUOperation> CreateQuantization(const OperationDef& definition,
                                                  PackedType dst_type,
                                                  const GpuInfo& gpu_info,
                                                  const BHWC& shape,
-                                                 bool calculate_sum = false);
+                                                 bool calculate_sum = false,
+                                                 bool symmetric = false);
 
 // Creates a GPU operation for the dequantization operation.
 GPUOperation CreateDequantization(

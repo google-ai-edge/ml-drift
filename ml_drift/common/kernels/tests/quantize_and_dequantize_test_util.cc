@@ -17,6 +17,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -26,6 +27,8 @@
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
 #include "ml_drift/common/data_type.h"
+#include "ml_drift/common/gpu_model.h"
+#include "ml_drift/common/gpu_model_builder.h"
 #include "ml_drift/common/kernels/quantize_and_dequantize.h"
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/precision.h"
@@ -34,6 +37,7 @@
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/task/testing_util.h"
 #include "ml_drift/common/tensor.h"
+#include "ml_drift/common/types.h"
 
 namespace ml_drift {
 
@@ -534,6 +538,326 @@ absl::Status QuantizationInt8Test(TestExecutionEnvironment& env,
   ABSL_EXPECT_OK(QuantizationInt8Test(env, src_tensor, op_def,
                                  /*calculate_sum=*/true));
   return absl::OkStatus();
+}
+
+namespace {
+
+// Returns an input for the symmetric quantization tests:
+// - (b, h, w) = (0, 0, 0) is all zeros;
+// - (b, h, w) = (0, 0, 1) spans [-kMaxHalf, kMaxHalf], the largest finite FP16
+//   magnitudes, for which the unsigned offset overflows FP16 unless inv_scale
+//   is capped;
+// - the other rows span about [-12, 4] or [-4, 12], alternating with h.
+// Every value is exactly representable in FP16, so that an FP16 tensor holds
+// the same numbers that the checks on the CPU use.
+// Requires shape.w >= 2 and shape.c >= 2.
+TensorFloat32 MakeSymmetricTestTensor(const BHWC& shape) {
+  TensorFloat32 src_tensor = MakeSyntheticTensor(shape);
+  for (int b = 0; b < shape.b; ++b) {
+    for (int h = 0; h < shape.h; ++h) {
+      for (int w = 0; w < shape.w; ++w) {
+        const bool all_zero_row = (b == 0 && h == 0 && w == 0);
+        const bool large_row = (b == 0 && h == 0 && w == 1);
+        const float bias = (h % 2 == 0) ? -4.0f : 4.0f;
+        for (int c = 0; c < shape.c; ++c) {
+          const int idx = shape.LinearIndex({b, h, w, c});
+          float value = src_tensor.data[idx];  // In [-1, 1).
+          if (all_zero_row) {
+            value = 0.0f;
+          } else if (large_row) {
+            // The first two channels pin both ends of the range.
+            if (c == 0) {
+              value = kMaxHalf;
+            } else if (c == 1) {
+              value = -kMaxHalf;
+            } else {
+              value *= kMaxHalf;
+            }
+          } else {
+            value = value * 8.0f + bias;
+          }
+          src_tensor.data[idx] = static_cast<float>(half(value));
+        }
+      }
+    }
+  }
+  return src_tensor;
+}
+
+// Checks the `codes` and `params` that symmetric 8-bit quantization (kUint8C4
+// or kInt8C4) of `src` produced on the GPU, both against a CPU reference that
+// mirrors the kernel and against the contract x ~= q * inv_scale + offset,
+// which does not depend on how the kernel rounds. `codes` is in BHWC order,
+// like `src`. `is_src_fp16` and `is_params_fp16` describe the GPU tensors.
+void ExpectSymmetricQuantization(const TensorFloat32& src,
+                                 const std::vector<int>& codes,
+                                 const TensorFloat32& params, bool is_signed,
+                                 bool is_src_fp16, bool is_params_fp16,
+                                 bool calculate_sum) {
+  constexpr float kZeroPoint = 128.0f;
+  constexpr float kHalfRange = 127.0f;
+  constexpr float kMaxCode = 255.0f;
+  // Signed codes are the unsigned ones shifted down by the zero point.
+  const int code_shift = is_signed ? 128 : 0;
+  // Same conditions as in the kernel: the scale floor and, for unsigned types,
+  // the scale cap depend on whether the params may be used as FP16.
+  const bool scale_may_be_fp16 = is_src_fp16 || is_params_fp16;
+  const float min_scale = scale_may_be_fp16 ? kMinNormalHalf : 1.0e-30f;
+  const bool cap_scale = scale_may_be_fp16 && !is_signed;
+  const float max_scale = kMaxHalf / kZeroPoint;
+  // Tolerance for the params against the reference. The inputs are exact in
+  // FP16, so only the storage type of the params matters.
+  const float eps = is_params_fp16 ? 0.005f : 0.00005f;
+  // Largest allowed |x - (q * inv_scale + offset)|, in percent of a
+  // quantization step: half a step from rounding to the nearest code, plus
+  // float rounding in the kernel. With FP16 params, inv_scale is also off by
+  // up to 1 ulp (2^-10), because a GPU may truncate when it stores FP16. That
+  // adds up to 127 codes * 2^-10 = 12.4%.
+  const int max_round_trip_percent = is_params_fp16 ? 65 : 51;
+  ASSERT_EQ(codes.size(), src.data.size());
+  ASSERT_EQ(params.data.size(),
+            src.data.size() / src.shape.c * (calculate_sum ? 3 : 2));
+
+  int max_code_diff = 0;
+  std::string max_code_diff_at;
+  int round_trip_failures = 0;
+  std::string first_round_trip_failure;
+  for (int b = 0; b < src.shape.b; ++b) {
+    for (int h = 0; h < src.shape.h; ++h) {
+      for (int w = 0; w < src.shape.w; ++w) {
+        const auto row = [&] {
+          return (::testing::Message()
+                  << "(b, h, w) = (" << b << ", " << h << ", " << w << ")")
+              .GetString();
+        };
+        float abs_max = 0.0f;
+        for (int c = 0; c < src.shape.c; ++c) {
+          abs_max = std::max(
+              abs_max, std::abs(src.data[src.shape.LinearIndex({b, h, w, c})]));
+        }
+        float ref_inv_scale = 0.0f;
+        float ref_scale = 0.0f;
+        float ref_offset = 0.0f;
+        if (abs_max > 0.0f) {
+          ref_inv_scale = std::max(min_scale, abs_max / kHalfRange);
+          if (cap_scale) {
+            ref_inv_scale = std::min(ref_inv_scale, max_scale);
+          }
+          ref_scale = 1.0f / ref_inv_scale;
+          if (!is_signed) {
+            ref_offset = -ref_inv_scale * kZeroPoint;
+          }
+        }
+        const float inv_scale =
+            params.data[params.shape.LinearIndex({b, h, w, 0})];
+        const float offset =
+            params.data[params.shape.LinearIndex({b, h, w, 1})];
+        EXPECT_LE(std::abs(ref_inv_scale - inv_scale),
+                  std::max(eps, eps * std::abs(ref_inv_scale)))
+            << "inv_scale at " << row();
+        EXPECT_LE(std::abs(ref_offset - offset),
+                  std::max(eps, eps * std::abs(ref_offset)))
+            << "offset at " << row();
+        // The largest value that the codes can represent with these params.
+        const float max_dequantized =
+            (kMaxCode - code_shift) * inv_scale + offset;
+        int ref_sum = 0;
+        for (int c = 0; c < src.shape.c; ++c) {
+          const int idx = src.shape.LinearIndex({b, h, w, c});
+          const float x = src.data[idx];
+          const int code = codes[idx];
+          const int ref_code =
+              static_cast<int>(
+                  std::clamp(std::floor(x * ref_scale + (kZeroPoint + 0.5f)),
+                             0.0f, kMaxCode)) -
+              code_shift;
+          ref_sum += ref_code;
+          const auto element = [&] {
+            return (::testing::Message()
+                    << "(b, h, w, c) = (" << b << ", " << h << ", " << w << ", "
+                    << c << "): x = " << x << ", code = " << code
+                    << ", reference code = " << ref_code
+                    << ", inv_scale = " << inv_scale << ", offset = " << offset)
+                .GetString();
+          };
+          if (std::abs(code - ref_code) > max_code_diff) {
+            max_code_diff = std::abs(code - ref_code);
+            max_code_diff_at = element();
+          }
+          const float dequantized =
+              static_cast<float>(code) * inv_scale + offset;
+          // Inputs above the largest code saturate, which only happens where
+          // inv_scale is capped.
+          const float expected = cap_scale ? std::min(x, max_dequantized) : x;
+          // Written so that non-finite params also count as failures.
+          if (!(std::abs(dequantized - expected) <=
+                0.01f * max_round_trip_percent * inv_scale)) {
+            if (++round_trip_failures == 1) {
+              first_round_trip_failure = element();
+            }
+          }
+        }
+        if (calculate_sum) {
+          const float sum = params.data[params.shape.LinearIndex({b, h, w, 2})];
+          EXPECT_LE(std::abs(static_cast<float>(ref_sum) - sum), src.shape.c)
+              << "sum at " << row();
+        }
+      }
+    }
+  }
+  // The all-zero row must produce exactly zero params and midpoint codes.
+  EXPECT_EQ(params.data[params.shape.LinearIndex({0, 0, 0, 0})], 0.0f);
+  EXPECT_EQ(params.data[params.shape.LinearIndex({0, 0, 0, 1})], 0.0f);
+  for (int c = 0; c < src.shape.c; ++c) {
+    EXPECT_EQ(codes[src.shape.LinearIndex({0, 0, 0, c})], 128 - code_shift)
+        << "c = " << c;
+  }
+  EXPECT_LE(max_code_diff, 1)
+      << "largest difference to the reference at " << max_code_diff_at;
+  EXPECT_EQ(round_trip_failures, 0)
+      << "elements are not within " << max_round_trip_percent
+      << "% of a quantization step of q * inv_scale + offset, the first at "
+      << first_round_trip_failure;
+}
+
+// Runs symmetric quantization of `src_tensor` to `packed_type`, whose codes
+// have the type `CodeType`, as a single GPU operation and checks the result.
+template <DataType CodeType>
+absl::Status RunQuantizationSymmetricTest(TestExecutionEnvironment& exec_env,
+                                          const TensorFloat32& src_tensor,
+                                          const OperationDef& op_def,
+                                          PackedType packed_type,
+                                          bool calculate_sum) {
+  BHWC params_shape = src_tensor.shape;
+  params_shape.c = calculate_sum ? 3 : 2;
+
+  auto operation =
+      CreateQuantization(op_def, packed_type, exec_env.GetGpuInfo(),
+                         src_tensor.shape, calculate_sum, /*symmetric=*/true);
+  TensorDescriptor src_td = op_def.src_tensors[0];
+  src_td.UploadData(src_tensor);
+  TensorDescriptor dst_codes_td = op_def.dst_tensors[0];
+  dst_codes_td.SetBHWCShape(src_tensor.shape);
+  TensorDescriptor dst_params_td = op_def.dst_tensors[1];
+  dst_params_td.SetBHWCShape(params_shape);
+
+  ABSL_RETURN_IF_ERROR(exec_env.ExecuteGPUOperation(
+      {&src_td}, {&dst_codes_td, &dst_params_td}, std::move(operation)));
+  Tensor<BHWC, CodeType> dst_codes;
+  dst_codes_td.DownloadData(&dst_codes);
+  TensorFloat32 dst_params;
+  dst_params_td.DownloadData(&dst_params);
+
+  ExpectSymmetricQuantization(
+      src_tensor,
+      std::vector<int>(dst_codes.data.begin(), dst_codes.data.end()),
+      dst_params, IsSigned(packed_type),
+      op_def.src_tensors[0].GetDataType() == DataType::kFloat16,
+      op_def.dst_tensors[1].GetDataType() == DataType::kFloat16, calculate_sum);
+  return absl::OkStatus();
+}
+
+template <DataType CodeType>
+absl::Status QuantizationSymmetricTest(TestExecutionEnvironment& env,
+                                       TensorStorageType float_storage,
+                                       DataType float_type,
+                                       TensorStorageType dst_storage,
+                                       PackedType packed_type) {
+  OperationDef op_def;
+  op_def.src_tensors.push_back({float_type, float_storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({CodeType, dst_storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({float_type, float_storage, Layout::kHWC});
+  // C = 237 leaves the last slice partly filled and C = 64 does not. The kernel
+  // generates different reduction code for the two cases.
+  for (const BHWC& src_shape : {BHWC(1, 13, 15, 237), BHWC(1, 5, 7, 64)}) {
+    const TensorFloat32 src_tensor = MakeSymmetricTestTensor(src_shape);
+    for (const bool calculate_sum : {false, true}) {
+      SCOPED_TRACE(::testing::Message()
+                   << "C = " << src_shape.c
+                   << ", calculate_sum = " << calculate_sum);
+      ABSL_EXPECT_OK(RunQuantizationSymmetricTest<CodeType>(
+          env, src_tensor, op_def, packed_type, calculate_sum));
+    }
+  }
+  return absl::OkStatus();
+}
+
+// Quantizes symmetrically through GpuModelBuilder::Quantize() and checks the
+// result. Unlike in the tests above, the params are always FP32 here, also for
+// an FP16 source.
+template <DataType CodeType>
+absl::Status GpuModelBuilderQuantizeSymmetricTest(TestExecutionEnvironment& env,
+                                                  TensorStorageType storage,
+                                                  DataType float_type,
+                                                  PackedType packed_type) {
+  const BHWC src_shape(1, 5, 7, 64);
+  const TensorFloat32 src_tensor = MakeSymmetricTestTensor(src_shape);
+  for (const bool calculate_sum : {false, true}) {
+    SCOPED_TRACE(::testing::Message() << "calculate_sum = " << calculate_sum);
+    GpuModelBuilderOptions options;
+    options.storage = storage;
+    GpuModelBuilder builder(env.GetGpuInfo(), options);
+    const auto src = builder.AddTensor(src_shape, float_type);
+    const auto outputs = builder.Quantize(src, packed_type, calculate_sum,
+                                          /*symmetric=*/true);
+    if (outputs.size() != 2) {
+      return absl::InternalError("Quantize() must return codes and params.");
+    }
+    const auto& codes = outputs[0];
+    const auto& params = outputs[1];
+
+    // Only the params are a model output: ExecuteGpuModel() downloads every
+    // model output into the same tensor type, and the codes are not floats.
+    // The codes are read from their descriptor instead, where ExecuteGpuModel()
+    // leaves the data of every node output.
+    GpuModel gpu_model;
+    ABSL_RETURN_IF_ERROR(
+        builder.GetGpuModel({src.id}, {params.id}, &gpu_model));
+    TensorFloat32 dst_params;
+    ABSL_RETURN_IF_ERROR(env.ExecuteGpuModel(
+        {src_tensor}, std::vector<TensorFloat32*>{&dst_params}, &gpu_model));
+    Tensor<BHWC, CodeType> dst_codes;
+    gpu_model.tensors.at(codes.id).DownloadData(&dst_codes);
+
+    ExpectSymmetricQuantization(
+        src_tensor,
+        std::vector<int>(dst_codes.data.begin(), dst_codes.data.end()),
+        dst_params, IsSigned(packed_type), float_type == DataType::kFloat16,
+        params.tensor_desc.GetDataType() == DataType::kFloat16, calculate_sum);
+  }
+  return absl::OkStatus();
+}
+
+}  // namespace
+
+absl::Status QuantizationSymmetricUint8Test(TestExecutionEnvironment& env,
+                                            TensorStorageType float_storage,
+                                            DataType float_type,
+                                            TensorStorageType dst_storage) {
+  return QuantizationSymmetricTest<DataType::kUint8>(
+      env, float_storage, float_type, dst_storage, PackedType::kUint8C4);
+}
+
+absl::Status QuantizationSymmetricInt8Test(TestExecutionEnvironment& env,
+                                           TensorStorageType float_storage,
+                                           DataType float_type,
+                                           TensorStorageType dst_storage) {
+  return QuantizationSymmetricTest<DataType::kInt8>(
+      env, float_storage, float_type, dst_storage, PackedType::kInt8C4);
+}
+
+absl::Status GpuModelBuilderQuantizeSymmetricUint8Test(
+    TestExecutionEnvironment& env, TensorStorageType storage,
+    DataType float_type) {
+  return GpuModelBuilderQuantizeSymmetricTest<DataType::kUint8>(
+      env, storage, float_type, PackedType::kUint8C4);
+}
+
+absl::Status GpuModelBuilderQuantizeSymmetricInt8Test(
+    TestExecutionEnvironment& env, TensorStorageType storage,
+    DataType float_type) {
+  return GpuModelBuilderQuantizeSymmetricTest<DataType::kInt8>(
+      env, storage, float_type, PackedType::kInt8C4);
 }
 
 }  // namespace ml_drift
