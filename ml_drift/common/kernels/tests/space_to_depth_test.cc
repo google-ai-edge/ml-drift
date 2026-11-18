@@ -92,6 +92,42 @@ TEST_P(SpaceToDepthFloatTest, DepthToSpaceFrom1x2x2x16To1x4x4x4Test) {
       DepthToSpaceFrom1x2x2x16To1x4x4x4Test(*exec_env, data_type(), storage()));
 }
 
+TEST_P(SpaceToDepthFloatTest, SpaceToDepthTensorShape2x2x2x1BlockSize2Test) {
+  if (!exec_env->IsStorageSupported(storage(), data_type())) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
+                 << " storage type: " << ToString(storage());
+  }
+  ABSL_ASSERT_OK(SpaceToDepthTensorShape2x2x2x1BlockSize2Test(*exec_env, data_type(),
+                                                         storage()));
+}
+
+TEST_P(SpaceToDepthFloatTest, DepthToSpaceFrom2x1x1x4To2x2x2x1Test) {
+  if (!exec_env->IsStorageSupported(storage(), data_type())) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
+                 << " storage type: " << ToString(storage());
+  }
+  ABSL_ASSERT_OK(
+      DepthToSpaceFrom2x1x1x4To2x2x2x1Test(*exec_env, data_type(), storage()));
+}
+
+TEST_P(SpaceToDepthFloatTest, SpaceToDepthTensorShape2x2x4x1BlockSize2Test) {
+  if (!exec_env->IsStorageSupported(storage(), data_type())) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
+                 << " storage type: " << ToString(storage());
+  }
+  ABSL_ASSERT_OK(SpaceToDepthTensorShape2x2x4x1BlockSize2Test(*exec_env, data_type(),
+                                                         storage()));
+}
+
+TEST_P(SpaceToDepthFloatTest, DepthToSpaceFrom2x1x1x16To2x2x2x4Test) {
+  if (!exec_env->IsStorageSupported(storage(), data_type())) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
+                 << " storage type: " << ToString(storage());
+  }
+  ABSL_ASSERT_OK(
+      DepthToSpaceFrom2x1x1x16To2x2x2x4Test(*exec_env, data_type(), storage()));
+}
+
 INSTANTIATE_TEST_SUITE_P(
     SpaceToDepthFloatTestSuite, SpaceToDepthFloatTest,
     Combine(ValuesIn(GetFloatTypes()), ValuesIn(GetTensorStoragesTypes())),
