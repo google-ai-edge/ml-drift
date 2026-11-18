@@ -75,6 +75,11 @@ GpuInfo CreateGpuInfoFromMetalDevice(id<MTLDevice> device) {
 
   gpu_info.metal_info.language_version =
       ToMetalLanguageVersion(GetMaxSupportedMTLLanguageVersion(device));
+  if (@available(macOS 26.4, iOS 26.4, tvOS 26.4, visionOS 26.4, *)) {
+    gpu_info.metal_info.has_bugs_with_mpp = false;
+  } else {
+    gpu_info.metal_info.has_bugs_with_mpp = true;
+  }
 
   if (gpu_info.metal_info.IsSIMDMatMulSupported() && gpu_info.IsApple() &&
       gpu_info.apple_info.IsSIMDMatMulSupported()) {

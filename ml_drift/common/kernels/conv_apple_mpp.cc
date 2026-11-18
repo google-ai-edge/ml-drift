@@ -537,7 +537,8 @@ bool SupportsConvAppleMPP(const GpuInfo& gpu_info, const BHWC& src_shape) {
   }
   return gpu_info.IsApiMetal() && gpu_info.IsApple() &&
          gpu_info.apple_info.gpu_family >= AppleInfo::Family::kApple10 &&
-         gpu_info.metal_info.IsMslVersionEqualOrHigher(4, 0);
+         gpu_info.metal_info.IsMslVersionEqualOrHigher(4, 0) &&
+         !gpu_info.metal_info.has_bugs_with_mpp;
 }
 
 bool SupportsConvAppleMPP(const GpuInfo& gpu_info,
