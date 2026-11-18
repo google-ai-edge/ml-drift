@@ -98,6 +98,7 @@ target_link_libraries(mld_cl_cl_device
     absl::status
     mld_cl_opencl_wrapper
     mld_cl_util
+    mld_common_data_type
     mld_common_gpu_info
 )
 

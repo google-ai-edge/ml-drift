@@ -205,6 +205,7 @@ cc_library(
     deps = [
         ":opencl_wrapper",
         ":util",
+        "//ml_drift/common:data_type",
         "//ml_drift/common:gpu_info",
         "//ml_drift/common:types",
         "@com_google_absl//absl/log:absl_log",

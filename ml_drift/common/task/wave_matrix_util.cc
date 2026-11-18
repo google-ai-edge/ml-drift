@@ -78,7 +78,12 @@ std::string GetExtensionPatch(const GpuInfo& gpu_info, DataType data_type) {
   } else if (gpu_info.IsApiWebGpu()) {
     patch = "enable chromium_experimental_subgroup_matrix;\n";
   } else if (gpu_info.IsApiOpenCl()) {
-    patch = "#pragma OPENCL EXTENSION cl_khr_cooperative_matrix : enable";
+    if (gpu_info.SupportsExtension("cl_qcom_kernel_cooperative_matrix")) {
+      patch =
+          "#pragma OPENCL EXTENSION cl_qcom_kernel_cooperative_matrix : enable";
+    } else {
+      patch = "#pragma OPENCL EXTENSION cl_khr_cooperative_matrix : enable";
+    }
   }
   return patch;
 }
@@ -90,6 +95,14 @@ absl::Status ResolveWaveMatrix(const GpuInfo& gpu_info, std::string* code) {
   const size_t ext_pos = code->find(ext_declaration);
   if (ext_pos == std::string::npos) {
     return absl::OkStatus();
+  }
+
+  std::string cl_enum_postfix = "";
+  std::string cl_func_prefix = "";
+  if (gpu_info.IsApiOpenCl() &&
+      gpu_info.SupportsExtension("cl_qcom_kernel_cooperative_matrix")) {
+    cl_enum_postfix = "_QCOM";
+    cl_func_prefix = "qcom_";
   }
 
   // ucl::wave_matrix<matrix_type, data_type, rows, cols>
@@ -158,7 +171,7 @@ absl::Status ResolveWaveMatrix(const GpuInfo& gpu_info, std::string* code) {
       }
     } else if (gpu_info.IsApiOpenCl()) {
       if ((*code)[close_bracket_pos + 1] == '(') {
-        patch = "coop_mat_init";
+        patch = cl_func_prefix + "coop_mat_init";
       } else {
         std::string usage;
         if (args[0] == "left") {
@@ -171,10 +184,12 @@ absl::Status ResolveWaveMatrix(const GpuInfo& gpu_info, std::string* code) {
           return absl::InvalidArgumentError(
               "Expected matrix type to be {left, right, accum}.");
         }
-        patch = args[1] +
-                " __attribute__((coop_mat("
-                "CLK_COOPERATIVE_MATRIX_SCOPE_SUBGROUP, " +
-                args[2] + ", " + args[3] + ", " + usage + ")))";
+        usage += cl_enum_postfix;
+        patch = args[1] + " __attribute__((" + cl_func_prefix +
+                "coop_mat("
+                "CLK_COOPERATIVE_MATRIX_SCOPE_SUBGROUP" +
+                cl_enum_postfix + ", " + args[2] + ", " + args[3] + ", " +
+                usage + ")))";
       }
     }
     code->replace(declaration_pos, close_bracket_pos - declaration_pos + 1,
@@ -229,8 +244,9 @@ absl::Status ResolveWaveMatrix(const GpuInfo& gpu_info, std::string* code) {
       const std::string layout =
           row_major ? "CLK_COOPERATIVE_MATRIX_LAYOUT_ROW_MAJOR"
                     : "CLK_COOPERATIVE_MATRIX_LAYOUT_COLUMN_MAJOR";
-      patch = args[0] + " = coop_mat_load(" + args[1] + " + " + args[2] + ", " +
-              layout + ", " + args[3] + ")";
+      patch = args[0] + " = " + cl_func_prefix + "coop_mat_load(" + args[1] +
+              " + " + args[2] + ", " + layout + cl_enum_postfix + ", " +
+              args[3] + ")";
     }
     code->replace(load_pos, close_bracket_pos - load_pos + 1, patch);
     load_pos = code->find(load_func_name, load_pos);
@@ -265,8 +281,8 @@ absl::Status ResolveWaveMatrix(const GpuInfo& gpu_info, std::string* code) {
       patch = args[0] + " = subgroupMatrixMultiplyAccumulate(" + args[1] +
               ", " + args[2] + ", " + args[0] + ")";
     } else if (gpu_info.IsApiOpenCl()) {
-      patch = args[0] + " = coop_mat_mulAdd(" + args[1] + ", " + args[2] +
-              ", " + args[0] + ")";
+      patch = args[0] + " = " + cl_func_prefix + "coop_mat_mulAdd(" + args[1] +
+              ", " + args[2] + ", " + args[0] + ")";
     }
     code->replace(mac_pos, close_bracket_pos - mac_pos + 1, patch);
     mac_pos = code->find(mac_func_name, mac_pos);
@@ -302,8 +318,9 @@ absl::Status ResolveWaveMatrix(const GpuInfo& gpu_info, std::string* code) {
       patch = "subgroupMatrixStore(&" + args[1] + ", u32(" + args[2] + "), " +
               args[0] + ", false, u32(" + args[3] + "))";
     } else if (gpu_info.IsApiOpenCl()) {
-      patch = "coop_mat_store(" + args[1] + " + " + args[2] + ", " + args[0] +
-              ", CLK_COOPERATIVE_MATRIX_LAYOUT_ROW_MAJOR, " + args[3] + ")";
+      patch = cl_func_prefix + "coop_mat_store(" + args[1] + " + " + args[2] +
+              ", " + args[0] + ", CLK_COOPERATIVE_MATRIX_LAYOUT_ROW_MAJOR" +
+              cl_enum_postfix + ", " + args[3] + ")";
     }
     code->replace(store_pos, close_bracket_pos - store_pos + 1, patch);
     store_pos = code->find(store_func_name, store_pos);
