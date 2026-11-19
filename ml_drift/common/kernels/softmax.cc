@@ -165,6 +165,10 @@ std::pair<int, int2> GetMinGroupsForSpatialSize(const BHWC& shape,
 }
 
 int3 GetWorkGroupSize(const GpuInfo& gpu_info, const BHWC& shape) {
+  // Mali Midgard OpenCL drivers can report CL_KERNEL_WORK_GROUP_SIZE of 64 for
+  // this kernel, so a 128-thread work group fails to launch.
+  const bool is_midgard_opencl = gpu_info.IsApiOpenCl() && gpu_info.IsMali() &&
+                                 gpu_info.mali_info.IsMidgard();
   std::vector<int> spatial_sizes = {32, 16, 8, 4};
   float wg_per_cu_threshold = 4.0f;
   if (gpu_info.IsMali()) {
@@ -176,13 +180,16 @@ int3 GetWorkGroupSize(const GpuInfo& gpu_info, const BHWC& shape) {
     float wg_per_cu =
         static_cast<float>(min_group.first) / gpu_info.GetComputeUnitsCount();
     if (wg_per_cu >= wg_per_cu_threshold) {
-      int total_wg_size = 128;
+      int total_wg_size = is_midgard_opencl ? 64 : 128;
       int3 wg_size;
       wg_size.x = min_group.second.x;
       wg_size.y = min_group.second.y;
       wg_size.z = total_wg_size / spatial_size;
       return wg_size;
     }
+  }
+  if (is_midgard_opencl) {
+    return {4, 1, 16};
   }
   return {4, 1, 32};
 }

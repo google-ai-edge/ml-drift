@@ -116,8 +116,13 @@ Softmax1x1::Softmax1x1(const OperationDef& definition, const GpuInfo& gpu_info,
         work_group_size_ = int3(512, 1, 1);
       }
     } else if (gpu_info.IsMali()) {
-      work_group_size_ =
-          int3(gpu_info.mali_info.IsMidgard() ? 128 : 1024, 1, 1);
+      int wg_size_x = 1024;
+      if (gpu_info.mali_info.IsMidgard()) {
+        // Mali Midgard OpenCL drivers can report CL_KERNEL_WORK_GROUP_SIZE of
+        // 64 for this kernel, so a 128-thread work group fails to launch.
+        wg_size_x = gpu_info.IsApiOpenCl() ? 64 : 128;
+      }
+      work_group_size_ = int3(wg_size_x, 1, 1);
     }
   }
   const int end_slice = DivideRoundUp(shape.c, 4);

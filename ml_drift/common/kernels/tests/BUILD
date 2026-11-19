@@ -2245,3 +2245,20 @@ test_suite(
         ":winograd_test_webgpu",
     ],
 )
+
+cc_test(
+    name = "softmax_work_group_test",
+    srcs = ["softmax_work_group_test.cc"],
+    deps = [
+        "//ml_drift/common:data_type",
+        "//ml_drift/common:gpu_info",
+        "//ml_drift/common:shape",
+        "//ml_drift/common:types",
+        "//ml_drift/common/kernels:softmax",
+        "//ml_drift/common/kernels:softmax1x1",
+        "//ml_drift/common/task:gpu_operation",
+        "//ml_drift/common/task:tensor_desc",
+        "@com_google_absl//absl/status:status_matchers",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
