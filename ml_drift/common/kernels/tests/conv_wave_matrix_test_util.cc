@@ -660,7 +660,8 @@ absl::Status ConvWaveMatrixExternalWi8ScalarQuantizationTest(
 absl::Status ConvWaveMatrixExternalWi8Test(
     TestExecutionEnvironment& env, CalculationsPrecision precision,
     TensorStorageType storage, const BHWC& src_shape, int dst_channels,
-    bool batched_weights, int group_size, int scale_zp_batch) {
+    bool batched_weights, int group_size, int scale_zp_batch,
+    bool has_zero_point) {
   TensorFloat32 src_tensor;
   const int src_channels = src_shape.c;
   group_size = group_size != -1 ? group_size : src_channels;
@@ -709,15 +710,15 @@ absl::Status ConvWaveMatrixExternalWi8Test(
   DataType type = conv_def.src_tensors[0].GetDataType();
   auto scale_desc =
       ScaleOrZeroPointToTensorDesc(env.GetGpuInfo(), weights_scales, type);
-  auto zp_desc = ScaleOrZeroPointToTensorDesc(env.GetGpuInfo(),
-                                                weights_zero_point, type);
+  auto zp_desc =
+      ScaleOrZeroPointToTensorDesc(env.GetGpuInfo(), weights_zero_point, type);
 
   ExternalWeights external_weights;
   external_weights.desc = weights_desc;
   external_weights.shape = weights_i8.shape;
   external_weights.scale_zp_shape = weights_scales.shape;
   external_weights.scale = &scale_desc;
-  external_weights.zero_point = &zp_desc;
+  external_weights.zero_point = has_zero_point ? &zp_desc : nullptr;
 
   if (!SupportsConvWaveMatrix(env.GetGpuInfo(), precision, external_weights)) {
     return absl::UnimplementedError(env.SkipTestMessage());
@@ -739,8 +740,13 @@ absl::Status ConvWaveMatrixExternalWi8Test(
 
   float eps =
       GetEpsilon(precision, env.GetGpuInfo()) * weights_i8.shape.i * 8.0f;
+  std::vector<TensorDescriptor*> src_descs = {&src_td, &weights_i8_td,
+                                              &scale_desc};
+  if (has_zero_point) {
+    src_descs.push_back(&zp_desc);
+  }
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
-      {&src_td, &weights_i8_td, &scale_desc, &zp_desc}, {&dst_td},
+      src_descs, {&dst_td},
       std::make_unique<ConvWaveMatrix>(std::move(operation))));
   TensorFloat32 dst_tensor;
   dst_td.DownloadData(&dst_tensor);
@@ -846,7 +852,7 @@ absl::Status ConvWaveMatrixExternalWi4Test(
 absl::Status ConvWaveMatrixExternalWi2Test(
     TestExecutionEnvironment& env, CalculationsPrecision precision,
     TensorStorageType storage, const BHWC& src_shape, int dst_channels,
-    bool batched_weights, int group_size) {
+    bool batched_weights, int group_size, bool has_zero_point) {
   TensorFloat32 src_tensor;
   const int src_channels = src_shape.c;
   group_size = group_size != -1 ? group_size : src_channels;
@@ -894,15 +900,15 @@ absl::Status ConvWaveMatrixExternalWi2Test(
   DataType type = conv_def.src_tensors[0].GetDataType();
   auto scale_desc =
       ScaleOrZeroPointToTensorDesc(env.GetGpuInfo(), weights_scales, type);
-  auto zp_desc = ScaleOrZeroPointToTensorDesc(env.GetGpuInfo(),
-                                                weights_zero_point, type);
+  auto zp_desc =
+      ScaleOrZeroPointToTensorDesc(env.GetGpuInfo(), weights_zero_point, type);
 
   ExternalWeights external_weights;
   external_weights.desc = weights_desc;
   external_weights.shape = weights_i2.shape;
   external_weights.scale_zp_shape = weights_scales.shape;
   external_weights.scale = &scale_desc;
-  external_weights.zero_point = &zp_desc;
+  external_weights.zero_point = has_zero_point ? &zp_desc : nullptr;
 
   if (!SupportsConvWaveMatrix(env.GetGpuInfo(), precision, external_weights)) {
     return absl::UnimplementedError(env.SkipTestMessage());
@@ -924,8 +930,13 @@ absl::Status ConvWaveMatrixExternalWi2Test(
 
   float eps =
       GetEpsilon(precision, env.GetGpuInfo()) * weights_i2.shape.i * 2.0f;
+  std::vector<TensorDescriptor*> src_descs = {&src_td, &weights_i2_td,
+                                              &scale_desc};
+  if (has_zero_point) {
+    src_descs.push_back(&zp_desc);
+  }
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
-      {&src_td, &weights_i2_td, &scale_desc, &zp_desc}, {&dst_td},
+      src_descs, {&dst_td},
       std::make_unique<ConvWaveMatrix>(std::move(operation))));
   TensorFloat32 dst_tensor;
   dst_td.DownloadData(&dst_tensor);
