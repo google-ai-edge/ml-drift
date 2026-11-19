@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/status_matchers.h"
 #include "absl/status/status.h"
@@ -23,105 +24,85 @@ namespace cl {
 namespace {
 
 TEST_F(OpenCLOperationTest, LinkingConvolutionAndCosOp) {
-  auto status = TestLinkingConvolutionAndCosOp(&exec_env_);
-  ASSERT_TRUE(status.ok()) << status.message();
+  ABSL_ASSERT_OK(TestLinkingConvolutionAndCosOp(&exec_env_));
 }
 
 TEST_F(OpenCLOperationTest, LinkingConvolution2InputMul2InputMul) {
-  auto status = TestLinkingConvolution2InputMul2InputMul(&exec_env_);
-  ASSERT_TRUE(status.ok()) << status.message();
+  ABSL_ASSERT_OK(TestLinkingConvolution2InputMul2InputMul(&exec_env_));
 }
 
 TEST_F(OpenCLOperationTest, LinkingConvolution2InputBroadcastMul2InputMul) {
-  auto status = TestLinkingConvolution2InputBroadcastMul2InputMul(&exec_env_);
-  ASSERT_TRUE(status.ok()) << status.message();
+  ABSL_ASSERT_OK(TestLinkingConvolution2InputBroadcastMul2InputMul(&exec_env_));
 }
 
 TEST_F(OpenCLOperationTest, LinkingConvolution2InputMul2InputBroadcastMul) {
-  auto status = TestLinkingConvolution2InputMul2InputBroadcastMul(&exec_env_);
-  ASSERT_TRUE(status.ok()) << status.message();
+  ABSL_ASSERT_OK(TestLinkingConvolution2InputMul2InputBroadcastMul(&exec_env_));
 }
 
 TEST_F(OpenCLOperationTest, LinkingConvolution2InputMul2InputMulCos) {
-  auto status = TestLinkingConvolution2InputMul2InputMulCos(&exec_env_);
-  ASSERT_TRUE(status.ok()) << status.message();
+  ABSL_ASSERT_OK(TestLinkingConvolution2InputMul2InputMulCos(&exec_env_));
 }
 
 TEST_F(OpenCLOperationTest, LinkingConvolutionFirstTanh2InputDiff) {
-  auto status = TestLinkingConvolutionFirstTanh2InputDiff(&exec_env_);
-  ASSERT_TRUE(status.ok()) << status.message();
+  ABSL_ASSERT_OK(TestLinkingConvolutionFirstTanh2InputDiff(&exec_env_));
 }
 
 TEST_F(OpenCLOperationTest, LinkingConvolutionSecondTanh2InputDiff) {
-  auto status = TestLinkingConvolutionSecondTanh2InputDiff(&exec_env_);
-  ASSERT_TRUE(status.ok()) << status.message();
+  ABSL_ASSERT_OK(TestLinkingConvolutionSecondTanh2InputDiff(&exec_env_));
 }
 
 TEST_F(OpenCLOperationTest, LinkingConvolutionFirstTanhSecondCos2InputDiff) {
-  auto status = TestLinkingConvolutionFirstTanhSecondCos2InputDiff(&exec_env_);
-  ASSERT_TRUE(status.ok()) << status.message();
+  ABSL_ASSERT_OK(TestLinkingConvolutionFirstTanhSecondCos2InputDiff(&exec_env_));
 }
 
 TEST_F(OpenCLOperationTest, LinkingComplex0) {
-  auto status = TestLinkingComplex0(&exec_env_);
-  ASSERT_TRUE(status.ok()) << status.message();
+  ABSL_ASSERT_OK(TestLinkingComplex0(&exec_env_));
 }
 
 TEST_F(OpenCLOperationTest, LinkingConvElem2InputAddElemsOp) {
-  auto status = TestLinkingConvElem2InputAddElemsOp(&exec_env_);
-  ASSERT_TRUE(status.ok()) << status.message();
+  ABSL_ASSERT_OK(TestLinkingConvElem2InputAddElemsOp(&exec_env_));
 }
 
 TEST_F(OpenCLOperationTest, LinkingSliceCastOp) {
-  auto status = TestLinkingSliceCastOp(&exec_env_);
-  ASSERT_TRUE(status.ok()) << status.message();
+  ABSL_ASSERT_OK(TestLinkingSliceCastOp(&exec_env_));
 }
 
 TEST_F(OpenCLOperationTest, LinkingAddAddMulOp) {
-  auto status = TestLinkingAddAddMulOp(&exec_env_,
-                                       /*use_second_input_add=*/true);
-  ASSERT_TRUE(status.ok()) << status.message();
+  ABSL_ASSERT_OK(
+      TestLinkingAddAddMulOp(&exec_env_, /*use_second_input_add=*/true));
 }
 
 TEST_F(OpenCLOperationTest, LinkingAddMulOp) {
-  auto status =
-      TestLinkingAddAddMulOp(&exec_env_, /*use_second_input_add=*/false);
-  ASSERT_TRUE(status.ok()) << status.message();
+  ABSL_ASSERT_OK(
+      TestLinkingAddAddMulOp(&exec_env_, /*use_second_input_add=*/false));
 }
 
 TEST_F(OpenCLOperationTest, LinkingConcatAndCosOp) {
-  auto status = TestLinkingConcatAndCosOp(&exec_env_);
-  ASSERT_TRUE(status.ok()) << status.message();
+  ABSL_ASSERT_OK(TestLinkingConcatAndCosOp(&exec_env_));
 }
 
 TEST_F(OpenCLOperationTest, LinkingCosAndCosOp) {
-  auto status = TestLinkingCosAndCosOp(&exec_env_);
-  ASSERT_TRUE(status.ok()) << status.message();
+  ABSL_ASSERT_OK(TestLinkingCosAndCosOp(&exec_env_));
 }
 
 TEST_F(OpenCLOperationTest, FloatCastToBoolCastToFloat) {
-  auto status = TestFloatCastToBoolCastToFloat(&exec_env_);
-  ASSERT_TRUE(status.ok()) << status.message();
+  ABSL_ASSERT_OK(TestFloatCastToBoolCastToFloat(&exec_env_));
 }
 
 TEST_F(OpenCLOperationTest, ReshapeTranspose) {
-  auto status = TestReshapeTranspose(&exec_env_);
-  ASSERT_TRUE(status.ok()) << status.message();
+  ABSL_ASSERT_OK(TestReshapeTranspose(&exec_env_));
 }
 
 TEST_F(OpenCLOperationTest, ReshapeTransposeReshape) {
-  auto status = TestReshapeTransposeReshape(&exec_env_);
-  ASSERT_TRUE(status.ok()) << status.message();
+  ABSL_ASSERT_OK(TestReshapeTransposeReshape(&exec_env_));
 }
 
 TEST_F(OpenCLOperationTest, TwoInputTwise) {
-  auto status = TestTwoInputTwise(&exec_env_);
-  ASSERT_TRUE(status.ok()) << status.message();
+  ABSL_ASSERT_OK(TestTwoInputTwise(&exec_env_));
 }
 
 TEST_F(OpenCLOperationTest, ConvWithPaddedAdd) {
-  auto status = TestConvWithPaddedAdd(&exec_env_);
-  ASSERT_TRUE(status.ok()) << status.message();
+  ABSL_ASSERT_OK(TestConvWithPaddedAdd(&exec_env_));
 }
 
 }  // namespace

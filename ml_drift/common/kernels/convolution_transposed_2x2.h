@@ -23,6 +23,7 @@
 #include "ml_drift/common/kernels/convolution_transposed_util.h"
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/precision.h"
+#include "ml_drift/common/shape.h"
 #include "ml_drift/common/task/gpu_operation.h"
 #include "ml_drift/common/task/tuning_type.h"
 #include "ml_drift/common/task/weights_layout.h"
@@ -48,7 +49,10 @@ class ConvolutionTransposed2x2 : public GPUOperation {
   WeightsDescription GetWeightsDescription() const {
     WeightsDescription desc;
     desc.type = weights_data_type_;
-    desc.layout = WeightsLayout::kOICustomSpatialI4O4;
+    desc.layout = WeightsLayout::kCustomGroups;
+    desc.group_sizes = {{Axis::kOutputChannels, 4}, {Axis::kInputChannels, 4},
+                        {Axis::kWidth, 0},          {Axis::kHeight, 0},
+                        {Axis::kInputChannels, 0},  {Axis::kOutputChannels, 0}};
     desc.spatial_remap = GetSpatialWeightsRemap();
     return desc;
   }

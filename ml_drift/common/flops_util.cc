@@ -19,7 +19,8 @@
 namespace ml_drift {
 
 uint64_t GetConvolutionFlops(const BHWC& dst_shape, const OHWI& weights_shape) {
-  uint64_t dst_elements = dst_shape.b * dst_shape.h * dst_shape.w * dst_shape.c;
+  uint64_t dst_elements = static_cast<uint64_t>(dst_shape.b) * dst_shape.h *
+                          dst_shape.w * dst_shape.c;
   // 2 flops per operation( s = a * b + s);
   return dst_elements * weights_shape.i * weights_shape.w * weights_shape.h * 2;
 }
@@ -37,21 +38,24 @@ uint64_t GetConvolutionWinograd3x3TileNxNFlops(const BHWC& dst_shape,
 
 uint64_t GetConvolutionTransposedFlops(const BHWC& src_shape,
                                        const OHWI& weights_shape) {
-  uint64_t elements = src_shape.b * src_shape.h * src_shape.w * weights_shape.o;
+  uint64_t elements = static_cast<uint64_t>(src_shape.b) * src_shape.h *
+                      src_shape.w * weights_shape.o;
   // 2 flops per operation( s = a * b + s);
   return elements * weights_shape.i * weights_shape.w * weights_shape.h * 2;
 }
 
 uint64_t GetDepthwiseConvolutionFlops(const BHWC& dst_shape,
                                       const OHWI& weights_shape) {
-  uint64_t dst_elements = dst_shape.b * dst_shape.h * dst_shape.w * dst_shape.c;
+  uint64_t dst_elements = static_cast<uint64_t>(dst_shape.b) * dst_shape.h *
+                          dst_shape.w * dst_shape.c;
   // 2 flops per operation( s = a * b + s);
   return dst_elements * weights_shape.w * weights_shape.h * 2;
 }
 
 uint64_t GetFullyConnectedFlops(const BHWC& dst_shape,
                                 const OHWI& weights_shape) {
-  uint64_t dst_elements = dst_shape.b * dst_shape.h * dst_shape.w * dst_shape.c;
+  uint64_t dst_elements = static_cast<uint64_t>(dst_shape.b) * dst_shape.h *
+                          dst_shape.w * dst_shape.c;
   // 2 flops per operation( s = a * b + s);
   return dst_elements * weights_shape.i * 2;
 }

@@ -24,6 +24,7 @@ target_link_libraries(mld_common_kernels_special_concat_conv
     mld_common_flops_util
     mld_common_gpu_info
     mld_common_gpu_model_builder
+    mld_common_ir_model
     mld_common_kernel_info
     mld_common_model
     mld_common_operations
@@ -51,6 +52,7 @@ target_link_libraries(mld_common_kernels_special_conv_pointwise
     absl::strings
     mld_common_data_type
     mld_common_gpu_model_builder
+    mld_common_ir_model
     mld_common_model
     mld_common_operations
     mld_common_precision
@@ -94,6 +96,7 @@ target_link_libraries(mld_common_kernels_special_dw7x7_conv2to6_concat_conv8to8
     mld_common_flops_util
     mld_common_gpu_info
     mld_common_gpu_model_builder
+    mld_common_ir_model
     mld_common_model
     mld_common_operations
     mld_common_precision
@@ -104,6 +107,24 @@ target_link_libraries(mld_common_kernels_special_dw7x7_conv2to6_concat_conv8to8
     mld_common_task_qcom_thin_filter_desc
     mld_common_task_tensor_desc
     mld_common_tensor
+    mld_common_types
+)
+
+add_library(mld_common_kernels_special_experts_remap experts_remap.cc experts_remap.h)
+target_include_directories(mld_common_kernels_special_experts_remap PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
+target_link_libraries(mld_common_kernels_special_experts_remap
+  PUBLIC
+    absl::status
+    absl::status_macros
+    absl::strings
+    mld_common_data_type
+    mld_common_gpu_info
+    mld_common_kernel_info
+    mld_common_task_arguments
+    mld_common_task_buffer_desc
+    mld_common_task_gpu_operation
+    mld_common_task_tensor_desc
+    mld_common_task_tuning_type
     mld_common_types
 )
 
@@ -119,6 +140,7 @@ target_link_libraries(mld_common_kernels_special_thin_local_memory_fuser
     mld_common_flops_util
     mld_common_gpu_info
     mld_common_gpu_model_builder
+    mld_common_ir_model
     mld_common_kernel_info
     mld_common_kernels_resize
     mld_common_model
@@ -148,6 +170,7 @@ target_link_libraries(mld_common_kernels_special_thin_pointwise_fuser
     mld_common_flops_util
     mld_common_gpu_info
     mld_common_gpu_model_builder
+    mld_common_ir_model
     mld_common_kernels_elementwise
     mld_common_kernels_prelu
     mld_common_kernels_relu

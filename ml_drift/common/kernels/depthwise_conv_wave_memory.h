@@ -86,10 +86,10 @@ void DepthwiseConvWaveMemory::UploadWeights(const GpuInfo& gpu_info,
   desc.size = SizeOf(dst_type) * 4 * flt4_count;
   desc.data.resize(desc.size);
 
-  if (dst_type == DataType::FLOAT32) {
+  if (dst_type == DataType::kFloat32) {
     float4* ptr = reinterpret_cast<float4*>(desc.data.data());
     RearrangeWeightsData(weights, absl::MakeSpan(ptr, flt4_count));
-  } else if (dst_type == DataType::FLOAT16) {
+  } else if (dst_type == DataType::kFloat16) {
     half4* ptr = reinterpret_cast<half4*>(desc.data.data());
     RearrangeWeightsData(weights, absl::MakeSpan(ptr, flt4_count));
   }

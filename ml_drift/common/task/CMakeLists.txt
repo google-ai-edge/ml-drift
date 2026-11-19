@@ -52,6 +52,7 @@ target_link_libraries(mld_common_task_profiling_info
   PUBLIC
     absl::time
     mld_common_shape
+    mld_common_types
 )
 
 add_library(mld_common_task_gpu_object_desc INTERFACE

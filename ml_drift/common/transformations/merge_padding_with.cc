@@ -38,14 +38,14 @@ class MergePaddingWith2DOperation : public SequenceTransformation {
  public:
   explicit MergePaddingWith2DOperation(OperationType operation_type)
       : operations_to_match_(
-            {ToString(OperationType::PAD), ToString(operation_type)}) {}
+            {ToString(OperationType::kPad), ToString(operation_type)}) {}
 
   int ExpectedSequenceLength() const final { return 2; }
 
   TransformResult ApplyToNodesSequence(const std::vector<Node*>& sequence,
                                        GraphFloat32* graph) final {
     if (!MatchesByOperationType(sequence, operations_to_match_)) {
-      return {TransformStatus::SKIPPED, ""};
+      return {TransformStatus::kSkipped, ""};
     }
 
     Node* pad_node = sequence.front();
@@ -54,19 +54,19 @@ class MergePaddingWith2DOperation : public SequenceTransformation {
     PadAttributes pad_attr =
         std::any_cast<PadAttributes>(pad_node->operation.attributes);
 
-    if (pad_attr.type != PaddingContentType::ZEROS) {
-      return {TransformStatus::DECLINED, "Only Zero padding is supported."};
+    if (pad_attr.type != PaddingContentType::kZeros) {
+      return {TransformStatus::kDeclined, "Only Zero padding is supported."};
     }
     if (pad_attr.appended.c != 0 || pad_attr.prepended.c != 0 ||
         pad_attr.appended.b != 0 || pad_attr.prepended.b != 0) {
-      return {TransformStatus::DECLINED,
+      return {TransformStatus::kDeclined,
               "Pad has non-zero padding on non HW axis."};
     }
 
     Attr* node_attr = std::any_cast<Attr>(&op_node->operation.attributes);
     absl::Status status = RemovePrecedingNode(graph, pad_node, op_node);
     if (!status.ok()) {
-      return {TransformStatus::INVALID,
+      return {TransformStatus::kInvalid,
               "Unable to remove Pad node with Operation node: " +
                   std::string(status.message())};
     }
@@ -76,7 +76,7 @@ class MergePaddingWith2DOperation : public SequenceTransformation {
     node_attr->padding.prepended.h += pad_attr.prepended.h;
     node_attr->padding.prepended.w += pad_attr.prepended.w;
     return {
-        TransformStatus::APPLIED,
+        TransformStatus::kApplied,
         absl::StrCat("Added padding: prepended = {h = ", pad_attr.prepended.h,
                      ", w = ", pad_attr.prepended.w, "}, appended = { h = ",
                      pad_attr.appended.h, ", w = ", pad_attr.appended.w, "}")};
@@ -90,75 +90,75 @@ class MergePaddingWith2DOperation : public SequenceTransformation {
 
 std::unique_ptr<SequenceTransformation> NewMergePaddingWithPooling() {
   return std::make_unique<MergePaddingWith2DOperation<Pooling2DAttributes>>(
-      OperationType::POOLING_2D);
+      OperationType::kPooling2D);
 }
 
 std::unique_ptr<SequenceTransformation> NewMergePaddingWithConvolution2D() {
   return std::make_unique<MergePaddingWith2DOperation<Convolution2DAttributes>>(
-      OperationType::CONVOLUTION_2D);
+      OperationType::kConvolution2D);
 }
 
 std::unique_ptr<SequenceTransformation>
 NewMergePaddingWithDepthwiseConvolution() {
   return std::make_unique<
       MergePaddingWith2DOperation<DepthwiseConvolution2DAttributes>>(
-      OperationType::DEPTHWISE_CONVOLUTION);
+      OperationType::kDepthwiseConvolution);
 }
 
 class MergePaddingWithAddOperation : public NodeTransformation {
  public:
   TransformResult ApplyToNode(Node* node, GraphFloat32* graph) final {
-    if (node->operation.type != ToString(OperationType::PAD)) {
-      return {TransformStatus::SKIPPED, ""};
+    if (node->operation.type != ToString(OperationType::kPad)) {
+      return {TransformStatus::kSkipped, ""};
     }
     auto inputs = graph->FindInputs(node->id);
     if (inputs.size() != 1) {
-      return {TransformStatus::SKIPPED, ""};
+      return {TransformStatus::kSkipped, ""};
     }
 
     const auto& input_shape = graph->FindInputs(node->id)[0]->tensor.shape;
     if (input_shape.c % 4 != 0) {
-      return {TransformStatus::DECLINED,
+      return {TransformStatus::kDeclined,
               "Pad with input where src_channels % 4 != 0"};
     }
 
     PadAttributes pad_attr =
         std::any_cast<PadAttributes>(node->operation.attributes);
 
-    if (pad_attr.type != PaddingContentType::ZEROS) {
-      return {TransformStatus::DECLINED, "Only Zero padding is supported."};
+    if (pad_attr.type != PaddingContentType::kZeros) {
+      return {TransformStatus::kDeclined, "Only Zero padding is supported."};
     }
     if (pad_attr.prepended != BHWC(0, 0, 0, 0) || pad_attr.appended.h != 0 ||
         pad_attr.appended.w != 0 || pad_attr.appended.b != 0) {
-      return {TransformStatus::DECLINED,
+      return {TransformStatus::kDeclined,
               "Pad has padding not only in appended channels axis."};
     }
 
     auto pad_output = graph->FindOutputs(node->id)[0];
     auto consumer_nodes = graph->FindConsumers(pad_output->id);
     if (consumer_nodes.size() != 1) {
-      return {TransformStatus::SKIPPED, ""};
+      return {TransformStatus::kSkipped, ""};
     }
     auto add_node = consumer_nodes[0];
     auto consumer_type = OperationTypeFromString(add_node->operation.type);
-    if (consumer_type != OperationType::ADD) {
-      return {TransformStatus::SKIPPED, ""};
+    if (consumer_type != OperationType::kAdd) {
+      return {TransformStatus::kSkipped, ""};
     }
 
     ElementwiseAttributes add_attr =
         std::any_cast<ElementwiseAttributes>(add_node->operation.attributes);
     if (!std::holds_alternative<std::monostate>(add_attr.param)) {
-      return {TransformStatus::SKIPPED,
+      return {TransformStatus::kSkipped,
               "Cannot remove padding when ADD has constant argument."};
     }
 
     absl::Status status = RemovePrecedingNode(graph, node, add_node);
     if (!status.ok()) {
-      return {TransformStatus::INVALID,
+      return {TransformStatus::kInvalid,
               "Unable to remove Pad node " + std::string(status.message())};
     }
 
-    return {TransformStatus::APPLIED,
+    return {TransformStatus::kApplied,
             "Removed padding with zeroes in appended channels dimension"};
   }
 };

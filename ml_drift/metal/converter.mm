@@ -27,7 +27,7 @@ absl::Status TensorToBHWCBufferConverter::Init(Environment* env,
   BufferDescriptor dst_desc;
   dst_desc.element_type = buffer_type;
   dst_desc.element_size = 1;
-  dst_desc.memory_type = MemoryType::GLOBAL;
+  dst_desc.memory_type = MemoryType::kGlobal;
 
   const auto& gpu_info = env->GetInfo();
   TensorToBhwcBuffer gpu_op =
@@ -41,8 +41,8 @@ absl::Status TensorToBHWCBufferConverter::Init(Environment* env,
 absl::Status TensorToBHWCBufferConverter::Encode(
     id<MTLComputeCommandEncoder> encoder, MetalSpatialTensor* src,
     Buffer* dst) {
-  task_.SetSrcTensor(src, 0);
-  task_.SetDstBuffer(dst, 0);
+  ABSL_RETURN_IF_ERROR(task_.SetSrcTensor(src, 0));
+  ABSL_RETURN_IF_ERROR(task_.SetDstBuffer(dst, 0));
   ABSL_RETURN_IF_ERROR(task_.UpdateParams());
   task_.Encode(encoder);
   return absl::OkStatus();
@@ -60,7 +60,7 @@ absl::Status BHWCBufferToTensorConverter::Init(
   BufferDescriptor src_desc;
   src_desc.element_type = buffer_type;
   src_desc.element_size = 1;
-  src_desc.memory_type = MemoryType::GLOBAL;
+  src_desc.memory_type = MemoryType::kGlobal;
 
   const auto& gpu_info = env->GetInfo();
   BhwcBufferToTensor gpu_op =
@@ -74,8 +74,8 @@ absl::Status BHWCBufferToTensorConverter::Init(
 absl::Status BHWCBufferToTensorConverter::Encode(
     id<MTLComputeCommandEncoder> encoder, Buffer* src,
     MetalSpatialTensor* dst) {
-  task_.SetSrcBuffer(src, 0);
-  task_.SetDstTensor(dst, 0);
+  ABSL_RETURN_IF_ERROR(task_.SetSrcBuffer(src, 0));
+  ABSL_RETURN_IF_ERROR(task_.SetDstTensor(dst, 0));
   ABSL_RETURN_IF_ERROR(task_.UpdateParams());
   task_.Encode(encoder);
   return absl::OkStatus();

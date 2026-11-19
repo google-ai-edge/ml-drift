@@ -31,7 +31,7 @@ namespace ml_drift {
 namespace {
 
 bool IsConstZeros(const Node& node) {
-  if (node.operation.type != ToString(OperationType::CONSTANT)) {
+  if (node.operation.type != ToString(OperationType::kConstant)) {
     return false;
   }
   auto& attr =
@@ -51,12 +51,12 @@ bool IsConstZeros(const Node& node) {
 class MakePaddingFromZerosConcat : public NodeTransformation {
  public:
   TransformResult ApplyToNode(Node* node, GraphFloat32* graph) final {
-    if (node->operation.type != ToString(OperationType::CONCAT)) {
-      return {TransformStatus::SKIPPED, ""};
+    if (node->operation.type != ToString(OperationType::kConcat)) {
+      return {TransformStatus::kSkipped, ""};
     }
     auto inputs = graph->FindInputs(node->id);
     if (inputs.size() != 2) {
-      return {TransformStatus::SKIPPED, ""};
+      return {TransformStatus::kSkipped, ""};
     }
 
     bool first = true;
@@ -66,37 +66,37 @@ class MakePaddingFromZerosConcat : public NodeTransformation {
         auto& concat_attr =
             std::any_cast<const ConcatAttributes&>(node->operation.attributes);
         PadAttributes pad_attr;
-        pad_attr.type = PaddingContentType::ZEROS;
+        pad_attr.type = PaddingContentType::kZeros;
         pad_attr.appended = BHWC(0, 0, 0, 0);
         pad_attr.prepended = BHWC(0, 0, 0, 0);
         BHWC* p = first ? &pad_attr.prepended : &pad_attr.appended;
         switch (concat_attr.axis) {
-          case Axis::HEIGHT:
+          case Axis::kHeight:
             p->h = input->tensor.shape.h;
             break;
-          case Axis::WIDTH:
+          case Axis::kWidth:
             p->w = input->tensor.shape.w;
             break;
-          case Axis::CHANNELS:
+          case Axis::kChannels:
             p->c = input->tensor.shape.c;
             break;
           default:
-            return {TransformStatus::DECLINED,
+            return {TransformStatus::kDeclined,
                     "Padding for concat axis is unsupported: " +
                         ToString(concat_attr.axis)};
         }
         absl::Status status = RemovePrecedingNode(graph, dep, node);
         if (!status.ok()) {
-          return {TransformStatus::INVALID, "Unable to remove const node: " +
-                                                std::string(status.message())};
+          return {TransformStatus::kInvalid, "Unable to remove const node: " +
+                                                 std::string(status.message())};
         }
         node->operation.attributes = pad_attr;
-        node->operation.type = ToString(OperationType::PAD);
-        return {TransformStatus::APPLIED, "Replaced concat with padding"};
+        node->operation.type = ToString(OperationType::kPad);
+        return {TransformStatus::kApplied, "Replaced concat with padding"};
       }
       first = false;
     }
-    return {TransformStatus::SKIPPED, ""};
+    return {TransformStatus::kSkipped, ""};
   }
 };
 

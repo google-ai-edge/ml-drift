@@ -165,7 +165,7 @@ class InferenceContext {
   void GetMutableNodes(const absl::flat_hash_map<ValueId, TensorDescriptor>&
                            external_mutable_tensors);
 
-  void BindTensorsToOperations();
+  absl::Status BindTensorsToOperations();
   absl::Status UpdateParams(const GpuInfo& gpu_info);
   absl::Status Tune(TuningType tuning_type, Environment* env);
 

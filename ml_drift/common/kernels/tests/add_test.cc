@@ -35,54 +35,55 @@ class AddTypedTest : public Test,
                      public WithParamInterface<TensorStorageType> {};
 
 TEST_P(AddTypedTest, TwoEqualTensors) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::BFLOAT16)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kBfloat16)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
   ABSL_ASSERT_OK(AddTwoEqualTensorsBFloatTest(*exec_env, GetParam()));
 }
 
 TEST_P(AddTypedTest, TwoEqualInt8Tensors) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::INT8)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kInt8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(AddTwoEqualIntTensorsTest<DataType::INT8>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(AddTwoEqualIntTensorsTest<DataType::kInt8>(*exec_env, GetParam()));
 }
 
 TEST_P(AddTypedTest, TwoEqualInt16Tensors) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::INT16)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kInt16)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(AddTwoEqualIntTensorsTest<DataType::INT16>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(AddTwoEqualIntTensorsTest<DataType::kInt16>(*exec_env, GetParam()));
 }
 
 TEST_P(AddTypedTest, TwoEqualInt32Tensors) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::INT32)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kInt32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(AddTwoEqualIntTensorsTest<DataType::INT32>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(AddTwoEqualIntTensorsTest<DataType::kInt32>(*exec_env, GetParam()));
 }
 
 TEST_P(AddTypedTest, TwoEqualUint8Tensors) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT8)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kUint8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(AddTwoEqualUintTensorsTest<DataType::UINT8>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(
+      AddTwoEqualUintTensorsTest<DataType::kUint8>(*exec_env, GetParam()));
 }
 
 TEST_P(AddTypedTest, TwoEqualUint16Tensors) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT16)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kUint16)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
   ABSL_ASSERT_OK(
-      AddTwoEqualUintTensorsTest<DataType::UINT16>(*exec_env, GetParam()));
+      AddTwoEqualUintTensorsTest<DataType::kUint16>(*exec_env, GetParam()));
 }
 
 TEST_P(AddTypedTest, TwoEqualUint32Tensors) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT32)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kUint32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
   ABSL_ASSERT_OK(
-      AddTwoEqualUintTensorsTest<DataType::UINT32>(*exec_env, GetParam()));
+      AddTwoEqualUintTensorsTest<DataType::kUint32>(*exec_env, GetParam()));
 }
 
 INSTANTIATE_TEST_SUITE_P(

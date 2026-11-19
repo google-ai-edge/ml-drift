@@ -62,12 +62,30 @@ GpuVendor GetGpuVendor(const std::string& gpu_description) {
 AdrenoInfo GetAdrenoInfo(const std::string& gpu_description) {
   const std::map<std::string, AdrenoInfo> kMapping = {
       // Adreno 8xx series
+      {"850", AdrenoInfo{/*adreno_gpu=*/AdrenoGpu::kAdreno850,
+                         /*generation=*/AdrenoInfo::Generation::kGen8,
+                         /*compute_units=*/12}},
       {"840", AdrenoInfo{/*adreno_gpu=*/AdrenoGpu::kAdreno840,
+                         /*generation=*/AdrenoInfo::Generation::kGen8,
+                         /*compute_units=*/12}},
+      {"831", AdrenoInfo{/*adreno_gpu=*/AdrenoGpu::kAdreno831,
                          /*generation=*/AdrenoInfo::Generation::kGen8,
                          /*compute_units=*/12}},
       {"830", AdrenoInfo{/*adreno_gpu=*/AdrenoGpu::kAdreno830,
                          /*generation=*/AdrenoInfo::Generation::kGen8,
                          /*compute_units=*/12}},
+      {"829", AdrenoInfo{/*adreno_gpu=*/AdrenoGpu::kAdreno829,
+                         /*generation=*/AdrenoInfo::Generation::kGen8,
+                         /*compute_units=*/8}},
+      {"825", AdrenoInfo{/*adreno_gpu=*/AdrenoGpu::kAdreno825,
+                         /*generation=*/AdrenoInfo::Generation::kGen8,
+                         /*compute_units=*/8}},
+      {"812", AdrenoInfo{/*adreno_gpu=*/AdrenoGpu::kAdreno812,
+                         /*generation=*/AdrenoInfo::Generation::kGen8,
+                         /*compute_units=*/2}},
+      {"810", AdrenoInfo{/*adreno_gpu=*/AdrenoGpu::kAdreno810,
+                         /*generation=*/AdrenoInfo::Generation::kGen8,
+                         /*compute_units=*/2}},
       // Adreno 7xx series
       {"750", AdrenoInfo{/*adreno_gpu=*/AdrenoGpu::kAdreno750,
                          /*generation=*/AdrenoInfo::Generation::kGen7,
@@ -337,7 +355,13 @@ MaliInfo GetMaliInfo(const std::string& gpu_description) {
       {"g1-premium", MaliInfo{/*gpu_version=*/MaliGpu::kG1Premium,
                               /*generation=*/MaliInfo::Gen::kV5}},
       {"g1-ultra", MaliInfo{/*gpu_version=*/MaliGpu::kG1Ultra,
-                            /*generation=*/MaliInfo::Gen::kV5}}};
+                            /*generation=*/MaliInfo::Gen::kV5}},
+      {"g2-pro", MaliInfo{/*gpu_version=*/MaliGpu::kG2Pro,
+                          /*generation=*/MaliInfo::Gen::kV6}},
+      {"g2-premium", MaliInfo{/*gpu_version=*/MaliGpu::kG2Premium,
+                              /*generation=*/MaliInfo::Gen::kV6}},
+      {"g2-ultra", MaliInfo{/*gpu_version=*/MaliGpu::kG2Ultra,
+                            /*generation=*/MaliInfo::Gen::kV6}}};
   MaliInfo mali_info;
   mali_info.gpu_version = MaliGpu::kUnknown;
   for (const auto& v : kMapping) {
@@ -352,11 +376,20 @@ MaliInfo GetMaliInfo(const std::string& gpu_description) {
 PowerVRGpu GetPowerVRGpuVersion(const std::string& gpu_description) {
   // Order must be preserved
   const std::vector<std::pair<std::string, PowerVRGpu>> kMapping = {
-      {"rogue", PowerVRGpu::kRogue},     {"axe", PowerVRGpu::kAXE},
-      {"axm", PowerVRGpu::kAXM},         {"axt", PowerVRGpu::kAXT},
-      {"bxe", PowerVRGpu::kBXE},         {"bxm", PowerVRGpu::kBXM},
-      {"bxs", PowerVRGpu::kBXS},         {"bxt", PowerVRGpu::kBXT},
-      {"cxt", PowerVRGpu::kCXT},         {"dxt", PowerVRGpu::kDXT},
+      {"rogue gm9", PowerVRGpu::kRogueGm9xxx},    // From OpenGL
+      {"powervr gm9", PowerVRGpu::kRogueGm9xxx},  // From OpenCL
+      {"rogue ge8", PowerVRGpu::kRogueGe8xxx},    // From OpenGL
+      {"powervr ge8", PowerVRGpu::kRogueGe8xxx},  // From OpenCL
+      {"rogue", PowerVRGpu::kRogue},
+      {"axe", PowerVRGpu::kAXE},
+      {"axm", PowerVRGpu::kAXM},
+      {"axt", PowerVRGpu::kAXT},
+      {"bxe", PowerVRGpu::kBXE},
+      {"bxm", PowerVRGpu::kBXM},
+      {"bxs", PowerVRGpu::kBXS},
+      {"bxt", PowerVRGpu::kBXT},
+      {"cxt", PowerVRGpu::kCXT},
+      {"dxt", PowerVRGpu::kDXT},
       {"powervr g", PowerVRGpu::kRogue},
   };
   for (const auto& v : kMapping) {
@@ -373,8 +406,8 @@ IntelGeneration GetIntelGeneration(const std::string& gpu_description) {
   const std::vector<std::pair<std::string, IntelGeneration>> kMapping = {
       {"gen-9", IntelGeneration::kGen9},   {"gen-10", IntelGeneration::kGen10},
       {"gen-11", IntelGeneration::kGen11}, {"gen-12", IntelGeneration::kGen12},
-      {"xe-lpg", IntelGeneration::kGen12}, {"gen-13", IntelGeneration::kGen13},
-      {"xe-2", IntelGeneration::kGen13},   {"xe-3", IntelGeneration::kGen14},
+      {"xe-lpg", IntelGeneration::kGen12}, {"xe-2", IntelGeneration::kXe2},
+      {"xe-3", IntelGeneration::kXe3},
   };
   for (const auto& v : kMapping) {
     if (gpu_description.find(v.first) != std::string::npos) {
@@ -671,6 +704,7 @@ AppleInfo::AppleInfo(const std::string& gpu_description) {
       {"apple a18 pro", AppleGpu::kA18Pro},
       {"apple a19", AppleGpu::kA19},
       {"apple a19 pro", AppleGpu::kA19Pro},
+      {"apple a20 pro", AppleGpu::kA20Pro},
       {"apple m1", AppleGpu::kM1},
       {"apple m1 pro", AppleGpu::kM1Pro},
       {"apple m1 max", AppleGpu::kM1Max},
@@ -728,7 +762,7 @@ AppleInfo::Family AppleInfo::GetGpuFamily() const {
              gpu_type == AppleGpu::kA18Pro || IsM3Series() || IsM4Series()) {
     return AppleInfo::Family::kApple9;
   } else if (gpu_type == AppleGpu::kA19 || gpu_type == AppleGpu::kA19Pro ||
-             IsM5Series() || IsM6Series()) {
+             gpu_type == AppleGpu::kA20Pro || IsM5Series() || IsM6Series()) {
     return AppleInfo::Family::kApple10;
   }
   return AppleInfo::Family::kApple1;
@@ -875,6 +909,8 @@ int AppleInfo::GetComputeUnitsCount() const {
       return 5;
     case AppleGpu::kA19Pro:
       return 6;
+    case AppleGpu::kA20Pro:
+      return 7;
     case AppleGpu::kM1:
       // approximate, can be 7 or 8
       return 8;
@@ -1008,11 +1044,14 @@ bool MaliInfo::IsValhall() const {
          IsValhallGen4();
 }
 
-bool MaliInfo::IsGen5() const { return generation == MaliInfo::Gen::kV5; }
-
 bool MaliInfo::IsMaliG1() const {
   return gpu_version == MaliGpu::kG1Pro || gpu_version == MaliGpu::kG1Premium ||
          gpu_version == MaliGpu::kG1Ultra;
+}
+
+bool MaliInfo::IsMaliG2() const {
+  return gpu_version == MaliGpu::kG2Pro || gpu_version == MaliGpu::kG2Premium ||
+         gpu_version == MaliGpu::kG2Ultra;
 }
 
 int MaliInfo::GetApproximateComputeUnitsCount() const {
@@ -1022,7 +1061,7 @@ int MaliInfo::GetApproximateComputeUnitsCount() const {
   } else if (IsBifrost()) {
     // Mali Bifrost can have 1-32 cores
     return 16;
-  } else if (IsValhall()) {
+  } else {
     if (gpu_version == MaliGpu::kG57) {
       return 6;  // Mali-G57 can have 1-6 cores
     } else if (gpu_version == MaliGpu::kG77) {
@@ -1048,15 +1087,28 @@ int MaliInfo::GetApproximateComputeUnitsCount() const {
       return 6;
     } else if (gpu_version == MaliGpu::kG1Ultra) {
       return 12;
+    } else if (gpu_version == MaliGpu::kG2Pro) {
+      return 2;
+    } else if (gpu_version == MaliGpu::kG2Premium) {
+      return 6;
+    } else if (gpu_version == MaliGpu::kG2Ultra) {
+      return 12;
     }
   }
   return 4;
 }
 
-PowerVRInfo::PowerVRInfo(const std::string& gpu_description)
-    : gpu_version(GetPowerVRGpuVersion(gpu_description)) {}
+PowerVRInfo::PowerVRInfo(const std::string& gpu_description) {
+  std::string lowered = gpu_description;
+  absl::AsciiStrToLower(&lowered);
+  gpu_version = GetPowerVRGpuVersion(lowered);
+}
 
-bool PowerVRInfo::IsRogue() const { return gpu_version == PowerVRGpu::kRogue; }
+bool PowerVRInfo::IsRogue() const {
+  return gpu_version == PowerVRGpu::kRogue ||
+         gpu_version == PowerVRGpu::kRogueGe8xxx ||
+         gpu_version == PowerVRGpu::kRogueGm9xxx;
+}
 
 bool PowerVRInfo::IsImgAxx() const {
   return gpu_version == PowerVRGpu::kAXE || gpu_version == PowerVRGpu::kAXM ||
@@ -1071,6 +1123,13 @@ bool PowerVRInfo::IsImgBxx() const {
 bool PowerVRInfo::IsImgCxx() const { return gpu_version == PowerVRGpu::kCXT; }
 
 bool PowerVRInfo::IsImgDxx() const { return gpu_version == PowerVRGpu::kDXT; }
+
+bool PowerVRInfo::IsBetterThan(PowerVRGpu gpu) const {
+  if (gpu_version == PowerVRGpu::kUnknown) {
+    return false;
+  }
+  return (gpu_version >= gpu);
+}
 
 NvidiaInfo::NvidiaInfo(const std::string& gpu_description) {
   std::string lowered = gpu_description;
@@ -1313,7 +1372,7 @@ void GetGpuInfoFromDeviceDescription(const std::string& gpu_description,
   } else if (gpu_info->IsPowerVR()) {
     gpu_info->powervr_info = PowerVRInfo(lowered);
     const int wave_size =
-        gpu_info->powervr_info.gpu_version <= PowerVRGpu::kRogue ? 32 : 128;
+        gpu_info->powervr_info.IsRogue() ? 32 : 128;
     gpu_info->supported_wave_sizes = {wave_size};
   } else if (gpu_info->IsIntel()) {
     gpu_info->intel_info = IntelInfo(lowered);
@@ -1453,12 +1512,36 @@ bool MetalInfo::IsNativeBfloatSupported() const {
   return IsMslVersionEqualOrHigher(3, 1) && !is_simulator;
 }
 
+// Returns the Xe-core count, looked up by model number since the APIs don't
+// expose it. Unlisted GPUs return 4.
+int GetIntelComputeUnitsCount(const std::string& gpu_description) {
+  const std::vector<std::pair<std::string, int>> kMapping = {
+      // Panther Lake (Xe3, xe-3lpg).
+      {"b390", 12},  // Arc B390
+      {"b370", 10},  // Arc B370
+      // Lunar Lake (Xe2, xe-2lpg).
+      {"140v", 8},  // Arc 140V
+      {"130v", 7},  // Arc 130V
+  };
+
+  for (const auto& v : kMapping) {
+    if (gpu_description.find(v.first) != std::string::npos) {
+      return v.second;
+    }
+  }
+
+  return 4;
+}
+
 IntelInfo::IntelInfo(const std::string& gpu_description)
-    : generation(GetIntelGeneration(gpu_description)) {}
+    : generation(GetIntelGeneration(gpu_description)),
+      compute_units_count(GetIntelComputeUnitsCount(gpu_description)) {}
 
 bool IntelInfo::IsGenerationOrNewer(IntelGeneration gen) const {
   return generation >= gen;
 }
+
+int IntelInfo::GetComputeUnitsCount() const { return compute_units_count; }
 
 bool GpuInfo::IsAdreno() const { return vendor == GpuVendor::kQualcomm; }
 
@@ -1479,6 +1562,47 @@ bool GpuInfo::IsAMD() const { return vendor == GpuVendor::kAMD; }
 bool GpuInfo::IsIntel() const { return vendor == GpuVendor::kIntel; }
 
 bool GpuInfo::IsMaleoon() const { return vendor == GpuVendor::kHuawei; }
+
+bool GpuInfo::IsMobileGpu() const {
+  if (IsAdreno() || IsMali() || IsPowerVR() || IsMaleoon() || IsBroadcom()) {
+    return true;
+  }
+  if (IsApple()) {
+    if (apple_info.IsMSeries()) {
+      return false;
+    }
+    if (apple_info.gpu_type != AppleGpu::kUnknown) {
+      return true;
+    }
+    return GetComputeUnitsCount() < 10;
+  }
+  if (vendor == GpuVendor::kUnknown && IsApiOpenCl() &&
+      opencl_info.supports_register_allocation_arm) {
+    return true;
+  }
+  return false;
+}
+
+bool GpuInfo::IsDesktopGpu() const {
+  if (IsAMD() || IsNvidia() || IsIntel() || IsApiCuda()) {
+    return true;
+  }
+  if (IsApple()) {
+    if (apple_info.IsMSeries()) {
+      return true;
+    }
+    if (apple_info.gpu_type != AppleGpu::kUnknown) {
+      return false;
+    }
+    return GetComputeUnitsCount() >= 10;
+  }
+  if (vendor == GpuVendor::kUnknown && IsApiOpenCl() &&
+      opencl_info.dedicated_local_memory &&
+      opencl_info.compute_units_count >= 16) {
+    return true;
+  }
+  return false;
+}
 
 bool GpuInfo::IsRoundToNearestSupported() const {
   if (IsApiOpenCl()) {
@@ -1597,7 +1721,7 @@ bool GpuInfo::SupportsAcceleratedDp4a() const {
     return false;
   }
 #endif
-  // TODO(b/367828817): We disable dp4a on web for now, until correctness issues
+  // TODO: We disable dp4a on web for now, until correctness issues
   // are resolved.
 #ifndef __EMSCRIPTEN__
   if (IsIntel()) {
@@ -1609,7 +1733,8 @@ bool GpuInfo::SupportsAcceleratedDp4a() const {
            (amd_info.IsArchitectureOrNewer(AMDArchitecture::kRdna1) &&
             !amd_info.IsNavi10());
   } else if (IsMali()) {
-    return mali_info.IsValhall();
+    return mali_info.IsValhall() || mali_info.IsMaliG1() ||
+           mali_info.IsMaliG2();
   } else if (IsBroadcom()) {
     return broadcom_info.IsVideoCore7();
   }
@@ -1698,6 +1823,9 @@ int GpuInfo::GetComputeUnitsCount() const {
   }
   if (IsBroadcom()) {
     return broadcom_info.GetApproximateComputeUnitsCount();
+  }
+  if (IsIntel()) {
+    return intel_info.GetComputeUnitsCount();
   }
   return 4;
 }
@@ -1956,6 +2084,26 @@ uint64_t GpuInfo::GetMaxImageBufferWidth() const {
   return 64 * 1024;
 }
 
+namespace {
+
+int GetMetalMaxTextureArguments(const GpuInfo& gpu_info) {
+  if (gpu_info.IsApple()) {
+    if (gpu_info.apple_info.IsFamilyOrLower(AppleInfo::Family::kApple3)) {
+      return 31;
+    }
+    if (gpu_info.apple_info.IsFamilyOrLower(AppleInfo::Family::kApple5)) {
+      return 96;
+    }
+    return 128;
+  }
+  if (gpu_info.IsDesktopGpu()) {
+    return 128;
+  }
+  return 31;
+}
+
+}  // namespace
+
 int GpuInfo::GetMaxImageArguments() const {
   if (IsApiOpenGl()) {
     return opengl_info.max_image_bindings;
@@ -1964,7 +2112,7 @@ int GpuInfo::GetMaxImageArguments() const {
     return vulkan_info.max_per_stage_descriptor_storage_images;
   }
   if (IsApiMetal()) {
-    return 32;
+    return GetMetalMaxTextureArguments(*this);
   }
   if (IsApiOpenCl()) {
     return 128;
@@ -1983,7 +2131,7 @@ int GpuInfo::GetMaxTextureArguments() const {
     return vulkan_info.max_per_stage_descriptor_sampled_images;
   }
   if (IsApiMetal()) {
-    return 32;
+    return GetMetalMaxTextureArguments(*this);
   }
   if (IsApiOpenCl()) {
     return 128;
@@ -2002,7 +2150,7 @@ int GpuInfo::GetMaxBufferArguments() const {
     return vulkan_info.max_per_stage_descriptor_storage_buffers;
   }
   if (IsApiMetal()) {
-    return 32;
+    return 31;
   }
   if (IsApiOpenCl()) {
     return 128;

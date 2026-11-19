@@ -44,9 +44,9 @@ absl::Status TopKTest(TestExecutionEnvironment& env, DataType data_type,
   src_tensor.data = {7.0f, 1.0f, 13.0f, 12.0f, 5.0f, 4.0f, 2.0f, -9.0f};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({DataType::INT32, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({DataType::kInt32, storage, Layout::kHWC});
   TensorDescriptor src, dst_max, dst_ind;
   src = op_def.src_tensors[0];
   src.UploadData(src_tensor);
@@ -56,9 +56,9 @@ absl::Status TopKTest(TestExecutionEnvironment& env, DataType data_type,
   ABSL_RETURN_IF_ERROR(
       env.ExecuteGPUOperation({&src}, {&dst_max, &dst_ind},
                               std::make_unique<TopKOp>(std::move(operation))));
-  Tensor<BHWC, DataType::FLOAT32> dst_max_tensor;
+  Tensor<BHWC, DataType::kFloat32> dst_max_tensor;
   dst_max.DownloadData(&dst_max_tensor);
-  Tensor<BHWC, DataType::INT32> dst_ind_tensor;
+  Tensor<BHWC, DataType::kInt32> dst_ind_tensor;
   dst_ind.DownloadData(&dst_ind_tensor);
 
   EXPECT_EQ(dst_max_tensor.data,
@@ -76,9 +76,9 @@ absl::Status TopKPartialReductionTest(TestExecutionEnvironment& env,
                      -2.0f, 9.0f, 9.0f,  1.0f,  -3.0f, 2.0f};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({DataType::INT32, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({DataType::kInt32, storage, Layout::kHWC});
   TensorDescriptor src, dst_max, dst_ind;
   src = op_def.src_tensors[0];
   src.UploadData(src_tensor);
@@ -88,9 +88,9 @@ absl::Status TopKPartialReductionTest(TestExecutionEnvironment& env,
   ABSL_RETURN_IF_ERROR(
       env.ExecuteGPUOperation({&src}, {&dst_max, &dst_ind},
                               std::make_unique<TopKOp>(std::move(operation))));
-  Tensor<BHWC, DataType::FLOAT32> dst_max_tensor;
+  Tensor<BHWC, DataType::kFloat32> dst_max_tensor;
   dst_max.DownloadData(&dst_max_tensor);
-  Tensor<BHWC, DataType::INT32> dst_ind_tensor;
+  Tensor<BHWC, DataType::kInt32> dst_ind_tensor;
   dst_ind.DownloadData(&dst_ind_tensor);
 
   EXPECT_EQ(dst_max_tensor.data, std::vector<float>({13.0f, 12.0f, 9.0f, 7.0f,
@@ -131,9 +131,9 @@ absl::Status TopKBigTest(TestExecutionEnvironment& env, DataType data_type,
   }
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({DataType::INT32, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({DataType::kInt32, storage, Layout::kHWC});
   TensorDescriptor src, dst_max, dst_ind;
   src = op_def.src_tensors[0];
   src.UploadData(src_tensor);
@@ -143,9 +143,9 @@ absl::Status TopKBigTest(TestExecutionEnvironment& env, DataType data_type,
   ABSL_RETURN_IF_ERROR(
       env.ExecuteGPUOperation({&src}, {&dst_max, &dst_ind},
                               std::make_unique<TopKOp>(std::move(operation))));
-  Tensor<BHWC, DataType::FLOAT32> dst_max_tensor;
+  Tensor<BHWC, DataType::kFloat32> dst_max_tensor;
   dst_max.DownloadData(&dst_max_tensor);
-  Tensor<BHWC, DataType::INT32> dst_ind_tensor;
+  Tensor<BHWC, DataType::kInt32> dst_ind_tensor;
   dst_ind.DownloadData(&dst_ind_tensor);
 
   EXPECT_EQ(dst_max_tensor.data, ref_max);
@@ -184,9 +184,9 @@ absl::Status TopKBig2StepTest(TestExecutionEnvironment& env, DataType data_type,
   }
 
   OperationDef op_def_first;
-  op_def_first.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def_first.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def_first.dst_tensors.push_back({DataType::INT32, storage, Layout::HWC});
+  op_def_first.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def_first.dst_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def_first.dst_tensors.push_back({DataType::kInt32, storage, Layout::kHWC});
   TensorDescriptor src, interm_max, interm_ind;
   src = op_def_first.src_tensors[0];
   src.UploadData(src_tensor);
@@ -197,10 +197,12 @@ absl::Status TopKBig2StepTest(TestExecutionEnvironment& env, DataType data_type,
       env.ExecuteGPUOperation({&src}, {&interm_max, &interm_ind},
                               std::make_unique<TopKOp>(std::move(op_first))));
   OperationDef op_def_second;
-  op_def_second.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def_second.src_tensors.push_back({DataType::INT32, storage, Layout::HWC});
-  op_def_second.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def_second.dst_tensors.push_back({DataType::INT32, storage, Layout::HWC});
+  op_def_second.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def_second.src_tensors.push_back(
+      {DataType::kInt32, storage, Layout::kHWC});
+  op_def_second.dst_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def_second.dst_tensors.push_back(
+      {DataType::kInt32, storage, Layout::kHWC});
   TopKOp op_second = CreateTopK(env.GetGpuInfo(), op_def_second);
   TensorDescriptor dst_max, dst_ind;
   src.UploadData(src_tensor);
@@ -209,9 +211,9 @@ absl::Status TopKBig2StepTest(TestExecutionEnvironment& env, DataType data_type,
   ABSL_RETURN_IF_ERROR(
       env.ExecuteGPUOperation({&interm_max, &interm_ind}, {&dst_max, &dst_ind},
                               std::make_unique<TopKOp>(std::move(op_second))));
-  Tensor<BHWC, DataType::FLOAT32> dst_max_tensor;
+  Tensor<BHWC, DataType::kFloat32> dst_max_tensor;
   dst_max.DownloadData(&dst_max_tensor);
-  Tensor<BHWC, DataType::INT32> dst_ind_tensor;
+  Tensor<BHWC, DataType::kInt32> dst_ind_tensor;
   dst_ind.DownloadData(&dst_ind_tensor);
 
   EXPECT_EQ(dst_max_tensor.data, ref_max);
@@ -251,9 +253,9 @@ absl::Status TopKBig2StepFirstStepNoWgReductionTest(
   }
 
   OperationDef op_def_first;
-  op_def_first.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def_first.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def_first.dst_tensors.push_back({DataType::INT32, storage, Layout::HWC});
+  op_def_first.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def_first.dst_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def_first.dst_tensors.push_back({DataType::kInt32, storage, Layout::kHWC});
   TensorDescriptor src, interm_max, interm_ind;
   src = op_def_first.src_tensors[0];
   src.UploadData(src_tensor);
@@ -265,10 +267,12 @@ absl::Status TopKBig2StepFirstStepNoWgReductionTest(
       env.ExecuteGPUOperation({&src}, {&interm_max, &interm_ind},
                               std::make_unique<TopKOp>(std::move(op_first))));
   OperationDef op_def_second;
-  op_def_second.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def_second.src_tensors.push_back({DataType::INT32, storage, Layout::HWC});
-  op_def_second.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def_second.dst_tensors.push_back({DataType::INT32, storage, Layout::HWC});
+  op_def_second.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def_second.src_tensors.push_back(
+      {DataType::kInt32, storage, Layout::kHWC});
+  op_def_second.dst_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def_second.dst_tensors.push_back(
+      {DataType::kInt32, storage, Layout::kHWC});
   TopKOp op_second = CreateTopK(env.GetGpuInfo(), op_def_second);
   TensorDescriptor dst_max, dst_ind;
   src.UploadData(src_tensor);
@@ -277,9 +281,9 @@ absl::Status TopKBig2StepFirstStepNoWgReductionTest(
   ABSL_RETURN_IF_ERROR(
       env.ExecuteGPUOperation({&interm_max, &interm_ind}, {&dst_max, &dst_ind},
                               std::make_unique<TopKOp>(std::move(op_second))));
-  Tensor<BHWC, DataType::FLOAT32> dst_max_tensor;
+  Tensor<BHWC, DataType::kFloat32> dst_max_tensor;
   dst_max.DownloadData(&dst_max_tensor);
-  Tensor<BHWC, DataType::INT32> dst_ind_tensor;
+  Tensor<BHWC, DataType::kInt32> dst_ind_tensor;
   dst_ind.DownloadData(&dst_ind_tensor);
 
   EXPECT_EQ(dst_max_tensor.data, ref_max);
@@ -294,19 +298,19 @@ absl::Status TopKIterativeTest(TestExecutionEnvironment& env,
   src_tensor.data = {7.0f, 1.0f, 13.0f, 12.0f, 5.0f, 4.0f, 2.0f, -9.0f};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({DataType::INT32, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({DataType::kInt32, storage, Layout::kHWC});
   TensorDescriptor src, dst_max, dst_ind;
   TensorDescriptor prev_max, prev_ind;
   src = op_def.src_tensors[0];
   src.UploadData(src_tensor);
   dst_max.SetBHWCShape(BHWC(1, 1, 1, 8));
   dst_ind.SetBHWCShape(BHWC(1, 1, 1, 8));
-  Tensor<BHWC, DataType::FLOAT32> dst_max_tensor;
+  Tensor<BHWC, DataType::kFloat32> dst_max_tensor;
   dst_max_tensor.shape = BHWC(1, 1, 1, 8);
   dst_max_tensor.data.resize(dst_max_tensor.shape.DimensionsProduct());
-  Tensor<BHWC, DataType::INT32> dst_ind_tensor;
+  Tensor<BHWC, DataType::kInt32> dst_ind_tensor;
   dst_ind_tensor.shape = BHWC(1, 1, 1, 8);
   dst_ind_tensor.data.resize(dst_ind_tensor.shape.DimensionsProduct());
   for (int i = 0; i < 2; ++i) {
@@ -323,9 +327,9 @@ absl::Status TopKIterativeTest(TestExecutionEnvironment& env,
         src_cpu, dst_cpu, std::make_unique<TopKOp>(std::move(operation))));
     prev_max = dst_max;
     prev_ind = dst_ind;
-    Tensor<BHWC, DataType::FLOAT32> temp_max_tensor;
+    Tensor<BHWC, DataType::kFloat32> temp_max_tensor;
     dst_max.DownloadData(&temp_max_tensor);
-    Tensor<BHWC, DataType::INT32> temp_ind_tensor;
+    Tensor<BHWC, DataType::kInt32> temp_ind_tensor;
     dst_ind.DownloadData(&temp_ind_tensor);
     for (int j = 0; j < 4; ++j) {
       dst_max_tensor.data[i * 4 + j] = temp_max_tensor.data[i * 4 + j];
@@ -372,19 +376,19 @@ absl::Status TopKIterativeBigTest(TestExecutionEnvironment& env,
   }
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({DataType::INT32, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({DataType::kInt32, storage, Layout::kHWC});
   TensorDescriptor src, dst_max, dst_ind;
   TensorDescriptor prev_max, prev_ind;
   src = op_def.src_tensors[0];
   src.UploadData(src_tensor);
   dst_max.SetBHWCShape(BHWC(1, 1, 1, kTopKSize));
   dst_ind.SetBHWCShape(BHWC(1, 1, 1, kTopKSize));
-  Tensor<BHWC, DataType::FLOAT32> dst_max_tensor;
+  Tensor<BHWC, DataType::kFloat32> dst_max_tensor;
   dst_max_tensor.shape = BHWC(1, 1, 1, kTopKSize);
   dst_max_tensor.data.resize(dst_max_tensor.shape.DimensionsProduct());
-  Tensor<BHWC, DataType::INT32> dst_ind_tensor;
+  Tensor<BHWC, DataType::kInt32> dst_ind_tensor;
   dst_ind_tensor.shape = BHWC(1, 1, 1, kTopKSize);
   dst_ind_tensor.data.resize(dst_ind_tensor.shape.DimensionsProduct());
   for (int i = 0; i < kTopKSize / 4; ++i) {
@@ -401,9 +405,9 @@ absl::Status TopKIterativeBigTest(TestExecutionEnvironment& env,
         src_cpu, dst_cpu, std::make_unique<TopKOp>(std::move(operation))));
     prev_max = dst_max;
     prev_ind = dst_ind;
-    Tensor<BHWC, DataType::FLOAT32> temp_max_tensor;
+    Tensor<BHWC, DataType::kFloat32> temp_max_tensor;
     dst_max.DownloadData(&temp_max_tensor);
-    Tensor<BHWC, DataType::INT32> temp_ind_tensor;
+    Tensor<BHWC, DataType::kInt32> temp_ind_tensor;
     dst_ind.DownloadData(&temp_ind_tensor);
     for (int j = 0; j < 4; ++j) {
       dst_max_tensor.data[i * 4 + j] = temp_max_tensor.data[i * 4 + j];
@@ -445,16 +449,18 @@ absl::Status TopKIterative2StepBigTest(TestExecutionEnvironment& env,
   }
 
   OperationDef op_def_first;
-  const DataType data_type = DataType::FLOAT32;
-  op_def_first.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def_first.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def_first.dst_tensors.push_back({DataType::INT32, storage, Layout::HWC});
+  const DataType data_type = DataType::kFloat32;
+  op_def_first.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def_first.dst_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def_first.dst_tensors.push_back({DataType::kInt32, storage, Layout::kHWC});
 
   OperationDef op_def_second;
-  op_def_second.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def_second.src_tensors.push_back({DataType::INT32, storage, Layout::HWC});
-  op_def_second.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def_second.dst_tensors.push_back({DataType::INT32, storage, Layout::HWC});
+  op_def_second.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def_second.src_tensors.push_back(
+      {DataType::kInt32, storage, Layout::kHWC});
+  op_def_second.dst_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def_second.dst_tensors.push_back(
+      {DataType::kInt32, storage, Layout::kHWC});
 
   TensorDescriptor src, dst_max, dst_ind, interm_max, interm_ind;
   TensorDescriptor prev_max, prev_ind;
@@ -464,10 +470,10 @@ absl::Status TopKIterative2StepBigTest(TestExecutionEnvironment& env,
   dst_ind.SetBHWCShape(BHWC(1, 1, 1, kTopKSize));
   interm_max.SetBHWCShape(BHWC(1, 1, 1024, 4));
   interm_ind.SetBHWCShape(BHWC(1, 1, 1024, 4));
-  Tensor<BHWC, DataType::FLOAT32> dst_max_tensor;
+  Tensor<BHWC, DataType::kFloat32> dst_max_tensor;
   dst_max_tensor.shape = BHWC(1, 1, 1, kTopKSize);
   dst_max_tensor.data.resize(dst_max_tensor.shape.DimensionsProduct());
-  Tensor<BHWC, DataType::INT32> dst_ind_tensor;
+  Tensor<BHWC, DataType::kInt32> dst_ind_tensor;
   dst_ind_tensor.shape = BHWC(1, 1, 1, kTopKSize);
   dst_ind_tensor.data.resize(dst_ind_tensor.shape.DimensionsProduct());
   for (int i = 0; i < kTopKSize / 4; ++i) {
@@ -491,9 +497,9 @@ absl::Status TopKIterative2StepBigTest(TestExecutionEnvironment& env,
 
     prev_max = dst_max;
     prev_ind = dst_ind;
-    Tensor<BHWC, DataType::FLOAT32> temp_max_tensor;
+    Tensor<BHWC, DataType::kFloat32> temp_max_tensor;
     dst_max.DownloadData(&temp_max_tensor);
-    Tensor<BHWC, DataType::INT32> temp_ind_tensor;
+    Tensor<BHWC, DataType::kInt32> temp_ind_tensor;
     dst_ind.DownloadData(&temp_ind_tensor);
     for (int j = 0; j < 4; ++j) {
       dst_max_tensor.data[i * 4 + j] = temp_max_tensor.data[i * 4 + j];

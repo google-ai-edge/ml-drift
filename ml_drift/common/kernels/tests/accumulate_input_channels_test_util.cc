@@ -39,17 +39,17 @@ absl::Status AccumulateInputChannelsInt8ToInt32Test(
     TestExecutionEnvironment& env, const TensorStorageType& dst_storage,
     const OHWI& weights_shape) {
   TensorDescriptor src_raw_ohwi = TensorDescriptor(
-      DataType::INT8, TensorStorageType::BUFFER, Layout::LINEAR);
+      DataType::kInt8, TensorStorageType::kBuffer, Layout::kLinear);
   src_raw_ohwi.SetBHWCShape(BHWC(1, 1, 1, weights_shape.i * weights_shape.o));
   TensorDescriptor dst_descriptor =
-      TensorDescriptor(DataType::INT32, dst_storage, Layout::LINEAR);
+      TensorDescriptor(DataType::kInt32, dst_storage, Layout::kLinear);
   dst_descriptor.SetBHWCShape(BHWC(1, 1, 1, weights_shape.o));
 
   OperationDef op_def;
   op_def.src_tensors.push_back(src_raw_ohwi);
   op_def.dst_tensors.push_back(dst_descriptor);
   GPUOperation operation =
-      CreateAccumulateInputChannels(op_def, weights_shape, DataType::INT8);
+      CreateAccumulateInputChannels(op_def, weights_shape, DataType::kInt8);
 
   // Upload input data.
   std::vector<int8_t> src_raw(weights_shape.DimensionsProduct());
@@ -71,7 +71,7 @@ absl::Status AccumulateInputChannelsInt8ToInt32Test(
       src_cpu_desc_ptrs, dst_cpu_desc_ptrs,
       std::make_unique<GPUOperation>(std::move(operation))));
 
-  Tensor<BHWC, DataType::INT32> dst_tensor;
+  Tensor<BHWC, DataType::kInt32> dst_tensor;
   dst_descriptor.DownloadData(&dst_tensor);
   EXPECT_EQ(dst_tensor.data, reference_output);
   return absl::OkStatus();
@@ -80,26 +80,26 @@ absl::Status AccumulateInputChannelsInt8ToInt32Test(
 absl::Status AccumulateInputChannelsInt4ToInt32Test(
     TestExecutionEnvironment& env, const TensorStorageType& dst_storage,
     const OHWI& weights_shape) {
-  const TensorStorageType src_storage = TensorStorageType::BUFFER;
+  const TensorStorageType src_storage = TensorStorageType::kBuffer;
   const int int4_elements_per_int8_element =
-      SizeInBitsOf(DataType::INT8) / SizeInBitsOf(DataType::INT4);
+      SizeInBitsOf(DataType::kInt8) / SizeInBitsOf(DataType::kInt4);
   const int int8_elements_per_int32_element =
-      SizeInBitsOf(DataType::INT32) / SizeInBitsOf(DataType::INT8);
+      SizeInBitsOf(DataType::kInt32) / SizeInBitsOf(DataType::kInt8);
   const int src_size_packed = DivideRoundUp(
       weights_shape.DimensionsProduct(), int4_elements_per_int8_element);
 
   TensorDescriptor src_descriptor =
-      TensorDescriptor(DataType::INT32, src_storage, Layout::LINEAR);
+      TensorDescriptor(DataType::kInt32, src_storage, Layout::kLinear);
   src_descriptor.SetBHWCShape(BHWC(1, 1, 1, src_size_packed));
   TensorDescriptor dst_descriptor =
-      TensorDescriptor(DataType::INT32, dst_storage, Layout::LINEAR);
+      TensorDescriptor(DataType::kInt32, dst_storage, Layout::kLinear);
   dst_descriptor.SetBHWCShape(BHWC(1, 1, 1, weights_shape.o));
 
   OperationDef op_def;
   op_def.src_tensors.push_back(src_descriptor);
   op_def.dst_tensors.push_back(dst_descriptor);
   GPUOperation operation =
-      CreateAccumulateInputChannels(op_def, weights_shape, DataType::INT4);
+      CreateAccumulateInputChannels(op_def, weights_shape, DataType::kInt4);
 
   // Upload input data.
   //
@@ -139,7 +139,7 @@ absl::Status AccumulateInputChannelsInt4ToInt32Test(
       src_cpu_desc_ptrs, dst_cpu_desc_ptrs,
       std::make_unique<GPUOperation>(std::move(operation))));
 
-  Tensor<BHWC, DataType::INT32> dst_tensor;
+  Tensor<BHWC, DataType::kInt32> dst_tensor;
   dst_descriptor.DownloadData(&dst_tensor);
   EXPECT_EQ(dst_tensor.data, reference_output);
   return absl::OkStatus();
@@ -148,24 +148,24 @@ absl::Status AccumulateInputChannelsInt4ToInt32Test(
 absl::Status AccumulateInputChannelsInt2ToInt32Test(
     TestExecutionEnvironment& env, const TensorStorageType& dst_storage,
     const OHWI& weights_shape) {
-  const TensorStorageType src_storage = TensorStorageType::BUFFER;
+  const TensorStorageType src_storage = TensorStorageType::kBuffer;
   const int int2_elements_per_int8_element =
-      SizeInBitsOf(DataType::INT8) / SizeInBitsOf(DataType::INT2);
+      SizeInBitsOf(DataType::kInt8) / SizeInBitsOf(DataType::kInt2);
   const int src_size_packed = DivideRoundUp(
       weights_shape.DimensionsProduct(), int2_elements_per_int8_element);
 
   TensorDescriptor src_descriptor =
-      TensorDescriptor(DataType::INT8, src_storage, Layout::LINEAR);
+      TensorDescriptor(DataType::kInt8, src_storage, Layout::kLinear);
   src_descriptor.SetBHWCShape(BHWC(1, 1, 1, src_size_packed));
   TensorDescriptor dst_descriptor =
-      TensorDescriptor(DataType::INT32, dst_storage, Layout::LINEAR);
+      TensorDescriptor(DataType::kInt32, dst_storage, Layout::kLinear);
   dst_descriptor.SetBHWCShape(BHWC(1, 1, 1, weights_shape.o));
 
   OperationDef op_def;
   op_def.src_tensors.push_back(src_descriptor);
   op_def.dst_tensors.push_back(dst_descriptor);
   GPUOperation operation =
-      CreateAccumulateInputChannels(op_def, weights_shape, DataType::INT2);
+      CreateAccumulateInputChannels(op_def, weights_shape, DataType::kInt2);
 
   // Upload input data.
   //
@@ -206,7 +206,7 @@ absl::Status AccumulateInputChannelsInt2ToInt32Test(
       src_cpu_desc_ptrs, dst_cpu_desc_ptrs,
       std::make_unique<GPUOperation>(std::move(operation))));
 
-  Tensor<BHWC, DataType::INT32> dst_tensor;
+  Tensor<BHWC, DataType::kInt32> dst_tensor;
   dst_descriptor.DownloadData(&dst_tensor);
   EXPECT_EQ(dst_tensor.data, reference_output);
   return absl::OkStatus();

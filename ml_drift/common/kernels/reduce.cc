@@ -43,15 +43,11 @@ namespace {
 int GetMaximumWGTotalSize(const GpuInfo& gpu_info) {
   // total_wg_size must be power of 2 and >= 4;
   int total_wg_size = 256;
-  if (gpu_info.IsAdreno() && gpu_info.adreno_info.IsAdreno3xx()) {
-    total_wg_size = 128;
-  }
-  if (gpu_info.IsMali()) {
-    const MaliInfo& mali_info = gpu_info.mali_info;
-    if (mali_info.IsMidgard()) {
-      total_wg_size = 32;
-    } else {
-      total_wg_size = 64;
+  if (gpu_info.IsMobileGpu()) {
+    if (gpu_info.IsAdreno() && gpu_info.adreno_info.IsAdreno3xx()) {
+      total_wg_size = 128;
+    } else if (gpu_info.IsMali()) {
+      total_wg_size = gpu_info.mali_info.IsMidgard() ? 32 : 64;
     }
   }
   return total_wg_size;
@@ -175,14 +171,14 @@ std::map<Axis, int> GetSizesFromShape(const std::set<Axis>& axis,
 }
 
 DataType GetAccumType(DataType src_type) {
-  if (src_type == DataType::FLOAT32 || src_type == DataType::FLOAT16) {
-    return DataType::FLOAT32;
-  } else if (src_type == DataType::INT32 || src_type == DataType::INT16 ||
-             src_type == DataType::INT8) {
-    return DataType::INT32;
-  } else if (src_type == DataType::UINT32 || src_type == DataType::UINT16 ||
-             src_type == DataType::UINT8) {
-    return DataType::UINT32;
+  if (src_type == DataType::kFloat32 || src_type == DataType::kFloat16) {
+    return DataType::kFloat32;
+  } else if (src_type == DataType::kInt32 || src_type == DataType::kInt16 ||
+             src_type == DataType::kInt8) {
+    return DataType::kInt32;
+  } else if (src_type == DataType::kUint32 || src_type == DataType::kUint16 ||
+             src_type == DataType::kUint8) {
+    return DataType::kUint32;
   } else {
     return src_type;
   }
@@ -196,19 +192,19 @@ bool IsAverageReduce(Reduce::Type reduce_type) {
 }  // namespace
 
 Reduce::Type GetReduceTypeFromOperationType(OperationType op_type) {
-  if (op_type == OperationType::MEAN) {
+  if (op_type == OperationType::kMean) {
     return Reduce::Type::kMean;
-  } else if (op_type == OperationType::REDUCE_ALL) {
+  } else if (op_type == OperationType::kReduceAll) {
     return Reduce::Type::kAll;
-  } else if (op_type == OperationType::REDUCE_ANY) {
+  } else if (op_type == OperationType::kReduceAny) {
     return Reduce::Type::kAny;
-  } else if (op_type == OperationType::REDUCE_SUM) {
+  } else if (op_type == OperationType::kReduceSum) {
     return Reduce::Type::kSum;
-  } else if (op_type == OperationType::REDUCE_PRODUCT) {
+  } else if (op_type == OperationType::kReduceProduct) {
     return Reduce::Type::kProduct;
-  } else if (op_type == OperationType::REDUCE_MAXIMUM) {
+  } else if (op_type == OperationType::kReduceMaximum) {
     return Reduce::Type::kMaximum;
-  } else if (op_type == OperationType::REDUCE_MINIMUM) {
+  } else if (op_type == OperationType::kReduceMinimum) {
     return Reduce::Type::kMinimum;
   }
   return Reduce::Type::kMean;
@@ -219,13 +215,13 @@ Reduce::Reduce(const std::map<Axis, int>& axis_to_reduce, Type reduce_type,
                bool add_input) {
   std::vector<Axis> ordered_axis_to_reduce;
   std::vector<int> ordered_sizes;
-  for (const auto& a :
-       {Axis::CHANNELS, Axis::DEPTH, Axis::HEIGHT, Axis::WIDTH, Axis::BATCH}) {
+  for (const auto& a : {Axis::kChannels, Axis::kDepth, Axis::kHeight,
+                        Axis::kWidth, Axis::kBatch}) {
     auto it = axis_to_reduce.find(a);
     if (it != axis_to_reduce.end()) {
       ordered_axis_to_reduce.push_back(it->first);
       int reduction_size = it->second;
-      if (a == Axis::CHANNELS) {
+      if (a == Axis::kChannels) {
         reduction_size = DivideRoundUp(reduction_size, 4);
       }
       ordered_sizes.push_back(reduction_size);
@@ -276,8 +272,8 @@ std::string Reduce::GetReduceKernelCode(const OperationDef& op_def,
   args_.AddFloat("inv_multiplier_2");
 
   std::set<Axis> axis_to_leave;
-  const std::vector<Axis> all_axis = {Axis::WIDTH, Axis::HEIGHT, Axis::DEPTH,
-                                      Axis::CHANNELS, Axis::BATCH};
+  const std::vector<Axis> all_axis = {Axis::kWidth, Axis::kHeight, Axis::kDepth,
+                                      Axis::kChannels, Axis::kBatch};
   for (const auto& a : all_axis) {
     if (op_def.dst_tensors[0].HasAxis(a)) {
       if (!HasAxis(axis_to_reduce, a)) {
@@ -285,7 +281,7 @@ std::string Reduce::GetReduceKernelCode(const OperationDef& op_def,
       }
     }
   }
-  const bool channels_reduction = HasAxis(axis_to_reduce, Axis::CHANNELS);
+  const bool channels_reduction = HasAxis(axis_to_reduce, Axis::kChannels);
   int wg_dims = 0;
   if (use_wg_reduction_) {
     if (work_group_size.y == 1 && work_group_size.z == 1) {
@@ -308,13 +304,13 @@ std::string Reduce::GetReduceKernelCode(const OperationDef& op_def,
   auto accum_type = GetAccumType(op_def.src_tensors[0].GetDataType());
   const std::string accum_type_decl = ToUclDataType(accum_type, 4);
   std::string read_as_template;
-  if (accum_type == DataType::FLOAT32) {
+  if (accum_type == DataType::kFloat32) {
     read_as_template = "<float>";
-  } else if (accum_type == DataType::INT32) {
+  } else if (accum_type == DataType::kInt32) {
     read_as_template = "<int>";
-  } else if (accum_type == DataType::UINT32) {
+  } else if (accum_type == DataType::kUint32) {
     read_as_template = "<uint>";
-  } else if (accum_type == DataType::BOOL) {
+  } else if (accum_type == DataType::kBool) {
     read_as_template = "<bool>";
   }
 
@@ -346,39 +342,39 @@ std::string Reduce::GetReduceKernelCode(const OperationDef& op_def,
            " + local_x;\n";
     }
   }
-  if (axis_to_leave.count(Axis::WIDTH)) {
-    if (axis_to_leave.count(Axis::BATCH)) {
+  if (axis_to_leave.count(Axis::kWidth)) {
+    if (axis_to_leave.count(Axis::kBatch)) {
       c += "  int linear_id = " + get_global_id(0) + ";\n";
       c += "  int DST_X = linear_id / args.dst_tensor.Batch();\n";
       c += "  int DST_B = linear_id % args.dst_tensor.Batch();\n";
     } else {
       c += "  int DST_X = " + get_global_id(0) + ";\n";
     }
-  } else if (axis_to_leave.count(Axis::BATCH)) {
+  } else if (axis_to_leave.count(Axis::kBatch)) {
     c += "  int DST_B = " + get_global_id(0) + ";\n";
   }
-  if (axis_to_leave.count(Axis::HEIGHT)) {
-    if (axis_to_leave.count(Axis::DEPTH)) {
+  if (axis_to_leave.count(Axis::kHeight)) {
+    if (axis_to_leave.count(Axis::kDepth)) {
       c += "  int linear_id = " + get_global_id(1) + ";\n";
       c += "  int DST_Y = linear_id % args.dst_tensor.Height();\n";
       c += "  int DST_Z = linear_id / args.dst_tensor.Height();\n";
     } else {
       c += "  int DST_Y = " + get_global_id(1) + ";\n";
     }
-  } else if (axis_to_leave.count(Axis::DEPTH)) {
+  } else if (axis_to_leave.count(Axis::kDepth)) {
     c += "  int DST_Z = " + get_global_id(1) + ";\n";
   }
-  if (axis_to_leave.count(Axis::CHANNELS)) {
+  if (axis_to_leave.count(Axis::kChannels)) {
     c += "  int DST_S = " + get_global_id(2) + ";\n";
   }
   std::map<Axis, std::string> axis_to_selector = {
-      {Axis::BATCH, "Batch()"},     {Axis::WIDTH, "Width()"},
-      {Axis::HEIGHT, "Height()"},   {Axis::DEPTH, "Depth()"},
-      {Axis::CHANNELS, "Slices()"},
+      {Axis::kBatch, "Batch()"},     {Axis::kWidth, "Width()"},
+      {Axis::kHeight, "Height()"},   {Axis::kDepth, "Depth()"},
+      {Axis::kChannels, "Slices()"},
   };
   std::map<Axis, std::string> axis_to_coord = {
-      {Axis::BATCH, "B"}, {Axis::WIDTH, "X"},    {Axis::HEIGHT, "Y"},
-      {Axis::DEPTH, "Z"}, {Axis::CHANNELS, "S"},
+      {Axis::kBatch, "B"}, {Axis::kWidth, "X"},    {Axis::kHeight, "Y"},
+      {Axis::kDepth, "Z"}, {Axis::kChannels, "S"},
   };
   std::string dst_check;
   for (auto& axis : axis_to_leave) {
@@ -433,7 +429,7 @@ std::string Reduce::GetReduceKernelCode(const OperationDef& op_def,
   const std::vector<std::string> local_ids = {"local_x", "local_y", "local_z"};
   const std::vector<std::string> local_sizes = {wg_x, wg_y, wg_z};
   for (const auto& axis : axis_to_reduce) {
-    if (axis == Axis::CHANNELS) {
+    if (axis == Axis::kChannels) {
       c += "  " + accum_type_decl + " mask;\n";
       const std::string one_or_zero_value =
           "ucl::Init<" + ToUclDataType(accum_type, 1) + ">(" +
@@ -463,7 +459,7 @@ std::string Reduce::GetReduceKernelCode(const OperationDef& op_def,
     c += "  for (int " + src_coord + " = " + first + "; " + src_coord +
          " < args.src_tensor." + axis_to_selector[axis] + "; " + src_coord +
          " += " + step + ") {\n";
-    if (axis == Axis::CHANNELS) {
+    if (axis == Axis::kChannels) {
       c += "    bool last = SRC_S == args.src_tensor.Slices() - 1;\n";
       c += "    " + accum_type_decl + " mask_a = last ? mask : " + vec4_one +
            ";\n";
@@ -675,37 +671,47 @@ std::vector<int3> Reduce::GetPossibleKernelWorkGroups(
 Reduce CreateReduce(const std::set<Axis>& axis_to_reduce, const BHWC& src_shape,
                     OperationType op_type, const OperationDef& definition,
                     const GpuInfo& gpu_info) {
-  return Reduce(GetSizesFromShape(axis_to_reduce, src_shape),
-                GetReduceTypeFromOperationType(op_type), definition, gpu_info);
+  return CreateReduce(axis_to_reduce, src_shape,
+                      GetReduceTypeFromOperationType(op_type), definition,
+                      gpu_info);
 }
 
 Reduce Create2InputReduce(const std::set<Axis>& axis_to_reduce,
                           const BHWC& src_shape, OperationType op_type,
                           const OperationDef& definition,
                           const GpuInfo& gpu_info) {
-  return Reduce(GetSizesFromShape(axis_to_reduce, src_shape),
-                GetReduceTypeFromOperationType(op_type), definition, gpu_info,
-                /*add_input*/ true);
+  Reduce op(GetSizesFromShape(axis_to_reduce, src_shape),
+            GetReduceTypeFromOperationType(op_type), definition, gpu_info,
+            /*add_input*/ true);
+  op.flops_ = src_shape.DimensionsProduct() * 2;
+  return op;
 }
 
 Reduce CreateReduce(const std::set<Axis>& axis_to_reduce, const BHWC& src_shape,
                     Reduce::Type reduce_type, const OperationDef& definition,
                     const GpuInfo& gpu_info) {
-  return Reduce(GetSizesFromShape(axis_to_reduce, src_shape), reduce_type,
-                definition, gpu_info);
+  Reduce op(GetSizesFromShape(axis_to_reduce, src_shape), reduce_type,
+            definition, gpu_info);
+  op.flops_ = src_shape.DimensionsProduct() *
+              (reduce_type == Reduce::Type::kMeanSquares ? 2 : 1);
+  return op;
 }
 
 Reduce CreateReduce(const std::set<Axis>& axis_to_reduce,
                     const BHWDC& src_shape, OperationType op_type,
                     const OperationDef& definition, const GpuInfo& gpu_info) {
-  return Reduce(GetSizesFromShape(axis_to_reduce, src_shape),
-                GetReduceTypeFromOperationType(op_type), definition, gpu_info);
+  return CreateReduce(axis_to_reduce, src_shape,
+                      GetReduceTypeFromOperationType(op_type), definition,
+                      gpu_info);
 }
 
 Reduce CreateReduce(const std::set<Axis>& axis_to_reduce,
                     const BHWDC& src_shape, Reduce::Type reduce_type,
                     const OperationDef& definition, const GpuInfo& gpu_info) {
-  return Reduce(GetSizesFromShape(axis_to_reduce, src_shape), reduce_type,
-                definition, gpu_info);
+  Reduce op(GetSizesFromShape(axis_to_reduce, src_shape), reduce_type,
+            definition, gpu_info);
+  op.flops_ = src_shape.DimensionsProduct() *
+              (reduce_type == Reduce::Type::kMeanSquares ? 2 : 1);
+  return op;
 }
 }  // namespace ml_drift

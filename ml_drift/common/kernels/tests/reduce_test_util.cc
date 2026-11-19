@@ -53,7 +53,7 @@ absl::Status ReduceTest(TestExecutionEnvironment& exec_env,
                                   op_def, exec_env.GetGpuInfo());
   float eps =
       GetEpsilon(op_def.src_tensors[0].GetDataType(), exec_env.GetGpuInfo());
-  if (op_type == OperationType::REDUCE_SUM) {
+  if (op_type == OperationType::kReduceSum) {
     const double total_src_elements = 1.0 * src_tensor.shape.b *
                                       src_tensor.shape.w * src_tensor.shape.h *
                                       src_tensor.shape.c;
@@ -83,7 +83,7 @@ absl::Status ReduceTest(TestExecutionEnvironment& exec_env,
                                   op_def, exec_env.GetGpuInfo());
   float eps =
       GetEpsilon(op_def.src_tensors[0].GetDataType(), exec_env.GetGpuInfo());
-  if (op_type == OperationType::REDUCE_SUM) {
+  if (op_type == OperationType::kReduceSum) {
     const double total_src_elements = 1.0 * src_tensor.shape.b *
                                       src_tensor.shape.w * src_tensor.shape.h *
                                       src_tensor.shape.d * src_tensor.shape.c;
@@ -110,20 +110,20 @@ absl::Status ReduceSumChannelsIntTest(TestExecutionEnvironment& env,
   src.shape = BHWC(1, 2, 1, 5);
   src.data = {1, 2, -5, -2, 1, 3, 4, -2, 1, 4};
 
-  const std::set<Axis> axis{Axis::CHANNELS};
+  const std::set<Axis> axis{Axis::kChannels};
 
   Tensor<BHWC, T> ref_tensor;
   ref_tensor.shape = BHWC(1, 2, 1, 1);
   ref_tensor.data = {-3, 10};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({T, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({T, storage, Layout::HWC});
+  op_def.src_tensors.push_back({T, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({T, storage, Layout::kHWC});
   TensorDescriptor src_0, dst;
   src_0 = op_def.src_tensors[0];
   src_0.UploadData(src);
   dst.SetBHWCShape(BHWC(1, 2, 1, 1));
-  Reduce operation = CreateReduce(axis, src.shape, OperationType::REDUCE_SUM,
+  Reduce operation = CreateReduce(axis, src.shape, OperationType::kReduceSum,
                                   op_def, env.GetGpuInfo());
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_0}, {&dst}, std::make_unique<Reduce>(std::move(operation))));
@@ -133,11 +133,11 @@ absl::Status ReduceSumChannelsIntTest(TestExecutionEnvironment& env,
   return absl::OkStatus();
 }
 
-template absl::Status ReduceSumChannelsIntTest<DataType::INT32>(
+template absl::Status ReduceSumChannelsIntTest<DataType::kInt32>(
     TestExecutionEnvironment& env, TensorStorageType storage);
-template absl::Status ReduceSumChannelsIntTest<DataType::INT16>(
+template absl::Status ReduceSumChannelsIntTest<DataType::kInt16>(
     TestExecutionEnvironment& env, TensorStorageType storage);
-template absl::Status ReduceSumChannelsIntTest<DataType::INT8>(
+template absl::Status ReduceSumChannelsIntTest<DataType::kInt8>(
     TestExecutionEnvironment& env, TensorStorageType storage);
 
 template <DataType T>
@@ -146,21 +146,21 @@ absl::Status ReduceProductChannelsUIntTest(TestExecutionEnvironment& env,
   Tensor<BHWC, T> src;
   src.shape = BHWC(1, 3, 1, 2);
   src.data = {1, 2, 3, 4, 0, 7};
-  const std::set<Axis> axis{Axis::CHANNELS};
+  const std::set<Axis> axis{Axis::kChannels};
 
   Tensor<BHWC, T> ref_tensor;
   ref_tensor.shape = BHWC(1, 3, 1, 1);
   ref_tensor.data = {2, 12, 0};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({T, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({T, storage, Layout::HWC});
+  op_def.src_tensors.push_back({T, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({T, storage, Layout::kHWC});
   TensorDescriptor src_0, dst;
   src_0 = op_def.src_tensors[0];
   src_0.UploadData(src);
   dst.SetBHWCShape(BHWC(1, 3, 1, 1));
   Reduce operation = CreateReduce(
-      axis, src.shape, OperationType::REDUCE_PRODUCT, op_def, env.GetGpuInfo());
+      axis, src.shape, OperationType::kReduceProduct, op_def, env.GetGpuInfo());
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_0}, {&dst}, std::make_unique<Reduce>(std::move(operation))));
   Tensor<BHWC, T> dst_tensor;
@@ -169,11 +169,11 @@ absl::Status ReduceProductChannelsUIntTest(TestExecutionEnvironment& env,
   return absl::OkStatus();
 }
 
-template absl::Status ReduceProductChannelsUIntTest<DataType::UINT8>(
+template absl::Status ReduceProductChannelsUIntTest<DataType::kUint8>(
     TestExecutionEnvironment& env, TensorStorageType storage);
-template absl::Status ReduceProductChannelsUIntTest<DataType::UINT16>(
+template absl::Status ReduceProductChannelsUIntTest<DataType::kUint16>(
     TestExecutionEnvironment& env, TensorStorageType storage);
-template absl::Status ReduceProductChannelsUIntTest<DataType::UINT32>(
+template absl::Status ReduceProductChannelsUIntTest<DataType::kUint32>(
     TestExecutionEnvironment& env, TensorStorageType storage);
 
 absl::Status ReduceAllTest(TestExecutionEnvironment& env,
@@ -182,20 +182,20 @@ absl::Status ReduceAllTest(TestExecutionEnvironment& env,
   src.shape = BHWC(1, 2, 1, 5);
   src.data = {true, true, true, true, true, true, true, true, true, false};
 
-  const std::set<Axis> axis{Axis::CHANNELS};
+  const std::set<Axis> axis{Axis::kChannels};
 
   TensorBool ref_tensor;
   ref_tensor.shape = BHWC(1, 2, 1, 1);
   ref_tensor.data = {true, false};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::BOOL, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({DataType::BOOL, storage, Layout::HWC});
+  op_def.src_tensors.push_back({DataType::kBool, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({DataType::kBool, storage, Layout::kHWC});
   TensorDescriptor src_0, dst;
   src_0 = op_def.src_tensors[0];
   src_0.UploadData(src);
   dst.SetBHWCShape(BHWC(1, 2, 1, 1));
-  Reduce operation = CreateReduce(axis, src.shape, OperationType::REDUCE_ALL,
+  Reduce operation = CreateReduce(axis, src.shape, OperationType::kReduceAll,
                                   op_def, env.GetGpuInfo());
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_0}, {&dst}, std::make_unique<Reduce>(std::move(operation))));
@@ -211,20 +211,20 @@ absl::Status ReduceAnyTest(TestExecutionEnvironment& env,
   src.shape = BHWC(1, 2, 1, 5);
   src.data = {true, true, false, true, true, false, false, false, false, false};
 
-  const std::set<Axis> axis{Axis::CHANNELS};
+  const std::set<Axis> axis{Axis::kChannels};
 
   TensorBool ref_tensor;
   ref_tensor.shape = BHWC(1, 2, 1, 1);
   ref_tensor.data = {true, false};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::BOOL, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({DataType::BOOL, storage, Layout::HWC});
+  op_def.src_tensors.push_back({DataType::kBool, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({DataType::kBool, storage, Layout::kHWC});
   TensorDescriptor src_0, dst;
   src_0 = op_def.src_tensors[0];
   src_0.UploadData(src);
   dst.SetBHWCShape(BHWC(1, 2, 1, 1));
-  Reduce operation = CreateReduce(axis, src.shape, OperationType::REDUCE_ANY,
+  Reduce operation = CreateReduce(axis, src.shape, OperationType::kReduceAny,
                                   op_def, env.GetGpuInfo());
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_0}, {&dst}, std::make_unique<Reduce>(std::move(operation))));
@@ -239,16 +239,15 @@ absl::Status MeanHWTest(TestExecutionEnvironment& env, DataType data_type,
   TensorFloat32 src_tensor;
   src_tensor.shape = BHWC(1, 2, 2, 1);
   src_tensor.data = {1.0f, 2.0f, 3.0f, 4.0f};
-  const std::set<Axis> axis{Axis::HEIGHT, Axis::WIDTH};
+  const std::set<Axis> axis{Axis::kHeight, Axis::kWidth};
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-2f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-2f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
-  Reduce operation =
-      CreateReduce(axis, src_tensor.shape, OperationType::MEAN, op_def,
-                    env.GetGpuInfo());
+  Reduce operation = CreateReduce(axis, src_tensor.shape, OperationType::kMean,
+                                  op_def, env.GetGpuInfo());
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<Reduce>(std::move(operation)),
       BHWC(1, 1, 1, 1), &dst_tensor));
@@ -262,16 +261,16 @@ absl::Status ReduceSumChannelsTest(TestExecutionEnvironment& env,
   TensorFloat32 src_tensor;
   src_tensor.shape = BHWC(1, 2, 1, 5);
   src_tensor.data = {1.1, 2.1, 0.7, 0.3, 1.2, 3.1, 4.1, 0.0, 1.0, 4.4};
-  const std::set<Axis> axis{Axis::CHANNELS};
+  const std::set<Axis> axis{Axis::kChannels};
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-2f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-2f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   Reduce operation =
-      CreateReduce(axis, src_tensor.shape, OperationType::REDUCE_SUM,
-                    op_def, env.GetGpuInfo());
+      CreateReduce(axis, src_tensor.shape, OperationType::kReduceSum, op_def,
+                   env.GetGpuInfo());
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<Reduce>(std::move(operation)),
       BHWC(1, 2, 1, 1), &dst_tensor));
@@ -285,16 +284,16 @@ absl::Status ReduceProductChannelsTest(TestExecutionEnvironment& env,
   TensorFloat32 src_tensor;
   src_tensor.shape = BHWC(1, 2, 1, 2);
   src_tensor.data = {1.1, 2.0, 3.1, 4.0};
-  const std::set<Axis> axis{Axis::CHANNELS};
+  const std::set<Axis> axis{Axis::kChannels};
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-2f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-2f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   Reduce operation =
-      CreateReduce(axis, src_tensor.shape, OperationType::REDUCE_PRODUCT,
-                    op_def, env.GetGpuInfo());
+      CreateReduce(axis, src_tensor.shape, OperationType::kReduceProduct,
+                   op_def, env.GetGpuInfo());
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<Reduce>(std::move(operation)),
       BHWC(1, 2, 1, 1), &dst_tensor));
@@ -320,16 +319,16 @@ absl::Status ReduceMaxChannelsTest(TestExecutionEnvironment& env,
     src_tensor.data.insert(src_tensor.data.begin() + (2 * channels - 6),
                            channel2.begin(), channel2.end());
 
-    const std::set<Axis> axis{Axis::CHANNELS};
+    const std::set<Axis> axis{Axis::kChannels};
 
-    const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-2f;
+    const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-2f;
     OperationDef op_def;
-    op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-    op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+    op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+    op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
     TensorFloat32 dst_tensor;
     Reduce operation =
-        CreateReduce(axis, src_tensor.shape, OperationType::REDUCE_MAXIMUM,
-                      op_def, env.GetGpuInfo());
+        CreateReduce(axis, src_tensor.shape, OperationType::kReduceMaximum,
+                     op_def, env.GetGpuInfo());
     ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
         src_tensor, std::make_unique<Reduce>(std::move(operation)),
         BHWC(1, 2, 1, 1), &dst_tensor));
@@ -345,16 +344,16 @@ absl::Status ReduceMinChannelsTest(TestExecutionEnvironment& env,
   src_tensor.shape = BHWC(1, 2, 1, 6);
   src_tensor.data = {1.1,  2.0,  -0.3, -100.0, 32.6, 1.1,
                      -3.1, -4.0, -5.0, -7.0,   -2.0, 100.0};
-  const std::set<Axis> axis{Axis::CHANNELS};
+  const std::set<Axis> axis{Axis::kChannels};
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-2f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-2f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   Reduce operation =
-      CreateReduce(axis, src_tensor.shape, OperationType::REDUCE_MINIMUM,
-                    op_def, env.GetGpuInfo());
+      CreateReduce(axis, src_tensor.shape, OperationType::kReduceMinimum,
+                   op_def, env.GetGpuInfo());
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<Reduce>(std::move(operation)),
       BHWC(1, 2, 1, 1), &dst_tensor));
@@ -369,11 +368,11 @@ absl::Status ReduceMaxIndChannelsTest(TestExecutionEnvironment& env,
   src_tensor.shape = BHWC(1, 2, 1, 6);
   src_tensor.data = {1.1,  2.0,  -0.3,  -100.0, 32.6, 1.1,
                      -3.1, -4.0, 100.0, -7.0,   -2.0, 100.0};
-  const std::set<Axis> axis{Axis::CHANNELS};
+  const std::set<Axis> axis{Axis::kChannels};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({DataType::INT32, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({DataType::kInt32, storage, Layout::kHWC});
   TensorDescriptor src, dst;
   src = op_def.src_tensors[0];
   src.UploadData(src_tensor);
@@ -398,11 +397,11 @@ absl::Status ReduceMaxIndHeightTest(TestExecutionEnvironment& env,
   src_tensor.shape = BHWC(1, 2, 1, 6);
   src_tensor.data = {1.1,  2.0,  -0.3,  -100.0, 32.6, 1.1,
                      -3.1, -4.0, 100.0, -7.0,   -2.0, 100.0};
-  const std::set<Axis> axis{Axis::HEIGHT};
+  const std::set<Axis> axis{Axis::kHeight};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({DataType::INT32, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({DataType::kInt32, storage, Layout::kHWC});
   TensorDescriptor src, dst;
   src = op_def.src_tensors[0];
   src.UploadData(src_tensor);
@@ -424,13 +423,13 @@ absl::Status ReduceHWBigTest(TestExecutionEnvironment& env, DataType data_type,
                              TensorStorageType storage, OperationType op_type) {
   auto src_shape = BHWC(1, 43, 57, 7);
 
-  const std::set<Axis> axis{Axis::HEIGHT, Axis::WIDTH};
+  const std::set<Axis> axis{Axis::kHeight, Axis::kWidth};
 
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   return ReduceTest(env, axis, op_type, src_tensor, op_def);
 }
 
@@ -440,13 +439,13 @@ absl::Status ReduceHWBatchedBigTest(TestExecutionEnvironment& env,
                                     OperationType op_type) {
   auto src_shape = BHWC(5, 21, 13, 7);
 
-  const std::set<Axis> axis{Axis::HEIGHT, Axis::WIDTH};
+  const std::set<Axis> axis{Axis::kHeight, Axis::kWidth};
 
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
   return ReduceTest(env, axis, op_type, src_tensor, op_def);
 }
 
@@ -454,13 +453,13 @@ absl::Status ReduceHBigTest(TestExecutionEnvironment& env, DataType data_type,
                             TensorStorageType storage, OperationType op_type) {
   auto src_shape = BHWC(1, 4, 5, 5);
 
-  const std::set<Axis> axis{Axis::HEIGHT};
+  const std::set<Axis> axis{Axis::kHeight};
 
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   return ReduceTest(env, axis, op_type, src_tensor, op_def);
 }
 
@@ -468,13 +467,13 @@ absl::Status ReduceBHBigTest(TestExecutionEnvironment& env, DataType data_type,
                              TensorStorageType storage, OperationType op_type) {
   auto src_shape = BHWC(6, 4, 5, 5);
 
-  const std::set<Axis> axis{Axis::HEIGHT, Axis::BATCH};
+  const std::set<Axis> axis{Axis::kHeight, Axis::kBatch};
 
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   return ReduceTest(env, axis, op_type, src_tensor, op_def);
 }
 
@@ -482,13 +481,13 @@ absl::Status ReduceCBigTest(TestExecutionEnvironment& env, DataType data_type,
                             TensorStorageType storage, OperationType op_type) {
   auto src_shape = BHWC(1, 4, 5, 5);
 
-  const std::set<Axis> axis{Axis::CHANNELS};
+  const std::set<Axis> axis{Axis::kChannels};
 
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   return ReduceTest(env, axis, op_type, src_tensor, op_def);
 }
 
@@ -497,13 +496,13 @@ absl::Status ReduceCx4BigTest(TestExecutionEnvironment& env, DataType data_type,
                               OperationType op_type) {
   auto src_shape = BHWC(1, 4, 5, 44);
 
-  const std::set<Axis> axis{Axis::CHANNELS};
+  const std::set<Axis> axis{Axis::kChannels};
 
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   return ReduceTest(env, axis, op_type, src_tensor, op_def);
 }
 
@@ -512,13 +511,13 @@ absl::Status ReduceHWCBigTest(TestExecutionEnvironment& env, DataType data_type,
                               OperationType op_type) {
   auto src_shape = BHWC(1, 4, 5, 13);
 
-  const std::set<Axis> axis{Axis::HEIGHT, Axis::WIDTH, Axis::CHANNELS};
+  const std::set<Axis> axis{Axis::kHeight, Axis::kWidth, Axis::kChannels};
 
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   return ReduceTest(env, axis, op_type, src_tensor, op_def);
 }
 
@@ -527,13 +526,13 @@ absl::Status ReduceBHDBigTest(TestExecutionEnvironment& env, DataType data_type,
                               OperationType op_type) {
   auto src_shape = BHWDC(13, 6, 7, 11, 7);
 
-  const std::set<Axis> axis{Axis::BATCH, Axis::HEIGHT, Axis::DEPTH};
+  const std::set<Axis> axis{Axis::kBatch, Axis::kHeight, Axis::kDepth};
 
   Tensor5DFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWDC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWDC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWDC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWDC});
   return ReduceTest(env, axis, op_type, src_tensor, op_def);
 }
 
@@ -542,14 +541,14 @@ absl::Status ReduceBHWDBigTest(TestExecutionEnvironment& env,
                                OperationType op_type) {
   auto src_shape = BHWDC(13, 6, 7, 11, 7);
 
-  const std::set<Axis> axis{Axis::BATCH, Axis::HEIGHT, Axis::WIDTH,
-                            Axis::DEPTH};
+  const std::set<Axis> axis{Axis::kBatch, Axis::kHeight, Axis::kWidth,
+                            Axis::kDepth};
 
   Tensor5DFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWDC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWDC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWDC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWDC});
   return ReduceTest(env, axis, op_type, src_tensor, op_def);
 }
 

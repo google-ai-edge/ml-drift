@@ -15,7 +15,7 @@
 #include "ml_drift/cl/opencl_wrapper.h"
 
 #include "absl/debugging/leak_check.h"
-#include "ml_drift/cl/default/qcom_wrapper.h"
+#include "ml_drift/cl/qcom_wrapper.h"
 
 #if defined(_WIN32)
 #define __WINDOWS__
@@ -124,7 +124,8 @@ absl::Status LoadOpenCL(const char* lib_name) {
 #ifdef __WINDOWS__
     std::string error = "error code - " + std::to_string(GetLastError());
 #else
-    std::string error(dlerror());
+    const char* dlerror_result = dlerror();
+    std::string error(dlerror_result ? dlerror_result : "unknown error");
 #endif
     return absl::UnknownError(absl::StrCat(
         "Can not open OpenCL library(", lib_name, ") on this device: ", error));
@@ -146,6 +147,9 @@ absl::Status LoadPixelOpenCL(const char* lib_name) {
   typedef void (*enableOpenCL_t)();
   enableOpenCL_t enableOpenCL =
       reinterpret_cast<enableOpenCL_t>(dlsym(libopencl, "enableOpenCL"));
+  if (enableOpenCL == nullptr) {
+    return absl::UnknownError("Can not find enableOpenCL symbol");
+  }
   enableOpenCL();
   LoadOpenCLFunctions(libopencl, true);
   return HasPlatform();

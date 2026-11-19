@@ -22,6 +22,7 @@
 
 #include "absl/numeric/int128.h"
 #include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/time/time.h"
 #include "ml_drift/common/gpu_info.h"
@@ -56,7 +57,7 @@ class ComputeTask {
                     UniformBufferCreator* uniform_buffer_creator = nullptr,
                     bool from_serialized_model = false) {
     operation_ = std::move(gpu_operation);
-    // TODO: b/372296536 - The ComputePipelineCache should be able to be used
+    // TODO: The ComputePipelineCache should be able to be used
     // in all cases, but there seems to be some problem with this (see linked
     // bug). Switch this to always use the cache once the bug is resolved.
 
@@ -141,7 +142,7 @@ class ComputeTask {
   absl::Status Encode(const wgpu::ComputePassEncoder& compute_encoder) const;
   absl::Status Execute(const Environment& env);
 
-  absl::Duration GetOperationTime(const Environment& env);
+  absl::StatusOr<absl::Duration> GetOperationTime(const Environment& env);
 
   void CopyFrom(const ComputeTask& other);
 

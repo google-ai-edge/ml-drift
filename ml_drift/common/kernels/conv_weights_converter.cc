@@ -27,6 +27,7 @@
 #include "absl/log/absl_log.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_replace.h"
+#include "absl/strings/substitute.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/kernel_info.h"
@@ -59,8 +60,6 @@ bool Use2DGridXisIOgroupYisO(const GpuInfo& gpu_info, const OHWI& weights_shape,
   const bool supported_src_layout =
       src_weights_desc.layout == WeightsLayout::kOSpatialIOGroupI4O4 ||
       src_weights_desc.layout == WeightsLayout::kOSpatialIOGroupO4I4 ||
-      src_weights_desc.layout == WeightsLayout::kOISpatialOGroupI4O4 ||
-      src_weights_desc.layout == WeightsLayout::kOISpatialOGroupO4I4 ||
       src_weights_desc.layout == WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4;
   const bool is_src_i_o_4x4 = supported_src_layout &&
                               src_weights_desc.GetOutputGroupSize() ==
@@ -68,9 +67,7 @@ bool Use2DGridXisIOgroupYisO(const GpuInfo& gpu_info, const OHWI& weights_shape,
                               weights_shape.w == 1 && weights_shape.h == 1;
   const bool supported_dst_layout =
       dst_weights_desc.layout == WeightsLayout::kOSpatialIOGroupI4O4 ||
-      dst_weights_desc.layout == WeightsLayout::kOSpatialIOGroupO4I4 ||
-      dst_weights_desc.layout == WeightsLayout::kOISpatialOGroupI4O4 ||
-      dst_weights_desc.layout == WeightsLayout::kOISpatialOGroupO4I4;
+      dst_weights_desc.layout == WeightsLayout::kOSpatialIOGroupO4I4;
   const bool is_dst_o_i_ogroup_4x4 =
       supported_dst_layout && dst_weights_desc.GetOutputGroupSize() <= 32 &&
       weights_shape.w == 1 && weights_shape.h == 1;
@@ -79,8 +76,8 @@ bool Use2DGridXisIOgroupYisO(const GpuInfo& gpu_info, const OHWI& weights_shape,
 
 // For kCustomGroups layout
 bool IsO2I2O2I2(const WeightsDescription& dst_weights_desc) {
-  const std::pair<Axis, int> kI2 = {Axis::INPUT_CHANNELS, 2};
-  const std::pair<Axis, int> kO2 = {Axis::OUTPUT_CHANNELS, 2};
+  const std::pair<Axis, int> kI2 = {Axis::kInputChannels, 2};
+  const std::pair<Axis, int> kO2 = {Axis::kOutputChannels, 2};
   const auto& groups = dst_weights_desc.group_sizes;
   return groups.size() >= 4 && groups[0] == kI2 && groups[1] == kO2 &&
          groups[2] == kI2 && groups[3] == kO2;
@@ -88,8 +85,8 @@ bool IsO2I2O2I2(const WeightsDescription& dst_weights_desc) {
 
 // For kCustomGroups layout
 bool IsO2I4O2(const WeightsDescription& dst_weights_desc) {
-  const std::pair<Axis, int> kI4 = {Axis::INPUT_CHANNELS, 4};
-  const std::pair<Axis, int> kO2 = {Axis::OUTPUT_CHANNELS, 2};
+  const std::pair<Axis, int> kI4 = {Axis::kInputChannels, 4};
+  const std::pair<Axis, int> kO2 = {Axis::kOutputChannels, 2};
   const auto& groups = dst_weights_desc.group_sizes;
   return groups.size() >= 3 && groups[0] == kO2 && groups[1] == kI4 &&
          groups[2] == kO2;
@@ -97,8 +94,8 @@ bool IsO2I4O2(const WeightsDescription& dst_weights_desc) {
 
 // For kCustomGroups layout
 bool IsI2O4I2(const WeightsDescription& dst_weights_desc) {
-  const std::pair<Axis, int> kI2 = {Axis::INPUT_CHANNELS, 2};
-  const std::pair<Axis, int> kO4 = {Axis::OUTPUT_CHANNELS, 4};
+  const std::pair<Axis, int> kI2 = {Axis::kInputChannels, 2};
+  const std::pair<Axis, int> kO4 = {Axis::kOutputChannels, 4};
   const auto& groups = dst_weights_desc.group_sizes;
   return groups.size() >= 3 && groups[0] == kI2 && groups[1] == kO4 &&
          groups[2] == kI2;
@@ -117,19 +114,58 @@ int GetStartGroup(const WeightsDescription& dst_weights_desc) {
   }
 }
 
+int GetFirstInputGroupIndex(const WeightsDescription& dst_weights_desc) {
+  for (int i = 0; i < dst_weights_desc.group_sizes.size(); ++i) {
+    if (dst_weights_desc.group_sizes[i].first == Axis::kInputChannels) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+void ValidateCustomGroupsOgr1Ogr2Ogr0(
+    const WeightsDescription& dst_weights_desc, const OHWI& weights_shape) {
+  const auto& p = dst_weights_desc.params0;
+  ABSL_CHECK_GT(p.o_gr0_size, 0);
+  ABSL_CHECK_GT(p.o_gr1_size, 0);
+  ABSL_CHECK_GT(p.o_gr2_size, 0);
+  const int o_tile_size = p.o_gr0_size * p.o_gr1_size * p.o_gr2_size;
+  ABSL_CHECK_GE(o_tile_size, 4);
+  ABSL_CHECK_EQ(o_tile_size % 4, 0);
+  if (dst_weights_desc.type == DataType::kFloat16) {
+    ABSL_CHECK_EQ(p.o_gr0_size, 2);
+  } else if (dst_weights_desc.type == DataType::kInt8 ||
+             dst_weights_desc.type == DataType::kUint8) {
+    ABSL_CHECK_EQ(p.o_gr0_size, 4);
+  } else {
+    ABSL_LOG(FATAL) << "Weights conversion to kCustomGroupsOgr1Ogr2Ogr0 layout "
+                       "with data type "
+                    << ToString(dst_weights_desc.type) << " is unsupported.";
+  }
+  const int first_i_group = GetFirstInputGroupIndex(dst_weights_desc);
+  ABSL_CHECK_GE(first_i_group, 0);
+  const int first_i_group_size =
+      dst_weights_desc.group_sizes[first_i_group].second <= 0
+          ? weights_shape.i
+          : dst_weights_desc.group_sizes[first_i_group].second;
+  ABSL_CHECK_EQ(first_i_group_size % 4, 0);
+}
+
 void AddCommonArgs(const WeightsDescription& dst_weights_desc,
                    const OHWI& weights_shape, Arguments& args) {
   args.AddInt("i_slices", DivideRoundUp(weights_shape.i, 4));
   args.AddInt("o_slices", DivideRoundUp(weights_shape.o, 4));
   args.AddInt("dst_o_group_size", dst_weights_desc.GetOutputGroupSize());
-  if (dst_weights_desc.layout == WeightsLayout::kCustomGroups) {
+  if (dst_weights_desc.layout == WeightsLayout::kCustomGroupsOgr1Ogr2Ogr0) {
+    ValidateCustomGroupsOgr1Ogr2Ogr0(dst_weights_desc, weights_shape);
+  } else if (dst_weights_desc.layout == WeightsLayout::kCustomGroups) {
     if (IsO2I2O2I2(dst_weights_desc) || IsO2I4O2(dst_weights_desc) ||
         IsI2O4I2(dst_weights_desc)) {
       args.AddInt("last_i_group_slices", 1);
       args.AddInt("last_o_group_slices", 1);
     } else {
       const bool is_i_first =
-          dst_weights_desc.group_sizes[0].first == Axis::INPUT_CHANNELS;
+          dst_weights_desc.group_sizes[0].first == Axis::kInputChannels;
       const auto& i_group = is_i_first ? dst_weights_desc.group_sizes[0]
                                        : dst_weights_desc.group_sizes[1];
       const auto& o_group = is_i_first ? dst_weights_desc.group_sizes[1]
@@ -147,24 +183,28 @@ void AddCommonArgs(const WeightsDescription& dst_weights_desc,
 // Whether the integer weights can be written with a vector operation.
 // Currently, only custom buffer handles the case when a vector operation is
 // not possible for int8 or uint8.
-// TODO: b/475448239 - Check properly all supported cases, layouts and their
+// TODO: Check properly all supported cases, layouts and their
 // parameters.
 bool IsLastBlockHas4IAnd4OElements(const WeightsDescription& dst_weights_desc) {
+  if (dst_weights_desc.layout == WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2 ||
+      dst_weights_desc.layout == WeightsLayout::kCustomGroupsOgr1Ogr2Ogr0) {
+    return false;
+  }
   if (dst_weights_desc.layout == WeightsLayout::kCustomGroups &&
       dst_weights_desc.group_sizes[0].second > 4 &&
-      (dst_weights_desc.type == DataType::INT8 ||
-       dst_weights_desc.type == DataType::UINT8)) {
+      (dst_weights_desc.type == DataType::kInt8 ||
+       dst_weights_desc.type == DataType::kUint8)) {
     return false;
   }
   return true;
 }
 
 int GetZeroPoint(DataType data_type) {
-  if (data_type == DataType::UINT8) {
+  if (data_type == DataType::kUint8) {
     return 128;
-  } else if (data_type == DataType::UINT4) {
+  } else if (data_type == DataType::kUint4) {
     return 8;
-  } else if (data_type == DataType::UINT2) {
+  } else if (data_type == DataType::kUint2) {
     return 2;
   }
   return 0;
@@ -286,12 +326,12 @@ int3 GetGrid(const WeightsDescription& dst_weights_desc,
   } else if (dst_weights_desc.layout ==
              WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
     int2 tex_size = Get2dResourceSize(dst_weights_desc, weights_shape);
-    if (dst_weights_desc.type == DataType::UINT8 ||
-        dst_weights_desc.type == DataType::UINT4 ||
-        dst_weights_desc.type == DataType::UINT2) {
+    if (dst_weights_desc.type == DataType::kUint8 ||
+        dst_weights_desc.type == DataType::kUint4 ||
+        dst_weights_desc.type == DataType::kUint2) {
       tex_size.x /= 4;  // storing 16 elements in one 2d texture element
     } else {
-      // TODO: b/378522761 - Support other data types for
+      // TODO: Support other data types for
       // k2DYIsSpatialIOAndXIsOGroupI4O4 layout.
       ABSL_LOG(FATAL) << absl::StrCat(
           "Weights conversion to k2DYIsSpatialIOAndXIsOGroupI4O4 layout with "
@@ -446,53 +486,44 @@ std::string GetWeightsCoords(const WeightsDescription& dst_weights_desc,
       c += "  int i_slice = dst_i;\n";
       c += "  int o_slice = dst_o * args.dst_o_group_size + dst_ogroup;\n";
       c += "  int spatial_linear = dst_sp;\n";
-    } else if (dst_weights_desc.layout == WeightsLayout::kOISpatialOGroupI4O4 ||
-               dst_weights_desc.layout == WeightsLayout::kOISpatialOGroupO4I4) {
-      c += "  int dst_o_i_sp_ogroup = linear_index;\n";
-      c += "  int dst_ogroup = dst_o_i_sp_ogroup % args.dst_o_group_size;\n";
-      c += "  int dst_o_i_sp = dst_o_i_sp_ogroup / args.dst_o_group_size;\n";
-      c += "  int dst_sp = dst_o_i_sp % args.wshape_spatial;\n";
-      c += "  int dst_o_i = dst_o_i_sp / args.wshape_spatial;\n";
-      c += "  int dst_i = dst_o_i % args.i_slices;\n";
-      c += "  int dst_o = dst_o_i / args.i_slices;\n";
-      c += "  int i_slice = dst_i;\n";
-      c += "  int o_slice = dst_o * args.dst_o_group_size + dst_ogroup;\n";
-      c += "  int spatial_linear = dst_sp;\n";
-    } else if (dst_weights_desc.layout == WeightsLayout::kOICustomSpatialI4O4 ||
-               dst_weights_desc.layout == WeightsLayout::kOICustomSpatialO4I4) {
-      c += "  int dst_o_i_csp = linear_index;\n";
-      c += "  int dst_csp = dst_o_i_csp % args.wshape_spatial;\n";
-      c += "  int dst_o_i = dst_o_i_csp / args.wshape_spatial;\n";
-      c += "  int dst_i = dst_o_i % args.i_slices;\n";
-      c += "  int dst_o = dst_o_i / args.i_slices;\n";
-      c += "  int i_slice = dst_i;\n";
-      c += "  int o_slice = dst_o;\n";
-      c += "  int spatial_linear = dst_csp;\n";
-    } else if (dst_weights_desc.layout == WeightsLayout::kCustomGroups) {
+    } else if (dst_weights_desc.layout == WeightsLayout::kCustomGroups ||
+               dst_weights_desc.layout ==
+                   WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2) {
+      // For kCustomGroupsI2gr0O8I2gr1O2, each block of 64 elements
+      // (I2gr0O8I2gr1O2) spans 4 threads, where each thread writes a 4i&4o
+      // sub-block in I2gr0O2I2gr1O2 order.
+      const bool is_i2gr0o8i2gr1o2 =
+          dst_weights_desc.layout == WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2;
       c += "  int i_slice = 0;\n";
       c += "  int o_slice = 0;\n";
       c += "  int spatial_w = 0;\n";
       c += "  int spatial_h = 0;\n";
       const absl::flat_hash_map<Axis, std::string> coord_names = {
-          {Axis::OUTPUT_CHANNELS, "o_slice"},
-          {Axis::HEIGHT, "spatial_h"},
-          {Axis::WIDTH, "spatial_w"},
-          {Axis::INPUT_CHANNELS, "i_slice"},
+          {Axis::kOutputChannels, "o_slice"},
+          {Axis::kHeight, "spatial_h"},
+          {Axis::kWidth, "spatial_w"},
+          {Axis::kInputChannels, "i_slice"},
       };
       const absl::flat_hash_map<Axis, std::string> shape_names = {
-          {Axis::OUTPUT_CHANNELS, "args.wshape_o"},
-          {Axis::HEIGHT, "args.wshape_h"},
-          {Axis::WIDTH, "args.wshape_w"},
-          {Axis::INPUT_CHANNELS, "args.wshape_i"},
+          {Axis::kOutputChannels, "args.wshape_o"},
+          {Axis::kHeight, "args.wshape_h"},
+          {Axis::kWidth, "args.wshape_w"},
+          {Axis::kInputChannels, "args.wshape_i"},
       };
-      c += "  int last_group_id = linear_index / (args.last_i_group_slices * "
-           "args.last_o_group_slices);\n";
-      c += "  int last_local_id = linear_index % (args.last_i_group_slices * "
-           "args.last_o_group_slices);\n";
+      if (is_i2gr0o8i2gr1o2) {
+        c += "  int last_group_id = linear_index / 4;\n";
+        c += "  int last_local_id = linear_index % 4;\n";
+      } else {
+        c += "  int last_group_id = linear_index / (args.last_i_group_slices * "
+             "args.last_o_group_slices);\n";
+        c += "  int last_local_id = linear_index % (args.last_i_group_slices * "
+             "args.last_o_group_slices);\n";
+      }
       c += "  int tmp_coord = last_group_id;\n";
       c += "  int tmp_divider = 1;\n";
       OHWI prev_sizes = OHWI(1, 1, 1, 1);
-      const int start_group = GetStartGroup(dst_weights_desc);
+      const int start_group =
+          is_i2gr0o8i2gr1o2 ? 0 : GetStartGroup(dst_weights_desc);
       for (int group = start_group; group < dst_weights_desc.group_sizes.size();
            ++group) {
         const auto& [axis, group_size] = dst_weights_desc.group_sizes[group];
@@ -501,10 +532,12 @@ std::string GetWeightsCoords(const WeightsDescription& dst_weights_desc,
         std::string group_size_str = std::to_string(group_size);
         if (group_size <= 0) {
           std::string size = std::to_string(prev_size);
-          if (axis == Axis::OUTPUT_CHANNELS) {
-            size += " * args.last_o_group_slices * 4";
-          } else if (axis == Axis::INPUT_CHANNELS) {
-            size += " * args.last_i_group_slices * 4";
+          if (axis == Axis::kOutputChannels) {
+            size +=
+                is_i2gr0o8i2gr1o2 ? " * 16" : " * args.last_o_group_slices * 4";
+          } else if (axis == Axis::kInputChannels) {
+            size +=
+                is_i2gr0o8i2gr1o2 ? " * 4" : " * args.last_i_group_slices * 4";
           }
           group_size_str = "(" + shape_names.at(axis) + " + (" + size +
                            ") - 1) / (" + size + ")";
@@ -515,23 +548,99 @@ std::string GetWeightsCoords(const WeightsDescription& dst_weights_desc,
         c += "  tmp_coord = tmp_coord / tmp_divider;\n";
         prev_sizes.set(axis, group_size * prev_size);
       }
-      if (dst_weights_desc.group_sizes[0].first == Axis::INPUT_CHANNELS) {
-        c += "  i_slice = i_slice * args.last_i_group_slices + last_local_id % "
-             "args.last_i_group_slices;\n";
-        c += "  o_slice = o_slice * args.last_o_group_slices + last_local_id / "
-             "args.last_i_group_slices;\n";
+      if (is_i2gr0o8i2gr1o2) {
+        c += "  o_slice = o_slice * 4 + last_local_id;\n";
+        c += "  int spatial_linear = spatial_h * args.wshape_w + spatial_w;\n";
       } else {
-        // dst_weights_desc.group_sizes[0].first == Axis::OUTPUT_CHANNELS
-        c += "  o_slice = o_slice * args.last_o_group_slices + last_local_id % "
-             "args.last_o_group_slices;\n";
-        c += "  i_slice = i_slice * args.last_i_group_slices + last_local_id / "
-             "args.last_o_group_slices;\n";
+        if (dst_weights_desc.group_sizes[0].first == Axis::kInputChannels) {
+          c += "  i_slice = i_slice * args.last_i_group_slices + last_local_id "
+               "% "
+               "args.last_i_group_slices;\n";
+          c += "  o_slice = o_slice * args.last_o_group_slices + last_local_id "
+               "/ "
+               "args.last_i_group_slices;\n";
+        } else {
+          // dst_weights_desc.group_sizes[0].first == Axis::OUTPUT_CHANNELS
+          c += "  o_slice = o_slice * args.last_o_group_slices + last_local_id "
+               "% "
+               "args.last_o_group_slices;\n";
+          c += "  i_slice = i_slice * args.last_i_group_slices + last_local_id "
+               "/ "
+               "args.last_o_group_slices;\n";
+        }
+        c += "  int spatial_linear = spatial_h * args.wshape_w + spatial_w;\n";
       }
+    } else if (dst_weights_desc.layout ==
+               WeightsLayout::kCustomGroupsOgr1Ogr2Ogr0) {
+      const auto& p = dst_weights_desc.params0;
+      const int o_tile_slices =
+          (p.o_gr0_size * p.o_gr1_size * p.o_gr2_size) / 4;
+      const int first_i_group = GetFirstInputGroupIndex(dst_weights_desc);
+      c += "  int i_slice = 0;\n";
+      c += "  int o_slice = 0;\n";
+      c += "  int spatial_w = 0;\n";
+      c += "  int spatial_h = 0;\n";
+      const absl::flat_hash_map<Axis, std::string> coord_names = {
+          {Axis::kOutputChannels, "o_slice"},
+          {Axis::kHeight, "spatial_h"},
+          {Axis::kWidth, "spatial_w"},
+          {Axis::kInputChannels, "i_slice"},
+      };
+      const absl::flat_hash_map<Axis, std::string> shape_names = {
+          {Axis::kOutputChannels, "args.wshape_o"},
+          {Axis::kHeight, "args.wshape_h"},
+          {Axis::kWidth, "args.wshape_w"},
+          {Axis::kInputChannels, "args.wshape_i"},
+      };
+      c += "  int last_group_id = linear_index / " +
+           std::to_string(o_tile_slices) + ";\n";
+      c += "  int last_local_id = linear_index % " +
+           std::to_string(o_tile_slices) + ";\n";
+      c += "  int tmp_coord = last_group_id;\n";
+      c += "  int tmp_divider = 1;\n";
+      if (first_i_group > 0) {
+        c += "  int inner_stride = 1;\n";
+      }
+      OHWI prev_sizes = OHWI(o_tile_slices, 1, 1, 1);
+      for (int group = 0; group < dst_weights_desc.group_sizes.size();
+           ++group) {
+        const auto& [axis, group_size] = dst_weights_desc.group_sizes[group];
+        const int prev_size = prev_sizes.get(axis);
+        const std::string& src_coord_name = coord_names.at(axis);
+        int next_group_size = group_size;
+        std::string group_size_str;
+        if (group == first_i_group) {
+          if (group_size <= 0) {
+            group_size_str = "args.i_slices";
+          } else {
+            next_group_size = group_size / 4;
+            group_size_str = std::to_string(next_group_size);
+          }
+        } else if (group_size <= 0) {
+          const int divisor =
+              (axis == Axis::kOutputChannels || axis == Axis::kInputChannels)
+                  ? prev_size * 4
+                  : prev_size;
+          group_size_str = "(" + shape_names.at(axis) + " + " +
+                           std::to_string(divisor - 1) + ") / " +
+                           std::to_string(divisor);
+        } else {
+          group_size_str = std::to_string(group_size);
+        }
+        c += "  tmp_divider = " + group_size_str + ";\n";
+        if (group < first_i_group) {
+          c += "  inner_stride = inner_stride * tmp_divider;\n";
+        }
+        c += "  " + src_coord_name + " = (tmp_coord % tmp_divider) * " +
+             std::to_string(prev_size) + " + " + src_coord_name + ";\n";
+        c += "  tmp_coord = tmp_coord / tmp_divider;\n";
+        prev_sizes.set(axis, next_group_size * prev_size);
+      }
+      c += "  o_slice = o_slice + last_local_id;\n";
       c += "  int spatial_linear = spatial_h * args.wshape_w + spatial_w;\n";
     }
   }
-  if (dst_weights_desc.layout == WeightsLayout::kOICustomSpatialI4O4 ||
-      dst_weights_desc.layout == WeightsLayout::kOICustomSpatialO4I4) {
+  if (!dst_weights_desc.spatial_remap.empty()) {
     c += "  int linear_remap = args.spatial_remap.Read(spatial_linear);\n";
     c += "  int W = linear_remap % args.wshape_w;\n";
     c += "  int H = linear_remap / args.wshape_w;\n";
@@ -642,11 +751,27 @@ std::string WriteResults(const WeightsDescription& dst_weights_desc,
       c += "  Type r2 = ucl::Init<Type>(w0.z, w0.w, w1.z, w1.w);\n";
       c += "  Type r3 = ucl::Init<Type>(w2.z, w2.w, w3.z, w3.w);\n";
     }
+  } else if (dst_weights_desc.layout ==
+             WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2) {
+    if (src_layout == BlockLayout::kO4I4) {
+      // O4I4 -> I2gr0O2I2gr1O2
+      c += "  Type r0 = ucl::Init<Type>(w0.x, w1.x, w0.z, w1.z);\n";
+      c += "  Type r1 = ucl::Init<Type>(w2.x, w3.x, w2.z, w3.z);\n";
+      c += "  Type r2 = ucl::Init<Type>(w0.y, w1.y, w0.w, w1.w);\n";
+      c += "  Type r3 = ucl::Init<Type>(w2.y, w3.y, w2.w, w3.w);\n";
+    } else {
+      // I4O4 -> I2gr0O2I2gr1O2
+      c += "  Type r0 = ucl::Init<Type>(w0.x, w0.y, w2.x, w2.y);\n";
+      c += "  Type r1 = ucl::Init<Type>(w0.z, w0.w, w2.z, w2.w);\n";
+      c += "  Type r2 = ucl::Init<Type>(w1.x, w1.y, w3.x, w3.y);\n";
+      c += "  Type r3 = ucl::Init<Type>(w1.z, w1.w, w3.z, w3.w);\n";
+    }
   } else {
     const bool dst_is_o4 =
         dst_weights_desc.IsI4O4() ||
+        dst_weights_desc.layout == WeightsLayout::kCustomGroupsOgr1Ogr2Ogr0 ||
         (dst_weights_desc.layout == WeightsLayout::kCustomGroups &&
-         dst_weights_desc.group_sizes[0].first == Axis::OUTPUT_CHANNELS);
+         dst_weights_desc.group_sizes[0].first == Axis::kOutputChannels);
     const bool need_transpose =
         (src_layout == BlockLayout::kI4O4 && !dst_is_o4) ||
         (src_layout == BlockLayout::kO4I4 && dst_is_o4);
@@ -700,17 +825,98 @@ std::string WriteResults(const WeightsDescription& dst_weights_desc,
     c += "  args.dst_tensor1.Write2D(r1, dst_o_ogroup, dst_sp_i);\n";
     c += "  args.dst_tensor2.Write2D(r2, dst_o_ogroup, dst_sp_i);\n";
     c += "  args.dst_tensor3.Write2D(r3, dst_o_ogroup, dst_sp_i);\n";
+  } else if (dst_weights_desc.layout ==
+             WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2) {
+    c += "  int dst_offset = last_group_id * 16 + last_local_id * 2;\n";
+    if (dst_weights_desc.type == DataType::kInt8 ||
+        dst_weights_desc.type == DataType::kUint8) {
+      c += Get8BitPacked();
+      c += "  args.dst_buffer.Write(packed_value.x, dst_offset + 0);\n";
+      c += "  args.dst_buffer.Write(packed_value.y, dst_offset + 1);\n";
+      c += "  args.dst_buffer.Write(packed_value.z, dst_offset + 8);\n";
+      c += "  args.dst_buffer.Write(packed_value.w, dst_offset + 9);\n";
+    } else if (dst_weights_desc.type == DataType::kInt4 ||
+               dst_weights_desc.type == DataType::kUint4) {
+      c += Get4BitPacked();
+      c += "  args.dst_buffer.Write((p1 << 16u) | p0, dst_offset / 2 + 0);\n";
+      c += "  args.dst_buffer.Write((p3 << 16u) | p2, dst_offset / 2 + 4);\n";
+    } else if (dst_weights_desc.type == DataType::kInt2 ||
+               dst_weights_desc.type == DataType::kUint2) {
+      // ABSL_LOG(FATAL) << "Weights conversion to "
+      //                 << ToString(dst_weights_desc.layout)
+      //                 << " layout with 2-bit data type is unsupported.";
+    } else {
+      c += "  args.dst_tensor.WriteLinear(r0, dst_offset + 0);\n";
+      c += "  args.dst_tensor.WriteLinear(r1, dst_offset + 1);\n";
+      c += "  args.dst_tensor.WriteLinear(r2, dst_offset + 8);\n";
+      c += "  args.dst_tensor.WriteLinear(r3, dst_offset + 9);\n";
+    }
+  } else if (dst_weights_desc.layout ==
+             WeightsLayout::kCustomGroupsOgr1Ogr2Ogr0) {
+    const auto& p = dst_weights_desc.params0;
+    const int o_tile_units = p.o_gr1_size * p.o_gr2_size;
+    const int first_i_group = GetFirstInputGroupIndex(dst_weights_desc);
+    std::string i_stride_str;
+    if (first_i_group == 0) {
+      c += "  int dst_base_offset = last_group_id * " +
+           std::to_string(4 * o_tile_units) + ";\n";
+      i_stride_str = std::to_string(o_tile_units);
+    } else {
+      c += "  int dst_i_stride = inner_stride * " +
+           std::to_string(o_tile_units) + ";\n";
+      c += "  int dst_base_offset = ((last_group_id / inner_stride) * 4 * "
+           "inner_stride + (last_group_id % inner_stride)) * " +
+           std::to_string(o_tile_units) + ";\n";
+      i_stride_str = "dst_i_stride";
+    }
+    if (dst_weights_desc.type == DataType::kInt8 ||
+        dst_weights_desc.type == DataType::kUint8) {
+      c += "  int o_gr1 = last_local_id % " + std::to_string(p.o_gr1_size) +
+           ";\n";
+      c += "  int o_gr2 = last_local_id / " + std::to_string(p.o_gr1_size) +
+           ";\n";
+      c += "  int dst_offset = dst_base_offset + o_gr1 * " +
+           std::to_string(p.o_gr2_size) + " + o_gr2;\n";
+      c += Get8BitPacked();
+      c += "  args.dst_buffer.Write(packed_value.x, dst_offset + 0);\n";
+      c += "  args.dst_buffer.Write(packed_value.y, dst_offset + " +
+           i_stride_str + " * 1);\n";
+      c += "  args.dst_buffer.Write(packed_value.z, dst_offset + " +
+           i_stride_str + " * 2);\n";
+      c += "  args.dst_buffer.Write(packed_value.w, dst_offset + " +
+           i_stride_str + " * 3);\n";
+    } else if (dst_weights_desc.type == DataType::kFloat16) {
+      c += "  int m0 = last_local_id * 2;\n";
+      c += "  int m1 = m0 + 1;\n";
+      c += "  int dst_offset0 = dst_base_offset + (m0 % " +
+           std::to_string(p.o_gr1_size) + ") * " +
+           std::to_string(p.o_gr2_size) + " + (m0 / " +
+           std::to_string(p.o_gr1_size) + ");\n";
+      c += "  int dst_offset1 = dst_base_offset + (m1 % " +
+           std::to_string(p.o_gr1_size) + ") * " +
+           std::to_string(p.o_gr2_size) + " + (m1 / " +
+           std::to_string(p.o_gr1_size) + ");\n";
+      const std::string regs[4] = {"r0", "r1", "r2", "r3"};
+      for (int k = 0; k < 4; ++k) {
+        const std::string i_offset =
+            k == 0 ? "0" : absl::StrCat(i_stride_str, " * ", k);
+        c += "  args.dst_buffer.Write(" + regs[k] + ".xy, dst_offset0 + " +
+             i_offset + ");\n";
+        c += "  args.dst_buffer.Write(" + regs[k] + ".zw, dst_offset1 + " +
+             i_offset + ");\n";
+      }
+    }
   } else if (dst_weights_desc.layout == WeightsLayout::kCustomGroups) {
     const bool is_i_first =
-        dst_weights_desc.group_sizes[0].first == Axis::INPUT_CHANNELS;
+        dst_weights_desc.group_sizes[0].first == Axis::kInputChannels;
     const std::string tile_size_x =
         is_i_first ? "args.last_i_group_slices" : "args.last_o_group_slices";
     c += "  int dst_offset = last_group_id * (args.last_i_group_slices * "
          "args.last_o_group_slices * 4) + last_local_id / " +
          tile_size_x + " * (" + tile_size_x + " * 4)" + " + last_local_id % " +
          tile_size_x + ";\n";
-    if (dst_weights_desc.type == DataType::INT8 ||
-        dst_weights_desc.type == DataType::UINT8) {
+    if (dst_weights_desc.type == DataType::kInt8 ||
+        dst_weights_desc.type == DataType::kUint8) {
       c += Get8BitPacked();
       if (IsLastBlockHas4IAnd4OElements(dst_weights_desc)) {
         c += "  args.dst_buffer.Write(packed_value, dst_offset / 4);\n";
@@ -723,15 +929,15 @@ std::string WriteResults(const WeightsDescription& dst_weights_desc,
         c += "  args.dst_buffer.Write(packed_value.w, dst_offset + " +
              tile_size_x + " * 3);\n";
       }
-    } else if (dst_weights_desc.type == DataType::INT4 ||
-               dst_weights_desc.type == DataType::UINT4) {
+    } else if (dst_weights_desc.type == DataType::kInt4 ||
+               dst_weights_desc.type == DataType::kUint4) {
       c += Get4BitPacked();
       c += "  uint2 value;\n";
       c += "  value.x = (p1 << 16u) | p0;\n";
       c += "  value.y = (p3 << 16u) | p2;\n";
       c += "  args.dst_buffer.Write(value, dst_offset / 4);\n";
-    } else if (dst_weights_desc.type == DataType::INT2 ||
-               dst_weights_desc.type == DataType::UINT2) {
+    } else if (dst_weights_desc.type == DataType::kInt2 ||
+               dst_weights_desc.type == DataType::kUint2) {
       c += Get2BitPacked();
       c += "  uint value = (p3 << 24u) | (p2 << 16u) | (p1 << 8u) | p0;\n";
       c += "  args.dst_buffer.Write(value, dst_offset / 4);\n";
@@ -745,8 +951,8 @@ std::string WriteResults(const WeightsDescription& dst_weights_desc,
            " * 3);\n";
     }
   } else {
-    if (dst_weights_desc.type == DataType::INT8 ||
-        dst_weights_desc.type == DataType::UINT8) {
+    if (dst_weights_desc.type == DataType::kInt8 ||
+        dst_weights_desc.type == DataType::kUint8) {
       c += Get8BitPacked();
       if (dst_weights_desc.layout ==
           WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
@@ -755,14 +961,14 @@ std::string WriteResults(const WeightsDescription& dst_weights_desc,
       } else {
         c += "  args.dst_buffer.Write(packed_value, linear_index);\n";
       }
-    } else if (dst_weights_desc.type == DataType::INT4 ||
-               dst_weights_desc.type == DataType::UINT4) {
+    } else if (dst_weights_desc.type == DataType::kInt4 ||
+               dst_weights_desc.type == DataType::kUint4) {
       c += Get4BitPacked();
       if (dst_weights_desc.layout ==
           WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
         // TODO: Support DST weights with k2DYIsIOAndXIsOGroupI4O4 layout and
         // INT4 type.
-        if (dst_weights_desc.type == DataType::INT4) {
+        if (dst_weights_desc.type == DataType::kInt4) {
           ABSL_LOG(FATAL)
               << "Weights conversion to k2DYIsSpatialIOAndXIsOGroupI4O4 "
                  "layout with data type INT4 is unsupported.";
@@ -777,8 +983,8 @@ std::string WriteResults(const WeightsDescription& dst_weights_desc,
         c += "  value.y = (p3 << 16u) | p2;\n";
         c += "  args.dst_buffer.Write(value, linear_index);\n";
       }
-    } else if (dst_weights_desc.type == DataType::INT2 ||
-               dst_weights_desc.type == DataType::UINT2) {
+    } else if (dst_weights_desc.type == DataType::kInt2 ||
+               dst_weights_desc.type == DataType::kUint2) {
       c += Get2BitPacked();
       if (dst_weights_desc.layout ==
           WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
@@ -877,15 +1083,15 @@ std::string ConverterToConvWeights::GetCodeUnalignedIO(
   c += ParseLinearIndex();
   c += "      int W = spatial_linear % args.wshape_w;\n";
   c += "      int H = spatial_linear / args.wshape_w;\n";
-  if (input_layout_ == Layout::OHWI) {
-    if (definition.src_tensors[0].GetLayout() == Layout::LINEAR) {
+  if (input_layout_ == Layout::kOHWI) {
+    if (definition.src_tensors[0].GetLayout() == Layout::kLinear) {
       c += "      int linear_ohwi = ((O * args.wshape_h + H) * args.wshape_w + "
            "W) * args.wshape_i + I;\n";
       c += "      args.src.ReadPerChannel<SType>(temps[i], linear_ohwi);\n";
     } else {
       c += "      args.src.ReadPerChannel<SType>(temps[i], W, H, I, O);\n";
     }
-  } else if (input_layout_ == Layout::HWIO) {
+  } else if (input_layout_ == Layout::kHWIO) {
     c += "      args.src.ReadPerChannel<SType>(temps[i], I, W, O, H);\n";
   }
   c += "    }\n";
@@ -910,14 +1116,14 @@ std::string ConverterToConvWeights::GetConverterToConvWeightsCode(
     const TensorDescriptor* weights_scale,
     const TensorDescriptor* weights_zero_point) {
   const DataType src_data_type = definition.src_tensors[0].GetDataType();
-  if (src_data_type == DataType::INT4) {
+  if (src_data_type == DataType::kInt4) {
     BufferDescriptor desc;
-    desc.element_type = DataType::INT32;
+    desc.element_type = DataType::kInt32;
     desc.element_size = 1;
     AddSrcBuffer("src", desc);
-  } else if (src_data_type == DataType::INT2) {
+  } else if (src_data_type == DataType::kInt2) {
     BufferDescriptor desc;
-    desc.element_type = DataType::UINT32;
+    desc.element_type = DataType::kUint32;
     desc.element_size = 1;
     AddSrcBuffer("src", desc);
   } else {
@@ -926,7 +1132,7 @@ std::string ConverterToConvWeights::GetConverterToConvWeightsCode(
   const DataType dst_data_type = definition.dst_tensors[0].GetDataType();
   const bool src_quantized = SizeInBitsOf(src_data_type) <= 8;
   const bool dst_quantized = SizeInBitsOf(weights_desc_.type) <= 8;
-  const auto type = dst_quantized ? DataType::FLOAT32 : dst_data_type;
+  const auto type = dst_quantized ? DataType::kFloat32 : dst_data_type;
   if (weights_shape_.i % 4 != 0) {
     const float4 i_mask = GetMaskForLastPlane(weights_shape_.i);
     args_.AddFloat("imask_x", i_mask.x, type);
@@ -956,14 +1162,14 @@ std::string ConverterToConvWeights::GetConverterToConvWeightsCode(
   } else if (weights_desc_.layout ==
              WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
     DataType texture_type;
-    if (weights_desc_.type == DataType::UINT8) {
-      texture_type = DataType::UINT32;
-    } else if (weights_desc_.type == DataType::UINT4) {
-      texture_type = DataType::UINT16;
-    } else if (weights_desc_.type == DataType::UINT2) {
-      texture_type = DataType::UINT8;
+    if (weights_desc_.type == DataType::kUint8) {
+      texture_type = DataType::kUint32;
+    } else if (weights_desc_.type == DataType::kUint4) {
+      texture_type = DataType::kUint16;
+    } else if (weights_desc_.type == DataType::kUint2) {
+      texture_type = DataType::kUint8;
     } else {
-      // TODO: b/378522761 - Support other data types for
+      // TODO: Support other data types for
       // k2DYIsSpatialIOAndXIsOGroupI4O4 layout.
       ABSL_LOG(FATAL) << absl::StrCat(
           "Weights conversion to k2DYIsSpatialIOAndXIsOGroupI4O4 layout with "
@@ -974,26 +1180,34 @@ std::string ConverterToConvWeights::GetConverterToConvWeightsCode(
     TensorDescriptor desc;
     uint2 tex_size = Get2dResourceSize(weights_desc_, weights_shape_);
     tex_size.x /= SizeInBitsOf(texture_type) / SizeInBitsOf(weights_desc_.type);
-    desc = TensorDescriptor(texture_type, TensorStorageType::TEXTURE_2D,
-                            Layout::HW);
+    desc = TensorDescriptor(texture_type, TensorStorageType::kTexture2D,
+                            Layout::kHW);
     AddDstTensor("dst_texture", desc);
     args_.AddInt("dst_x_size", tex_size.x);
     args_.AddInt("dst_y_size", tex_size.y);
   } else {
-    if (weights_desc_.type == DataType::UINT8) {
+    if (weights_desc_.type == DataType::kInt8 ||
+        weights_desc_.type == DataType::kUint8) {
       BufferDescriptor desc;
-      desc.element_type = DataType::UINT32;
+      desc.element_type = DataType::kUint32;
       desc.element_size = IsLastBlockHas4IAnd4OElements(weights_desc_) ? 4 : 1;
       AddDstBuffer("dst_buffer", desc);
-    } else if (weights_desc_.type == DataType::UINT4) {
+    } else if (weights_desc_.type == DataType::kUint4) {
       BufferDescriptor desc;
-      desc.element_type = DataType::UINT32;
-      desc.element_size = 2;
+      desc.element_type = DataType::kUint32;
+      desc.element_size = IsLastBlockHas4IAnd4OElements(weights_desc_) ? 2 : 1;
       AddDstBuffer("dst_buffer", desc);
-    } else if (weights_desc_.type == DataType::UINT2) {
+    } else if (weights_desc_.type == DataType::kUint2) {
       BufferDescriptor desc;
-      desc.element_type = DataType::UINT32;
+      desc.element_type = DataType::kUint32;
       desc.element_size = 1;
+      AddDstBuffer("dst_buffer", desc);
+    } else if (weights_desc_.layout ==
+                   WeightsLayout::kCustomGroupsOgr1Ogr2Ogr0 &&
+               weights_desc_.type == DataType::kFloat16) {
+      BufferDescriptor desc;
+      desc.element_type = DataType::kFloat16;
+      desc.element_size = 2;
       AddDstBuffer("dst_buffer", desc);
     } else {
       AddDstTensor("dst_tensor", definition.dst_tensors[0]);
@@ -1003,16 +1217,15 @@ std::string ConverterToConvWeights::GetConverterToConvWeightsCode(
     args_.AddInt("dst_total_size", DivideRoundUp(elements_count, 16));
   }
 
-  if (weights_desc_.layout == WeightsLayout::kOICustomSpatialI4O4 ||
-      weights_desc_.layout == WeightsLayout::kOICustomSpatialO4I4) {
+  if (!weights_desc_.spatial_remap.empty()) {
     std::vector<int32_t> remap(weights_desc_.spatial_remap.size());
     for (int i = 0; i < remap.size(); ++i) {
       remap[i] = weights_desc_.spatial_remap[i];
     }
     BufferDescriptor desc;
-    desc.element_type = DataType::INT32;
+    desc.element_type = DataType::kInt32;
     desc.element_size = 1;
-    desc.memory_type = MemoryType::GLOBAL;
+    desc.memory_type = MemoryType::kGlobal;
     desc.size = remap.size() * sizeof(int32_t);
     desc.data.resize(desc.size);
     std::memcpy(desc.data.data(), remap.data(), desc.size);
@@ -1022,7 +1235,7 @@ std::string ConverterToConvWeights::GetConverterToConvWeightsCode(
 
   bool grouped_quantization = false;
   bool batched_quantization = false;
-  if (weights_scale && weights_scale->GetLayout() != Layout::LINEAR) {
+  if (weights_scale && weights_scale->GetLayout() != Layout::kLinear) {
     auto scale_shape = weights_scale->GetBHWCShape();
     const int scale_i_groups = DivideRoundUp(scale_shape.c, 4);
     const int batch_size = scale_shape.h;
@@ -1052,8 +1265,8 @@ std::string ConverterToConvWeights::GetConverterToConvWeightsCode(
   c += "  Type w2 = ucl::Init<Type>(0);\n";
   c += "  Type w3 = ucl::Init<Type>(0);\n";
   c += "  if (o_slice < args.o_slices && i_slice < args.i_slices) {\n";
-  if (input_layout_ == Layout::OHWI &&
-      definition.src_tensors[0].GetLayout() == Layout::LINEAR) {
+  if (input_layout_ == Layout::kOHWI &&
+      definition.src_tensors[0].GetLayout() == Layout::kLinear) {
     if (weights_shape_.i % 4 == 0) {
       c += R"(
     int linear_ohwi = ((o_slice * 4 * args.wshape_h + H) * args.wshape_w + W) * args.i_slices + i_slice;
@@ -1067,10 +1280,10 @@ std::string ConverterToConvWeights::GetConverterToConvWeightsCode(
         const std::string var_name = absl::StrCat("w", o);
         const std::string address =
             absl::StrCat("linear_ohwi + o_stride * ", o);
-        if (src_data_type == DataType::INT4) {
+        if (src_data_type == DataType::kInt4) {
           c += "      int i16_value = args.src.ReadAsI16(" + address + ");\n";
           c += "      " + var_name + " = ucl::I16ToVec4I4<SType>(i16_value);\n";
-        } else if (src_data_type == DataType::INT2) {
+        } else if (src_data_type == DataType::kInt2) {
           c += "      uint p = args.src.ReadAsU8(" + address + ");\n";
           c += "      " + var_name +
                " = ucl::Convert<Type>(ucl::U8ToVec4I2(p));\n";
@@ -1088,13 +1301,13 @@ std::string ConverterToConvWeights::GetConverterToConvWeightsCode(
           c += "    i_index = 4 * i_slice + " + std::to_string(i) + ";\n";
           c += "    if (i_index < args.wshape_i) {\n";
           c += "      int ohwi_index = ohw_offset * args.wshape_i + i_index;\n";
-          if (src_data_type == DataType::INT4) {
+          if (src_data_type == DataType::kInt4) {
             c += "      int ival = args.src.Read(ohwi_index / 8);\n";
             c += "      uint sub_index = ucl::Convert<uint>(7 - ohwi_index % "
                  "8);\n";
             c += "      ival = (ival << (sub_index * 4u)) >> 28u;\n";
             c += "      " + var_name + " = ucl::Convert<SType>(ival);\n";
-          } else if (src_data_type == DataType::INT2) {
+          } else if (src_data_type == DataType::kInt2) {
             c += "      uint uval = args.src.Read(ohwi_index / 16);\n";
             c += "      int ival = ucl::Convert<int>(uval);\n";
             c += "      uint sub_index = ucl::Convert<uint>(15 - ohwi_index % "
@@ -1110,7 +1323,7 @@ std::string ConverterToConvWeights::GetConverterToConvWeightsCode(
       }
       c += "  }\n";
     }
-  } else if (input_layout_ == Layout::OHWI) {
+  } else if (input_layout_ == Layout::kOHWI) {
     for (int o = 0; o < 4; ++o) {
       const std::string o_coord = absl::StrCat("o_slice * 4 + ", o);
       const std::string var_name = absl::StrCat("w", o);
@@ -1119,7 +1332,7 @@ std::string ConverterToConvWeights::GetConverterToConvWeightsCode(
            o_coord + ");\n";
       c += "  }\n";
     }
-  } else if (input_layout_ == Layout::HWIO) {
+  } else if (input_layout_ == Layout::kHWIO) {
     for (int i = 0; i < 4; ++i) {
       const std::string i_coord = absl::StrCat("i_slice * 4 + ", i);
       const std::string var_name = absl::StrCat("w", i);
@@ -1141,7 +1354,7 @@ std::string ConverterToConvWeights::GetConverterToConvWeightsCode(
   c += "  }  // i/o slice bounds\n";
 
   const auto src_layout =
-      input_layout_ == Layout::HWIO ? BlockLayout::kI4O4 : BlockLayout::kO4I4;
+      input_layout_ == Layout::kHWIO ? BlockLayout::kI4O4 : BlockLayout::kO4I4;
 
   if (src_quantized && !dst_quantized && weights_scale != nullptr) {
     c += Dequantize(src_zero_point, grouped_quantization, batched_quantization,
@@ -1208,7 +1421,7 @@ std::string ReadVec16AsVec4x4(const WeightsDescription& src_weights_desc,
     yc = "((spatial_linear * args.i_slices + src_i) * args.src_o_groups + "
          "src_o)";
   }
-  if (src_weights_desc.type == DataType::UINT8) {
+  if (src_weights_desc.type == DataType::kUint8) {
     if (src_weights_desc.layout ==
         WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
       c += "    uint4 w = args.src_texture.Read(src_o_group, " + yc + ");\n";
@@ -1217,7 +1430,7 @@ std::string ReadVec16AsVec4x4(const WeightsDescription& src_weights_desc,
       c += "    uint4 w = args.src_buffer.Read(src_linear);\n";
       c += "    ucl::U32x4ToU8x16AsVec4x4<SType>(w, w0, w1, w2, w3);\n";
     }
-  } else if (src_weights_desc.type == DataType::UINT4) {
+  } else if (src_weights_desc.type == DataType::kUint4) {
     if (src_weights_desc.layout ==
         WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
       c += "    ushort4 w = args.src_texture.Read(src_o_group, " + yc + ");\n";
@@ -1226,7 +1439,7 @@ std::string ReadVec16AsVec4x4(const WeightsDescription& src_weights_desc,
       c += "    uint2 w = args.src_buffer.Read(src_linear);\n";
       c += "    ucl::U32x2ToU4x16AsVec4x4<SType>(w, w0, w1, w2, w3);\n";
     }
-  } else if (src_weights_desc.type == DataType::UINT2) {
+  } else if (src_weights_desc.type == DataType::kUint2) {
     if (src_weights_desc.layout ==
         WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
       c += "    uchar4 w = args.src_texture.Read(src_o_group, " + yc + ");\n";
@@ -1235,7 +1448,7 @@ std::string ReadVec16AsVec4x4(const WeightsDescription& src_weights_desc,
       c += "    uint w = args.src_buffer.Read(src_linear);\n";
       c += "    ucl::U32x1ToU2x16AsVec4x4<SType>(w, w0, w1, w2, w3);\n";
     }
-  } else if (src_weights_desc.type == DataType::INT8) {
+  } else if (src_weights_desc.type == DataType::kInt8) {
     if (src_weights_desc.layout ==
         WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
       c += "    int4 w = args.src_texture.Read(src_o_group, " + yc + ");\n";
@@ -1280,6 +1493,84 @@ std::string ReadVec16AsVec4x4(const WeightsDescription& src_weights_desc,
   return c;
 }
 
+namespace {
+std::string AddBatchOffset(const std::string& stride) {
+  return absl::Substitute(R"(
+    a0 += spatial_linear * $0;
+    a1 += spatial_linear * $0;
+    a2 += spatial_linear * $0;
+    a3 += spatial_linear * $0;
+)",
+                          stride);
+}
+
+std::string GetRingedOAddresses() {
+  std::string c;
+  // kOSpatialIOGroupO4I4 -> kBIOI4
+  c += R"(    int o0 = (o_slice * 4 + ring_o_offset) % ring_size;
+    int o1 = (o_slice * 4 + 1 + ring_o_offset) % ring_size;
+    int o2 = (o_slice * 4 + 2 + ring_o_offset) % ring_size;
+    int o3 = (o_slice * 4 + 3 + ring_o_offset) % ring_size;
+    int a0 = i_slice * ring_size + o0;
+    int a1 = i_slice * ring_size + o1;
+    int a2 = i_slice * ring_size + o2;
+    int a3 = i_slice * ring_size + o3;
+)";
+  c += AddBatchOffset("ring_size * args.i_slices");
+  return c;
+}
+
+std::string GetRingedIAddresses() {
+  std::string c;
+  // kOSpatialIOGroupI4O4 -> kBIOI4O4
+  c += R"(    int i0 = (i_slice * 4 + ring_i_offset) % ring_size;
+    int i1 = (i_slice * 4 + 1 + ring_i_offset) % ring_size;
+    int i2 = (i_slice * 4 + 2 + ring_i_offset) % ring_size;
+    int i3 = (i_slice * 4 + 3 + ring_i_offset) % ring_size;
+    int a0 = ((i0 / 4) * args.o_slices + o_slice) * 4 + i0 % 4;
+    int a1 = ((i1 / 4) * args.o_slices + o_slice) * 4 + i1 % 4;
+    int a2 = ((i2 / 4) * args.o_slices + o_slice) * 4 + i2 % 4;
+    int a3 = ((i3 / 4) * args.o_slices + o_slice) * 4 + i3 % 4;
+)";
+  c += AddBatchOffset("ring_size * args.o_slices");
+  return c;
+}
+
+std::string ReadRingedWeights(const ConvRuntimeCheckDesc& runtime_check,
+                              const WeightsDescription& src_weights_desc,
+                              const DataType& dst_type,
+                              bool grouped_quantization,
+                              bool batched_quantization, bool has_zero_point) {
+  std::string c;
+  c += "  w0 = ucl::Init<Type>(0);\n";
+  c += "  w1 = ucl::Init<Type>(0);\n";
+  c += "  w2 = ucl::Init<Type>(0);\n";
+  c += "  w3 = ucl::Init<Type>(0);\n";
+  c += "  if (o_slice < args.o_slices && i_slice < args.i_slices) {\n";
+  if (runtime_check.ring_o_offset_index.has_value()) {
+    c += "    int ring_o_offset = args.params.Read(" +
+         std::to_string(runtime_check.ring_o_offset_index.value()) + ");\n";
+    c += "    int ring_size = " +
+         std::to_string(runtime_check.ring_size.value()) + ";\n";
+    c += GetRingedOAddresses();
+  } else if (runtime_check.ring_i_offset_index.has_value()) {
+    c += "    int ring_i_offset = args.params.Read(" +
+         std::to_string(runtime_check.ring_i_offset_index.value()) + ");\n";
+    c += "    int ring_size = " +
+         std::to_string(runtime_check.ring_size.value()) + ";\n";
+    c += GetRingedIAddresses();
+  }
+  c += R"(
+    w0 = args.src_buffer.Read(a0);
+    w1 = args.src_buffer.Read(a1);
+    w2 = args.src_buffer.Read(a2);
+    w3 = args.src_buffer.Read(a3);
+)";
+  c += "  }  // o_slice/i_slice bounds\n";
+  return c;
+}
+}  // namespace
+
 std::string GetWeightsConverterCode(const GpuInfo& gpu_info, DataType dst_type,
                                     const WeightsDescription& src_weights_desc,
                                     const WeightsDescription& dst_weights_desc,
@@ -1306,16 +1597,23 @@ std::string GetWeightsConverterCode(const GpuInfo& gpu_info, DataType dst_type,
     c += "  if (i_slice >= src_end_slice_runtime) return;\n";
   }
   c += "  Type w0, w1, w2, w3;\n";
-  c += ReadVec16AsVec4x4(src_weights_desc, dst_weights_desc.type,
-                         grouped_quantization, batched_quantization,
-                         has_zero_point);
+  if (runtime_check.ring_o_offset_index.has_value() ||
+      runtime_check.ring_i_offset_index.has_value()) {
+    c += ReadRingedWeights(runtime_check, src_weights_desc,
+                           dst_weights_desc.type, grouped_quantization,
+                           batched_quantization, has_zero_point);
+  } else {
+    c += ReadVec16AsVec4x4(src_weights_desc, dst_weights_desc.type,
+                           grouped_quantization, batched_quantization,
+                           has_zero_point);
+  }
 
   const auto src_layout =
       src_weights_desc.IsI4O4() ? BlockLayout::kI4O4 : BlockLayout::kO4I4;
   c += WriteResults(dst_weights_desc, src_layout, gpu_info);
   const bool dst_quantized =
-      SizeOf(dst_weights_desc.type) <= SizeOf(DataType::UINT8);
-  const auto type = dst_quantized ? DataType::FLOAT32 : dst_type;
+      SizeOf(dst_weights_desc.type) <= SizeOf(DataType::kUint8);
+  const auto type = dst_quantized ? DataType::kFloat32 : dst_type;
   absl::StrReplaceAll(
       {{"SType", ToUclDataType(type, 1)}, {"Type", ToUclDataType(type, 4)}},
       &c);
@@ -1389,35 +1687,16 @@ std::string GetWeightsConverterCodeUnalignedIO(
   return c;
 }
 
-bool IsWeightsConversionSupported(const OHWI& weights_shape,
-                                  const WeightsDescription& src_weights_desc,
-                                  const WeightsDescription& dst_weights_desc) {
-  if (weights_shape.w != 1 || weights_shape.h != 1) return false;
-  if (weights_shape.i % 4 != 0 || weights_shape.o % 4 != 0) return false;
-  if (!(dst_weights_desc.type == DataType::FLOAT32 ||
-        dst_weights_desc.type == DataType::FLOAT16)) {
-    return false;
-  }
-  if (src_weights_desc.IsCustomSpatial() ||
-      dst_weights_desc.IsCustomSpatial()) {
-    return false;
-  }
-  return true;
-}
-
 WeightsConverter::WeightsConverter(const GpuInfo& gpu_info,
                                    const OperationDef& definition,
-                                   const OHWI& weights_shape,
-                                   const WeightsDescription& src_weights_desc,
+                                   const ExternalWeights& src_weights,
                                    const WeightsDescription& dst_weights_desc,
-                                   const TensorDescriptor* weights_scale,
-                                   const TensorDescriptor* weights_zero_point,
                                    const ConvRuntimeCheckDesc& runtime_check)
     : GPUOperation(),
-      weights_shape_(weights_shape),
+      weights_shape_(src_weights.shape),
       dst_weights_desc_(dst_weights_desc),
       use_2d_grid_x_is_i_ogroup_y_is_o_(Use2DGridXisIOgroupYisO(
-          gpu_info, weights_shape, src_weights_desc, dst_weights_desc)) {
+          gpu_info, src_weights.shape, src_weights.desc, dst_weights_desc)) {
   args_.AddInt("wshape_o", weights_shape_.o);
   args_.AddInt("wshape_h", weights_shape_.h);
   args_.AddInt("wshape_w", weights_shape_.w);
@@ -1430,58 +1709,61 @@ WeightsConverter::WeightsConverter(const GpuInfo& gpu_info,
                                   work_group_size_);
     args_.AddInt("groups_per_x", groups_per_x_);
   }
-  if (src_weights_desc.type == DataType::UINT8) {
-    if (src_weights_desc.layout ==
+  const bool ringed_weights = runtime_check.ring_o_offset_index.has_value() ||
+                              runtime_check.ring_i_offset_index.has_value();
+  const int vec_size = ringed_weights ? 4 : 16;
+  if (src_weights.desc.type == DataType::kUint8) {
+    if (src_weights.desc.layout ==
         WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
       TensorDescriptor desc = TensorDescriptor(
-          DataType::UINT32, TensorStorageType::TEXTURE_2D, Layout::HW);
+          DataType::kUint32, TensorStorageType::kTexture2D, Layout::kHW);
       AddSrcTensor("src_texture", desc);
     } else {
       BufferDescriptor desc;
-      desc.element_type = DataType::UINT32;
+      desc.element_type = DataType::kUint32;
       desc.element_size = 4;
       AddSrcBuffer("src_buffer", desc);
     }
-  } else if (src_weights_desc.type == DataType::UINT4) {
-    if (src_weights_desc.layout ==
+  } else if (src_weights.desc.type == DataType::kUint4) {
+    if (src_weights.desc.layout ==
         WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
       TensorDescriptor desc = TensorDescriptor(
-          DataType::UINT16, TensorStorageType::TEXTURE_2D, Layout::HW);
+          DataType::kUint16, TensorStorageType::kTexture2D, Layout::kHW);
       AddSrcTensor("src_texture", desc);
     } else {
       BufferDescriptor desc;
-      desc.element_type = DataType::UINT32;
+      desc.element_type = DataType::kUint32;
       desc.element_size = 2;
       AddSrcBuffer("src_buffer", desc);
     }
-  } else if (src_weights_desc.type == DataType::UINT2) {
-    if (src_weights_desc.layout ==
+  } else if (src_weights.desc.type == DataType::kUint2) {
+    if (src_weights.desc.layout ==
         WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
       TensorDescriptor desc = TensorDescriptor(
-          DataType::UINT8, TensorStorageType::TEXTURE_2D, Layout::HW);
+          DataType::kUint8, TensorStorageType::kTexture2D, Layout::kHW);
       AddSrcTensor("src_texture", desc);
     } else {
       BufferDescriptor desc;
-      desc.element_type = DataType::UINT32;
+      desc.element_type = DataType::kUint32;
       desc.element_size = 1;
       AddSrcBuffer("src_buffer", desc);
     }
-  } else if (src_weights_desc.type == DataType::INT8) {
-    if (src_weights_desc.layout ==
+  } else if (src_weights.desc.type == DataType::kInt8) {
+    if (src_weights.desc.layout ==
         WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
       TensorDescriptor desc = TensorDescriptor(
-          DataType::INT32, TensorStorageType::TEXTURE_2D, Layout::HW);
+          DataType::kInt32, TensorStorageType::kTexture2D, Layout::kHW);
       AddSrcTensor("src_texture", desc);
     } else {
       BufferDescriptor desc;
-      desc.element_type = DataType::INT32;
+      desc.element_type = DataType::kInt32;
       desc.element_size = 4;
       AddSrcBuffer("src_buffer", desc);
     }
   } else {
     BufferDescriptor desc;
     desc.element_type = definition.src_tensors[0].GetDataType();
-    desc.element_size = 16;
+    desc.element_size = vec_size;
     AddSrcBuffer("src_buffer", desc);
   }
   if (dst_weights_desc.layout ==
@@ -1492,19 +1774,19 @@ WeightsConverter::WeightsConverter(const GpuInfo& gpu_info,
     AddDstTensor("dst_tensor1", definition.dst_tensors[1]);
     AddDstTensor("dst_tensor2", definition.dst_tensors[2]);
     AddDstTensor("dst_tensor3", definition.dst_tensors[3]);
-    uint2 tex_size = Get2dResourceSize(dst_weights_desc, weights_shape);
+    uint2 tex_size = Get2dResourceSize(dst_weights_desc, src_weights.shape);
     args_.AddInt("dst_x_size", tex_size.x);
     args_.AddInt("dst_y_size", tex_size.y);
   } else if (dst_weights_desc.layout ==
              WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
     TensorDescriptor desc;
-    uint2 tex_size = Get2dResourceSize(dst_weights_desc, weights_shape);
-    if (dst_weights_desc.type == DataType::UINT8) {
+    uint2 tex_size = Get2dResourceSize(dst_weights_desc, src_weights.shape);
+    if (dst_weights_desc.type == DataType::kUint8) {
       tex_size.x /= sizeof(uint32_t) / sizeof(uint8_t);
-      desc = TensorDescriptor(DataType::UINT32, TensorStorageType::TEXTURE_2D,
-                              Layout::HW);
+      desc = TensorDescriptor(DataType::kUint32, TensorStorageType::kTexture2D,
+                              Layout::kHW);
     } else {
-      // TODO: b/378522761 - Support other data types for
+      // TODO: Support other data types for
       // k2DYIsSpatialIOAndXIsOGroupI4O4 layout.
       ABSL_LOG(FATAL) << absl::StrCat(
           "Weights conversion to k2DYIsSpatialIOAndXIsOGroupI4O4 layout with "
@@ -1516,17 +1798,25 @@ WeightsConverter::WeightsConverter(const GpuInfo& gpu_info,
     args_.AddInt("dst_x_size", tex_size.x);
     args_.AddInt("dst_y_size", tex_size.y);
   } else {
-    if (dst_weights_desc.type == DataType::INT8 ||
-        dst_weights_desc.type == DataType::UINT8) {
+    if (dst_weights_desc.type == DataType::kInt8 ||
+        dst_weights_desc.type == DataType::kUint8) {
       BufferDescriptor desc;
-      desc.element_type = DataType::UINT32;
+      desc.element_type = DataType::kUint32;
       desc.element_size =
           IsLastBlockHas4IAnd4OElements(dst_weights_desc) ? 4 : 1;
       AddDstBuffer("dst_buffer", desc);
-    } else if (dst_weights_desc.type == DataType::INT4 ||
-               dst_weights_desc.type == DataType::UINT4) {
+    } else if (dst_weights_desc.type == DataType::kInt4 ||
+               dst_weights_desc.type == DataType::kUint4) {
       BufferDescriptor desc;
-      desc.element_type = DataType::UINT32;
+      desc.element_type = DataType::kUint32;
+      desc.element_size =
+          IsLastBlockHas4IAnd4OElements(dst_weights_desc) ? 2 : 1;
+      AddDstBuffer("dst_buffer", desc);
+    } else if (dst_weights_desc.layout ==
+                   WeightsLayout::kCustomGroupsOgr1Ogr2Ogr0 &&
+               dst_weights_desc.type == DataType::kFloat16) {
+      BufferDescriptor desc;
+      desc.element_type = DataType::kFloat16;
       desc.element_size = 2;
       AddDstBuffer("dst_buffer", desc);
     } else {
@@ -1534,18 +1824,18 @@ WeightsConverter::WeightsConverter(const GpuInfo& gpu_info,
     }
     if (dst_weights_desc_.layout == WeightsLayout::kISpatialOI4O4UnalignedIO) {
       args_.AddInt("task_size",
-                   DivideRoundUp(weights_shape.DimensionsProduct(), 4));
+                   DivideRoundUp(src_weights.shape.DimensionsProduct(), 4));
       args_.AddInt("wshape_total", weights_shape_.DimensionsProduct());
     } else {
       int elements_count =
-          GetTotalElementsCountForLayout(dst_weights_desc, weights_shape);
+          GetTotalElementsCountForLayout(dst_weights_desc, src_weights.shape);
       args_.AddInt("dst_total_size", DivideRoundUp(elements_count, 16));
     }
   }
   bool grouped_quantization = false;
   bool batched_quantization = false;
-  if (weights_scale && weights_scale->GetLayout() != Layout::LINEAR) {
-    auto scale_shape = weights_scale->GetBHWCShape();
+  if (src_weights.scale && src_weights.scale->GetLayout() != Layout::kLinear) {
+    auto scale_shape = src_weights.scale->GetBHWCShape();
     const int scale_i_groups = DivideRoundUp(scale_shape.c, 4);
     const int batch_size = scale_shape.h;
     if (batch_size > 1) {
@@ -1557,12 +1847,12 @@ WeightsConverter::WeightsConverter(const GpuInfo& gpu_info,
                    DivideRoundUp(weights_shape_.i / scale_i_groups, 4));
     }
   }
-  if (weights_scale) {
-    AddSrcTensor("weights_scale", *weights_scale);
+  if (src_weights.scale) {
+    AddSrcTensor("weights_scale", *src_weights.scale);
   }
-  const bool has_zero_point = weights_zero_point != nullptr;
-  if (weights_zero_point) {
-    AddSrcTensor("weights_zero_point", *weights_zero_point);
+  const bool has_zero_point = src_weights.zero_point != nullptr;
+  if (src_weights.zero_point) {
+    AddSrcTensor("weights_zero_point", *src_weights.zero_point);
   }
 
   bool has_runtime_check = false;
@@ -1574,18 +1864,26 @@ WeightsConverter::WeightsConverter(const GpuInfo& gpu_info,
     args_.AddInt("dst_end_ch_index", *runtime_check.dst_end_ch_index);
     has_runtime_check = true;
   }
+  if (runtime_check.ring_o_offset_index.has_value()) {
+    args_.AddInt("ring_o_offset_index", *runtime_check.ring_o_offset_index);
+    has_runtime_check = true;
+  }
+  if (runtime_check.ring_i_offset_index.has_value()) {
+    args_.AddInt("ring_i_offset_index", *runtime_check.ring_i_offset_index);
+    has_runtime_check = true;
+  }
   if (has_runtime_check) {
     BufferDescriptor desc;
-    desc.element_type = DataType::INT32;
+    desc.element_type = DataType::kInt32;
     desc.element_size = 1;
     AddSrcBuffer("params", desc);
   }
 
-  AddCommonArgs(dst_weights_desc, weights_shape, args_);
-  args_.AddInt("src_o_group_size", src_weights_desc.GetOutputGroupSize());
-  const int o_slices = DivideRoundUp(weights_shape.o, 4);
+  AddCommonArgs(dst_weights_desc, src_weights.shape, args_);
+  args_.AddInt("src_o_group_size", src_weights.desc.GetOutputGroupSize());
+  const int o_slices = DivideRoundUp(src_weights.shape.o, 4);
   args_.AddInt("src_o_groups",
-               DivideRoundUp(o_slices, src_weights_desc.GetOutputGroupSize()));
+               DivideRoundUp(o_slices, src_weights.desc.GetOutputGroupSize()));
   if (dst_weights_desc.layout == WeightsLayout::kISpatialOI4O4UnalignedIO) {
     if (has_runtime_check) {
       ABSL_LOG(FATAL)
@@ -1593,11 +1891,11 @@ WeightsConverter::WeightsConverter(const GpuInfo& gpu_info,
              "layout.";
     }
     code_ = GetWeightsConverterCodeUnalignedIO(
-        gpu_info, src_weights_desc, dst_weights_desc, grouped_quantization,
+        gpu_info, src_weights.desc, dst_weights_desc, grouped_quantization,
         batched_quantization, has_zero_point);
   } else {
     code_ = GetWeightsConverterCode(
-        gpu_info, definition.dst_tensors[0].GetDataType(), src_weights_desc,
+        gpu_info, definition.dst_tensors[0].GetDataType(), src_weights.desc,
         dst_weights_desc, grouped_quantization, batched_quantization,
         has_zero_point, use_2d_grid_x_is_i_ogroup_y_is_o_, runtime_check);
   }

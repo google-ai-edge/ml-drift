@@ -37,24 +37,24 @@ namespace metal {
 namespace {
 MTLPixelFormat DataTypeToRGBAPixelFormat(DataType type, bool normalized) {
   switch (type) {
-    case DataType::FLOAT32:
+    case DataType::kFloat32:
       return MTLPixelFormatRGBA32Float;
-    case DataType::FLOAT16:
+    case DataType::kFloat16:
       return MTLPixelFormatRGBA16Float;
-    case DataType::INT8:
+    case DataType::kInt8:
       return normalized ? MTLPixelFormatRGBA8Snorm : MTLPixelFormatRGBA8Sint;
-    case DataType::UINT8:
+    case DataType::kUint8:
       return normalized ? MTLPixelFormatRGBA8Unorm : MTLPixelFormatRGBA8Uint;
-    case DataType::INT16:
+    case DataType::kInt16:
       return normalized ? MTLPixelFormatRGBA16Snorm : MTLPixelFormatRGBA16Sint;
-    case DataType::BFLOAT16:
-    case DataType::UINT16:
+    case DataType::kBfloat16:
+    case DataType::kUint16:
       return normalized ? MTLPixelFormatRGBA16Unorm : MTLPixelFormatRGBA16Uint;
-    case DataType::INT32:
+    case DataType::kInt32:
       return MTLPixelFormatRGBA32Sint;
-    case DataType::UINT32:
+    case DataType::kUint32:
       return MTLPixelFormatRGBA32Uint;
-    case DataType::BOOL:
+    case DataType::kBool:
       return MTLPixelFormatRGBA8Uint;
     default:
       return MTLPixelFormatInvalid;
@@ -63,24 +63,24 @@ MTLPixelFormat DataTypeToRGBAPixelFormat(DataType type, bool normalized) {
 
 MTLPixelFormat DataTypeToRGPixelFormat(DataType type, bool normalized) {
   switch (type) {
-    case DataType::FLOAT32:
+    case DataType::kFloat32:
       return MTLPixelFormatRG32Float;
-    case DataType::FLOAT16:
+    case DataType::kFloat16:
       return MTLPixelFormatRG16Float;
-    case DataType::INT8:
+    case DataType::kInt8:
       return normalized ? MTLPixelFormatRG8Snorm : MTLPixelFormatRG8Sint;
-    case DataType::UINT8:
+    case DataType::kUint8:
       return normalized ? MTLPixelFormatRG8Unorm : MTLPixelFormatRG8Uint;
-    case DataType::INT16:
+    case DataType::kInt16:
       return normalized ? MTLPixelFormatRG16Snorm : MTLPixelFormatRG16Sint;
-    case DataType::BFLOAT16:
-    case DataType::UINT16:
+    case DataType::kBfloat16:
+    case DataType::kUint16:
       return normalized ? MTLPixelFormatRG16Unorm : MTLPixelFormatRG16Uint;
-    case DataType::INT32:
+    case DataType::kInt32:
       return MTLPixelFormatRG32Sint;
-    case DataType::UINT32:
+    case DataType::kUint32:
       return MTLPixelFormatRG32Uint;
-    case DataType::BOOL:
+    case DataType::kBool:
       return MTLPixelFormatRG8Uint;
     default:
       return MTLPixelFormatInvalid;
@@ -89,24 +89,24 @@ MTLPixelFormat DataTypeToRGPixelFormat(DataType type, bool normalized) {
 
 MTLPixelFormat DataTypeToRPixelFormat(DataType type, bool normalized) {
   switch (type) {
-    case DataType::FLOAT32:
+    case DataType::kFloat32:
       return MTLPixelFormatR32Float;
-    case DataType::FLOAT16:
+    case DataType::kFloat16:
       return MTLPixelFormatR16Float;
-    case DataType::INT8:
+    case DataType::kInt8:
       return normalized ? MTLPixelFormatR8Snorm : MTLPixelFormatR8Sint;
-    case DataType::UINT8:
+    case DataType::kUint8:
       return normalized ? MTLPixelFormatR8Unorm : MTLPixelFormatR8Uint;
-    case DataType::INT16:
+    case DataType::kInt16:
       return normalized ? MTLPixelFormatR16Snorm : MTLPixelFormatR16Sint;
-    case DataType::BFLOAT16:
-    case DataType::UINT16:
+    case DataType::kBfloat16:
+    case DataType::kUint16:
       return normalized ? MTLPixelFormatR16Unorm : MTLPixelFormatR16Uint;
-    case DataType::INT32:
+    case DataType::kInt32:
       return MTLPixelFormatR32Sint;
-    case DataType::UINT32:
+    case DataType::kUint32:
       return MTLPixelFormatR32Uint;
-    case DataType::BOOL:
+    case DataType::kBool:
       return MTLPixelFormatR8Uint;
     default:
       return MTLPixelFormatInvalid;

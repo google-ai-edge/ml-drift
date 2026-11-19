@@ -59,8 +59,9 @@ void AddSupportedImageFormats(cl_context context, GpuInfo* info) {
   auto supported_formats =
       GetSupportedImage2DFormats(context, CL_MEM_READ_WRITE);
   const std::vector<DataType> kPossibleDataTypes = {
-      DataType::FLOAT16, DataType::FLOAT32, DataType::INT8,  DataType::UINT8,
-      DataType::INT16,   DataType::UINT16,  DataType::INT32, DataType::UINT32};
+      DataType::kFloat16, DataType::kFloat32, DataType::kInt8,
+      DataType::kUint8,   DataType::kInt16,   DataType::kUint16,
+      DataType::kInt32,   DataType::kUint32};
   for (auto format : supported_formats) {
     for (auto data_type : kPossibleDataTypes) {
       if (IsEqualToImageFormat(format, data_type, 1)) {

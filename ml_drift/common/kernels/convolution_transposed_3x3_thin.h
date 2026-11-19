@@ -47,7 +47,18 @@ class ConvolutionTransposed3x3Thin : public GPUOperation {
   WeightsDescription GetWeightsDescription() const {
     WeightsDescription desc;
     desc.type = weights_data_type_;
-    desc.layout = weights_layout_;
+    desc.layout = WeightsLayout::kCustomGroups;
+    if (is_dot_preferred_) {
+      desc.group_sizes = {{Axis::kInputChannels, 4},
+                          {Axis::kOutputChannels, 4}};
+    } else {
+      desc.group_sizes = {{Axis::kOutputChannels, 4},
+                          {Axis::kInputChannels, 4}};
+    }
+    desc.group_sizes.push_back({Axis::kWidth, 0});
+    desc.group_sizes.push_back({Axis::kHeight, 0});
+    desc.group_sizes.push_back({Axis::kInputChannels, 0});
+    desc.group_sizes.push_back({Axis::kOutputChannels, 0});
     desc.spatial_remap = GetSpatialWeightsRemap();
     return desc;
   }
@@ -69,7 +80,7 @@ class ConvolutionTransposed3x3Thin : public GPUOperation {
       const ConvolutionTransposedAttributes& attr);
 
   void UploadWeights(const GpuInfo& gpu_info,
-                     const Tensor<OHWI, DataType::FLOAT32>& weights);
+                     const Tensor<OHWI, DataType::kFloat32>& weights);
 
   std::vector<int> GetSpatialWeightsRemap() const;
 
@@ -79,7 +90,7 @@ class ConvolutionTransposed3x3Thin : public GPUOperation {
                                                 int src_depth, int dst_depth,
                                                 bool has_bias);
 
-  WeightsLayout weights_layout_;
+  bool is_dot_preferred_ = false;
   DataType weights_data_type_;
 };
 

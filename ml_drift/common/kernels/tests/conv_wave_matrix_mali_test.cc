@@ -50,7 +50,7 @@ TEST_P(BaseTest, ConvWaveMatrixMaliInt8BigTest) {
   if (!SupportsConvWaveMatrixMaliInt8(exec_env->GetGpuInfo(), src_shape)) {
     GTEST_SKIP() << "ConvWaveMatrixMaliInt8 not supported on this device.";
   }
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::INT32)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kInt32)) {
     GTEST_SKIP() << "Unsupported storage: " << ToString(GetParam());
   }
   ABSL_ASSERT_OK(ConvWaveMatrixMaliInt8BigTest(*exec_env, GetParam(), src_shape));
@@ -61,7 +61,7 @@ TEST_P(BaseTest, ConvWaveMatrixMaliInt8ExternalWeightsBigTest) {
   if (!SupportsConvWaveMatrixMaliInt8(exec_env->GetGpuInfo(), src_shape)) {
     GTEST_SKIP() << "ConvWaveMatrixMaliInt8 not supported on this device.";
   }
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::INT32)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kInt32)) {
     GTEST_SKIP() << "Unsupported storage: " << ToString(GetParam());
   }
   ABSL_ASSERT_OK(ConvWaveMatrixMaliInt8ExternalWeightsBigTest(*exec_env, GetParam(),
@@ -93,7 +93,7 @@ TEST_P(SrcQuantizationTest, ConvWaveMatrixMaliInt8WithSrcQuantizationBig) {
     GTEST_SKIP() << "ConvWaveMatrixMaliInt8 not supported on this device.";
   }
   const auto& [float_type, int_storage, float_storage] = GetParam();
-  if (!exec_env->IsStorageSupported(int_storage, DataType::INT32)) {
+  if (!exec_env->IsStorageSupported(int_storage, DataType::kInt32)) {
     GTEST_SKIP() << "Unsupported int storage: " << ToString(int_storage);
   }
   if (!exec_env->IsStorageSupported(float_storage, float_type)) {
@@ -110,7 +110,7 @@ TEST_P(SrcQuantizationTest,
     GTEST_SKIP() << "ConvWaveMatrixMaliInt8 not supported on this device.";
   }
   const auto& [float_type, int_storage, float_storage] = GetParam();
-  if (!exec_env->IsStorageSupported(int_storage, DataType::INT32)) {
+  if (!exec_env->IsStorageSupported(int_storage, DataType::kInt32)) {
     GTEST_SKIP() << "Unsupported int storage: " << ToString(int_storage);
   }
   if (!exec_env->IsStorageSupported(float_storage, float_type)) {
@@ -122,7 +122,7 @@ TEST_P(SrcQuantizationTest,
 
 INSTANTIATE_TEST_SUITE_P(
     ConvWaveMatrixMaliSrcQuantizationTestSuite, SrcQuantizationTest,
-    Combine(ValuesIn({DataType::FLOAT16, DataType::FLOAT32}),
+    Combine(ValuesIn({DataType::kFloat16, DataType::kFloat32}),
             ValuesIn(GetTensorStoragesTypesWithoutSingleTexture2D()),
             ValuesIn(GetTensorStoragesTypesWithoutSingleTexture2D())),
     [](const TestParamInfo<SrcQuantizationTest::ParamType>& info) {

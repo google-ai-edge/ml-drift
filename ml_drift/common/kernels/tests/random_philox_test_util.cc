@@ -37,9 +37,9 @@ using ::testing::Pointwise;
 absl::Status RandomNormalPhiloxTest(TestExecutionEnvironment& env,
                                     DataType data_type,
                                     TensorStorageType storage) {
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-2f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-2f;
   OperationDef op_def;
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateRandomNormalPhilox(env.GetGpuInfo(), op_def);
   ABSL_RETURN_IF_ERROR(operation.args_.SetInt("seed", 1));

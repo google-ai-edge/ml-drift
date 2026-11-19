@@ -15,7 +15,9 @@
 #include "ml_drift/cl/util.h"
 
 #include <cstddef>
+#include <cstring>
 #include <string>
+#include <vector>
 
 #include "absl/debugging/leak_check.h"
 #include "absl/status/status.h"
@@ -23,7 +25,10 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/ascii.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
 #include "ml_drift/cl/opencl_wrapper.h"
+#include "ml_drift/cl/qcom_wrapper.h"
+#include "ml_drift/cl/util_types.h"
 #include "ml_drift/common/gpu_info.h"
 #include <CL/cl.h>
 #include <CL/cl_ext.h>
@@ -32,6 +37,64 @@
 
 namespace ml_drift {
 namespace cl {
+namespace {
+
+cl_context_properties PerformanceToContextPropertyQcom(PerformanceHint hint) {
+  switch (hint) {
+    default:
+    case PerformanceHint::kHigh:
+      return CL_PERF_HINT_HIGH_QCOM;
+    case PerformanceHint::kNormal:
+      return CL_PERF_HINT_NORMAL_QCOM;
+    case PerformanceHint::kLow:
+      return CL_PERF_HINT_LOW_QCOM;
+  }
+}
+
+cl_context_properties PriorityToContextPropertyQcom(PriorityHint hint) {
+  switch (hint) {
+    case PriorityHint::kHigh:
+      return CL_PRIORITY_HINT_HIGH_QCOM;
+    default:
+    case PriorityHint::kNormal:
+      return CL_PRIORITY_HINT_NORMAL_QCOM;
+    case PriorityHint::kLow:
+      return CL_PRIORITY_HINT_LOW_QCOM;
+  }
+}
+
+cl_context_properties PriorityToContextPropertyKhr(PriorityHint hint) {
+  switch (hint) {
+    case PriorityHint::kHigh:
+      return CL_QUEUE_PRIORITY_HIGH_KHR;
+    default:
+    case PriorityHint::kNormal:
+      return CL_QUEUE_PRIORITY_MED_KHR;
+    case PriorityHint::kLow:
+      return CL_QUEUE_PRIORITY_LOW_KHR;
+  }
+}
+
+bool AdrenoSupportsWaveMemory(const GpuInfo& gpu_info) {
+  if (!gpu_info.IsAdreno() || gpu_info.opencl_info.IsCLVK()) return false;
+  const auto& adreno_info = gpu_info.adreno_info;
+  const auto& cl_compiler_version = adreno_info.cl_compiler_version;
+  const bool compiler_bugs_in_a630 =
+      adreno_info.adreno_gpu == AdrenoGpu::kAdreno630 &&
+      cl_compiler_version.major <= 30;
+  if ((adreno_info.IsAdreno6xx() && !compiler_bugs_in_a630) ||
+      adreno_info.IsAdreno7xx() || adreno_info.IsAdreno8xx()) {
+    // only since compiler version 37.x supported
+    // __attribute__((qcom_max_concurrent_subgroups(...)))
+    // that is required for ucl_wave_memory
+    // Also compiler version 37.x supported on Adreno 6xx, first devices
+    // that supports ucl_wave_memory.
+    return cl_compiler_version.major >= 37;
+  }
+  return false;
+}
+
+}  // namespace
 
 std::string CLErrorCodeToString(cl_int error_code) {
   switch (error_code) {
@@ -172,6 +235,22 @@ std::string CLErrorCodeToString(cl_int error_code) {
   }
 }
 
+bool IsOpenCLResourceExhausted(cl_int error_code) {
+  return error_code == CL_MEM_OBJECT_ALLOCATION_FAILURE ||
+         error_code == CL_OUT_OF_RESOURCES ||
+         error_code == CL_OUT_OF_HOST_MEMORY ||
+         error_code == CL_INVALID_BUFFER_SIZE ||
+         error_code == CL_INVALID_IMAGE_SIZE;
+}
+
+absl::Status OpenCLAllocationError(cl_int error_code,
+                                   absl::string_view message) {
+  if (IsOpenCLResourceExhausted(error_code)) {
+    return absl::ResourceExhaustedError(message);
+  }
+  return absl::UnknownError(message);
+}
+
 int ChannelTypeToSizeInBytes(cl_channel_type type) {
   switch (type) {
     case CL_FLOAT:
@@ -193,15 +272,15 @@ absl::Status CreateCLBuffer(cl_context context, size_t size_in_bytes,
   }
   cl_int error_code;
   {
-    // TODO: b/279347631 - Remove after Nvidia driver is fixed.
+    // TODO: Remove after Nvidia driver is fixed.
     absl::LeakCheckDisabler disabler;
     *result = clCreateBuffer(context, flags, size_in_bytes, data, &error_code);
   }
   if (!*result) {
-    return absl::UnknownError(
-        absl::StrCat("Failed to allocate ", size_in_bytes,
-                     " bytes of device memory (clCreateBuffer): ",
-                     CLErrorCodeToString(error_code)));
+    return OpenCLAllocationError(
+        error_code, absl::StrCat("Failed to allocate ", size_in_bytes,
+                                 " bytes of device memory (clCreateBuffer): ",
+                                 CLErrorCodeToString(error_code)));
   }
   return absl::OkStatus();
 }
@@ -223,14 +302,15 @@ absl::StatusOr<cl_mem> CreateCLSubBuffer(cl_context context, cl_mem parent,
   }
   cl_mem result;
   {
-    // TODO: b/279347631 - Remove after Nvidia driver is fixed.
+    // TODO: Remove after Nvidia driver is fixed.
     absl::LeakCheckDisabler disabler;
     result = clCreateSubBuffer(parent, flags, CL_BUFFER_CREATE_TYPE_REGION,
                                &region, &error_code);
   }
 
   if (!result) {
-    return absl::UnknownError(
+    return OpenCLAllocationError(
+        error_code,
         absl::StrCat("Failed to allocate device memory (clCreateSubBuffer): ",
                      CLErrorCodeToString(error_code)));
   }
@@ -264,7 +344,8 @@ absl::Status CreateRGBAImage2D(cl_context context, int width, int height,
   *result =
       CreateImage2DLegacy(context, flags, &format, &desc, data, &error_code);
   if (error_code != CL_SUCCESS) {
-    return absl::UnknownError(
+    return OpenCLAllocationError(
+        error_code,
         absl::StrCat("Failed to create 2D texture (clCreateImage): ",
                      CLErrorCodeToString(error_code)));
   }
@@ -285,6 +366,105 @@ absl::StatusOr<cl_mem_flags> GetCLMemObjectFlags(cl_mem memobj) {
   return flags;
 }
 
+absl::Status CreateQcomConvolutionFilter(cl_context context, int kernel_x,
+                                         int kernel_y, cl_mem* filter,
+                                         const void* data) {
+  cl_image_format format;
+  format.image_channel_order = CL_R;
+  format.image_channel_data_type = CL_HALF_FLOAT;
+
+  cl_weight_image_desc_qcom desc;
+  memset(&desc, 0x0, sizeof(cl_weight_image_desc_qcom));
+
+  desc.image_desc.image_type = CL_MEM_OBJECT_WEIGHT_IMAGE_QCOM;
+  desc.image_desc.image_width = kernel_x;
+  desc.image_desc.image_height = kernel_y;
+  desc.image_desc.image_array_size = 1;
+  desc.image_desc.image_row_pitch = 0;
+  desc.image_desc.image_slice_pitch = 0;
+
+  desc.weight_desc.center_coord_x = kernel_x / 2;
+  desc.weight_desc.center_coord_y = kernel_y / 2;
+  desc.weight_desc.flags = 0;  // 2D Convolution Filter
+
+  cl_mem_flags flags = CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR;
+
+  cl_int error_code;
+  *filter = clCreateImage(context, flags, &format,
+                          reinterpret_cast<cl_image_desc*>(&desc),
+                          const_cast<void*>(data), &error_code);
+
+  if (error_code != CL_SUCCESS) {
+    return absl::UnknownError(absl::StrCat(
+        "Failed to create special Qcom filter image(clCreateImage) - ",
+        error_code));
+  }
+
+  return absl::OkStatus();
+}
+
+std::vector<std::string> GetUnsupportedExtensions() { return {}; }
+
+std::vector<std::string> GetPrivateExtensions(const GpuInfo& gpu_info) {
+  std::vector<std::string> extensions;
+  if (gpu_info.IsAdreno()) {
+    if (AdrenoSupportsWaveMemory(gpu_info)) {
+      extensions.push_back("ucl_wave_memory");
+    }
+  }
+  if (gpu_info.IsIntel()) {
+    // On intel we have GPR File that any register can be accessed from any
+    // thread. So usual 'private' registers can be used as wave memory.
+    if (gpu_info.opencl_info.IsCLVK()) {
+      // for CLVK it will work because of specific driver
+      extensions.push_back("ucl_wave_memory");
+    } else {
+      const bool supports_subgroups =
+          (gpu_info.SupportsExtension("cl_khr_subgroups") ||
+           gpu_info.SupportsExtension("cl_intel_subgroups"));
+      if (supports_subgroups &&
+          gpu_info.SupportsExtension("cl_intel_required_subgroup_size")) {
+        extensions.push_back("ucl_wave_memory");
+      }
+    }
+  }
+  if (gpu_info.IsPowerVR()) {
+    if (gpu_info.powervr_info.gpu_version >= PowerVRGpu::kCXT &&
+        gpu_info.SupportsExtension("cl_khr_subgroups")) {
+      extensions.push_back("ucl_wave_memory");
+    }
+  }
+  return extensions;
+}
+
+void AppendContextHints(const GpuInfo& gpu_info,
+                        PerformanceHint performance_hint,
+                        PriorityHint priority_hint,
+                        std::vector<cl_context_properties>* props) {
+  if (gpu_info.SupportsExtension("cl_qcom_perf_hint")) {
+    props->push_back(CL_CONTEXT_PERF_HINT_QCOM);
+    props->push_back(PerformanceToContextPropertyQcom(performance_hint));
+  }
+  if (gpu_info.SupportsExtension("cl_qcom_priority_hint")) {
+    props->push_back(CL_CONTEXT_PRIORITY_HINT_QCOM);
+    props->push_back(PriorityToContextPropertyQcom(priority_hint));
+  }
+}
+
+void AppendCommandQueueHints(const GpuInfo& gpu_info,
+                             PriorityHint priority_hint,
+                             std::vector<cl_queue_properties>* props) {
+  if (gpu_info.IsPowerVR()) {
+    // if cl_khr_priority_hints used, inference can stuck at least on some
+    // powervr
+    return;
+  }
+  if (gpu_info.SupportsExtension("cl_khr_priority_hints")) {
+    props->push_back(CL_QUEUE_PRIORITY_KHR);
+    props->push_back(PriorityToContextPropertyKhr(priority_hint));
+  }
+}
+
 AdrenoInfo::OpenClCompilerVersion GetQualcommOpenClCompilerVersion(
     const std::string& cl_driver_version) {
   AdrenoInfo::OpenClCompilerVersion result;
@@ -292,10 +472,14 @@ AdrenoInfo::OpenClCompilerVersion GetQualcommOpenClCompilerVersion(
   result.minor = 0;
   result.patch = 0;
   // Searching this part: "Compiler E031.**.**.**" where * is digit
-  const std::string start = "Compiler E031.";
+  std::string start = "Compiler E031.";
   size_t position = cl_driver_version.find(start);
   if (position == std::string::npos) {
-    return result;
+    start = "Compiler E17.";  // Adreno 850 uses this format
+    position = cl_driver_version.find(start);
+    if (position == std::string::npos) {
+      return result;
+    }
   }
   const size_t main_part_length = 8;  // main part is **.**.**
   if (position + start.length() + main_part_length >

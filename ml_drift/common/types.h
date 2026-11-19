@@ -31,6 +31,8 @@
 namespace ml_drift {
 
 constexpr float kMaxHalf = 65504.0f;
+// Smallest positive normal half-precision value (2^-14).
+constexpr float kMinNormalHalf = 0.00006103515625f;
 
 #ifdef HAS_NATIVE_FP16
 #ifdef __clang__
@@ -68,7 +70,7 @@ struct alignas(sizeof(T)) Vec4 {
 
   Vec4(const Vec4& f) : x(f.x), y(f.y), z(f.z), w(f.w) {}
 
-  // TODO: who/impjdi - explicit.
+  // TODO: explicit.
   template <typename S>
   Vec4(const Vec4<S>& f) : x(f.x), y(f.y), z(f.z), w(f.w) {}
 
@@ -114,7 +116,7 @@ struct alignas(sizeof(T)) Vec3 {
 
   Vec3(const Vec3& f) : x(f.x), y(f.y), z(f.z) {}
 
-  // TODO: who/impjdi - explicit.
+  // TODO: explicit.
   template <typename S>
   Vec3(const Vec3<S>& f) : x(f.x), y(f.y), z(f.z) {}
 
@@ -157,7 +159,7 @@ struct alignas(sizeof(T)) Vec2 {
 
   Vec2(const Vec2& f) : x(f.x), y(f.y) {}
 
-  // TODO: who/impjdi - explicit.
+  // TODO: explicit.
   template <typename S>
   Vec2(const Vec2<S>& f) : x(f.x), y(f.y) {}
 

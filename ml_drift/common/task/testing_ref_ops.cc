@@ -144,7 +144,7 @@ void PaddingReference(const PadAttributes& attr, const TensorFloat32& src,
         for (int z = 0; z < dst->shape.c; ++z) {
           int src_z = z - attr.prepended.c;
           float value;
-          if (attr.type == PaddingContentType::ZEROS) {
+          if (attr.type == PaddingContentType::kZeros) {
             value = 0.0f;
             if (src_x >= 0 && src_x < src.shape.w && src_y >= 0 &&
                 src_y < src.shape.h && src_z >= 0 && src_z < src.shape.c &&
@@ -153,7 +153,7 @@ void PaddingReference(const PadAttributes& attr, const TensorFloat32& src,
                   src.shape.LinearIndex({src_b, src_y, src_x, src_z});
               value = src.data[src_index];
             }
-          } else if (attr.type == PaddingContentType::REFLECT) {
+          } else if (attr.type == PaddingContentType::kReflect) {
             src_x = PaddingReflect(src_x, src.shape.w);
             src_y = PaddingReflect(src_y, src.shape.h);
             src_z = PaddingReflect(src_z, src.shape.c);
@@ -184,7 +184,7 @@ void PaddingReference(const Pad3DAttributes& attr, const Tensor5DFloat32& src,
           for (int c = 0; c < dst->shape.c; ++c) {
             int src_c = c - attr.prepended.c;
             float value;
-            if (attr.type == PaddingContentType::ZEROS) {
+            if (attr.type == PaddingContentType::kZeros) {
               value = 0.0f;
               if (src_x >= 0 && src_x < src.shape.w && src_y >= 0 &&
                   src_y < src.shape.h && src_z >= 0 && src_z < src.shape.d &&
@@ -194,7 +194,7 @@ void PaddingReference(const Pad3DAttributes& attr, const Tensor5DFloat32& src,
                     src.shape.LinearIndex({src_b, src_y, src_x, src_z, src_c});
                 value = src.data[src_index];
               }
-            } else if (attr.type == PaddingContentType::REFLECT) {
+            } else if (attr.type == PaddingContentType::kReflect) {
               src_x = PaddingReflect(src_x, src.shape.w);
               src_y = PaddingReflect(src_y, src.shape.h);
               src_z = PaddingReflect(src_z, src.shape.d);
@@ -231,29 +231,40 @@ Tensor5DFloat32 PaddingReference(const Pad3DAttributes& attr,
 }
 
 TensorFloat32 BatchedMatMulReference(const TensorFloat32& left,
-                                     const TensorFloat32& right) {
-  return BatchedMatMulReference(left, right, TestingRuntimeChannels());
+                                     const TensorFloat32& right,
+                                     const BatchedMatMulAttributes& attr) {
+  return BatchedMatMulReference(left, right, TestingRuntimeChannels(), attr);
 }
 
 TensorFloat32 BatchedMatMulReference(
     const TensorFloat32& left, const TensorFloat32& right,
-    const TestingRuntimeChannels& runtime_channels) {
-  TensorFloat32 output = MakeZeroTensor(
-      BHWC(left.shape.b, left.shape.h, left.shape.w, right.shape.c));
+    const TestingRuntimeChannels& runtime_channels,
+    const BatchedMatMulAttributes& attr) {
+  const int dst_h = std::max(left.shape.h, right.shape.h);
+  const int dst_w = attr.transpose_left ? left.shape.c : left.shape.w;
+  const int dst_c = attr.transpose_right ? right.shape.w : right.shape.c;
+  const int src_channels = attr.transpose_left ? left.shape.w : left.shape.c;
+  TensorFloat32 output = MakeZeroTensor(BHWC(1, dst_h, dst_w, dst_c));
   const int src_end_ch = runtime_channels.src_end_ch.has_value()
                              ? *runtime_channels.src_end_ch
-                             : left.shape.c;
+                             : src_channels;
   const int dst_end_ch = runtime_channels.dst_end_ch.has_value()
                              ? *runtime_channels.dst_end_ch
                              : output.shape.c;
   for (int b = 0; b < output.shape.h; ++b) {
+    const int right_b = b % right.shape.h;
     for (int dst_x = 0; dst_x < output.shape.w; ++dst_x) {
       for (int dst_ch = 0; dst_ch < dst_end_ch; dst_ch++) {
         float sum = 0.0f;
         for (int src_ch = 0; src_ch < src_end_ch; src_ch++) {
-          const int left_index = left.shape.LinearIndex({0, b, dst_x, src_ch});
+          const int left_index =
+              attr.transpose_left
+                  ? left.shape.LinearIndex({0, b, src_ch, dst_x})
+                  : left.shape.LinearIndex({0, b, dst_x, src_ch});
           const int right_index =
-              right.shape.LinearIndex({0, b, src_ch, dst_ch});
+              attr.transpose_right
+                  ? right.shape.LinearIndex({0, right_b, dst_ch, src_ch})
+                  : right.shape.LinearIndex({0, right_b, src_ch, dst_ch});
           sum += left.data[left_index] * right.data[right_index];
         }
         const int dst_index = output.shape.LinearIndex({0, b, dst_x, dst_ch});
@@ -457,16 +468,16 @@ TensorFloat32 ConcatReference(const ConcatAttributes& attr,
   ABSL_QCHECK_OK(CalculateOutputShape(shapes, attr, &output_shape));
   TensorFloat32 output = MakeZeroTensor(output_shape);
   switch (attr.axis) {
-    case Axis::CHANNELS:
+    case Axis::kChannels:
       ConcatZReference(inputs, &output);
       break;
-    case Axis::WIDTH:
+    case Axis::kWidth:
       ConcatWidthReference(inputs, &output);
       break;
-    case Axis::HEIGHT:
+    case Axis::kHeight:
       ConcatHeightReference(inputs, &output);
       break;
-    case Axis::BATCH:
+    case Axis::kBatch:
       ConcatBatchReference(inputs, &output);
       break;
     default:
@@ -486,19 +497,19 @@ Tensor5DFloat32 ConcatReference(const ConcatAttributes& attr,
   ABSL_QCHECK_OK(CalculateOutputShape(shapes, attr, &output_shape));
   Tensor5DFloat32 output = MakeZeroTensor(output_shape);
   switch (attr.axis) {
-    case Axis::CHANNELS:
+    case Axis::kChannels:
       ConcatZReference(inputs, &output);
       break;
-    case Axis::WIDTH:
+    case Axis::kWidth:
       ConcatWidthReference(inputs, &output);
       break;
-    case Axis::HEIGHT:
+    case Axis::kHeight:
       ConcatHeightReference(inputs, &output);
       break;
-    case Axis::DEPTH:
+    case Axis::kDepth:
       ConcatDepthReference(inputs, &output);
       break;
-    case Axis::BATCH:
+    case Axis::kBatch:
       ConcatBatchReference(inputs, &output);
       break;
     default:
@@ -950,9 +961,10 @@ Tensor5DFloat32 DepthWiseConvolutionReference(
 void FullyConnectedReference(const FullyConnectedAttributes& attr,
                              const TensorFloat32& src, TensorFloat32* dst,
                              const TestingRuntimeChannels& runtime_channels) {
-  const int src_end_ch = runtime_channels.src_end_ch.has_value()
-                       ? *runtime_channels.src_end_ch
-                       : attr.weights.shape.i;
+  const int src_end_ch =
+      runtime_channels.src_end_ch.has_value()
+          ? std::min(*runtime_channels.src_end_ch, attr.weights.shape.i)
+          : attr.weights.shape.i;
   const int dst_end_ch = runtime_channels.dst_end_ch.has_value()
                        ? *runtime_channels.dst_end_ch
                        : attr.weights.shape.o;
@@ -990,19 +1002,20 @@ TensorFloat32 FullyConnectedReference(
 }
 
 TensorFloat32 FullyConnectedRefDifferentWeightsForHeight(
-    Tensor<OHWI, DataType::FLOAT32> weights, const TensorFloat32& src) {
+    Tensor<OHWI, DataType::kFloat32> weights, const TensorFloat32& src) {
   return FullyConnectedRefDifferentWeightsForHeight(
       weights, src, TestingRuntimeChannels());
 }
 
 TensorFloat32 FullyConnectedRefDifferentWeightsForHeight(
-    Tensor<OHWI, DataType::FLOAT32> weights, const TensorFloat32& src,
+    Tensor<OHWI, DataType::kFloat32> weights, const TensorFloat32& src,
     const TestingRuntimeChannels& runtime_channels) {
   BHWC dst_shape(src.shape.b, src.shape.h, src.shape.w, weights.shape.o);
   TensorFloat32 dst = MakeZeroTensor(dst_shape);
-  const int src_end_ch = runtime_channels.src_end_ch.has_value()
-                       ? *runtime_channels.src_end_ch
-                       : weights.shape.i;
+  const int src_end_ch =
+      runtime_channels.src_end_ch.has_value()
+          ? std::min(*runtime_channels.src_end_ch, weights.shape.i)
+          : weights.shape.i;
   const int dst_end_ch = runtime_channels.dst_end_ch.has_value()
                        ? *runtime_channels.dst_end_ch
                        : weights.shape.o;
@@ -1027,7 +1040,7 @@ TensorFloat32 FullyConnectedRefDifferentWeightsForHeight(
 }
 
 TensorFloat32 FullyConnectedWeightsBatchIdsReference(
-    Tensor<OHWI, DataType::FLOAT32> weights, const TensorFloat32& src,
+    Tensor<OHWI, DataType::kFloat32> weights, const TensorFloat32& src,
     const TensorInt32& ids) {
   BHWC dst_shape(src.shape.b, ids.shape.c, src.shape.w, weights.shape.o);
   TensorFloat32 dst = MakeZeroTensor(dst_shape);
@@ -1054,8 +1067,8 @@ TensorFloat32 FullyConnectedWeightsBatchIdsReference(
 }
 
 TensorInt32 FullyConnectedReference(
-    const ml_drift::Tensor<BHWC, DataType::INT8>& src_tensor_i8,
-    const ml_drift::Tensor<OHWI, DataType::INT8>& weights_i8) {
+    const ml_drift::Tensor<BHWC, DataType::kInt8>& src_tensor_i8,
+    const ml_drift::Tensor<OHWI, DataType::kInt8>& weights_i8) {
   TensorInt32 dst_ref_tensor;
   dst_ref_tensor.shape = src_tensor_i8.shape;
   dst_ref_tensor.shape.c = weights_i8.shape.o;
@@ -1085,8 +1098,8 @@ TensorInt32 FullyConnectedReference(
 }
 
 TensorInt32 FullyConnectedReference(
-    const ml_drift::Tensor<BHWC, DataType::UINT8>& src_tensor_ui8,
-    const ml_drift::Tensor<OHWI, DataType::INT8>& weights_i8,
+    const ml_drift::Tensor<BHWC, DataType::kUint8>& src_tensor_ui8,
+    const ml_drift::Tensor<OHWI, DataType::kInt8>& weights_i8,
     int src_sum_scale) {
   TensorInt32 dst_ref_tensor;
   dst_ref_tensor.shape = src_tensor_ui8.shape;
@@ -1528,34 +1541,36 @@ void ReduceReference(const std::set<Axis>& axis_to_reduce,
       for (int w = 0; w < dst->shape.w; ++w) {
         for (int c = 0; c < dst->shape.c; ++c) {
           double reduced = 0.0;
-          if (op_type == OperationType::REDUCE_PRODUCT) {
+          if (op_type == OperationType::kReduceProduct) {
             reduced = 1.0;
-          } else if (op_type == OperationType::REDUCE_MINIMUM) {
+          } else if (op_type == OperationType::kReduceMinimum) {
             reduced = DBL_MAX;
-          } else if (op_type == OperationType::REDUCE_MAXIMUM) {
+          } else if (op_type == OperationType::kReduceMaximum) {
             reduced = -DBL_MAX;
           }
-          int sb = axis_to_reduce.count(Axis::BATCH) ? 0 : b;
-          int sb_size = axis_to_reduce.count(Axis::BATCH) ? src.shape.b : b + 1;
+          int sb = axis_to_reduce.count(Axis::kBatch) ? 0 : b;
+          int sb_size =
+              axis_to_reduce.count(Axis::kBatch) ? src.shape.b : b + 1;
           int sh_size =
-              axis_to_reduce.count(Axis::HEIGHT) ? src.shape.h : h + 1;
-          int sw_size = axis_to_reduce.count(Axis::WIDTH) ? src.shape.w : w + 1;
+              axis_to_reduce.count(Axis::kHeight) ? src.shape.h : h + 1;
+          int sw_size =
+              axis_to_reduce.count(Axis::kWidth) ? src.shape.w : w + 1;
           int sc_size =
-              axis_to_reduce.count(Axis::CHANNELS) ? src.shape.c : c + 1;
+              axis_to_reduce.count(Axis::kChannels) ? src.shape.c : c + 1;
           for (; sb < sb_size; ++sb) {
-            int sh = axis_to_reduce.count(Axis::HEIGHT) ? 0 : h;
+            int sh = axis_to_reduce.count(Axis::kHeight) ? 0 : h;
             for (; sh < sh_size; ++sh) {
-              int sw = axis_to_reduce.count(Axis::WIDTH) ? 0 : w;
+              int sw = axis_to_reduce.count(Axis::kWidth) ? 0 : w;
               for (; sw < sw_size; ++sw) {
-                int sc = axis_to_reduce.count(Axis::CHANNELS) ? 0 : c;
+                int sc = axis_to_reduce.count(Axis::kChannels) ? 0 : c;
                 for (; sc < sc_size; ++sc) {
                   const int src_index = src.shape.LinearIndex({sb, sh, sw, sc});
                   double src_val = src.data[src_index];
-                  if (op_type == OperationType::REDUCE_PRODUCT) {
+                  if (op_type == OperationType::kReduceProduct) {
                     reduced *= src_val;
-                  } else if (op_type == OperationType::REDUCE_MINIMUM) {
+                  } else if (op_type == OperationType::kReduceMinimum) {
                     reduced = std::min(src_val, reduced);
-                  } else if (op_type == OperationType::REDUCE_MAXIMUM) {
+                  } else if (op_type == OperationType::kReduceMaximum) {
                     reduced = std::max(src_val, reduced);
                   } else {
                     reduced += src_val;
@@ -1564,18 +1579,18 @@ void ReduceReference(const std::set<Axis>& axis_to_reduce,
               }
             }
           }
-          if (op_type == OperationType::MEAN) {
+          if (op_type == OperationType::kMean) {
             double total_reduce = 1.0;
-            if (axis_to_reduce.count(Axis::BATCH)) {
+            if (axis_to_reduce.count(Axis::kBatch)) {
               total_reduce *= src.shape.b;
             }
-            if (axis_to_reduce.count(Axis::HEIGHT)) {
+            if (axis_to_reduce.count(Axis::kHeight)) {
               total_reduce *= src.shape.h;
             }
-            if (axis_to_reduce.count(Axis::WIDTH)) {
+            if (axis_to_reduce.count(Axis::kWidth)) {
               total_reduce *= src.shape.w;
             }
-            if (axis_to_reduce.count(Axis::CHANNELS)) {
+            if (axis_to_reduce.count(Axis::kChannels)) {
               total_reduce *= src.shape.c;
             }
             reduced /= total_reduce;
@@ -1592,10 +1607,10 @@ TensorFloat32 ReduceReference(const std::set<Axis>& axis_to_reduce,
                               OperationType op_type,
                               const TensorFloat32& input) {
   BHWC dst_shape;
-  dst_shape.b = axis_to_reduce.count(Axis::BATCH) ? 1 : input.shape.b;
-  dst_shape.h = axis_to_reduce.count(Axis::HEIGHT) ? 1 : input.shape.h;
-  dst_shape.w = axis_to_reduce.count(Axis::WIDTH) ? 1 : input.shape.w;
-  dst_shape.c = axis_to_reduce.count(Axis::CHANNELS) ? 1 : input.shape.c;
+  dst_shape.b = axis_to_reduce.count(Axis::kBatch) ? 1 : input.shape.b;
+  dst_shape.h = axis_to_reduce.count(Axis::kHeight) ? 1 : input.shape.h;
+  dst_shape.w = axis_to_reduce.count(Axis::kWidth) ? 1 : input.shape.w;
+  dst_shape.c = axis_to_reduce.count(Axis::kChannels) ? 1 : input.shape.c;
   TensorFloat32 output = MakeZeroTensor(dst_shape);
   ReduceReference(axis_to_reduce, op_type, input, &output);
   return output;
@@ -1610,41 +1625,41 @@ void ReduceReference(const std::set<Axis>& axis_to_reduce,
         for (int d = 0; d < dst->shape.d; ++d) {
           for (int c = 0; c < dst->shape.c; ++c) {
             double reduced = 0.0;
-            if (op_type == OperationType::REDUCE_PRODUCT) {
+            if (op_type == OperationType::kReduceProduct) {
               reduced = 1.0;
-            } else if (op_type == OperationType::REDUCE_MINIMUM) {
+            } else if (op_type == OperationType::kReduceMinimum) {
               reduced = DBL_MAX;
-            } else if (op_type == OperationType::REDUCE_MAXIMUM) {
+            } else if (op_type == OperationType::kReduceMaximum) {
               reduced = -DBL_MAX;
             }
-            int sb = axis_to_reduce.count(Axis::BATCH) ? 0 : b;
+            int sb = axis_to_reduce.count(Axis::kBatch) ? 0 : b;
             int sb_size =
-                axis_to_reduce.count(Axis::BATCH) ? src.shape.b : b + 1;
+                axis_to_reduce.count(Axis::kBatch) ? src.shape.b : b + 1;
             int sh_size =
-                axis_to_reduce.count(Axis::HEIGHT) ? src.shape.h : h + 1;
+                axis_to_reduce.count(Axis::kHeight) ? src.shape.h : h + 1;
             int sw_size =
-                axis_to_reduce.count(Axis::WIDTH) ? src.shape.w : w + 1;
+                axis_to_reduce.count(Axis::kWidth) ? src.shape.w : w + 1;
             int sd_size =
-                axis_to_reduce.count(Axis::DEPTH) ? src.shape.d : d + 1;
+                axis_to_reduce.count(Axis::kDepth) ? src.shape.d : d + 1;
             int sc_size =
-                axis_to_reduce.count(Axis::CHANNELS) ? src.shape.c : c + 1;
+                axis_to_reduce.count(Axis::kChannels) ? src.shape.c : c + 1;
             for (; sb < sb_size; ++sb) {
-              int sh = axis_to_reduce.count(Axis::HEIGHT) ? 0 : h;
+              int sh = axis_to_reduce.count(Axis::kHeight) ? 0 : h;
               for (; sh < sh_size; ++sh) {
-                int sw = axis_to_reduce.count(Axis::WIDTH) ? 0 : w;
+                int sw = axis_to_reduce.count(Axis::kWidth) ? 0 : w;
                 for (; sw < sw_size; ++sw) {
-                  int sd = axis_to_reduce.count(Axis::DEPTH) ? 0 : d;
+                  int sd = axis_to_reduce.count(Axis::kDepth) ? 0 : d;
                   for (; sd < sd_size; ++sd) {
-                    int sc = axis_to_reduce.count(Axis::CHANNELS) ? 0 : c;
+                    int sc = axis_to_reduce.count(Axis::kChannels) ? 0 : c;
                     for (; sc < sc_size; ++sc) {
                       const int src_index =
                           src.shape.LinearIndex({sb, sh, sw, sd, sc});
                       double src_val = src.data[src_index];
-                      if (op_type == OperationType::REDUCE_PRODUCT) {
+                      if (op_type == OperationType::kReduceProduct) {
                         reduced *= src_val;
-                      } else if (op_type == OperationType::REDUCE_MINIMUM) {
+                      } else if (op_type == OperationType::kReduceMinimum) {
                         reduced = std::min(src_val, reduced);
-                      } else if (op_type == OperationType::REDUCE_MAXIMUM) {
+                      } else if (op_type == OperationType::kReduceMaximum) {
                         reduced = std::max(src_val, reduced);
                       } else {
                         reduced += src_val;
@@ -1654,21 +1669,21 @@ void ReduceReference(const std::set<Axis>& axis_to_reduce,
                 }
               }
             }
-            if (op_type == OperationType::MEAN) {
+            if (op_type == OperationType::kMean) {
               double total_reduce = 1.0;
-              if (axis_to_reduce.count(Axis::BATCH)) {
+              if (axis_to_reduce.count(Axis::kBatch)) {
                 total_reduce *= src.shape.b;
               }
-              if (axis_to_reduce.count(Axis::HEIGHT)) {
+              if (axis_to_reduce.count(Axis::kHeight)) {
                 total_reduce *= src.shape.h;
               }
-              if (axis_to_reduce.count(Axis::WIDTH)) {
+              if (axis_to_reduce.count(Axis::kWidth)) {
                 total_reduce *= src.shape.w;
               }
-              if (axis_to_reduce.count(Axis::DEPTH)) {
+              if (axis_to_reduce.count(Axis::kDepth)) {
                 total_reduce *= src.shape.d;
               }
-              if (axis_to_reduce.count(Axis::CHANNELS)) {
+              if (axis_to_reduce.count(Axis::kChannels)) {
                 total_reduce *= src.shape.c;
               }
               reduced /= total_reduce;
@@ -1686,11 +1701,11 @@ Tensor5DFloat32 ReduceReference(const std::set<Axis>& axis_to_reduce,
                                 OperationType op_type,
                                 const Tensor5DFloat32& input) {
   BHWDC dst_shape;
-  dst_shape.b = axis_to_reduce.count(Axis::BATCH) ? 1 : input.shape.b;
-  dst_shape.h = axis_to_reduce.count(Axis::HEIGHT) ? 1 : input.shape.h;
-  dst_shape.w = axis_to_reduce.count(Axis::WIDTH) ? 1 : input.shape.w;
-  dst_shape.d = axis_to_reduce.count(Axis::DEPTH) ? 1 : input.shape.d;
-  dst_shape.c = axis_to_reduce.count(Axis::CHANNELS) ? 1 : input.shape.c;
+  dst_shape.b = axis_to_reduce.count(Axis::kBatch) ? 1 : input.shape.b;
+  dst_shape.h = axis_to_reduce.count(Axis::kHeight) ? 1 : input.shape.h;
+  dst_shape.w = axis_to_reduce.count(Axis::kWidth) ? 1 : input.shape.w;
+  dst_shape.d = axis_to_reduce.count(Axis::kDepth) ? 1 : input.shape.d;
+  dst_shape.c = axis_to_reduce.count(Axis::kChannels) ? 1 : input.shape.c;
   Tensor5DFloat32 output = MakeZeroTensor(dst_shape);
   ReduceReference(axis_to_reduce, op_type, input, &output);
   return output;
@@ -1855,7 +1870,7 @@ TensorFloat32 ResizeReference(const Resize2DAttributes& attr,
       for (int w = 0; w < output.shape.w; ++w) {
         for (int c = 0; c < output.shape.c; ++c) {
           const int index = output.shape.LinearIndex({b, h, w, c});
-          if (attr.type == SamplingType::BILINEAR) {
+          if (attr.type == SamplingType::kBilinear) {
             const float src_h = attr.half_pixel_centers
                                     ? (scale_h * (h + 0.5) - 0.5)
                                     : scale_h * h;
@@ -1911,7 +1926,7 @@ Tensor5DFloat32 ResizeReference(const Resize3DAttributes& attr,
         for (int d = 0; d < output.shape.d; ++d) {
           for (int c = 0; c < output.shape.c; ++c) {
             const int index = output.shape.LinearIndex({b, h, w, d, c});
-            if (attr.type == SamplingType::BILINEAR) {
+            if (attr.type == SamplingType::kBilinear) {
               const float src_h = attr.half_pixel_centers
                                       ? (scale_h * (h + 0.5) - 0.5)
                                       : scale_h * h;
@@ -2013,7 +2028,7 @@ void SoftmaxReference(const SoftmaxAttributes& attr,
   std::vector<ml_drift::BHWC> points;
   for (int b = 0; b < dst->shape.b; ++b) {
     switch (attr.axis) {
-      case ml_drift::Axis::CHANNELS:
+      case ml_drift::Axis::kChannels:
         for (int h = 0; h < dst->shape.h; ++h) {
           for (int w = 0; w < dst->shape.w; ++w) {
             points.clear();
@@ -2024,7 +2039,7 @@ void SoftmaxReference(const SoftmaxAttributes& attr,
           }
         }
         break;
-      case ml_drift::Axis::HEIGHT:
+      case ml_drift::Axis::kHeight:
         for (int c = 0; c < dst->shape.c; c++) {
           for (int w = 0; w < dst->shape.w; ++w) {
             points.clear();
@@ -2035,7 +2050,7 @@ void SoftmaxReference(const SoftmaxAttributes& attr,
           }
         }
         break;
-      case ml_drift::Axis::WIDTH:
+      case ml_drift::Axis::kWidth:
         for (int h = 0; h < dst->shape.h; ++h) {
           for (int c = 0; c < dst->shape.c; c++) {
             points.clear();
@@ -2059,7 +2074,7 @@ void SoftmaxReference(const ml_drift::SoftmaxAttributes& attr,
   std::vector<ml_drift::BHWDC> points;
   for (int b = 0; b < dst->shape.b; ++b) {
     switch (attr.axis) {
-      case ml_drift::Axis::CHANNELS:
+      case ml_drift::Axis::kChannels:
         for (int h = 0; h < dst->shape.h; ++h) {
           for (int w = 0; w < dst->shape.w; ++w) {
             for (int d = 0; d < dst->shape.d; ++d) {
@@ -2072,7 +2087,7 @@ void SoftmaxReference(const ml_drift::SoftmaxAttributes& attr,
           }
         }
         break;
-      case ml_drift::Axis::HEIGHT:
+      case ml_drift::Axis::kHeight:
         for (int c = 0; c < dst->shape.c; c++) {
           for (int w = 0; w < dst->shape.w; ++w) {
             for (int d = 0; d < dst->shape.d; ++d) {
@@ -2085,7 +2100,7 @@ void SoftmaxReference(const ml_drift::SoftmaxAttributes& attr,
           }
         }
         break;
-      case ml_drift::Axis::WIDTH:
+      case ml_drift::Axis::kWidth:
         for (int h = 0; h < dst->shape.h; ++h) {
           for (int c = 0; c < dst->shape.c; c++) {
             for (int d = 0; d < dst->shape.d; ++d) {
@@ -2098,7 +2113,7 @@ void SoftmaxReference(const ml_drift::SoftmaxAttributes& attr,
           }
         }
         break;
-      case ml_drift::Axis::DEPTH:
+      case ml_drift::Axis::kDepth:
         for (int w = 0; w < dst->shape.w; ++w) {
           for (int h = 0; h < dst->shape.h; ++h) {
             for (int c = 0; c < dst->shape.c; c++) {
@@ -2369,11 +2384,11 @@ void PReLUReference(const ml_drift::PReLUAttributes& attr,
                     const ml_drift::TensorFloat32& src,
                     ml_drift::TensorFloat32* dst) {
   auto linear_alpha = std::get_if<
-      ml_drift::Tensor<ml_drift::Linear, ml_drift::DataType::FLOAT32>>(
+      ml_drift::Tensor<ml_drift::Linear, ml_drift::DataType::kFloat32>>(
       &attr.alpha);
-  auto full_alpha =
-      std::get_if<ml_drift::Tensor<ml_drift::HWC, ml_drift::DataType::FLOAT32>>(
-          &attr.alpha);
+  auto full_alpha = std::get_if<
+      ml_drift::Tensor<ml_drift::HWC, ml_drift::DataType::kFloat32>>(
+      &attr.alpha);
   if (linear_alpha) {
     ABSL_QCHECK_EQ(linear_alpha->shape.v, dst->shape.c);
   } else {
@@ -2414,7 +2429,7 @@ void PReLUReference(const ::ml_drift::PReLUAttributes& attr,
                     const ::ml_drift::Tensor5DFloat32& src,
                     ::ml_drift::Tensor5DFloat32* dst) {
   auto linear_alpha = std::get_if<
-      ml_drift::Tensor<ml_drift::Linear, ml_drift::DataType::FLOAT32>>(
+      ml_drift::Tensor<ml_drift::Linear, ml_drift::DataType::kFloat32>>(
       &attr.alpha);
   if (linear_alpha) {
     ABSL_QCHECK_EQ(linear_alpha->shape.v, dst->shape.c);
@@ -2455,11 +2470,11 @@ TensorFloat32 ElementwiseReference(const TensorFloat32& src,
   result.shape = src.shape;
   result.data.resize(result.shape.DimensionsProduct(), 0.0f);
   for (size_t i = 0; i < result.data.size(); ++i) {
-    if (op_type == OperationType::SQUARE) {
+    if (op_type == OperationType::kSquare) {
       result.data[i] = src.data[i] * src.data[i];
-    } else if (op_type == OperationType::SQRT) {
+    } else if (op_type == OperationType::kSqrt) {
       result.data[i] = sqrt(src.data[i]);
-    } else if (op_type == OperationType::RSQRT) {
+    } else if (op_type == OperationType::kRsqrt) {
       result.data[i] = 1.0f / sqrt(src.data[i]);
     }
   }
@@ -2472,11 +2487,11 @@ TensorFloat32 ElementwiseReference(const TensorFloat32& src,
   result.shape = src.shape;
   result.data.resize(result.shape.DimensionsProduct(), 0.0f);
   for (size_t i = 0; i < result.data.size(); ++i) {
-    if (op_type == OperationType::ADD) {
+    if (op_type == OperationType::kAdd) {
       result.data[i] = src.data[i] + value;
-    } else if (op_type == OperationType::DIV) {
+    } else if (op_type == OperationType::kDiv) {
       result.data[i] = src.data[i] / value;
-    } else if (op_type == OperationType::MUL) {
+    } else if (op_type == OperationType::kMul) {
       result.data[i] = src.data[i] * value;
     }
   }
@@ -2503,13 +2518,13 @@ TensorFloat32 ElementwiseReference(const TensorFloat32& src0,
               src1.shape.LinearIndex({src1_b, src1_h, src1_w, src1_c});
           const float src0_value = src0.data[src0_index];
           const float src1_value = src1.data[src1_index];
-          if (op_type == OperationType::ADD) {
+          if (op_type == OperationType::kAdd) {
             result.data[src0_index] = src0_value + src1_value;
-          } else if (op_type == OperationType::SUB) {
+          } else if (op_type == OperationType::kSub) {
             result.data[src0_index] = src0_value - src1_value;
-          } else if (op_type == OperationType::MUL) {
+          } else if (op_type == OperationType::kMul) {
             result.data[src0_index] = src0_value * src1_value;
-          } else if (op_type == OperationType::DIV) {
+          } else if (op_type == OperationType::kDiv) {
             result.data[src0_index] = src0_value / src1_value;
           }
         }
@@ -2520,31 +2535,31 @@ TensorFloat32 ElementwiseReference(const TensorFloat32& src0,
 }
 
 TensorFloat32 RMSNormalizationReference(const TensorFloat32& src, float eps) {
-  TensorFloat32 squares = ElementwiseReference(src, OperationType::SQUARE);
+  TensorFloat32 squares = ElementwiseReference(src, OperationType::kSquare);
   TensorFloat32 means =
-      ReduceReference({Axis::CHANNELS}, OperationType::MEAN, squares);
-  TensorFloat32 var = ElementwiseReference(means, OperationType::ADD, eps);
-  var = ElementwiseReference(var, OperationType::RSQRT);
-  return ElementwiseReference(src, var, OperationType::MUL);
+      ReduceReference({Axis::kChannels}, OperationType::kMean, squares);
+  TensorFloat32 var = ElementwiseReference(means, OperationType::kAdd, eps);
+  var = ElementwiseReference(var, OperationType::kRsqrt);
+  return ElementwiseReference(src, var, OperationType::kMul);
 }
 
 TensorFloat32 StatisticalTopKReference(const TensorFloat32& src,
                                        float stddev_multiplier) {
   TensorFloat32 mean =
-      ReduceReference({Axis::CHANNELS}, OperationType::MEAN, src);
-  TensorFloat32 sq_mean = ElementwiseReference(mean, OperationType::SQUARE);
-  TensorFloat32 squares = ElementwiseReference(src, OperationType::SQUARE);
+      ReduceReference({Axis::kChannels}, OperationType::kMean, src);
+  TensorFloat32 sq_mean = ElementwiseReference(mean, OperationType::kSquare);
+  TensorFloat32 squares = ElementwiseReference(src, OperationType::kSquare);
   TensorFloat32 mean_sq =
-      ReduceReference({Axis::CHANNELS}, OperationType::MEAN, squares);
+      ReduceReference({Axis::kChannels}, OperationType::kMean, squares);
   TensorFloat32 var =
-      ElementwiseReference(mean_sq, sq_mean, OperationType::SUB);
-  TensorFloat32 stddev = ElementwiseReference(var, OperationType::SQRT);
+      ElementwiseReference(mean_sq, sq_mean, OperationType::kSub);
+  TensorFloat32 stddev = ElementwiseReference(var, OperationType::kSqrt);
   TensorFloat32 scaled_stddev =
-      ElementwiseReference(stddev, OperationType::MUL, stddev_multiplier);
+      ElementwiseReference(stddev, OperationType::kMul, stddev_multiplier);
   TensorFloat32 cutoff =
-      ElementwiseReference(mean, scaled_stddev, OperationType::ADD);
+      ElementwiseReference(mean, scaled_stddev, OperationType::kAdd);
   TensorFloat32 subtract =
-      ElementwiseReference(src, cutoff, OperationType::SUB);
+      ElementwiseReference(src, cutoff, OperationType::kSub);
   PReLUAttributes attr;
   attr.alpha = MakeZeroTensor(Linear(src.shape.c));
   return PReLUReference(attr, subtract);
@@ -2557,7 +2572,7 @@ TensorFloat32 Winograd3x3ForwardRef(const TensorFloat32& src_tensor,
   attr.strides = HW(1, 1);
   attr.dilations = HW(1, 1);
   auto& attr_weights =
-      attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::FLOAT32>>();
+      attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(src_tensor.shape.c, 3, 3, src_tensor.shape.c);
   const auto conv_output_shape = CalculateOutputShape(src_tensor.shape, attr);
 
@@ -2679,11 +2694,29 @@ TensorFloat32 Winograd3x3BackwardRef(TensorFloat32 src_tensor,
   return result;
 }
 
-Tensor<OHWI, DataType::FLOAT32> MakeWeightsFromInt8(
-    const Tensor<OHWI, DataType::INT8>& weights_i8,
-    const Tensor<OHWI, DataType::FLOAT32>& weights_scale,
-    const Tensor<OHWI, DataType::FLOAT32>& weights_zero_point) {
-  Tensor<OHWI, DataType::FLOAT32> weights;
+Tensor<OHWI, DataType::kFloat32> MakeWeightsFromInt8(
+    const Tensor<OHWI, DataType::kInt8>& weights_i8, const float weights_scale,
+    const float weights_zero_point) {
+  Tensor<OHWI, DataType::kFloat32> weights;
+  weights.shape = weights_i8.shape;
+  weights.data.resize(weights.shape.DimensionsProduct() +
+                      XNN_EXTRA_BYTES / sizeof(float));
+  for (int i = 0; i < weights.shape.i; ++i) {
+    for (int o = 0; o < weights.shape.o; ++o) {
+      weights.data[weights.shape.LinearIndex({o, 0, 0, i})] =
+          (weights_i8.data[weights_i8.shape.LinearIndex({o, 0, 0, i})] -
+           weights_zero_point) *
+          weights_scale;
+    }
+  }
+  return weights;
+}
+
+Tensor<OHWI, DataType::kFloat32> MakeWeightsFromInt8(
+    const Tensor<OHWI, DataType::kInt8>& weights_i8,
+    const Tensor<OHWI, DataType::kFloat32>& weights_scale,
+    const Tensor<OHWI, DataType::kFloat32>& weights_zero_point) {
+  Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = weights_i8.shape;
   weights.data.resize(weights.shape.DimensionsProduct() +
                       XNN_EXTRA_BYTES / sizeof(float));
@@ -2708,11 +2741,11 @@ Tensor<OHWI, DataType::FLOAT32> MakeWeightsFromInt8(
   return weights;
 }
 
-Tensor<OHWI, DataType::FLOAT32> MakeWeightsFromInt8(
-    const Tensor<OHWI, DataType::INT8>& weights_i8,
-    const Tensor<Linear, DataType::FLOAT32>& weights_scale,
-    const Tensor<Linear, DataType::FLOAT32>* weights_zero_point) {
-  Tensor<OHWI, DataType::FLOAT32> weights;
+Tensor<OHWI, DataType::kFloat32> MakeWeightsFromInt8(
+    const Tensor<OHWI, DataType::kInt8>& weights_i8,
+    const Tensor<Linear, DataType::kFloat32>& weights_scale,
+    const Tensor<Linear, DataType::kFloat32>* weights_zero_point) {
+  Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = weights_i8.shape;
   weights.data.resize(weights.shape.DimensionsProduct() +
                       XNN_EXTRA_BYTES / sizeof(float));
@@ -2729,12 +2762,12 @@ Tensor<OHWI, DataType::FLOAT32> MakeWeightsFromInt8(
   return weights;
 }
 
-std::pair<TensorInt32, Tensor<Linear, DataType::INT32>> GroupsMapReference(
+std::pair<TensorInt32, Tensor<Linear, DataType::kInt32>> GroupsMapReference(
     const TensorInt32& group_ids, int num_groups) {
   TensorInt32 groups_map;
   groups_map.shape = BHWC(1, num_groups, group_ids.shape.w, 2);
   groups_map.data.resize(groups_map.shape.DimensionsProduct(), -1);
-  Tensor<Linear, DataType::INT32> groups_sizes;
+  Tensor<Linear, DataType::kInt32> groups_sizes;
   groups_sizes.shape = Linear(num_groups);
   groups_sizes.data.resize(groups_sizes.shape.DimensionsProduct(), 0);
   for (int w = 0; w < group_ids.shape.w; ++w) {
@@ -2749,11 +2782,11 @@ std::pair<TensorInt32, Tensor<Linear, DataType::INT32>> GroupsMapReference(
   return std::make_pair(groups_map, groups_sizes);
 }
 
-std::pair<TensorInt32, Tensor<Linear, DataType::INT32>>
+std::pair<TensorInt32, Tensor<Linear, DataType::kInt32>>
 PackedGroupsMapReference(const TensorInt32& groups_map,
-                         const Tensor<Linear, DataType::INT32>& groups_sizes) {
+                         const Tensor<Linear, DataType::kInt32>& groups_sizes) {
   int num_groups = groups_sizes.shape.v;
-  Tensor<Linear, DataType::INT32> groups_offsets;
+  Tensor<Linear, DataType::kInt32> groups_offsets;
   groups_offsets.shape = Linear(num_groups);
   groups_offsets.data.resize(groups_offsets.shape.DimensionsProduct(), 0);
   for (int i = 1; i < num_groups; ++i) {
@@ -2819,7 +2852,7 @@ TensorFloat32 RemapFromReference(const TensorFloat32& src,
 
 TensorFloat32 ConvolutionWithIds(
     const TensorFloat32& src_tensor,
-    const ml_drift::Tensor<OHWI, DataType::FLOAT32>& weights,
+    const ml_drift::Tensor<OHWI, DataType::kFloat32>& weights,
     const TensorInt32& ids) {
   TensorFloat32 dst_ref;
   dst_ref.shape = BHWC(ids.shape.c, src_tensor.shape.h, src_tensor.shape.w,

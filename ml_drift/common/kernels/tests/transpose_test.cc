@@ -35,45 +35,45 @@ using ::testing::ValuesIn;
 using TransposeTypedTest = TestWithParam<TensorStorageType>;
 
 TEST_P(TransposeTypedTest, Int8) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::INT8)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kInt8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(TransposeIntTest<DataType::INT8>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(TransposeIntTest<DataType::kInt8>(*exec_env, GetParam()));
 }
 
 TEST_P(TransposeTypedTest, Int16) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::INT16)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kInt16)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(TransposeIntTest<DataType::INT16>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(TransposeIntTest<DataType::kInt16>(*exec_env, GetParam()));
 }
 
 TEST_P(TransposeTypedTest, Int32) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::INT32)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kInt32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(TransposeIntTest<DataType::INT32>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(TransposeIntTest<DataType::kInt32>(*exec_env, GetParam()));
 }
 
 TEST_P(TransposeTypedTest, Uint8) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT8)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kUint8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(TransposeUintTest<DataType::UINT8>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(TransposeUintTest<DataType::kUint8>(*exec_env, GetParam()));
 }
 
 TEST_P(TransposeTypedTest, Uint16) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT16)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kUint16)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(TransposeUintTest<DataType::UINT16>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(TransposeUintTest<DataType::kUint16>(*exec_env, GetParam()));
 }
 
 TEST_P(TransposeTypedTest, Uint32) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT32)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kUint32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(TransposeUintTest<DataType::UINT32>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(TransposeUintTest<DataType::kUint32>(*exec_env, GetParam()));
 }
 
 INSTANTIATE_TEST_SUITE_P(

@@ -55,41 +55,61 @@ std::string GetWebGpuSubgroupMatrixType(const MatrixDesc& matrix_desc) {
   return matrix_type + "<" + type + std::to_string(type_size_in_bits) + ", " +
          matrix_desc.cols + ", " + matrix_desc.rows + ">";
 }
+
+std::string GetExtensionPatch(const GpuInfo& gpu_info, DataType data_type) {
+  std::string patch;
+  if (gpu_info.IsGlsl()) {
+    if (gpu_info.SupportsExtension("VK_KHR_cooperative_matrix")) {
+      patch =
+          R"(#extension GL_KHR_memory_scope_semantics : require
+#extension GL_EXT_shader_explicit_arithmetic_types : require
+#extension GL_KHR_cooperative_matrix : require)";
+    } else if (gpu_info.SupportsExtension("VK_NV_cooperative_matrix")) {
+      patch = "#extension GL_KHR_memory_scope_semantics : require\n";
+      if (IsFloatType(data_type)) {
+        patch += "#extension GL_NV_cooperative_matrix : require\n";
+      } else {
+        patch += "#extension GL_NV_integer_cooperative_matrix : require\n";
+        patch +=
+            "#extension GL_EXT_shader_explicit_arithmetic_types_int8 : "
+            "require\n";
+      }
+    }
+  } else if (gpu_info.IsApiWebGpu()) {
+    patch = "enable chromium_experimental_subgroup_matrix;\n";
+  } else if (gpu_info.IsApiOpenCl()) {
+    if (gpu_info.SupportsExtension("cl_qcom_kernel_cooperative_matrix")) {
+      patch =
+          "#pragma OPENCL EXTENSION cl_qcom_kernel_cooperative_matrix : enable";
+    } else {
+      patch = "#pragma OPENCL EXTENSION cl_khr_cooperative_matrix : enable";
+    }
+  }
+  return patch;
+}
 }  // namespace
 
 absl::Status ResolveWaveMatrix(const GpuInfo& gpu_info, std::string* code) {
   const std::string ext_declaration =
       "#pragma OPENCL EXTENSION ucl_wave_matrix: enable";
   const size_t ext_pos = code->find(ext_declaration);
-  if (ext_pos != std::string::npos) {
-    if (gpu_info.IsApiMetal()) {
-      code->erase(ext_pos, ext_declaration.size());
-    } else if (gpu_info.IsGlsl()) {
-      if (gpu_info.SupportsExtension("VK_KHR_cooperative_matrix")) {
-        const std::string patch =
-            R"(#extension GL_KHR_memory_scope_semantics : require
-#extension GL_EXT_shader_explicit_arithmetic_types : require
-#extension GL_KHR_cooperative_matrix : require)";
-        code->replace(ext_pos, ext_declaration.size(), patch);
-      } else if (gpu_info.SupportsExtension("VK_NV_cooperative_matrix")) {
-        const std::string patch =
-            R"(#extension GL_KHR_memory_scope_semantics : require
-#extension GL_NV_cooperative_matrix : require)";
-        code->replace(ext_pos, ext_declaration.size(), patch);
-      }
-    } else if (gpu_info.IsApiWebGpu()) {
-      const std::string patch =
-          "enable chromium_experimental_subgroup_matrix;\n";
-      code->replace(ext_pos, ext_declaration.size(), patch);
-    }
-  } else {
+  if (ext_pos == std::string::npos) {
     return absl::OkStatus();
+  }
+
+  std::string cl_enum_postfix = "";
+  std::string cl_func_prefix = "";
+  if (gpu_info.IsApiOpenCl() &&
+      gpu_info.SupportsExtension("cl_qcom_kernel_cooperative_matrix")) {
+    cl_enum_postfix = "_QCOM";
+    cl_func_prefix = "qcom_";
   }
 
   // ucl::wave_matrix<matrix_type, data_type, rows, cols>
   const std::string decl_name = "ucl::wave_matrix";
   size_t declaration_pos = code->find(decl_name);
   absl::flat_hash_map<std::string, MatrixDesc> matrix_descs;
+  DataType data_type;
   while (declaration_pos != std::string::npos) {
     size_t pos = declaration_pos + decl_name.size();
     std::vector<std::string> args;
@@ -105,7 +125,6 @@ absl::Status ResolveWaveMatrix(const GpuInfo& gpu_info, std::string* code) {
       patch =
           "simdgroup_matrix<" + args[1] + ", " + args[2] + ", " + args[3] + ">";
     } else if (gpu_info.IsGlsl()) {
-      DataType data_type;
       int vector_size;
       ABSL_RETURN_IF_ERROR(
           DataTypeFromTemplateArg(args[1], &data_type, &vector_size));
@@ -134,7 +153,6 @@ absl::Status ResolveWaveMatrix(const GpuInfo& gpu_info, std::string* code) {
                 ", gl_ScopeSubgroup, " + args[2] + ", " + args[3] + ">";
       }
     } else if (gpu_info.IsApiWebGpu()) {
-      DataType data_type;
       int vector_size;
       ABSL_RETURN_IF_ERROR(
           DataTypeFromTemplateArg(args[1], &data_type, &vector_size));
@@ -151,14 +169,38 @@ absl::Status ResolveWaveMatrix(const GpuInfo& gpu_info, std::string* code) {
         close_bracket_pos = end - 1;
         patch = "var " + matrix_name + ": " + patch;
       }
+    } else if (gpu_info.IsApiOpenCl()) {
+      if ((*code)[close_bracket_pos + 1] == '(') {
+        patch = cl_func_prefix + "coop_mat_init";
+      } else {
+        std::string usage;
+        if (args[0] == "left") {
+          usage = "CLK_COOPERATIVE_MATRIX_A";
+        } else if (args[0] == "right") {
+          usage = "CLK_COOPERATIVE_MATRIX_B";
+        } else if (args[0] == "accum") {
+          usage = "CLK_COOPERATIVE_MATRIX_ACCUMULATOR";
+        } else {
+          return absl::InvalidArgumentError(
+              "Expected matrix type to be {left, right, accum}.");
+        }
+        usage += cl_enum_postfix;
+        patch = args[1] + " __attribute__((" + cl_func_prefix +
+                "coop_mat("
+                "CLK_COOPERATIVE_MATRIX_SCOPE_SUBGROUP" +
+                cl_enum_postfix + ", " + args[2] + ", " + args[3] + ", " +
+                usage + ")))";
+      }
     }
     code->replace(declaration_pos, close_bracket_pos - declaration_pos + 1,
                   patch);
     declaration_pos = code->find(decl_name, declaration_pos);
   }
+  code->replace(ext_pos, ext_declaration.size(),
+                GetExtensionPatch(gpu_info, data_type));
 
   // ucl::WaveMatrixLoad(matrix, ptr, offset, stride, row_major = true);
-  // TODO(sorokin): change it to matrix.Load(ptr, offset, row_major = true);
+  // TODO: change it to matrix.Load(ptr, offset, row_major = true);
   const std::string load_func_name = "ucl::WaveMatrixLoad";
   size_t load_pos = code->find(load_func_name);
   while (load_pos != std::string::npos) {
@@ -198,13 +240,20 @@ absl::Status ResolveWaveMatrix(const GpuInfo& gpu_info, std::string* code) {
               GetWebGpuSubgroupMatrixType(matrix_desc) + ">(&" + args[1] +
               ", u32(" + args[2] + "), " + column_major + ", u32(" + args[3] +
               "))";
+    } else if (gpu_info.IsApiOpenCl()) {
+      const std::string layout =
+          row_major ? "CLK_COOPERATIVE_MATRIX_LAYOUT_ROW_MAJOR"
+                    : "CLK_COOPERATIVE_MATRIX_LAYOUT_COLUMN_MAJOR";
+      patch = args[0] + " = " + cl_func_prefix + "coop_mat_load(" + args[1] +
+              " + " + args[2] + ", " + layout + cl_enum_postfix + ", " +
+              args[3] + ")";
     }
     code->replace(load_pos, close_bracket_pos - load_pos + 1, patch);
     load_pos = code->find(load_func_name, load_pos);
   }
 
   // ucl::WaveMatrixMAC(C, A, B);
-  // TODO(sorokin): change it to C.AccumulateProduct(A, B);
+  // TODO: change it to C.AccumulateProduct(A, B);
   const std::string mac_func_name = "ucl::WaveMatrixMAC";
   size_t mac_pos = code->find(mac_func_name);
   while (mac_pos != std::string::npos) {
@@ -231,13 +280,16 @@ absl::Status ResolveWaveMatrix(const GpuInfo& gpu_info, std::string* code) {
     } else if (gpu_info.IsApiWebGpu()) {
       patch = args[0] + " = subgroupMatrixMultiplyAccumulate(" + args[1] +
               ", " + args[2] + ", " + args[0] + ")";
+    } else if (gpu_info.IsApiOpenCl()) {
+      patch = args[0] + " = " + cl_func_prefix + "coop_mat_mulAdd(" + args[1] +
+              ", " + args[2] + ", " + args[0] + ")";
     }
     code->replace(mac_pos, close_bracket_pos - mac_pos + 1, patch);
     mac_pos = code->find(mac_func_name, mac_pos);
   }
 
   // ucl::WaveMatrixStore(matrix, ptr, offset, stride);
-  // TODO(sorokin): change it to matrix.Store(ptr, offset);
+  // TODO: change it to matrix.Store(ptr, offset);
   const std::string store_func_name = "ucl::WaveMatrixStore";
   size_t store_pos = code->find(store_func_name);
   while (store_pos != std::string::npos) {
@@ -265,6 +317,10 @@ absl::Status ResolveWaveMatrix(const GpuInfo& gpu_info, std::string* code) {
     } else if (gpu_info.IsApiWebGpu()) {
       patch = "subgroupMatrixStore(&" + args[1] + ", u32(" + args[2] + "), " +
               args[0] + ", false, u32(" + args[3] + "))";
+    } else if (gpu_info.IsApiOpenCl()) {
+      patch = cl_func_prefix + "coop_mat_store(" + args[1] + " + " + args[2] +
+              ", " + args[0] + ", CLK_COOPERATIVE_MATRIX_LAYOUT_ROW_MAJOR" +
+              cl_enum_postfix + ", " + args[3] + ")";
     }
     code->replace(store_pos, close_bracket_pos - store_pos + 1, patch);
     store_pos = code->find(store_func_name, store_pos);

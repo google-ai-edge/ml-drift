@@ -46,23 +46,23 @@ namespace ml_drift {
 
 absl::Status TestDynamicConvolution(TestExecutionEnvironment* env) {
   CreateGpuModelInfo create_info;
-  create_info.precision = CalculationsPrecision::F32;
-  create_info.storage_type = TensorStorageType::BUFFER;
+  create_info.precision = CalculationsPrecision::kF32;
+  create_info.storage_type = TensorStorageType::kBuffer;
 
   const BHWC input_shape = BHWC(1, 32, 32, 128);
   const BHWC output_shape = BHWC(1, 32, 32, 16);
   GpuModel gpu_model;
   Convolution2DAttributes conv_attr;
   auto& attr_weights =
-      conv_attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
+      conv_attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
   {
     GraphFloat32 graph;
     auto input = graph.NewValue();
-    input->tensor.type = DataType::FLOAT32;
+    input->tensor.type = DataType::kFloat32;
     input->tensor.shape = input_shape;
 
     auto conv_node = graph.NewNode();
-    conv_node->operation.type = ToString(OperationType::CONVOLUTION_2D);
+    conv_node->operation.type = ToString(OperationType::kConvolution2D);
 
     conv_attr.padding.prepended = HW(0, 0);
     conv_attr.padding.appended = HW(0, 0);
@@ -83,7 +83,7 @@ absl::Status TestDynamicConvolution(TestExecutionEnvironment* env) {
     graph.AddConsumer(conv_node->id, input->id);
     Value* conv_output = nullptr;
     ABSL_RETURN_IF_ERROR(AddOutput(&graph, conv_node, &conv_output));
-    conv_output->tensor.type = DataType::FLOAT32;
+    conv_output->tensor.type = DataType::kFloat32;
     conv_output->tensor.shape = output_shape;
 
     ABSL_RETURN_IF_ERROR(
@@ -94,11 +94,11 @@ absl::Status TestDynamicConvolution(TestExecutionEnvironment* env) {
   {
     GraphFloat32 graph_dynamic_conv;
     auto input = graph_dynamic_conv.NewValue();
-    input->tensor.type = DataType::FLOAT32;
+    input->tensor.type = DataType::kFloat32;
     input->tensor.shape = input_shape;
 
     auto const_node = graph_dynamic_conv.NewNode();
-    const_node->operation.type = ToString(OperationType::CONSTANT);
+    const_node->operation.type = ToString(OperationType::kConstant);
     TensorFloat32 const_data;
     const_data.shape = BHWC(attr_weights.shape.o, attr_weights.shape.h,
                             attr_weights.shape.w, attr_weights.shape.i);
@@ -116,7 +116,7 @@ absl::Status TestDynamicConvolution(TestExecutionEnvironment* env) {
     const_value->tensor.shape = const_data.shape;
 
     auto conv_node = graph_dynamic_conv.NewNode();
-    conv_node->operation.type = ToString(OperationType::CONVOLUTION_2D);
+    conv_node->operation.type = ToString(OperationType::kConvolution2D);
     attr_weights.data.clear();
     conv_node->operation.attributes = conv_attr;
     graph_dynamic_conv.AddConsumer(conv_node->id, input->id);
@@ -125,7 +125,7 @@ absl::Status TestDynamicConvolution(TestExecutionEnvironment* env) {
     ABSL_RETURN_IF_ERROR(
         AddOutput(&graph_dynamic_conv, conv_node, &conv_output));
 
-    conv_output->tensor.type = DataType::FLOAT32;
+    conv_output->tensor.type = DataType::kFloat32;
     conv_output->tensor.shape = output_shape;
     ABSL_RETURN_IF_ERROR(GraphToGpuModel(graph_dynamic_conv, create_info,
                                          env->GetGpuInfo(),
@@ -153,8 +153,8 @@ absl::Status TestDynamicConvolution(TestExecutionEnvironment* env) {
 }
 
 absl::Status TestExternalConvWeights(TestExecutionEnvironment* env) {
-  TensorStorageType storage_type = TensorStorageType::BUFFER;
-  CalculationsPrecision precision = CalculationsPrecision::F32;
+  TensorStorageType storage_type = TensorStorageType::kBuffer;
+  CalculationsPrecision precision = CalculationsPrecision::kF32;
   CreateGpuModelInfo create_info;
   create_info.precision = precision;
   create_info.storage_type = storage_type;
@@ -173,7 +173,7 @@ absl::Status TestExternalConvWeights(TestExecutionEnvironment* env) {
     conv_attr.strides = HW(1, 1);
     conv_attr.dilations = HW(1, 1);
     auto& attr_weights =
-        conv_attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
+        conv_attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
     attr_weights.shape = OHWI(kDstChannels, 1, 1, src_shape.c);
     attr_weights.data.resize(attr_weights.shape.DimensionsProduct() +
                              XNN_EXTRA_BYTES / sizeof(float));
@@ -214,7 +214,7 @@ absl::Status TestExternalConvWeights(TestExecutionEnvironment* env) {
                                                      attr_weights.shape);
       {
         weights_td = TensorDescriptor(
-            weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR);
+            weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear);
         std::vector<uint8_t> data(
             GetTotalElementsCountForLayout(weights_desc, attr_weights.shape) *
             SizeOf(weights_desc.type));
@@ -255,8 +255,8 @@ absl::Status TestExternalConvWeights(TestExecutionEnvironment* env) {
 
 absl::Status TestFullyConnected(TestExecutionEnvironment* env,
                                 const BHWC& src_shape) {
-  TensorStorageType storage_type = TensorStorageType::BUFFER;
-  CalculationsPrecision precision = CalculationsPrecision::F32;
+  TensorStorageType storage_type = TensorStorageType::kBuffer;
+  CalculationsPrecision precision = CalculationsPrecision::kF32;
   CreateGpuModelInfo create_info;
   create_info.precision = precision;
   create_info.storage_type = storage_type;
@@ -301,6 +301,64 @@ absl::Status TestFullyConnected(TestExecutionEnvironment* env,
   const float eps = GetEpsilon(precision, env->GetGpuInfo(), fc_attr);
   EXPECT_THAT(dst_tensor_gpu.data,
               testing::Pointwise(testing::FloatNear(eps), dst_ref_tensor.data));
+
+  return absl::OkStatus();
+}
+
+absl::Status TestBatchedMatMulBroadcast(TestExecutionEnvironment* env) {
+  TensorStorageType storage_type = TensorStorageType::kBuffer;
+  CalculationsPrecision precision = CalculationsPrecision::kF32;
+  CreateGpuModelInfo create_info;
+  create_info.precision = precision;
+  create_info.storage_type = storage_type;
+  DataType float_type = DeduceDataTypeFromPrecision(create_info.precision);
+
+  const BHWC left_shape(1, 4, 8, 16);
+  TensorFloat32 left_tensor;
+  left_tensor.shape = left_shape;
+  left_tensor.data.resize(left_tensor.shape.DimensionsProduct());
+  for (int i = 0; i < left_tensor.data.size(); ++i) {
+    left_tensor.data[i] = std::sin(i * 0.123f);
+  }
+
+  for (const int right_batch : {1, 2, 4}) {
+    for (const bool transpose_right : {false, true}) {
+      const BHWC right_shape = transpose_right ? BHWC(1, right_batch, 32, 16)
+                                               : BHWC(1, right_batch, 16, 32);
+      GpuModelBuilder model_builder(env->GetGpuInfo(), create_info.hints,
+                                    create_info.precision,
+                                    create_info.storage_type);
+      auto left_th = model_builder.AddTensor(left_shape, float_type);
+      auto right_th = model_builder.AddTensor(right_shape, float_type);
+      BatchedMatMulAttributes bmm_attr;
+      bmm_attr.transpose_right = transpose_right;
+      ABSL_ASSIGN_OR_RETURN(
+          auto out, model_builder.BatchedMatMul(left_th, right_th, bmm_attr));
+
+      GpuModel gpu_model;
+      ABSL_RETURN_IF_ERROR(model_builder.GetGpuModel(
+          std::vector<unsigned int>{left_th.id, right_th.id},
+          std::vector<unsigned int>{out.id}, &gpu_model));
+
+      TensorFloat32 right_tensor;
+      right_tensor.shape = right_shape;
+      right_tensor.data.resize(right_tensor.shape.DimensionsProduct());
+      for (int i = 0; i < right_tensor.data.size(); ++i) {
+        right_tensor.data[i] = std::sin(i * 0.12345f);
+      }
+
+      TensorFloat32 dst_tensor_gpu;
+      ABSL_RETURN_IF_ERROR(env->ExecuteGpuModel(
+          {left_tensor, right_tensor},
+          std::vector<TensorFloat32*>{&dst_tensor_gpu}, &gpu_model));
+
+      TensorFloat32 dst_ref_tensor =
+          BatchedMatMulReference(left_tensor, right_tensor, bmm_attr);
+      EXPECT_THAT(
+          dst_tensor_gpu.data,
+          testing::Pointwise(testing::FloatNear(1e-5f), dst_ref_tensor.data));
+    }
+  }
 
   return absl::OkStatus();
 }

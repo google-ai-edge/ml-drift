@@ -88,7 +88,7 @@ TEST_P(ConvConstantsChannelTest, ConvConstantsBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  if (precision() != CalculationsPrecision::F32 &&
+  if (precision() != CalculationsPrecision::kF32 &&
       (src_channel() != 5 || dst_channel() != 7)) {
     GTEST_SKIP() << "Only test non F32 for channels = (5, 7)";
   }

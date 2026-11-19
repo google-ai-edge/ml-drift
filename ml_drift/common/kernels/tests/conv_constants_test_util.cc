@@ -51,18 +51,18 @@ absl::Status ConvConstantsSimpleWeightsTest(TestExecutionEnvironment& env,
   attr.padding.appended = HW(1, 1);
   attr.strides = HW(1, 1);
   attr.dilations = HW(1, 1);
-  auto& weights = attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
+  auto& weights = attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
   weights.shape = OHWI(1, 2, 2, 2);
   weights.data = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
   weights.data.resize(weights.data.size() + XNN_EXTRA_BYTES / sizeof(float));
   attr.bias.shape = Linear(1);
   attr.bias.data = {0.0f};
 
-  const float eps = precision == CalculationsPrecision::F32 ? 1e-6f : 1e-3f;
+  const float eps = precision == CalculationsPrecision::kF32 ? 1e-6f : 1e-3f;
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   ConvConstants operation =
       CreateConvConstants(env.GetGpuInfo(), op_def, precision, attr);
@@ -86,7 +86,7 @@ absl::Status ConvConstantsTest(TestExecutionEnvironment& env,
   attr.padding.appended = HW(1, 1);
   attr.strides = HW(1, 1);
   attr.dilations = HW(1, 1);
-  auto& weights = attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
+  auto& weights = attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
   weights.shape = OHWI(2, 2, 2, 2);
   weights.data = {1.0f, 2.0f,  3.0f,  4.0f,  5.0f,  6.0f,  7.0f,  8.0f,
                   9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f};
@@ -94,11 +94,11 @@ absl::Status ConvConstantsTest(TestExecutionEnvironment& env,
   attr.bias.shape = Linear(2);
   attr.bias.data = {0.5f, -0.5f};
 
-  const float eps = precision == CalculationsPrecision::F32 ? 1e-6f : 1e-3f;
+  const float eps = precision == CalculationsPrecision::kF32 ? 1e-6f : 1e-3f;
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   ConvConstants operation =
       CreateConvConstants(env.GetGpuInfo(), op_def, precision, attr);
@@ -143,7 +143,7 @@ absl::Status ConvConstantsBatchedBigTest(TestExecutionEnvironment& env,
   attr.dilations = HW(1, 2);
   auto synthetic_tensor =
       MakeSyntheticTensor(OHWI(dst_channels, 3, 2, src_channels));
-  auto& weights = attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>(
+  auto& weights = attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>(
       std::move(synthetic_tensor));
   weights.data.resize(weights.data.size() + XNN_EXTRA_BYTES / sizeof(float));
   attr.bias = MakeSyntheticTensor(Linear(dst_channels));
@@ -154,8 +154,8 @@ absl::Status ConvConstantsBatchedBigTest(TestExecutionEnvironment& env,
 
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
   ABSL_EXPECT_OK(ConvConstantsTest(env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();
 }
@@ -171,7 +171,7 @@ absl::Status ConvConstantsBigTest(TestExecutionEnvironment& env,
   attr.dilations = HW(2, 1);
   auto synthetic_tensor =
       MakeSyntheticTensor(OHWI(dst_channel, 2, 3, src_channel));
-  auto& weights = attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>(
+  auto& weights = attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>(
       std::move(synthetic_tensor));
   weights.data.resize(weights.data.size() + XNN_EXTRA_BYTES / sizeof(float));
   attr.bias = MakeSyntheticTensor(Linear(dst_channel));
@@ -182,8 +182,8 @@ absl::Status ConvConstantsBigTest(TestExecutionEnvironment& env,
 
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   ABSL_EXPECT_OK(ConvConstantsTest(env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();
 }
@@ -203,7 +203,7 @@ absl::Status ConvConstantsExternalWeightsBigTest(
   attr.dilations = HW(2, 1);
   auto synthetic_tensor =
       MakeSyntheticTensor(OHWI(dst_ch, 3, 2, src_tensor.shape.c));
-  auto& weights = attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>(
+  auto& weights = attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>(
       std::move(synthetic_tensor));
   weights.data.resize(weights.data.size() + XNN_EXTRA_BYTES / sizeof(float));
   attr.bias = MakeSyntheticTensor(Linear(dst_ch));
@@ -212,8 +212,8 @@ absl::Status ConvConstantsExternalWeightsBigTest(
 
   OperationDef conv_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  conv_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  conv_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  conv_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  conv_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorDescriptor bias_tensor_desc = CreateConstantLinearTensorDescriptor(
       env.GetGpuInfo(), data_type, attr.bias);
   auto operation = CreateConvConstantsExternalWeights(

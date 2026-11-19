@@ -27,30 +27,30 @@ TEST(OIHW, Smoke) {
 
   // Test 4 different versions of setters.
   OIHW.i = 1;
-  ASSERT_TRUE(OIHW.set<Axis::OUTPUT_CHANNELS>(2));
-  ASSERT_TRUE(OIHW.set(Axis::HEIGHT, 3));
+  ASSERT_TRUE(OIHW.set<Axis::kOutputChannels>(2));
+  ASSERT_TRUE(OIHW.set(Axis::kHeight, 3));
   ASSERT_TRUE(OIHW.set(3, 4));
 
   // Make sure invalid setters return false.
   ASSERT_FALSE(OIHW.set(5, 10));
-  ASSERT_FALSE(OIHW.set(Axis::CHANNELS, 10));
-  ASSERT_FALSE(OIHW.set<Axis::CHANNELS>(10));
+  ASSERT_FALSE(OIHW.set(Axis::kChannels, 10));
+  ASSERT_FALSE(OIHW.set<Axis::kChannels>(10));
 
   // Test 4 different versions of getters
-  EXPECT_EQ(1, OIHW.get(Axis::INPUT_CHANNELS));
+  EXPECT_EQ(1, OIHW.get(Axis::kInputChannels));
   EXPECT_EQ(2, OIHW.o);
   EXPECT_EQ(3, OIHW.get(2));
-  EXPECT_EQ(4, OIHW.get<Axis::WIDTH>());
+  EXPECT_EQ(4, OIHW.get<Axis::kWidth>());
 
   // Make sure getters that fall outside of a range return invalid axis.
   EXPECT_EQ(-1, OIHW.get(5));
-  EXPECT_EQ(-1, OIHW.get(Axis::CHANNELS));
-  EXPECT_EQ(-1, OIHW.get<Axis::CHANNELS>());
+  EXPECT_EQ(-1, OIHW.get(Axis::kChannels));
+  EXPECT_EQ(-1, OIHW.get<Axis::kChannels>());
 
   // Check axis indices are all correct.
   ASSERT_EQ(4, OIHW.size());
-  std::vector<Axis> expected = {Axis::OUTPUT_CHANNELS, Axis::INPUT_CHANNELS,
-                                Axis::HEIGHT, Axis::WIDTH};
+  std::vector<Axis> expected = {Axis::kOutputChannels, Axis::kInputChannels,
+                                Axis::kHeight, Axis::kWidth};
   for (int i = 0; i < OIHW.size(); ++i) {
     Axis axis = OIHW.axis(i);
     ASSERT_EQ(expected[i], axis);
@@ -72,42 +72,42 @@ TEST(OIHW, Smoke) {
   EXPECT_EQ(ohwi.h, OIHW.h);
   EXPECT_EQ(ohwi.w, OIHW.w);
 
-  EXPECT_TRUE(ohwi.has(Axis::WIDTH));
-  EXPECT_FALSE(ohwi.has(Axis::DEPTH));
+  EXPECT_TRUE(ohwi.has(Axis::kWidth));
+  EXPECT_FALSE(ohwi.has(Axis::kDepth));
 }
 
 TEST(Layout, Smoke) {
-  EXPECT_EQ(4, Size<Layout::OIHW>());
-  EXPECT_EQ(4, Size(Layout::OIHW));
-  std::vector<Axis> expected = {Axis::OUTPUT_CHANNELS, Axis::INPUT_CHANNELS,
-                                Axis::HEIGHT, Axis::WIDTH};
-  for (int i = 0; i < Size<Layout::OIHW>(); ++i) {
-    Axis axis = GetAxis<Layout::OIHW>(i);
+  EXPECT_EQ(4, Size<Layout::kOIHW>());
+  EXPECT_EQ(4, Size(Layout::kOIHW));
+  std::vector<Axis> expected = {Axis::kOutputChannels, Axis::kInputChannels,
+                                Axis::kHeight, Axis::kWidth};
+  for (int i = 0; i < Size<Layout::kOIHW>(); ++i) {
+    Axis axis = GetAxis<Layout::kOIHW>(i);
     ASSERT_EQ(expected[i], axis);
-    ASSERT_EQ(axis, GetAxis(Layout::OIHW, i));
-    ASSERT_EQ(i, GetAxisIndex<Layout::OIHW>(axis));
-    ASSERT_EQ(i, GetAxisIndex(Layout::OIHW, axis));
+    ASSERT_EQ(axis, GetAxis(Layout::kOIHW, i));
+    ASSERT_EQ(i, GetAxisIndex<Layout::kOIHW>(axis));
+    ASSERT_EQ(i, GetAxisIndex(Layout::kOIHW, axis));
   }
-  EXPECT_EQ(Axis::UNKNOWN, GetAxis(Layout::OIHW, 5));
-  EXPECT_EQ(-1, GetAxisIndex<Layout::OIHW>(Axis::CHANNELS));
-  EXPECT_EQ(-1, GetAxisIndex<Layout::OIHW>(Axis::CHANNELS));
-  EXPECT_TRUE(HasAxis<Layout::OHWDI>(Axis::DEPTH));
-  EXPECT_FALSE(HasAxis<Layout::OHWDI>(Axis::CHANNELS));
+  EXPECT_EQ(Axis::kUnknown, GetAxis(Layout::kOIHW, 5));
+  EXPECT_EQ(-1, GetAxisIndex<Layout::kOIHW>(Axis::kChannels));
+  EXPECT_EQ(-1, GetAxisIndex<Layout::kOIHW>(Axis::kChannels));
+  EXPECT_TRUE(HasAxis<Layout::kOHWDI>(Axis::kDepth));
+  EXPECT_FALSE(HasAxis<Layout::kOHWDI>(Axis::kChannels));
 }
 
 TEST(Shape, Smoke) {
-  Shape s(Layout::OIHW, {1, 2, 3, 4});
-  EXPECT_TRUE(s.set(Axis::HEIGHT, 10));
-  EXPECT_TRUE(s.set<Axis::WIDTH>(20));
-  EXPECT_FALSE(s.set(Axis::BATCH, 10));
-  EXPECT_FALSE(s.set<Axis::BATCH>(20));
+  Shape s(Layout::kOIHW, {1, 2, 3, 4});
+  EXPECT_TRUE(s.set(Axis::kHeight, 10));
+  EXPECT_TRUE(s.set<Axis::kWidth>(20));
+  EXPECT_FALSE(s.set(Axis::kBatch, 10));
+  EXPECT_FALSE(s.set<Axis::kBatch>(20));
 
-  ASSERT_EQ(10, s.get<Axis::HEIGHT>());
-  ASSERT_EQ(20, s.get(Axis::WIDTH));
+  ASSERT_EQ(10, s.get<Axis::kHeight>());
+  ASSERT_EQ(20, s.get(Axis::kWidth));
   EXPECT_EQ(20, s.dimensions[3]);
 
-  EXPECT_TRUE(s.has(Axis::HEIGHT));
-  EXPECT_FALSE(s.has(Axis::DEPTH));
+  EXPECT_TRUE(s.has(Axis::kHeight));
+  EXPECT_FALSE(s.has(Axis::kDepth));
 
   OIHW oihw(1, 2, 10, 20);
   Shape s2 = oihw.ToShape();

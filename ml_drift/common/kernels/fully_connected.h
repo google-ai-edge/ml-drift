@@ -17,26 +17,22 @@
 
 #include <stdint.h>
 
-#include <memory>
+#include <optional>
 #include <string>
-#include <utility>
 #include <vector>
 
+#include "absl/status/status.h"
 #include "absl/status/statusor.h"
-#include "absl/types/span.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/kernel_info.h"
-#include "ml_drift/common/operations.h"
 #include "ml_drift/common/precision.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/task/buffer_desc.h"
+#include "ml_drift/common/task/arguments.h"
 #include "ml_drift/common/task/gpu_operation.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/task/tuning_type.h"
-#include "ml_drift/common/task/weights_conversion.h"
 #include "ml_drift/common/task/weights_layout.h"
-#include "ml_drift/common/tensor.h"
 #include "ml_drift/common/types.h"
 
 namespace ml_drift {
@@ -48,6 +44,7 @@ class FullyConnected : public GPUOperation {
       const KernelInfo& kernel_info) const override {
     return {work_group_size_};
   }
+  absl::Status BindArguments(ArgumentsBinder* args) override;
   int3 GetGridSize() const override;
 
   struct ConvParams {
@@ -60,8 +57,10 @@ class FullyConnected : public GPUOperation {
     bool sparse_2x4 = false;
     int runtime_batch_ids = 0;
     ConvRuntimeCheckDesc runtime_check;
+    bool spatial_groups = false;  // should be false if packed_groups used
     BHWC block_size = BHWC(1, 1, 1, 1);
     int3 wg_size = int3(0, 0, 0);
+    std::optional<BHWC> dst_shape;
   };
 
   // Move only
@@ -76,10 +75,6 @@ class FullyConnected : public GPUOperation {
                  const OHWI& weights_shape,
                  const WeightsDescription& weights_desc,
                  const ConvParams& conv_params);
-  friend FullyConnected CreateFullyConnected(
-      const GpuInfo& gpu_info, const OperationDef& definition,
-      CalculationsPrecision precision, const FullyConnectedAttributes& attr,
-      const BHWC* dst_shape_ptr, const int3* wg_size);
   friend absl::StatusOr<FullyConnected>
   CreateFullyConnectedWeightsAreSpatialTensor(
       const GpuInfo& gpu_info, const OperationDef& definition,
@@ -99,62 +94,29 @@ class FullyConnected : public GPUOperation {
       const TensorDescriptor* bias, const BHWC* dst_shape_ptr);
 
   friend FullyConnected CreateFullyConnectedInt4Sparse2x4(
-      const GpuInfo& gpu_info, const OperationDef& definition,
-      CalculationsPrecision precision,
-      const Tensor<OHWI, DataType::INT8>& weights,
-      const Tensor<OHWI, DataType::UINT8>& weights_indices,
-      const Tensor<OHWI, DataType::FLOAT32>& weights_scale,
-      const Tensor<OHWI, DataType::FLOAT32>& weights_zero_point,
-      const Tensor<Linear, DataType::FLOAT32>& biases,
+      const GpuInfo& gpu_info, CalculationsPrecision precision,
+      const TensorDescriptor& src, const TensorDescriptor& dst,
+      const ExternalWeights& weights, const TensorDescriptor* bias,
       const BHWC* dst_shape_ptr, const int3* wg_size);
 
-  template <DataType T>
-  void UploadWeights(const Tensor<OHWI, T>& weights,
-                     const WeightsDescription& weights_desc);
-
   std::string GetFullyConnectedKernelCode(
-      const TensorDescriptor& src, CalculationsPrecision precision,
-      const GpuInfo& gpu_info, const WeightsDescription& weights_desc,
-      int scale_zp_group_size);
+      const TensorDescriptor& src, const TensorDescriptor& dst,
+      CalculationsPrecision precision, const GpuInfo& gpu_info,
+      const WeightsDescription& weights_desc, int scale_zp_group_size);
 
   bool wg_reduction_;
   ConvParams conv_params_;
 };
 
-template <DataType T>
-void FullyConnected::UploadWeights(const Tensor<OHWI, T>& weights,
-                                   const WeightsDescription& weights_desc) {
-  const int flt_count =
-      GetTotalElementsCountForLayout(weights_desc, weights.shape);
-
-  std::vector<uint8_t> weights_data(flt_count * SizeOf(weights_desc.type));
-  RearrangeWeights(weights, weights_desc, absl::MakeSpan(weights_data));
-
-  if (weights_desc.IsLinearLayout()) {
-    BufferDescriptor desc;
-    desc.element_type = weights_desc.type;
-    desc.element_size = 16;
-    desc.size = SizeOf(weights_desc.type) * flt_count;
-    desc.data = std::move(weights_data);
-    args_.AddObject("weights",
-                    std::make_unique<BufferDescriptor>(std::move(desc)));
-  } else {
-    uint2 tex_size = Get2dResourceSize(weights_desc, weights.shape);
-    int sub_size = SizeOf(weights_desc.type) * 4 * tex_size.x * tex_size.y;
-    for (int i = 0; i < 4; ++i) {
-      TensorDescriptor desc = CreateConstantHWVec4TensorDescriptor(
-          weights_desc.type, TensorStorageType::TEXTURE_2D, tex_size.x,
-          tex_size.y, weights_data.data() + sub_size * i);
-      args_.AddObject("weights" + std::to_string(i),
-                      std::make_unique<TensorDescriptor>(std::move(desc)));
-    }
-  }
-}
-
 // Returns the recommended maximum total spatial size for the given GPU and
 // precision.
 int GetRecommendedMaxTotalSpatialSize(const GpuInfo& gpu_info,
                                       CalculationsPrecision precision);
+
+bool IsFullyConnectedRecommended(const GpuInfo& gpu_info,
+                                 CalculationsPrecision precision,
+                                 const OHWI& weights_shape,
+                                 const BHWC& dst_shape);
 
 // Checks if the fully connected weights are spatial tensor is supported.
 inline bool IsFullyConnectedWeightsAreSpatialTensorSupported(
@@ -162,18 +124,6 @@ inline bool IsFullyConnectedWeightsAreSpatialTensorSupported(
   return weight_shape.o % 4 == 0 && weight_shape.i % 4 == 0 &&
          weight_shape.w == 1;
 }
-
-
-
-// Creates a fully connected operation.
-// wg_size recommended to use only in profiling/debug goals, no 100% guarantee
-// that exactly this wg_size will be used in combination with other parameters.
-FullyConnected CreateFullyConnected(const GpuInfo& gpu_info,
-                                    const OperationDef& definition,
-                                    CalculationsPrecision precision,
-                                    const FullyConnectedAttributes& attr,
-                                    const BHWC* dst_shape_ptr = nullptr,
-                                    const int3* wg_size = nullptr);
 
 // Creates a fully connected operation with weights as a spatial tensor.
 // FullyConnected with runtime(spatial) second tensor(BHWC as OHWI)
@@ -249,13 +199,9 @@ WeightsDescription GetFullyConnectedInt2WeightsDesc(
 // Creates a sparse 2x4 fully connected operation with INT4 weights.
 // prototype, no correctness check, dummy values, not works for all cases
 FullyConnected CreateFullyConnectedInt4Sparse2x4(
-    const GpuInfo& gpu_info, const OperationDef& definition,
-    CalculationsPrecision precision,
-    const Tensor<OHWI, DataType::INT8>& weights,
-    const Tensor<OHWI, DataType::UINT8>& weights_indices,
-    const Tensor<OHWI, DataType::FLOAT32>& weights_scale,
-    const Tensor<OHWI, DataType::FLOAT32>& weights_zero_point,
-    const Tensor<Linear, DataType::FLOAT32>& biases,
+    const GpuInfo& gpu_info, CalculationsPrecision precision,
+    const TensorDescriptor& src, const TensorDescriptor& dst,
+    const ExternalWeights& weights, const TensorDescriptor* bias = nullptr,
     const BHWC* dst_shape_ptr = nullptr, const int3* wg_size = nullptr);
 
 }  // namespace ml_drift

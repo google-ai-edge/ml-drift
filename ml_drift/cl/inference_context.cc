@@ -178,7 +178,9 @@ void InferenceContext::ExecutionHints::Init(const GpuInfo& gpu_info) {
   if (gpu_info.IsPowerVR()) {
     need_flush = true;
     flush_periodically = true;
-    flush_period = 16;
+    // Some Ge8xxx devices are slower without frequent periodic flushing.
+    flush_period =
+        gpu_info.powervr_info.IsBetterThan(PowerVRGpu::kRogueGm9xxx) ? 16 : 4;
   }
   // clvk has inside to know when to flush, do not do it at the application
   // level.
@@ -254,7 +256,7 @@ absl::Status InferenceContext::InitFromGpuModel(
   if (gpu_info_.IsPowerVR()) {
     const PowerVRInfo& info = gpu_info_.powervr_info;
     if (info.gpu_version >= PowerVRGpu::kCXT) {
-      // PowerVR has weird behavior with kExhaustive tuning. b/397798684
+      // PowerVR has weird behavior with kExhaustive tuning.
       tuning_type = TuningType::kFast;
     }
   }
@@ -269,8 +271,9 @@ absl::Status InferenceContext::InitFromGpuModel(
   }
 
   if (serialized_model) {
-    auto encoded_fb = Encode(*env->GetDevicePtr(), *env->program_cache(),
-                             gpu_model_fb, &builder);
+    ABSL_ASSIGN_OR_RETURN(auto encoded_fb,
+                          Encode(*env->GetDevicePtr(), *env->program_cache(),
+                                 gpu_model_fb, &builder));
     data::FinishInferenceContextBuffer(builder, encoded_fb);
     serialized_model->resize(builder.GetSize());
     std::memcpy(serialized_model->data(), builder.GetBufferPointer(),
@@ -289,6 +292,7 @@ absl::Status InferenceContext::AddToCommandBuffer(cl_command_buffer_khr cb) {
 absl::Status InferenceContext::RestoreDeserialized(
     const absl::Span<const uint8_t> serialized_model, Environment* env,
     const CreateGpuModelInfo* create_info) {
+  gpu_info_ = env->device().GetInfo();
   flatbuffers::Verifier verifier(serialized_model.data(),
                                  serialized_model.size());
   if (!data::VerifyInferenceContextBuffer(verifier)) {
@@ -328,7 +332,7 @@ absl::Status InferenceContext::RestoreDeserialized(
   }
   GetMutableNodes(create_info_copy.external_mutable_tensors);
 
-  execution_hints_.Init(env->device().GetInfo());
+  execution_hints_.Init(gpu_info_);
 
   for (int i = 0; i < nodes_.size(); ++i) {
     uint64_t fingerprint = (*decoded_fb->fingerprints_per_node())[i];
@@ -796,8 +800,8 @@ absl::Status InferenceContext::SetInputTensor(ValueId id,
                                               CLCommandQueue* queue) {
   Tensor* gpu_tensor = GetTensor(id);
   TensorDescriptor descriptor_with_data = gpu_tensor->GetDescriptor();
-  if (descriptor_with_data.GetDataType() != DataType::FLOAT32 &&
-      descriptor_with_data.GetDataType() != DataType::FLOAT16) {
+  if (descriptor_with_data.GetDataType() != DataType::kFloat32 &&
+      descriptor_with_data.GetDataType() != DataType::kFloat16) {
     return absl::InvalidArgumentError(
         absl::StrCat("SetInputTensor attempted to upload TensorFloat32 to the "
                      "tensor of type ",
@@ -812,7 +816,7 @@ absl::Status InferenceContext::SetInputTensor(ValueId id,
                                               CLCommandQueue* queue) {
   Tensor* gpu_tensor = GetTensor(id);
   TensorDescriptor descriptor_with_data = gpu_tensor->GetDescriptor();
-  if (descriptor_with_data.GetDataType() != DataType::BOOL) {
+  if (descriptor_with_data.GetDataType() != DataType::kBool) {
     return absl::InvalidArgumentError(absl::StrCat(
         "SetInputTensor attempted to upload TensorBool to the tensor of type ",
         descriptor_with_data.GetDataType(), "."));
@@ -822,7 +826,7 @@ absl::Status InferenceContext::SetInputTensor(ValueId id,
 }
 
 absl::Status InferenceContext::SetInputTensor(
-    ValueId id, const ml_drift::Tensor<BHWC, DataType::INT32>& tensor,
+    ValueId id, const ml_drift::Tensor<BHWC, DataType::kInt32>& tensor,
     CLCommandQueue* queue) {
   Tensor* gpu_tensor = GetTensor(id);
   TensorDescriptor descriptor_with_data = gpu_tensor->GetDescriptor();
@@ -878,7 +882,8 @@ absl::Status InferenceContext::GetOutputTensor(ValueId id,
   return absl::OkStatus();
 }
 
-flatbuffers::Offset<data::InferenceContext> InferenceContext::Encode(
+absl::StatusOr<flatbuffers::Offset<data::InferenceContext>>
+InferenceContext::Encode(
     const CLDevice& device, const ProgramCache& program_cache,
     flatbuffers::Offset<ml_drift::data::GpuModel> gpu_model_fb,
     flatbuffers::FlatBufferBuilder* builder) {
@@ -902,7 +907,8 @@ flatbuffers::Offset<data::InferenceContext> InferenceContext::Encode(
   std::vector<flatbuffers::Offset<data::BinaryProgram>> binary_programs_fb;
   for (auto fingerprint : fingerprints) {
     std::vector<uint8_t> program_binary;
-    program_cache.GetProgramBinary(fingerprint, &program_binary).IgnoreError();
+    ABSL_RETURN_IF_ERROR(
+        program_cache.GetProgramBinary(fingerprint, &program_binary));
     auto binary_fb = builder->CreateVector(program_binary);
     data::BinaryProgramBuilder program_builder(*builder);
     program_builder.add_fingerprint(fingerprint);
@@ -950,8 +956,9 @@ absl::Status GraphToInferenceContext(const GpuInfo& gpu_info,
                                      Environment* env,
                                      CreateGpuModelInfo& create_info,
                                      InferenceContext* context,
-                                     InferenceContext* weights_prep_context) {
-  if (weights_prep_context != nullptr &&
+                                     InferenceContext* weights_prep_context,
+                                     std::vector<uint8_t>* serialized_model) {
+  if (serialized_model == nullptr && weights_prep_context != nullptr &&
       WeightsManager::IsGpuWeightsPreparationSupported(gpu_info)) {
     GpuModel main_gpu_model, gpu_weights_preparation_model;
     absl::flat_hash_map<ValueId, ValueId> weights_mapping;
@@ -984,8 +991,8 @@ absl::Status GraphToInferenceContext(const GpuInfo& gpu_info,
     GpuModel gpu_model;
     ABSL_RETURN_IF_ERROR(
         GraphToGpuModel(graph, create_info, gpu_info, &gpu_model));
-    ABSL_RETURN_IF_ERROR(
-        context->InitFromGpuModel(create_info, &gpu_model, env));
+    ABSL_RETURN_IF_ERROR(context->InitFromGpuModel(create_info, &gpu_model, env,
+                                                   serialized_model));
   }
   return absl::OkStatus();
 }

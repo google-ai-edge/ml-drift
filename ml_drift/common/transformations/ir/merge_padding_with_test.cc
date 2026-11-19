@@ -29,17 +29,17 @@ namespace ml_drift::ir {
 namespace {
 
 std::any GetSpatialAttr(OperationType op_type) {
-  if (op_type == OperationType::CONVOLUTION_2D) {
+  if (op_type == OperationType::kConvolution2D) {
     Convolution2DAttributes attr;
     attr.padding.appended = HW(0, 0);
     attr.padding.prepended = HW(0, 0);
     return attr;
-  } else if (op_type == OperationType::DEPTHWISE_CONVOLUTION) {
+  } else if (op_type == OperationType::kDepthwiseConvolution) {
     DepthwiseConvolution2DAttributes attr;
     attr.padding.appended = HW(0, 0);
     attr.padding.prepended = HW(0, 0);
     return attr;
-  } else if (op_type == OperationType::POOLING_2D) {
+  } else if (op_type == OperationType::kPooling2D) {
     Pooling2DAttributes attr;
     attr.padding.appended = HW(0, 0);
     attr.padding.prepended = HW(0, 0);
@@ -49,11 +49,11 @@ std::any GetSpatialAttr(OperationType op_type) {
 }
 
 Padding2D GetPadding(OperationType op_type, const std::any& attr) {
-  if (op_type == OperationType::CONVOLUTION_2D) {
+  if (op_type == OperationType::kConvolution2D) {
     return std::any_cast<Convolution2DAttributes>(attr).padding;
-  } else if (op_type == OperationType::DEPTHWISE_CONVOLUTION) {
+  } else if (op_type == OperationType::kDepthwiseConvolution) {
     return std::any_cast<DepthwiseConvolution2DAttributes>(attr).padding;
-  } else if (op_type == OperationType::POOLING_2D) {
+  } else if (op_type == OperationType::kPooling2D) {
     return std::any_cast<Pooling2DAttributes>(attr).padding;
   }
   return Padding2D();
@@ -64,19 +64,19 @@ using MergePaddingSpatialParamTest = ::testing::TestWithParam<OperationType>;
 TEST_P(MergePaddingSpatialParamTest, Smoke) {
   // Topology: input -> PAD -> temp -> SpatialOp -> output
   IrModel model;
-  IrTensor* input = model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 8));
-  IrTensor* temp = model.add_tensor(DataType::FLOAT32, BHWC(1, 7, 7, 8));
-  IrTensor* output = model.add_tensor(DataType::FLOAT32, BHWC(1, 7, 7, 16));
+  IrTensor* input = model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 8));
+  IrTensor* temp = model.add_tensor(DataType::kFloat32, BHWC(1, 7, 7, 8));
+  IrTensor* output = model.add_tensor(DataType::kFloat32, BHWC(1, 7, 7, 16));
 
   model.add_input(input->id);
   model.add_output(output->id);
 
   IrOp* pad_node = model.add_op();
-  pad_node->name = ToString(OperationType::PAD);
+  pad_node->name = ToString(OperationType::kPad);
   PadAttributes attr;
   attr.prepended = BHWC(0, 1, 1, 0);
   attr.appended = BHWC(0, 2, 2, 0);
-  attr.type = PaddingContentType::ZEROS;
+  attr.type = PaddingContentType::kZeros;
   pad_node->attr = attr;
   model.AddConsumer(input->id, pad_node->id);
   model.SetProducer(temp->id, pad_node->id);
@@ -105,26 +105,26 @@ TEST_P(MergePaddingSpatialParamTest, Smoke) {
 TEST_P(MergePaddingSpatialParamTest, MergeTwo) {
   // Topology: input -> PAD1 -> temp1 -> PAD2 -> temp2 -> SpatialOp -> output
   IrModel model;
-  IrTensor* input = model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 8));
-  IrTensor* temp1 = model.add_tensor(DataType::FLOAT32, BHWC(1, 5, 5, 8));
-  IrTensor* temp2 = model.add_tensor(DataType::FLOAT32, BHWC(1, 7, 7, 8));
-  IrTensor* output = model.add_tensor(DataType::FLOAT32, BHWC(1, 7, 7, 16));
+  IrTensor* input = model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 8));
+  IrTensor* temp1 = model.add_tensor(DataType::kFloat32, BHWC(1, 5, 5, 8));
+  IrTensor* temp2 = model.add_tensor(DataType::kFloat32, BHWC(1, 7, 7, 8));
+  IrTensor* output = model.add_tensor(DataType::kFloat32, BHWC(1, 7, 7, 16));
 
   model.add_input(input->id);
   model.add_output(output->id);
 
   IrOp* pad_node1 = model.add_op();
-  pad_node1->name = ToString(OperationType::PAD);
+  pad_node1->name = ToString(OperationType::kPad);
   PadAttributes attr;
   attr.prepended = BHWC(0, 1, 1, 0);
   attr.appended = BHWC(0, 0, 0, 0);
-  attr.type = PaddingContentType::ZEROS;
+  attr.type = PaddingContentType::kZeros;
   pad_node1->attr = attr;
   model.AddConsumer(input->id, pad_node1->id);
   model.SetProducer(temp1->id, pad_node1->id);
 
   IrOp* pad_node2 = model.add_op();
-  pad_node2->name = ToString(OperationType::PAD);
+  pad_node2->name = ToString(OperationType::kPad);
   attr.prepended = BHWC(0, 0, 0, 0);
   attr.appended = BHWC(0, 2, 2, 0);
   pad_node2->attr = attr;
@@ -159,19 +159,19 @@ TEST_P(MergePaddingSpatialParamTest, MergeTwo) {
 TEST_P(MergePaddingSpatialParamTest, DoNotTrigger_ChannelPadding) {
   // Topology: input -> PAD (channel padding) -> temp -> SpatialOp -> output
   IrModel model;
-  IrTensor* input = model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 8));
-  IrTensor* temp = model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 12));
-  IrTensor* output = model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 16));
+  IrTensor* input = model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 8));
+  IrTensor* temp = model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 12));
+  IrTensor* output = model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 16));
 
   model.add_input(input->id);
   model.add_output(output->id);
 
   IrOp* pad_node = model.add_op();
-  pad_node->name = ToString(OperationType::PAD);
+  pad_node->name = ToString(OperationType::kPad);
   PadAttributes attr;
   attr.prepended = BHWC(0, 0, 0, 0);
   attr.appended = BHWC(0, 0, 0, 4);  // Channel padding
-  attr.type = PaddingContentType::ZEROS;
+  attr.type = PaddingContentType::kZeros;
   pad_node->attr = attr;
   model.AddConsumer(input->id, pad_node->id);
   model.SetProducer(temp->id, pad_node->id);
@@ -193,21 +193,21 @@ TEST_P(MergePaddingSpatialParamTest, MergeWithMultipleInputs) {
   // Topology: input -> PAD -> padded
   //           [padded, weights] -> SpatialOp (multiple inputs) -> output
   IrModel model;
-  IrTensor* input = model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 8));
-  IrTensor* padded = model.add_tensor(DataType::FLOAT32, BHWC(1, 7, 7, 8));
-  IrTensor* weights = model.add_tensor(DataType::FLOAT32, BHWC(16, 1, 1, 8));
-  IrTensor* output = model.add_tensor(DataType::FLOAT32, BHWC(1, 7, 7, 16));
+  IrTensor* input = model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 8));
+  IrTensor* padded = model.add_tensor(DataType::kFloat32, BHWC(1, 7, 7, 8));
+  IrTensor* weights = model.add_tensor(DataType::kFloat32, BHWC(16, 1, 1, 8));
+  IrTensor* output = model.add_tensor(DataType::kFloat32, BHWC(1, 7, 7, 16));
 
   model.add_input(input->id);
   model.add_input(weights->id);
   model.add_output(output->id);
 
   IrOp* pad_node = model.add_op();
-  pad_node->name = ToString(OperationType::PAD);
+  pad_node->name = ToString(OperationType::kPad);
   PadAttributes attr;
   attr.prepended = BHWC(0, 1, 1, 0);
   attr.appended = BHWC(0, 2, 2, 0);
-  attr.type = PaddingContentType::ZEROS;
+  attr.type = PaddingContentType::kZeros;
   pad_node->attr = attr;
   model.AddConsumer(input->id, pad_node->id);
   model.SetProducer(padded->id, pad_node->id);
@@ -240,35 +240,35 @@ TEST_P(MergePaddingSpatialParamTest, MergeWithMultipleInputs) {
 }
 
 INSTANTIATE_TEST_SUITE_P(MergePaddingWithSpatial, MergePaddingSpatialParamTest,
-                         ::testing::Values(OperationType::CONVOLUTION_2D,
-                                           OperationType::DEPTHWISE_CONVOLUTION,
-                                           OperationType::POOLING_2D));
+                         ::testing::Values(OperationType::kConvolution2D,
+                                           OperationType::kDepthwiseConvolution,
+                                           OperationType::kPooling2D));
 
 TEST(MergePaddingWithAdd, MergeAlignedPadding) {
   // Topology: input0 -> PAD -> padded
   //           [padded, input1] -> ADD -> output
   IrModel model;
-  IrTensor* input0 = model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 8));
-  IrTensor* input1 = model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 40));
-  IrTensor* padded = model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 40));
-  IrTensor* output = model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 40));
+  IrTensor* input0 = model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 8));
+  IrTensor* input1 = model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 40));
+  IrTensor* padded = model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 40));
+  IrTensor* output = model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 40));
 
   model.add_input(input0->id);
   model.add_input(input1->id);
   model.add_output(output->id);
 
   IrOp* pad_node = model.add_op();
-  pad_node->name = ToString(OperationType::PAD);
+  pad_node->name = ToString(OperationType::kPad);
   PadAttributes pad_attr;
   pad_attr.prepended = BHWC(0, 0, 0, 0);
   pad_attr.appended = BHWC(0, 0, 0, 32);
-  pad_attr.type = PaddingContentType::ZEROS;
+  pad_attr.type = PaddingContentType::kZeros;
   pad_node->attr = pad_attr;
   model.AddConsumer(input0->id, pad_node->id);
   model.SetProducer(padded->id, pad_node->id);
 
   IrOp* add_node = model.add_op();
-  add_node->name = ToString(OperationType::ADD);
+  add_node->name = ToString(OperationType::kAdd);
   ElementwiseAttributes add_attr;
   add_node->attr = add_attr;
   model.AddConsumer(padded->id, add_node->id);
@@ -284,34 +284,34 @@ TEST(MergePaddingWithAdd, MergeAlignedPadding) {
 
   const IrOp* remaining_op = model.op(add_node->id);
   ASSERT_NE(remaining_op, nullptr);
-  EXPECT_EQ(remaining_op->name, ToString(OperationType::ADD));
+  EXPECT_EQ(remaining_op->name, ToString(OperationType::kAdd));
 }
 
 TEST(MergePaddingWithAdd, DoNotTrigger_AddWithAttributes) {
   // Topology: input0 -> PAD -> padded
   //           padded -> ADD (with constant attribute) -> output
   IrModel model;
-  IrTensor* input0 = model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 8));
-  IrTensor* padded = model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 40));
-  IrTensor* output = model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 40));
+  IrTensor* input0 = model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 8));
+  IrTensor* padded = model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 40));
+  IrTensor* output = model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 40));
 
   model.add_input(input0->id);
   model.add_output(output->id);
 
   IrOp* pad_node = model.add_op();
-  pad_node->name = ToString(OperationType::PAD);
+  pad_node->name = ToString(OperationType::kPad);
   PadAttributes pad_attr;
   pad_attr.prepended = BHWC(0, 0, 0, 0);
   pad_attr.appended = BHWC(0, 0, 0, 32);
-  pad_attr.type = PaddingContentType::ZEROS;
+  pad_attr.type = PaddingContentType::kZeros;
   pad_node->attr = pad_attr;
   model.AddConsumer(input0->id, pad_node->id);
   model.SetProducer(padded->id, pad_node->id);
 
   IrOp* add_node = model.add_op();
-  add_node->name = ToString(OperationType::ADD);
+  add_node->name = ToString(OperationType::kAdd);
   ElementwiseAttributes add_attr;
-  add_attr.param = Tensor<Linear, DataType::FLOAT32>();
+  add_attr.param = Tensor<Linear, DataType::kFloat32>();
   add_node->attr = add_attr;
   model.AddConsumer(padded->id, add_node->id);
   // Missing the second input for ADD, so it implies constant param (which will
@@ -329,27 +329,27 @@ TEST(MergePaddingWithAdd, DoNotTrigger_SpatialPadding) {
   // Topology: input0 -> PAD (spatial padding) -> padded
   //           [padded, input1] -> ADD -> output
   IrModel model;
-  IrTensor* input0 = model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 8));
-  IrTensor* input1 = model.add_tensor(DataType::FLOAT32, BHWC(1, 5, 6, 8));
-  IrTensor* padded = model.add_tensor(DataType::FLOAT32, BHWC(1, 5, 6, 8));
-  IrTensor* output = model.add_tensor(DataType::FLOAT32, BHWC(1, 5, 6, 8));
+  IrTensor* input0 = model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 8));
+  IrTensor* input1 = model.add_tensor(DataType::kFloat32, BHWC(1, 5, 6, 8));
+  IrTensor* padded = model.add_tensor(DataType::kFloat32, BHWC(1, 5, 6, 8));
+  IrTensor* output = model.add_tensor(DataType::kFloat32, BHWC(1, 5, 6, 8));
 
   model.add_input(input0->id);
   model.add_input(input1->id);
   model.add_output(output->id);
 
   IrOp* pad_node = model.add_op();
-  pad_node->name = ToString(OperationType::PAD);
+  pad_node->name = ToString(OperationType::kPad);
   PadAttributes pad_attr;
   pad_attr.prepended = BHWC(0, 0, 0, 0);
   pad_attr.appended = BHWC(0, 1, 2, 0);  // HW padding instead of channel
-  pad_attr.type = PaddingContentType::ZEROS;
+  pad_attr.type = PaddingContentType::kZeros;
   pad_node->attr = pad_attr;
   model.AddConsumer(input0->id, pad_node->id);
   model.SetProducer(padded->id, pad_node->id);
 
   IrOp* add_node = model.add_op();
-  add_node->name = ToString(OperationType::ADD);
+  add_node->name = ToString(OperationType::kAdd);
   ElementwiseAttributes add_attr;
   add_node->attr = add_attr;
   model.AddConsumer(padded->id, add_node->id);

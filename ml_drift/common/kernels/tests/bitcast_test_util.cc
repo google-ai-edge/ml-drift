@@ -36,19 +36,19 @@ namespace ml_drift {
 absl::Status BitcastGrowTest(TestExecutionEnvironment& env,
                              TensorStorageType src_storage,
                              TensorStorageType dst_storage) {
-  Tensor<BHWC, DataType::UINT32> src_tensor;
+  Tensor<BHWC, DataType::kUint32> src_tensor;
   src_tensor.shape = BHWC(2, 1, 2, 1);
   // Backwards for endianness.
   src_tensor.data = {0x03020100, 0x07060504, 0x0B0A0908, 0x0F0E0D0C};
   BHWC dst_shape = BHWC(2, 1, 2, 4);
 
-  Tensor<BHWC, DataType::UINT8> ref_tensor;
+  Tensor<BHWC, DataType::kUint8> ref_tensor;
   ref_tensor.shape = dst_shape;
   ref_tensor.data = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::UINT32, src_storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({DataType::UINT8, dst_storage, Layout::BHWC});
+  op_def.src_tensors.push_back({DataType::kUint32, src_storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({DataType::kUint8, dst_storage, Layout::kBHWC});
   TensorDescriptor src_desc, dst_desc;
   src_desc = op_def.src_tensors[0];
   src_desc.UploadData(src_tensor);
@@ -58,7 +58,7 @@ absl::Status BitcastGrowTest(TestExecutionEnvironment& env,
       {&src_desc}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
-  Tensor<BHWC, DataType::UINT8> dst_tensor;
+  Tensor<BHWC, DataType::kUint8> dst_tensor;
   dst_desc.DownloadData(&dst_tensor);
   EXPECT_EQ(dst_tensor.data, ref_tensor.data);
   return absl::OkStatus();
@@ -67,18 +67,18 @@ absl::Status BitcastGrowTest(TestExecutionEnvironment& env,
 absl::Status BitcastShrinkTest(TestExecutionEnvironment& env,
                                TensorStorageType src_storage,
                                TensorStorageType dst_storage) {
-  Tensor<BHWC, DataType::UINT8> src_tensor;
+  Tensor<BHWC, DataType::kUint8> src_tensor;
   src_tensor.shape = BHWC(2, 2, 1, 4);
   src_tensor.data = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
   BHWC dst_shape = BHWC(2, 2, 1, 1);
 
-  Tensor<BHWC, DataType::UINT32> ref_tensor;
+  Tensor<BHWC, DataType::kUint32> ref_tensor;
   ref_tensor.shape = dst_shape;
   ref_tensor.data = {0x03020100, 0x07060504, 0x0B0A0908, 0x0F0E0D0C};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::UINT8, src_storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({DataType::UINT32, dst_storage, Layout::BHWC});
+  op_def.src_tensors.push_back({DataType::kUint8, src_storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({DataType::kUint32, dst_storage, Layout::kBHWC});
   TensorDescriptor src_desc, dst_desc;
   src_desc = op_def.src_tensors[0];
   src_desc.UploadData(src_tensor);
@@ -88,7 +88,7 @@ absl::Status BitcastShrinkTest(TestExecutionEnvironment& env,
       {&src_desc}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
-  Tensor<BHWC, DataType::UINT32> dst_tensor;
+  Tensor<BHWC, DataType::kUint32> dst_tensor;
   dst_desc.DownloadData(&dst_tensor);
   EXPECT_EQ(dst_tensor.data, ref_tensor.data);
   return absl::OkStatus();
@@ -97,18 +97,19 @@ absl::Status BitcastShrinkTest(TestExecutionEnvironment& env,
 absl::Status BitcastStableTest(TestExecutionEnvironment& env,
                                TensorStorageType src_storage,
                                TensorStorageType dst_storage) {
-  Tensor<BHWC, DataType::FLOAT32> src_tensor;
+  Tensor<BHWC, DataType::kFloat32> src_tensor;
   src_tensor.shape = BHWC(2, 1, 1, 2);
   src_tensor.data = {-5.538, 2.001, 15.8, 111.99};
   BHWC dst_shape = BHWC(2, 1, 1, 2);
 
-  Tensor<BHWC, DataType::UINT32> ref_tensor;
+  Tensor<BHWC, DataType::kUint32> ref_tensor;
   ref_tensor.shape = dst_shape;
   ref_tensor.data = {0xC0B1374C, 0x40001062, 0x417CCCCD, 0x42dffae1};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::FLOAT32, src_storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({DataType::UINT32, dst_storage, Layout::BHWC});
+  op_def.src_tensors.push_back(
+      {DataType::kFloat32, src_storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({DataType::kUint32, dst_storage, Layout::kBHWC});
   TensorDescriptor src_desc, dst_desc;
   src_desc = op_def.src_tensors[0];
   src_desc.UploadData(src_tensor);
@@ -118,7 +119,7 @@ absl::Status BitcastStableTest(TestExecutionEnvironment& env,
       {&src_desc}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
-  Tensor<BHWC, DataType::UINT32> dst_tensor;
+  Tensor<BHWC, DataType::kUint32> dst_tensor;
   dst_desc.DownloadData(&dst_tensor);
   EXPECT_EQ(dst_tensor.data, ref_tensor.data);
   return absl::OkStatus();
@@ -127,19 +128,19 @@ absl::Status BitcastStableTest(TestExecutionEnvironment& env,
 absl::Status BitcastFromBoolToUcharTest(TestExecutionEnvironment& env,
                                         TensorStorageType src_storage,
                                         TensorStorageType dst_storage) {
-  Tensor<BHWC, DataType::BOOL> src_tensor;
+  Tensor<BHWC, DataType::kBool> src_tensor;
   src_tensor.shape = BHWC(2, 1, 1, 8);
   src_tensor.data = {true, false, false, false, false, false, false, false,
                      true, true,  true,  true,  true,  true,  true,  true};
   BHWC dst_shape = BHWC(2, 1, 1, 1);
 
-  Tensor<BHWC, DataType::UINT8> ref_tensor;
+  Tensor<BHWC, DataType::kUint8> ref_tensor;
   ref_tensor.shape = dst_shape;
   ref_tensor.data = {0x01, 0xFF};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::BOOL, src_storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({DataType::UINT8, dst_storage, Layout::BHWC});
+  op_def.src_tensors.push_back({DataType::kBool, src_storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({DataType::kUint8, dst_storage, Layout::kBHWC});
   TensorDescriptor src_desc, dst_desc;
   src_desc = op_def.src_tensors[0];
   src_desc.UploadData(src_tensor);
@@ -149,7 +150,7 @@ absl::Status BitcastFromBoolToUcharTest(TestExecutionEnvironment& env,
       {&src_desc}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
-  Tensor<BHWC, DataType::UINT8> dst_tensor;
+  Tensor<BHWC, DataType::kUint8> dst_tensor;
   dst_desc.DownloadData(&dst_tensor);
   EXPECT_EQ(dst_tensor.data, ref_tensor.data);
   return absl::OkStatus();
@@ -158,19 +159,19 @@ absl::Status BitcastFromBoolToUcharTest(TestExecutionEnvironment& env,
 absl::Status BitcastFromBoolToUshortTest(TestExecutionEnvironment& env,
                                          TensorStorageType src_storage,
                                          TensorStorageType dst_storage) {
-  Tensor<BHWC, DataType::BOOL> src_tensor;
+  Tensor<BHWC, DataType::kBool> src_tensor;
   src_tensor.shape = BHWC(1, 1, 1, 16);
   src_tensor.data = {true, false, false, false, false, false, false, false,
                      true, true,  true,  true,  true,  true,  true,  true};
   BHWC dst_shape = BHWC(1, 1, 1, 1);
 
-  Tensor<BHWC, DataType::UINT16> ref_tensor;
+  Tensor<BHWC, DataType::kUint16> ref_tensor;
   ref_tensor.shape = dst_shape;
   ref_tensor.data = {0xFF01};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::BOOL, src_storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({DataType::UINT16, dst_storage, Layout::BHWC});
+  op_def.src_tensors.push_back({DataType::kBool, src_storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({DataType::kUint16, dst_storage, Layout::kBHWC});
   TensorDescriptor src_desc, dst_desc;
   src_desc = op_def.src_tensors[0];
   src_desc.UploadData(src_tensor);
@@ -180,7 +181,7 @@ absl::Status BitcastFromBoolToUshortTest(TestExecutionEnvironment& env,
       {&src_desc}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
-  Tensor<BHWC, DataType::UINT16> dst_tensor;
+  Tensor<BHWC, DataType::kUint16> dst_tensor;
   dst_desc.DownloadData(&dst_tensor);
   EXPECT_EQ(dst_tensor.data, ref_tensor.data);
   return absl::OkStatus();
@@ -189,7 +190,7 @@ absl::Status BitcastFromBoolToUshortTest(TestExecutionEnvironment& env,
 absl::Status BitcastFromBoolToFloatTest(TestExecutionEnvironment& env,
                                         TensorStorageType src_storage,
                                         TensorStorageType dst_storage) {
-  Tensor<BHWC, DataType::BOOL> src_tensor;
+  Tensor<BHWC, DataType::kBool> src_tensor;
   src_tensor.shape = BHWC(1, 1, 1, 32);
   // 0xC0B1374C
   src_tensor.data = {false, false, true,  true,  false, false, true,  false,
@@ -199,13 +200,14 @@ absl::Status BitcastFromBoolToFloatTest(TestExecutionEnvironment& env,
 
   BHWC dst_shape = BHWC(1, 1, 1, 1);
 
-  Tensor<BHWC, DataType::FLOAT32> ref_tensor;
+  Tensor<BHWC, DataType::kFloat32> ref_tensor;
   ref_tensor.shape = dst_shape;
   ref_tensor.data = {-5.538};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::BOOL, src_storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({DataType::FLOAT32, dst_storage, Layout::BHWC});
+  op_def.src_tensors.push_back({DataType::kBool, src_storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back(
+      {DataType::kFloat32, dst_storage, Layout::kBHWC});
   TensorDescriptor src_desc, dst_desc;
   src_desc = op_def.src_tensors[0];
   src_desc.UploadData(src_tensor);
@@ -215,7 +217,7 @@ absl::Status BitcastFromBoolToFloatTest(TestExecutionEnvironment& env,
       {&src_desc}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
-  Tensor<BHWC, DataType::FLOAT32> dst_tensor;
+  Tensor<BHWC, DataType::kFloat32> dst_tensor;
   dst_desc.DownloadData(&dst_tensor);
   EXPECT_EQ(dst_tensor.data, ref_tensor.data);
   return absl::OkStatus();
@@ -224,19 +226,19 @@ absl::Status BitcastFromBoolToFloatTest(TestExecutionEnvironment& env,
 absl::Status BitcastFromUcharToBoolTest(TestExecutionEnvironment& env,
                                         TensorStorageType src_storage,
                                         TensorStorageType dst_storage) {
-  Tensor<BHWC, DataType::UINT8> src_tensor;
+  Tensor<BHWC, DataType::kUint8> src_tensor;
   src_tensor.shape = BHWC(2, 1, 1, 1);
   src_tensor.data = {0x80, 0xFF};
   BHWC dst_shape = BHWC(2, 1, 1, 8);
 
-  Tensor<BHWC, DataType::BOOL> ref_tensor;
+  Tensor<BHWC, DataType::kBool> ref_tensor;
   ref_tensor.shape = dst_shape;
   ref_tensor.data = {false, false, false, false, false, false, false, true,
                      true,  true,  true,  true,  true,  true,  true,  true};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::UINT8, src_storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({DataType::BOOL, dst_storage, Layout::BHWC});
+  op_def.src_tensors.push_back({DataType::kUint8, src_storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({DataType::kBool, dst_storage, Layout::kBHWC});
   TensorDescriptor src_desc, dst_desc;
   src_desc = op_def.src_tensors[0];
   src_desc.UploadData(src_tensor);
@@ -246,7 +248,7 @@ absl::Status BitcastFromUcharToBoolTest(TestExecutionEnvironment& env,
       {&src_desc}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
-  Tensor<BHWC, DataType::BOOL> dst_tensor;
+  Tensor<BHWC, DataType::kBool> dst_tensor;
   dst_desc.DownloadData(&dst_tensor);
   EXPECT_EQ(dst_tensor.data, ref_tensor.data);
   return absl::OkStatus();
@@ -255,19 +257,19 @@ absl::Status BitcastFromUcharToBoolTest(TestExecutionEnvironment& env,
 absl::Status BitcastFromShortToBoolTest(TestExecutionEnvironment& env,
                                         TensorStorageType src_storage,
                                         TensorStorageType dst_storage) {
-  Tensor<BHWC, DataType::INT16> src_tensor;
+  Tensor<BHWC, DataType::kInt16> src_tensor;
   src_tensor.shape = BHWC(1, 1, 1, 1);
   src_tensor.data = {static_cast<int16_t>(0xFF08)};
   BHWC dst_shape = BHWC(1, 1, 1, 16);
 
-  Tensor<BHWC, DataType::BOOL> ref_tensor;
+  Tensor<BHWC, DataType::kBool> ref_tensor;
   ref_tensor.shape = dst_shape;
   ref_tensor.data = {false, false, false, true, false, false, false, false,
                      true,  true,  true,  true, true,  true,  true,  true};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::UINT16, src_storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({DataType::BOOL, dst_storage, Layout::BHWC});
+  op_def.src_tensors.push_back({DataType::kUint16, src_storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({DataType::kBool, dst_storage, Layout::kBHWC});
   TensorDescriptor src_desc, dst_desc;
   src_desc = op_def.src_tensors[0];
   src_desc.UploadData(src_tensor);
@@ -277,7 +279,7 @@ absl::Status BitcastFromShortToBoolTest(TestExecutionEnvironment& env,
       {&src_desc}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
-  Tensor<BHWC, DataType::BOOL> dst_tensor;
+  Tensor<BHWC, DataType::kBool> dst_tensor;
   dst_desc.DownloadData(&dst_tensor);
   EXPECT_EQ(dst_tensor.data, ref_tensor.data);
   return absl::OkStatus();
@@ -286,13 +288,13 @@ absl::Status BitcastFromShortToBoolTest(TestExecutionEnvironment& env,
 absl::Status BitcastFromFloatToBoolTest(TestExecutionEnvironment& env,
                                         TensorStorageType src_storage,
                                         TensorStorageType dst_storage) {
-  Tensor<BHWC, DataType::FLOAT32> src_tensor;
+  Tensor<BHWC, DataType::kFloat32> src_tensor;
   src_tensor.shape = BHWC(1, 1, 1, 1);
   src_tensor.data = {-5.538};
   // 0xC0B1374C
   BHWC dst_shape = BHWC(1, 1, 1, 32);
 
-  Tensor<BHWC, DataType::BOOL> ref_tensor;
+  Tensor<BHWC, DataType::kBool> ref_tensor;
   ref_tensor.shape = dst_shape;
   ref_tensor.data = {false, false, true,  true,  false, false, true,  false,
                      true,  true,  true,  false, true,  true,  false, false,
@@ -300,8 +302,9 @@ absl::Status BitcastFromFloatToBoolTest(TestExecutionEnvironment& env,
                      false, false, false, false, false, false, true,  true};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::FLOAT32, src_storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({DataType::BOOL, dst_storage, Layout::BHWC});
+  op_def.src_tensors.push_back(
+      {DataType::kFloat32, src_storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({DataType::kBool, dst_storage, Layout::kBHWC});
   TensorDescriptor src_desc, dst_desc;
   src_desc = op_def.src_tensors[0];
   src_desc.UploadData(src_tensor);
@@ -311,7 +314,7 @@ absl::Status BitcastFromFloatToBoolTest(TestExecutionEnvironment& env,
       {&src_desc}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
-  Tensor<BHWC, DataType::BOOL> dst_tensor;
+  Tensor<BHWC, DataType::kBool> dst_tensor;
   dst_desc.DownloadData(&dst_tensor);
   EXPECT_EQ(dst_tensor.data, ref_tensor.data);
   return absl::OkStatus();
@@ -320,19 +323,20 @@ absl::Status BitcastFromFloatToBoolTest(TestExecutionEnvironment& env,
 absl::Status BitcastFromFloatToUint8Test(TestExecutionEnvironment& env,
                                          TensorStorageType src_storage,
                                          TensorStorageType dst_storage) {
-  Tensor<BHWC, DataType::FLOAT32> src_tensor;
+  Tensor<BHWC, DataType::kFloat32> src_tensor;
   src_tensor.shape = BHWC(1, 1, 1, 1);
   src_tensor.data = {-5.538};
   // 0xC0B1374C
   BHWC dst_shape = BHWC(1, 1, 1, 4);
 
-  Tensor<BHWC, DataType::UINT8> ref_tensor;
+  Tensor<BHWC, DataType::kUint8> ref_tensor;
   ref_tensor.shape = dst_shape;
   ref_tensor.data = {0x4C, 0x37, 0xB1, 0xC0};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::FLOAT32, src_storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({DataType::UINT8, dst_storage, Layout::BHWC});
+  op_def.src_tensors.push_back(
+      {DataType::kFloat32, src_storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({DataType::kUint8, dst_storage, Layout::kBHWC});
   TensorDescriptor src_desc, dst_desc;
   src_desc = op_def.src_tensors[0];
   src_desc.UploadData(src_tensor);
@@ -342,7 +346,7 @@ absl::Status BitcastFromFloatToUint8Test(TestExecutionEnvironment& env,
       {&src_desc}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
-  Tensor<BHWC, DataType::UINT8> dst_tensor;
+  Tensor<BHWC, DataType::kUint8> dst_tensor;
   dst_desc.DownloadData(&dst_tensor);
   EXPECT_EQ(dst_tensor.data, ref_tensor.data);
   return absl::OkStatus();
@@ -351,18 +355,19 @@ absl::Status BitcastFromFloatToUint8Test(TestExecutionEnvironment& env,
 absl::Status BitcastFromUint8ToFloatTest(TestExecutionEnvironment& env,
                                          TensorStorageType src_storage,
                                          TensorStorageType dst_storage) {
-  Tensor<BHWC, DataType::UINT8> src_tensor;
+  Tensor<BHWC, DataType::kUint8> src_tensor;
   src_tensor.shape = BHWC(1, 1, 1, 4);
   src_tensor.data = {0x4C, 0x37, 0xB1, 0xC0};
   BHWC dst_shape = BHWC(1, 1, 1, 1);
 
-  Tensor<BHWC, DataType::FLOAT32> ref_tensor;
+  Tensor<BHWC, DataType::kFloat32> ref_tensor;
   ref_tensor.shape = dst_shape;
   ref_tensor.data = {-5.538};  // 0xC0B1374C
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::UINT8, src_storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({DataType::FLOAT32, dst_storage, Layout::BHWC});
+  op_def.src_tensors.push_back({DataType::kUint8, src_storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back(
+      {DataType::kFloat32, dst_storage, Layout::kBHWC});
   TensorDescriptor src_desc, dst_desc;
   src_desc = op_def.src_tensors[0];
   src_desc.UploadData(src_tensor);
@@ -372,7 +377,7 @@ absl::Status BitcastFromUint8ToFloatTest(TestExecutionEnvironment& env,
       {&src_desc}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
-  Tensor<BHWC, DataType::FLOAT32> dst_tensor;
+  Tensor<BHWC, DataType::kFloat32> dst_tensor;
   dst_desc.DownloadData(&dst_tensor);
   EXPECT_EQ(dst_tensor.data, ref_tensor.data);
   return absl::OkStatus();

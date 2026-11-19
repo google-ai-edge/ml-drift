@@ -15,6 +15,7 @@
 add_library(mld_cl_opencl_wrapper
     opencl_wrapper.cc
     opencl_wrapper.h
+    qcom_wrapper.h
 )
 target_link_libraries(mld_cl_opencl_wrapper
   PUBLIC
@@ -93,9 +94,11 @@ add_library(mld_cl_cl_device cl_device.cc cl_device.h)
 target_include_directories(mld_cl_cl_device PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_cl_cl_device
   PUBLIC
+    absl::log
     absl::status
     mld_cl_opencl_wrapper
     mld_cl_util
+    mld_common_data_type
     mld_common_gpu_info
 )
 
@@ -153,12 +156,15 @@ target_link_libraries(mld_cl_inference_context
     mld_cl_cl_command_buffer
     mld_cl_cl_operation
     mld_cl_command_buffer
-    mld_cl_default_qcom_command_buffer
+    mld_cl_qcom_command_buffer
     mld_cl_environment
     mld_cl_memory_manager
     mld_cl_serialization_cc_fbs
     mld_common_gpu_model
     mld_common_gpu_model_cc_fbs
+    mld_common_gpu_model_util
+    mld_common_ir_model
+    mld_common_ir_model_util
     mld_common_model
   PRIVATE
     mld_common_merge_nodes
@@ -214,11 +220,30 @@ target_link_libraries(mld_cl_command_buffer
     mld_cl_cl_operation
 )
 
+add_library(mld_cl_qcom_command_buffer qcom_command_buffer.cc qcom_command_buffer.h)
+target_include_directories(mld_cl_qcom_command_buffer PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
+target_link_libraries(mld_cl_qcom_command_buffer
+  PUBLIC
+    absl::status
+    absl::status_macros
+    absl::statusor
+    mld_cl_cl_command_queue
+    mld_cl_cl_context
+    mld_cl_cl_device
+    mld_cl_cl_event
+    mld_cl_cl_operation
+    mld_cl_command_buffer
+    mld_cl_opencl_wrapper
+    mld_cl_util
+)
+
 add_library(mld_cl_cl_event cl_event.cc cl_event.h)
 target_include_directories(mld_cl_cl_event PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_cl_cl_event
   PUBLIC
     mld_cl_opencl_wrapper
+  PRIVATE
+    mld_cl_util
 )
 
 add_library(mld_cl_cl_kernel cl_kernel.cc cl_kernel.h)
@@ -344,7 +369,6 @@ target_link_libraries(cl_test
   INTERFACE
     gmock
     gtest
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_opencl_wrapper
 )
@@ -410,5 +434,4 @@ if(NOT CMAKE_CROSSCOMPILING)
     gtest_discover_tests(inference_context_test)
 endif()
 
-add_subdirectory(default)
 add_subdirectory(testing)

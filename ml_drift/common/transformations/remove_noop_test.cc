@@ -43,12 +43,12 @@ TEST(RemoveSingleInputAdd, Smoke) {
 
   auto add_node = graph.NewNode();
   Value* output = nullptr;
-  ASSERT_TRUE(AddOutput(&graph, add_node, &output).ok());
-  add_node->operation.type = ToString(OperationType::ADD);
+  ABSL_ASSERT_OK(AddOutput(&graph, add_node, &output));
+  add_node->operation.type = ToString(OperationType::kAdd);
   add_node->operation.attributes = ElementwiseAttributes();
 
   Value* temp = nullptr;
-  ASSERT_TRUE(ConnectTwoNodes(&graph, first_node, add_node, &temp).ok());
+  ABSL_ASSERT_OK(ConnectTwoNodes(&graph, first_node, add_node, &temp));
   ASSERT_EQ(2, graph.nodes().size());
   ASSERT_EQ(3, graph.values().size());
 
@@ -71,14 +71,14 @@ TEST(RemoveSingleInputAdd, DoNotTrigger_LinearTensor) {
 
   auto add_node = graph.NewNode();
   Value* output = nullptr;
-  ASSERT_TRUE(AddOutput(&graph, add_node, &output).ok());
-  add_node->operation.type = ToString(OperationType::ADD);
+  ABSL_ASSERT_OK(AddOutput(&graph, add_node, &output));
+  add_node->operation.type = ToString(OperationType::kAdd);
   ElementwiseAttributes attr;
-  attr.param = Tensor<Linear, DataType::FLOAT32>();
+  attr.param = Tensor<Linear, DataType::kFloat32>();
   add_node->operation.attributes = attr;
 
   Value* temp = nullptr;
-  ASSERT_TRUE(ConnectTwoNodes(&graph, first_node, add_node, &temp).ok());
+  ABSL_ASSERT_OK(ConnectTwoNodes(&graph, first_node, add_node, &temp));
   ASSERT_EQ(2, graph.nodes().size());
   ASSERT_EQ(3, graph.values().size());
 
@@ -98,14 +98,14 @@ TEST(RemoveSingleInputAdd, DoNotTrigger_Scalar) {
 
   auto add_node = graph.NewNode();
   Value* output = nullptr;
-  ASSERT_TRUE(AddOutput(&graph, add_node, &output).ok());
-  add_node->operation.type = ToString(OperationType::ADD);
+  ABSL_ASSERT_OK(AddOutput(&graph, add_node, &output));
+  add_node->operation.type = ToString(OperationType::kAdd);
   ElementwiseAttributes attr;
   attr.param = 0.5f;
   add_node->operation.attributes = attr;
 
   Value* temp = nullptr;
-  ASSERT_TRUE(ConnectTwoNodes(&graph, first_node, add_node, &temp).ok());
+  ABSL_ASSERT_OK(ConnectTwoNodes(&graph, first_node, add_node, &temp));
   ASSERT_EQ(2, graph.nodes().size());
   ASSERT_EQ(3, graph.values().size());
 
@@ -127,13 +127,13 @@ TEST(RemoveSingleInputAdd, DoNotTrigger_Multiple) {
 
   auto add_node = graph.NewNode();
   Value* output = nullptr;
-  ASSERT_TRUE(AddOutput(&graph, add_node, &output).ok());
-  add_node->operation.type = ToString(OperationType::ADD);
+  ABSL_ASSERT_OK(AddOutput(&graph, add_node, &output));
+  add_node->operation.type = ToString(OperationType::kAdd);
 
   Value* temp_a = nullptr;
   Value* temp_b = nullptr;
-  ASSERT_TRUE(ConnectTwoNodes(&graph, node_a, add_node, &temp_a).ok());
-  ASSERT_TRUE(ConnectTwoNodes(&graph, node_b, add_node, &temp_b).ok());
+  ABSL_ASSERT_OK(ConnectTwoNodes(&graph, node_a, add_node, &temp_a));
+  ABSL_ASSERT_OK(ConnectTwoNodes(&graph, node_b, add_node, &temp_b));
   ASSERT_EQ(3, graph.nodes().size());
   ASSERT_EQ(4, graph.values().size());
 
@@ -153,16 +153,16 @@ TEST(RemoveDegenerateUpsampling, Smoke) {
 
   auto node_to_remove = graph.NewNode();
   Value* output = nullptr;
-  ASSERT_TRUE(AddOutput(&graph, node_to_remove, &output).ok());
+  ABSL_ASSERT_OK(AddOutput(&graph, node_to_remove, &output));
   output->tensor.shape = BHWC(1, 5, 5, 1);
-  node_to_remove->operation.type = ToString(OperationType::RESIZE);
+  node_to_remove->operation.type = ToString(OperationType::kResize);
   Resize2DAttributes attr;
   attr.new_shape = HW(5, 5);
-  attr.type = SamplingType::BILINEAR;
+  attr.type = SamplingType::kBilinear;
   node_to_remove->operation.attributes = attr;
 
   Value* link = nullptr;
-  ASSERT_TRUE(ConnectTwoNodes(&graph, first_node, node_to_remove, &link).ok());
+  ABSL_ASSERT_OK(ConnectTwoNodes(&graph, first_node, node_to_remove, &link));
   link->tensor.shape = output->tensor.shape;
   ASSERT_EQ(2, graph.nodes().size());
   ASSERT_EQ(3, graph.values().size());
@@ -189,7 +189,7 @@ TEST(RemoveIdentityReshape, Smoke) {
   Value* value1 = graph.NewValue();
 
   value0->tensor.shape = BHWC(1, 1, 1, 11);
-  simple_node->operation.type = ToString(OperationType::RESHAPE);
+  simple_node->operation.type = ToString(OperationType::kReshape);
   ReshapeAttributes attr;
   attr.new_shape = BHWC(1, 1, 1, 11);
   simple_node->operation.attributes = attr;
@@ -247,7 +247,7 @@ TEST(RemoveIdentityReshape, SkipWhenProducerAlreadyFedToReshapeConsumer) {
   Value* value1 = graph.NewValue();
 
   value0->tensor.shape = BHWC(1, 1, 1, 11);
-  simple_node->operation.type = ToString(OperationType::RESHAPE);
+  simple_node->operation.type = ToString(OperationType::kReshape);
   ReshapeAttributes attr;
   attr.new_shape = BHWC(1, 1, 1, 11);
   simple_node->operation.attributes = attr;
@@ -276,6 +276,154 @@ TEST(RemoveIdentityReshape, SkipWhenProducerAlreadyFedToReshapeConsumer) {
               UnorderedElementsAre(graph_input, graph_output, value0, value1));
 }
 
+TEST(MergeConsecutiveReshapes, Smoke) {
+  GraphFloat32 graph;
+  Node* producer_node = graph.NewNode();
+  Node* reshape0 = graph.NewNode();
+  Node* reshape1 = graph.NewNode();
+  Node* consumer_node = graph.NewNode();
+  Value* graph_input = graph.NewValue();
+  Value* graph_output = graph.NewValue();
+  Value* value0 = graph.NewValue();
+  Value* value1 = graph.NewValue();
+  Value* value2 = graph.NewValue();
+
+  value0->tensor.shape = BHWC(1, 1, 1, 12);
+  value1->tensor.shape = BHWC(1, 2, 2, 3);
+  value2->tensor.shape = BHWC(1, 3, 2, 2);
+
+  reshape0->operation.type = ToString(OperationType::kReshape);
+  ReshapeAttributes attr0;
+  attr0.new_shape = BHWC(1, 2, 2, 3);
+  reshape0->operation.attributes = attr0;
+
+  reshape1->operation.type = ToString(OperationType::kReshape);
+  ReshapeAttributes attr1;
+  attr1.new_shape = BHWC(1, 3, 2, 2);
+  reshape1->operation.attributes = attr1;
+
+  graph.AddConsumer(producer_node->id, graph_input->id);
+  graph.SetProducer(producer_node->id, value0->id);
+  graph.AddConsumer(reshape0->id, value0->id);
+  graph.SetProducer(reshape0->id, value1->id);
+  graph.AddConsumer(reshape1->id, value1->id);
+  graph.SetProducer(reshape1->id, value2->id);
+  graph.AddConsumer(consumer_node->id, value2->id);
+  graph.SetProducer(consumer_node->id, graph_output->id);
+
+  auto transformation = NewMergeConsecutiveReshapes();
+  ModelTransformer transformer(&graph);
+  ASSERT_TRUE(transformer.Apply("merge_reshapes", transformation.get()));
+
+  EXPECT_THAT(graph.inputs(), UnorderedElementsAre(graph_input));
+  EXPECT_THAT(graph.outputs(), UnorderedElementsAre(graph_output));
+  EXPECT_THAT(graph.nodes(),
+              UnorderedElementsAre(producer_node, reshape0, consumer_node));
+  EXPECT_THAT(graph.values(),
+              UnorderedElementsAre(graph_input, graph_output, value0, value2));
+
+  const auto& merged_attr =
+      std::any_cast<const ReshapeAttributes&>(reshape0->operation.attributes);
+  EXPECT_EQ(merged_attr.new_shape, BHWC(1, 3, 2, 2));
+}
+
+TEST(MergeConsecutiveReshapes, CancellingReshapesWithRemoveIdentity) {
+  GraphFloat32 graph;
+  Node* producer_node = graph.NewNode();
+  Node* reshape0 = graph.NewNode();
+  Node* reshape1 = graph.NewNode();
+  Node* consumer_node = graph.NewNode();
+  Value* graph_input = graph.NewValue();
+  Value* graph_output = graph.NewValue();
+  Value* value0 = graph.NewValue();
+  Value* value1 = graph.NewValue();
+  Value* value2 = graph.NewValue();
+
+  value0->tensor.shape = BHWC(1, 12, 630, 630);
+  value1->tensor.shape = BHWC(12, 1, 630, 630);
+  value2->tensor.shape = BHWC(1, 12, 630, 630);
+
+  reshape0->operation.type = ToString(OperationType::kReshape);
+  ReshapeAttributes attr0;
+  attr0.new_shape = BHWC(12, 1, 630, 630);
+  reshape0->operation.attributes = attr0;
+
+  reshape1->operation.type = ToString(OperationType::kReshape);
+  ReshapeAttributes attr1;
+  attr1.new_shape = BHWC(1, 12, 630, 630);
+  reshape1->operation.attributes = attr1;
+
+  graph.AddConsumer(producer_node->id, graph_input->id);
+  graph.SetProducer(producer_node->id, value0->id);
+  graph.AddConsumer(reshape0->id, value0->id);
+  graph.SetProducer(reshape0->id, value1->id);
+  graph.AddConsumer(reshape1->id, value1->id);
+  graph.SetProducer(reshape1->id, value2->id);
+  graph.AddConsumer(consumer_node->id, value2->id);
+  graph.SetProducer(consumer_node->id, graph_output->id);
+
+  auto merge_transform = NewMergeConsecutiveReshapes();
+  auto remove_identity_transform = NewRemoveIdentityReshape();
+  ModelTransformer transformer(&graph);
+  ASSERT_TRUE(transformer.Apply("merge_reshapes", merge_transform.get()));
+  ASSERT_TRUE(
+      transformer.Apply("remove_identity", remove_identity_transform.get()));
+
+  EXPECT_THAT(graph.inputs(), UnorderedElementsAre(graph_input));
+  EXPECT_THAT(graph.outputs(), UnorderedElementsAre(graph_output));
+  EXPECT_THAT(graph.nodes(),
+              UnorderedElementsAre(producer_node, consumer_node));
+  EXPECT_THAT(graph.values(),
+              UnorderedElementsAre(graph_input, graph_output, value0));
+}
+
+TEST(MergeConsecutiveReshapes, SkipWhenIntermediateHasMultipleConsumers) {
+  GraphFloat32 graph;
+  Node* producer_node = graph.NewNode();
+  Node* reshape0 = graph.NewNode();
+  Node* reshape1 = graph.NewNode();
+  Node* other_consumer = graph.NewNode();
+  Node* consumer_node = graph.NewNode();
+  Value* graph_input = graph.NewValue();
+  Value* graph_output = graph.NewValue();
+  Value* other_output = graph.NewValue();
+  Value* value0 = graph.NewValue();
+  Value* value1 = graph.NewValue();
+  Value* value2 = graph.NewValue();
+
+  value0->tensor.shape = BHWC(1, 1, 1, 12);
+  value1->tensor.shape = BHWC(1, 2, 2, 3);
+  value2->tensor.shape = BHWC(1, 3, 2, 2);
+
+  reshape0->operation.type = ToString(OperationType::kReshape);
+  ReshapeAttributes attr0;
+  attr0.new_shape = BHWC(1, 2, 2, 3);
+  reshape0->operation.attributes = attr0;
+
+  reshape1->operation.type = ToString(OperationType::kReshape);
+  ReshapeAttributes attr1;
+  attr1.new_shape = BHWC(1, 3, 2, 2);
+  reshape1->operation.attributes = attr1;
+
+  graph.AddConsumer(producer_node->id, graph_input->id);
+  graph.SetProducer(producer_node->id, value0->id);
+  graph.AddConsumer(reshape0->id, value0->id);
+  graph.SetProducer(reshape0->id, value1->id);
+  graph.AddConsumer(reshape1->id, value1->id);
+  graph.SetProducer(reshape1->id, value2->id);
+  graph.AddConsumer(other_consumer->id, value1->id);
+  graph.SetProducer(other_consumer->id, other_output->id);
+  graph.AddConsumer(consumer_node->id, value2->id);
+  graph.SetProducer(consumer_node->id, graph_output->id);
+
+  auto transformation = NewMergeConsecutiveReshapes();
+  ModelTransformer transformer(&graph);
+  ASSERT_TRUE(transformer.Apply("merge_reshapes", transformation.get()));
+
+  EXPECT_THAT(graph.nodes(),
+              UnorderedElementsAre(producer_node, reshape0, reshape1,
+                                   other_consumer, consumer_node));
+}
 
 TEST(RemoveIdentityStridedSlice, Smoke) {
   GraphFloat32 graph;
@@ -289,7 +437,7 @@ TEST(RemoveIdentityStridedSlice, Smoke) {
 
   value0->tensor.shape = BHWC(1, 1, 1, 11);
   value1->tensor.shape = BHWC(1, 1, 1, 11);
-  simple_node->operation.type = ToString(OperationType::SLICE);
+  simple_node->operation.type = ToString(OperationType::kSlice);
   SliceAttributes attr;
   attr.starts = BHWC(0, 0, 0, 0);
   attr.strides = BHWC(1, 1, 1, 1);
@@ -347,7 +495,7 @@ TEST(RemoveIdentityStridedSlice, OutputIsGraphOutputInputConsumedByFewNodes) {
   value1->tensor.shape = BHWC(1, 1, 1, 11);
   value2->tensor.shape = BHWC(1, 1, 1, 11);
   value3->tensor.shape = BHWC(1, 1, 1, 11);
-  slice_node->operation.type = ToString(OperationType::SLICE);
+  slice_node->operation.type = ToString(OperationType::kSlice);
   SliceAttributes attr;
   attr.starts = BHWC(0, 0, 0, 0);
   attr.strides = BHWC(1, 1, 1, 1);

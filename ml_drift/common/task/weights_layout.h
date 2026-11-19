@@ -30,15 +30,14 @@ enum class WeightsLayout {
   // Width).
   kOSpatialIOGroupI4O4,
   kOSpatialIOGroupO4I4,
-  kOISpatialOGroupI4O4,
-  kOISpatialOGroupO4I4,
-  kOICustomSpatialI4O4,
-  kOICustomSpatialO4I4,
   kISpatialOI4O4UnalignedIO,
   k2DX4I4YIsSpatialIAndXIsOOGroupO4,
   k2DX4O4YIsSpatialIAndXIsOOGroupI4,
   k2DYIsSpatialIOAndXIsOGroupI4O4,
   kCustomGroups,
+  kCustomGroupsI2gr0O8I2gr1O2,
+  kCustomGroupsOgr1Ogr2Ogr0,
+  kCustomGroupsOgr0Igr1Ogr1Igr0,
 };
 
 struct WeightsDescription {
@@ -46,24 +45,54 @@ struct WeightsDescription {
   WeightsLayout layout;
   // applicable with layouts that have OGroup.
   int output_group_size;  // OGroup size
-  // applicable with layouts that have CustomSpatial
-  std::vector<int> spatial_remap;
+  std::vector<int> spatial_remap;  // optional, applicable with CustomGroups.
   // applicable with CustomGroups layout.
   std::vector<std::pair<Axis, int>> group_sizes;
+
+  struct CustomGroupsOgr1Ogr2Ogr0Params {
+    int o_gr0_size = 1;
+    int o_gr1_size = 1;
+    int o_gr2_size = 1;
+
+    bool operator==(const CustomGroupsOgr1Ogr2Ogr0Params& t) const {
+      return o_gr0_size == t.o_gr0_size && o_gr1_size == t.o_gr1_size &&
+             o_gr2_size == t.o_gr2_size;
+    }
+    bool operator!=(const CustomGroupsOgr1Ogr2Ogr0Params& t) const {
+      return !(*this == t);
+    }
+  };
+  CustomGroupsOgr1Ogr2Ogr0Params params0;
+
+  struct CustomGroupsOgr0Igr1Ogr1Igr0Params {
+    int i_gr0_size = 1;
+    int i_gr1_size = 1;
+    int o_gr0_size = 1;
+    int o_gr1_size = 1;
+
+    bool operator==(const CustomGroupsOgr0Igr1Ogr1Igr0Params& t) const {
+      return i_gr0_size == t.i_gr0_size && i_gr1_size == t.i_gr1_size &&
+             o_gr0_size == t.o_gr0_size && o_gr1_size == t.o_gr1_size;
+    }
+    bool operator!=(const CustomGroupsOgr0Igr1Ogr1Igr0Params& t) const {
+      return !(*this == t);
+    }
+  };
+  CustomGroupsOgr0Igr1Ogr1Igr0Params params1;
 
   int GetOutputGroupSize() const;
   bool IsI4O4() const;
   bool IsO4I4() const;
-  bool IsCustomSpatial() const;
   bool IsLinearLayout() const;
 
+  bool IsOISpatialOGroupI4O4() const;
+  bool IsOISpatialOGroupO4I4() const;
+
   bool operator==(const WeightsDescription& t) const;
+  bool operator!=(const WeightsDescription& t) const { return !(*this == t); }
 };
 
 std::string ToString(const WeightsDescription& desc);
-
-bool IsI4O4(const WeightsLayout& layout);
-bool IsO4I4(const WeightsLayout& layout);
 std::string ToString(const WeightsLayout& layout);
 
 }  // namespace ml_drift

@@ -75,23 +75,23 @@ MAIN_FUNCTION($0) {
 BucketArgsortOp CreateBucketArgsort(const OperationDef& op_def,
                                     const GpuInfo& gpu_info,
                                     size_t num_buckets, size_t num_elements) {
-  ABSL_CHECK(op_def.src_tensors[0].GetDataType() == DataType::INT32 &&
-        op_def.dst_tensors[0].GetDataType() == DataType::INT32 &&
-        op_def.src_tensors[0].GetBHWCShape().c ==
-            op_def.src_tensors[0].GetBHWCShape().DimensionsProduct() &&
-        op_def.dst_tensors[0].GetBHWCShape().c ==
-            op_def.dst_tensors[0].GetBHWCShape().DimensionsProduct())
+  ABSL_CHECK(op_def.src_tensors[0].GetDataType() == DataType::kInt32 &&
+             op_def.dst_tensors[0].GetDataType() == DataType::kInt32 &&
+             op_def.src_tensors[0].GetBHWCShape().c ==
+                 op_def.src_tensors[0].GetBHWCShape().DimensionsProduct() &&
+             op_def.dst_tensors[0].GetBHWCShape().c ==
+                 op_def.dst_tensors[0].GetBHWCShape().DimensionsProduct())
       << "Only supported for flat tensors with int32 data type.";
   ABSL_LOG_IF(WARNING, num_buckets > 256)
       << "Bucket sorting algorithm is inefficient for large number of buckets.";
   ABSL_CHECK(op_def.dst_tensors[0].GetStorageType() ==
-             TensorStorageType::BUFFER)
+             TensorStorageType::kBuffer)
       << "Only supported for buffer storage type.";
 
   BucketArgsortOp op(num_buckets);
   op.AddSrcTensor("src_tensor", op_def.src_tensors[0]);
   BufferDescriptor dst_desc;
-  dst_desc.element_type = DataType::INT32;
+  dst_desc.element_type = DataType::kInt32;
   dst_desc.element_size = 1;
   op.AddDstBuffer("dst_tensor", dst_desc);
   op.code_ = GetBucketArgsortCode(num_buckets, num_elements);

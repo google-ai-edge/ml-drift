@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "absl/status/status.h"
+#include "absl/status/status_macros.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/kernels/add.h"
@@ -122,15 +123,15 @@ absl::Status SelectConcat(const ConcatAttributes& attr,
                           const OperationDef& op_def, const GpuInfo& gpu_info,
                           std::unique_ptr<GPUOperation>* ptr) {
   switch (attr.axis) {
-    case Axis::CHANNELS: {
+    case Axis::kChannels: {
       GPUOperation operation = CreateConcatZ(op_def, channels, gpu_info);
       *ptr = std::make_unique<GPUOperation>(std::move(operation));
       return absl::OkStatus();
     }
-    case Axis::BATCH:
-    case Axis::DEPTH:
-    case Axis::HEIGHT:
-    case Axis::WIDTH: {
+    case Axis::kBatch:
+    case Axis::kDepth:
+    case Axis::kHeight:
+    case Axis::kWidth: {
       GPUOperation operation = CreateConcatXY(op_def, attr);
       *ptr = std::make_unique<GPUOperation>(std::move(operation));
       return absl::OkStatus();
@@ -154,11 +155,14 @@ void SelectDepthToSpace(const SpaceToDepthAttributes& attr,
   *ptr = std::make_unique<GPUOperation>(std::move(operation));
 }
 
-void SelectEmbeddingLookup(const EmbeddingLookupAttributes& attr,
-                           const OperationDef& op_def, const GpuInfo& gpu_info,
-                           std::unique_ptr<GPUOperation>* ptr) {
-  GPUOperation operation = CreateEmbeddingLookup(op_def, gpu_info, attr);
+absl::Status SelectEmbeddingLookup(const EmbeddingLookupAttributes& attr,
+                                   const OperationDef& op_def,
+                                   const GpuInfo& gpu_info,
+                                   std::unique_ptr<GPUOperation>* ptr) {
+  ABSL_ASSIGN_OR_RETURN(GPUOperation operation,
+                        CreateEmbeddingLookup(op_def, gpu_info, attr));
   *ptr = std::make_unique<GPUOperation>(std::move(operation));
+  return absl::OkStatus();
 }
 
 void SelectSplit(const SplitAttributes& attr, const GpuInfo& gpu_info,
@@ -170,8 +174,10 @@ void SelectSplit(const SplitAttributes& attr, const GpuInfo& gpu_info,
 
 std::unique_ptr<GPUOperation> SelectPadding(const GpuInfo& gpu_info,
                                             const PadAttributes& attr,
-                                            const OperationDef& op_def) {
-  return std::make_unique<GPUOperation>(CreatePadding(gpu_info, op_def, attr));
+                                            const OperationDef& op_def,
+                                            int src_channels) {
+  return std::make_unique<GPUOperation>(
+      CreatePadding(gpu_info, op_def, attr, src_channels));
 }
 
 std::unique_ptr<GPUOperation> SelectReduce(const std::set<Axis>& axis_to_reduce,
@@ -203,7 +209,7 @@ std::unique_ptr<GPUOperation> SelectWinograd3x3Forward(
 
 std::unique_ptr<GPUOperation> SelectWinograd3x3Backward(
     const GpuInfo& gpu_info, const OperationDef& op_def, int tile_size,
-    const Tensor<Linear, DataType::FLOAT32>& biases) {
+    const Tensor<Linear, DataType::kFloat32>& biases) {
   if (gpu_info.IsAMD() && tile_size == 6) {
     Winograd36To4x4 operation = CreateWinograd36To4x4(op_def, biases);
     return std::make_unique<Winograd36To4x4>(std::move(operation));

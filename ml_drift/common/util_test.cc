@@ -57,19 +57,19 @@ TEST(UtilTest, GetEpsilon) {
   GpuInfo gpu_info;
   gpu_info.opencl_info.supports_fp16_rtn = false;
   gpu_info.opencl_info.supports_fp32_rtn = false;
-  EXPECT_THAT(GetEpsilon(CalculationsPrecision::F32, gpu_info),
+  EXPECT_THAT(GetEpsilon(CalculationsPrecision::kF32, gpu_info),
               FloatEq(FLT_EPSILON * 4.0f));
-  EXPECT_THAT(GetEpsilon(CalculationsPrecision::F32_F16, gpu_info),
+  EXPECT_THAT(GetEpsilon(CalculationsPrecision::kF32F16, gpu_info),
               FloatEq(kHalfEpsilon * 4.0f));
-  EXPECT_THAT(GetEpsilon(CalculationsPrecision::F16, gpu_info),
+  EXPECT_THAT(GetEpsilon(CalculationsPrecision::kF16, gpu_info),
               FloatEq(kHalfEpsilon * 4.0f));
   gpu_info.opencl_info.supports_fp16_rtn = true;
   gpu_info.opencl_info.supports_fp32_rtn = true;
-  EXPECT_THAT(GetEpsilon(CalculationsPrecision::F32, gpu_info),
+  EXPECT_THAT(GetEpsilon(CalculationsPrecision::kF32, gpu_info),
               FloatEq(FLT_EPSILON));
-  EXPECT_THAT(GetEpsilon(CalculationsPrecision::F32_F16, gpu_info),
+  EXPECT_THAT(GetEpsilon(CalculationsPrecision::kF32F16, gpu_info),
               FloatEq(kHalfEpsilon));
-  EXPECT_THAT(GetEpsilon(CalculationsPrecision::F16, gpu_info),
+  EXPECT_THAT(GetEpsilon(CalculationsPrecision::kF16, gpu_info),
               FloatEq(kHalfEpsilon));
 }
 

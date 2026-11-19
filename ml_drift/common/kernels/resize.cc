@@ -31,6 +31,9 @@ namespace ml_drift {
 Resize::Resize(const OperationDef& definition, const Resize2DAttributes& attr)
     : attr_(attr) {
   code_ = GetResizeCode(definition, attr_);
+  // 2D bilinear interpolation (~4 FLOPs) vs nearest coord scaling (2 FLOPs).
+  flops_ = definition.dst_tensors[0].GetBHWDCShape().DimensionsProduct() *
+           (attr.type == SamplingType::kBilinear ? 4 : 2);
 }
 
 Resize::Resize(Resize&& operation)
@@ -60,7 +63,7 @@ std::string GetResize2dCode(const Resize2DAttributes& attr,
   }
   c += "  f_coords_x *= args.scale_factor_x;\n";
   c += "  f_coords_y *= args.scale_factor_y;\n";
-  if (attr.type == SamplingType::NEAREST) {
+  if (attr.type == SamplingType::kNearest) {
     if (attr.align_corners) {
       c += "  f_coords_x += 0.5f;\n";
       c += "  f_coords_y += 0.5f;\n";
@@ -87,7 +90,7 @@ std::string Resize::GetResizeCode(const OperationDef& op_def,
 
   std::string c;
   c += "MAIN_FUNCTION($0) {\n";
-  if (op_def.dst_tensors[0].HasAxis(Axis::BATCH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kBatch)) {
     c += "  int linear_id = ucl::GetGlobalId<0>();\n";
     c += "  int X = linear_id / args.dst_tensor.Batch();\n";
     c += "  int B = linear_id % args.dst_tensor.Batch();\n";
@@ -133,6 +136,9 @@ Resize3D::Resize3D(const OperationDef& definition,
                    const Resize3DAttributes& attr)
     : attr_(attr) {
   code_ = GetResize3DCode(definition, attr_);
+  // 3D trilinear interpolation (~8 FLOPs) vs nearest coord scaling (2 FLOPs).
+  flops_ = definition.dst_tensors[0].GetBHWDCShape().DimensionsProduct() *
+           (attr.type == SamplingType::kBilinear ? 8 : 2);
 }
 
 Resize3D::Resize3D(Resize3D&& operation)
@@ -156,7 +162,7 @@ std::string Resize3D::GetResize3DCode(const OperationDef& op_def,
 
   std::string c;
   c += "MAIN_FUNCTION($0) {\n";
-  if (op_def.dst_tensors[0].HasAxis(Axis::BATCH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kBatch)) {
     c += "  int linear_id = ucl::GetGlobalId<0>();\n";
     c += "  int X = linear_id / args.dst_tensor.Batch();\n";
     c += "  int B = linear_id % args.dst_tensor.Batch();\n";
@@ -184,7 +190,7 @@ std::string Resize3D::GetResize3DCode(const OperationDef& op_def,
     c += "  float f_coords_z = ucl::Convert<float>(Z) * args.scale_factor_z;\n";
   }
   c += "  args.dst_tensor::type r0;\n";
-  if (attr.type == SamplingType::NEAREST) {
+  if (attr.type == SamplingType::kNearest) {
     if (attr.align_corners) {
       c += "  f_coords_x += 0.5f;";
       c += "  f_coords_y += 0.5f;";

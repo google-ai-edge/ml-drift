@@ -53,9 +53,13 @@ struct FlushRegistryEntry {
   int ref_count = 0;
 };
 
-absl::Mutex g_flush_mutex(absl::kConstInit);
-absl::flat_hash_map<WGPUDevice, FlushRegistryEntry>& GetFlushMap() // NOLINT
-    ABSL_EXCLUSIVE_LOCKS_REQUIRED(g_flush_mutex) {
+absl::Mutex& GetFlushMutex() {
+  static auto* mutex = new absl::Mutex(absl::kConstInit);
+  return *mutex;
+}
+
+absl::flat_hash_map<WGPUDevice, FlushRegistryEntry>& GetFlushMap()  // NOLINT
+    ABSL_EXCLUSIVE_LOCKS_REQUIRED(GetFlushMutex()) {
   static auto* map = new absl::flat_hash_map<WGPUDevice, FlushRegistryEntry>();
   return *map;
 }
@@ -149,7 +153,7 @@ void Instance::ProcessEvents() { Get().ProcessEvents(); }
 void Instance::SetFlushCallback(WGPUDevice device,
                                 const WebGpuFlushCallback* callback) {
   if (callback && callback->callback) {
-    absl::MutexLock lock(g_flush_mutex);
+    absl::MutexLock lock(GetFlushMutex());
     auto& entry = GetFlushMap()[device];
     entry.cb = *callback;
     entry.ref_count++;
@@ -157,7 +161,7 @@ void Instance::SetFlushCallback(WGPUDevice device,
 }
 
 void Instance::ReleaseFlushCallback(WGPUDevice device) {
-  absl::MutexLock lock(g_flush_mutex);
+  absl::MutexLock lock(GetFlushMutex());
   auto& map = GetFlushMap();
   auto it = map.find(device);
   if (it != map.end() && --it->second.ref_count <= 0) {
@@ -168,7 +172,7 @@ void Instance::ReleaseFlushCallback(WGPUDevice device) {
 void Instance::MaybeRunFlushCallback(WGPUDevice device) {
   Instance::WebGpuFlushCallback cb{nullptr, nullptr};
   {
-    absl::MutexLock lock(g_flush_mutex);
+    absl::MutexLock lock(GetFlushMutex());
     const auto& map = GetFlushMap();
     auto it = map.find(device);
     if (it != map.end()) {

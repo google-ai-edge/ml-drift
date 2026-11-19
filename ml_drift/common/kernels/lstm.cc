@@ -40,7 +40,7 @@ std::string GetLSTMCode(const OperationDef& op_def, const GpuInfo& gpu_info) {
   c += "  Type r2 = args.intermediate.Read(0, 0, Z + state_stride * 2, B);\n";
   c += "  Type r3 = args.intermediate.Read(0, 0, Z + state_stride * 3, B);\n";
   if (gpu_info.IsApiOpenCl() &&
-      op_def.src_tensors[0].GetDataType() != DataType::FLOAT32 &&
+      op_def.src_tensors[0].GetDataType() != DataType::kFloat32 &&
       gpu_info.IsAdreno()) {
     c += "  Type input_gate;\n";
     c += "  Type new_input;\n";
@@ -102,6 +102,9 @@ GPUOperation CreateLSTM(const OperationDef& definition,
   op.AddDstTensor("activation", definition.dst_tensors[1]);
   op.code_ = GetLSTMCode(definition, gpu_info);
   op.tensor_to_grid_ = TensorToGrid::kWBToX_HDToY_SToZ;
+  // 4 gates (3 sigmoids = 9, 1 tanh = 2) + cell update (3) + hidden (2) = 16.
+  op.flops_ =
+      definition.dst_tensors[0].GetBHWDCShape().DimensionsProduct() * 16;
   return op;
 }
 

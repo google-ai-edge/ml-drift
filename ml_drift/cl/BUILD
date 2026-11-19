@@ -14,7 +14,7 @@
 
 load("@flatbuffers//:build_defs.bzl", "flatbuffer_cc_library")
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
-load("//ml_drift/common:build_config.bzl", "mld_gpu_tests_tags", "mld_platform_alias")
+load("//ml_drift/common:build_config.bzl", "mld_gpu_tests_tags")
 
 package(
     default_visibility = ["//visibility:public"],
@@ -105,7 +105,6 @@ cc_test(
     name = "cl_arguments_test",
     srcs = ["cl_arguments_test.cc"],
     linkstatic = True,
-    tags = mld_gpu_tests_tags(),
     deps = [
         ":cl_arguments",
         "//ml_drift/common:access_type",
@@ -142,6 +141,20 @@ cc_library(
         ":util",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_test(
+    name = "cl_command_buffer_test",
+    srcs = ["cl_command_buffer_test.cc"],
+    linkstatic = 1,
+    deps = [
+        ":cl_command_buffer",
+        ":opencl_wrapper",
+        "@com_google_absl//absl/cleanup",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_matchers",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -192,6 +205,7 @@ cc_library(
     deps = [
         ":opencl_wrapper",
         ":util",
+        "//ml_drift/common:data_type",
         "//ml_drift/common:gpu_info",
         "//ml_drift/common:types",
         "@com_google_absl//absl/log:absl_log",
@@ -207,6 +221,7 @@ cc_library(
     deps = [
         ":util",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
         "@opencl_headers",
     ],
 )
@@ -283,6 +298,7 @@ cc_library(
         "//ml_drift/common/task:compiler_options",
         "//ml_drift/common/task:gpu_operation",
         "//ml_drift/common/task:tuning_type",
+        "//ml_drift/common/task:work_group_picking",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:status_macros",
         "@com_google_absl//absl/status:statusor",
@@ -360,6 +376,7 @@ cc_library(
         ":cl_errors",
         ":cl_event",
         ":cl_operation",
+        ":command_buffer",
         ":environment",
         ":opencl_wrapper",
         ":program_cache",
@@ -384,6 +401,19 @@ cc_library(
 )
 
 cc_library(
+    name = "egl_sync",
+    srcs = ["egl_sync.cc"],
+    hdrs = ["egl_sync.h"],
+    defines = ["EGL_EGLEXT_PROTOTYPES"],
+    deps = [
+        "//ml_drift/gl:gl_call",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
+        "@egl_headers",
+    ],
+)
+
+cc_library(
     name = "environment",
     srcs = ["environment.cc"],
     hdrs = ["environment.h"],
@@ -401,6 +431,35 @@ cc_library(
         "@XNNPACK",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:status_macros",
+    ],
+)
+
+cc_library(
+    name = "gl_interop",
+    srcs = ["gl_interop.cc"],
+    hdrs = ["gl_interop.h"],
+    deps = [
+        ":cl_command_queue",
+        ":cl_context",
+        ":cl_device",
+        ":cl_event",
+        ":cl_memory",
+        ":egl_sync",
+        ":environment",
+        ":opencl_wrapper",
+        ":util",
+        "//ml_drift/common:access_type",
+        "//ml_drift/common:api_cl_gl_vk",
+        "//ml_drift/common:data_type",
+        "//ml_drift/common:spi",
+        "//ml_drift/gl:gl_call",
+        "//ml_drift/gl:gl_sync",
+        "//ml_drift/gl:portable",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
+        "@com_google_absl//absl/strings",
+        "@egl_headers",
+        "@opencl_headers",
     ],
 )
 
@@ -477,6 +536,7 @@ cc_test(
         "//ml_drift/common:gpu_model",
         "//ml_drift/common:gpu_model_builder",
         "//ml_drift/common:model",
+        "//ml_drift/common:operations",
         "//ml_drift/common:precision",
         "//ml_drift/common:shape",
         "//ml_drift/common:tensor",
@@ -524,14 +584,16 @@ cc_library(
             "-ldl",  # opencl_wrapper calls dlopen()
             "-lm",
         ],
+        "//ml_drift:windows": [],  # No -ldl for Windows
         "//conditions:default": ["-ldl"],  # opencl_wrapper calls dlopen()
     }),
     deps = [
+        ":qcom_wrapper",
         "@com_google_absl//absl/debugging:leak_check",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
         "@opencl_headers",
-    ] + mld_platform_alias("qcom_wrapper", "//ml_drift/cl/"),
+    ],
 )
 
 cc_library(
@@ -556,13 +618,30 @@ cc_library(
 
 cc_library(
     name = "qcom_command_buffer",
+    srcs = ["qcom_command_buffer.cc"],
     hdrs = ["qcom_command_buffer.h"],
     deps = [
+        ":cl_command_queue",
         ":cl_context",
         ":cl_device",
+        ":cl_event",
+        ":cl_operation",
         ":command_buffer",
+        ":opencl_wrapper",
+        ":qcom_wrapper",
+        ":util",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
         "@com_google_absl//absl/status:statusor",
-    ] + mld_platform_alias("qcom_command_buffer", "//ml_drift/cl/"),
+    ],
+)
+
+cc_library(
+    name = "qcom_wrapper",
+    hdrs = ["qcom_wrapper.h"],
+    deps = [
+        "@opencl_headers",
+    ],
 )
 
 cc_library(
@@ -635,7 +714,7 @@ cc_test(
         "noasan",
         "nomsan",
         "notsan",
-        "requires-gpu-nvidia",
+        "requires-gpu-sm90",
     ],
     deps = [
         ":environment",
@@ -669,12 +748,12 @@ cc_library(
     hdrs = ["util.h"],
     deps = [
         ":opencl_wrapper",
+        ":qcom_wrapper",
         ":util_types",
         "//ml_drift/common:data_type",
         "//ml_drift/common:gpu_info",
         "//ml_drift/common:shape",
         "//ml_drift/common:tensor",
-        "//ml_drift/common:util",
         "@com_google_absl//absl/debugging:leak_check",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:status_macros",
@@ -682,7 +761,7 @@ cc_library(
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:span",
         "@opencl_headers",
-    ] + mld_platform_alias("util", "//ml_drift/cl/"),
+    ],
 )
 
 cc_test(
@@ -690,10 +769,13 @@ cc_test(
     srcs = ["util_test.cc"],
     linkstatic = 1,
     deps = [
+        ":cl_errors",
         ":util",
         "//ml_drift/common:gpu_info",
+        "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:status_matchers",
         "@com_google_googletest//:gtest_main",
+        "@opencl_headers",
     ],
 )
 
@@ -709,7 +791,7 @@ cc_test(
         "noasan",
         "nomsan",
         "notsan",
-        "requires-gpu-nvidia",
+        "requires-gpu-sm90",
     ],
     deps = [
         ":cl_test",

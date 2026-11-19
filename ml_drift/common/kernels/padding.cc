@@ -26,7 +26,8 @@ namespace ml_drift {
 
 namespace {
 std::string GetPaddingCode(const GpuInfo& gpu_info, const OperationDef& op_def,
-                           const PadAttributes& attr, GPUOperation* op) {
+                           const PadAttributes& attr, int src_channels,
+                           GPUOperation* op) {
   op->AddSrcTensor("src_tensor", op_def.src_tensors[0]);
   op->AddDstTensor("dst_tensor", op_def.dst_tensors[0]);
   op->args_.AddInt("prepended_x", attr.prepended.w);
@@ -35,11 +36,11 @@ std::string GetPaddingCode(const GpuInfo& gpu_info, const OperationDef& op_def,
   op->args_.AddInt("prepended_w", attr.prepended.b);
 
   const std::string dst_batch =
-      op_def.dst_tensors[0].HasAxis(Axis::BATCH) ? "B" : "0";
+      op_def.dst_tensors[0].HasAxis(Axis::kBatch) ? "B" : "0";
   std::string c;
   const std::string channels[] = {".x", ".y", ".z", ".w"};
 
-  if (attr.type == PaddingContentType::REFLECT) {
+  if (attr.type == PaddingContentType::kReflect) {
     if (gpu_info.IsApiWebGpu()) {
       c += "fn reflect_coord(x : i32, size : i32) -> i32 {\n";
     } else {
@@ -51,7 +52,7 @@ std::string GetPaddingCode(const GpuInfo& gpu_info, const OperationDef& op_def,
   }
 
   c += "MAIN_FUNCTION($0) {\n";
-  if (op_def.dst_tensors[0].HasAxis(Axis::BATCH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kBatch)) {
     c += "  int linear_id = ucl::GetGlobalId<0>();\n";
     c += "  int X = linear_id / args.dst_tensor.Batch();\n";
     c += "  int B = linear_id % args.dst_tensor.Batch();\n";
@@ -70,14 +71,14 @@ std::string GetPaddingCode(const GpuInfo& gpu_info, const OperationDef& op_def,
        ">(" + std::to_string(attr.constant_values) + ");\n";
   c += "  int s_x = X - args.prepended_x;\n";
   c += "  int s_y = Y - args.prepended_y;\n";
-  if (op_def.src_tensors[0].HasAxis(Axis::BATCH)) {
+  if (op_def.src_tensors[0].HasAxis(Axis::kBatch)) {
     c += "  int s_b = " + dst_batch + " - args.prepended_w;\n";
     c += "  args.src_tensor.SetBatchRef(s_b);\n";
   }
-  if (attr.type == PaddingContentType::REFLECT) {
+  if (attr.type == PaddingContentType::kReflect) {
     c += "  s_x = reflect_coord(s_x, args.src_tensor.Width());\n";
     c += "  s_y = reflect_coord(s_y, args.src_tensor.Height());\n";
-    if (op_def.src_tensors[0].HasAxis(Axis::BATCH)) {
+    if (op_def.src_tensors[0].HasAxis(Axis::kBatch)) {
       c += "  s_b = reflect_coord(s_b, args.src_tensor.Batch());\n";
     }
     if (attr.prepended.c == 0 && attr.appended.c == 0) {
@@ -105,7 +106,7 @@ std::string GetPaddingCode(const GpuInfo& gpu_info, const OperationDef& op_def,
   } else {
     c += "  bool inside_x = s_x >= 0 && s_x < args.src_tensor.Width();\n";
     c += "  bool inside_y = s_y >= 0 && s_y < args.src_tensor.Height();\n";
-    if (op_def.src_tensors[0].HasAxis(Axis::BATCH)) {
+    if (op_def.src_tensors[0].HasAxis(Axis::kBatch)) {
       c += "  inside_y = inside_y && (s_b >= 0 && s_b < "
            "args.src_tensor.Batch());\n";
     }
@@ -114,7 +115,14 @@ std::string GetPaddingCode(const GpuInfo& gpu_info, const OperationDef& op_def,
       // optimized case
       c += "    result = args.src_tensor.Read(s_x, s_y, Z);\n";
     } else if (attr.prepended.c % 4 == 0 &&
-               attr.prepended.b == attr.appended.b) {
+               attr.prepended.b == attr.appended.b &&
+               (src_channels % 4 == 0 || attr.appended.c == 0)) {
+      // Whole-slice copy. Only valid when the source's last slice has no
+      // undefined lanes that would land on real destination channels: reading
+      // a full 4-component vector from a tensor whose channel count is not a
+      // multiple of 4 yields implementation-defined values in the trailing
+      // lanes (e.g. OpenCL read_imagef on a CL_R image returns alpha == 1.0),
+      // and appending channels would promote those lanes into valid output.
       c += "    int s_z = Z - args.prepended_z / 4;\n";
       c += "    if (s_z >= 0 && s_z < args.src_tensor.Slices()) {\n";
       c += "      result = args.src_tensor.Read(s_x, s_y, s_z);\n";
@@ -145,9 +153,9 @@ std::string GetPaddingCode(const GpuInfo& gpu_info, const OperationDef& op_def,
 
 GPUOperation CreatePadding(const GpuInfo& gpu_info,
                            const OperationDef& definition,
-                           const PadAttributes& attr) {
+                           const PadAttributes& attr, int src_channels) {
   GPUOperation op;
-  op.code_ = GetPaddingCode(gpu_info, definition, attr, &op);
+  op.code_ = GetPaddingCode(gpu_info, definition, attr, src_channels, &op);
   op.tensor_to_grid_ = TensorToGrid::kWBToX_HDToY_SToZ;
   return op;
 }

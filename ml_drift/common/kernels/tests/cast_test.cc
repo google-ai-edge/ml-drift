@@ -43,8 +43,8 @@ class CastTest : public Test,
 };
 
 TEST_P(CastTest, Base) {
-  if (!exec_env->IsStorageSupported(src_storage(), DataType::FLOAT32) ||
-      !exec_env->IsStorageSupported(dst_storage(), DataType::INT32)) {
+  if (!exec_env->IsStorageSupported(src_storage(), DataType::kFloat32) ||
+      !exec_env->IsStorageSupported(dst_storage(), DataType::kInt32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(src_storage())
                  << " to " << ToString(dst_storage());
   }
@@ -52,8 +52,8 @@ TEST_P(CastTest, Base) {
 }
 
 TEST_P(CastTest, ToBool) {
-  if (!exec_env->IsStorageSupported(src_storage(), DataType::FLOAT32) ||
-      !exec_env->IsStorageSupported(dst_storage(), DataType::BOOL)) {
+  if (!exec_env->IsStorageSupported(src_storage(), DataType::kFloat32) ||
+      !exec_env->IsStorageSupported(dst_storage(), DataType::kBool)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(src_storage())
                  << " to " << ToString(dst_storage());
   }
@@ -61,8 +61,8 @@ TEST_P(CastTest, ToBool) {
 }
 
 TEST_P(CastTest, FromBool) {
-  if (!exec_env->IsStorageSupported(src_storage(), DataType::BOOL) ||
-      !exec_env->IsStorageSupported(dst_storage(), DataType::FLOAT32)) {
+  if (!exec_env->IsStorageSupported(src_storage(), DataType::kBool) ||
+      !exec_env->IsStorageSupported(dst_storage(), DataType::kFloat32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(src_storage())
                  << " to " << ToString(dst_storage());
   }
@@ -70,8 +70,8 @@ TEST_P(CastTest, FromBool) {
 }
 
 TEST_P(CastTest, ToBfloat) {
-  if (!exec_env->IsStorageSupported(src_storage(), DataType::INT32) ||
-      !exec_env->IsStorageSupported(dst_storage(), DataType::BFLOAT16)) {
+  if (!exec_env->IsStorageSupported(src_storage(), DataType::kInt32) ||
+      !exec_env->IsStorageSupported(dst_storage(), DataType::kBfloat16)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(src_storage())
                  << " to " << ToString(dst_storage());
   }
@@ -79,8 +79,8 @@ TEST_P(CastTest, ToBfloat) {
 }
 
 TEST_P(CastTest, FromBfloat) {
-  if (!exec_env->IsStorageSupported(src_storage(), DataType::BFLOAT16) ||
-      !exec_env->IsStorageSupported(dst_storage(), DataType::INT32)) {
+  if (!exec_env->IsStorageSupported(src_storage(), DataType::kBfloat16) ||
+      !exec_env->IsStorageSupported(dst_storage(), DataType::kInt32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(src_storage())
                  << " to " << ToString(dst_storage());
   }

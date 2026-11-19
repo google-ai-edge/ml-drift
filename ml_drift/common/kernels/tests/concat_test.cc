@@ -35,52 +35,52 @@ class ConcatTypedTest : public Test,
                         public WithParamInterface<TensorStorageType> {};
 
 TEST_P(ConcatTypedTest, ChannelsBool) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::BOOL)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kBool)) {
     GTEST_SKIP() << "Unsupported storage: " << ToString(GetParam());
   }
   ABSL_ASSERT_OK(ConcatChannelsBoolTest(*exec_env, GetParam()));
 }
 
 TEST_P(ConcatTypedTest, Int8) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::INT8)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kInt8)) {
     GTEST_SKIP() << "Unsupported storage: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(ConcatIntTest<DataType::INT8>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(ConcatIntTest<DataType::kInt8>(*exec_env, GetParam()));
 }
 
 TEST_P(ConcatTypedTest, Int16) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::INT16)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kInt16)) {
     GTEST_SKIP() << "Unsupported storage: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(ConcatIntTest<DataType::INT16>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(ConcatIntTest<DataType::kInt16>(*exec_env, GetParam()));
 }
 
 TEST_P(ConcatTypedTest, Int32) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::INT32)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kInt32)) {
     GTEST_SKIP() << "Unsupported storage: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(ConcatIntTest<DataType::INT32>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(ConcatIntTest<DataType::kInt32>(*exec_env, GetParam()));
 }
 
 TEST_P(ConcatTypedTest, Uint8) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT8)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kUint8)) {
     GTEST_SKIP() << "Unsupported storage: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(ConcatIntTest<DataType::UINT8>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(ConcatIntTest<DataType::kUint8>(*exec_env, GetParam()));
 }
 
 TEST_P(ConcatTypedTest, Uint16) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT16)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kUint16)) {
     GTEST_SKIP() << "Unsupported storage: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(ConcatIntTest<DataType::UINT16>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(ConcatIntTest<DataType::kUint16>(*exec_env, GetParam()));
 }
 
 TEST_P(ConcatTypedTest, Uint32) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT32)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kUint32)) {
     GTEST_SKIP() << "Unsupported storage: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(ConcatIntTest<DataType::UINT32>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(ConcatIntTest<DataType::kUint32>(*exec_env, GetParam()));
 }
 
 INSTANTIATE_TEST_SUITE_P(

@@ -14,6 +14,7 @@
 
 #include "ml_drift/cl/inference_context.h"
 
+#include <cstdint>
 #include <utility>
 #include <vector>
 
@@ -29,6 +30,7 @@
 #include "ml_drift/common/gpu_model.h"
 #include "ml_drift/common/gpu_model_builder.h"
 #include "ml_drift/common/model.h"
+#include "ml_drift/common/operations.h"
 #include "ml_drift/common/precision.h"
 #include "ml_drift/common/shape.h"
 #include "ml_drift/common/task/tensor_desc.h"
@@ -43,10 +45,10 @@ class InferenceContextTest : public OpenCLTest {
 
   GpuModelBuilder::TensorHandle InitOptionalModel() {
     CreateGpuModelInfo create_info{
-        .precision = CalculationsPrecision::F32,
-        .storage_type = TensorStorageType::BUFFER,
+        .precision = CalculationsPrecision::kF32,
+        .storage_type = TensorStorageType::kBuffer,
     };
-    const DataType float_type = DataType::FLOAT32;
+    const DataType float_type = DataType::kFloat32;
 
     GpuModelBuilder model_builder(env_.GetDevicePtr()->GetInfo(),
                                   create_info.hints, create_info.precision,
@@ -96,10 +98,10 @@ class InferenceContextTest : public OpenCLTest {
 
   absl::StatusOr<GpuModelBuilder::TensorHandle> InitSubgraphModel() {
     CreateGpuModelInfo create_info{
-        .precision = CalculationsPrecision::F32,
-        .storage_type = TensorStorageType::BUFFER,
+        .precision = CalculationsPrecision::kF32,
+        .storage_type = TensorStorageType::kBuffer,
     };
-    const DataType float_type = DataType::FLOAT32;
+    const DataType float_type = DataType::kFloat32;
 
     GpuModelBuilder model_builder(env_.GetDevicePtr()->GetInfo(),
                                   create_info.hints, create_info.precision,
@@ -221,6 +223,39 @@ TEST_F(InferenceContextTest, Subgraph) {
   auto out = std::move(out_or.value());
   // (2 + 2) * 4 = 20
   EXPECT_EQ(GetModelResult(out), 20);
+}
+
+TEST_F(InferenceContextTest, GraphToInferenceContextPopulatesSerializedModel) {
+  GraphFloat32 graph;
+  Value* input = graph.NewValue();
+  input->tensor.type = DataType::kFloat32;
+  input->tensor.shape = BHWC(1, 2, 2, 1);
+  Value* output = graph.NewValue();
+  output->tensor.type = DataType::kFloat32;
+  output->tensor.shape = BHWC(1, 2, 2, 1);
+  Node* add_node = graph.NewNode();
+  add_node->operation.type = ToString(OperationType::kAdd);
+  add_node->operation.attributes = ElementwiseAttributes{.param = 1.0f};
+  graph.AddConsumer(add_node->id, input->id);
+  graph.SetProducer(add_node->id, output->id);
+
+  CreateGpuModelInfo create_info{
+      .precision = CalculationsPrecision::kF32,
+      .storage_type = TensorStorageType::kBuffer,
+  };
+  InferenceContext weights_prep_context;
+  std::vector<uint8_t> serialized_model;
+  ABSL_ASSERT_OK(GraphToInferenceContext(env_.GetDevicePtr()->GetInfo(), graph,
+                                    &env_, create_info, &context_,
+                                    &weights_prep_context, &serialized_model));
+  EXPECT_FALSE(serialized_model.empty());
+
+  InferenceContext deserialized_context;
+  EXPECT_NE(deserialized_context.GetGpuInfo().vendor,
+            env_.GetDevicePtr()->GetInfo().vendor);
+  ABSL_EXPECT_OK(deserialized_context.RestoreDeserialized(serialized_model, &env_));
+  EXPECT_EQ(deserialized_context.GetGpuInfo().vendor,
+            env_.GetDevicePtr()->GetInfo().vendor);
 }
 
 }  // namespace

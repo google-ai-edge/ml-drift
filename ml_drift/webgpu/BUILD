@@ -52,13 +52,37 @@ cc_library(
     hdrs = ["buffer.h"],
     deps = [
         ":gpu_object",
-        ":webgpu_api_util",
         ":webgpu_headers",
         "//ml_drift/common:util",
         "//ml_drift/common/task:buffer_desc",
         "//ml_drift/common/task:gpu_object_desc",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:span",
+    ],
+)
+
+cc_test(
+    name = "buffer_test",
+    srcs = ["buffer_test.cc"],
+    deps = [
+        ":buffer",
+        ":environment",
+        ":gpu_object",
+        ":memory_manager",
+        ":spatial_tensor",
+        ":webgpu_headers",
+        "//ml_drift/common:data_type",
+        "//ml_drift/common:gpu_model",
+        "//ml_drift/common:model",
+        "//ml_drift/common:shape",
+        "//ml_drift/common/task:buffer_desc",
+        "//ml_drift/common/task:tensor_desc",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_matchers",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/types:span",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -99,6 +123,7 @@ cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:status_macros",
         "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
         "@com_google_absl//absl/time",
     ],
 )
@@ -106,7 +131,7 @@ cc_library(
 cc_test(
     name = "webgpu_weights_manager_test",
     srcs = ["webgpu_weights_manager_test.cc"],
-    tags = ["requires-gpu-nvidia"],
+    tags = ["requires-gpu-sm90-full"],
     deps = [
         ":execution_environment",
         ":inference_context",
@@ -184,7 +209,7 @@ cc_library(
 cc_test(
     name = "converter_test",
     srcs = ["converter_test.cc"],
-    tags = ["requires-gpu-nvidia"],
+    tags = ["requires-gpu-sm90-full"],
     deps = [
         ":buffer",
         ":converter",
@@ -317,7 +342,7 @@ cc_library(
 cc_test(
     name = "inference_context_test",
     srcs = ["inference_context_test.cc"],
-    tags = ["requires-gpu-nvidia"],
+    tags = ["requires-gpu-sm90-full"],
     deps = [
         ":environment",
         ":inference_context",
@@ -367,6 +392,7 @@ cc_library(
         ":environment",
         ":spatial_tensor",
         ":webgpu_headers",
+        "//ml_drift/common:gpu_info",
         "//ml_drift/common:gpu_model",
         "//ml_drift/common:memory_management",
         "//ml_drift/common:model",
@@ -380,6 +406,7 @@ cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:status_macros",
         "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
     ],
 )
 
@@ -448,7 +475,6 @@ cc_library(
     deps = [
         ":environment",
         ":gpu_object",
-        ":instance",
         ":webgpu_api_util",
         ":webgpu_headers",
         "//ml_drift/common:data_type",
@@ -471,7 +497,7 @@ cc_test(
     name = "spatial_tensor_test",
     timeout = "short",
     srcs = ["spatial_tensor_test.cc"],
-    tags = ["requires-gpu-nvidia"],
+    tags = ["requires-gpu-sm90-full"],
     deps = [
         ":environment",
         ":spatial_tensor",

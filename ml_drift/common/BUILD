@@ -26,25 +26,6 @@ package(
 )
 
 cc_library(
-    name = "convert",
-    srcs = ["convert.cc"],
-    hdrs = ["convert.h"],
-    deps = [
-        ":data_type",
-        ":shape",
-        ":tensor",
-        ":types",
-        ":util",
-        "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:status_macros",
-        "@com_google_absl//absl/strings",
-        "@com_google_absl//absl/types:span",
-    ],
-)
-
-exports_files(["custom_transformations.h"])
-
-cc_library(
     name = "access_type",
     hdrs = ["access_type.h"],
 )
@@ -161,6 +142,31 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "gpu_model_builder_moe_util",
+    srcs = ["gpu_model_builder_moe_util.cc"],
+    hdrs = ["gpu_model_builder_moe_util.h"],
+    deps = [
+        ":data_type",
+        ":gpu_model_builder",
+        ":operations",
+        ":precision",
+        ":shape",
+        ":tensor",
+        ":util",
+        "//ml_drift/common/kernels:conv_apple_mpp",
+        "//ml_drift/common/kernels:conv_generic",
+        "//ml_drift/common/kernels:conv_wave_matrix",
+        "//ml_drift/common/kernels:conv_wave_memory",
+        "//ml_drift/common/kernels:fully_connected",
+        "//ml_drift/common/kernels/special:experts_remap",
+        "//ml_drift/common/task:gpu_operation",
+        "//ml_drift/common/task:tensor_desc",
+        "@com_google_absl//absl/status:status_macros",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
 flatbuffer_cc_library(
     name = "gpu_model_cc_fbs",
     srcs = ["gpu_model.fbs"],
@@ -268,6 +274,29 @@ cc_library(
         "@com_google_absl//absl/status:status_macros",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_test(
+    name = "gpu_model_util_test",
+    srcs = ["gpu_model_util_test.cc"],
+    deps = [
+        ":data_type",
+        ":gpu_info",
+        ":gpu_model",
+        ":gpu_model_builder",
+        ":gpu_model_util",
+        ":model",
+        ":model_hints",
+        ":operations",
+        ":precision",
+        ":shape",
+        ":tensor",
+        ":types",
+        "//ml_drift/common/task:tensor_desc",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_matchers",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -394,7 +423,6 @@ cc_library(
         "//ml_drift/common/task:tensor_desc",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/container:flat_hash_set",
-        "@com_google_absl//absl/log:absl_check",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:status_macros",
         "@com_google_absl//absl/status:statusor",
@@ -521,7 +549,7 @@ cc_library(
     ],
 )
 
-# TODO(impjdi): Add unit test for model_transformer.
+# TODO: Add unit test for model_transformer.
 
 cc_library(
     name = "tensor_handle",
@@ -539,9 +567,7 @@ cc_library(
         ":demangle",
         ":op_attrs",
         ":tensor_handle",
-        ":types",
         "//ml_drift/common/task:gpu_operation",
-        "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
     ],
@@ -569,9 +595,6 @@ cc_library(
     deps = [
         ":op_base",
         "@com_google_absl//absl/container:flat_hash_map",
-        "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:statusor",
-        "@com_google_absl//absl/strings",
     ],
 )
 
@@ -613,7 +636,7 @@ cc_library(
     deps = [":data_type"],
 )
 
-# TODO(impjdi): Add unit test for operations.
+# TODO: Add unit test for operations.
 
 cc_library(
     name = "shape",
@@ -672,6 +695,10 @@ cc_library(
 cc_library(
     name = "types",
     hdrs = ["types.h"],
+    linkopts = select({
+        "//ml_drift:apple": ["-lc++abi"],
+        "//conditions:default": [],
+    }),
     deps = ["@fp16"],
 )
 
@@ -807,11 +834,11 @@ cc_library(
     name = "api_cl_gl_vk",
     srcs = ["api_cl_gl_vk.cc"],
     hdrs = ["api_cl_gl_vk.h"],
-    defines = ["CL_DELEGATE_NO_GL"],
     deps = [
         ":api_common",
         ":data_type",
         ":util",
+        "//ml_drift/gl:portable",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:status_macros",
         "@com_google_absl//absl/status:statusor",
@@ -834,9 +861,10 @@ cc_library(
     name = "op_attrs",
     hdrs = ["op_attrs.h"],
     deps = [
+        ":types",
+        "//ml_drift/common/task:gpu_operation",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
     ],
 )

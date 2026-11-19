@@ -89,7 +89,7 @@ std::string GetConcatKernelCode(const OperationDef& op_def,
 
   std::string c;
   c += "MAIN_FUNCTION($0) {\n";
-  if (op_def.dst_tensors[0].HasAxis(Axis::BATCH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kBatch)) {
     c += "  int linear_id = ucl::GetGlobalId<0>();\n";
     c += "  int X = linear_id / args.dst_tensor.Batch();\n";
     c += "  int B = linear_id % args.dst_tensor.Batch();\n";
@@ -101,7 +101,7 @@ std::string GetConcatKernelCode(const OperationDef& op_def,
     c += "  int X = ucl::GetGlobalId<0>();\n";
   }
   std::string coords = "X, Y";
-  if (op_def.dst_tensors[0].HasAxis(Axis::DEPTH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kDepth)) {
     c += "  int linear_id_1 = ucl::GetGlobalId<1>();\n";
     c += "  int Y = linear_id_1 / args.dst_tensor.Depth();\n";
     c += "  int Z = linear_id_1 % args.dst_tensor.Depth();\n";

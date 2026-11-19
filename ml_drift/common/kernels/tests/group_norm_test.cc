@@ -50,14 +50,14 @@ absl::Status GroupNorm(TestExecutionEnvironment* env, int num_batch,
                        TensorStorageType storage) {
   GraphFloat32 model;
   Node* group_norm = model.NewNode();
-  group_norm->operation.type = ToString(ml_drift::OperationType::GROUP_NORM);
-  ml_drift::Tensor<ml_drift::Linear, ml_drift::DataType::FLOAT32> beta_tensor;
+  group_norm->operation.type = ToString(ml_drift::OperationType::kGroupNorm);
+  ml_drift::Tensor<ml_drift::Linear, ml_drift::DataType::kFloat32> beta_tensor;
   beta_tensor.shape = Linear(32);
   beta_tensor.data.resize(beta_tensor.shape.DimensionsProduct());
   for (int i = 0; i < beta_tensor.shape.DimensionsProduct(); ++i) {
     beta_tensor.data[i] = i % 10;
   }
-  ml_drift::Tensor<ml_drift::Linear, ml_drift::DataType::FLOAT32> gamma_tensor;
+  ml_drift::Tensor<ml_drift::Linear, ml_drift::DataType::kFloat32> gamma_tensor;
   gamma_tensor.shape = Linear(32);
   gamma_tensor.data.resize(gamma_tensor.shape.DimensionsProduct());
   for (int i = 0; i < gamma_tensor.shape.DimensionsProduct(); ++i) {
@@ -74,12 +74,12 @@ absl::Status GroupNorm(TestExecutionEnvironment* env, int num_batch,
   Value* output = model.NewValue();
 
   TensorRef<BHWC> input_ref;
-  input_ref.type = DataType::FLOAT32;
+  input_ref.type = DataType::kFloat32;
   input_ref.ref = 1;
   input_ref.shape = BHWC(num_batch, 1, 1, 32);
 
   TensorRef<BHWC> output_ref;
-  output_ref.type = DataType::FLOAT32;
+  output_ref.type = DataType::kFloat32;
   output_ref.ref = 2;
   output_ref.shape = BHWC(num_batch, 1, 1, 32);
 
@@ -102,7 +102,7 @@ absl::Status GroupNorm(TestExecutionEnvironment* env, int num_batch,
   TensorFloat32 inference_result;
   {
     CreateGpuModelInfo create_info;
-    create_info.precision = ml_drift::CalculationsPrecision::F32;
+    create_info.precision = ml_drift::CalculationsPrecision::kF32;
     create_info.storage_type = storage;
     create_info.hints.Add(ModelHints::kAllowSpecialKernels);
     create_info.hints.Add(ml_drift::ModelHints::kFastTuning);
@@ -134,7 +134,7 @@ class GroupNormTest
 
 TEST_P(GroupNormTest, GroupNormMultiBatches) {
   auto [num_batch, storage] = GetParam();
-  if (!exec_env->IsStorageSupported(storage, DataType::FLOAT32)) {
+  if (!exec_env->IsStorageSupported(storage, DataType::kFloat32)) {
     GTEST_SKIP() << "Unsupported storage type: "
                  << ToString(std::get<1>(GetParam()));
   }

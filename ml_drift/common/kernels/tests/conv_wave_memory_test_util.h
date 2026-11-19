@@ -26,7 +26,7 @@ namespace ml_drift {
 absl::Status ConvWaveMemoryTest(TestExecutionEnvironment& env,
                                 CalculationsPrecision precision,
                                 TensorStorageType storage, const BHWC& shape,
-                                int dst_channels);
+                                const OHWI& weights_shape);
 
 absl::Status ConvWaveMemoryGroupedX3Test(TestExecutionEnvironment& env,
                                          CalculationsPrecision precision,

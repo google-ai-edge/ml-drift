@@ -33,12 +33,12 @@ namespace webgpu {
 class Buffer : public GpuObject {
  public:
   Buffer() = default;
-  Buffer(const wgpu::Buffer& buffer, int size);
+  Buffer(const wgpu::Buffer& buffer, uint64_t size);
   // Creating a buffer with an offset will refer to the chunk of `buffer`
   // starting at `offset` and limited to `size` bytes. This can be used to have
   // a single backing wgpu::Buffer that multiple Buffer's refer to at different
   // offsets.
-  Buffer(const wgpu::Buffer& buffer, int size, int offset);
+  Buffer(const wgpu::Buffer& buffer, uint64_t size, uint64_t offset);
   ~Buffer() override { Release(); }
 
   // Move only
@@ -57,8 +57,11 @@ class Buffer : public GpuObject {
   absl::Status GetGPUResources(const GPUObjectDescriptor* obj_ptr,
                                GpuResourcesWithValue* resources) const override;
 
-  void CreateFromBufferDescriptor(const wgpu::Device& device,
-                                  const BufferDescriptor& desc);
+  // Creates the buffer described by `desc` and uploads its data, if any.
+  // Returns ResourceExhaustedError if the buffer cannot be allocated or its
+  // data cannot be written.
+  absl::Status CreateFromBufferDescriptor(const wgpu::Device& device,
+                                          const BufferDescriptor& desc);
 
  private:
   void Release();
@@ -68,16 +71,19 @@ class Buffer : public GpuObject {
   uint64_t offset_ = 0;
 };
 
+// Returns an empty Buffer if the buffer cannot be created or the data at
+// `data_ptr` cannot be written to it.
 Buffer CreateBuffer(const wgpu::Device& device, wgpu::BufferUsage usage,
-                    size_t size_in_bytes, const void* data_ptr = nullptr);
+                    uint64_t size_in_bytes, const void* data_ptr = nullptr);
 
-Buffer CreateBufferStorage(const wgpu::Device& device, size_t size_in_bytes,
+Buffer CreateBufferStorage(const wgpu::Device& device, uint64_t size_in_bytes,
                            const void* data_ptr = nullptr);
 
 Buffer CreateBufferConstantStorage(const wgpu::Device& device,
-                                   size_t size_in_bytes, const void* data_ptr);
+                                   uint64_t size_in_bytes,
+                                   const void* data_ptr);
 
-Buffer CreateBufferUniform(const wgpu::Device& device, size_t size_in_bytes,
+Buffer CreateBufferUniform(const wgpu::Device& device, uint64_t size_in_bytes,
                            const void* data_ptr);
 
 template <typename T>

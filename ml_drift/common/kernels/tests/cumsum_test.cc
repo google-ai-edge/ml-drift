@@ -38,45 +38,45 @@ using ::testing::WithParamInterface;
 using CumsumTypedTest = TestWithParam<TensorStorageType>;
 
 TEST_P(CumsumTypedTest, Int8) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::INT8)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kInt8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(CumsumIntTest<DataType::INT8>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(CumsumIntTest<DataType::kInt8>(*exec_env, GetParam()));
 }
 
 TEST_P(CumsumTypedTest, Int16) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::INT16)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kInt16)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(CumsumIntTest<DataType::INT16>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(CumsumIntTest<DataType::kInt16>(*exec_env, GetParam()));
 }
 
 TEST_P(CumsumTypedTest, Int32) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::INT32)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kInt32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(CumsumIntTest<DataType::INT32>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(CumsumIntTest<DataType::kInt32>(*exec_env, GetParam()));
 }
 
 TEST_P(CumsumTypedTest, Uint8) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT8)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kUint8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(CumsumIntTest<DataType::UINT8>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(CumsumIntTest<DataType::kUint8>(*exec_env, GetParam()));
 }
 
 TEST_P(CumsumTypedTest, Uint16) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT16)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kUint16)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(CumsumIntTest<DataType::UINT16>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(CumsumIntTest<DataType::kUint16>(*exec_env, GetParam()));
 }
 
 TEST_P(CumsumTypedTest, Uint32) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT32)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kUint32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(CumsumIntTest<DataType::UINT32>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(CumsumIntTest<DataType::kUint32>(*exec_env, GetParam()));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -95,7 +95,7 @@ class CumsumFloatTest
 };
 
 TEST_P(CumsumFloatTest, HWC) {
-  if (axis() == Axis::BATCH) {
+  if (axis() == Axis::kBatch) {
     GTEST_SKIP() << "No batch axis for HWC layout.";
   }
   if (!exec_env->IsStorageSupported(storage(), data_type())) {
@@ -124,7 +124,8 @@ TEST_P(CumsumFloatTest, Cumsum5DTest) {
 INSTANTIATE_TEST_SUITE_P(
     CumsumFloatTestSuite, CumsumFloatTest,
     Combine(ValuesIn(GetFloatTypes()), ValuesIn(GetTensorStoragesTypes()),
-            ValuesIn({Axis::BATCH, Axis::HEIGHT, Axis::WIDTH, Axis::CHANNELS})),
+            ValuesIn({Axis::kBatch, Axis::kHeight, Axis::kWidth,
+                      Axis::kChannels})),
     [](const TestParamInfo<CumsumFloatTest::ParamType>& info) {
       return absl::StrReplaceAll(
           absl::StrCat(ToString(std::get<0>(info.param)), "_",

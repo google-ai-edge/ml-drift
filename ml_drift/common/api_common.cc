@@ -28,25 +28,25 @@ PriorityImportance GetRelativeImportance(const InferenceOptions& options,
                                          InferencePriority p2) {
   int p1_position = GetPosition(options, p1);
   int p2_position = GetPosition(options, p2);
-  if (p1_position == p2_position) return PriorityImportance::UNKNOWN;
-  return p1_position < p2_position ? PriorityImportance::HIGHER
-                                   : PriorityImportance::LOWER;
+  if (p1_position == p2_position) return PriorityImportance::kUnknown;
+  return p1_position < p2_position ? PriorityImportance::kHigher
+                                   : PriorityImportance::kLower;
 }
 
 bool IsValid(const InferenceOptions& options) {
-  if (options.usage == InferenceUsage::UNKNOWN) {
+  if (options.usage == InferenceUsage::kUnknown) {
     return false;
   }
-  if (options.priority1 == InferencePriority::UNKNOWN ||
-      options.priority2 == InferencePriority::UNKNOWN ||
-      options.priority3 == InferencePriority::UNKNOWN) {
+  if (options.priority1 == InferencePriority::kUnknown ||
+      options.priority2 == InferencePriority::kUnknown ||
+      options.priority3 == InferencePriority::kUnknown) {
     return false;
   }
-  if (options.priority1 == InferencePriority::AUTO) {
+  if (options.priority1 == InferencePriority::kAuto) {
     return false;
   }
-  if (options.priority2 == InferencePriority::AUTO &&
-      options.priority3 != InferencePriority::AUTO) {
+  if (options.priority2 == InferencePriority::kAuto &&
+      options.priority3 != InferencePriority::kAuto) {
     return false;
   }
   if (options.priority1 == options.priority2 ||
@@ -54,7 +54,7 @@ bool IsValid(const InferenceOptions& options) {
     return false;
   }
   if (options.priority2 == options.priority3 &&
-      options.priority2 != InferencePriority::AUTO) {
+      options.priority2 != InferencePriority::kAuto) {
     return false;
   }
   return true;
@@ -65,36 +65,35 @@ bool IsValid(const InferenceOptions& options) {
 // here just for code re-use purposes.
 void ResolveAutoPriority(InferenceOptions* options) {
   // priority1 can not be AUTO as it would make options invalid.
-  if (options->priority2 == InferencePriority::AUTO) {
+  if (options->priority2 == InferencePriority::kAuto) {
     switch (options->priority1) {
-      case InferencePriority::MIN_LATENCY:
-        options->priority2 = InferencePriority::MIN_MEMORY_USAGE;
-        options->priority3 = InferencePriority::MAX_PRECISION;
+      case InferencePriority::kMinLatency:
+        options->priority2 = InferencePriority::kMinMemoryUsage;
+        options->priority3 = InferencePriority::kMaxPrecision;
         return;
-      case InferencePriority::MIN_MEMORY_USAGE:
-        options->priority2 = InferencePriority::MAX_PRECISION;
-        options->priority3 = InferencePriority::MIN_LATENCY;
+      case InferencePriority::kMinMemoryUsage:
+        options->priority2 = InferencePriority::kMaxPrecision;
+        options->priority3 = InferencePriority::kMinLatency;
         return;
-      case InferencePriority::MAX_PRECISION:
-        options->priority2 = InferencePriority::MIN_LATENCY;
-        options->priority3 = InferencePriority::MIN_MEMORY_USAGE;
+      case InferencePriority::kMaxPrecision:
+        options->priority2 = InferencePriority::kMinLatency;
+        options->priority3 = InferencePriority::kMinMemoryUsage;
         return;
-      case InferencePriority::UNKNOWN:
-      case InferencePriority::AUTO:
+      case InferencePriority::kUnknown:
+      case InferencePriority::kAuto:
         // Invalid and unreachable option.
         return;
     }
   }
 
-  if (options->priority3 == InferencePriority::AUTO) {
+  if (options->priority3 == InferencePriority::kAuto) {
     // Simply add missing priority
-    if (GetPosition(*options, InferencePriority::MIN_LATENCY) == 4) {
-      options->priority3 = InferencePriority::MIN_LATENCY;
-    } else if (GetPosition(*options, InferencePriority::MAX_PRECISION) == 4) {
-      options->priority3 = InferencePriority::MAX_PRECISION;
-    } else if (GetPosition(*options, InferencePriority::MIN_MEMORY_USAGE) ==
-               4) {
-      options->priority3 = InferencePriority::MIN_MEMORY_USAGE;
+    if (GetPosition(*options, InferencePriority::kMinLatency) == 4) {
+      options->priority3 = InferencePriority::kMinLatency;
+    } else if (GetPosition(*options, InferencePriority::kMaxPrecision) == 4) {
+      options->priority3 = InferencePriority::kMaxPrecision;
+    } else if (GetPosition(*options, InferencePriority::kMinMemoryUsage) == 4) {
+      options->priority3 = InferencePriority::kMinMemoryUsage;
     }
   }
 }

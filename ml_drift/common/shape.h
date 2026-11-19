@@ -29,37 +29,37 @@
 namespace ml_drift {
 
 enum class Axis {
-  UNKNOWN = 0,
-  CHANNELS = 1,
-  INPUT_CHANNELS = 2,
-  OUTPUT_CHANNELS = 3,
-  HEIGHT = 4,
-  WIDTH = 5,
-  BATCH = 6,
-  VALUE = 7,
-  DEPTH = 8,
+  kUnknown = 0,
+  kChannels = 1,
+  kInputChannels = 2,
+  kOutputChannels = 3,
+  kHeight = 4,
+  kWidth = 5,
+  kBatch = 6,
+  kValue = 7,
+  kDepth = 8,
 };
 
 std::string ToString(Axis axis);
 
 // Layout represents axis order.
 enum class Layout {
-  UNKNOWN = 0,
-  SCALAR = 1,
-  LINEAR = 2,
-  HW = 3,
-  CHW = 4,
-  HWC = 5,
-  OIHW = 6,
-  OHWI = 7,
-  IHWO = 8,
-  IOHW = 9,
-  BHWC = 10,
-  HWDC = 11,
-  BHWDC = 12,
-  HWD = 13,
-  OHWDI = 14,
-  HWIO = 15,
+  kUnknown = 0,
+  kScalar = 1,
+  kLinear = 2,
+  kHW = 3,
+  kCHW = 4,
+  kHWC = 5,
+  kOIHW = 6,
+  kOHWI = 7,
+  kIHWO = 8,
+  kIOHW = 9,
+  kBHWC = 10,
+  kHWDC = 11,
+  kBHWDC = 12,
+  kHWD = 13,
+  kOHWDI = 14,
+  kHWIO = 15,
 };
 
 std::string ToString(Layout l);
@@ -97,7 +97,7 @@ bool HasAxis(Layout layout, Axis axis);
 
 // Stores Layout(axis set and order) and value for dimensions.
 struct Shape {
-  Shape() : layout(Layout::UNKNOWN), dimensions() {}
+  Shape() : layout(Layout::kUnknown), dimensions() {}
 
   explicit Shape(Layout t) : layout(t), dimensions(Size(t)) {}
 
@@ -133,7 +133,7 @@ struct Shape {
                            std::multiplies<int64_t>());
   }
 
-  Layout layout = Layout::UNKNOWN;
+  Layout layout = Layout::kUnknown;
 
   std::vector<int32_t> dimensions;
 };
@@ -188,27 +188,27 @@ std::string ToString(const Shape& s);
 template <Layout L>
 struct StrongShape;
 
-using Scalar = StrongShape<Layout::SCALAR>;
-using Linear = StrongShape<Layout::LINEAR>;
-using HW = StrongShape<Layout::HW>;
-using HWD = StrongShape<Layout::HWD>;
+using Scalar = StrongShape<Layout::kScalar>;
+using Linear = StrongShape<Layout::kLinear>;
+using HW = StrongShape<Layout::kHW>;
+using HWD = StrongShape<Layout::kHWD>;
 
 // Common tensor shape for CNN models working with images.
-using CHW = StrongShape<Layout::CHW>;
-using HWC = StrongShape<Layout::HWC>;
-using HWDC = StrongShape<Layout::HWDC>;
-using BHWC = StrongShape<Layout::BHWC>;
-using BHWDC = StrongShape<Layout::BHWDC>;
+using CHW = StrongShape<Layout::kCHW>;
+using HWC = StrongShape<Layout::kHWC>;
+using HWDC = StrongShape<Layout::kHWDC>;
+using BHWC = StrongShape<Layout::kBHWC>;
+using BHWDC = StrongShape<Layout::kBHWDC>;
 
 // Tensor shape used in convolution_2d weights.
-using OIHW = StrongShape<Layout::OIHW>;
-using OHWI = StrongShape<Layout::OHWI>;
-using IHWO = StrongShape<Layout::IHWO>;
-using IOHW = StrongShape<Layout::IOHW>;
-using HWIO = StrongShape<Layout::HWIO>;
+using OIHW = StrongShape<Layout::kOIHW>;
+using OHWI = StrongShape<Layout::kOHWI>;
+using IHWO = StrongShape<Layout::kIHWO>;
+using IOHW = StrongShape<Layout::kIOHW>;
+using HWIO = StrongShape<Layout::kHWIO>;
 
 // Tensor shape used in convolution_3d weights.
-using OHWDI = StrongShape<Layout::OHWDI>;
+using OHWDI = StrongShape<Layout::kOHWDI>;
 
 // -----------------------------------------------------------------------------
 // Everything below are internal implementation details.
@@ -233,14 +233,14 @@ struct AxisTraits;
     using dimension_holder_type = Holder;                    \
   }
 
-ML_DRIFT_AXIS_TRAITS(CHANNELS, c);
-ML_DRIFT_AXIS_TRAITS(HEIGHT, h);
-ML_DRIFT_AXIS_TRAITS(WIDTH, w);
-ML_DRIFT_AXIS_TRAITS(INPUT_CHANNELS, i);
-ML_DRIFT_AXIS_TRAITS(OUTPUT_CHANNELS, o);
-ML_DRIFT_AXIS_TRAITS(BATCH, b);
-ML_DRIFT_AXIS_TRAITS(VALUE, v);
-ML_DRIFT_AXIS_TRAITS(DEPTH, d);
+ML_DRIFT_AXIS_TRAITS(kChannels, c);
+ML_DRIFT_AXIS_TRAITS(kHeight, h);
+ML_DRIFT_AXIS_TRAITS(kWidth, w);
+ML_DRIFT_AXIS_TRAITS(kInputChannels, i);
+ML_DRIFT_AXIS_TRAITS(kOutputChannels, o);
+ML_DRIFT_AXIS_TRAITS(kBatch, b);
+ML_DRIFT_AXIS_TRAITS(kValue, v);
+ML_DRIFT_AXIS_TRAITS(kDepth, d);
 
 #undef ML_DRIFT_AXIS_TRAITS
 
@@ -251,7 +251,7 @@ template <int N>
 struct StrongShapeImpl<N> {
   static constexpr int size() { return N; }
 
-  static constexpr Axis axis(int) { return Axis::UNKNOWN; }
+  static constexpr Axis axis(int) { return Axis::kUnknown; }
 
   static constexpr int index(Axis) { return -1; }
 
@@ -355,35 +355,35 @@ struct LayoutTraits;
     using strong_shape_type = StrongShapeImpl<0, __VA_ARGS__>; \
   }
 
-ML_DRIFT_LAYOUT_TRAITS(HW, Axis::HEIGHT, Axis::WIDTH);
-ML_DRIFT_LAYOUT_TRAITS(HWD, Axis::HEIGHT, Axis::WIDTH, Axis::DEPTH);
-ML_DRIFT_LAYOUT_TRAITS(OHWI, Axis::OUTPUT_CHANNELS, Axis::HEIGHT, Axis::WIDTH,
-                       Axis::INPUT_CHANNELS);
-ML_DRIFT_LAYOUT_TRAITS(OIHW, Axis::OUTPUT_CHANNELS, Axis::INPUT_CHANNELS,
-                       Axis::HEIGHT, Axis::WIDTH);
-ML_DRIFT_LAYOUT_TRAITS(IOHW, Axis::INPUT_CHANNELS, Axis::OUTPUT_CHANNELS,
-                       Axis::HEIGHT, Axis::WIDTH);
-ML_DRIFT_LAYOUT_TRAITS(IHWO, Axis::INPUT_CHANNELS, Axis::HEIGHT, Axis::WIDTH,
-                       Axis::OUTPUT_CHANNELS);
-ML_DRIFT_LAYOUT_TRAITS(CHW, Axis::CHANNELS, Axis::HEIGHT, Axis::WIDTH);
-ML_DRIFT_LAYOUT_TRAITS(HWC, Axis::HEIGHT, Axis::WIDTH, Axis::CHANNELS);
-ML_DRIFT_LAYOUT_TRAITS(HWDC, Axis::HEIGHT, Axis::WIDTH, Axis::DEPTH,
-                       Axis::CHANNELS);
-ML_DRIFT_LAYOUT_TRAITS(LINEAR, Axis::VALUE);
-ML_DRIFT_LAYOUT_TRAITS(SCALAR, Axis::VALUE);
-ML_DRIFT_LAYOUT_TRAITS(BHWC, Axis::BATCH, Axis::HEIGHT, Axis::WIDTH,
-                       Axis::CHANNELS);
-ML_DRIFT_LAYOUT_TRAITS(BHWDC, Axis::BATCH, Axis::HEIGHT, Axis::WIDTH,
-                       Axis::DEPTH, Axis::CHANNELS);
-ML_DRIFT_LAYOUT_TRAITS(OHWDI, Axis::OUTPUT_CHANNELS, Axis::HEIGHT,
-                       Axis::WIDTH, Axis::DEPTH, Axis::INPUT_CHANNELS);
-ML_DRIFT_LAYOUT_TRAITS(HWIO, Axis::HEIGHT, Axis::WIDTH, Axis::INPUT_CHANNELS,
-                       Axis::OUTPUT_CHANNELS);
+ML_DRIFT_LAYOUT_TRAITS(kHW, Axis::kHeight, Axis::kWidth);
+ML_DRIFT_LAYOUT_TRAITS(kHWD, Axis::kHeight, Axis::kWidth, Axis::kDepth);
+ML_DRIFT_LAYOUT_TRAITS(kOHWI, Axis::kOutputChannels, Axis::kHeight,
+                       Axis::kWidth, Axis::kInputChannels);
+ML_DRIFT_LAYOUT_TRAITS(kOIHW, Axis::kOutputChannels, Axis::kInputChannels,
+                       Axis::kHeight, Axis::kWidth);
+ML_DRIFT_LAYOUT_TRAITS(kIOHW, Axis::kInputChannels, Axis::kOutputChannels,
+                       Axis::kHeight, Axis::kWidth);
+ML_DRIFT_LAYOUT_TRAITS(kIHWO, Axis::kInputChannels, Axis::kHeight, Axis::kWidth,
+                       Axis::kOutputChannels);
+ML_DRIFT_LAYOUT_TRAITS(kCHW, Axis::kChannels, Axis::kHeight, Axis::kWidth);
+ML_DRIFT_LAYOUT_TRAITS(kHWC, Axis::kHeight, Axis::kWidth, Axis::kChannels);
+ML_DRIFT_LAYOUT_TRAITS(kHWDC, Axis::kHeight, Axis::kWidth, Axis::kDepth,
+                       Axis::kChannels);
+ML_DRIFT_LAYOUT_TRAITS(kLinear, Axis::kValue);
+ML_DRIFT_LAYOUT_TRAITS(kScalar, Axis::kValue);
+ML_DRIFT_LAYOUT_TRAITS(kBHWC, Axis::kBatch, Axis::kHeight, Axis::kWidth,
+                       Axis::kChannels);
+ML_DRIFT_LAYOUT_TRAITS(kBHWDC, Axis::kBatch, Axis::kHeight, Axis::kWidth,
+                       Axis::kDepth, Axis::kChannels);
+ML_DRIFT_LAYOUT_TRAITS(kOHWDI, Axis::kOutputChannels, Axis::kHeight,
+                       Axis::kWidth, Axis::kDepth, Axis::kInputChannels);
+ML_DRIFT_LAYOUT_TRAITS(kHWIO, Axis::kHeight, Axis::kWidth, Axis::kInputChannels,
+                       Axis::kOutputChannels);
 
 #undef ML_DRIFT_LAYOUT_TRAITS
 
 template <>
-struct LayoutTraits<Layout::UNKNOWN> {
+struct LayoutTraits<Layout::kUnknown> {
   using strong_shape_type = StrongShapeImpl<0>;
 };
 
@@ -470,12 +470,12 @@ struct StrongShape : public internal_shape::LayoutTraits<L>::strong_shape_type {
   constexpr static Layout layout = L;
 
   bool operator==(const StrongShape<L>& shape) const {
-    // TODO(akulik): implement better alternative.
+    // TODO: implement better alternative.
     return this->ToShape() == shape.ToShape();
   }
 
   bool operator!=(const StrongShape<L>& shape) const {
-    // TODO(akulik): implement better alternative.
+    // TODO: implement better alternative.
     return this->ToShape() != shape.ToShape();
   }
   bool empty() const { return DimensionsProduct() == 0; }
@@ -596,40 +596,40 @@ constexpr Layout StrongShape<L>::layout;
 
 template <class F>
 auto DispatchByLayout(Layout type, F f)
-    -> decltype(f.template operator()<Layout::UNKNOWN>()) {
+    -> decltype(f.template operator()<Layout::kUnknown>()) {
   switch (type) {
-    case Layout::HW:
-      return f.template operator()<Layout::HW>();
-    case Layout::HWD:
-      return f.template operator()<Layout::HWD>();
-    case Layout::HWC:
-      return f.template operator()<Layout::HWC>();
-    case Layout::HWDC:
-      return f.template operator()<Layout::HWDC>();
-    case Layout::CHW:
-      return f.template operator()<Layout::CHW>();
-    case Layout::OIHW:
-      return f.template operator()<Layout::OIHW>();
-    case Layout::IOHW:
-      return f.template operator()<Layout::IOHW>();
-    case Layout::OHWI:
-      return f.template operator()<Layout::OHWI>();
-    case Layout::IHWO:
-      return f.template operator()<Layout::IHWO>();
-    case Layout::LINEAR:
-      return f.template operator()<Layout::LINEAR>();
-    case Layout::SCALAR:
-      return f.template operator()<Layout::SCALAR>();
-    case Layout::BHWC:
-      return f.template operator()<Layout::BHWC>();
-    case Layout::BHWDC:
-      return f.template operator()<Layout::BHWDC>();
-    case Layout::OHWDI:
-      return f.template operator()<Layout::OHWDI>();
-    case Layout::HWIO:
-      return f.template operator()<Layout::HWIO>();
-    case Layout::UNKNOWN:
-      return f.template operator()<Layout::UNKNOWN>();
+    case Layout::kHW:
+      return f.template operator()<Layout::kHW>();
+    case Layout::kHWD:
+      return f.template operator()<Layout::kHWD>();
+    case Layout::kHWC:
+      return f.template operator()<Layout::kHWC>();
+    case Layout::kHWDC:
+      return f.template operator()<Layout::kHWDC>();
+    case Layout::kCHW:
+      return f.template operator()<Layout::kCHW>();
+    case Layout::kOIHW:
+      return f.template operator()<Layout::kOIHW>();
+    case Layout::kIOHW:
+      return f.template operator()<Layout::kIOHW>();
+    case Layout::kOHWI:
+      return f.template operator()<Layout::kOHWI>();
+    case Layout::kIHWO:
+      return f.template operator()<Layout::kIHWO>();
+    case Layout::kLinear:
+      return f.template operator()<Layout::kLinear>();
+    case Layout::kScalar:
+      return f.template operator()<Layout::kScalar>();
+    case Layout::kBHWC:
+      return f.template operator()<Layout::kBHWC>();
+    case Layout::kBHWDC:
+      return f.template operator()<Layout::kBHWDC>();
+    case Layout::kOHWDI:
+      return f.template operator()<Layout::kOHWDI>();
+    case Layout::kHWIO:
+      return f.template operator()<Layout::kHWIO>();
+    case Layout::kUnknown:
+      return f.template operator()<Layout::kUnknown>();
   }
 }
 

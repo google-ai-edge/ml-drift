@@ -282,7 +282,9 @@ absl::Status InferenceContext::InitFromGpuModel(
 
   TuningType tuning_type = TuningType::kExhaustive;
   if (create_info.hints.Check(ModelHints::kFastTuning)) {
-    tuning_type = TuningType::kFast;
+    tuning_type = create_info.hints.Check(ModelHints::kReduceKernelsCount)
+                      ? TuningType::kFastStable
+                      : TuningType::kFast;
   }
   ABSL_RETURN_IF_ERROR(
       InitSubgraphNodes(env, std::move(subgraphs), &tuning_type));
@@ -552,8 +554,8 @@ absl::Status InferenceContext::Profile(const Environment& env,
     }
   } else {
     for (int k = 0; k < nodes_.size(); ++k) {
-      result->dispatches[k].duration =
-          nodes_[k].webgpu_operation.GetOperationTime(env);
+      ABSL_ASSIGN_OR_RETURN(result->dispatches[k].duration,
+                            nodes_[k].webgpu_operation.GetOperationTime(env));
     }
   }
   for (int k = 0; k < nodes_.size(); ++k) {
@@ -641,7 +643,7 @@ absl::Status InferenceContext::SetInputTensor(const Environment& environment,
 
 absl::Status InferenceContext::SetInputTensor(
     const Environment& environment, ValueId id,
-    const ml_drift::Tensor<BHWC, DataType::INT32>& tensor) {
+    const ml_drift::Tensor<BHWC, DataType::kInt32>& tensor) {
   SpatialTensor* gpu_tensor = memory_manager_.GetSpatialTensor(GetKey(id));
   if (!gpu_tensor) {
     return absl::InternalError(absl::StrCat("Can not find tensor.", id));

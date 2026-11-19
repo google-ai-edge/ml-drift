@@ -42,7 +42,7 @@ class CLDevice {
   cl_platform_id platform() const { return platform_id_; }
   std::string GetPlatformVersion() const;
 
-  // To track bug on some Adreno. b/131099086
+  // To track bug on some Adreno.
   void DisableOneLayerTextureArray();
 
   void AddExtension(const std::string& extension) {

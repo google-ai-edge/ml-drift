@@ -33,16 +33,23 @@ absl::Duration ProfilingInfo::GetTotalTime() const {
   return total_time;
 }
 
+std::map<std::string, ProfilingInfo::OpTypeStatistics>
+ProfilingInfo::GetStatisticsPerOpType() const {
+  std::map<std::string, OpTypeStatistics> statistics;
+  for (const auto& dispatch : dispatches) {
+    auto name = dispatch.label.substr(0, dispatch.label.find(' '));
+    statistics[name].count++;
+    statistics[name].total_time += dispatch.duration;
+    statistics[name].total_flops += dispatch.flops;
+    statistics[name].total_bytes +=
+        (dispatch.read_mem_size + dispatch.write_mem_size);
+  }
+  return statistics;
+}
+
 std::string ProfilingInfo::GetDetailedReport(
     const DetailedReportOptions& options) const {
   std::string result;
-  struct OpStatistic {
-    int count = 0;
-    absl::Duration total_time = absl::ZeroDuration();
-    uint64_t total_flops = 0;
-    uint64_t total_bytes = 0;
-  };
-  std::map<std::string, OpStatistic> statistics;
   result +=
       "Per kernel timing(" + std::to_string(dispatches.size()) + " kernels):\n";
   for (const auto& dispatch : dispatches) {
@@ -78,20 +85,14 @@ std::string ProfilingInfo::GetDetailedReport(
       const double giga_flops_per_sec = times_per_sec * giga_flops;
       result += "; " + std::to_string(giga_flops_per_sec) + " Gflops";
     }
-    result += "\n";
-    auto name = dispatch.label.substr(0, dispatch.label.find(' '));
-    statistics[name].count++;
-    statistics[name].total_time += dispatch.duration;
-    statistics[name].total_flops += dispatch.flops;
-    statistics[name].total_bytes +=
-        (dispatch.read_mem_size + dispatch.write_mem_size);
+    result += '\n';
   }
   result += "--------------------\n";
   result += "Accumulated time per operation type:\n";
   uint64_t total_flops = 0;
   uint64_t total_bytes = 0;
-  for (auto& t : statistics) {
-    auto stat = t.second;
+  for (const auto& t : GetStatisticsPerOpType()) {
+    const auto& stat = t.second;
     result += "  " + t.first + "(x" + std::to_string(stat.count) + ") - " +
               std::to_string(absl::ToDoubleMilliseconds(stat.total_time)) +
               " ms";
@@ -109,7 +110,7 @@ std::string ProfilingInfo::GetDetailedReport(
       result += ", " + std::to_string(giga_flops_per_sec) + " Gflops";
       total_flops += stat.total_flops;
     }
-    result += "\n";
+    result += '\n';
   }
   result += "--------------------\n";
   result += "Ideal total time: " +

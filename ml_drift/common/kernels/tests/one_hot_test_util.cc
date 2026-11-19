@@ -37,13 +37,13 @@ using ::testing::Pointwise;
 
 absl::Status OneHotTest(TestExecutionEnvironment& env, DataType data_type,
                         TensorStorageType storage) {
-  Tensor<BHWC, DataType::INT32> src_tensor;
+  Tensor<BHWC, DataType::kInt32> src_tensor;
   src_tensor.shape = BHWC(1, 1, 1, 1);
   src_tensor.data = {3};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::INT32, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({DataType::kInt32, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorDescriptor src = op_def.src_tensors[0];
   TensorDescriptor dst = op_def.dst_tensors[0];
   OneHotAttributes attr;
@@ -62,13 +62,13 @@ absl::Status OneHotTest(TestExecutionEnvironment& env, DataType data_type,
 
 absl::Status OneHotBatchTest(TestExecutionEnvironment& env, DataType data_type,
                              TensorStorageType storage) {
-  Tensor<BHWC, DataType::INT32> src_tensor;
+  Tensor<BHWC, DataType::kInt32> src_tensor;
   src_tensor.shape = BHWC(10, 1, 1, 1);
   src_tensor.data = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::INT32, storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({DataType::kInt32, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
   TensorDescriptor src = op_def.src_tensors[0];
   TensorDescriptor dst = op_def.dst_tensors[0];
   OneHotAttributes attr = {/*on_value=*/2.0, /*off_value=*/-2.0};
@@ -89,13 +89,13 @@ absl::Status OneHotBatchTest(TestExecutionEnvironment& env, DataType data_type,
 
 absl::Status OneHot2DTest(TestExecutionEnvironment& env, DataType data_type,
                           TensorStorageType storage) {
-  Tensor<BHWC, DataType::INT32> src_tensor;
+  Tensor<BHWC, DataType::kInt32> src_tensor;
   src_tensor.shape = BHWC(2, 1, 1, 3);
   src_tensor.data = {0, 1, 2, 2, 1, 0};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::INT32, storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({DataType::kInt32, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
   TensorDescriptor src = op_def.src_tensors[0];
   TensorDescriptor dst = op_def.dst_tensors[0];
   OneHotAttributes attr = {/*on_value=*/1.0, /*off_value=*/0.0};

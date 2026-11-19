@@ -54,7 +54,7 @@ TEST_P(ConvWaveMemoryFloatTest, ConvWaveMemoryDst4SlicesTest) {
                  << " storage type: " << ToString(storage());
   }
   ABSL_ASSERT_OK(ConvWaveMemoryTest(*exec_env, precision(), storage(),
-                               BHWC(1, 7, 4, 7), 13));
+                               BHWC(1, 7, 4, 7), OHWI(13, 2, 3, 7)));
 }
 
 TEST_P(ConvWaveMemoryFloatTest, ConvWaveMemoryDst4SlicesBatchedTest) {
@@ -64,7 +64,7 @@ TEST_P(ConvWaveMemoryFloatTest, ConvWaveMemoryDst4SlicesBatchedTest) {
                  << " storage type: " << ToString(storage());
   }
   ABSL_ASSERT_OK(ConvWaveMemoryTest(*exec_env, precision(), storage(),
-                               BHWC(5, 7, 4, 7), 13));
+                               BHWC(5, 7, 4, 7), OHWI(13, 2, 3, 7)));
 }
 
 TEST_P(ConvWaveMemoryFloatTest, ConvWaveMemoryDst9SlicesTest) {
@@ -74,7 +74,7 @@ TEST_P(ConvWaveMemoryFloatTest, ConvWaveMemoryDst9SlicesTest) {
                  << " storage type: " << ToString(storage());
   }
   ABSL_ASSERT_OK(ConvWaveMemoryTest(*exec_env, precision(), storage(),
-                               BHWC(1, 7, 4, 7), 33));
+                               BHWC(1, 7, 4, 7), OHWI(33, 2, 3, 7)));
 }
 
 TEST_P(ConvWaveMemoryFloatTest, ConvWaveMemoryDst9SlicesBatchedTest) {
@@ -84,7 +84,7 @@ TEST_P(ConvWaveMemoryFloatTest, ConvWaveMemoryDst9SlicesBatchedTest) {
                  << " storage type: " << ToString(storage());
   }
   ABSL_ASSERT_OK(ConvWaveMemoryTest(*exec_env, precision(), storage(),
-                               BHWC(7, 7, 4, 7), 33));
+                               BHWC(7, 7, 4, 7), OHWI(33, 2, 3, 7)));
 }
 
 TEST_P(ConvWaveMemoryFloatTest, ConvWaveMemoryDst6SlicesTest) {
@@ -94,7 +94,7 @@ TEST_P(ConvWaveMemoryFloatTest, ConvWaveMemoryDst6SlicesTest) {
                  << " storage type: " << ToString(storage());
   }
   ABSL_ASSERT_OK(ConvWaveMemoryTest(*exec_env, precision(), storage(),
-                               BHWC(1, 5, 3, 7), 23));
+                               BHWC(1, 5, 3, 7), OHWI(23, 2, 3, 7)));
 }
 
 TEST_P(ConvWaveMemoryFloatTest, ConvWaveMemoryDst6SlicesBatchedTest) {
@@ -104,7 +104,7 @@ TEST_P(ConvWaveMemoryFloatTest, ConvWaveMemoryDst6SlicesBatchedTest) {
                  << " storage type: " << ToString(storage());
   }
   ABSL_ASSERT_OK(ConvWaveMemoryTest(*exec_env, precision(), storage(),
-                               BHWC(11, 5, 3, 7), 23));
+                               BHWC(11, 5, 3, 7), OHWI(23, 2, 3, 7)));
 }
 
 TEST_P(ConvWaveMemoryFloatTest, ConvWaveMemoryDst3SlicesTest) {
@@ -114,7 +114,7 @@ TEST_P(ConvWaveMemoryFloatTest, ConvWaveMemoryDst3SlicesTest) {
                  << " storage type: " << ToString(storage());
   }
   ABSL_ASSERT_OK(ConvWaveMemoryTest(*exec_env, precision(), storage(),
-                               BHWC(1, 5, 3, 15), 9));
+                               BHWC(1, 5, 3, 15), OHWI(9, 2, 3, 15)));
 }
 
 TEST_P(ConvWaveMemoryFloatTest, ConvWaveMemoryDst3SlicesBatchedTest) {
@@ -124,7 +124,17 @@ TEST_P(ConvWaveMemoryFloatTest, ConvWaveMemoryDst3SlicesBatchedTest) {
                  << " storage type: " << ToString(storage());
   }
   ABSL_ASSERT_OK(ConvWaveMemoryTest(*exec_env, precision(), storage(),
-                               BHWC(2, 5, 3, 15), 9));
+                               BHWC(2, 5, 3, 15), OHWI(9, 2, 3, 15)));
+}
+
+TEST_P(ConvWaveMemoryFloatTest, ConvWaveMemoryKernelWIs9Test) {
+  const DataType data_type = DeduceDataTypeFromPrecision(precision());
+  if (!exec_env->IsStorageSupported(storage(), data_type)) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
+                 << " storage type: " << ToString(storage());
+  }
+  ABSL_ASSERT_OK(ConvWaveMemoryTest(*exec_env, precision(), storage(),
+                               BHWC(1, 5, 13, 16), OHWI(16, 1, 9, 16)));
 }
 
 TEST_P(ConvWaveMemoryFloatTest, ConvWaveMemoryGroupedX3Test) {
@@ -232,7 +242,7 @@ TEST_P(ConvWaveMemoryFloatTest, ConvWaveMemoryRuntimeDstEndChannelsTest) {
 INSTANTIATE_TEST_SUITE_P(
     ConvWaveMemoryFloatTestSuite, ConvWaveMemoryFloatTest,
     Combine(ValuesIn(GetCalculationsPrecisions()),
-            ValuesIn(GetTensorStoragesTypes())),
+            ValuesIn(GetTensorStoragesTypesWithoutSingleTexture2D())),
     [](const TestParamInfo<ConvWaveMemoryFloatTest::ParamType>& info) {
       return ToString(info.param);
     });
@@ -254,33 +264,33 @@ class IntTest : public Test,
 
 TEST_P(IntTest, ConvWaveMemoryInt8Test) {
   // Check dst storage. Check src storage w/i helper.
-  if (!exec_env->IsStorageSupported(dst_storage(), DataType::INT32)) {
+  if (!exec_env->IsStorageSupported(dst_storage(), DataType::kInt32)) {
     GTEST_SKIP() << "Unsupported dst storage type: " << ToString(dst_storage())
-                 << " data type: " << ToString(DataType::INT32);
+                 << " data type: " << ToString(DataType::kInt32);
   }
   ABSL_ASSERT_OK(ConvWaveMemoryInt8Test(*exec_env, src_storage(), dst_storage()));
 }
 
 TEST_P(IntTest, ConvWaveMemoryInt8ExternalWeightsTest) {
   // Check dst storage. Check src storage w/i helper.
-  if (!exec_env->IsStorageSupported(dst_storage(), DataType::INT32)) {
+  if (!exec_env->IsStorageSupported(dst_storage(), DataType::kInt32)) {
     GTEST_SKIP() << "Unsupported dst storage type: " << ToString(dst_storage())
-                 << " data type: " << ToString(DataType::INT32);
+                 << " data type: " << ToString(DataType::kInt32);
   }
   ABSL_ASSERT_OK(ConvWaveMemoryInt8ExternalWeightsTest(*exec_env, src_storage(),
                                                   dst_storage()));
 }
 
-INSTANTIATE_TEST_SUITE_P(IntTestSuite, IntTest,
-                         Combine(ValuesIn(GetTensorStoragesTypes()),
-                                 ValuesIn(GetTensorStoragesTypes())),
-                         [](const TestParamInfo<IntTest::ParamType>& info) {
-                           return absl::StrReplaceAll(
-                               absl::StrCat(ToString(std::get<0>(info.param)),
-                                            "_",
-                                            ToString(std::get<1>(info.param))),
-                               {{":", "_"}});
-                         });
+INSTANTIATE_TEST_SUITE_P(
+    IntTestSuite, IntTest,
+    Combine(ValuesIn(GetTensorStoragesTypesWithoutSingleTexture2D()),
+            ValuesIn(GetTensorStoragesTypesWithoutSingleTexture2D())),
+    [](const TestParamInfo<IntTest::ParamType>& info) {
+      return absl::StrReplaceAll(
+          absl::StrCat(ToString(std::get<0>(info.param)), "_",
+                       ToString(std::get<1>(info.param))),
+          {{":", "_"}});
+    });
 
 class SrcQuantizationTest
     : public Test,
@@ -296,7 +306,7 @@ class SrcQuantizationTest
 
 TEST_P(SrcQuantizationTest, ConvWaveMemoryInt8WithSrcQuantizationBig) {
   const auto& [float_type, int_storage, float_storage] = GetParam();
-  if (!exec_env->IsStorageSupported(int_storage, DataType::INT32)) {
+  if (!exec_env->IsStorageSupported(int_storage, DataType::kInt32)) {
     GTEST_SKIP() << "Unsupported int storage: " << ToString(int_storage);
   }
   if (!exec_env->IsStorageSupported(float_storage, float_type)) {
@@ -308,9 +318,9 @@ TEST_P(SrcQuantizationTest, ConvWaveMemoryInt8WithSrcQuantizationBig) {
 
 INSTANTIATE_TEST_SUITE_P(
     ConvWaveMemorySrcQuantizationTestSuite, SrcQuantizationTest,
-    Combine(ValuesIn({DataType::FLOAT16, DataType::FLOAT32}),
-            ValuesIn(GetTensorStoragesTypes()),
-            ValuesIn(GetTensorStoragesTypes())),
+    Combine(ValuesIn({DataType::kFloat16, DataType::kFloat32}),
+            ValuesIn(GetTensorStoragesTypesWithoutSingleTexture2D()),
+            ValuesIn(GetTensorStoragesTypesWithoutSingleTexture2D())),
     [](const TestParamInfo<SrcQuantizationTest::ParamType>& info) {
       return absl::StrReplaceAll(
           absl::StrCat(ToString(std::get<0>(info.param)), "_int",

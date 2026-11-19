@@ -41,6 +41,10 @@
 
 namespace ml_drift::webgpu {
 namespace {
+
+using ::testing::IsEmpty;
+using ::testing::Not;
+
 class InferenceContextTest : public testing::Test {
  public:
   void SetUp() override {
@@ -50,10 +54,10 @@ class InferenceContextTest : public testing::Test {
 
   GpuModelBuilder::TensorHandle InitOptionalModel() {
     CreateGpuModelInfo create_info{
-        .precision = CalculationsPrecision::F32,
-        .storage_type = TensorStorageType::BUFFER,
+        .precision = CalculationsPrecision::kF32,
+        .storage_type = TensorStorageType::kBuffer,
     };
-    const DataType float_type = DataType::FLOAT32;
+    const DataType float_type = DataType::kFloat32;
 
     GpuModelBuilder model_builder(env_.GetInfo(), create_info.hints,
                                   create_info.precision,
@@ -102,10 +106,10 @@ class InferenceContextTest : public testing::Test {
 
   absl::StatusOr<GpuModelBuilder::TensorHandle> InitSubgraphModel() {
     CreateGpuModelInfo create_info{
-        .precision = CalculationsPrecision::F32,
-        .storage_type = TensorStorageType::BUFFER,
+        .precision = CalculationsPrecision::kF32,
+        .storage_type = TensorStorageType::kBuffer,
     };
-    const DataType float_type = DataType::FLOAT32;
+    const DataType float_type = DataType::kFloat32;
 
     GpuModelBuilder model_builder(env_.GetInfo(), create_info.hints,
                                   create_info.precision,
@@ -154,10 +158,35 @@ class InferenceContextTest : public testing::Test {
     return out;
   }
 
-  float GetModelResult(GpuModelBuilder::TensorHandle out) {
-    ABSL_CHECK_OK(context_.AddToQueue(env_));
+  // Builds `out = in * 3 + 2` into `gpu_model` and returns the input and
+  // output handles. The GpuModel is returned to the caller so that the same
+  // graph can be used to initialize more than one InferenceContext.
+  std::pair<GpuModelBuilder::TensorHandle, GpuModelBuilder::TensorHandle>
+  BuildLinearModel(const CreateGpuModelInfo& create_info, GpuModel* gpu_model) {
+    GpuModelBuilder model_builder(env_.GetInfo(), create_info.hints,
+                                  create_info.precision,
+                                  create_info.storage_type);
 
-    SpatialTensor* tensor = context_.GetTensor(out.id);
+    GpuModelBuilder::TensorHandle in =
+        model_builder.AddTensor(BHWC{1, 1, 1, 1}, DataType::kFloat32);
+    GpuModelBuilder::TensorHandle out = model_builder.Multiplication(in, 3);
+    out = model_builder.Add(out, 2);
+
+    ABSL_CHECK_OK(model_builder.GetGpuModel(std::vector<uint32_t>{in.id},
+                                            std::vector<uint32_t>{out.id},
+                                            gpu_model));
+    return {in, out};
+  }
+
+  float GetModelResult(GpuModelBuilder::TensorHandle out) {
+    return GetModelResult(context_, out);
+  }
+
+  float GetModelResult(InferenceContext& context,
+                       GpuModelBuilder::TensorHandle out) {
+    ABSL_CHECK_OK(context.AddToQueue(env_));
+
+    SpatialTensor* tensor = context.GetTensor(out.id);
     ABSL_CHECK(tensor);
 
     TensorDescriptor desc;
@@ -235,21 +264,21 @@ TEST_F(InferenceContextTest, Subgraph) {
 
 TEST_F(InferenceContextTest, F16ModelWithF32PredefinedInput) {
   CreateGpuModelInfo create_info;
-  create_info.precision = CalculationsPrecision::F16;
-  create_info.storage_type = TensorStorageType::TEXTURE_2D;
+  create_info.precision = CalculationsPrecision::kF16;
+  create_info.storage_type = TensorStorageType::kTexture2D;
 
   const BHWC input_shape = BHWC(1, 32, 32, 4);
   const BHWC output_shape = BHWC(1, 32, 32, 16);
   Convolution2DAttributes conv_attr;
   auto& attr_weights =
-      conv_attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
+      conv_attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
   GraphFloat32 graph;
   auto input = graph.NewValue();
-  input->tensor.type = DataType::FLOAT32;
+  input->tensor.type = DataType::kFloat32;
   input->tensor.shape = input_shape;
 
   auto conv_node = graph.NewNode();
-  conv_node->operation.type = ToString(OperationType::CONVOLUTION_2D);
+  conv_node->operation.type = ToString(OperationType::kConvolution2D);
 
   conv_attr.padding.prepended = HW(0, 0);
   conv_attr.padding.appended = HW(0, 0);
@@ -270,13 +299,13 @@ TEST_F(InferenceContextTest, F16ModelWithF32PredefinedInput) {
   graph.AddConsumer(conv_node->id, input->id);
   Value* conv_output = nullptr;
   ABSL_CHECK_OK(AddOutput(&graph, conv_node, &conv_output));
-  conv_output->tensor.type = DataType::FLOAT32;
+  conv_output->tensor.type = DataType::kFloat32;
   conv_output->tensor.shape = output_shape;
 
   create_info.predefined[input->id] = TensorDescriptor{
-      DataType::FLOAT32,
-      TensorStorageType::TEXTURE_2D,
-      Layout::HWC,
+      DataType::kFloat32,
+      TensorStorageType::kTexture2D,
+      Layout::kHWC,
   };
   GpuModel gpu_model;
   ABSL_CHECK_OK(
@@ -292,6 +321,38 @@ TEST_F(InferenceContextTest, F16ModelWithF32PredefinedInput) {
   ABSL_CHECK_OK(context_.GetOutputTensor(env_, conv_output->id, &dst_tensor));
 
   EXPECT_EQ(dst_tensor.data[0], 4.0f);
+}
+
+// Serializing a model and restoring it must produce a context that computes
+// exactly the same results. `RestoreDeserialized` installs the WGSL stored in
+// the flatbuffer but rebuilds the host-side bindings from the current
+// operation code, so this also guards against the two drifting apart.
+TEST_F(InferenceContextTest, RestoreDeserializedMatchesOriginalContext) {
+  CreateGpuModelInfo create_info = {
+      .precision = CalculationsPrecision::kF32,
+      .storage_type = TensorStorageType::kBuffer,
+  };
+  GpuModel gpu_model;
+  auto [in, out] = BuildLinearModel(create_info, &gpu_model);
+
+  std::vector<uint8_t> serialized_model;
+  ABSL_ASSERT_OK(context_.InitFromGpuModel(env_, create_info, &gpu_model,
+                                      &serialized_model));
+  ASSERT_THAT(serialized_model, Not(IsEmpty()));
+
+  TensorFloat32 src_tensor;
+  src_tensor.shape = BHWC(1, 1, 1, 1);
+  src_tensor.data = {5.0f};
+
+  // 5 * 3 + 2 = 17
+  ABSL_ASSERT_OK(context_.SetInputTensor(env_, in.id, src_tensor));
+  EXPECT_EQ(GetModelResult(context_, out), 17.0f);
+
+  InferenceContext restored_context;
+  ABSL_ASSERT_OK(restored_context.RestoreDeserialized(serialized_model, env_,
+                                                 &create_info));
+  ABSL_ASSERT_OK(restored_context.SetInputTensor(env_, in.id, src_tensor));
+  EXPECT_EQ(GetModelResult(restored_context, out), 17.0f);
 }
 
 }  // namespace

@@ -59,7 +59,7 @@ absl::Status Conv2x2MaxPool2x2Test(TestExecutionEnvironment* exec_env,
   pool_attr.padding.appended = HW(0, 0);
   pool_attr.strides = HW(2, 2);
   pool_attr.kernel = HW(2, 2);
-  pool_attr.type = PoolingType::MAX;
+  pool_attr.type = PoolingType::kMax;
 
   auto src_shape = BHWC(1, 7, 8, 8);
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
@@ -86,12 +86,12 @@ TEST_P(DataTypeTest, Conv2x2MaxPool2x2) {
                  << " storage type: " << ToString(storage());
   }
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type(), storage(), Layout::HWC});
-  op_def.dst_tensors.push_back({data_type(), storage(), Layout::HWC});
-  op_def.dst_tensors.push_back({data_type(), storage(), Layout::HWC});
-  if (!op_def.src_tensors[0].SupportsZeroClamp(Axis::WIDTH,
+  op_def.src_tensors.push_back({data_type(), storage(), Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type(), storage(), Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type(), storage(), Layout::kHWC});
+  if (!op_def.src_tensors[0].SupportsZeroClamp(Axis::kWidth,
                                                exec_env->GetGpuInfo()) ||
-      !op_def.src_tensors[0].SupportsZeroClamp(Axis::HEIGHT,
+      !op_def.src_tensors[0].SupportsZeroClamp(Axis::kHeight,
                                                exec_env->GetGpuInfo())) {
     GTEST_SKIP() << "Source tensor does not support zero clamp.";
   }

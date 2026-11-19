@@ -141,7 +141,7 @@ GpuModelBuilder::TensorHandle AutoencoderKLBuilder::Downsample(
     attr.padding.appended = HW(0, 0);
     attr.strides = HW(2, 2);
     attr.kernel = HW(2, 2);
-    attr.type = PoolingType::AVERAGE;
+    attr.type = PoolingType::kAverage;
     return builder_.Pooling(src, attr);
   }
 }

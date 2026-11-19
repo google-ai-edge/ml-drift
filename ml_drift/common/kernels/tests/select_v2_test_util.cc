@@ -35,8 +35,8 @@ namespace ml_drift {
 using ::testing::FloatNear;
 using ::testing::Pointwise;
 
-using TrueTensor = Tensor<BHWC, DataType::FLOAT32>;
-using ElseTensor = Tensor<BHWC, DataType::FLOAT32>;
+using TrueTensor = Tensor<BHWC, DataType::kFloat32>;
+using ElseTensor = Tensor<BHWC, DataType::kFloat32>;
 
 namespace {
 template <DataType cond_type>
@@ -122,7 +122,7 @@ absl::Status RunSelectV2(
     int height, int width, int channels, bool broadcast_true,
     bool broadcast_false, TensorFloat32& dst_tensor) {
   OperationDef op_def;
-  const auto layout = batch > 1 ? Layout::BHWC : Layout::HWC;
+  const auto layout = batch > 1 ? Layout::kBHWC : Layout::kHWC;
   op_def.src_tensors.push_back({cond_type, cond_storage, layout});
   op_def.src_tensors.push_back({src_data_type, storage, layout});
   op_def.src_tensors.push_back({src_data_type, storage, layout});
@@ -151,7 +151,7 @@ absl::Status IfTest(TestExecutionEnvironment& env, DataType data_type,
                     TensorStorageType storage, TensorStorageType cond_storage) {
   const BHWC shape = BHWC(4, 1, 1, 4);
 
-  Tensor<BHWC, DataType::BOOL> cond_tensor;
+  Tensor<BHWC, DataType::kBool> cond_tensor;
   Tensor<BHWC, dst_data_type> true_tensor;
   Tensor<BHWC, dst_data_type> false_tensor;
   cond_tensor.shape = BHWC(1, 1, 1, 1);
@@ -160,17 +160,17 @@ absl::Status IfTest(TestExecutionEnvironment& env, DataType data_type,
   false_tensor.shape = shape;
   for (int i = 0; i < shape.DimensionsProduct(); ++i) {
     switch (dst_data_type) {
-      case DataType::FLOAT32:
+      case DataType::kFloat32:
         true_tensor.data.push_back(std::sin(i * 0.123f));
         false_tensor.data.push_back(std::sin(i * 0.456f));
         break;
-      case DataType::INT8:
-      case DataType::INT16:
-      case DataType::INT32:
+      case DataType::kInt8:
+      case DataType::kInt16:
+      case DataType::kInt32:
         true_tensor.data.push_back(i % 256 - 128);
         false_tensor.data.push_back((i + 10) % 256 - 128);
         break;
-      case DataType::BOOL:
+      case DataType::kBool:
         true_tensor.data.push_back(i % 2);
         false_tensor.data.push_back((i + 1) % 2);
         break;
@@ -183,10 +183,11 @@ absl::Status IfTest(TestExecutionEnvironment& env, DataType data_type,
     cond_tensor.data[0] = i == 0;
     Tensor<BHWC, dst_data_type> dst_tensor;
     OperationDef op_def;
-    op_def.src_tensors.push_back({DataType::BOOL, cond_storage, Layout::BHWC});
-    op_def.src_tensors.push_back({dst_data_type, storage, Layout::BHWC});
-    op_def.src_tensors.push_back({dst_data_type, storage, Layout::BHWC});
-    op_def.dst_tensors.push_back({dst_data_type, storage, Layout::BHWC});
+    op_def.src_tensors.push_back(
+        {DataType::kBool, cond_storage, Layout::kBHWC});
+    op_def.src_tensors.push_back({dst_data_type, storage, Layout::kBHWC});
+    op_def.src_tensors.push_back({dst_data_type, storage, Layout::kBHWC});
+    op_def.dst_tensors.push_back({dst_data_type, storage, Layout::kBHWC});
     TensorDescriptor cond_descriptor = op_def.src_tensors[0];
     TensorDescriptor true_descriptor = op_def.src_tensors[1];
     TensorDescriptor else_descriptor = op_def.src_tensors[2];
@@ -215,26 +216,25 @@ absl::Status IfTest(TestExecutionEnvironment& env, DataType data_type,
   return absl::OkStatus();
 }
 
-template absl::Status IfTest<DataType::FLOAT32>(TestExecutionEnvironment& env,
-                                                DataType data_type,
-                                                TensorStorageType storage,
-                                                TensorStorageType cond_storage);
-template absl::Status IfTest<DataType::BOOL>(TestExecutionEnvironment& env,
-                                             DataType data_type,
-                                             TensorStorageType storage,
-                                             TensorStorageType cond_storage);
-template absl::Status IfTest<DataType::INT8>(TestExecutionEnvironment& env,
-                                             DataType data_type,
-                                             TensorStorageType storage,
-                                             TensorStorageType cond_storage);
-template absl::Status IfTest<DataType::INT16>(TestExecutionEnvironment& env,
+template absl::Status IfTest<DataType::kFloat32>(
+    TestExecutionEnvironment& env, DataType data_type,
+    TensorStorageType storage, TensorStorageType cond_storage);
+template absl::Status IfTest<DataType::kBool>(TestExecutionEnvironment& env,
                                               DataType data_type,
                                               TensorStorageType storage,
                                               TensorStorageType cond_storage);
-template absl::Status IfTest<DataType::INT32>(TestExecutionEnvironment& env,
+template absl::Status IfTest<DataType::kInt8>(TestExecutionEnvironment& env,
                                               DataType data_type,
                                               TensorStorageType storage,
                                               TensorStorageType cond_storage);
+template absl::Status IfTest<DataType::kInt16>(TestExecutionEnvironment& env,
+                                               DataType data_type,
+                                               TensorStorageType storage,
+                                               TensorStorageType cond_storage);
+template absl::Status IfTest<DataType::kInt32>(TestExecutionEnvironment& env,
+                                               DataType data_type,
+                                               TensorStorageType storage,
+                                               TensorStorageType cond_storage);
 
 template <DataType cond_type>
 absl::Status SelectV2Test(TestExecutionEnvironment& env, DataType data_type,
@@ -246,8 +246,8 @@ absl::Status SelectV2Test(TestExecutionEnvironment& env, DataType data_type,
   const int kChannels = 10;
 
   Tensor<BHWC, cond_type> cond_tensor;
-  Tensor<BHWC, DataType::FLOAT32> true_tensor;
-  Tensor<BHWC, DataType::FLOAT32> false_tensor;
+  Tensor<BHWC, DataType::kFloat32> true_tensor;
+  Tensor<BHWC, DataType::kFloat32> false_tensor;
   std::vector<float> expected_data =
       SetUpData<cond_type>(cond_tensor, true_tensor, false_tensor, kBatch,
                            kHeight, kWidth, kChannels,
@@ -263,10 +263,10 @@ absl::Status SelectV2Test(TestExecutionEnvironment& env, DataType data_type,
   return absl::OkStatus();
 }
 
-template absl::Status SelectV2Test<DataType::FLOAT32>(
+template absl::Status SelectV2Test<DataType::kFloat32>(
     TestExecutionEnvironment& env, DataType data_type,
     TensorStorageType storage, TensorStorageType cond_storage);
-template absl::Status SelectV2Test<DataType::BOOL>(
+template absl::Status SelectV2Test<DataType::kBool>(
     TestExecutionEnvironment& env, DataType data_type,
     TensorStorageType storage, TensorStorageType cond_storage);
 
@@ -284,14 +284,14 @@ absl::Status SelectV2Scalar4DTest(TestExecutionEnvironment& env,
   // [true]
   cond_tensor.data.push_back(true);
 
-  Tensor<BHWC, DataType::FLOAT32> true_tensor;
+  Tensor<BHWC, DataType::kFloat32> true_tensor;
   true_tensor.shape = BHWC(kBatch, kHeight, kWidth, kChannels);
   // [0, 1, 2, 3]
   for (int c = 0; c < kChannels; ++c) {
     true_tensor.data.push_back(c);
   }
 
-  Tensor<BHWC, DataType::FLOAT32> false_tensor;
+  Tensor<BHWC, DataType::kFloat32> false_tensor;
   false_tensor.shape = BHWC(kBatch, kHeight, kWidth, 1);
   // [99.f]
   false_tensor.data.push_back(99.f);
@@ -308,10 +308,10 @@ absl::Status SelectV2Scalar4DTest(TestExecutionEnvironment& env,
   return absl::OkStatus();
 }
 
-template absl::Status SelectV2Scalar4DTest<DataType::FLOAT32>(
+template absl::Status SelectV2Scalar4DTest<DataType::kFloat32>(
     TestExecutionEnvironment& env, DataType data_type,
     TensorStorageType storage, TensorStorageType cond_storage);
-template absl::Status SelectV2Scalar4DTest<DataType::BOOL>(
+template absl::Status SelectV2Scalar4DTest<DataType::kBool>(
     TestExecutionEnvironment& env, DataType data_type,
     TensorStorageType storage, TensorStorageType cond_storage);
 
@@ -326,8 +326,8 @@ absl::Status SelectV2TrueValueTest(TestExecutionEnvironment& env,
   const int kChannels = 10;
 
   Tensor<BHWC, cond_type> cond_tensor;
-  Tensor<BHWC, DataType::FLOAT32> true_tensor;
-  Tensor<BHWC, DataType::FLOAT32> false_tensor;
+  Tensor<BHWC, DataType::kFloat32> true_tensor;
+  Tensor<BHWC, DataType::kFloat32> false_tensor;
   std::vector<float> expected_data =
       SetUpData<cond_type>(cond_tensor, true_tensor, false_tensor, kBatch,
                            kHeight, kWidth, kChannels,
@@ -343,10 +343,10 @@ absl::Status SelectV2TrueValueTest(TestExecutionEnvironment& env,
   return absl::OkStatus();
 }
 
-template absl::Status SelectV2TrueValueTest<DataType::FLOAT32>(
+template absl::Status SelectV2TrueValueTest<DataType::kFloat32>(
     TestExecutionEnvironment& env, DataType data_type,
     TensorStorageType storage, TensorStorageType cond_storage);
-template absl::Status SelectV2TrueValueTest<DataType::BOOL>(
+template absl::Status SelectV2TrueValueTest<DataType::kBool>(
     TestExecutionEnvironment& env, DataType data_type,
     TensorStorageType storage, TensorStorageType cond_storage);
 
@@ -361,8 +361,8 @@ absl::Status SelectV2FalseValueTest(TestExecutionEnvironment& env,
   const int kChannels = 10;
 
   Tensor<BHWC, cond_type> cond_tensor;
-  Tensor<BHWC, DataType::FLOAT32> true_tensor;
-  Tensor<BHWC, DataType::FLOAT32> false_tensor;
+  Tensor<BHWC, DataType::kFloat32> true_tensor;
+  Tensor<BHWC, DataType::kFloat32> false_tensor;
   std::vector<float> expected_data =
       SetUpData<cond_type>(cond_tensor, true_tensor, false_tensor, kBatch,
                            kHeight, kWidth, kChannels,
@@ -378,10 +378,10 @@ absl::Status SelectV2FalseValueTest(TestExecutionEnvironment& env,
   return absl::OkStatus();
 }
 
-template absl::Status SelectV2FalseValueTest<DataType::FLOAT32>(
+template absl::Status SelectV2FalseValueTest<DataType::kFloat32>(
     TestExecutionEnvironment& env, DataType data_type,
     TensorStorageType storage, TensorStorageType cond_storage);
-template absl::Status SelectV2FalseValueTest<DataType::BOOL>(
+template absl::Status SelectV2FalseValueTest<DataType::kBool>(
     TestExecutionEnvironment& env, DataType data_type,
     TensorStorageType storage, TensorStorageType cond_storage);
 
@@ -394,8 +394,8 @@ absl::Status SelectV2BatchTest(TestExecutionEnvironment& env,
   const int kWidth = 10;
   const int kChannels = 10;
   Tensor<BHWC, cond_type> cond_tensor;
-  Tensor<BHWC, DataType::FLOAT32> true_tensor;
-  Tensor<BHWC, DataType::FLOAT32> false_tensor;
+  Tensor<BHWC, DataType::kFloat32> true_tensor;
+  Tensor<BHWC, DataType::kFloat32> false_tensor;
   std::vector<float> expected_data =
       SetUpData<cond_type>(cond_tensor, true_tensor, false_tensor, kBatch,
                            kHeight, kWidth, kChannels,
@@ -411,10 +411,10 @@ absl::Status SelectV2BatchTest(TestExecutionEnvironment& env,
   return absl::OkStatus();
 }
 
-template absl::Status SelectV2BatchTest<DataType::FLOAT32>(
+template absl::Status SelectV2BatchTest<DataType::kFloat32>(
     TestExecutionEnvironment& env, DataType data_type,
     TensorStorageType storage, TensorStorageType cond_storage);
-template absl::Status SelectV2BatchTest<DataType::BOOL>(
+template absl::Status SelectV2BatchTest<DataType::kBool>(
     TestExecutionEnvironment& env, DataType data_type,
     TensorStorageType storage, TensorStorageType cond_storage);
 
@@ -430,8 +430,8 @@ absl::Status SelectV2BroadcastFalseTest(TestExecutionEnvironment& env,
   const bool kBroadcastTrue = false;
   const bool kBroadcastFalse = true;
   Tensor<BHWC, cond_type> cond_tensor;
-  Tensor<BHWC, DataType::FLOAT32> true_tensor;
-  Tensor<BHWC, DataType::FLOAT32> false_tensor;
+  Tensor<BHWC, DataType::kFloat32> true_tensor;
+  Tensor<BHWC, DataType::kFloat32> false_tensor;
   std::vector<float> expected_data = SetUpData<cond_type>(
       cond_tensor, true_tensor, false_tensor, kBatch, kHeight, kWidth,
       kChannels, kBroadcastTrue, kBroadcastFalse,
@@ -447,10 +447,10 @@ absl::Status SelectV2BroadcastFalseTest(TestExecutionEnvironment& env,
   return absl::OkStatus();
 }
 
-template absl::Status SelectV2BroadcastFalseTest<DataType::FLOAT32>(
+template absl::Status SelectV2BroadcastFalseTest<DataType::kFloat32>(
     TestExecutionEnvironment& env, DataType data_type,
     TensorStorageType storage, TensorStorageType cond_storage);
-template absl::Status SelectV2BroadcastFalseTest<DataType::BOOL>(
+template absl::Status SelectV2BroadcastFalseTest<DataType::kBool>(
     TestExecutionEnvironment& env, DataType data_type,
     TensorStorageType storage, TensorStorageType cond_storage);
 
@@ -466,8 +466,8 @@ absl::Status SelectV2BroadcastTrueTest(TestExecutionEnvironment& env,
   const bool kBroadcastTrue = true;
   const bool kBroadcastFalse = false;
   Tensor<BHWC, cond_type> cond_tensor;
-  Tensor<BHWC, DataType::FLOAT32> true_tensor;
-  Tensor<BHWC, DataType::FLOAT32> false_tensor;
+  Tensor<BHWC, DataType::kFloat32> true_tensor;
+  Tensor<BHWC, DataType::kFloat32> false_tensor;
   std::vector<float> expected_data = SetUpData<cond_type>(
       cond_tensor, true_tensor, false_tensor, kBatch, kHeight, kWidth,
       kChannels, kBroadcastTrue, kBroadcastFalse,
@@ -483,10 +483,10 @@ absl::Status SelectV2BroadcastTrueTest(TestExecutionEnvironment& env,
   return absl::OkStatus();
 }
 
-template absl::Status SelectV2BroadcastTrueTest<DataType::FLOAT32>(
+template absl::Status SelectV2BroadcastTrueTest<DataType::kFloat32>(
     TestExecutionEnvironment& env, DataType data_type,
     TensorStorageType storage, TensorStorageType cond_storage);
-template absl::Status SelectV2BroadcastTrueTest<DataType::BOOL>(
+template absl::Status SelectV2BroadcastTrueTest<DataType::kBool>(
     TestExecutionEnvironment& env, DataType data_type,
     TensorStorageType storage, TensorStorageType cond_storage);
 
@@ -502,8 +502,8 @@ absl::Status SelectV2BroadcastBothTest(TestExecutionEnvironment& env,
   const bool kBroadcastTrue = true;
   const bool kBroadcastFalse = true;
   Tensor<BHWC, cond_type> cond_tensor;
-  Tensor<BHWC, DataType::FLOAT32> true_tensor;
-  Tensor<BHWC, DataType::FLOAT32> false_tensor;
+  Tensor<BHWC, DataType::kFloat32> true_tensor;
+  Tensor<BHWC, DataType::kFloat32> false_tensor;
   std::vector<float> expected_data = SetUpData<cond_type>(
       cond_tensor, true_tensor, false_tensor, kBatch, kHeight, kWidth,
       kChannels, kBroadcastTrue, kBroadcastFalse,
@@ -518,10 +518,10 @@ absl::Status SelectV2BroadcastBothTest(TestExecutionEnvironment& env,
   return absl::OkStatus();
 }
 
-template absl::Status SelectV2BroadcastBothTest<DataType::FLOAT32>(
+template absl::Status SelectV2BroadcastBothTest<DataType::kFloat32>(
     TestExecutionEnvironment& env, DataType data_type,
     TensorStorageType storage, TensorStorageType cond_storage);
-template absl::Status SelectV2BroadcastBothTest<DataType::BOOL>(
+template absl::Status SelectV2BroadcastBothTest<DataType::kBool>(
     TestExecutionEnvironment& env, DataType data_type,
     TensorStorageType storage, TensorStorageType cond_storage);
 
@@ -534,8 +534,8 @@ absl::Status SelectV2ChannelsTest(TestExecutionEnvironment& env,
   const int kWidth = 2;
   const int kChannels = 10;
   Tensor<BHWC, cond_type> cond_tensor;
-  Tensor<BHWC, DataType::FLOAT32> true_tensor;
-  Tensor<BHWC, DataType::FLOAT32> false_tensor;
+  Tensor<BHWC, DataType::kFloat32> true_tensor;
+  Tensor<BHWC, DataType::kFloat32> false_tensor;
   std::vector<float> expected_data =
       SetUpData<cond_type>(cond_tensor, true_tensor, false_tensor, kBatch,
                            kHeight, kWidth, kChannels,
@@ -552,10 +552,10 @@ absl::Status SelectV2ChannelsTest(TestExecutionEnvironment& env,
   return absl::OkStatus();
 }
 
-template absl::Status SelectV2ChannelsTest<DataType::FLOAT32>(
+template absl::Status SelectV2ChannelsTest<DataType::kFloat32>(
     TestExecutionEnvironment& env, DataType data_type,
     TensorStorageType storage, TensorStorageType cond_storage);
-template absl::Status SelectV2ChannelsTest<DataType::BOOL>(
+template absl::Status SelectV2ChannelsTest<DataType::kBool>(
     TestExecutionEnvironment& env, DataType data_type,
     TensorStorageType storage, TensorStorageType cond_storage);
 
@@ -569,8 +569,8 @@ absl::Status SelectV2ChannelsBatchTest(TestExecutionEnvironment& env,
   const int kWidth = 2;
   const int kChannels = 10;
   Tensor<BHWC, cond_type> cond_tensor;
-  Tensor<BHWC, DataType::FLOAT32> true_tensor;
-  Tensor<BHWC, DataType::FLOAT32> false_tensor;
+  Tensor<BHWC, DataType::kFloat32> true_tensor;
+  Tensor<BHWC, DataType::kFloat32> false_tensor;
   std::vector<float> expected_data =
       SetUpData<cond_type>(cond_tensor, true_tensor, false_tensor, kBatch,
                            kHeight, kWidth, kChannels,
@@ -587,10 +587,10 @@ absl::Status SelectV2ChannelsBatchTest(TestExecutionEnvironment& env,
   return absl::OkStatus();
 }
 
-template absl::Status SelectV2ChannelsBatchTest<DataType::FLOAT32>(
+template absl::Status SelectV2ChannelsBatchTest<DataType::kFloat32>(
     TestExecutionEnvironment& env, DataType data_type,
     TensorStorageType storage, TensorStorageType cond_storage);
-template absl::Status SelectV2ChannelsBatchTest<DataType::BOOL>(
+template absl::Status SelectV2ChannelsBatchTest<DataType::kBool>(
     TestExecutionEnvironment& env, DataType data_type,
     TensorStorageType storage, TensorStorageType cond_storage);
 
@@ -604,8 +604,8 @@ absl::Status SelectV2ChannelsBroadcastFalseTest(
   const int kChannels = 4;
   const bool kBroadcastFalse = true;
   Tensor<BHWC, cond_type> cond_tensor;
-  Tensor<BHWC, DataType::FLOAT32> true_tensor;
-  Tensor<BHWC, DataType::FLOAT32> false_tensor;
+  Tensor<BHWC, DataType::kFloat32> true_tensor;
+  Tensor<BHWC, DataType::kFloat32> false_tensor;
   std::vector<float> expected_data =
       SetUpData<cond_type>(cond_tensor, true_tensor, false_tensor, kBatch,
                            kHeight, kWidth, kChannels,
@@ -621,10 +621,10 @@ absl::Status SelectV2ChannelsBroadcastFalseTest(
   return absl::OkStatus();
 }
 
-template absl::Status SelectV2ChannelsBroadcastFalseTest<DataType::FLOAT32>(
+template absl::Status SelectV2ChannelsBroadcastFalseTest<DataType::kFloat32>(
     TestExecutionEnvironment& env, DataType data_type,
     TensorStorageType storage, TensorStorageType cond_storage);
-template absl::Status SelectV2ChannelsBroadcastFalseTest<DataType::BOOL>(
+template absl::Status SelectV2ChannelsBroadcastFalseTest<DataType::kBool>(
     TestExecutionEnvironment& env, DataType data_type,
     TensorStorageType storage, TensorStorageType cond_storage);
 

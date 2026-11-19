@@ -242,6 +242,12 @@ cc_library(
     testonly = True,
     srcs = ["testing_ref_ops.cc"],
     hdrs = ["testing_ref_ops.h"],
+    copts = select({
+        "//ml_drift:apple": [
+            "-O0",
+        ],
+        "//conditions:default": [],
+    }),
     deps = [
         ":gpu_operation",
         ":testing_util",
@@ -392,7 +398,7 @@ exports_files(
         "weights_layout.h",
     ],
     visibility = [
-        "@//ml_drift_delegate/delegate/serialization_weight_cache:__pkg__",
+        "@litert//ml_drift_delegate/delegate/serialization_weight_cache:__pkg__",
     ],
 )
 
@@ -423,6 +429,18 @@ cc_library(
         "//ml_drift/common:data_type",
         "//ml_drift/common:shape",
         "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_test(
+    name = "weights_layout_test",
+    srcs = ["weights_layout_test.cc"],
+    deps = [
+        ":weights_layout",
+        "//ml_drift/common:data_type",
+        "//ml_drift/common:shape",
+        "@com_google_absl//absl/status:status_matchers",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 

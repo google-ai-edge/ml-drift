@@ -78,8 +78,8 @@ absl::Status DepthwiseConvWaveMemory3x3Test(TestExecutionEnvironment& env,
 
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   ABSL_RETURN_IF_ERROR(
       DepthwiseConvWaveMemoryTest(env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();
@@ -106,8 +106,8 @@ absl::Status DepthwiseConvWaveMemory3x3BatchedTest(
 
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
   ABSL_RETURN_IF_ERROR(
       DepthwiseConvWaveMemoryTest(env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();
@@ -134,8 +134,8 @@ absl::Status DepthwiseConvWaveMemory5x5Test(TestExecutionEnvironment& env,
 
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   ABSL_RETURN_IF_ERROR(
       DepthwiseConvWaveMemoryTest(env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();
@@ -162,8 +162,8 @@ absl::Status DepthwiseConvWaveMemory2x4Test(TestExecutionEnvironment& env,
 
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   ABSL_RETURN_IF_ERROR(
       DepthwiseConvWaveMemoryTest(env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();
@@ -190,8 +190,8 @@ absl::Status DepthwiseConvWaveMemory7x3Test(TestExecutionEnvironment& env,
 
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   ABSL_RETURN_IF_ERROR(
       DepthwiseConvWaveMemoryTest(env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();
@@ -218,8 +218,8 @@ absl::Status DepthwiseConvWaveMemory7x7Test(TestExecutionEnvironment& env,
 
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   ABSL_RETURN_IF_ERROR(
       DepthwiseConvWaveMemoryTest(env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();

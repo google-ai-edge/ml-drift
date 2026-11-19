@@ -113,7 +113,7 @@ class DepthwiseConv : public GPUOperation {
   std::string GenerateCode(const GpuInfo& gpu_info, const OperationDef& op_def,
                            CalculationsPrecision precision, bool has_bias);
 
-  void UploadWeightsForDWConv2D(const Tensor<OHWI, DataType::FLOAT32>& weights,
+  void UploadWeightsForDWConv2D(const Tensor<OHWI, DataType::kFloat32>& weights,
                                 DataType dst_type, bool weights_are_buffer);
 
   template <DataType T>
@@ -124,8 +124,8 @@ class DepthwiseConv : public GPUOperation {
 };
 
 template <typename T>
-void RearrangeWeightsForDWConv2D(const Tensor<OHWI, DataType::FLOAT32>& weights,
-                                 absl::Span<T> dst) {
+void RearrangeWeightsForDWConv2D(
+    const Tensor<OHWI, DataType::kFloat32>& weights, absl::Span<T> dst) {
   const int dst_channels = weights.shape.i * weights.shape.o;
   const int dst_slices = DivideRoundUp(dst_channels, 4);
   const int kernel_x = weights.shape.w;
@@ -210,10 +210,10 @@ void DepthwiseConv::UploadWeightsForDWConv3D(const Tensor<OHWDI, T>& weights,
 
   std::vector<uint8_t> data(SizeOf(dst_type) * 4 * elements_count);
 
-  if (dst_type == DataType::FLOAT32) {
+  if (dst_type == DataType::kFloat32) {
     float4* ptr = reinterpret_cast<float4*>(data.data());
     RearrangeWeightsForDWConv3D(weights, absl::MakeSpan(ptr, elements_count));
-  } else if (dst_type == DataType::FLOAT16) {
+  } else if (dst_type == DataType::kFloat16) {
     half4* ptr = reinterpret_cast<half4*>(data.data());
     RearrangeWeightsForDWConv3D(weights, absl::MakeSpan(ptr, elements_count));
   }
@@ -228,7 +228,7 @@ void DepthwiseConv::UploadWeightsForDWConv3D(const Tensor<OHWDI, T>& weights,
                     std::make_unique<BufferDescriptor>(std::move(desc)));
   } else {
     TensorDescriptor desc = CreateConstantHWVec4TensorDescriptor(
-        dst_type, TensorStorageType::TEXTURE_2D, kernel_x * kernel_y * kernel_z,
+        dst_type, TensorStorageType::kTexture2D, kernel_x * kernel_y * kernel_z,
         dst_slices, data.data());
     args_.AddObject("weights", std::make_unique<TensorDescriptor>(desc));
   }

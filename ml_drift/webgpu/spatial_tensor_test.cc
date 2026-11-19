@@ -31,17 +31,17 @@
 #include "ml_drift/webgpu/environment.h"
 #include "ml_drift/webgpu/webgpu_headers.h"
 
-constexpr auto BOOL = ::ml_drift::DataType::BOOL;
-constexpr auto FLOAT16 = ::ml_drift::DataType::FLOAT16;
-constexpr auto FLOAT32 = ::ml_drift::DataType::FLOAT32;
-constexpr auto INT16 = ::ml_drift::DataType::INT16;
-constexpr auto INT32 = ::ml_drift::DataType::INT32;
-constexpr auto INT8 = ::ml_drift::DataType::INT8;
-constexpr auto UINT16 = ::ml_drift::DataType::UINT16;
-constexpr auto UINT32 = ::ml_drift::DataType::UINT32;
-constexpr auto UINT8 = ::ml_drift::DataType::UINT8;
+constexpr auto BOOL = ::ml_drift::DataType::kBool;
+constexpr auto FLOAT16 = ::ml_drift::DataType::kFloat16;
+constexpr auto FLOAT32 = ::ml_drift::DataType::kFloat32;
+constexpr auto INT16 = ::ml_drift::DataType::kInt16;
+constexpr auto INT32 = ::ml_drift::DataType::kInt32;
+constexpr auto INT8 = ::ml_drift::DataType::kInt8;
+constexpr auto UINT16 = ::ml_drift::DataType::kUint16;
+constexpr auto UINT32 = ::ml_drift::DataType::kUint32;
+constexpr auto UINT8 = ::ml_drift::DataType::kUint8;
 constexpr auto SINGLE_TEXTURE_2D =
-    ::ml_drift::TensorStorageType::SINGLE_TEXTURE_2D;
+    ::ml_drift::TensorStorageType::kSingleTexture2D;
 using ::testing::Eq;
 using ::testing::FloatNear;
 using ::testing::Pointwise;
@@ -127,21 +127,21 @@ TensorT Input(const ShapeT& shape, const TensorDescriptor& desc) {
 TEST_P(SpatialTensorTest, IdempotenceBool) {
   // 4D test with (1, h, w, c)
   {
-    const TensorDescriptor desc(BOOL, GetParam(), Layout::HWC);
+    const TensorDescriptor desc(BOOL, GetParam(), Layout::kHWC);
     const BHWC shape(1, 6, 7, 3);
     const auto input = Input<ml_drift::Tensor<BHWC, BOOL>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(BOOL, GetParam(), Layout::HWC);
+    const TensorDescriptor desc(BOOL, GetParam(), Layout::kHWC);
     const BHWC shape(1, 1, 4, 12);
     const auto input = Input<ml_drift::Tensor<BHWC, BOOL>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(BOOL, GetParam(), Layout::HWC);
+    const TensorDescriptor desc(BOOL, GetParam(), Layout::kHWC);
     const BHWC shape(1, 6, 1, 7);
     const auto input = Input<ml_drift::Tensor<BHWC, BOOL>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -149,28 +149,28 @@ TEST_P(SpatialTensorTest, IdempotenceBool) {
   }
   // 4D test with (b, h, w, c)
   {
-    const TensorDescriptor desc(BOOL, GetParam(), Layout::BHWC);
+    const TensorDescriptor desc(BOOL, GetParam(), Layout::kBHWC);
     const BHWC shape(2, 6, 7, 3);
     const auto input = Input<ml_drift::Tensor<BHWC, BOOL>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(BOOL, GetParam(), Layout::BHWC);
+    const TensorDescriptor desc(BOOL, GetParam(), Layout::kBHWC);
     const BHWC shape(4, 1, 4, 12);
     const auto input = Input<ml_drift::Tensor<BHWC, BOOL>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(BOOL, GetParam(), Layout::BHWC);
+    const TensorDescriptor desc(BOOL, GetParam(), Layout::kBHWC);
     const BHWC shape(7, 6, 1, 7);
     const auto input = Input<ml_drift::Tensor<BHWC, BOOL>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(BOOL, GetParam(), Layout::BHWC);
+    const TensorDescriptor desc(BOOL, GetParam(), Layout::kBHWC);
     const BHWC shape(13, 7, 3, 3);
     const auto input = Input<ml_drift::Tensor<BHWC, BOOL>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -178,21 +178,21 @@ TEST_P(SpatialTensorTest, IdempotenceBool) {
   }
   // 5D tests with (1, h, w, d, c)
   {
-    const TensorDescriptor desc(BOOL, GetParam(), Layout::HWDC);
+    const TensorDescriptor desc(BOOL, GetParam(), Layout::kHWDC);
     const BHWDC shape(1, 6, 7, 4, 3);
     const auto input = Input<ml_drift::Tensor<BHWDC, BOOL>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(BOOL, GetParam(), Layout::HWDC);
+    const TensorDescriptor desc(BOOL, GetParam(), Layout::kHWDC);
     const BHWDC shape(1, 1, 4, 3, 12);
     const auto input = Input<ml_drift::Tensor<BHWDC, BOOL>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(BOOL, GetParam(), Layout::HWDC);
+    const TensorDescriptor desc(BOOL, GetParam(), Layout::kHWDC);
     const BHWDC shape(1, 6, 1, 7, 7);
     const auto input = Input<ml_drift::Tensor<BHWDC, BOOL>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -200,28 +200,28 @@ TEST_P(SpatialTensorTest, IdempotenceBool) {
   }
   // 5D tests with (b, h, w, d, c)
   {
-    const TensorDescriptor desc(BOOL, GetParam(), Layout::BHWDC);
+    const TensorDescriptor desc(BOOL, GetParam(), Layout::kBHWDC);
     const BHWDC shape(2, 6, 7, 1, 3);
     const auto input = Input<ml_drift::Tensor<BHWDC, BOOL>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(BOOL, GetParam(), Layout::BHWDC);
+    const TensorDescriptor desc(BOOL, GetParam(), Layout::kBHWDC);
     const BHWDC shape(4, 1, 4, 2, 12);
     const auto input = Input<ml_drift::Tensor<BHWDC, BOOL>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(BOOL, GetParam(), Layout::BHWDC);
+    const TensorDescriptor desc(BOOL, GetParam(), Layout::kBHWDC);
     const BHWDC shape(7, 6, 1, 3, 7);
     const auto input = Input<ml_drift::Tensor<BHWDC, BOOL>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(BOOL, GetParam(), Layout::BHWDC);
+    const TensorDescriptor desc(BOOL, GetParam(), Layout::kBHWDC);
     const BHWDC shape(13, 7, 3, 4, 3);
     const auto input = Input<ml_drift::Tensor<BHWDC, BOOL>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -234,21 +234,21 @@ TEST_P(SpatialTensorTest, IdempotenceFloat16) {
   constexpr float kEps = 1.0f / (1 << 12);
   // 4D test with (1, h, w, c)
   {
-    const TensorDescriptor desc(FLOAT16, GetParam(), Layout::HWC);
+    const TensorDescriptor desc(FLOAT16, GetParam(), Layout::kHWC);
     const BHWC shape(1, 6, 7, 3);
     const auto input = Input<ml_drift::Tensor<BHWC, FLOAT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(FloatNear(kEps), input.data));
   }
   {
-    const TensorDescriptor desc(FLOAT16, GetParam(), Layout::HWC);
+    const TensorDescriptor desc(FLOAT16, GetParam(), Layout::kHWC);
     const BHWC shape(1, 1, 4, 12);
     const auto input = Input<ml_drift::Tensor<BHWC, FLOAT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(FloatNear(kEps), input.data));
   }
   {
-    const TensorDescriptor desc(FLOAT16, GetParam(), Layout::HWC);
+    const TensorDescriptor desc(FLOAT16, GetParam(), Layout::kHWC);
     const BHWC shape(1, 6, 1, 7);
     const auto input = Input<ml_drift::Tensor<BHWC, FLOAT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -256,28 +256,28 @@ TEST_P(SpatialTensorTest, IdempotenceFloat16) {
   }
   // 4D test with (b, h, w, c)
   {
-    const TensorDescriptor desc(FLOAT16, GetParam(), Layout::BHWC);
+    const TensorDescriptor desc(FLOAT16, GetParam(), Layout::kBHWC);
     const BHWC shape(2, 6, 7, 3);
     const auto input = Input<ml_drift::Tensor<BHWC, FLOAT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(FloatNear(kEps), input.data));
   }
   {
-    const TensorDescriptor desc(FLOAT16, GetParam(), Layout::BHWC);
+    const TensorDescriptor desc(FLOAT16, GetParam(), Layout::kBHWC);
     const BHWC shape(4, 1, 4, 12);
     const auto input = Input<ml_drift::Tensor<BHWC, FLOAT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(FloatNear(kEps), input.data));
   }
   {
-    const TensorDescriptor desc(FLOAT16, GetParam(), Layout::BHWC);
+    const TensorDescriptor desc(FLOAT16, GetParam(), Layout::kBHWC);
     const BHWC shape(7, 6, 1, 7);
     const auto input = Input<ml_drift::Tensor<BHWC, FLOAT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(FloatNear(kEps), input.data));
   }
   {
-    const TensorDescriptor desc(FLOAT16, GetParam(), Layout::BHWC);
+    const TensorDescriptor desc(FLOAT16, GetParam(), Layout::kBHWC);
     const BHWC shape(13, 7, 3, 3);
     const auto input = Input<ml_drift::Tensor<BHWC, FLOAT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -285,21 +285,21 @@ TEST_P(SpatialTensorTest, IdempotenceFloat16) {
   }
   // 5D tests with (1, h, w, d, c)
   {
-    const TensorDescriptor desc(FLOAT16, GetParam(), Layout::HWDC);
+    const TensorDescriptor desc(FLOAT16, GetParam(), Layout::kHWDC);
     const BHWDC shape(1, 6, 7, 4, 3);
     const auto input = Input<ml_drift::Tensor<BHWDC, FLOAT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(FloatNear(kEps), input.data));
   }
   {
-    const TensorDescriptor desc(FLOAT16, GetParam(), Layout::HWDC);
+    const TensorDescriptor desc(FLOAT16, GetParam(), Layout::kHWDC);
     const BHWDC shape(1, 1, 4, 3, 12);
     const auto input = Input<ml_drift::Tensor<BHWDC, FLOAT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(FloatNear(kEps), input.data));
   }
   {
-    const TensorDescriptor desc(FLOAT16, GetParam(), Layout::HWDC);
+    const TensorDescriptor desc(FLOAT16, GetParam(), Layout::kHWDC);
     const BHWDC shape(1, 6, 1, 7, 7);
     const auto input = Input<ml_drift::Tensor<BHWDC, FLOAT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -307,28 +307,28 @@ TEST_P(SpatialTensorTest, IdempotenceFloat16) {
   }
   // 5D tests with (b, h, w, d, c)
   {
-    const TensorDescriptor desc(FLOAT16, GetParam(), Layout::BHWDC);
+    const TensorDescriptor desc(FLOAT16, GetParam(), Layout::kBHWDC);
     const BHWDC shape(2, 6, 7, 1, 3);
     const auto input = Input<ml_drift::Tensor<BHWDC, FLOAT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(FloatNear(kEps), input.data));
   }
   {
-    const TensorDescriptor desc(FLOAT16, GetParam(), Layout::BHWDC);
+    const TensorDescriptor desc(FLOAT16, GetParam(), Layout::kBHWDC);
     const BHWDC shape(4, 1, 4, 2, 12);
     const auto input = Input<ml_drift::Tensor<BHWDC, FLOAT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(FloatNear(kEps), input.data));
   }
   {
-    const TensorDescriptor desc(FLOAT16, GetParam(), Layout::BHWDC);
+    const TensorDescriptor desc(FLOAT16, GetParam(), Layout::kBHWDC);
     const BHWDC shape(7, 6, 1, 3, 7);
     const auto input = Input<ml_drift::Tensor<BHWDC, FLOAT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(FloatNear(kEps), input.data));
   }
   {
-    const TensorDescriptor desc(FLOAT16, GetParam(), Layout::BHWDC);
+    const TensorDescriptor desc(FLOAT16, GetParam(), Layout::kBHWDC);
     const BHWDC shape(13, 7, 3, 4, 3);
     const auto input = Input<ml_drift::Tensor<BHWDC, FLOAT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -339,21 +339,21 @@ TEST_P(SpatialTensorTest, IdempotenceFloat16) {
 TEST_P(SpatialTensorTest, IdempotenceFloat32) {
   // 4D test with (1, h, w, c)
   {
-    const TensorDescriptor desc(FLOAT32, GetParam(), Layout::HWC);
+    const TensorDescriptor desc(FLOAT32, GetParam(), Layout::kHWC);
     const BHWC shape(1, 6, 7, 3);
     const auto input = Input<ml_drift::Tensor<BHWC, FLOAT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(FLOAT32, GetParam(), Layout::HWC);
+    const TensorDescriptor desc(FLOAT32, GetParam(), Layout::kHWC);
     const BHWC shape(1, 1, 4, 12);
     const auto input = Input<ml_drift::Tensor<BHWC, FLOAT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(FLOAT32, GetParam(), Layout::HWC);
+    const TensorDescriptor desc(FLOAT32, GetParam(), Layout::kHWC);
     const BHWC shape(1, 6, 1, 7);
     const auto input = Input<ml_drift::Tensor<BHWC, FLOAT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -361,28 +361,28 @@ TEST_P(SpatialTensorTest, IdempotenceFloat32) {
   }
   // 4D test with (b, h, w, c)
   {
-    const TensorDescriptor desc(FLOAT32, GetParam(), Layout::BHWC);
+    const TensorDescriptor desc(FLOAT32, GetParam(), Layout::kBHWC);
     const BHWC shape(2, 6, 7, 3);
     const auto input = Input<ml_drift::Tensor<BHWC, FLOAT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(FLOAT32, GetParam(), Layout::BHWC);
+    const TensorDescriptor desc(FLOAT32, GetParam(), Layout::kBHWC);
     const BHWC shape(4, 1, 4, 12);
     const auto input = Input<ml_drift::Tensor<BHWC, FLOAT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(FLOAT32, GetParam(), Layout::BHWC);
+    const TensorDescriptor desc(FLOAT32, GetParam(), Layout::kBHWC);
     const BHWC shape(7, 6, 1, 7);
     const auto input = Input<ml_drift::Tensor<BHWC, FLOAT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(FLOAT32, GetParam(), Layout::BHWC);
+    const TensorDescriptor desc(FLOAT32, GetParam(), Layout::kBHWC);
     const BHWC shape(13, 7, 3, 3);
     const auto input = Input<ml_drift::Tensor<BHWC, FLOAT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -390,21 +390,21 @@ TEST_P(SpatialTensorTest, IdempotenceFloat32) {
   }
   // 5D tests with (1, h, w, d, c)
   {
-    const TensorDescriptor desc(FLOAT32, GetParam(), Layout::HWDC);
+    const TensorDescriptor desc(FLOAT32, GetParam(), Layout::kHWDC);
     const BHWDC shape(1, 6, 7, 4, 3);
     const auto input = Input<ml_drift::Tensor<BHWDC, FLOAT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(FLOAT32, GetParam(), Layout::HWDC);
+    const TensorDescriptor desc(FLOAT32, GetParam(), Layout::kHWDC);
     const BHWDC shape(1, 1, 4, 3, 12);
     const auto input = Input<ml_drift::Tensor<BHWDC, FLOAT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(FLOAT32, GetParam(), Layout::HWDC);
+    const TensorDescriptor desc(FLOAT32, GetParam(), Layout::kHWDC);
     const BHWDC shape(1, 6, 1, 7, 7);
     const auto input = Input<ml_drift::Tensor<BHWDC, FLOAT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -412,28 +412,28 @@ TEST_P(SpatialTensorTest, IdempotenceFloat32) {
   }
   // 5D tests with (b, h, w, d, c)
   {
-    const TensorDescriptor desc(FLOAT32, GetParam(), Layout::BHWDC);
+    const TensorDescriptor desc(FLOAT32, GetParam(), Layout::kBHWDC);
     const BHWDC shape(2, 6, 7, 1, 3);
     const auto input = Input<ml_drift::Tensor<BHWDC, FLOAT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(FLOAT32, GetParam(), Layout::BHWDC);
+    const TensorDescriptor desc(FLOAT32, GetParam(), Layout::kBHWDC);
     const BHWDC shape(4, 1, 4, 2, 12);
     const auto input = Input<ml_drift::Tensor<BHWDC, FLOAT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(FLOAT32, GetParam(), Layout::BHWDC);
+    const TensorDescriptor desc(FLOAT32, GetParam(), Layout::kBHWDC);
     const BHWDC shape(7, 6, 1, 3, 7);
     const auto input = Input<ml_drift::Tensor<BHWDC, FLOAT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(FLOAT32, GetParam(), Layout::BHWDC);
+    const TensorDescriptor desc(FLOAT32, GetParam(), Layout::kBHWDC);
     const BHWDC shape(13, 7, 3, 4, 3);
     const auto input = Input<ml_drift::Tensor<BHWDC, FLOAT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -444,21 +444,21 @@ TEST_P(SpatialTensorTest, IdempotenceFloat32) {
 TEST_P(SpatialTensorTest, IdempotenceInt16) {
   // 4D test with (1, h, w, c)
   {
-    const TensorDescriptor desc(INT16, GetParam(), Layout::HWC);
+    const TensorDescriptor desc(INT16, GetParam(), Layout::kHWC);
     const BHWC shape(1, 6, 7, 3);
     const auto input = Input<ml_drift::Tensor<BHWC, INT16>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(INT16, GetParam(), Layout::HWC);
+    const TensorDescriptor desc(INT16, GetParam(), Layout::kHWC);
     const BHWC shape(1, 1, 4, 12);
     const auto input = Input<ml_drift::Tensor<BHWC, INT16>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(INT16, GetParam(), Layout::HWC);
+    const TensorDescriptor desc(INT16, GetParam(), Layout::kHWC);
     const BHWC shape(1, 6, 1, 7);
     const auto input = Input<ml_drift::Tensor<BHWC, INT16>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -466,28 +466,28 @@ TEST_P(SpatialTensorTest, IdempotenceInt16) {
   }
   // 4D test with (b, h, w, c)
   {
-    const TensorDescriptor desc(INT16, GetParam(), Layout::BHWC);
+    const TensorDescriptor desc(INT16, GetParam(), Layout::kBHWC);
     const BHWC shape(2, 6, 7, 3);
     const auto input = Input<ml_drift::Tensor<BHWC, INT16>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(INT16, GetParam(), Layout::BHWC);
+    const TensorDescriptor desc(INT16, GetParam(), Layout::kBHWC);
     const BHWC shape(4, 1, 4, 12);
     const auto input = Input<ml_drift::Tensor<BHWC, INT16>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(INT16, GetParam(), Layout::BHWC);
+    const TensorDescriptor desc(INT16, GetParam(), Layout::kBHWC);
     const BHWC shape(7, 6, 1, 7);
     const auto input = Input<ml_drift::Tensor<BHWC, INT16>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(INT16, GetParam(), Layout::BHWC);
+    const TensorDescriptor desc(INT16, GetParam(), Layout::kBHWC);
     const BHWC shape(13, 7, 3, 3);
     const auto input = Input<ml_drift::Tensor<BHWC, INT16>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -495,21 +495,21 @@ TEST_P(SpatialTensorTest, IdempotenceInt16) {
   }
   // 5D tests with (1, h, w, d, c)
   {
-    const TensorDescriptor desc(INT16, GetParam(), Layout::HWDC);
+    const TensorDescriptor desc(INT16, GetParam(), Layout::kHWDC);
     const BHWDC shape(1, 6, 7, 4, 3);
     const auto input = Input<ml_drift::Tensor<BHWDC, INT16>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(INT16, GetParam(), Layout::HWDC);
+    const TensorDescriptor desc(INT16, GetParam(), Layout::kHWDC);
     const BHWDC shape(1, 1, 4, 3, 12);
     const auto input = Input<ml_drift::Tensor<BHWDC, INT16>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(INT16, GetParam(), Layout::HWDC);
+    const TensorDescriptor desc(INT16, GetParam(), Layout::kHWDC);
     const BHWDC shape(1, 6, 1, 7, 7);
     const auto input = Input<ml_drift::Tensor<BHWDC, INT16>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -517,28 +517,28 @@ TEST_P(SpatialTensorTest, IdempotenceInt16) {
   }
   // 5D tests with (b, h, w, d, c)
   {
-    const TensorDescriptor desc(INT16, GetParam(), Layout::BHWDC);
+    const TensorDescriptor desc(INT16, GetParam(), Layout::kBHWDC);
     const BHWDC shape(2, 6, 7, 1, 3);
     const auto input = Input<ml_drift::Tensor<BHWDC, INT16>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(INT16, GetParam(), Layout::BHWDC);
+    const TensorDescriptor desc(INT16, GetParam(), Layout::kBHWDC);
     const BHWDC shape(4, 1, 4, 2, 12);
     const auto input = Input<ml_drift::Tensor<BHWDC, INT16>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(INT16, GetParam(), Layout::BHWDC);
+    const TensorDescriptor desc(INT16, GetParam(), Layout::kBHWDC);
     const BHWDC shape(7, 6, 1, 3, 7);
     const auto input = Input<ml_drift::Tensor<BHWDC, INT16>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(INT16, GetParam(), Layout::BHWDC);
+    const TensorDescriptor desc(INT16, GetParam(), Layout::kBHWDC);
     const BHWDC shape(13, 7, 3, 4, 3);
     const auto input = Input<ml_drift::Tensor<BHWDC, INT16>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -549,21 +549,21 @@ TEST_P(SpatialTensorTest, IdempotenceInt16) {
 TEST_P(SpatialTensorTest, IdempotenceInt32) {
   // 4D test with (1, h, w, c)
   {
-    const TensorDescriptor desc(INT32, GetParam(), Layout::HWC);
+    const TensorDescriptor desc(INT32, GetParam(), Layout::kHWC);
     const BHWC shape(1, 6, 7, 3);
     const auto input = Input<ml_drift::Tensor<BHWC, INT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(INT32, GetParam(), Layout::HWC);
+    const TensorDescriptor desc(INT32, GetParam(), Layout::kHWC);
     const BHWC shape(1, 1, 4, 12);
     const auto input = Input<ml_drift::Tensor<BHWC, INT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(INT32, GetParam(), Layout::HWC);
+    const TensorDescriptor desc(INT32, GetParam(), Layout::kHWC);
     const BHWC shape(1, 6, 1, 7);
     const auto input = Input<ml_drift::Tensor<BHWC, INT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -571,28 +571,28 @@ TEST_P(SpatialTensorTest, IdempotenceInt32) {
   }
   // 4D test with (b, h, w, c)
   {
-    const TensorDescriptor desc(INT32, GetParam(), Layout::BHWC);
+    const TensorDescriptor desc(INT32, GetParam(), Layout::kBHWC);
     const BHWC shape(2, 6, 7, 3);
     const auto input = Input<ml_drift::Tensor<BHWC, INT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(INT32, GetParam(), Layout::BHWC);
+    const TensorDescriptor desc(INT32, GetParam(), Layout::kBHWC);
     const BHWC shape(4, 1, 4, 12);
     const auto input = Input<ml_drift::Tensor<BHWC, INT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(INT32, GetParam(), Layout::BHWC);
+    const TensorDescriptor desc(INT32, GetParam(), Layout::kBHWC);
     const BHWC shape(7, 6, 1, 7);
     const auto input = Input<ml_drift::Tensor<BHWC, INT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(INT32, GetParam(), Layout::BHWC);
+    const TensorDescriptor desc(INT32, GetParam(), Layout::kBHWC);
     const BHWC shape(13, 7, 3, 3);
     const auto input = Input<ml_drift::Tensor<BHWC, INT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -600,21 +600,21 @@ TEST_P(SpatialTensorTest, IdempotenceInt32) {
   }
   // 5D tests with (1, h, w, d, c)
   {
-    const TensorDescriptor desc(INT32, GetParam(), Layout::HWDC);
+    const TensorDescriptor desc(INT32, GetParam(), Layout::kHWDC);
     const BHWDC shape(1, 6, 7, 4, 3);
     const auto input = Input<ml_drift::Tensor<BHWDC, INT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(INT32, GetParam(), Layout::HWDC);
+    const TensorDescriptor desc(INT32, GetParam(), Layout::kHWDC);
     const BHWDC shape(1, 1, 4, 3, 12);
     const auto input = Input<ml_drift::Tensor<BHWDC, INT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(INT32, GetParam(), Layout::HWDC);
+    const TensorDescriptor desc(INT32, GetParam(), Layout::kHWDC);
     const BHWDC shape(1, 6, 1, 7, 7);
     const auto input = Input<ml_drift::Tensor<BHWDC, INT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -622,28 +622,28 @@ TEST_P(SpatialTensorTest, IdempotenceInt32) {
   }
   // 5D tests with (b, h, w, d, c)
   {
-    const TensorDescriptor desc(INT32, GetParam(), Layout::BHWDC);
+    const TensorDescriptor desc(INT32, GetParam(), Layout::kBHWDC);
     const BHWDC shape(2, 6, 7, 1, 3);
     const auto input = Input<ml_drift::Tensor<BHWDC, INT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(INT32, GetParam(), Layout::BHWDC);
+    const TensorDescriptor desc(INT32, GetParam(), Layout::kBHWDC);
     const BHWDC shape(4, 1, 4, 2, 12);
     const auto input = Input<ml_drift::Tensor<BHWDC, INT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(INT32, GetParam(), Layout::BHWDC);
+    const TensorDescriptor desc(INT32, GetParam(), Layout::kBHWDC);
     const BHWDC shape(7, 6, 1, 3, 7);
     const auto input = Input<ml_drift::Tensor<BHWDC, INT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(INT32, GetParam(), Layout::BHWDC);
+    const TensorDescriptor desc(INT32, GetParam(), Layout::kBHWDC);
     const BHWDC shape(13, 7, 3, 4, 3);
     const auto input = Input<ml_drift::Tensor<BHWDC, INT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -654,21 +654,21 @@ TEST_P(SpatialTensorTest, IdempotenceInt32) {
 TEST_P(SpatialTensorTest, IdempotenceInt8) {
   // 4D test with (1, h, w, c)
   {
-    const TensorDescriptor desc(INT8, GetParam(), Layout::HWC);
+    const TensorDescriptor desc(INT8, GetParam(), Layout::kHWC);
     const BHWC shape(1, 6, 7, 3);
     const auto input = Input<ml_drift::Tensor<BHWC, INT8>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(INT8, GetParam(), Layout::HWC);
+    const TensorDescriptor desc(INT8, GetParam(), Layout::kHWC);
     const BHWC shape(1, 1, 4, 12);
     const auto input = Input<ml_drift::Tensor<BHWC, INT8>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(INT8, GetParam(), Layout::HWC);
+    const TensorDescriptor desc(INT8, GetParam(), Layout::kHWC);
     const BHWC shape(1, 6, 1, 7);
     const auto input = Input<ml_drift::Tensor<BHWC, INT8>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -676,28 +676,28 @@ TEST_P(SpatialTensorTest, IdempotenceInt8) {
   }
   // 4D test with (b, h, w, c)
   {
-    const TensorDescriptor desc(INT8, GetParam(), Layout::BHWC);
+    const TensorDescriptor desc(INT8, GetParam(), Layout::kBHWC);
     const BHWC shape(2, 6, 7, 3);
     const auto input = Input<ml_drift::Tensor<BHWC, INT8>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(INT8, GetParam(), Layout::BHWC);
+    const TensorDescriptor desc(INT8, GetParam(), Layout::kBHWC);
     const BHWC shape(4, 1, 4, 12);
     const auto input = Input<ml_drift::Tensor<BHWC, INT8>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(INT8, GetParam(), Layout::BHWC);
+    const TensorDescriptor desc(INT8, GetParam(), Layout::kBHWC);
     const BHWC shape(7, 6, 1, 7);
     const auto input = Input<ml_drift::Tensor<BHWC, INT8>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(INT8, GetParam(), Layout::BHWC);
+    const TensorDescriptor desc(INT8, GetParam(), Layout::kBHWC);
     const BHWC shape(13, 7, 3, 3);
     const auto input = Input<ml_drift::Tensor<BHWC, INT8>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -705,21 +705,21 @@ TEST_P(SpatialTensorTest, IdempotenceInt8) {
   }
   // 5D tests with (1, h, w, d, c)
   {
-    const TensorDescriptor desc(INT8, GetParam(), Layout::HWDC);
+    const TensorDescriptor desc(INT8, GetParam(), Layout::kHWDC);
     const BHWDC shape(1, 6, 7, 4, 3);
     const auto input = Input<ml_drift::Tensor<BHWDC, INT8>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(INT8, GetParam(), Layout::HWDC);
+    const TensorDescriptor desc(INT8, GetParam(), Layout::kHWDC);
     const BHWDC shape(1, 1, 4, 3, 12);
     const auto input = Input<ml_drift::Tensor<BHWDC, INT8>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(INT8, GetParam(), Layout::HWDC);
+    const TensorDescriptor desc(INT8, GetParam(), Layout::kHWDC);
     const BHWDC shape(1, 6, 1, 7, 7);
     const auto input = Input<ml_drift::Tensor<BHWDC, INT8>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -727,28 +727,28 @@ TEST_P(SpatialTensorTest, IdempotenceInt8) {
   }
   // 5D tests with (b, h, w, d, c)
   {
-    const TensorDescriptor desc(INT8, GetParam(), Layout::BHWDC);
+    const TensorDescriptor desc(INT8, GetParam(), Layout::kBHWDC);
     const BHWDC shape(2, 6, 7, 1, 3);
     const auto input = Input<ml_drift::Tensor<BHWDC, INT8>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(INT8, GetParam(), Layout::BHWDC);
+    const TensorDescriptor desc(INT8, GetParam(), Layout::kBHWDC);
     const BHWDC shape(4, 1, 4, 2, 12);
     const auto input = Input<ml_drift::Tensor<BHWDC, INT8>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(INT8, GetParam(), Layout::BHWDC);
+    const TensorDescriptor desc(INT8, GetParam(), Layout::kBHWDC);
     const BHWDC shape(7, 6, 1, 3, 7);
     const auto input = Input<ml_drift::Tensor<BHWDC, INT8>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(INT8, GetParam(), Layout::BHWDC);
+    const TensorDescriptor desc(INT8, GetParam(), Layout::kBHWDC);
     const BHWDC shape(13, 7, 3, 4, 3);
     const auto input = Input<ml_drift::Tensor<BHWDC, INT8>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -759,21 +759,21 @@ TEST_P(SpatialTensorTest, IdempotenceInt8) {
 TEST_P(SpatialTensorTest, IdempotenceUint16) {
   // 4D test with (1, h, w, c)
   {
-    const TensorDescriptor desc(UINT16, GetParam(), Layout::HWC);
+    const TensorDescriptor desc(UINT16, GetParam(), Layout::kHWC);
     const BHWC shape(1, 6, 7, 3);
     const auto input = Input<ml_drift::Tensor<BHWC, UINT16>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(UINT16, GetParam(), Layout::HWC);
+    const TensorDescriptor desc(UINT16, GetParam(), Layout::kHWC);
     const BHWC shape(1, 1, 4, 12);
     const auto input = Input<ml_drift::Tensor<BHWC, UINT16>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(UINT16, GetParam(), Layout::HWC);
+    const TensorDescriptor desc(UINT16, GetParam(), Layout::kHWC);
     const BHWC shape(1, 6, 1, 7);
     const auto input = Input<ml_drift::Tensor<BHWC, UINT16>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -781,28 +781,28 @@ TEST_P(SpatialTensorTest, IdempotenceUint16) {
   }
   // 4D test with (b, h, w, c)
   {
-    const TensorDescriptor desc(UINT16, GetParam(), Layout::BHWC);
+    const TensorDescriptor desc(UINT16, GetParam(), Layout::kBHWC);
     const BHWC shape(2, 6, 7, 3);
     const auto input = Input<ml_drift::Tensor<BHWC, UINT16>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(UINT16, GetParam(), Layout::BHWC);
+    const TensorDescriptor desc(UINT16, GetParam(), Layout::kBHWC);
     const BHWC shape(4, 1, 4, 12);
     const auto input = Input<ml_drift::Tensor<BHWC, UINT16>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(UINT16, GetParam(), Layout::BHWC);
+    const TensorDescriptor desc(UINT16, GetParam(), Layout::kBHWC);
     const BHWC shape(7, 6, 1, 7);
     const auto input = Input<ml_drift::Tensor<BHWC, UINT16>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(UINT16, GetParam(), Layout::BHWC);
+    const TensorDescriptor desc(UINT16, GetParam(), Layout::kBHWC);
     const BHWC shape(13, 7, 3, 3);
     const auto input = Input<ml_drift::Tensor<BHWC, UINT16>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -810,21 +810,21 @@ TEST_P(SpatialTensorTest, IdempotenceUint16) {
   }
   // 5D tests with (1, h, w, d, c)
   {
-    const TensorDescriptor desc(UINT16, GetParam(), Layout::HWDC);
+    const TensorDescriptor desc(UINT16, GetParam(), Layout::kHWDC);
     const BHWDC shape(1, 6, 7, 4, 3);
     const auto input = Input<ml_drift::Tensor<BHWDC, UINT16>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(UINT16, GetParam(), Layout::HWDC);
+    const TensorDescriptor desc(UINT16, GetParam(), Layout::kHWDC);
     const BHWDC shape(1, 1, 4, 3, 12);
     const auto input = Input<ml_drift::Tensor<BHWDC, UINT16>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(UINT16, GetParam(), Layout::HWDC);
+    const TensorDescriptor desc(UINT16, GetParam(), Layout::kHWDC);
     const BHWDC shape(1, 6, 1, 7, 7);
     const auto input = Input<ml_drift::Tensor<BHWDC, UINT16>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -832,28 +832,28 @@ TEST_P(SpatialTensorTest, IdempotenceUint16) {
   }
   // 5D tests with (b, h, w, d, c)
   {
-    const TensorDescriptor desc(UINT16, GetParam(), Layout::BHWDC);
+    const TensorDescriptor desc(UINT16, GetParam(), Layout::kBHWDC);
     const BHWDC shape(2, 6, 7, 1, 3);
     const auto input = Input<ml_drift::Tensor<BHWDC, UINT16>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(UINT16, GetParam(), Layout::BHWDC);
+    const TensorDescriptor desc(UINT16, GetParam(), Layout::kBHWDC);
     const BHWDC shape(4, 1, 4, 2, 12);
     const auto input = Input<ml_drift::Tensor<BHWDC, UINT16>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(UINT16, GetParam(), Layout::BHWDC);
+    const TensorDescriptor desc(UINT16, GetParam(), Layout::kBHWDC);
     const BHWDC shape(7, 6, 1, 3, 7);
     const auto input = Input<ml_drift::Tensor<BHWDC, UINT16>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(UINT16, GetParam(), Layout::BHWDC);
+    const TensorDescriptor desc(UINT16, GetParam(), Layout::kBHWDC);
     const BHWDC shape(13, 7, 3, 4, 3);
     const auto input = Input<ml_drift::Tensor<BHWDC, UINT16>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -864,21 +864,21 @@ TEST_P(SpatialTensorTest, IdempotenceUint16) {
 TEST_P(SpatialTensorTest, IdempotenceUint32) {
   // 4D test with (1, h, w, c)
   {
-    const TensorDescriptor desc(UINT32, GetParam(), Layout::HWC);
+    const TensorDescriptor desc(UINT32, GetParam(), Layout::kHWC);
     const BHWC shape(1, 6, 7, 3);
     const auto input = Input<ml_drift::Tensor<BHWC, UINT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(UINT32, GetParam(), Layout::HWC);
+    const TensorDescriptor desc(UINT32, GetParam(), Layout::kHWC);
     const BHWC shape(1, 1, 4, 12);
     const auto input = Input<ml_drift::Tensor<BHWC, UINT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(UINT32, GetParam(), Layout::HWC);
+    const TensorDescriptor desc(UINT32, GetParam(), Layout::kHWC);
     const BHWC shape(1, 6, 1, 7);
     const auto input = Input<ml_drift::Tensor<BHWC, UINT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -886,28 +886,28 @@ TEST_P(SpatialTensorTest, IdempotenceUint32) {
   }
   // 4D test with (b, h, w, c)
   {
-    const TensorDescriptor desc(UINT32, GetParam(), Layout::BHWC);
+    const TensorDescriptor desc(UINT32, GetParam(), Layout::kBHWC);
     const BHWC shape(2, 6, 7, 3);
     const auto input = Input<ml_drift::Tensor<BHWC, UINT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(UINT32, GetParam(), Layout::BHWC);
+    const TensorDescriptor desc(UINT32, GetParam(), Layout::kBHWC);
     const BHWC shape(4, 1, 4, 12);
     const auto input = Input<ml_drift::Tensor<BHWC, UINT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(UINT32, GetParam(), Layout::BHWC);
+    const TensorDescriptor desc(UINT32, GetParam(), Layout::kBHWC);
     const BHWC shape(7, 6, 1, 7);
     const auto input = Input<ml_drift::Tensor<BHWC, UINT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(UINT32, GetParam(), Layout::BHWC);
+    const TensorDescriptor desc(UINT32, GetParam(), Layout::kBHWC);
     const BHWC shape(13, 7, 3, 3);
     const auto input = Input<ml_drift::Tensor<BHWC, UINT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -915,21 +915,21 @@ TEST_P(SpatialTensorTest, IdempotenceUint32) {
   }
   // 5D tests with (1, h, w, d, c)
   {
-    const TensorDescriptor desc(UINT32, GetParam(), Layout::HWDC);
+    const TensorDescriptor desc(UINT32, GetParam(), Layout::kHWDC);
     const BHWDC shape(1, 6, 7, 4, 3);
     const auto input = Input<ml_drift::Tensor<BHWDC, UINT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(UINT32, GetParam(), Layout::HWDC);
+    const TensorDescriptor desc(UINT32, GetParam(), Layout::kHWDC);
     const BHWDC shape(1, 1, 4, 3, 12);
     const auto input = Input<ml_drift::Tensor<BHWDC, UINT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(UINT32, GetParam(), Layout::HWDC);
+    const TensorDescriptor desc(UINT32, GetParam(), Layout::kHWDC);
     const BHWDC shape(1, 6, 1, 7, 7);
     const auto input = Input<ml_drift::Tensor<BHWDC, UINT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -937,28 +937,28 @@ TEST_P(SpatialTensorTest, IdempotenceUint32) {
   }
   // 5D tests with (b, h, w, d, c)
   {
-    const TensorDescriptor desc(UINT32, GetParam(), Layout::BHWDC);
+    const TensorDescriptor desc(UINT32, GetParam(), Layout::kBHWDC);
     const BHWDC shape(2, 6, 7, 1, 3);
     const auto input = Input<ml_drift::Tensor<BHWDC, UINT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(UINT32, GetParam(), Layout::BHWDC);
+    const TensorDescriptor desc(UINT32, GetParam(), Layout::kBHWDC);
     const BHWDC shape(4, 1, 4, 2, 12);
     const auto input = Input<ml_drift::Tensor<BHWDC, UINT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(UINT32, GetParam(), Layout::BHWDC);
+    const TensorDescriptor desc(UINT32, GetParam(), Layout::kBHWDC);
     const BHWDC shape(7, 6, 1, 3, 7);
     const auto input = Input<ml_drift::Tensor<BHWDC, UINT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(UINT32, GetParam(), Layout::BHWDC);
+    const TensorDescriptor desc(UINT32, GetParam(), Layout::kBHWDC);
     const BHWDC shape(13, 7, 3, 4, 3);
     const auto input = Input<ml_drift::Tensor<BHWDC, UINT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -969,21 +969,21 @@ TEST_P(SpatialTensorTest, IdempotenceUint32) {
 TEST_P(SpatialTensorTest, IdempotenceUint8) {
   // 4D test with (1, h, w, c)
   {
-    const TensorDescriptor desc(UINT8, GetParam(), Layout::HWC);
+    const TensorDescriptor desc(UINT8, GetParam(), Layout::kHWC);
     const BHWC shape(1, 6, 7, 3);
     const auto input = Input<ml_drift::Tensor<BHWC, UINT8>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(UINT8, GetParam(), Layout::HWC);
+    const TensorDescriptor desc(UINT8, GetParam(), Layout::kHWC);
     const BHWC shape(1, 1, 4, 12);
     const auto input = Input<ml_drift::Tensor<BHWC, UINT8>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(UINT8, GetParam(), Layout::HWC);
+    const TensorDescriptor desc(UINT8, GetParam(), Layout::kHWC);
     const BHWC shape(1, 6, 1, 7);
     const auto input = Input<ml_drift::Tensor<BHWC, UINT8>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -991,28 +991,28 @@ TEST_P(SpatialTensorTest, IdempotenceUint8) {
   }
   // 4D test with (b, h, w, c)
   {
-    const TensorDescriptor desc(UINT8, GetParam(), Layout::BHWC);
+    const TensorDescriptor desc(UINT8, GetParam(), Layout::kBHWC);
     const BHWC shape(2, 6, 7, 3);
     const auto input = Input<ml_drift::Tensor<BHWC, UINT8>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(UINT8, GetParam(), Layout::BHWC);
+    const TensorDescriptor desc(UINT8, GetParam(), Layout::kBHWC);
     const BHWC shape(4, 1, 4, 12);
     const auto input = Input<ml_drift::Tensor<BHWC, UINT8>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(UINT8, GetParam(), Layout::BHWC);
+    const TensorDescriptor desc(UINT8, GetParam(), Layout::kBHWC);
     const BHWC shape(7, 6, 1, 7);
     const auto input = Input<ml_drift::Tensor<BHWC, UINT8>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(UINT8, GetParam(), Layout::BHWC);
+    const TensorDescriptor desc(UINT8, GetParam(), Layout::kBHWC);
     const BHWC shape(13, 7, 3, 3);
     const auto input = Input<ml_drift::Tensor<BHWC, UINT8>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -1020,21 +1020,21 @@ TEST_P(SpatialTensorTest, IdempotenceUint8) {
   }
   // 5D tests with (1, h, w, d, c)
   {
-    const TensorDescriptor desc(UINT8, GetParam(), Layout::HWDC);
+    const TensorDescriptor desc(UINT8, GetParam(), Layout::kHWDC);
     const BHWDC shape(1, 6, 7, 4, 3);
     const auto input = Input<ml_drift::Tensor<BHWDC, UINT8>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(UINT8, GetParam(), Layout::HWDC);
+    const TensorDescriptor desc(UINT8, GetParam(), Layout::kHWDC);
     const BHWDC shape(1, 1, 4, 3, 12);
     const auto input = Input<ml_drift::Tensor<BHWDC, UINT8>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(UINT8, GetParam(), Layout::HWDC);
+    const TensorDescriptor desc(UINT8, GetParam(), Layout::kHWDC);
     const BHWDC shape(1, 6, 1, 7, 7);
     const auto input = Input<ml_drift::Tensor<BHWDC, UINT8>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -1042,28 +1042,28 @@ TEST_P(SpatialTensorTest, IdempotenceUint8) {
   }
   // 5D tests with (b, h, w, d, c)
   {
-    const TensorDescriptor desc(UINT8, GetParam(), Layout::BHWDC);
+    const TensorDescriptor desc(UINT8, GetParam(), Layout::kBHWDC);
     const BHWDC shape(2, 6, 7, 1, 3);
     const auto input = Input<ml_drift::Tensor<BHWDC, UINT8>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(UINT8, GetParam(), Layout::BHWDC);
+    const TensorDescriptor desc(UINT8, GetParam(), Layout::kBHWDC);
     const BHWDC shape(4, 1, 4, 2, 12);
     const auto input = Input<ml_drift::Tensor<BHWDC, UINT8>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(UINT8, GetParam(), Layout::BHWDC);
+    const TensorDescriptor desc(UINT8, GetParam(), Layout::kBHWDC);
     const BHWDC shape(7, 6, 1, 3, 7);
     const auto input = Input<ml_drift::Tensor<BHWDC, UINT8>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(UINT8, GetParam(), Layout::BHWDC);
+    const TensorDescriptor desc(UINT8, GetParam(), Layout::kBHWDC);
     const BHWDC shape(13, 7, 3, 4, 3);
     const auto input = Input<ml_drift::Tensor<BHWDC, UINT8>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -1074,10 +1074,10 @@ TEST_P(SpatialTensorTest, IdempotenceUint8) {
 INSTANTIATE_TEST_SUITE_P(
     SpatialTensorTests, SpatialTensorTest,
     ValuesIn<TensorStorageType>({
-        TensorStorageType::BUFFER,
-        TensorStorageType::TEXTURE_2D,
-        TensorStorageType::TEXTURE_3D,
-        TensorStorageType::TEXTURE_ARRAY,
+        TensorStorageType::kBuffer,
+        TensorStorageType::kTexture2D,
+        TensorStorageType::kTexture3D,
+        TensorStorageType::kTextureArray,
     }),
     [](const testing::TestParamInfo<SpatialTensorTest::ParamType>& info) {
       return ToString(info.param).substr(strlen("TensorStorageType::"));
@@ -1089,14 +1089,14 @@ TEST_F(SpatialTensorTest, IdempotenceSingleTexture2dFloat16) {
   constexpr float kEps = 1.0f / (1 << 12);
   // 4D test with (1, h, w, c)
   {
-    const TensorDescriptor desc(FLOAT16, SINGLE_TEXTURE_2D, Layout::HWC);
+    const TensorDescriptor desc(FLOAT16, SINGLE_TEXTURE_2D, Layout::kHWC);
     const BHWC shape(1, 6, 3, 1);
     const auto input = Input<ml_drift::Tensor<BHWC, FLOAT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(FloatNear(kEps), input.data));
   }
   {
-    const TensorDescriptor desc(FLOAT16, SINGLE_TEXTURE_2D, Layout::HWC);
+    const TensorDescriptor desc(FLOAT16, SINGLE_TEXTURE_2D, Layout::kHWC);
     const BHWC shape(1, 6, 3, 2);
     const auto input = Input<ml_drift::Tensor<BHWC, FLOAT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -1104,14 +1104,14 @@ TEST_F(SpatialTensorTest, IdempotenceSingleTexture2dFloat16) {
   }
   // 4D test with (b, h, w, c)
   {
-    const TensorDescriptor desc(FLOAT16, SINGLE_TEXTURE_2D, Layout::BHWC);
+    const TensorDescriptor desc(FLOAT16, SINGLE_TEXTURE_2D, Layout::kBHWC);
     const BHWC shape(7, 6, 3, 1);
     const auto input = Input<ml_drift::Tensor<BHWC, FLOAT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(FloatNear(kEps), input.data));
   }
   {
-    const TensorDescriptor desc(FLOAT16, SINGLE_TEXTURE_2D, Layout::BHWC);
+    const TensorDescriptor desc(FLOAT16, SINGLE_TEXTURE_2D, Layout::kBHWC);
     const BHWC shape(3, 6, 3, 2);
     const auto input = Input<ml_drift::Tensor<BHWC, FLOAT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -1119,7 +1119,7 @@ TEST_F(SpatialTensorTest, IdempotenceSingleTexture2dFloat16) {
   }
   // 5D tests with (1, h, w, d, c)
   {
-    const TensorDescriptor desc(FLOAT16, SINGLE_TEXTURE_2D, Layout::HWDC);
+    const TensorDescriptor desc(FLOAT16, SINGLE_TEXTURE_2D, Layout::kHWDC);
     const BHWDC shape(1, 6, 14, 7, 1);
     const auto input = Input<ml_drift::Tensor<BHWDC, FLOAT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -1127,7 +1127,7 @@ TEST_F(SpatialTensorTest, IdempotenceSingleTexture2dFloat16) {
                 Pointwise(FloatNear(kEps), input.data));
   }
   {
-    const TensorDescriptor desc(FLOAT16, SINGLE_TEXTURE_2D, Layout::HWDC);
+    const TensorDescriptor desc(FLOAT16, SINGLE_TEXTURE_2D, Layout::kHWDC);
     const BHWDC shape(1, 6, 14, 4, 2);
     const auto input = Input<ml_drift::Tensor<BHWDC, FLOAT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -1135,14 +1135,14 @@ TEST_F(SpatialTensorTest, IdempotenceSingleTexture2dFloat16) {
   }
   // 5D tests with (b, h, w, d, c)
   {
-    const TensorDescriptor desc(FLOAT16, SINGLE_TEXTURE_2D, Layout::BHWDC);
+    const TensorDescriptor desc(FLOAT16, SINGLE_TEXTURE_2D, Layout::kBHWDC);
     const BHWDC shape(7, 6, 14, 5, 1);
     const auto input = Input<ml_drift::Tensor<BHWDC, FLOAT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(FloatNear(kEps), input.data));
   }
   {
-    const TensorDescriptor desc(FLOAT16, SINGLE_TEXTURE_2D, Layout::BHWDC);
+    const TensorDescriptor desc(FLOAT16, SINGLE_TEXTURE_2D, Layout::kBHWDC);
     const BHWDC shape(3, 6, 14, 3, 2);
     const auto input = Input<ml_drift::Tensor<BHWDC, FLOAT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -1153,14 +1153,14 @@ TEST_F(SpatialTensorTest, IdempotenceSingleTexture2dFloat16) {
 TEST_F(SpatialTensorTest, IdempotenceSingleTexture2dFloat32) {
   // 4D test with (1, h, w, c)
   {
-    const TensorDescriptor desc(FLOAT32, SINGLE_TEXTURE_2D, Layout::HWC);
+    const TensorDescriptor desc(FLOAT32, SINGLE_TEXTURE_2D, Layout::kHWC);
     const BHWC shape(1, 6, 14, 1);
     const auto input = Input<ml_drift::Tensor<BHWC, FLOAT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(FLOAT32, SINGLE_TEXTURE_2D, Layout::HWC);
+    const TensorDescriptor desc(FLOAT32, SINGLE_TEXTURE_2D, Layout::kHWC);
     const BHWC shape(1, 6, 14, 2);
     const auto input = Input<ml_drift::Tensor<BHWC, FLOAT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -1168,14 +1168,14 @@ TEST_F(SpatialTensorTest, IdempotenceSingleTexture2dFloat32) {
   }
   // 4D test with (b, h, w, c)
   {
-    const TensorDescriptor desc(FLOAT32, SINGLE_TEXTURE_2D, Layout::BHWC);
+    const TensorDescriptor desc(FLOAT32, SINGLE_TEXTURE_2D, Layout::kBHWC);
     const BHWC shape(7, 6, 14, 1);
     const auto input = Input<ml_drift::Tensor<BHWC, FLOAT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(FLOAT32, SINGLE_TEXTURE_2D, Layout::BHWC);
+    const TensorDescriptor desc(FLOAT32, SINGLE_TEXTURE_2D, Layout::kBHWC);
     const BHWC shape(3, 6, 14, 2);
     const auto input = Input<ml_drift::Tensor<BHWC, FLOAT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -1183,14 +1183,14 @@ TEST_F(SpatialTensorTest, IdempotenceSingleTexture2dFloat32) {
   }
   // 5D tests with (1, h, w, d, c)
   {
-    const TensorDescriptor desc(FLOAT32, SINGLE_TEXTURE_2D, Layout::HWDC);
+    const TensorDescriptor desc(FLOAT32, SINGLE_TEXTURE_2D, Layout::kHWDC);
     const BHWDC shape(1, 6, 14, 7, 1);
     const auto input = Input<ml_drift::Tensor<BHWDC, FLOAT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(FLOAT32, SINGLE_TEXTURE_2D, Layout::HWDC);
+    const TensorDescriptor desc(FLOAT32, SINGLE_TEXTURE_2D, Layout::kHWDC);
     const BHWDC shape(1, 6, 14, 4, 2);
     const auto input = Input<ml_drift::Tensor<BHWDC, FLOAT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -1198,14 +1198,14 @@ TEST_F(SpatialTensorTest, IdempotenceSingleTexture2dFloat32) {
   }
   // 5D tests with (b, h, w, d, c)
   {
-    const TensorDescriptor desc(FLOAT32, SINGLE_TEXTURE_2D, Layout::BHWDC);
+    const TensorDescriptor desc(FLOAT32, SINGLE_TEXTURE_2D, Layout::kBHWDC);
     const BHWDC shape(7, 6, 14, 5, 1);
     const auto input = Input<ml_drift::Tensor<BHWDC, FLOAT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(FLOAT32, SINGLE_TEXTURE_2D, Layout::BHWDC);
+    const TensorDescriptor desc(FLOAT32, SINGLE_TEXTURE_2D, Layout::kBHWDC);
     const BHWDC shape(3, 6, 14, 3, 2);
     const auto input = Input<ml_drift::Tensor<BHWDC, FLOAT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -1216,14 +1216,14 @@ TEST_F(SpatialTensorTest, IdempotenceSingleTexture2dFloat32) {
 TEST_F(SpatialTensorTest, IdempotenceSingleTexture2dInt16) {
   // 4D test with (1, h, w, c)
   {
-    const TensorDescriptor desc(INT16, SINGLE_TEXTURE_2D, Layout::HWC);
+    const TensorDescriptor desc(INT16, SINGLE_TEXTURE_2D, Layout::kHWC);
     const BHWC shape(1, 6, 14, 1);
     const auto input = Input<ml_drift::Tensor<BHWC, INT16>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(INT16, SINGLE_TEXTURE_2D, Layout::HWC);
+    const TensorDescriptor desc(INT16, SINGLE_TEXTURE_2D, Layout::kHWC);
     const BHWC shape(1, 6, 14, 2);
     const auto input = Input<ml_drift::Tensor<BHWC, INT16>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -1231,14 +1231,14 @@ TEST_F(SpatialTensorTest, IdempotenceSingleTexture2dInt16) {
   }
   // 4D test with (b, h, w, c)
   {
-    const TensorDescriptor desc(INT16, SINGLE_TEXTURE_2D, Layout::BHWC);
+    const TensorDescriptor desc(INT16, SINGLE_TEXTURE_2D, Layout::kBHWC);
     const BHWC shape(7, 6, 14, 1);
     const auto input = Input<ml_drift::Tensor<BHWC, INT16>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(INT16, SINGLE_TEXTURE_2D, Layout::BHWC);
+    const TensorDescriptor desc(INT16, SINGLE_TEXTURE_2D, Layout::kBHWC);
     const BHWC shape(3, 6, 14, 2);
     const auto input = Input<ml_drift::Tensor<BHWC, INT16>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -1246,14 +1246,14 @@ TEST_F(SpatialTensorTest, IdempotenceSingleTexture2dInt16) {
   }
   // 5D tests with (1, h, w, d, c)
   {
-    const TensorDescriptor desc(INT16, SINGLE_TEXTURE_2D, Layout::HWDC);
+    const TensorDescriptor desc(INT16, SINGLE_TEXTURE_2D, Layout::kHWDC);
     const BHWDC shape(1, 6, 14, 7, 1);
     const auto input = Input<ml_drift::Tensor<BHWDC, INT16>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(INT16, SINGLE_TEXTURE_2D, Layout::HWDC);
+    const TensorDescriptor desc(INT16, SINGLE_TEXTURE_2D, Layout::kHWDC);
     const BHWDC shape(1, 6, 14, 4, 2);
     const auto input = Input<ml_drift::Tensor<BHWDC, INT16>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -1261,14 +1261,14 @@ TEST_F(SpatialTensorTest, IdempotenceSingleTexture2dInt16) {
   }
   // 5D tests with (b, h, w, d, c)
   {
-    const TensorDescriptor desc(INT16, SINGLE_TEXTURE_2D, Layout::BHWDC);
+    const TensorDescriptor desc(INT16, SINGLE_TEXTURE_2D, Layout::kBHWDC);
     const BHWDC shape(7, 6, 14, 5, 1);
     const auto input = Input<ml_drift::Tensor<BHWDC, INT16>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(INT16, SINGLE_TEXTURE_2D, Layout::BHWDC);
+    const TensorDescriptor desc(INT16, SINGLE_TEXTURE_2D, Layout::kBHWDC);
     const BHWDC shape(3, 6, 14, 3, 2);
     const auto input = Input<ml_drift::Tensor<BHWDC, INT16>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -1279,14 +1279,14 @@ TEST_F(SpatialTensorTest, IdempotenceSingleTexture2dInt16) {
 TEST_F(SpatialTensorTest, IdempotenceSingleTexture2dInt32) {
   // 4D test with (1, h, w, c)
   {
-    const TensorDescriptor desc(INT32, SINGLE_TEXTURE_2D, Layout::HWC);
+    const TensorDescriptor desc(INT32, SINGLE_TEXTURE_2D, Layout::kHWC);
     const BHWC shape(1, 6, 14, 1);
     const auto input = Input<ml_drift::Tensor<BHWC, INT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(INT32, SINGLE_TEXTURE_2D, Layout::HWC);
+    const TensorDescriptor desc(INT32, SINGLE_TEXTURE_2D, Layout::kHWC);
     const BHWC shape(1, 6, 14, 2);
     const auto input = Input<ml_drift::Tensor<BHWC, INT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -1294,14 +1294,14 @@ TEST_F(SpatialTensorTest, IdempotenceSingleTexture2dInt32) {
   }
   // 4D test with (b, h, w, c)
   {
-    const TensorDescriptor desc(INT32, SINGLE_TEXTURE_2D, Layout::BHWC);
+    const TensorDescriptor desc(INT32, SINGLE_TEXTURE_2D, Layout::kBHWC);
     const BHWC shape(7, 6, 14, 1);
     const auto input = Input<ml_drift::Tensor<BHWC, INT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(INT32, SINGLE_TEXTURE_2D, Layout::BHWC);
+    const TensorDescriptor desc(INT32, SINGLE_TEXTURE_2D, Layout::kBHWC);
     const BHWC shape(3, 6, 14, 2);
     const auto input = Input<ml_drift::Tensor<BHWC, INT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -1309,14 +1309,14 @@ TEST_F(SpatialTensorTest, IdempotenceSingleTexture2dInt32) {
   }
   // 5D tests with (1, h, w, d, c)
   {
-    const TensorDescriptor desc(INT32, SINGLE_TEXTURE_2D, Layout::HWDC);
+    const TensorDescriptor desc(INT32, SINGLE_TEXTURE_2D, Layout::kHWDC);
     const BHWDC shape(1, 6, 14, 7, 1);
     const auto input = Input<ml_drift::Tensor<BHWDC, INT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(INT32, SINGLE_TEXTURE_2D, Layout::HWDC);
+    const TensorDescriptor desc(INT32, SINGLE_TEXTURE_2D, Layout::kHWDC);
     const BHWDC shape(1, 6, 14, 4, 2);
     const auto input = Input<ml_drift::Tensor<BHWDC, INT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -1324,14 +1324,14 @@ TEST_F(SpatialTensorTest, IdempotenceSingleTexture2dInt32) {
   }
   // 5D tests with (b, h, w, d, c)
   {
-    const TensorDescriptor desc(INT32, SINGLE_TEXTURE_2D, Layout::BHWDC);
+    const TensorDescriptor desc(INT32, SINGLE_TEXTURE_2D, Layout::kBHWDC);
     const BHWDC shape(7, 6, 14, 5, 1);
     const auto input = Input<ml_drift::Tensor<BHWDC, INT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(INT32, SINGLE_TEXTURE_2D, Layout::BHWDC);
+    const TensorDescriptor desc(INT32, SINGLE_TEXTURE_2D, Layout::kBHWDC);
     const BHWDC shape(3, 6, 14, 3, 2);
     const auto input = Input<ml_drift::Tensor<BHWDC, INT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -1342,14 +1342,14 @@ TEST_F(SpatialTensorTest, IdempotenceSingleTexture2dInt32) {
 TEST_F(SpatialTensorTest, IdempotenceSingleTexture2dInt8) {
   // 4D test with (1, h, w, c)
   {
-    const TensorDescriptor desc(INT8, SINGLE_TEXTURE_2D, Layout::HWC);
+    const TensorDescriptor desc(INT8, SINGLE_TEXTURE_2D, Layout::kHWC);
     const BHWC shape(1, 6, 14, 1);
     const auto input = Input<ml_drift::Tensor<BHWC, INT8>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(INT8, SINGLE_TEXTURE_2D, Layout::HWC);
+    const TensorDescriptor desc(INT8, SINGLE_TEXTURE_2D, Layout::kHWC);
     const BHWC shape(1, 6, 14, 2);
     const auto input = Input<ml_drift::Tensor<BHWC, INT8>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -1357,14 +1357,14 @@ TEST_F(SpatialTensorTest, IdempotenceSingleTexture2dInt8) {
   }
   // 4D test with (b, h, w, c)
   {
-    const TensorDescriptor desc(INT8, SINGLE_TEXTURE_2D, Layout::BHWC);
+    const TensorDescriptor desc(INT8, SINGLE_TEXTURE_2D, Layout::kBHWC);
     const BHWC shape(7, 6, 14, 1);
     const auto input = Input<ml_drift::Tensor<BHWC, INT8>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(INT8, SINGLE_TEXTURE_2D, Layout::BHWC);
+    const TensorDescriptor desc(INT8, SINGLE_TEXTURE_2D, Layout::kBHWC);
     const BHWC shape(3, 6, 14, 2);
     const auto input = Input<ml_drift::Tensor<BHWC, INT8>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -1372,14 +1372,14 @@ TEST_F(SpatialTensorTest, IdempotenceSingleTexture2dInt8) {
   }
   // 5D tests with (1, h, w, d, c)
   {
-    const TensorDescriptor desc(INT8, SINGLE_TEXTURE_2D, Layout::HWDC);
+    const TensorDescriptor desc(INT8, SINGLE_TEXTURE_2D, Layout::kHWDC);
     const BHWDC shape(1, 6, 14, 7, 1);
     const auto input = Input<ml_drift::Tensor<BHWDC, INT8>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(INT8, SINGLE_TEXTURE_2D, Layout::HWDC);
+    const TensorDescriptor desc(INT8, SINGLE_TEXTURE_2D, Layout::kHWDC);
     const BHWDC shape(1, 6, 14, 4, 2);
     const auto input = Input<ml_drift::Tensor<BHWDC, INT8>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -1387,14 +1387,14 @@ TEST_F(SpatialTensorTest, IdempotenceSingleTexture2dInt8) {
   }
   // 5D tests with (b, h, w, d, c)
   {
-    const TensorDescriptor desc(INT8, SINGLE_TEXTURE_2D, Layout::BHWDC);
+    const TensorDescriptor desc(INT8, SINGLE_TEXTURE_2D, Layout::kBHWDC);
     const BHWDC shape(7, 6, 14, 5, 1);
     const auto input = Input<ml_drift::Tensor<BHWDC, INT8>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(INT8, SINGLE_TEXTURE_2D, Layout::BHWDC);
+    const TensorDescriptor desc(INT8, SINGLE_TEXTURE_2D, Layout::kBHWDC);
     const BHWDC shape(3, 6, 14, 3, 2);
     const auto input = Input<ml_drift::Tensor<BHWDC, INT8>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -1405,14 +1405,14 @@ TEST_F(SpatialTensorTest, IdempotenceSingleTexture2dInt8) {
 TEST_F(SpatialTensorTest, IdempotenceSingleTexture2dUint16) {
   // 4D test with (1, h, w, c)
   {
-    const TensorDescriptor desc(UINT16, SINGLE_TEXTURE_2D, Layout::HWC);
+    const TensorDescriptor desc(UINT16, SINGLE_TEXTURE_2D, Layout::kHWC);
     const BHWC shape(1, 6, 14, 1);
     const auto input = Input<ml_drift::Tensor<BHWC, UINT16>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(UINT16, SINGLE_TEXTURE_2D, Layout::HWC);
+    const TensorDescriptor desc(UINT16, SINGLE_TEXTURE_2D, Layout::kHWC);
     const BHWC shape(1, 6, 14, 2);
     const auto input = Input<ml_drift::Tensor<BHWC, UINT16>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -1420,14 +1420,14 @@ TEST_F(SpatialTensorTest, IdempotenceSingleTexture2dUint16) {
   }
   // 4D test with (b, h, w, c)
   {
-    const TensorDescriptor desc(UINT16, SINGLE_TEXTURE_2D, Layout::BHWC);
+    const TensorDescriptor desc(UINT16, SINGLE_TEXTURE_2D, Layout::kBHWC);
     const BHWC shape(7, 6, 14, 1);
     const auto input = Input<ml_drift::Tensor<BHWC, UINT16>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(UINT16, SINGLE_TEXTURE_2D, Layout::BHWC);
+    const TensorDescriptor desc(UINT16, SINGLE_TEXTURE_2D, Layout::kBHWC);
     const BHWC shape(3, 6, 14, 2);
     const auto input = Input<ml_drift::Tensor<BHWC, UINT16>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -1435,14 +1435,14 @@ TEST_F(SpatialTensorTest, IdempotenceSingleTexture2dUint16) {
   }
   // 5D tests with (1, h, w, d, c)
   {
-    const TensorDescriptor desc(UINT16, SINGLE_TEXTURE_2D, Layout::HWDC);
+    const TensorDescriptor desc(UINT16, SINGLE_TEXTURE_2D, Layout::kHWDC);
     const BHWDC shape(1, 6, 14, 7, 1);
     const auto input = Input<ml_drift::Tensor<BHWDC, UINT16>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(UINT16, SINGLE_TEXTURE_2D, Layout::HWDC);
+    const TensorDescriptor desc(UINT16, SINGLE_TEXTURE_2D, Layout::kHWDC);
     const BHWDC shape(1, 6, 14, 4, 2);
     const auto input = Input<ml_drift::Tensor<BHWDC, UINT16>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -1450,14 +1450,14 @@ TEST_F(SpatialTensorTest, IdempotenceSingleTexture2dUint16) {
   }
   // 5D tests with (b, h, w, d, c)
   {
-    const TensorDescriptor desc(UINT16, SINGLE_TEXTURE_2D, Layout::BHWDC);
+    const TensorDescriptor desc(UINT16, SINGLE_TEXTURE_2D, Layout::kBHWDC);
     const BHWDC shape(7, 6, 14, 5, 1);
     const auto input = Input<ml_drift::Tensor<BHWDC, UINT16>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(UINT16, SINGLE_TEXTURE_2D, Layout::BHWDC);
+    const TensorDescriptor desc(UINT16, SINGLE_TEXTURE_2D, Layout::kBHWDC);
     const BHWDC shape(3, 6, 14, 3, 2);
     const auto input = Input<ml_drift::Tensor<BHWDC, UINT16>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -1468,14 +1468,14 @@ TEST_F(SpatialTensorTest, IdempotenceSingleTexture2dUint16) {
 TEST_F(SpatialTensorTest, IdempotenceSingleTexture2dUint32) {
   // 4D test with (1, h, w, c)
   {
-    const TensorDescriptor desc(UINT32, SINGLE_TEXTURE_2D, Layout::HWC);
+    const TensorDescriptor desc(UINT32, SINGLE_TEXTURE_2D, Layout::kHWC);
     const BHWC shape(1, 6, 14, 1);
     const auto input = Input<ml_drift::Tensor<BHWC, UINT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(UINT32, SINGLE_TEXTURE_2D, Layout::HWC);
+    const TensorDescriptor desc(UINT32, SINGLE_TEXTURE_2D, Layout::kHWC);
     const BHWC shape(1, 6, 14, 2);
     const auto input = Input<ml_drift::Tensor<BHWC, UINT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -1483,14 +1483,14 @@ TEST_F(SpatialTensorTest, IdempotenceSingleTexture2dUint32) {
   }
   // 4D test with (b, h, w, c)
   {
-    const TensorDescriptor desc(UINT32, SINGLE_TEXTURE_2D, Layout::BHWC);
+    const TensorDescriptor desc(UINT32, SINGLE_TEXTURE_2D, Layout::kBHWC);
     const BHWC shape(7, 6, 14, 1);
     const auto input = Input<ml_drift::Tensor<BHWC, UINT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(UINT32, SINGLE_TEXTURE_2D, Layout::BHWC);
+    const TensorDescriptor desc(UINT32, SINGLE_TEXTURE_2D, Layout::kBHWC);
     const BHWC shape(3, 6, 14, 2);
     const auto input = Input<ml_drift::Tensor<BHWC, UINT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -1498,14 +1498,14 @@ TEST_F(SpatialTensorTest, IdempotenceSingleTexture2dUint32) {
   }
   // 5D tests with (1, h, w, d, c)
   {
-    const TensorDescriptor desc(UINT32, SINGLE_TEXTURE_2D, Layout::HWDC);
+    const TensorDescriptor desc(UINT32, SINGLE_TEXTURE_2D, Layout::kHWDC);
     const BHWDC shape(1, 6, 14, 7, 1);
     const auto input = Input<ml_drift::Tensor<BHWDC, UINT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(UINT32, SINGLE_TEXTURE_2D, Layout::HWDC);
+    const TensorDescriptor desc(UINT32, SINGLE_TEXTURE_2D, Layout::kHWDC);
     const BHWDC shape(1, 6, 14, 4, 2);
     const auto input = Input<ml_drift::Tensor<BHWDC, UINT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -1513,14 +1513,14 @@ TEST_F(SpatialTensorTest, IdempotenceSingleTexture2dUint32) {
   }
   // 5D tests with (b, h, w, d, c)
   {
-    const TensorDescriptor desc(UINT32, SINGLE_TEXTURE_2D, Layout::BHWDC);
+    const TensorDescriptor desc(UINT32, SINGLE_TEXTURE_2D, Layout::kBHWDC);
     const BHWDC shape(7, 6, 14, 5, 1);
     const auto input = Input<ml_drift::Tensor<BHWDC, UINT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(UINT32, SINGLE_TEXTURE_2D, Layout::BHWDC);
+    const TensorDescriptor desc(UINT32, SINGLE_TEXTURE_2D, Layout::kBHWDC);
     const BHWDC shape(3, 6, 14, 3, 2);
     const auto input = Input<ml_drift::Tensor<BHWDC, UINT32>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -1531,14 +1531,14 @@ TEST_F(SpatialTensorTest, IdempotenceSingleTexture2dUint32) {
 TEST_F(SpatialTensorTest, IdempotenceSingleTexture2dUint8) {
   // 4D test with (1, h, w, c)
   {
-    const TensorDescriptor desc(UINT8, SINGLE_TEXTURE_2D, Layout::HWC);
+    const TensorDescriptor desc(UINT8, SINGLE_TEXTURE_2D, Layout::kHWC);
     const BHWC shape(1, 6, 14, 1);
     const auto input = Input<ml_drift::Tensor<BHWC, UINT8>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(UINT8, SINGLE_TEXTURE_2D, Layout::HWC);
+    const TensorDescriptor desc(UINT8, SINGLE_TEXTURE_2D, Layout::kHWC);
     const BHWC shape(1, 6, 14, 2);
     const auto input = Input<ml_drift::Tensor<BHWC, UINT8>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -1546,14 +1546,14 @@ TEST_F(SpatialTensorTest, IdempotenceSingleTexture2dUint8) {
   }
   // 4D test with (b, h, w, c)
   {
-    const TensorDescriptor desc(UINT8, SINGLE_TEXTURE_2D, Layout::BHWC);
+    const TensorDescriptor desc(UINT8, SINGLE_TEXTURE_2D, Layout::kBHWC);
     const BHWC shape(7, 6, 14, 1);
     const auto input = Input<ml_drift::Tensor<BHWC, UINT8>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(UINT8, SINGLE_TEXTURE_2D, Layout::BHWC);
+    const TensorDescriptor desc(UINT8, SINGLE_TEXTURE_2D, Layout::kBHWC);
     const BHWC shape(3, 6, 14, 2);
     const auto input = Input<ml_drift::Tensor<BHWC, UINT8>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -1561,14 +1561,14 @@ TEST_F(SpatialTensorTest, IdempotenceSingleTexture2dUint8) {
   }
   // 5D tests with (1, h, w, d, c)
   {
-    const TensorDescriptor desc(UINT8, SINGLE_TEXTURE_2D, Layout::HWDC);
+    const TensorDescriptor desc(UINT8, SINGLE_TEXTURE_2D, Layout::kHWDC);
     const BHWDC shape(1, 6, 14, 7, 1);
     const auto input = Input<ml_drift::Tensor<BHWDC, UINT8>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(UINT8, SINGLE_TEXTURE_2D, Layout::HWDC);
+    const TensorDescriptor desc(UINT8, SINGLE_TEXTURE_2D, Layout::kHWDC);
     const BHWDC shape(1, 6, 14, 4, 2);
     const auto input = Input<ml_drift::Tensor<BHWDC, UINT8>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -1576,14 +1576,14 @@ TEST_F(SpatialTensorTest, IdempotenceSingleTexture2dUint8) {
   }
   // 5D tests with (b, h, w, d, c)
   {
-    const TensorDescriptor desc(UINT8, SINGLE_TEXTURE_2D, Layout::BHWDC);
+    const TensorDescriptor desc(UINT8, SINGLE_TEXTURE_2D, Layout::kBHWDC);
     const BHWDC shape(7, 6, 14, 5, 1);
     const auto input = Input<ml_drift::Tensor<BHWDC, UINT8>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(UINT8, SINGLE_TEXTURE_2D, Layout::BHWDC);
+    const TensorDescriptor desc(UINT8, SINGLE_TEXTURE_2D, Layout::kBHWDC);
     const BHWDC shape(3, 6, 14, 3, 2);
     const auto input = Input<ml_drift::Tensor<BHWDC, UINT8>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -1594,14 +1594,14 @@ TEST_F(SpatialTensorTest, IdempotenceSingleTexture2dUint8) {
 TEST_F(SpatialTensorTest, IdempotenceSingleTexture2dBool) {
   // 4D test with (1, h, w, c)
   {
-    const TensorDescriptor desc(BOOL, SINGLE_TEXTURE_2D, Layout::HWC);
+    const TensorDescriptor desc(BOOL, SINGLE_TEXTURE_2D, Layout::kHWC);
     const BHWC shape(1, 6, 14, 1);
     const auto input = Input<ml_drift::Tensor<BHWC, BOOL>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(BOOL, SINGLE_TEXTURE_2D, Layout::HWC);
+    const TensorDescriptor desc(BOOL, SINGLE_TEXTURE_2D, Layout::kHWC);
     const BHWC shape(1, 6, 14, 2);
     const auto input = Input<ml_drift::Tensor<BHWC, BOOL>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -1609,14 +1609,14 @@ TEST_F(SpatialTensorTest, IdempotenceSingleTexture2dBool) {
   }
   // 4D test with (b, h, w, c)
   {
-    const TensorDescriptor desc(BOOL, SINGLE_TEXTURE_2D, Layout::BHWC);
+    const TensorDescriptor desc(BOOL, SINGLE_TEXTURE_2D, Layout::kBHWC);
     const BHWC shape(7, 6, 14, 1);
     const auto input = Input<ml_drift::Tensor<BHWC, BOOL>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(BOOL, SINGLE_TEXTURE_2D, Layout::BHWC);
+    const TensorDescriptor desc(BOOL, SINGLE_TEXTURE_2D, Layout::kBHWC);
     const BHWC shape(3, 6, 14, 2);
     const auto input = Input<ml_drift::Tensor<BHWC, BOOL>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -1624,14 +1624,14 @@ TEST_F(SpatialTensorTest, IdempotenceSingleTexture2dBool) {
   }
   // 5D tests with (1, h, w, d, c)
   {
-    const TensorDescriptor desc(BOOL, SINGLE_TEXTURE_2D, Layout::HWDC);
+    const TensorDescriptor desc(BOOL, SINGLE_TEXTURE_2D, Layout::kHWDC);
     const BHWDC shape(1, 6, 14, 7, 1);
     const auto input = Input<ml_drift::Tensor<BHWDC, BOOL>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(BOOL, SINGLE_TEXTURE_2D, Layout::HWDC);
+    const TensorDescriptor desc(BOOL, SINGLE_TEXTURE_2D, Layout::kHWDC);
     const BHWDC shape(1, 6, 14, 4, 2);
     const auto input = Input<ml_drift::Tensor<BHWDC, BOOL>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
@@ -1639,14 +1639,14 @@ TEST_F(SpatialTensorTest, IdempotenceSingleTexture2dBool) {
   }
   // 5D tests with (b, h, w, d, c)
   {
-    const TensorDescriptor desc(BOOL, SINGLE_TEXTURE_2D, Layout::BHWDC);
+    const TensorDescriptor desc(BOOL, SINGLE_TEXTURE_2D, Layout::kBHWDC);
     const BHWDC shape(7, 6, 14, 5, 1);
     const auto input = Input<ml_drift::Tensor<BHWDC, BOOL>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);
     EXPECT_THAT(output.data, Pointwise(Eq(), input.data));
   }
   {
-    const TensorDescriptor desc(BOOL, SINGLE_TEXTURE_2D, Layout::BHWDC);
+    const TensorDescriptor desc(BOOL, SINGLE_TEXTURE_2D, Layout::kBHWDC);
     const BHWDC shape(3, 6, 14, 3, 2);
     const auto input = Input<ml_drift::Tensor<BHWDC, BOOL>>(shape, desc);
     const auto output = UploadAndDownload(input, desc);

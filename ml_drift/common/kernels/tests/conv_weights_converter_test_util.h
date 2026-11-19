@@ -15,9 +15,6 @@
 #ifndef ML_DRIFT_COMMON_KERNELS_TESTS_CONV_WEIGHTS_CONVERTER_TEST_UTIL_H_
 #define ML_DRIFT_COMMON_KERNELS_TESTS_CONV_WEIGHTS_CONVERTER_TEST_UTIL_H_
 
-#include <array>
-#include <utility>
-
 #include "absl/status/status.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/shape.h"
@@ -52,6 +49,9 @@ absl::Status ConverterToConvWeights4xTexturesTest(TestExecutionEnvironment& env,
 absl::Status ConverterToConvWeightsFloat32OHWItoFloat32Test(
     TestExecutionEnvironment& env, DataType data_type,
     const OHWI& weights_shape);
+absl::Status ConverterToConvWeightsInt8OHWIToInt8Test(
+    TestExecutionEnvironment& env, const OHWI& weights_shape,
+    const WeightsDescription& conv_weight_desc);
 absl::Status ConverterToConvWeightsInt8OHWIToUint8Test(
     TestExecutionEnvironment& env, const OHWI& weights_shape,
     const WeightsDescription& conv_weight_desc);
@@ -102,6 +102,14 @@ absl::Status Int8ToUint8WeightsConverterTest(
 absl::Status FloatToFloatWeightsConverterTest(
     TestExecutionEnvironment& env, const OHWI& weights_shape,
     WeightsLayout src_layout, WeightsDescription& dst_weights_desc);
+absl::Status FloatToFloat16WeightsConverterTest(
+    TestExecutionEnvironment& env, const OHWI& weights_shape,
+    WeightsLayout src_layout, WeightsDescription dst_weights_desc);
+bool SupportsHalf2BufferWrite(const TestExecutionEnvironment& env);
+absl::Status FloatWeightsWithRingedOTest(TestExecutionEnvironment& env,
+                                         DataType data_type);
+absl::Status FloatWeightsWithRingedITest(TestExecutionEnvironment& env,
+                                         DataType data_type);
 
 absl::Status Uint8ToInt8WeightsConverterTest(
     TestExecutionEnvironment& env, WeightsLayout src_layout,

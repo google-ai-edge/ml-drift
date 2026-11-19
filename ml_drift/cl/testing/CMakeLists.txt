@@ -33,13 +33,16 @@ target_link_libraries(mld_cl_testing_perf_util
     mld_common_gpu_model_external_weights_test_util
     mld_common_kernels_conv_constants
     mld_common_kernels_conv_generic
+    mld_common_kernels_conv_wave_matrix
     mld_common_kernels_conv_wave_matrix_mali
+    mld_common_kernels_conv_wave_matrix_mali_f16
     mld_common_kernels_conv_wave_memory
     mld_common_kernels_depthwise_conv
     mld_common_kernels_depthwise_conv_3x3
     mld_common_kernels_depthwise_conv_tiled
     mld_common_kernels_depthwise_conv_wave_memory
     mld_common_kernels_fully_connected
+    mld_common_kernels_fully_connected_oi
     mld_common_kernels_quantize_and_dequantize
     mld_common_kernels_softmax
     mld_common_kernels_special_conv_softmax_conv
@@ -66,7 +69,6 @@ target_link_libraries(operation_perf_test
     absl::status_matchers
     absl::time
     gtest_main
-    mld_cl_default_util
     mld_cl_opencl_wrapper
     mld_cl_testing_perf_util
     mld_common_precision
@@ -84,7 +86,6 @@ target_link_libraries(mld_cl_testing_cl_test
     gtest
     mld_cl_cl_arguments
     mld_cl_cl_operation
-    mld_cl_default_util
     mld_cl_environment
     mld_cl_tensor
     mld_common_data_type
@@ -102,7 +103,6 @@ target_link_libraries(gpu_model_external_weights_test
     absl::status_macros
     absl::statusor
     gtest_main
-    mld_cl_default_util
     mld_cl_testing_cl_test
     mld_common_gpu_model_external_weights_test_util
 )

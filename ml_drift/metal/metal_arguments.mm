@@ -83,11 +83,11 @@ absl::Status CreateMetalObject(id<MTLDevice> device, GPUObjectDescriptor* desc,
 }
 
 std::string AccessToMetalTextureAccess(AccessType access_type) {
-  if (access_type == AccessType::READ) {
+  if (access_type == AccessType::kRead) {
     return "access::read";
-  } else if (access_type == AccessType::READ_WRITE) {
+  } else if (access_type == AccessType::kReadWrite) {
     return "access::read_write";
-  } else if (access_type == AccessType::WRITE) {
+  } else if (access_type == AccessType::kWrite) {
     return "access::write";
   } else {
     return "access::unknown";
@@ -277,12 +277,11 @@ std::string MetalArguments::GetArgumentBufferStructDefinition(
   for (auto& t : buffers_) {
     std::string mem_type = MemoryTypeToMetalType(t.second.desc.memory_type);
     std::string metal_type;
-    if (t.second.desc.data_type == DataType::BOOL) {
-      metal_type = ToMetalDataType(DataType::UINT8, t.second.desc.element_size);
-    } else if (t.second.desc.data_type == DataType::BFLOAT16 &&
+    if (t.second.desc.data_type == DataType::kBool) {
+      metal_type = ToMetalDataType(DataType::kUint8, t.second.desc.element_size);
+    } else if (t.second.desc.data_type == DataType::kBfloat16 &&
                !gpu_info.metal_info.IsNativeBfloatSupported()) {
-      metal_type =
-          ToMetalDataType(DataType::UINT16, t.second.desc.element_size);
+      metal_type = ToMetalDataType(DataType::kUint16, t.second.desc.element_size);
     } else {
       metal_type =
           ToMetalDataType(t.second.desc.data_type, t.second.desc.element_size);
@@ -516,12 +515,11 @@ std::string MetalArguments::GetListOfArgs(const GpuInfo& gpu_info,
   std::string result;
   for (auto& t : buffers_) {
     std::string metal_type;
-    if (t.second.desc.data_type == DataType::BOOL) {
-      metal_type = ToMetalDataType(DataType::UINT8, t.second.desc.element_size);
-    } else if (t.second.desc.data_type == DataType::BFLOAT16 &&
+    if (t.second.desc.data_type == DataType::kBool) {
+      metal_type = ToMetalDataType(DataType::kUint8, t.second.desc.element_size);
+    } else if (t.second.desc.data_type == DataType::kBfloat16 &&
                !gpu_info.metal_info.IsNativeBfloatSupported()) {
-      metal_type =
-          ToMetalDataType(DataType::UINT16, t.second.desc.element_size);
+      metal_type = ToMetalDataType(DataType::kUint16, t.second.desc.element_size);
     } else {
       metal_type =
           ToMetalDataType(t.second.desc.data_type, t.second.desc.element_size);

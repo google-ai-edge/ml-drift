@@ -32,8 +32,8 @@ class AddQuantAdjustments : public NodeTransformation {
  public:
   TransformResult ApplyToNode(Node* node, GraphFloat32* graph) final {
     if (node->operation.type ==
-        ToString(OperationType::QUANTIZE_AND_DEQUANTIZE)) {
-      return {TransformStatus::SKIPPED, ""};
+        ToString(OperationType::kQuantizeAndDequantize)) {
+      return {TransformStatus::kSkipped, ""};
     }
 
     bool transform_applied = false;
@@ -50,10 +50,10 @@ class AddQuantAdjustments : public NodeTransformation {
       // Add a new QuantizeAndDequantize node.
       Node* quant_and_dequant_node;
       if (!graph->InsertNodeAfter(node->id, &quant_and_dequant_node).ok()) {
-        return {TransformStatus::INVALID, "Could not insert new node."};
+        return {TransformStatus::kInvalid, "Could not insert new node."};
       }
       quant_and_dequant_node->operation.type =
-          ToString(OperationType::QUANTIZE_AND_DEQUANTIZE);
+          ToString(OperationType::kQuantizeAndDequantize);
       QuantizeAndDequantizeAttributes attr;
       attr.min = output_value->quant_params.value().min;
       attr.max = output_value->quant_params.value().max;
@@ -71,7 +71,7 @@ class AddQuantAdjustments : public NodeTransformation {
         const absl::Status status = graph->ReplaceInput(
             consumer->id, output_value->id, adjusted_value->id);
         if (!status.ok()) {
-          return {TransformStatus::INVALID,
+          return {TransformStatus::kInvalid,
                   absl::StrCat(
                       "Failed to associate quant-adjusted value for consumer: ",
                       status.message())};
@@ -88,9 +88,9 @@ class AddQuantAdjustments : public NodeTransformation {
     }
 
     if (transform_applied) {
-      return {TransformStatus::APPLIED, ""};
+      return {TransformStatus::kApplied, ""};
     }
-    return {TransformStatus::SKIPPED, ""};
+    return {TransformStatus::kSkipped, ""};
   }
 };
 

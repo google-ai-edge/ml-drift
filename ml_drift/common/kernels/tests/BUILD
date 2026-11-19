@@ -13,7 +13,6 @@
 # limitations under the License.
 
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test", "objc_library")
-load("//ml_drift/common:build_config.bzl", "mld_gpu_tests_tags")
 load("//ml_drift/common/kernels/tests:mld_kernel_test.bzl", "mld_kernel_test")
 
 package(
@@ -24,7 +23,9 @@ package(
 exports_files(
     [
         "kernel_test.h",
+        "metal_kernel_test.mm",
         "opencl_kernel_test.cc",
+        "gl_kernel_test.cc",
         "webgpu_kernel_test.cc",
     ],
     visibility = [
@@ -364,7 +365,6 @@ cc_library(
         "//ml_drift/common:util",
         "//ml_drift/common:winograd_util",
         "//ml_drift/common/kernels:conv_generic",
-        "//ml_drift/common/kernels:conv_weights_converter",
         "//ml_drift/common/kernels:fully_connected",
         "//ml_drift/common/kernels:quantize_and_dequantize",
         "//ml_drift/common/kernels:winograd",
@@ -496,6 +496,47 @@ mld_kernel_test(
 )
 
 cc_library(
+    name = "conv_wave_matrix_mali_f16_test_util",
+    testonly = 1,
+    srcs = ["conv_wave_matrix_mali_f16_test_util.cc"],
+    hdrs = ["conv_wave_matrix_mali_f16_test_util.h"],
+    deps = [
+        "//ml_drift/common:data_type",
+        "//ml_drift/common:operations",
+        "//ml_drift/common:precision",
+        "//ml_drift/common:shape",
+        "//ml_drift/common:tensor",
+        "//ml_drift/common:util",
+        "//ml_drift/common/kernels:conv_wave_matrix_mali_f16",
+        "//ml_drift/common/task:gpu_operation",
+        "//ml_drift/common/task:tensor_desc",
+        "//ml_drift/common/task:testing_ref_ops",
+        "//ml_drift/common/task:testing_util",
+        "//ml_drift/common/task:weights_conversion",
+        "@XNNPACK",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
+        "@com_google_absl//absl/status:status_matchers",
+        "@com_google_googletest//:gtest",
+    ],
+)
+
+mld_kernel_test(
+    name = "conv_wave_matrix_mali_f16_test",
+    srcs = [
+        "conv_wave_matrix_mali_f16_test.cc",
+    ],
+    platforms = ["opencl"],
+    deps = [
+        ":conv_wave_matrix_mali_f16_test_util",
+        "//ml_drift/common:data_type",
+        "//ml_drift/common/task:tensor_desc",
+        "//ml_drift/common/task:testing_util",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_library(
     name = "conv_wave_matrix_mali_test_util",
     testonly = 1,
     srcs = ["conv_wave_matrix_mali_test_util.cc"],
@@ -580,7 +621,7 @@ mld_kernel_test(
     ],
     platforms = [
         "opencl",
-        "pelong",
+        "gl",
         "vulkan",
         "webgpu",
         "mac",
@@ -661,7 +702,6 @@ cc_library(
         "//ml_drift/common:types",
         "//ml_drift/common:util",
         "//ml_drift/common/kernels:conv_weights_converter",
-        "//ml_drift/common/kernels:fully_connected",
         "//ml_drift/common/task:gpu_operation",
         "//ml_drift/common/task:tensor_desc",
         "//ml_drift/common/task:testing_ref_ops",
@@ -768,6 +808,26 @@ mld_kernel_test(
         "//ml_drift/common/task:tensor_desc",
         "//ml_drift/common/task:testing_util",
         "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_test(
+    name = "depthwise_conv_tiled_work_group_test",
+    srcs = ["depthwise_conv_tiled_work_group_test.cc"],
+    deps = [
+        "//ml_drift/common:data_type",
+        "//ml_drift/common:gpu_info",
+        "//ml_drift/common:kernel_info",
+        "//ml_drift/common:operations",
+        "//ml_drift/common:precision",
+        "//ml_drift/common:shape",
+        "//ml_drift/common:tensor",
+        "//ml_drift/common/kernels:depthwise_conv_tiled",
+        "//ml_drift/common/task:gpu_operation",
+        "//ml_drift/common/task:tensor_desc",
+        "//ml_drift/common/task:tuning_type",
+        "@com_google_absl//absl/status:status_matchers",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -958,6 +1018,47 @@ mld_kernel_test(
 )
 
 cc_library(
+    name = "fully_connected_oi_test_util",
+    testonly = 1,
+    srcs = ["fully_connected_oi_test_util.cc"],
+    hdrs = ["fully_connected_oi_test_util.h"],
+    deps = [
+        "//ml_drift/common:data_type",
+        "//ml_drift/common:operations",
+        "//ml_drift/common:precision",
+        "//ml_drift/common:shape",
+        "//ml_drift/common:tensor",
+        "//ml_drift/common:types",
+        "//ml_drift/common:util",
+        "//ml_drift/common/kernels:fully_connected_oi",
+        "//ml_drift/common/task:gpu_operation",
+        "//ml_drift/common/task:tensor_desc",
+        "//ml_drift/common/task:testing_ref_ops",
+        "//ml_drift/common/task:testing_util",
+        "//ml_drift/common/task:weights_conversion",
+        "//ml_drift/common/task:weights_layout",
+        "@XNNPACK",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
+        "@com_google_absl//absl/status:status_matchers",
+        "@com_google_absl//absl/types:span",
+        "@com_google_googletest//:gtest",
+    ],
+)
+
+mld_kernel_test(
+    name = "fully_connected_oi_test",
+    srcs = ["fully_connected_oi_test.cc"],
+    deps = [
+        ":fully_connected_oi_test_util",
+        "//ml_drift/common:data_type",
+        "//ml_drift/common:precision",
+        "//ml_drift/common/task:tensor_desc",
+        "//ml_drift/common/task:testing_util",
+    ],
+)
+
+cc_library(
     name = "fully_connected_test_util",
     testonly = 1,
     srcs = ["fully_connected_test_util.cc"],
@@ -981,6 +1082,7 @@ cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:status_macros",
         "@com_google_absl//absl/status:status_matchers",
+        "@com_google_absl//absl/types:span",
         "@com_google_googletest//:gtest",
     ],
 )
@@ -1937,8 +2039,6 @@ cc_library(
         "//ml_drift/common/task:tensor_desc",
         "//ml_drift/common/task:testing_ref_ops",
         "//ml_drift/common/task:testing_util",
-        "//ml_drift/common/task:weights_conversion",
-        "//ml_drift/common/task:weights_layout",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:status_macros",
         "@com_google_absl//absl/status:status_matchers",
@@ -1972,6 +2072,7 @@ test_suite(
         ":conv_generic_test_opencl",
         ":conv_transpose_test_opencl",
         ":conv_transpose_thin_test_opencl",
+        ":conv_wave_matrix_mali_f16_test_opencl",
         ":conv_wave_matrix_mali_test_opencl",
         ":conv_wave_matrix_test_opencl",
         ":depthwise_conv_test_opencl",
@@ -2007,6 +2108,96 @@ test_suite(
         ":top_k_test_opencl",
         ":transpose_test_opencl",
         ":winograd_test_opencl",
+    ],
+)
+
+test_suite(
+    name = "all_tests_mac",
+    tests = [
+        ":add_test_mac",
+        ":bitcast_test_mac",
+        ":cast_test_mac",
+        ":concat_test_mac",
+        ":conv_constants_test_mac",
+        ":conv_generic_test_mac",
+        ":conv_transpose_test_mac",
+        ":conv_wave_matrix_test_mac",
+        ":conv_weights_converter_test_mac",
+        ":cumsum_test_mac",
+        ":depthwise_conv_test_mac",
+        ":dot_general_test_mac",
+        ":dynamic_update_slice_test_mac",
+        ":elementwise_test_mac",
+        ":embedding_lookup_test_mac",
+        ":fully_connected_test_mac",
+        ":gather_test_mac",
+        ":lstm_test_mac",
+        ":max_unpooling_test_mac",
+        ":mean_stddev_normalization_test_mac",
+        ":one_hot_test_mac",
+        ":padding_test_mac",
+        ":pooling_test_mac",
+        ":prelu_test_mac",
+        ":reduce_test_mac",
+        ":relu_test_mac",
+        ":resampler_test_mac",
+        ":reshape_test_mac",
+        ":resize_test_mac",
+        ":rope_test_mac",
+        ":select_v2_test_mac",
+        ":softmax_test_mac",
+        ":space_to_depth_test_mac",
+        ":split_test_mac",
+        ":strided_slice_test_mac",
+        ":tile_test_mac",
+        ":top_k_test_mac",
+        ":transpose_test_mac",
+        ":winograd_test_mac",
+    ],
+)
+
+test_suite(
+    name = "all_tests_gl",
+    tests = [
+        ":add_test_gl",
+        ":bitcast_test_gl",
+        ":cast_test_gl",
+        ":concat_test_gl",
+        ":conv_constants_test_gl",
+        ":conv_generic_test_gl",
+        ":conv_transpose_test_gl",
+        ":conv_wave_matrix_test_gl",
+        ":conv_weights_converter_test_gl",
+        ":cumsum_test_gl",
+        ":depthwise_conv_test_gl",
+        ":dot_general_test_gl",
+        ":dynamic_update_slice_test_gl",
+        ":elementwise_test_gl",
+        ":embedding_lookup_test_gl",
+        ":fully_connected_test_gl",
+        ":gather_test_gl",
+        ":lstm_test_gl",
+        ":max_unpooling_test_gl",
+        ":mean_stddev_normalization_test_gl",
+        ":one_hot_test_gl",
+        ":padding_test_gl",
+        ":pooling_test_gl",
+        ":prelu_test_gl",
+        ":reduce_test_gl",
+        ":relu_test_gl",
+        ":resampler_test_gl",
+        ":reshape_test_gl",
+        ":resize_test_gl",
+        ":rope_test_gl",
+        ":select_v2_test_gl",
+        ":softmax_test_gl",
+        ":space_to_depth_test_gl",
+        ":split_test_gl",
+        ":strided_slice_test_gl",
+        ":tile_test_gl",
+        ":top_k_test_gl",
+        ":transpose_test_gl",
+        ":winograd_test_gl",
     ],
 )
 
@@ -2052,5 +2243,22 @@ test_suite(
         ":top_k_test_webgpu",
         ":transpose_test_webgpu",
         ":winograd_test_webgpu",
+    ],
+)
+
+cc_test(
+    name = "softmax_work_group_test",
+    srcs = ["softmax_work_group_test.cc"],
+    deps = [
+        "//ml_drift/common:data_type",
+        "//ml_drift/common:gpu_info",
+        "//ml_drift/common:shape",
+        "//ml_drift/common:types",
+        "//ml_drift/common/kernels:softmax",
+        "//ml_drift/common/kernels:softmax1x1",
+        "//ml_drift/common/task:gpu_operation",
+        "//ml_drift/common/task:tensor_desc",
+        "@com_google_absl//absl/status:status_matchers",
+        "@com_google_googletest//:gtest_main",
     ],
 )

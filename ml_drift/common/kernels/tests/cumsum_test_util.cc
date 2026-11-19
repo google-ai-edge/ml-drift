@@ -40,7 +40,7 @@ using ::testing::Pointwise;
 
 absl::Status CumsumHWCTest(TestExecutionEnvironment& env, DataType data_type,
                            TensorStorageType storage, Axis axis) {
-  Tensor<HWC, DataType::FLOAT32> src_tensor;
+  Tensor<HWC, DataType::kFloat32> src_tensor;
   src_tensor.shape = HWC(8, 6, 4);
   const BHWC shape = BHWC(1, 8, 6, 4);
   src_tensor.data = {
@@ -56,7 +56,7 @@ absl::Status CumsumHWCTest(TestExecutionEnvironment& env, DataType data_type,
       2,  3,  4,  5,  -9, 0,  2,  0,  -2, 8,  8,  -5, -6, -6, -7, -1, 7,  -3,
       2,  6,  4,  -9, 1,  -9, -5, -6, -5, -1, 8,  2};
   std::map<Axis, std::vector<float>> expected = {
-      {Axis::HEIGHT,
+      {Axis::kHeight,
        {7,   -3,  -5,  8,   1,   4,   7,   1,   4,   -9,  6,   -5,  9,   -1,
         5,   3,   -6,  -2,  -3,  3,   -1,  -8,  -9,  -1,  9,   0,   3,   4,
         -8,  2,   14,  9,   10,  0,   7,   -6,  0,   -7,  -4,  4,   -11, 1,
@@ -71,7 +71,7 @@ absl::Status CumsumHWCTest(TestExecutionEnvironment& env, DataType data_type,
         9,   -12, 16,  -6,  -10, 21,  -7,  -8,  9,   1,   5,   20,  -38, -29,
         19,  -15, -25, -14, 13,  -1,  3,   -6,  7,   10,  16,  -15, 18,  0,
         -6,  12,  -6,  -17, 4,   -5,  0,   19,  -30, -27}},
-      {Axis::WIDTH,
+      {Axis::kWidth,
        {7,   -3,  -5,  8,   8,   1,   2,   9,   12,  -8,  8,   4,   21,  -9,
         13,  7,   15,  -11, 10,  10,  14,  -19, 1,   9,   2,   3,   8,   -4,
         -7,  1,   15,  4,   -1,  10,  16,  3,   -10, 4,   7,   4,   -15, 7,
@@ -86,7 +86,7 @@ absl::Status CumsumHWCTest(TestExecutionEnvironment& env, DataType data_type,
         9,   -13, 15,  -2,  3,   -8,  10,  -11, 5,   -5,  14,  -6,  -4,  -5,
         2,   0,   -2,  8,   10,  -5,  -8,  2,   3,   -6,  -1,  -1,  5,   0,
         3,   -10, 6,   -9,  -2,  -16, 1,   -10, 6,   -14}},
-      {Axis::CHANNELS,
+      {Axis::kChannels,
        {7,   4,   -1,  7,   1,   5,   12,  13,  4,   -5,  1,  -4,  9,   8,  13,
         16,  -6,  -8,  -11, -8,  -1,  -9,  -18, -19, 2,   5,  13,  9,   -9, -11,
         -4,  4,   6,   15,  16,  15,  -9,  -15, -24, -23, -5, -2,  1,   10, 7,
@@ -102,8 +102,8 @@ absl::Status CumsumHWCTest(TestExecutionEnvironment& env, DataType data_type,
         2,   8,   12,  3,   1,   -8,  -13, -19, -5,  -6,  2,  4}}};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorDescriptor& src = op_def.src_tensors[0];
   TensorDescriptor& dst = op_def.dst_tensors[0];
   CumsumAttributes attr = {axis};
@@ -135,7 +135,7 @@ absl::Status CumsumBHWCTest(TestExecutionEnvironment& env, DataType data_type,
       0,  -3, -5, 1,  -3, -5, -1, -9, -5, 7,  -7, -3, 5,  6,  8,  -5, -9, -7,
       1,  -6, -4, -3, -3, 2,  7,  6,  3,  8,  -8, -2};
   std::map<Axis, std::vector<float>> expected = {
-      {Axis::BATCH,
+      {Axis::kBatch,
        {-6,  -9,  -9,  3,   0,   -6,  -7,  6,   -3,  5,   -2,  0,   -6,  -7,
         -1,  0,   6,   -7,  5,   -7,  -1,  0,   9,   2,   -9,  7,   -9,  1,
         -8,  1,   -4,  -8,  -10, -16, -14, 3,   -2,  -6,  2,   -1,  -1,  12,
@@ -150,7 +150,7 @@ absl::Status CumsumBHWCTest(TestExecutionEnvironment& env, DataType data_type,
         5,   0,   -17, -5,  -17, 0,   -11, -5,  -25, 8,   -7,  9,   0,   4,
         -13, 5,   6,   14,  -19, -14, -22, 4,   25,  -3,  12,  -18, 25,  -19,
         5,   -9,  -10, 12,  12,  6,   -14, 3,   -25, -2}},
-      {Axis::HEIGHT,
+      {Axis::kHeight,
        {-6,  -9,  -9,  3,   -6, -15, -16, 9,   -9, -10, -18, 9,   -15, -17, -19,
         9,   -9,  -24, -14, 2,  -10, -24, -5,  4,  -19, -17, -14, 5,   -27, -16,
         -18, -3,  -4,  -7,  -5, 0,   -6,  -7,  4,  -7,  -4,  0,   8,   -6,  -4,
@@ -164,7 +164,7 @@ absl::Status CumsumBHWCTest(TestExecutionEnvironment& env, DataType data_type,
         -4,  17,  13,  5,   -1, 8,   11,  6,   -8, 13,  1,   6,   0,   -3,  -4,
         7,   -3,  -8,  -5,  -2, -8,  -1,  -12, -5, -3,  5,   -4,  -10, -12, -2,
         -3,  -16, -16, -5,  -6, -14, -9,  1,   -3, -6,  -17, -1}},
-      {Axis::WIDTH,
+      {Axis::kWidth,
        {-6, -9, -9, 3,  0,  -6, -7, 6,  -3, 5,  -2, 0,  -6, -7, -1, 0,  6,  -7,
         5,  -7, -1, 0,  9,  2,  -9, 7,  -9, 1,  -8, 1,  -4, -8, -4, -7, -5, 0,
         -2, 0,  9,  -7, 2,  7,  4,  1,  0,  0,  -7, 7,  2,  1,  6,  3,  7,  -4,
@@ -176,7 +176,7 @@ absl::Status CumsumBHWCTest(TestExecutionEnvironment& env, DataType data_type,
         2,  1,  -2, -5, 8,  -5, -4, 9,  6,  3,  3,  -9, -2, 1,  -7, 5,  1,  6,
         0,  -3, -5, 1,  -3, -5, -1, -9, -5, 7,  -7, -3, 5,  6,  8,  -5, -9, -7,
         1,  -6, -4, -3, -3, 2,  7,  6,  3,  8,  -8, -2}},
-      {Axis::CHANNELS,
+      {Axis::kChannels,
        {-6,  -15, -24, -21, 0,   -6,  -13, -7, -3,  2,  0,   0,   -6,  -13, -14,
         -14, 6,   -1,  4,   -3,  -1,  -1,  8,  10,  -9, -2,  -11, -10, -8,  -7,
         -11, -19, -4,  -11, -16, -16, -2,  -2, 7,   0,  2,   9,   13,  14,  0,
@@ -192,8 +192,8 @@ absl::Status CumsumBHWCTest(TestExecutionEnvironment& env, DataType data_type,
         1,   -5,  -9,  -12, -3,  -1,  6,   12, 3,   11, 3,   1}}};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
   TensorDescriptor& src = op_def.src_tensors[0];
   TensorDescriptor& dst = op_def.dst_tensors[0];
   CumsumAttributes attr = {axis};
@@ -216,11 +216,11 @@ absl::Status CumsumIntTest(TestExecutionEnvironment& env,
   src_tensor.data = {1, 2, 3, 4};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({T, storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({T, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({T, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({T, storage, Layout::kBHWC});
   TensorDescriptor& src = op_def.src_tensors[0];
   TensorDescriptor& dst = op_def.dst_tensors[0];
-  CumsumAttributes attr = {Axis::CHANNELS};
+  CumsumAttributes attr = {Axis::kChannels};
   Cumsum operation = CreateCumsum(op_def, attr);
   dst.SetBHWCShape(src_tensor.shape);
   src.UploadData(src_tensor);
@@ -234,17 +234,17 @@ absl::Status CumsumIntTest(TestExecutionEnvironment& env,
   return absl::OkStatus();
 }
 
-template absl::Status CumsumIntTest<DataType::INT8>(
+template absl::Status CumsumIntTest<DataType::kInt8>(
     TestExecutionEnvironment& env, TensorStorageType storage);
-template absl::Status CumsumIntTest<DataType::INT16>(
+template absl::Status CumsumIntTest<DataType::kInt16>(
     TestExecutionEnvironment& env, TensorStorageType storage);
-template absl::Status CumsumIntTest<DataType::INT32>(
+template absl::Status CumsumIntTest<DataType::kInt32>(
     TestExecutionEnvironment& env, TensorStorageType storage);
-template absl::Status CumsumIntTest<DataType::UINT8>(
+template absl::Status CumsumIntTest<DataType::kUint8>(
     TestExecutionEnvironment& env, TensorStorageType storage);
-template absl::Status CumsumIntTest<DataType::UINT16>(
+template absl::Status CumsumIntTest<DataType::kUint16>(
     TestExecutionEnvironment& env, TensorStorageType storage);
-template absl::Status CumsumIntTest<DataType::UINT32>(
+template absl::Status CumsumIntTest<DataType::kUint32>(
     TestExecutionEnvironment& env, TensorStorageType storage);
 
 absl::Status Cumsum5DTest(TestExecutionEnvironment& env, DataType data_type,
@@ -254,11 +254,11 @@ absl::Status Cumsum5DTest(TestExecutionEnvironment& env, DataType data_type,
   src_tensor.data = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
 
   CumsumAttributes attr;
-  attr.axis = Axis::DEPTH;
+  attr.axis = Axis::kDepth;
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWDC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWDC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWDC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWDC});
   Tensor5DFloat32 dst_tensor;
   Cumsum operation = CreateCumsum(op_def, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(

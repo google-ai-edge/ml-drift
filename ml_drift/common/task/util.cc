@@ -120,7 +120,7 @@ absl::Status PerformConvertSelector(
   ABSL_RETURN_IF_ERROR(
       DataTypeFromTemplateArg(template_args[0], &type, &vector_size));
   if (gpu_info.IsApiOpenCl()) {
-    if (type == DataType::BOOL) {
+    if (type == DataType::kBool) {
       // In OpenCL for bool4 we are using uchar4
       // From OpenCL specification for "Relational and Equality Operators":
       //   "These functions shall return a 0 if the specified relation is
@@ -193,13 +193,13 @@ absl::Status PerformReinterpretSelector(
               args[0] + ")";
     return absl::OkStatus();
   } else if (gpu_info.IsGlsl()) {
-    if (from_type == DataType::UINT32 && from_vector_size == 2 &&
-        to_type == DataType::FLOAT16 && to_vector_size == 4) {
+    if (from_type == DataType::kUint32 && from_vector_size == 2 &&
+        to_type == DataType::kFloat16 && to_vector_size == 4) {
       *result = "ReinterpretUvec2ToHalf4(" + args[0] + ")";
       return absl::OkStatus();
     }
-    if (to_type == DataType::UINT32 && to_vector_size == 2 &&
-        from_type == DataType::FLOAT16 && from_vector_size == 4) {
+    if (to_type == DataType::kUint32 && to_vector_size == 2 &&
+        from_type == DataType::kFloat16 && from_vector_size == 4) {
       *result = "ReinterpretHalf4ToUvec2(" + args[0] + ")";
       return absl::OkStatus();
     }
@@ -224,13 +224,13 @@ absl::Status PerformReinterpretSelector(
     return absl::OkStatus();
   } else if (gpu_info.IsApiWebGpu()) {
     const bool is_src_char4 =
-        from_type == DataType::INT8 && from_vector_size == 4;
+        from_type == DataType::kInt8 && from_vector_size == 4;
     const bool is_src_uchar4 =
-        from_type == DataType::UINT8 && from_vector_size == 4;
+        from_type == DataType::kUint8 && from_vector_size == 4;
     if (is_src_char4 || is_src_uchar4) {
       std::string uint_val = is_src_char4 ? "pack4xI8" : "pack4xU8";
       uint_val += "(" + args[0] + ")";
-      if (to_type == DataType::UINT32 && to_vector_size == 1) {
+      if (to_type == DataType::kUint32 && to_vector_size == 1) {
         *result = uint_val;
         return absl::OkStatus();
       } else if (SizeOf(to_type) == 4 && to_vector_size == 1) {
@@ -244,17 +244,17 @@ absl::Status PerformReinterpretSelector(
             "Unsupported ucl::Reinterpret case in WebGPU.");
       }
     }
-    const bool is_dst_char4 = to_type == DataType::INT8 && to_vector_size == 4;
+    const bool is_dst_char4 = to_type == DataType::kInt8 && to_vector_size == 4;
     const bool is_dst_uchar4 =
-        to_type == DataType::UINT8 && to_vector_size == 4;
+        to_type == DataType::kUint8 && to_vector_size == 4;
     if (is_dst_char4 || is_dst_uchar4) {
       std::string unpack_fcn = is_src_char4 ? "unpack4xI8" : "unpack4xU8";
-      if (from_type == DataType::UINT32 && from_vector_size == 1) {
+      if (from_type == DataType::kUint32 && from_vector_size == 1) {
         *result = unpack_fcn + "(" + args[0] + ")";
         return absl::OkStatus();
       } else if (SizeOf(from_type) == 4 && from_vector_size == 1) {
         *result = unpack_fcn + "(bitcast<" +
-                  ToWebGpuType(DataType::UINT32, from_vector_size,
+                  ToWebGpuType(DataType::kUint32, from_vector_size,
                                gpu_info.webgpu_info.supports_fp16) +
                   ">(" + args[0] + "))";
         return absl::OkStatus();
@@ -684,7 +684,7 @@ absl::Status PerformU32x2ToU4x16AsVec4x4(
   ABSL_RETURN_IF_ERROR(
       DataTypeFromTemplateArg(template_args[0], &type, &type_size));
   const bool use_float_math_for_unpacking =
-      type == DataType::FLOAT16 && gpu_info.IsApple();
+      type == DataType::kFloat16 && gpu_info.IsApple();
   if (use_float_math_for_unpacking) {
     *result = "  {\n";
     const bool use_reinterpret =
@@ -734,7 +734,7 @@ absl::Status PerformU32x2ToU4x16AsVec4x4(
   $4 = ucl::Convert<$04>(ucl::Init<ushort4>($1.y, $1.y >> 4u, $1.y >> 8u, $1.y >> 12u) & ucl::Init<ushort4>(15u));
   $5 = ucl::Convert<$04>(ucl::Init<ushort4>($1.y >> 16u, $1.y >> 20u, $1.y >> 24u, $1.y >> 28u) & ucl::Init<ushort4>(15u));
 )";
-  } else if (/* DISABLES CODE */ (false) && type == DataType::FLOAT16) {
+  } else if (/* DISABLES CODE */ (false) && type == DataType::kFloat16) {
     // experimental
     *result = R"(
   {
@@ -807,7 +807,7 @@ absl::Status PerformU32x1ToU2x16AsVec4x4(
   ABSL_RETURN_IF_ERROR(
       DataTypeFromTemplateArg(template_args[0], &type, &type_size));
   const bool use_float_math_for_unpacking =
-      type == DataType::FLOAT16 && gpu_info.IsApple();
+      type == DataType::kFloat16 && gpu_info.IsApple();
   const bool use_reinterpret_unpacking =
       gpu_info.IsApiOpenCl() && gpu_info.IsMali();
   if (use_float_math_for_unpacking) {
@@ -851,7 +851,7 @@ absl::Status PerformU32x1ToU2x16AsVec4x4(
   $5.w = wt1.w;
   }
 )";
-  } else if (/* DISABLES CODE */ (false) && type == DataType::FLOAT16) {
+  } else if (/* DISABLES CODE */ (false) && type == DataType::kFloat16) {
     // experimental
     *result = R"(
   {
@@ -952,7 +952,7 @@ absl::Status PerformU16x4ToU4x16AsVec4x4(
   ABSL_RETURN_IF_ERROR(
       DataTypeFromTemplateArg(template_args[0], &type, &type_size));
   if (gpu_info.IsPowerVR() && gpu_info.IsApiOpenCl() &&
-      type == DataType::FLOAT16) {
+      type == DataType::kFloat16) {
     *result = R"(
   {
   $04 wt0 = ucl::Convert<$04>(ucl::Reinterpret<ushort2, uchar4>($1.xy)) * ucl::Init<$0>(0.0625f);
@@ -984,7 +984,7 @@ absl::Status PerformU16x4ToU4x16AsVec4x4(
   $4 = ucl::Convert<$04>(ucl::Init<ushort4>($1.z, $1.z >> 4u, $1.z >> 8u, $1.z >> 12u) & ucl::Init<ushort4>(15u));
   $5 = ucl::Convert<$04>(ucl::Init<ushort4>($1.w, $1.w >> 4u, $1.w >> 8u, $1.w >> 12u) & ucl::Init<ushort4>(15u));
 )";
-  } else if (/* DISABLES CODE */ (false) && type == DataType::FLOAT16) {
+  } else if (/* DISABLES CODE */ (false) && type == DataType::kFloat16) {
     // experimental
     *result = R"(
   {
@@ -1059,7 +1059,8 @@ absl::Status PerformU8x4ToU2x16AsVec4x4(
   ABSL_RETURN_IF_ERROR(
       DataTypeFromTemplateArg(template_args[0], &type, &type_size));
   const bool use_float_math_for_unpacking =
-      type == DataType::FLOAT16 && (gpu_info.IsApple() || gpu_info.IsPowerVR());
+      type == DataType::kFloat16 &&
+      (gpu_info.IsApple() || gpu_info.IsPowerVR());
   if (use_float_math_for_unpacking) {
     *result = R"(
   {
@@ -1286,11 +1287,11 @@ absl::Status PerformExpSelector(const GpuInfo& gpu_info,
     DataType type;
     ABSL_RETURN_IF_ERROR(
         DataTypeFromTemplateArg(template_args[0], &type, &vector_size));
-    if (type == DataType::FLOAT16 &&
+    if (type == DataType::kFloat16 &&
         (gpu_info.IsAdreno() || gpu_info.IsPowerVR() || gpu_info.IsMali())) {
       *result = "convert_" + ToCLDataType(type, vector_size) +
                 "(native_exp(convert_" +
-                ToCLDataType(DataType::FLOAT32, vector_size) + "(" + args[0] +
+                ToCLDataType(DataType::kFloat32, vector_size) + "(" + args[0] +
                 ")))";
     } else {
       *result = "exp(" + args[0] + ")";
@@ -1348,11 +1349,11 @@ absl::Status DataTypeFromTemplateArg(absl::string_view type_str, DataType* type,
   *vector_size = vec_size;
   static const auto& kTypes =
       *new absl::flat_hash_map<absl::string_view, DataType>{
-          {"half", DataType::FLOAT16},  {"float", DataType::FLOAT32},
-          {"int", DataType::INT32},     {"short", DataType::INT16},
-          {"char", DataType::INT8},     {"uint", DataType::UINT32},
-          {"ushort", DataType::UINT16}, {"uchar", DataType::UINT8},
-          {"bool", DataType::BOOL},     {"bfloat", DataType::BFLOAT16}};
+          {"half", DataType::kFloat16},  {"float", DataType::kFloat32},
+          {"int", DataType::kInt32},     {"short", DataType::kInt16},
+          {"char", DataType::kInt8},     {"uint", DataType::kUint32},
+          {"ushort", DataType::kUint16}, {"uchar", DataType::kUint8},
+          {"bool", DataType::kBool},     {"bfloat", DataType::kBfloat16}};
   const auto it = kTypes.find(type_str);
   if (it != kTypes.end()) {
     *type = it->second;
@@ -1365,11 +1366,11 @@ absl::Status DataTypeFromTemplateArg(absl::string_view type_str, DataType* type,
 
 std::string MemoryTypeToCLType(MemoryType type) {
   switch (type) {
-    case MemoryType::GLOBAL:
+    case MemoryType::kGlobal:
       return "__global";
-    case MemoryType::CONSTANT:
+    case MemoryType::kConstant:
       return "__constant";
-    case MemoryType::LOCAL:
+    case MemoryType::kLocal:
       return "__local";
   }
   return "";
@@ -1377,12 +1378,12 @@ std::string MemoryTypeToCLType(MemoryType type) {
 
 std::string MemoryTypeToMetalType(MemoryType type) {
   switch (type) {
-    case MemoryType::GLOBAL:
+    case MemoryType::kGlobal:
       return "device";
-    case MemoryType::CONSTANT:
+    case MemoryType::kConstant:
       return "constant";
       break;
-    case MemoryType::LOCAL:
+    case MemoryType::kLocal:
       return "threadgroup";
   }
   return "";
@@ -1411,7 +1412,7 @@ int GetRecommendedBlockSizeForConv(const GpuInfo& gpu_info,
   }
   MaliInfo mali_info = gpu_info.mali_info;
   switch (precision) {
-    case CalculationsPrecision::F16:
+    case CalculationsPrecision::kF16:
       if (mali_info.IsMidgard()) {
         threshold_1 = 256.0f * 4.0f;
         threshold_2 = 256.0f * 16.0f;
@@ -1430,7 +1431,7 @@ int GetRecommendedBlockSizeForConv(const GpuInfo& gpu_info,
         threshold_4 = 256.0f * 16.0f;
       }
       break;
-    case CalculationsPrecision::F32_F16:
+    case CalculationsPrecision::kF32F16:
       if (mali_info.IsMidgard()) {
         threshold_1 = 256.0f * 4.0f;
       } else if (mali_info.IsBifrostGen1()) {
@@ -1446,7 +1447,7 @@ int GetRecommendedBlockSizeForConv(const GpuInfo& gpu_info,
         threshold_2 = 256.0f * 8.0f;
       }
       break;
-    case CalculationsPrecision::F32:
+    case CalculationsPrecision::kF32:
       if (mali_info.IsMidgard()) {
         threshold_1 = 256.0f * 16.0f;
       } else if (mali_info.IsBifrostGen1()) {
@@ -1501,7 +1502,7 @@ std::string GetTypeDeclaration(const GpuInfo& gpu_info, DataType data_type,
 }
 
 std::string GetZeroValue(DataType data_type) {
-  if (data_type == DataType::BOOL) {
+  if (data_type == DataType::kBool) {
     return "false";
   } else {
     return "0" + GetTypePostfix(data_type);
@@ -1509,7 +1510,7 @@ std::string GetZeroValue(DataType data_type) {
 }
 
 std::string GetOneValue(DataType data_type) {
-  if (data_type == DataType::BOOL) {
+  if (data_type == DataType::kBool) {
     return "true";
   } else {
     return "1" + GetTypePostfix(data_type);

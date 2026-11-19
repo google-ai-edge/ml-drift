@@ -48,18 +48,18 @@ using namespace ml_drift::metal;
     // Constant tensor (weights)
     ValueId const_id = 1;
     TensorDescriptor const_desc;
-    const_desc.SetDataType(DataType::FLOAT32);
-    const_desc.SetStorageType(TensorStorageType::BUFFER);
-    const_desc.SetLayout(Layout::HWC);
+    const_desc.SetDataType(DataType::kFloat32);
+    const_desc.SetStorageType(TensorStorageType::kBuffer);
+    const_desc.SetLayout(Layout::kHWC);
     const_desc.SetBHWCShape(BHWC(1, 1, 1, 4));
     model.const_tensors[const_id] = const_desc;
 
     // Intermediate tensor (activation)
     ValueId inter_id = 2;
     TensorDescriptor inter_desc;
-    inter_desc.SetDataType(DataType::FLOAT32);
-    inter_desc.SetStorageType(TensorStorageType::BUFFER);
-    inter_desc.SetLayout(Layout::HWC);
+    inter_desc.SetDataType(DataType::kFloat32);
+    inter_desc.SetStorageType(TensorStorageType::kBuffer);
+    inter_desc.SetLayout(Layout::kHWC);
     inter_desc.SetBHWCShape(BHWC(1, 1, 1, 4));
     model.tensors[inter_id] = inter_desc;
     model.input_ids_and_refs.push_back({inter_id, inter_id});  // Force allocation
@@ -67,24 +67,24 @@ using namespace ml_drift::metal;
     // External mutable tensor descriptor in GpuModel
     ValueId ext_mut_id = 3;
     TensorDescriptor ext_mut_desc;
-    ext_mut_desc.SetDataType(DataType::FLOAT32);
-    ext_mut_desc.SetStorageType(TensorStorageType::BUFFER);
-    ext_mut_desc.SetLayout(Layout::HWC);
+    ext_mut_desc.SetDataType(DataType::kFloat32);
+    ext_mut_desc.SetStorageType(TensorStorageType::kBuffer);
+    ext_mut_desc.SetLayout(Layout::kHWC);
     ext_mut_desc.SetBHWCShape(BHWC(1, 1, 1, 4));
     model.tensors[ext_mut_id] = ext_mut_desc;
 
     // 2. Setup CreateGpuModelInfo with external tensors
     CreateGpuModelInfo create_info;
-    create_info.precision = CalculationsPrecision::F32;
-    create_info.storage_type = TensorStorageType::BUFFER;
+    create_info.precision = CalculationsPrecision::kF32;
+    create_info.storage_type = TensorStorageType::kBuffer;
 
     // External immutable tensor (weights passed from outside)
     ValueId ext_imm_id = 4;
     MetalSpatialTensor ext_imm_tensor;
     TensorDescriptor ext_imm_desc;
-    ext_imm_desc.SetDataType(DataType::FLOAT32);
-    ext_imm_desc.SetStorageType(TensorStorageType::BUFFER);
-    ext_imm_desc.SetLayout(Layout::HWC);
+    ext_imm_desc.SetDataType(DataType::kFloat32);
+    ext_imm_desc.SetStorageType(TensorStorageType::kBuffer);
+    ext_imm_desc.SetLayout(Layout::kHWC);
     ext_imm_desc.SetBHWCShape(BHWC(1, 1, 1, 4));
     XCTAssertTrue(ext_imm_tensor.CreateFromDescriptor(ext_imm_desc, device).ok());
     create_info.external_immutable_tensors[ext_imm_id] = &ext_imm_tensor;

@@ -149,8 +149,8 @@ std::vector<float> BtMatrixForWinograd3x3TileNxN(int tile_size) {
 }
 
 void RearrangeWeightsToWinograd3x3TileNxN(
-    const Tensor<OHWI, DataType::FLOAT32>& src_weights,
-    Tensor<OHWI, DataType::FLOAT32>* dst_weights, int tile_size) {
+    const Tensor<OHWI, DataType::kFloat32>& src_weights,
+    Tensor<OHWI, DataType::kFloat32>* dst_weights, int tile_size) {
   OHWI dst_shape;
   dst_shape.o = src_weights.shape.o;
   dst_shape.h = tile_size;
@@ -190,8 +190,7 @@ void RearrangeWeightsToWinograd3x3TileNxN(
 }
 
 bool IsSuitableForWinograd3x3(const Convolution2DAttributes& attr) {
-  const auto& weights_shape =
-      std::visit([](const auto& w) { return w.shape; }, attr.weights);
+  const OHWI& weights_shape = attr.GetWeightsShape();
   return weights_shape.w == 3 && weights_shape.h == 3 &&
          attr.dilations == HW(1, 1) && attr.strides == HW(1, 1) &&
          attr.groups == 1;
@@ -204,8 +203,7 @@ bool IsRecommendedForWinograd3x3TileNxN(const Convolution2DAttributes& attr,
   const int tiles_x = DivideRoundUp(dst_shape.w, tile_size_inner);
   const int tiles_y = DivideRoundUp(dst_shape.h, tile_size_inner);
   const int total_tiles = tiles_x * tiles_y * dst_shape.b;
-  const auto& weights_shape =
-      std::visit([](const auto& w) { return w.shape; }, attr.weights);
+  const OHWI& weights_shape = attr.GetWeightsShape();
   const int src_depth = DivideRoundUp(weights_shape.i, 4);
   const int dst_depth = DivideRoundUp(weights_shape.o, 4);
   int min_src_depth = 16;
@@ -223,14 +221,11 @@ bool IsRecommendedForWinograd3x3TileNxN(const Convolution2DAttributes& attr,
   }
   int min_tiles = 32;
   if (gpu_info.IsAdreno()) {
-    if (gpu_info.adreno_info.IsAdreno3xx()) {
-      min_tiles = 32;
-    } else if (gpu_info.adreno_info.IsAdreno4xx() ||
-               gpu_info.adreno_info.IsAdreno5xx()) {
-      min_tiles = 64;
-    } else {
-      min_tiles = 128;
-    }
+    const auto& adreno = gpu_info.adreno_info;
+    min_tiles = adreno.IsAdreno3xx()                           ? 32
+                : adreno.IsAdreno4xx() || adreno.IsAdreno5xx() ? 64
+                : adreno.IsAdreno6xx()                         ? 128
+                                                               : 64;
   }
   const bool recommended_channels = src_depth >= min_src_depth &&
                                     dst_depth >= min_dst_depth &&

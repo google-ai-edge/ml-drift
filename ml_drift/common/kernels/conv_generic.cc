@@ -19,7 +19,6 @@
 #include <memory>
 #include <string>
 #include <utility>
-#include <variant>
 #include <vector>
 
 #include "absl/log/absl_check.h"
@@ -31,6 +30,7 @@
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/kernel_info.h"
+#include "ml_drift/common/kernels/fully_connected_util.h"
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/precision.h"
 #include "ml_drift/common/shape.h"
@@ -114,7 +114,7 @@ std::string GenerateBlockCoords(const ConvGeneric::KernelParams& kernel_params,
   launch_remap[kernel_params.work_group_launch_order.z] = 2;
   if (kernel_params.linear_all) {
     c += "  int linear_all = ucl::GetGlobalId<0>();\n";
-    if (src_desc.HasAxis(Axis::BATCH)) {
+    if (src_desc.HasAxis(Axis::kBatch)) {
       c += "  int B = linear_all % args.task_size_b;\n";
       c += "  linear_all = linear_all / args.task_size_b;\n";
     }
@@ -126,7 +126,7 @@ std::string GenerateBlockCoords(const ConvGeneric::KernelParams& kernel_params,
     c += "  linear_all = linear_all / args.task_size_x;\n";
     c += "  int DST_Y = linear_all % args.task_size_y;\n";
     c += "  linear_all = linear_all / args.task_size_y;\n";
-    if (src_desc.HasAxis(Axis::DEPTH)) {
+    if (src_desc.HasAxis(Axis::kDepth)) {
       c += "  int DST_Z = linear_all % args.task_size_z;\n";
       c += "  linear_all = linear_all / args.task_size_z;\n";
     }
@@ -141,16 +141,18 @@ std::string GenerateBlockCoords(const ConvGeneric::KernelParams& kernel_params,
            std::to_string(launch_remap[0]) +
            ">() * ucl::GetGroupSize<0>() + ucl::GetLocalId<0>();\n";
     }
-    if (src_desc.HasAxis(Axis::BATCH)) {
+    if (src_desc.HasAxis(Axis::kBatch)) {
       c += "  int B = linear_spatial % args.task_size_b;\n";
       c += "  linear_spatial = linear_spatial / args.task_size_b;\n";
     }
     c += "  int DST_X = linear_spatial % args.task_size_x;\n";
     c += "  linear_spatial = linear_spatial / args.task_size_x;\n";
-    c += "  int DST_Y = linear_spatial % args.task_size_y;\n";
-    c += "  linear_spatial = linear_spatial / args.task_size_y;\n";
-    if (src_desc.HasAxis(Axis::DEPTH)) {
+    if (src_desc.HasAxis(Axis::kDepth)) {
+      c += "  int DST_Y = linear_spatial % args.task_size_y;\n";
+      c += "  linear_spatial = linear_spatial / args.task_size_y;\n";
       c += "  int DST_Z = linear_spatial;\n";
+    } else {
+      c += "  int DST_Y = linear_spatial;\n";
     }
     if (kernel_params.work_group_launch_order[1] == 1) {
       if (spatial_uniform) {
@@ -175,7 +177,7 @@ std::string GenerateBlockCoords(const ConvGeneric::KernelParams& kernel_params,
       c += "  int DST_X = ucl::GetGroupId<" + std::to_string(launch_remap[0]) +
            ">() * ucl::GetGroupSize<0>() + ucl::GetLocalId<0>();\n";
     }
-    if (src_desc.HasAxis(Axis::BATCH)) {
+    if (src_desc.HasAxis(Axis::kBatch)) {
       c += "  int B = DST_X % args.task_size_b;\n";
       c += "  DST_X = DST_X / args.task_size_b;\n";
     }
@@ -186,7 +188,7 @@ std::string GenerateBlockCoords(const ConvGeneric::KernelParams& kernel_params,
       global_id_1 = "ucl::GetGroupId<" + std::to_string(launch_remap[1]) +
                     ">() * ucl::GetGroupSize<1>() + ucl::GetLocalId<1>()";
     }
-    if (src_desc.HasAxis(Axis::DEPTH)) {
+    if (src_desc.HasAxis(Axis::kDepth)) {
       c += "  int linear_id_1 = " + global_id_1 + ";\n";
       c += "  int DST_Y = linear_id_1 % args.task_size_y;\n";
       c += "  int DST_Z = linear_id_1 / args.task_size_y;\n";
@@ -210,17 +212,17 @@ std::string GenerateBlockCoords(const ConvGeneric::KernelParams& kernel_params,
       }
     }
   }
-  if (kernel_params.block_size.x != 1) {
-    c += "  DST_X *= " + std::to_string(kernel_params.block_size.x) + ";\n";
-  }
-  if (kernel_params.block_size.y != 1) {
-    c += "  DST_Y *= " + std::to_string(kernel_params.block_size.y) + ";\n";
-  }
-  if (src_desc.HasAxis(Axis::DEPTH) && kernel_params.block_size.z != 1) {
-    c += "  DST_Z *= " + std::to_string(kernel_params.block_size.z) + ";\n";
-  }
   if (kernel_params.block_size.w != 1) {
-    c += "  DST_S *= " + std::to_string(kernel_params.block_size.w) + ";\n";
+    c += "  DST_X *= " + std::to_string(kernel_params.block_size.w) + ";\n";
+  }
+  if (kernel_params.block_size.h != 1) {
+    c += "  DST_Y *= " + std::to_string(kernel_params.block_size.h) + ";\n";
+  }
+  if (src_desc.HasAxis(Axis::kDepth) && kernel_params.block_size.d != 1) {
+    c += "  DST_Z *= " + std::to_string(kernel_params.block_size.d) + ";\n";
+  }
+  if (kernel_params.block_size.c != 1) {
+    c += "  DST_S *= " + std::to_string(kernel_params.block_size.c) + ";\n";
   }
 
   return c;
@@ -242,6 +244,16 @@ std::string GetWorkGroupBaseDstY(const int3& work_group_launch_order) {
   launch_remap[work_group_launch_order.z] = 2;
   return "ucl::GetGroupId<" + std::to_string(launch_remap[1]) +
          ">() * ucl::GetGroupSize<1>()";
+}
+
+std::string GetSliceGroupId(const int3& work_group_launch_order,
+                            bool linear_spatial) {
+  int3 launch_remap;
+  launch_remap[work_group_launch_order.x] = 0;
+  launch_remap[work_group_launch_order.y] = 1;
+  launch_remap[work_group_launch_order.z] = 2;
+  const int s_id = linear_spatial ? 1 : 2;
+  return "ucl::GetGroupId<" + std::to_string(launch_remap[s_id]) + ">()";
 }
 
 bool SupportsImgMatMul(const GpuInfo& gpu_info,
@@ -268,11 +280,11 @@ class ConvCodeGenerator {
     if (kernel_params_.weights_upload_type ==
         ConvGeneric::WeightsUploadType::kWaveMemory) {
       c += "#pragma OPENCL EXTENSION ucl_wave_memory: enable\n";
-      if (!kernel_params_.simd_sizes.empty()) {
+      if (!kernel_params_.wave_sizes.empty()) {
         c += "__attribute__((ucl_wave_memory_sizes(" +
-             std::to_string(kernel_params_.simd_sizes[0]);
-        for (int i = 1; i < kernel_params_.simd_sizes.size(); ++i) {
-          c += ", " + std::to_string(kernel_params_.simd_sizes[i]);
+             std::to_string(kernel_params_.wave_sizes[0]);
+        for (int i = 1; i < kernel_params_.wave_sizes.size(); ++i) {
+          c += ", " + std::to_string(kernel_params_.wave_sizes[i]);
         }
         c += ")))\n";
       }
@@ -299,29 +311,39 @@ class ConvCodeGenerator {
       c += "#pragma OPENCL EXTENSION "
            "cl_intel_subgroup_matrix_multiply_accumulate : enable\n";
     }
+    if (kernel_params_.accumulator_type ==
+        ConvGeneric::KernelParams::AccumulatorType::kHalf4x16AsUint32) {
+      c += "#pragma OPENCL EXTENSION cl_qcom_extra_vector_types : enable\n";
+    }
     if (kernel_params_.fixed_work_group_size && gpu_info_.IsApiOpenCl()) {
       c += "__attribute__((reqd_work_group_size(" +
            std::to_string(kernel_params_.work_group_size.x) + ", " +
            std::to_string(kernel_params_.work_group_size.y) + ", " +
            std::to_string(kernel_params_.work_group_size.z) + ")))\n";
     }
-    if (use_intel_wave_matmul && kernel_params_.simd_sizes.size() == 1 &&
+    if (use_intel_wave_matmul && kernel_params_.wave_sizes.size() == 1 &&
         gpu_info_.IsApiOpenCl() &&
         gpu_info_.SupportsExtension("cl_intel_required_subgroup_size")) {
       c += "__attribute__((intel_reqd_sub_group_size(" +
-           std::to_string(kernel_params_.simd_sizes[0]) + ")))\n";
+           std::to_string(kernel_params_.wave_sizes[0]) + ")))\n";
     }
     c += "MAIN_FUNCTION($0) {\n";
     c += GenerateMainBody();
     c += "}\n";
 
     const DataType type = DeduceDataTypeFromPrecision(conv_params_.precision);
+    std::string weights_per_slice = "weights_cache";
+    if (NeedsLocalMemory() && GetWGSliceCount() != 1 &&
+        !gpu_info_.SupportsPointersInKernels()) {
+      weights_per_slice = "weights_cache_wg[local_id_s]";
+    }
     absl::StrReplaceAll(
         {
             {"ScalarType", ToUclDataType(type, 1)},
             {"Type", ToUclDataType(type, 4)},
             {"AccType", ToUclDataType(GetAccumulatorType(), 4)},
             {"AccSType", ToUclDataType(GetAccumulatorType(), 1)},
+            {"WEIGHTS_PER_SLICE", weights_per_slice},
         },
         &c);
 
@@ -330,66 +352,63 @@ class ConvCodeGenerator {
 
  private:
   std::string GenerateMainBody() {
-    const int4 block_size = kernel_params_.block_size;
+    const BHWDC& block_size = kernel_params_.block_size;
     const auto& src_def = conv_params_.src_desc;
+    const bool weights_conversion =
+        conv_params_.weights_desc.layout != WeightsLayout::kUnknown;
     const bool need_local_mem = NeedsLocalMemory();
     const bool is_wave_memory = NeedsWaveMemory();
     const int weights_vals_per_loop = GetWeightsValsPerLoop();
     const bool use_intel_wave_matmul =
         kernel_params_.weights_upload_type ==
         ConvGeneric::WeightsUploadType::kIntelWave16MatMul;
-    const bool late_oob_check =
+    const bool late_spatial_oob_check =
         need_local_mem || is_wave_memory || use_intel_wave_matmul;
-    // weights_conversion currently only supported for Intel Wave MatMul
-    const bool weights_conversion =
-        conv_params_.weights_desc.layout != WeightsLayout::kUnknown;
+    const bool late_slice_oob_check = need_local_mem && GetWGSliceCount() != 1;
     const bool quantized_weights =
         weights_conversion && SizeInBitsOf(conv_params_.weights_desc.type) <= 8;
     std::string c;
 
-    std::string dst_oob_check;
-    if (src_def.HasAxis(Axis::DEPTH)) {
-      if (kernel_params_.linear_all) {
-        dst_oob_check = "DST_S >= args.dst_tensor.Slices()";
-      } else if (kernel_params_.linear_spatial) {
-        dst_oob_check =
-            "DST_Z >= args.dst_tensor.Depth() || DST_S >= "
-            "args.dst_tensor.Slices()";
-      } else {
-        dst_oob_check =
-            "DST_X >= args.dst_tensor.Width() || DST_Z >= "
-            "args.dst_tensor.Depth() || DST_S >= args.dst_tensor.Slices()";
-      }
-    } else {
-      if (kernel_params_.linear_all) {
-        dst_oob_check = "DST_S >= args.dst_tensor.Slices()";
-      } else if (kernel_params_.linear_spatial) {
-        dst_oob_check =
-            "DST_Y >= args.dst_tensor.Height() || DST_S >= "
-            "args.dst_tensor.Slices()";
-      } else {
-        dst_oob_check =
-            "DST_X >= args.dst_tensor.Width() || DST_Y >= "
-            "args.dst_tensor.Height() || DST_S >= args.dst_tensor.Slices()";
+    std::string dst_spatial_oob_check;
+    if (!kernel_params_.linear_all) {
+      dst_spatial_oob_check = src_def.HasAxis(Axis::kDepth)
+                                  ? "DST_Z >= args.dst_tensor.Depth()"
+                                  : "DST_Y >= args.dst_tensor.Height()";
+      if (!kernel_params_.linear_spatial) {
+        dst_spatial_oob_check =
+            dst_spatial_oob_check + " || DST_X >= args.dst_tensor.Width()";
       }
     }
 
     c += GenerateBlockCoords(kernel_params_, src_def);
-    if (src_def.HasAxis(Axis::BATCH)) {
+    if (src_def.HasAxis(Axis::kBatch)) {
       c += "  args.src_tensor.SetBatchRef(B);\n";
       c += "  args.dst_tensor.SetBatchRef(B);\n";
     }
     if (!kernel_params_.need_dst_loop) {
       c += "  DST_S = 0;\n";
     }
-    c += "  if (DST_S >= args.dst_tensor.Slices()) return;\n";
+    std::string dst_end_slice = "args.dst_tensor.Slices()";
     if (conv_params_.runtime_check.dst_end_ch_index.has_value()) {
       c += "  int dst_end_slice = " +
            conv_params_.runtime_check.GetRuntimeEndSlice(
                "args.params.Read(args.dst_end_ch_index)",
                "args.dst_tensor.Slices()") +
            ";\n";
-      c += "  if (DST_S >= dst_end_slice) return;\n";
+      dst_end_slice = "dst_end_slice";
+    }
+    c += "  int w_o_slice = DST_S;\n";
+    if (late_slice_oob_check) {
+      c += "  int wg_base_dst_s = (" +
+           GetSliceGroupId(kernel_params_.work_group_launch_order,
+                           kernel_params_.linear_spatial) +
+           ") * " +
+           std::to_string(kernel_params_.block_size.c * GetWGSliceCount()) +
+           ";\n";
+      c += "  if (wg_base_dst_s >= " + dst_end_slice + ") return;\n";
+      c += "  w_o_slice = min(w_o_slice, args.dst_tensor.Slices() - 1);\n";
+    } else {
+      c += "  if (DST_S >= " + dst_end_slice + ") return;\n";
     }
     if (conv_params_.runtime_check.packed_groups.has_value()) {
       if (gpu_info_.IsApiWebGpu()) {
@@ -413,17 +432,17 @@ class ConvCodeGenerator {
               ConvGeneric::WeightsUploadType::kLocalMemoryWGLoad) {
         c += "  int tile_first_w = " +
              GetWorkGroupBaseDstX(kernel_params_.work_group_launch_order) +
-             " * " + std::to_string(kernel_params_.block_size.x) + ";\n";
+             " * " + std::to_string(kernel_params_.block_size.w) + ";\n";
       } else {
         int tile_size = 1;
         if (use_intel_wave_matmul) {
           tile_size = weights_conversion ? kernel_params_.work_group_size.x
-                                         : kernel_params_.simd_sizes[0];
+                                         : kernel_params_.wave_sizes[0];
         } else if (kernel_params_.weights_upload_type ==
                    ConvGeneric::WeightsUploadType::kWaveMemory) {
-          tile_size = kernel_params_.simd_sizes.back();
+          tile_size = kernel_params_.wave_sizes.back();
         }
-        tile_size *= kernel_params_.block_size.x;
+        tile_size *= kernel_params_.block_size.w;
         const std::string tile_size_str = std::to_string(tile_size);
         c += "  int tile_first_w = (DST_X / " + tile_size_str + ") * " +
              tile_size_str + ";\n";
@@ -433,8 +452,8 @@ class ConvCodeGenerator {
     } else {
       c += "  int w_batch_id = DST_Y;\n";
     }
-    if (!late_oob_check) {
-      c += "  if (" + dst_oob_check + ") {\n";
+    if (!late_spatial_oob_check && !dst_spatial_oob_check.empty()) {
+      c += "  if (" + dst_spatial_oob_check + ") {\n";
       c += "    return;\n";
       c += "  }\n";
     }
@@ -442,7 +461,7 @@ class ConvCodeGenerator {
     std::string src_group_end_slice = "args.src_tensor.Slices()";
     std::string src_group_slices = "args.src_tensor.Slices()";
     if (conv_params_.HasGroups()) {
-      c += "      int conv_group_id = DST_S / args.dst_group_size;\n";
+      c += "      int conv_group_id = w_o_slice / args.dst_group_size;\n";
       c += "      int src_start_slice = conv_group_id * args.src_group_size;\n";
       c += "      int src_end_slice = src_start_slice + args.src_group_size;\n";
       src_group_start_slice = "src_start_slice";
@@ -458,7 +477,8 @@ class ConvCodeGenerator {
       src_group_end_slice = "src_slices_dynamic";
     }
     if (kernel_params_.weights_upload_type ==
-        ConvGeneric::WeightsUploadType::kLocalMemory) {
+            ConvGeneric::WeightsUploadType::kLocalMemory ||
+        weights_conversion) {
       if (kernel_params_.linear_spatial) {
         c += "  int lid = ucl::GetLocalId<0>();\n";
       } else {
@@ -469,72 +489,64 @@ class ConvCodeGenerator {
     }
     if (use_intel_wave_matmul) {
       c += "  int simd_id = ucl::GetSubGroupLocalId();\n";
-      if (weights_conversion) {
-        ABSL_CHECK(kernel_params_.work_group_size.x ==
-                   kernel_params_.block_size.w * 4);
-        // WeightsLayout::kBIOI4O4
-        const int cache_size = 16 * kernel_params_.work_group_size.x / 4;
-        c += "  __local half4 w_cache[" + std::to_string(cache_size) + "];\n";
-        c += "  int sub_i = ucl::GetLocalId<0>() / " +
-             std::to_string(kernel_params_.block_size.w) + ";\n";
-        c += "  int sub_o = ucl::GetLocalId<0>() % " +
-             std::to_string(kernel_params_.block_size.w) + ";\n";
-        c += "  int w_o_slice = min(DST_S + sub_o, args.dst_tensor.Slices() - "
-             "1);\n";
-        if (conv_params_.weights_desc.IsLinearLayout()) {
-          const std::string batch_part =
-              conv_params_.different_weights_for_height
-                  ? "w_batch_id * args.src_tensor.Slices()"
-                  : "0";
-          c += "  int w_wg_offset = (" + batch_part +
-               " + sub_i) * args.dst_tensor.Slices() + w_o_slice;\n";
-          c += "  int w_wg_stride = args.dst_tensor.Slices() * 4;\n";
-        }
-        if (quantized_weights) {
-          c += "  Type w_scale, w_bias;\n";
-          if (conv_params_.scale_zp_shape.i != 1) {
-            // grouped quantization
-            c += "  int last_src_group_id = -1;\n";
-          } else {
-            // linear quantization
-            // do not use different_weights_for_height here because with batched
-            // weights we can have non batched scale/zp.
-            const std::string coords = conv_params_.scale_zp_shape.h != 1
-                                           ? "w_o_slice, w_batch_id, 0"
-                                           : "w_o_slice";
-            c += "  w_scale = args.weights_scale.Read(" + coords + ");\n";
-            if (conv_params_.has_zero_point) {
-              c += "  Type wzp = args.weights_zero_point.Read(" + coords +
-                   ");\n";
-            } else {
-              c += "  Type wzp = ucl::Init<Type>(0.0f);\n";
-            }
-            c += "  w_bias = -w_scale * " +
-                 std::to_string(GetRangeShift(conv_params_.weights_desc.type)) +
-                 " + wzp;\n";
+    }
+    if (weights_conversion) {
+      // WeightsLayout::kBIOI4O4
+      const int i4o4_blocks =
+          kernel_params_.block_size.c * kernel_params_.src_depth_loop_size;
+      const int wg_size_per_slice = GetWGSpatialCount();
+      ABSL_CHECK(wg_size_per_slice >= i4o4_blocks);
+      c += "  int sub_i = lid / " +
+           std::to_string(kernel_params_.block_size.c) + ";\n";
+      c += "  int sub_o = lid % " +
+           std::to_string(kernel_params_.block_size.c) + ";\n";
+      c += "  w_o_slice = min(DST_S + sub_o, args.dst_tensor.Slices() - "
+           "1);\n";
+      if (conv_params_.weights_desc.IsLinearLayout()) {
+        const std::string batch_part =
+            conv_params_.different_weights_for_height
+                ? "w_batch_id * args.src_tensor.Slices()"
+                : "0";
+        c += "  int w_wg_offset = (" + batch_part +
+             " + sub_i) * args.dst_tensor.Slices() + w_o_slice;\n";
+        c += "  int w_wg_stride = args.dst_tensor.Slices() * " +
+             std::to_string(kernel_params_.src_depth_loop_size) + ";\n";
+      }
+      if (quantized_weights) {
+        c += "  Type w_scale, w_bias;\n";
+        if (conv_params_.scale_zp_shape.i != 1) {
+          // grouped quantization
+          c += "  int last_src_group_id = -1;\n";
+        } else if (conv_params_.scale_zp_shape.o != 1) {
+          // linear quantization
+          if (wg_size_per_slice > i4o4_blocks) {
+            c += "  if (lid < " + std::to_string(i4o4_blocks) + ") {\n";
           }
+          c += fc::ReadScaleZeroPointLinear(
+              "w_o_slice", conv_params_.scale_zp_shape,
+              conv_params_.has_zero_point,
+              fc::GetDataTypeForWeights(conv_params_.weights_desc.type));
+          if (wg_size_per_slice > i4o4_blocks) {
+            c += "  }\n";
+          }
+        } else {
+          // scalar quantization
+          c += fc::ReadScaleZeroPointScalar(
+              conv_params_.has_zero_point,
+              fc::GetDataTypeForWeights(conv_params_.weights_desc.type));
         }
       }
     }
-    const bool use_vec8 = UseVec8Accumulator();
-    const std::string acc_type =
-        ToUclDataType(GetAccumulatorType(), use_vec8 ? 8 : 4);
-    const std::string zero_value = GetZeroValue(GetAccumulatorType());
-    for (int s = 0; s < block_size.w / (use_vec8 ? 2 : 1); ++s) {
-      ForSpatial([&](int x, int y, int z) {
-        c += "  " + acc_type + " r" + GenerateIdFull(x, y, z, s) +
-             " = ucl::Init<" + acc_type + ">(" + zero_value + ");\n";
-      });
-    }
+    c += InitAccumulators();
     if (!conv_params_.IsXKernelIs1()) {
-      for (int x = 0; x < block_size.x; ++x) {
+      for (int x = 0; x < block_size.w; ++x) {
         const std::string xind = std::to_string(x);
         const std::string xc = "(DST_X + " + xind + ")";
         c += "  int xc" + xind + " = " + xc +
              " * args.stride_x + args.padding_x;\n";
       }
     } else {
-      for (int x = 0; x < block_size.x; ++x) {
+      for (int x = 0; x < block_size.w; ++x) {
         const std::string xind = std::to_string(x);
         if (conv_params_.IsSrcPackedW4C4()) {
           c += "  int xc" + xind + " = DST_X / 4 + " + std::to_string(x / 4) +
@@ -542,42 +554,42 @@ class ConvCodeGenerator {
         } else {
           c += "  int xc" + xind + " = DST_X + " + xind + ";\n";
         }
-        if (!src_def.CanReadOutOfBorder(Axis::WIDTH, gpu_info_)) {
+        if (!src_def.CanReadOutOfBorder(Axis::kWidth, gpu_info_)) {
           c += "  xc" + xind + " = clamp(xc" + xind +
                ", 0, args.src_tensor.Width() - 1);\n";
         }
       }
     }
     if (!conv_params_.IsYKernelIs1()) {
-      for (int y = 0; y < block_size.y; ++y) {
+      for (int y = 0; y < block_size.h; ++y) {
         const std::string yind = std::to_string(y);
         const std::string yc = "(DST_Y + " + yind + ")";
         c += "  int yc" + yind + " = " + yc +
              " * args.stride_y + args.padding_y;\n";
       }
     } else {
-      for (int y = 0; y < block_size.y; ++y) {
+      for (int y = 0; y < block_size.h; ++y) {
         const std::string yind = std::to_string(y);
         c += "  int yc" + yind + " = DST_Y + " + yind + ";\n";
-        if (!src_def.CanReadOutOfBorder(Axis::HEIGHT, gpu_info_)) {
+        if (!src_def.CanReadOutOfBorder(Axis::kHeight, gpu_info_)) {
           c += "  yc" + yind + " = clamp(yc" + yind +
                ", 0, args.src_tensor.Height() - 1);\n";
         }
       }
     }
-    if (src_def.HasAxis(Axis::DEPTH)) {
+    if (src_def.HasAxis(Axis::kDepth)) {
       if (!conv_params_.IsZKernelIs1()) {
-        for (int z = 0; z < block_size.z; ++z) {
+        for (int z = 0; z < block_size.d; ++z) {
           const std::string zind = std::to_string(z);
           const std::string zc = "(DST_Z + " + zind + ")";
           c += "  int zc" + zind + " = " + zc +
                " * args.stride_z + args.padding_z;\n";
         }
       } else {
-        for (int z = 0; z < block_size.z; ++z) {
+        for (int z = 0; z < block_size.d; ++z) {
           const std::string zind = std::to_string(z);
           c += "  int zc" + zind + " = DST_Z + " + zind + ";\n";
-          if (!src_def.CanReadOutOfBorder(Axis::DEPTH, gpu_info_)) {
+          if (!src_def.CanReadOutOfBorder(Axis::kDepth, gpu_info_)) {
             c += "  zc" + zind + " = clamp(zc" + zind +
                  ", 0, args.src_tensor.Depth() - 1);\n";
           }
@@ -595,14 +607,30 @@ class ConvCodeGenerator {
     const std::string weights_global_ptr =
         weights_space + " " + weights_buffer_type + "*";
     if (need_local_mem) {
-      c += "  __local " + weights_cache_type + " weights_cache[" +
-           std::to_string(weights_vals_per_loop) + "];\n";
+      if (GetWGSliceCount() == 1) {
+        c += "  __local " + weights_cache_type + " WEIGHTS_PER_SLICE[" +
+             std::to_string(weights_vals_per_loop) + "];\n";
+      } else {
+        if (gpu_info_.SupportsPointersInKernels()) {
+          c += "  __local " + weights_cache_type + " weights_cache_wg[" +
+               std::to_string(weights_vals_per_loop * GetWGSliceCount()) +
+               "];\n";
+          c += "  __local " + weights_cache_type +
+               "* WEIGHTS_PER_SLICE = weights_cache_wg + " + GetLocalIdS() +
+               " * " + std::to_string(weights_vals_per_loop) + ";\n";
+        } else {
+          c += "  __local " + weights_cache_type + " weights_cache_wg[" +
+               std::to_string(GetWGSliceCount()) + "][" +
+               std::to_string(weights_vals_per_loop) + "];\n";
+          c += "  int local_id_s = " + GetLocalIdS() + ";\n";
+        }
+      }
     } else if (is_wave_memory) {
-      c += "  __wave " + weights_cache_type + " weights_cache[" +
+      c += "  __wave " + weights_cache_type + " WEIGHTS_PER_SLICE[" +
            std::to_string(weights_vals_per_loop) + "];\n";
     } else if (kernel_params_.AreWeightsBuffer() &&
                gpu_info_.SupportsPointersInKernels()) {
-      c += "  " + weights_global_ptr + " weights_cache;\n";
+      c += "  " + weights_global_ptr + " WEIGHTS_PER_SLICE;\n";
     } else if (!kernel_params_.AreWeightsBuffer() &&
                !conv_params_.IsTrivialKernelSize()) {
       c += "  int weights_offset = 0;\n";
@@ -612,14 +640,14 @@ class ConvCodeGenerator {
       if (conv_params_.different_weights_for_height) {
         if (conv_params_.runtime_check.packed_groups.has_value()) {
           weights_offset =
-              "(DST_S * " +
+              "(w_o_slice * " +
               std::to_string(
                   conv_params_.runtime_check.packed_groups->num_groups) +
               " + w_batch_id";
         } else {
-          weights_offset = "(DST_S * args.src_tensor.Height() + DST_Y";
+          weights_offset = "(w_o_slice * args.src_tensor.Height() + DST_Y";
         }
-        weights_offset += " * " + std::to_string(block_size.w) +
+        weights_offset += " * " + std::to_string(block_size.c) +
                           ") * 4 * args.src_tensor.Slices()";
       } else {
         std::string kernel_spatial_offset = "";
@@ -629,11 +657,11 @@ class ConvCodeGenerator {
         if (!conv_params_.IsYKernelIs1()) {
           kernel_spatial_offset += " * args.kernel_size_y";
         }
-        if (src_def.HasAxis(Axis::DEPTH) && !conv_params_.IsZKernelIs1()) {
+        if (src_def.HasAxis(Axis::kDepth) && !conv_params_.IsZKernelIs1()) {
           kernel_spatial_offset += " * args.kernel_size_z";
         }
         weights_offset =
-            "DST_S * 4 * " + src_group_slices + kernel_spatial_offset;
+            "w_o_slice * 4 * " + src_group_slices + kernel_spatial_offset;
       }
       if (conv_params_.IsSrcPackedC16() || conv_params_.IsSrcPackedC32()) {
         weights_offset += " * 4";
@@ -656,16 +684,16 @@ class ConvCodeGenerator {
         c += "  do {\n";
       }
     }
-    if (src_def.HasAxis(Axis::DEPTH) && !conv_params_.IsZKernelIs1()) {
+    if (src_def.HasAxis(Axis::kDepth) && !conv_params_.IsZKernelIs1()) {
       c += "  for (int kz = 0; kz < args.kernel_size_z; ++kz) {\n";
-      for (int z = 0; z < block_size.z; ++z) {
+      for (int z = 0; z < block_size.d; ++z) {
         const std::string zck = "zck" + std::to_string(z);
         c += "  int zck" + std::to_string(z) + " = kz * args.dilation_z + zc" +
              std::to_string(z) + ";\n";
-        if (!src_def.SupportsZeroClamp(Axis::DEPTH, gpu_info_)) {
+        if (!src_def.SupportsZeroClamp(Axis::kDepth, gpu_info_)) {
           c += "  bool in_z" + std::to_string(z) + " = " + zck + " >= 0 && " +
                zck + " < args.src_tensor.Depth();\n";
-          if (!src_def.CanReadOutOfBorder(Axis::DEPTH, gpu_info_)) {
+          if (!src_def.CanReadOutOfBorder(Axis::kDepth, gpu_info_)) {
             c += "  " + zck + " = clamp(" + zck +
                  ", 0, args.src_tensor.Depth() - 1);\n";
           }
@@ -681,14 +709,14 @@ class ConvCodeGenerator {
       } else {
         c += "  for (int ky = 0; ky < args.kernel_size_y; ++ky) {\n";
       }
-      for (int y = 0; y < block_size.y; ++y) {
+      for (int y = 0; y < block_size.h; ++y) {
         const std::string yck = "yck" + std::to_string(y);
         c += "  int " + yck + " = ky * args.dilation_y + yc" +
              std::to_string(y) + ";\n";
-        if (!src_def.SupportsZeroClamp(Axis::HEIGHT, gpu_info_)) {
+        if (!src_def.SupportsZeroClamp(Axis::kHeight, gpu_info_)) {
           c += "  bool in_y" + std::to_string(y) + " = " + yck + " >= 0 && " +
                yck + " < args.src_tensor.Height();\n";
-          if (!src_def.CanReadOutOfBorder(Axis::HEIGHT, gpu_info_)) {
+          if (!src_def.CanReadOutOfBorder(Axis::kHeight, gpu_info_)) {
             c += "  " + yck + " = clamp(" + yck +
                  ", 0, args.src_tensor.Height() - 1);\n";
           }
@@ -697,14 +725,14 @@ class ConvCodeGenerator {
     }
     if (!kernel_params_.unroll_x_loop && !conv_params_.IsXKernelIs1()) {
       c += "  for (int kx = 0; kx < args.kernel_size_x; ++kx) {\n";
-      for (int x = 0; x < block_size.x; ++x) {
+      for (int x = 0; x < block_size.w; ++x) {
         const std::string xck = "xck" + std::to_string(x);
         c += "  int xck" + std::to_string(x) + " = kx * args.dilation_x + xc" +
              std::to_string(x) + ";\n";
-        if (!src_def.SupportsZeroClamp(Axis::WIDTH, gpu_info_)) {
+        if (!src_def.SupportsZeroClamp(Axis::kWidth, gpu_info_)) {
           c += "  bool in_x" + std::to_string(x) + " = " + xck + " >= 0 && " +
                xck + " < args.src_tensor.Width();\n";
-          if (!src_def.CanReadOutOfBorder(Axis::WIDTH, gpu_info_)) {
+          if (!src_def.CanReadOutOfBorder(Axis::kWidth, gpu_info_)) {
             c += "  " + xck + " = clamp(" + xck +
                  ", 0, args.src_tensor.Width() - 1);\n";
           }
@@ -714,11 +742,11 @@ class ConvCodeGenerator {
     const bool need_multiple_slice_strides =
         src_def.ReturnsZeroForNegOneRead(gpu_info_) &&
         !conv_params_.IsTrivialKernelSize();
-    for (int z = 0; z < block_size.z; ++z) {
+    for (int z = 0; z < block_size.d; ++z) {
       const std::string zind = std::to_string(z);
-      for (int y = 0; y < block_size.y; ++y) {
+      for (int y = 0; y < block_size.h; ++y) {
         const std::string yind = std::to_string(y);
-        for (int x = 0; x < block_size.x; ++x) {
+        for (int x = 0; x < block_size.w; ++x) {
           const std::string xind = std::to_string(x);
           std::string xc =
               conv_params_.IsXKernelIs1() ? "xc" + xind : "xck" + xind;
@@ -726,7 +754,7 @@ class ConvCodeGenerator {
               conv_params_.IsYKernelIs1() ? "yc" + yind : "yck" + yind;
           const std::string id = GenerateIdSpatial(xind, yind, zind);
           std::string coords = "" + xc + ", " + yc;
-          if (src_def.HasAxis(Axis::DEPTH)) {
+          if (src_def.HasAxis(Axis::kDepth)) {
             std::string zc =
                 conv_params_.IsZKernelIs1() ? "zc" + zind : "zck" + zind;
             coords += ", " + zc;
@@ -751,9 +779,9 @@ class ConvCodeGenerator {
     }
 
     if (conv_params_.softmax_input_activation) {
-      for (int y = 0; y < block_size.y; ++y) {
+      for (int y = 0; y < block_size.h; ++y) {
         const std::string yind = std::to_string(y);
-        for (int x = 0; x < block_size.x; ++x) {
+        for (int x = 0; x < block_size.w; ++x) {
           const std::string xind = std::to_string(x);
           std::string id = GenerateIdSpatial(xind, yind, "0");
           std::string address;
@@ -771,7 +799,8 @@ class ConvCodeGenerator {
 
     const bool has_dynamic_src_ch =
         conv_params_.runtime_check.src_end_ch_index.has_value();
-    if (kernel_params_.AreWeightsBuffer() && has_dynamic_src_ch) {
+    if (kernel_params_.AreWeightsBuffer() && has_dynamic_src_ch &&
+        !weights_conversion) {
       if (gpu_info_.SupportsPointersInKernels()) {
         c += "  weights_offset = args.weights.GetPtr() + ";
       } else {
@@ -779,7 +808,7 @@ class ConvCodeGenerator {
       }
       std::string z_ind = "0";
       std::string kernel_size_z = "1";
-      if (src_def.HasAxis(Axis::DEPTH) && !conv_params_.IsZKernelIs1()) {
+      if (src_def.HasAxis(Axis::kDepth) && !conv_params_.IsZKernelIs1()) {
         z_ind = "kz";
         kernel_size_z = "args.kernel_size_z";
       }
@@ -808,41 +837,48 @@ class ConvCodeGenerator {
       c += "  int s = " + src_group_start_slice + ";\n";
     }
 
-      if (kernel_params_.slices_loop_first) {
-        if (kernel_params_.need_src_loop) {
-          c += "  do {\n";
-        }
+    if (kernel_params_.slices_loop_first) {
+      if (kernel_params_.need_src_loop) {
+        c += "  do {\n";
       }
-      if (use_intel_wave_matmul) {
-        c += GenerateMainIntelWaveMatMulFp16Srcx4DstxN();
+    }
+    if (use_intel_wave_matmul) {
+      c += GenerateMainIntelWaveMatMulFp16Srcx4DstxN();
+    } else {
+      c += GenerateWeightsLoad(weights_vals_per_loop);
+      if (!kernel_params_.unroll_x_loop) {
+        c += GenerateMain();
       } else {
-        c += GenerateWeightsLoad(weights_vals_per_loop);
-        if (!kernel_params_.unroll_x_loop) {
-          c += GenerateMain();
-        } else {
-          for (int kx = 0; kx < conv_params_.kernel_size.x; ++kx) {
-            c += "  {\n";
-            c += "  int xck0 = " + std::to_string(kx) +
-                 " * args.dilation_x + xc0;\n";
-            if (!src_def.SupportsZeroClamp(Axis::WIDTH, gpu_info_)) {
-              c += "  bool in_x0 = xck0 >= 0 && xck0 < "
-                   "args.src_tensor.Width();\n";
+        for (int kx = 0; kx < conv_params_.kernel_size.x; ++kx) {
+          c += "  {\n";
+          for (int x = 0; x < block_size.w; ++x) {
+            const std::string xck = "xck" + std::to_string(x);
+            c += "    int xck" + std::to_string(x) + " = " +
+                 std::to_string(kx) + " * args.dilation_x + xc" +
+                 std::to_string(x) + ";\n";
+            if (!src_def.SupportsZeroClamp(Axis::kWidth, gpu_info_)) {
+              c += "    bool in_x" + std::to_string(x) + " = " + xck +
+                   " >= 0 && " + xck + " < args.src_tensor.Width();\n";
+              if (!src_def.CanReadOutOfBorder(Axis::kWidth, gpu_info_)) {
+                c += "    " + xck + " = clamp(" + xck +
+                     ", 0, args.src_tensor.Width() - 1);\n";
+              }
             }
-            c += GenerateMain(kx * kernel_params_.block_size.w * 4);
-            c += "  }\n";
           }
-        }
-        if (kernel_params_.AreWeightsBuffer() && !weights_conversion) {
-          c +=
-              "    weights_offset += " + std::to_string(weights_vals_per_loop) +
-              ";\n";
+          c += GenerateMain(kx * kernel_params_.block_size.c * 4);
+          c += "  }\n";
         }
       }
-      if (kernel_params_.slices_loop_first) {
-        if (kernel_params_.need_src_loop) {
-          c += "  } while (s < " + src_group_end_slice + ");\n";
-        }
+      if (kernel_params_.AreWeightsBuffer() && !weights_conversion) {
+        c += "    weights_offset += " + std::to_string(weights_vals_per_loop) +
+             ";\n";
       }
+    }
+    if (kernel_params_.slices_loop_first) {
+      if (kernel_params_.need_src_loop) {
+        c += "  } while (s < " + src_group_end_slice + ");\n";
+      }
+    }
     if (!kernel_params_.unroll_x_loop && !conv_params_.IsXKernelIs1()) {
       c += "  }\n";
     }
@@ -854,7 +890,7 @@ class ConvCodeGenerator {
         c += "  }\n";
       }
     }
-    if (src_def.HasAxis(Axis::DEPTH) && !conv_params_.IsZKernelIs1()) {
+    if (src_def.HasAxis(Axis::kDepth) && !conv_params_.IsZKernelIs1()) {
       c += "  }\n";
     }
     if (!kernel_params_.slices_loop_first) {
@@ -865,18 +901,21 @@ class ConvCodeGenerator {
     }
     if (kernel_params_.weights_upload_type ==
             ConvGeneric::WeightsUploadType::kWaveMemory &&
-        kernel_params_.simd_sizes.size() > 1) {
+        kernel_params_.wave_sizes.size() > 1) {
       c += "__hint__((ucl_wave_memory_scope_end))\n";
     }
-    if (late_oob_check) {
-      c += "  if (" + dst_oob_check + ") {\n";
+    if (late_spatial_oob_check && !dst_spatial_oob_check.empty()) {
+      c += "  if (" + dst_spatial_oob_check + ") {\n";
       c += "    return;\n";
       c += "  }\n";
+    }
+    if (late_slice_oob_check) {
+      c += "  if (DST_S >= " + dst_end_slice + ") return;\n";
     }
 
     auto generate_dst_check = [&](int x, int y, int z) {
       std::string check;
-      const std::vector<Axis> axes{Axis::WIDTH, Axis::HEIGHT, Axis::DEPTH};
+      const std::vector<Axis> axes{Axis::kWidth, Axis::kHeight, Axis::kDepth};
       const std::vector<std::string> names{"Width()", "Height()", "Depth()"};
       std::vector<std::string> coords(3);
       coords[0] = "DST_X + " + std::to_string(x);
@@ -895,7 +934,7 @@ class ConvCodeGenerator {
       return check;
     };
 
-    for (int s = 0; s < block_size.w; ++s) {
+    for (int s = 0; s < block_size.c; ++s) {
       const std::string sind = std::to_string(s);
       c += "  if (DST_S + " + sind + " >= args.dst_tensor.Slices()) return;\n";
       c += "  {\n";
@@ -908,15 +947,15 @@ class ConvCodeGenerator {
         c += "      bias_val = args.src_tensor.Read(0, 0, 0);\n";
         c += "    }\n";
       }
-      for (int z = 0; z < block_size.z; ++z) {
+      for (int z = 0; z < block_size.d; ++z) {
         const std::string zind = std::to_string(z);
-        for (int y = 0; y < block_size.y; ++y) {
+        for (int y = 0; y < block_size.h; ++y) {
           const std::string yind = std::to_string(y);
-          for (int x = 0; x < block_size.x; ++x) {
+          for (int x = 0; x < block_size.w; ++x) {
             const std::string xind = std::to_string(x);
             const std::string check = generate_dst_check(x, y, z);
             std::string coords = "DST_X + " + xind + ", DST_Y + " + yind;
-            if (src_def.HasAxis(Axis::DEPTH)) {
+            if (src_def.HasAxis(Axis::kDepth)) {
               coords += ", DST_Z + " + zind;
             }
             coords += ", DST_S + " + sind;
@@ -929,19 +968,10 @@ class ConvCodeGenerator {
               c += "  if (DST_X + " + xind +
                    " < w_group_offset + w_group_size) {\n";
             }
-            if (UseVec8Accumulator()) {
-              const std::string id =
-                  GenerateIdFull(xind, yind, zind, std::to_string(s / 2));
-              std::string postfixes[] = {".s0123", ".s4567"};
-              c += "    args.dst_tensor::type res = "
-                   "ucl::Convert<args.dst_tensor::type>(r" +
-                   id + postfixes[s % 2] + ");\n";
-            } else {
-              const std::string id = GenerateIdFull(xind, yind, zind, sind);
-              c += "    args.dst_tensor::type res = "
-                   "ucl::Convert<args.dst_tensor::type>(r" +
-                   id + ");\n";
-            }
+            const std::string spatial_id = GenerateIdSpatial(xind, yind, zind);
+            c += "    args.dst_tensor::type res = "
+                 "ucl::Convert<args.dst_tensor::type>(" +
+                 GetFinalVec4(spatial_id, s) + ");\n";
             if (conv_params_.has_bias ||
                 (!conv_params_.Is8Bit() && !conv_params_.Is4Bit())) {
               c += "    res += bias_val;\n";
@@ -959,16 +989,126 @@ class ConvCodeGenerator {
     return c;
   }
 
+  std::string InitAccumulators() {
+    std::string c;
+    ForSpatial([&](int x, int y, int z) {
+      const std::string spatial_id = GenerateIdSpatial(x, y, z);
+      switch (kernel_params_.accumulator_type) {
+        case ConvGeneric::KernelParams::AccumulatorType::kVec4:
+          c += InitAccumulatorsVec4(spatial_id);
+          break;
+        case ConvGeneric::KernelParams::AccumulatorType::kVec8:
+          c += InitAccumulatorsVec8(spatial_id);
+          break;
+        case ConvGeneric::KernelParams::AccumulatorType::kHalf4x4AsUint8:
+          c += InitAccumulatorsHalf4xNAsUint(spatial_id, 4);
+          break;
+        case ConvGeneric::KernelParams::AccumulatorType::kHalf4x8AsUint16:
+          c += InitAccumulatorsHalf4xNAsUint(spatial_id, 8);
+          break;
+        case ConvGeneric::KernelParams::AccumulatorType::kHalf4x16AsUint32:
+          c += InitAccumulatorsHalf4xNAsUint(spatial_id, 16);
+          break;
+      }
+    });
+    return c;
+  }
+
+  std::string InitAccumulatorsVec4(const std::string& spatial_id) {
+    std::string c;
+    const std::string zero_value = GetZeroValue(GetAccumulatorType());
+    for (int s = 0; s < kernel_params_.block_size.c; ++s) {
+      c += "  AccType r" + spatial_id + "_s" + std::to_string(s) +
+           " = ucl::Init<AccType>(" + zero_value + ");\n";
+    }
+    return c;
+  }
+
+  std::string InitAccumulatorsVec8(const std::string& spatial_id) {
+    std::string c;
+    const std::string acc_type = ToUclDataType(GetAccumulatorType(), 8);
+    const std::string zero_value = GetZeroValue(GetAccumulatorType());
+    for (int s = 0; s < DivideRoundUp(kernel_params_.block_size.c, 2); ++s) {
+      c += "  " + acc_type + " r" + spatial_id + "_s" + std::to_string(s) +
+           " = ucl::Init<" + acc_type + ">(" + zero_value + ");\n";
+    }
+    return c;
+  }
+
+  std::string InitAccumulatorsHalf4xNAsUint(const std::string& spatial_id,
+                                            int n) {
+    std::string c;
+    const std::string acc_type = "uint" + std::to_string(n * 2);
+    for (int s = 0; s < DivideRoundUp(kernel_params_.block_size.c, n); ++s) {
+      c += "  " + acc_type + " r" + spatial_id + "_s" + std::to_string(s) +
+           " = (" + acc_type + ")(0u);\n";
+    }
+    return c;
+  }
+
+  std::string GetFinalVec4(const std::string& spatial_id, int s) {
+    switch (kernel_params_.accumulator_type) {
+      case ConvGeneric::KernelParams::AccumulatorType::kVec4:
+        return "r" + spatial_id + "_s" + std::to_string(s);
+      case ConvGeneric::KernelParams::AccumulatorType::kVec8: {
+        std::string postfixes[] = {".s0123", ".s4567"};
+        return "r" + spatial_id + "_s" + std::to_string(s / 2) +
+               postfixes[s % 2];
+      }
+      case ConvGeneric::KernelParams::AccumulatorType::kHalf4x4AsUint8:
+        return GetFinalVec4Half4xNAsUint(spatial_id, s, 4);
+      case ConvGeneric::KernelParams::AccumulatorType::kHalf4x8AsUint16:
+        return GetFinalVec4Half4xNAsUint(spatial_id, s, 8);
+      case ConvGeneric::KernelParams::AccumulatorType::kHalf4x16AsUint32:
+        return GetFinalVec4Half4xNAsUint(spatial_id, s, 16);
+    }
+    return "";
+  }
+
+  std::string GetFinalVec4Half4xNAsUint(const std::string& spatial_id, int s,
+                                        int n) {
+    static constexpr const char* kSwizzles[] = {
+        ".s01", ".s23", ".s45", ".s67", ".s89", ".sab", ".scd", ".sef",
+        ".sgh", ".sij", ".skl", ".smn", ".sop", ".sqr", ".sst", ".suv"};
+    return "as_half4(r" + spatial_id + "_s" + std::to_string(s / n) +
+           kSwizzles[s % n] + ")";
+  }
+
+  int GetWGSpatialCount() const {
+    if (kernel_params_.linear_spatial) {
+      return kernel_params_.work_group_size.x;
+    } else {
+      return kernel_params_.work_group_size.x *
+             kernel_params_.work_group_size.y;
+    }
+  }
+
+  int GetWGSliceCount() const {
+    if (kernel_params_.linear_spatial) {
+      return kernel_params_.work_group_size.y;
+    } else {
+      return kernel_params_.work_group_size.z;
+    }
+  }
+
+  std::string GetLocalIdS() const {
+    if (kernel_params_.linear_spatial) {
+      return "ucl::GetLocalId<1>()";
+    } else {
+      return "ucl::GetLocalId<2>()";
+    }
+  }
+
   std::string GenerateIdSpatial(const std::string& x, const std::string& y,
                                 const std::string& z) {
     std::string id;
-    if (conv_params_.src_desc.HasAxis(Axis::WIDTH)) {
+    if (conv_params_.src_desc.HasAxis(Axis::kWidth)) {
       id += "_w" + x;
     }
-    if (conv_params_.src_desc.HasAxis(Axis::HEIGHT)) {
+    if (conv_params_.src_desc.HasAxis(Axis::kHeight)) {
       id += "_h" + y;
     }
-    if (conv_params_.src_desc.HasAxis(Axis::DEPTH)) {
+    if (conv_params_.src_desc.HasAxis(Axis::kDepth)) {
       id += "_d" + z;
     }
     return id;
@@ -976,13 +1116,13 @@ class ConvCodeGenerator {
 
   std::string GenerateIdSpatial(int x, int y, int z) {
     std::string id;
-    if (conv_params_.src_desc.HasAxis(Axis::WIDTH)) {
+    if (conv_params_.src_desc.HasAxis(Axis::kWidth)) {
       id += "_w" + std::to_string(x);
     }
-    if (conv_params_.src_desc.HasAxis(Axis::HEIGHT)) {
+    if (conv_params_.src_desc.HasAxis(Axis::kHeight)) {
       id += "_h" + std::to_string(y);
     }
-    if (conv_params_.src_desc.HasAxis(Axis::DEPTH)) {
+    if (conv_params_.src_desc.HasAxis(Axis::kDepth)) {
       id += "_d" + std::to_string(z);
     }
     return id;
@@ -1000,7 +1140,7 @@ class ConvCodeGenerator {
   std::string GenerateCheck(const std::string& x, const std::string& y,
                             const std::string& z) {
     std::string check;
-    const std::vector<Axis> axes{Axis::WIDTH, Axis::HEIGHT, Axis::DEPTH};
+    const std::vector<Axis> axes{Axis::kWidth, Axis::kHeight, Axis::kDepth};
     const std::vector<std::string> names{"in_x", "in_y", "in_z"};
     const std::vector<bool> is_1{conv_params_.IsXKernelIs1(),
                                  conv_params_.IsYKernelIs1(),
@@ -1022,22 +1162,22 @@ class ConvCodeGenerator {
 
   DataType GetAccumulatorType() const {
     if (IsFloatType(conv_params_.weights_data_type)) {
-      return conv_params_.precision == CalculationsPrecision::F16
-                 ? DataType::FLOAT16
-                 : DataType::FLOAT32;
+      return conv_params_.precision == CalculationsPrecision::kF16
+                 ? DataType::kFloat16
+                 : DataType::kFloat32;
     } else {
-      return IsSigned(conv_params_.weights_data_type) ? DataType::INT32
-                                                      : DataType::UINT32;
+      return IsSigned(conv_params_.weights_data_type) ? DataType::kInt32
+                                                      : DataType::kUint32;
     }
   }
 
   DataType GetSummableType() const {
     DataType summable_data_type = conv_params_.weights_data_type;
     if (gpu_info_.IsPowerVR() && !gpu_info_.powervr_info.IsImgBxx() &&
-        conv_params_.precision == CalculationsPrecision::F32_F16 &&
+        conv_params_.precision == CalculationsPrecision::kF32F16 &&
         kernel_params_.weights_upload_type ==
             ConvGeneric::WeightsUploadType::kLocalMemory) {
-      summable_data_type = DataType::FLOAT32;
+      summable_data_type = DataType::kFloat32;
     }
     return summable_data_type;
   }
@@ -1054,7 +1194,7 @@ class ConvCodeGenerator {
   // amount of vec4/vec16 weights values per loop
   int GetWeightsValsPerLoop() const {
     int weights_vals_per_loop =
-        kernel_params_.block_size.w * kernel_params_.src_depth_loop_size * 4;
+        kernel_params_.block_size.c * kernel_params_.src_depth_loop_size * 4;
     if (kernel_params_.unroll_x_loop) {
       weights_vals_per_loop *= conv_params_.kernel_size.x;
     }
@@ -1065,13 +1205,14 @@ class ConvCodeGenerator {
     return weights_vals_per_loop;
   }
 
-  int GetRangeShift(DataType type) { return 1u << (SizeInBitsOf(type) - 1); }
-
   bool NeedsLocalMemory() const {
+    const bool weights_conversion =
+        conv_params_.weights_desc.layout != WeightsLayout::kUnknown;
     return kernel_params_.weights_upload_type ==
                ConvGeneric::WeightsUploadType::kLocalMemory ||
            kernel_params_.weights_upload_type ==
-               ConvGeneric::WeightsUploadType::kLocalMemoryWGLoad;
+               ConvGeneric::WeightsUploadType::kLocalMemoryWGLoad ||
+           weights_conversion;
   }
 
   bool NeedsWaveMemory() const {
@@ -1079,27 +1220,20 @@ class ConvCodeGenerator {
            ConvGeneric::WeightsUploadType::kWaveMemory;
   }
 
-  // experimental, not fully supported
-  bool UseVec8Accumulator() {
-    return kernel_params_.weights_upload_type ==
-               ConvGeneric::WeightsUploadType::kIntelWave16MatMul &&
-           false;
-  }
-
   std::string GenerateSrcDeclaration() {
     const DataType summable_data_type = GetSummableType();
     std::string c;
-    for (int z = 0; z < kernel_params_.block_size.z; ++z) {
+    for (int z = 0; z < kernel_params_.block_size.d; ++z) {
       const std::string zind = std::to_string(z);
-      for (int y = 0; y < kernel_params_.block_size.y; ++y) {
+      for (int y = 0; y < kernel_params_.block_size.h; ++y) {
         const std::string yind = std::to_string(y);
-        for (int x = 0; x < kernel_params_.block_size.x; ++x) {
+        for (int x = 0; x < kernel_params_.block_size.w; ++x) {
           const std::string xind = std::to_string(x);
           const std::string id = GenerateIdSpatial(xind, yind, zind);
           if (conv_params_.IsSrcPackedW4C4()) {
             if (x % 4 == 0) {
               const std::string src_packed_type =
-                  conv_params_.src_desc.GetDataType() == DataType::INT32
+                  conv_params_.src_desc.GetDataType() == DataType::kInt32
                       ? "int4"
                       : "uint4";
               c += "    " + src_packed_type + " src_packed" + id + ";\n";
@@ -1107,7 +1241,7 @@ class ConvCodeGenerator {
           } else if (conv_params_.IsSrcPackedC16() ||
                      conv_params_.IsSrcPackedC32()) {
             const std::string src_packed_type =
-                conv_params_.src_desc.GetDataType() == DataType::INT32
+                conv_params_.src_desc.GetDataType() == DataType::kInt32
                     ? "int4"
                     : "uint4";
             c += "    " + src_packed_type + " src_packed" + id + ";\n";
@@ -1130,11 +1264,11 @@ class ConvCodeGenerator {
     const bool conditional_read = gpu_info_.IsMali();
 
     std::string c;
-    for (int z = 0; z < kernel_params_.block_size.z; ++z) {
+    for (int z = 0; z < kernel_params_.block_size.d; ++z) {
       const std::string zind = std::to_string(z);
-      for (int y = 0; y < kernel_params_.block_size.y; ++y) {
+      for (int y = 0; y < kernel_params_.block_size.h; ++y) {
         const std::string yind = std::to_string(y);
-        for (int x = 0; x < kernel_params_.block_size.x; ++x) {
+        for (int x = 0; x < kernel_params_.block_size.w; ++x) {
           if (conv_params_.IsSrcPackedW4C4() && x % 4 != 0) {
             continue;
           }
@@ -1150,7 +1284,7 @@ class ConvCodeGenerator {
             std::string yc =
                 conv_params_.IsYKernelIs1() ? "yc" + yind : "yck" + yind;
             address = "" + xc + ", " + yc;
-            if (src_def.HasAxis(Axis::DEPTH)) {
+            if (src_def.HasAxis(Axis::kDepth)) {
               std::string zc =
                   conv_params_.IsZKernelIs1() ? "zc" + zind : "zck" + zind;
               address += ", " + zc;
@@ -1161,14 +1295,16 @@ class ConvCodeGenerator {
           std::string src_val = "src" + id;
           if (conv_params_.IsSrcPackedW4C4()) {
             read_as_type =
-                conv_params_.src_desc.GetDataType() == DataType::INT32 ? "int"
-                                                                       : "uint";
+                conv_params_.src_desc.GetDataType() == DataType::kInt32
+                    ? "int"
+                    : "uint";
             src_val = "src_packed" + id;
           }
           if (conv_params_.IsSrcPackedC16() || conv_params_.IsSrcPackedC32()) {
             read_as_type =
-                conv_params_.src_desc.GetDataType() == DataType::INT32 ? "int"
-                                                                       : "uint";
+                conv_params_.src_desc.GetDataType() == DataType::kInt32
+                    ? "int"
+                    : "uint";
             src_val = "src_packed" + id;
           }
           if (src_def.ReturnsZeroForNegOneRead(gpu_info_)) {
@@ -1190,20 +1326,8 @@ class ConvCodeGenerator {
                      ") * ucl::Convert<ScalarType>(" + check + ");\n";
               }
             } else {
-              if (kernel_params_.unroll_x_loop) {
-                std::string yc =
-                    "DST_Y * args.stride_y + args.padding_y + ky * "
-                    "args.dilation_y + " +
-                    yind + " * args.stride_y";
-                if (conv_params_.IsYKernelIs1()) {
-                  yc = "DST_Y + " + yind;
-                }
-                c += "    " + src_val + " = args.src_tensor.Read(xck0, " + yc +
-                     ", s);\n";
-              } else {
-                c += "    " + src_val + " = args.src_tensor.Read<" +
-                     read_as_type + ">(" + address + ");\n";
-              }
+              c += "    " + src_val + " = args.src_tensor.Read<" +
+                   read_as_type + ">(" + address + ");\n";
             }
             if (src_def.IsLinear()) {
               c += "    " + address + " += ds;\n";
@@ -1217,7 +1341,7 @@ class ConvCodeGenerator {
                     GenerateIdSpatial(std::to_string(x + sub_x), yind, zind);
                 const std::string src_packed_name =
                     "src_packed" + id + "." + postfixes_[sub_x];
-                if (conv_params_.src_desc.GetDataType() == DataType::INT32) {
+                if (conv_params_.src_desc.GetDataType() == DataType::kInt32) {
                   c += "    " + src_name +
                        "_uint = ucl::Reinterpret<int, uint>(" +
                        src_packed_name + ");\n";
@@ -1244,9 +1368,9 @@ class ConvCodeGenerator {
 
   std::string GenerateSoftmaxActivation() {
     std::string c;
-    for (int y = 0; y < kernel_params_.block_size.y; ++y) {
+    for (int y = 0; y < kernel_params_.block_size.h; ++y) {
       const std::string yind = std::to_string(y);
-      for (int x = 0; x < kernel_params_.block_size.x; ++x) {
+      for (int x = 0; x < kernel_params_.block_size.w; ++x) {
         const std::string xind = std::to_string(x);
         std::string id = GenerateIdSpatial(xind, yind, "0");
         c += "  src" + id + " = ucl::Exp<Type>(src" + id + " - exp_val" + id +
@@ -1257,48 +1381,64 @@ class ConvCodeGenerator {
   }
 
   std::string GenerateWeightsLoad(int weights_vals) {
-    const int wg_total_size = kernel_params_.work_group_size.x *
-                              kernel_params_.work_group_size.y *
-                              kernel_params_.work_group_size.z;
-    const std::string scope = gpu_info_.IsApiMetal() && wg_total_size == 32 &&
-                                      gpu_info_.IsWaveSizeEqualTo32()
-                                  ? "SubGroup"
-                                  : "WorkGroup";
     const std::string weights_cache_type = GetWeightsCacheType();
     std::string c;
     if (kernel_params_.weights_upload_type ==
         ConvGeneric::WeightsUploadType::kLocalMemoryWGLoad) {
       c += "    ucl::SyncThreads<WorkGroup, Local>();\n";
-      c += GenerateAsyncUpload("weights_cache", "weights_offset",
+      c += GenerateAsyncUpload("WEIGHTS_PER_SLICE", "weights_offset",
                                /*global_offset_name*/ "", weights_vals);
     } else if (kernel_params_.weights_upload_type ==
                ConvGeneric::WeightsUploadType::kLocalMemory) {
+      const int wg_size_per_slice = GetWGSpatialCount();
+      const std::string scope = gpu_info_.IsApiMetal() &&
+                                        wg_size_per_slice == 32 &&
+                                        gpu_info_.IsWaveSizeEqualTo32()
+                                    ? "SubGroup"
+                                    : "WorkGroup";
       if (gpu_info_.IsApiMetal()) {
         c += "    ucl::SyncThreads<" + scope + ", None>();\n";
       } else {
         c += "    ucl::SyncThreads<" + scope + ", Local>();\n";
       }
 
-      if (gpu_info_.SupportsPointersInKernels()) {
-        c += GenerateUploadByThreads("weights_cache", "weights_offset",
+      const bool weights_conversion =
+          conv_params_.weights_desc.layout != WeightsLayout::kUnknown;
+      if (weights_conversion) {
+        const int i4o4_blocks =
+            kernel_params_.block_size.c * kernel_params_.src_depth_loop_size;
+        if (wg_size_per_slice > i4o4_blocks) {
+          c += "    if (lid < " + std::to_string(i4o4_blocks) + ") {\n";
+        }
+        c += "      Type w0, w1, w2, w3;\n";
+        c += ReadWeights();
+        c += "      WEIGHTS_PER_SLICE[lid * 4 + 0] = w0;\n";
+        c += "      WEIGHTS_PER_SLICE[lid * 4 + 1] = w1;\n";
+        c += "      WEIGHTS_PER_SLICE[lid * 4 + 2] = w2;\n";
+        c += "      WEIGHTS_PER_SLICE[lid * 4 + 3] = w3;\n";
+        if (wg_size_per_slice > i4o4_blocks) {
+          c += "    }\n";
+        }
+      } else if (gpu_info_.SupportsPointersInKernels()) {
+        c += GenerateUploadByThreads("WEIGHTS_PER_SLICE", "weights_offset",
                                      /*use_ptrs*/ true,
                                      /*global_offset_name*/ "",
-                                     weights_cache_type, "lid", wg_total_size,
-                                     weights_vals);
+                                     weights_cache_type, "lid",
+                                     wg_size_per_slice, weights_vals);
       } else {
-        c += GenerateUploadByThreads("weights_cache", "args.weights",
+        c += GenerateUploadByThreads("WEIGHTS_PER_SLICE", "args.weights",
                                      /*use_ptrs*/ false, "weights_offset",
-                                     weights_cache_type, "lid", wg_total_size,
-                                     weights_vals);
+                                     weights_cache_type, "lid",
+                                     wg_size_per_slice, weights_vals);
       }
     } else if (kernel_params_.weights_upload_type ==
                ConvGeneric::WeightsUploadType::kWaveMemory) {
       c += "    ucl::SyncThreads<WaveLoad>();\n";
       if (gpu_info_.SupportsPointersInKernels()) {
-        c += "    ucl::WaveLoad(weights_cache, weights_offset, 0, " +
+        c += "    ucl::WaveLoad(WEIGHTS_PER_SLICE, weights_offset, 0, " +
              std::to_string(weights_vals) + ");\n";
       } else {
-        c += "    ucl::WaveLoad(weights_cache, args.weights.GetPtr(), "
+        c += "    ucl::WaveLoad(WEIGHTS_PER_SLICE, args.weights.GetPtr(), "
              "weights_offset, " +
              std::to_string(weights_vals) + ");\n";
       }
@@ -1306,10 +1446,10 @@ class ConvCodeGenerator {
     } else if (kernel_params_
                    .AreWeightsBuffer()) {  // kGlobalMemory/kConstantMemory
       if (gpu_info_.SupportsPointersInKernels()) {
-        c += "    weights_cache = weights_offset;\n";
+        c += "    WEIGHTS_PER_SLICE = weights_offset;\n";
       }
     } else {  // TEXTURES_MEM
-      for (int dst_s = 0; dst_s < kernel_params_.block_size.w; ++dst_s) {
+      for (int dst_s = 0; dst_s < kernel_params_.block_size.c; ++dst_s) {
         std::string f_y =
             conv_params_.IsTrivialKernelSize() ? "s" : "weights_offset";
         if (conv_params_.IsTrivialKernelSize() && conv_params_.HasGroups()) {
@@ -1319,10 +1459,10 @@ class ConvCodeGenerator {
           f_y = "w_batch_id * args.src_tensor.Slices() + s";
         }
         c += absl::Substitute(
-            R"(      Type f$2 = args.weights0.Read(DST_S + $0, $1);
-      Type f$3 = args.weights1.Read(DST_S + $0, $1);
-      Type f$4 = args.weights2.Read(DST_S + $0, $1);
-      Type f$5 = args.weights3.Read(DST_S + $0, $1);
+            R"(      Type f$2 = args.weights0.Read(w_o_slice + $0, $1);
+      Type f$3 = args.weights1.Read(w_o_slice + $0, $1);
+      Type f$4 = args.weights2.Read(w_o_slice + $0, $1);
+      Type f$5 = args.weights3.Read(w_o_slice + $0, $1);
   )",
             dst_s, f_y, dst_s * 4 + 0, dst_s * 4 + 1, dst_s * 4 + 2,
             dst_s * 4 + 3);
@@ -1360,8 +1500,9 @@ class ConvCodeGenerator {
     }
     if (conv_params_.IsSrcPackedC16()) {
       std::string maybe_cast =
-          conv_params_.src_desc.GetDataType() == DataType::INT32
-          ? "ucl::Reinterpret<int, uint>(" : "(";
+          conv_params_.src_desc.GetDataType() == DataType::kInt32
+              ? "ucl::Reinterpret<int, uint>("
+              : "(";
       ForSpatial([&](int x, int y, int z) {
         const std::string id = GenerateIdSpatial(x, y, z);
         c += "    src" + id + "_uint = " + maybe_cast + "src_packed" + id +
@@ -1373,25 +1514,25 @@ class ConvCodeGenerator {
         c += "    src" + id + "_uint = " + maybe_cast + "src_packed" + id +
              ".y);\n";
       });
-      c += GenerateConvCore(1 * kernel_params_.block_size.w * 4);
+      c += GenerateConvCore(1 * kernel_params_.block_size.c * 4);
       ForSpatial([&](int x, int y, int z) {
         const std::string id = GenerateIdSpatial(x, y, z);
         c += "    src" + id + "_uint = " + maybe_cast + "src_packed" + id +
              ".z);\n";
       });
-      c += GenerateConvCore(2 * kernel_params_.block_size.w * 4);
+      c += GenerateConvCore(2 * kernel_params_.block_size.c * 4);
       ForSpatial([&](int x, int y, int z) {
         const std::string id = GenerateIdSpatial(x, y, z);
         c += "    src" + id + "_uint = " + maybe_cast + "src_packed" + id +
              ".w);\n";
       });
-      c += GenerateConvCore(3 * kernel_params_.block_size.w * 4);
+      c += GenerateConvCore(3 * kernel_params_.block_size.c * 4);
     } else {
       c += GenerateConvCore(weights_offset);
       for (int i = 1; i < kernel_params_.src_depth_loop_size; ++i) {
         c += GenerateSrcReading();
         c += GenerateConvCore(weights_offset +
-                              i * kernel_params_.block_size.w * 4);
+                              i * kernel_params_.block_size.c * 4);
         c += "    s += 1;\n";
       }
     }
@@ -1400,9 +1541,9 @@ class ConvCodeGenerator {
 
   template <typename Func>
   void ForSpatial(Func&& func) {
-    for (int z = 0; z < kernel_params_.block_size.z; ++z) {
-      for (int y = 0; y < kernel_params_.block_size.y; ++y) {
-        for (int x = 0; x < kernel_params_.block_size.x; ++x) {
+    for (int z = 0; z < kernel_params_.block_size.d; ++z) {
+      for (int y = 0; y < kernel_params_.block_size.h; ++y) {
+        for (int x = 0; x < kernel_params_.block_size.w; ++x) {
           func(x, y, z);
         }
       }
@@ -1411,17 +1552,20 @@ class ConvCodeGenerator {
 
   std::string ReadWeights1D() const {
     std::string c;
-    if (conv_params_.weights_desc.type == DataType::UINT8) {
+    if (conv_params_.weights_desc.type == DataType::kUint8) {
       c += "    uint4 u8_i4o4 = args.weights.Read(w_wg_offset);\n";
-      c += "    ucl::U32x4ToU8x16AsVec4x4<half>(u8_i4o4, w0, w1, w2, w3);\n";
-    } else if (conv_params_.weights_desc.type == DataType::UINT4) {
+      c += "    ucl::U32x4ToU8x16AsVec4x4<ScalarType>(u8_i4o4, w0, w1, w2, "
+           "w3);\n";
+    } else if (conv_params_.weights_desc.type == DataType::kUint4) {
       c += "    uint2 u4_i4o4 = args.weights.Read(w_wg_offset);\n";
-      c += "    ucl::U32x2ToU4x16AsVec4x4<half>(u4_i4o4, w0, w1, w2, w3);\n";
-    } else if (conv_params_.weights_desc.type == DataType::UINT2) {
+      c += "    ucl::U32x2ToU4x16AsVec4x4<ScalarType>(u4_i4o4, w0, w1, w2, "
+           "w3);\n";
+    } else if (conv_params_.weights_desc.type == DataType::kUint2) {
       c += "    uint u2_i4o4 = args.weights.Read(w_wg_offset);\n";
-      c += "    ucl::U32x1ToU2x16AsVec4x4<half>(u2_i4o4, w0, w1, w2, w3);\n";
+      c += "    ucl::U32x1ToU2x16AsVec4x4<ScalarType>(u2_i4o4, w0, w1, w2, "
+           "w3);\n";
     } else {
-      c += "    args.weights.ReadVec16AsVec4x4(w0, w1, w2, w3, "
+      c += "    args.weights.ReadVec16AsVec4x4<ScalarType>(w0, w1, w2, w3, "
            "w_wg_offset);\n";
     }
     c += "    w_wg_offset += w_wg_stride;\n";
@@ -1437,19 +1581,58 @@ class ConvCodeGenerator {
     const std::string yc = batch_part + " + s + sub_i";
     if (conv_params_.weights_desc.layout ==
         WeightsLayout::k2DX4I4YIsSpatialIAndXIsOOGroupO4) {
-      c += "    w0 = args.weights0.Read<half>(" + xc + ", " + yc + ");\n";
-      c += "    w1 = args.weights1.Read<half>(" + xc + ", " + yc + ");\n";
-      c += "    w2 = args.weights2.Read<half>(" + xc + ", " + yc + ");\n";
-      c += "    w3 = args.weights3.Read<half>(" + xc + ", " + yc + ");\n";
-    } else if (conv_params_.weights_desc.type == DataType::UINT8) {
+      c += "    w0 = args.weights0.Read<ScalarType>(" + xc + ", " + yc + ");\n";
+      c += "    w1 = args.weights1.Read<ScalarType>(" + xc + ", " + yc + ");\n";
+      c += "    w2 = args.weights2.Read<ScalarType>(" + xc + ", " + yc + ");\n";
+      c += "    w3 = args.weights3.Read<ScalarType>(" + xc + ", " + yc + ");\n";
+    } else if (conv_params_.weights_desc.type == DataType::kUint8) {
       c += "    uint4 u8_i4o4 = args.weights.Read(" + xc + ", " + yc + ");\n";
-      c += "    ucl::U32x4ToU8x16AsVec4x4<half>(u8_i4o4, w0, w1, w2, w3);\n";
-    } else if (conv_params_.weights_desc.type == DataType::UINT4) {
+      c += "    ucl::U32x4ToU8x16AsVec4x4<ScalarType>(u8_i4o4, w0, w1, w2, "
+           "w3);\n";
+    } else if (conv_params_.weights_desc.type == DataType::kUint4) {
       c += "    ushort4 u4_i4o4 = args.weights.Read(" + xc + ", " + yc + ");\n";
-      c += "    ucl::U16x4ToU4x16AsVec4x4<half>(u4_i4o4, w0, w1, w2, w3);\n";
-    } else if (conv_params_.weights_desc.type == DataType::UINT2) {
+      c += "    ucl::U16x4ToU4x16AsVec4x4<ScalarType>(u4_i4o4, w0, w1, w2, "
+           "w3);\n";
+    } else if (conv_params_.weights_desc.type == DataType::kUint2) {
       c += "    uchar4 u2_i4o4 = args.weights.Read(" + xc + ", " + yc + ");\n";
-      c += "    ucl::U8x4ToU2x16AsVec4x4<half>(u2_i4o4, w0, w1, w2, w3);\n";
+      c += "    ucl::U8x4ToU2x16AsVec4x4<ScalarType>(u2_i4o4, w0, w1, w2, "
+           "w3);\n";
+    }
+    return c;
+  }
+
+  std::string ReadWeights() const {
+    const bool quantized_weights =
+        SizeInBitsOf(conv_params_.weights_desc.type) <= 8;
+    std::string c;
+    if (quantized_weights && conv_params_.scale_zp_shape.i != 1) {
+      // grouped quantization
+      std::string src_id = "s";
+      if (conv_params_.src_group_slices % kernel_params_.src_depth_loop_size !=
+          0) {
+        src_id = "(s + sub_i)";
+      }
+      c += "    int src_group_id = " + src_id + " / " +
+           std::to_string(conv_params_.src_group_slices) + ";\n";
+      c += "    if (last_src_group_id != src_group_id) {\n";
+      c += "      last_src_group_id = src_group_id;\n";
+      c += fc::ReadScaleZeroPointBlock(
+          "w_o_slice", conv_params_.scale_zp_shape, conv_params_.has_zero_point,
+          fc::GetDataTypeForWeights(conv_params_.weights_desc.type));
+      c += "    }\n";
+    }
+    if (conv_params_.weights_desc.IsLinearLayout()) {
+      c += ReadWeights1D();
+    } else {
+      c += ReadWeights2D();
+    }
+    if (quantized_weights) {
+      c += R"(
+    w0 = w0 * w_scale + w_bias;
+    w1 = w1 * w_scale + w_bias;
+    w2 = w2 * w_scale + w_bias;
+    w3 = w3 * w_scale + w_bias;
+)";
     }
     return c;
   }
@@ -1470,46 +1653,17 @@ class ConvCodeGenerator {
     }
     const bool weights_conversion =
         conv_params_.weights_desc.layout != WeightsLayout::kUnknown;
-    const bool quantized_weights =
-        weights_conversion && SizeInBitsOf(conv_params_.weights_desc.type) <= 8;
+    const int i4o4_blocks =
+        kernel_params_.block_size.c * kernel_params_.src_depth_loop_size;
+    const int wg_size_per_slice = GetWGSpatialCount();
     if (weights_conversion) {
-      if (conv_params_.scale_zp_shape.i != 1) {
-        // grouped quantization
-        c += "    int src_group_id = (s + sub_i) / " +
-             std::to_string(conv_params_.src_group_slices) + ";\n";
-        c += "    if (last_src_group_id != src_group_id) {\n";
-        c += "      last_src_group_id = src_group_id;\n";
-        // do not use different_weights_for_height here because with batched
-        // weights we can have non batched scale/zp.
-        const std::string scale_zp_batch_id =
-            conv_params_.scale_zp_shape.h != 1 ? "w_batch_id" : "0";
-        std::string coords =
-            "w_o_slice, " + scale_zp_batch_id + ", src_group_id";
-        c += "      w_scale = args.weights_scale.Read(" + coords + ");\n";
-        if (conv_params_.has_zero_point) {
-          c += "      Type wzp = args.weights_zero_point.Read(" + coords +
-               ");\n";
-        } else {
-          c += "      Type wzp = ucl::Init<Type>(0.0f);\n";
-        }
-        c += "      w_bias = -w_scale * " +
-             std::to_string(GetRangeShift(conv_params_.weights_desc.type)) +
-             " + wzp;\n";
+      c += "    Type w0, w1, w2, w3;\n";
+      if (wg_size_per_slice > i4o4_blocks) {
+        c += "    if (lid < " + std::to_string(i4o4_blocks) + ") {\n";
+      }
+      c += ReadWeights();
+      if (wg_size_per_slice > i4o4_blocks) {
         c += "    }\n";
-      }
-      c += "    half4 w0, w1, w2, w3;\n";
-      if (conv_params_.weights_desc.IsLinearLayout()) {
-        c += ReadWeights1D();
-      } else {
-        c += ReadWeights2D();
-      }
-      if (quantized_weights) {
-        c += R"(
-    w0 = w0 * w_scale + w_bias;
-    w1 = w1 * w_scale + w_bias;
-    w2 = w2 * w_scale + w_bias;
-    w3 = w3 * w_scale + w_bias;
-)";
       }
     }
     for (const auto& postfix : postfixes) {
@@ -1521,26 +1675,71 @@ class ConvCodeGenerator {
       });
       c += "    s += 1;\n";
     }
-    if (weights_conversion) {
-      c += R"(
-    ucl::SyncThreads<WorkGroup, Local>();
-    w_cache[sub_o * 16 + sub_i * 4 + 0] = w0;
-    w_cache[sub_o * 16 + sub_i * 4 + 1] = w1;
-    w_cache[sub_o * 16 + sub_i * 4 + 2] = w2;
-    w_cache[sub_o * 16 + sub_i * 4 + 3] = w3;
-    ucl::SyncThreads<WorkGroup, Local>();
-  )";
-      for (int i = 0; i < kernel_params_.block_size.w; ++i) {
-        const std::string w_name = "W" + std::to_string(i);
-        c += "    short4 " + w_name + " = as_short4(w_cache[simd_id + " +
-             std::to_string(i * 16) + "]);\n";
+    if (weights_conversion &&
+        kernel_params_.accumulator_type ==
+            ConvGeneric::KernelParams::AccumulatorType::kVec4) {
+      // weights_cache WeightsLayout::kBO16I16O4
+      c += "    ucl::SyncThreads<WorkGroup, Local>();\n";
+      if (wg_size_per_slice > i4o4_blocks) {
+        c += "    if (lid < " + std::to_string(i4o4_blocks) + ") {\n";
       }
-    } else {
-      for (int i = 0; i < kernel_params_.block_size.w; ++i) {
+      c += R"(
+    WEIGHTS_PER_SLICE[sub_o * 16 + sub_i * 4 + 0] = w0;
+    WEIGHTS_PER_SLICE[sub_o * 16 + sub_i * 4 + 1] = w1;
+    WEIGHTS_PER_SLICE[sub_o * 16 + sub_i * 4 + 2] = w2;
+    WEIGHTS_PER_SLICE[sub_o * 16 + sub_i * 4 + 3] = w3;
+  )";
+      if (wg_size_per_slice > i4o4_blocks) {
+        c += "    }\n";
+      }
+      c += "    ucl::SyncThreads<WorkGroup, Local>();\n";
+      for (int i = 0; i < kernel_params_.block_size.c; ++i) {
         const std::string w_name = "W" + std::to_string(i);
         c += "    short4 " + w_name +
-             " = ((__global short4*)weights_offset)[simd_id + " +
+             " = as_short4(WEIGHTS_PER_SLICE[simd_id + " +
+             std::to_string(i * 16) + "]);\n";
+      }
+    } else if (weights_conversion &&
+               kernel_params_.accumulator_type ==
+                   ConvGeneric::KernelParams::AccumulatorType::kVec8) {
+      // weights_cache WeightsLayout::kBO8I16O8
+      c += "    ucl::SyncThreads<WorkGroup, Local>();\n";
+      if (wg_size_per_slice > i4o4_blocks) {
+        c += "    if (lid < " + std::to_string(i4o4_blocks) + ") {\n";
+      }
+      c += R"(
+    WEIGHTS_PER_SLICE[((sub_o / 2) * 16 + sub_i * 4 + 0) * 2 + sub_o % 2] = w0;
+    WEIGHTS_PER_SLICE[((sub_o / 2) * 16 + sub_i * 4 + 1) * 2 + sub_o % 2] = w1;
+    WEIGHTS_PER_SLICE[((sub_o / 2) * 16 + sub_i * 4 + 2) * 2 + sub_o % 2] = w2;
+    WEIGHTS_PER_SLICE[((sub_o / 2) * 16 + sub_i * 4 + 3) * 2 + sub_o % 2] = w3;
+  )";
+      if (wg_size_per_slice > i4o4_blocks) {
+        c += "    }\n";
+      }
+      c += "    ucl::SyncThreads<WorkGroup, Local>();\n";
+      for (int i = 0; i < kernel_params_.block_size.c / 2; ++i) {
+        const std::string w_name = "W" + std::to_string(i);
+        c += "    short8 " + w_name +
+             " = ((__local short8*)WEIGHTS_PER_SLICE)[simd_id + " +
              std::to_string(i * 16) + "];\n";
+      }
+    } else if (kernel_params_.accumulator_type ==
+               ConvGeneric::KernelParams::AccumulatorType::kVec4) {
+      for (int i = 0; i < kernel_params_.block_size.c; ++i) {
+        const std::string w_name = "W" + std::to_string(i);
+        c += "    short4 " + w_name + " = as_short4(";
+        c += "intel_sub_group_block_read_us4(((__global "
+             "ushort*)weights_offset) + " +
+             std::to_string(i * 16 * 4) + "));\n";
+      }
+    } else {
+      // AccumulatorType::kVec8
+      for (int i = 0; i < kernel_params_.block_size.c / 2; ++i) {
+        const std::string w_name = "W" + std::to_string(i);
+        c += "    short8 " + w_name + " = as_short8(";
+        c += "intel_sub_group_block_read_us8(((__global "
+             "ushort*)weights_offset) + " +
+             std::to_string(i * 16 * 8) + "));\n";
       }
     }
     if (!weights_conversion) {
@@ -1551,7 +1750,7 @@ class ConvCodeGenerator {
           conv_params_.Is8Bit() || conv_params_.Is4Bit() ? 4 : 8;
       const int filter_elements = 128 / filter_size;
       c += "    weights_offset += " +
-           std::to_string(kernel_params_.block_size.w * filter_elements) +
+           std::to_string(kernel_params_.block_size.c * filter_elements) +
            ";\n";
     }
     std::string function_name = "intel_sub_group_f16_f16_matrix_mad_k16";
@@ -1561,7 +1760,13 @@ class ConvCodeGenerator {
     if (conv_params_.Is4Bit()) {
       function_name = "intel_sub_group_i4_i4_matrix_mad_k64";
     }
-    for (int i = 0; i < kernel_params_.block_size.w; ++i) {
+    const int vec4_elements =
+        kernel_params_.accumulator_type ==
+                ConvGeneric::KernelParams::AccumulatorType::kVec4
+            ? 1
+            : 2;
+    const int num_blocks = kernel_params_.block_size.c / vec4_elements;
+    for (int i = 0; i < num_blocks; ++i) {
       ForSpatial([&](int x, int y, int z) {
         const std::string r_name = "r" + GenerateIdFull(x, y, z, i);
         const std::string s_name = "S" + GenerateIdSpatial(x, y, z);
@@ -1584,18 +1789,18 @@ class ConvCodeGenerator {
     std::string c;
     const bool use_fma = gpu_info_.IsApiOpenCl() && gpu_info_.IsAMD();
     const std::string channels[] = {"x", "y", "z", "w"};
-    const int4& block_size = kernel_params_.block_size;
+    const BHWDC& block_size = kernel_params_.block_size;
     const DataType summable_data_type = GetSummableType();
-    for (int s = 0; s < block_size.w; ++s) {
+    for (int s = 0; s < block_size.c; ++s) {
       const std::string sind = std::to_string(s);
-      if (conv_params_.precision != CalculationsPrecision::F32_F16 ||
-          summable_data_type == DataType::FLOAT32) {
+      if (conv_params_.precision != CalculationsPrecision::kF32F16 ||
+          summable_data_type == DataType::kFloat32) {
         for (int ch = 0; ch < 4; ++ch) {
-          for (int z = 0; z < block_size.z; ++z) {
+          for (int z = 0; z < block_size.d; ++z) {
             const std::string zind = std::to_string(z);
-            for (int y = 0; y < block_size.y; ++y) {
+            for (int y = 0; y < block_size.h; ++y) {
               const std::string yind = std::to_string(y);
-              for (int x = 0; x < block_size.x; ++x) {
+              for (int x = 0; x < block_size.w; ++x) {
                 const std::string xind = std::to_string(x);
                 std::string R = "r" + GenerateIdFull(xind, yind, zind, sind);
                 std::string S = "src" + GenerateIdSpatial(xind, yind, zind);
@@ -1605,7 +1810,7 @@ class ConvCodeGenerator {
                 if (kernel_params_.AreWeightsBuffer()) {
                   if (gpu_info_.SupportsPointersInKernels() ||
                       use_weights_cache) {
-                    w_val = "weights_cache[" + weight_id + "]";
+                    w_val = "WEIGHTS_PER_SLICE[" + weight_id + "]";
                   } else {
                     w_val =
                         "args.weights.Read(weights_offset + " + weight_id + ")";
@@ -1613,7 +1818,7 @@ class ConvCodeGenerator {
                 } else {
                   w_val = "f" + weight_id;
                 }
-                if (IsI4O4(kernel_params_.weights_layout)) {
+                if (kernel_params_.weights_desc.IsI4O4()) {
                   if (use_fma) {
                     c += "    " + R + " = fma(" + w_val + ", " + S + "." +
                          channels[ch] + ", " + R + ");\n";
@@ -1630,11 +1835,11 @@ class ConvCodeGenerator {
           }
         }
       } else {  // F32_F16 precision
-        for (int z = 0; z < block_size.z; ++z) {
+        for (int z = 0; z < block_size.d; ++z) {
           const std::string zind = std::to_string(z);
-          for (int y = 0; y < block_size.y; ++y) {
+          for (int y = 0; y < block_size.h; ++y) {
             const std::string yind = std::to_string(y);
-            for (int x = 0; x < block_size.x; ++x) {
+            for (int x = 0; x < block_size.w; ++x) {
               const std::string xind = std::to_string(x);
               std::string R = "r" + GenerateIdFull(xind, yind, zind, sind);
               std::string S = "src" + GenerateIdSpatial(xind, yind, zind);
@@ -1645,7 +1850,7 @@ class ConvCodeGenerator {
                 if (kernel_params_.AreWeightsBuffer()) {
                   if (gpu_info_.SupportsPointersInKernels() ||
                       use_weights_cache) {
-                    F[i] = "weights_cache[" + weight_id + "]";
+                    F[i] = "WEIGHTS_PER_SLICE[" + weight_id + "]";
                   } else {
                     F[i] =
                         "args.weights.Read(weights_offset + " + weight_id + ")";
@@ -1654,7 +1859,7 @@ class ConvCodeGenerator {
                   F[i] = "f" + weight_id;
                 }
               }
-              if (IsI4O4(kernel_params_.weights_layout)) {
+              if (kernel_params_.weights_desc.IsI4O4()) {
                 c += "    " + R + " += ucl::Convert<AccType>(" + S + ".x * " +
                      F[0] + " + " + S + ".y * " + F[1] + " + " + S + ".z * " +
                      F[2] + " + " + S + ".w * " + F[3] + ");\n";
@@ -1684,7 +1889,7 @@ class ConvCodeGenerator {
   std::string GetWeightsValue(int offset) const {
     const bool use_weights_cache = NeedsLocalMemory() || NeedsWaveMemory();
     if (use_weights_cache) {
-      return "weights_cache[" + std::to_string(offset) + "]";
+      return "WEIGHTS_PER_SLICE[" + std::to_string(offset) + "]";
     } else if (gpu_info_.SupportsPointersInKernels()) {
       return "weights_offset[" + std::to_string(offset) + "]";
     } else {
@@ -1695,17 +1900,17 @@ class ConvCodeGenerator {
 
   std::string GenerateConvInt8Core(int shared_offset) {
     std::string c;
-    const int4& block_size = kernel_params_.block_size;
-    for (int s = 0; s < block_size.w; ++s) {
+    const BHWDC& block_size = kernel_params_.block_size;
+    for (int s = 0; s < block_size.c; ++s) {
       const std::string sind = std::to_string(s);
       if (IntermediateWeightsRead()) {
         c += "    w_i8x16 = " + GetWeightsValue(s + shared_offset / 4) + ";\n";
       }
-      for (int z = 0; z < block_size.z; ++z) {
+      for (int z = 0; z < block_size.d; ++z) {
         const std::string zind = std::to_string(z);
-        for (int y = 0; y < block_size.y; ++y) {
+        for (int y = 0; y < block_size.h; ++y) {
           const std::string yind = std::to_string(y);
-          for (int x = 0; x < block_size.x; ++x) {
+          for (int x = 0; x < block_size.w; ++x) {
             const std::string xind = std::to_string(x);
             std::string R = "r" + GenerateIdFull(xind, yind, zind, sind);
             std::string S = "src" + GenerateIdSpatial(xind, yind, zind);
@@ -1736,7 +1941,7 @@ class ConvCodeGenerator {
                    "_uint, " + R + ".w);\n";
             } else if (gpu_info_.SupportsExtension(
                            "cl_khr_integer_dot_product")) {
-              if (conv_params_.weights_data_type == DataType::INT8) {
+              if (conv_params_.weights_data_type == DataType::kInt8) {
                 c += "    " + R + ".x += dot_4x8packed_ss_int(" + F[0] + ", " +
                      S + "_uint);\n";
                 c += "    " + R + ".y += dot_4x8packed_ss_int(" + F[1] + ", " +
@@ -1767,7 +1972,7 @@ class ConvCodeGenerator {
                    "), as_char4(" + S + "_uint), " + R + ".w);\n";
             } else if (gpu_info_.IsApiWebGpu() &&
                        gpu_info_.SupportsAcceleratedDp4a()) {
-              if (conv_params_.weights_data_type == DataType::INT8) {
+              if (conv_params_.weights_data_type == DataType::kInt8) {
                 c += "    " + R + ".x += dot4I8Packed(" + F[0] + ", " + S +
                      "_uint);\n";
                 c += "    " + R + ".y += dot4I8Packed(" + F[1] + ", " + S +
@@ -1806,45 +2011,45 @@ class ConvCodeGenerator {
 
   std::string GenerateConvImgMatMul(int shared_offset) {
     std::string c;
-    for (int s = 0; s < kernel_params_.block_size.w; ++s) {
+    for (int s = 0; s < kernel_params_.block_size.c; ++s) {
       const std::string sind = std::to_string(s);
-      for (int z = 0; z < kernel_params_.block_size.z; ++z) {
+      for (int z = 0; z < kernel_params_.block_size.d; ++z) {
         const std::string zind = std::to_string(z);
-        for (int y = 0; y < kernel_params_.block_size.y; ++y) {
+        for (int y = 0; y < kernel_params_.block_size.h; ++y) {
           const std::string yind = std::to_string(y);
-          for (int x = 0; x < kernel_params_.block_size.x; ++x) {
+          for (int x = 0; x < kernel_params_.block_size.w; ++x) {
             const std::string xind = std::to_string(x);
             std::string R = "r" + GenerateIdFull(xind, yind, zind, sind);
             std::string S = "src" + GenerateIdSpatial(xind, yind, zind);
-            if (conv_params_.precision == CalculationsPrecision::F32) {
+            if (conv_params_.precision == CalculationsPrecision::kF32) {
               // img_matmul_float_acc_1x2_2x2 or img_dot_interleaved_acc?
               // layout is the same, but img_dot_interleaved_acc performs better
               c += "  " + R + ".xy = img_dot_interleaved_acc(" + S +
-                   ".xy, weights_cache + " +
+                   ".xy, WEIGHTS_PER_SLICE + " +
                    std::to_string(shared_offset + s * 4) + ", " + R + ".xy);\n";
               c += "  " + R + ".xy = img_dot_interleaved_acc(" + S +
-                   ".zw, weights_cache + " +
+                   ".zw, WEIGHTS_PER_SLICE + " +
                    std::to_string(shared_offset + s * 4 + 1) + ", " + R +
                    ".xy);\n";
               c += "  " + R + ".zw = img_dot_interleaved_acc(" + S +
-                   ".xy, weights_cache + " +
+                   ".xy, WEIGHTS_PER_SLICE + " +
                    std::to_string(shared_offset + s * 4 + 2) + ", " + R +
                    ".zw);\n";
               c += "  " + R + ".zw = img_dot_interleaved_acc(" + S +
-                   ".zw, weights_cache + " +
+                   ".zw, WEIGHTS_PER_SLICE + " +
                    std::to_string(shared_offset + s * 4 + 3) + ", " + R +
                    ".zw);\n";
             } else {
               const std::string func_name =
-                  conv_params_.precision == CalculationsPrecision::F16
+                  conv_params_.precision == CalculationsPrecision::kF16
                       ? "img_matmul_half2_acc_1x2_2x2h"
                       : "img_matmul_half2_acc_1x2_2x2f";
               c += "  " + R + ".xy = " + func_name + "(" + S +
-                   ", (__local half8*)(weights_cache + " +
+                   ", (__local half8*)(WEIGHTS_PER_SLICE + " +
                    std::to_string(shared_offset + s * 4) + "), " + R +
                    ".xy);\n";
               c += "  " + R + ".zw = " + func_name + "(" + S +
-                   ", (__local half8*)(weights_cache + " +
+                   ", (__local half8*)(WEIGHTS_PER_SLICE + " +
                    std::to_string(shared_offset + s * 4 + 2) + "), " + R +
                    ".zw);\n";
             }
@@ -1880,7 +2085,7 @@ void AddRuntimeParams(GPUOperation& op,
   }
   if (has_runtime_check) {
     BufferDescriptor desc;
-    desc.element_type = DataType::INT32;
+    desc.element_type = DataType::kInt32;
     desc.element_size = 1;
     op.AddSrcBuffer("params", desc);
   }
@@ -1903,36 +2108,36 @@ BHWC GetOutputShape(const BHWC* dst_shape,
 }
 
 int GetGroupsCount(const BHWC& dst_shape, const int3& wg_size,
-                   const int4& block_size) {
+                   const BHWDC& block_size) {
   const int dst_slices = DivideRoundUp(dst_shape.c, 4);
 
-  int grid_x = DivideRoundUp(dst_shape.w, block_size.x) * dst_shape.b;
-  int grid_y = DivideRoundUp(dst_shape.h, block_size.y);
-  int grid_z = DivideRoundUp(dst_slices, block_size.w);
+  int grid_x = DivideRoundUp(dst_shape.w, block_size.w) * dst_shape.b;
+  int grid_y = DivideRoundUp(dst_shape.h, block_size.h);
+  int grid_z = DivideRoundUp(dst_slices, block_size.c);
 
   return DivideRoundUp(grid_x, wg_size.x) * DivideRoundUp(grid_y, wg_size.y) *
          DivideRoundUp(grid_z, wg_size.z);
 }
 
 int GetGroupsCountForLinearWH(const BHWC& dst_shape, const int3& wg_size,
-                              const int4& block_size) {
+                              const BHWDC& block_size) {
   const int dst_slices = DivideRoundUp(dst_shape.c, 4);
 
-  int grid_x = DivideRoundUp(dst_shape.w, block_size.x) * dst_shape.b;
-  int grid_y = DivideRoundUp(dst_shape.h, block_size.y);
-  int grid_z = DivideRoundUp(dst_slices, block_size.w);
+  int grid_x = DivideRoundUp(dst_shape.w, block_size.w) * dst_shape.b;
+  int grid_y = DivideRoundUp(dst_shape.h, block_size.h);
+  int grid_z = DivideRoundUp(dst_slices, block_size.c);
 
   return DivideRoundUp(grid_x * grid_y, wg_size.x) *
          DivideRoundUp(grid_z, wg_size.y);
 }
 
 int GetGroupsCountForLinearWHS(const BHWC& dst_shape, const int3& wg_size,
-                               const int4& block_size) {
+                               const BHWDC& block_size) {
   const int dst_slices = DivideRoundUp(dst_shape.c, 4);
 
-  int grid_x = DivideRoundUp(dst_shape.w, block_size.x) * dst_shape.b;
-  int grid_y = DivideRoundUp(dst_shape.h, block_size.y);
-  int grid_z = DivideRoundUp(dst_slices, block_size.w);
+  int grid_x = DivideRoundUp(dst_shape.w, block_size.w) * dst_shape.b;
+  int grid_y = DivideRoundUp(dst_shape.h, block_size.h);
+  int grid_z = DivideRoundUp(dst_slices, block_size.c);
 
   return DivideRoundUp(grid_x * grid_y * grid_z, wg_size.x);
 }
@@ -1940,9 +2145,11 @@ int GetGroupsCountForLinearWHS(const BHWC& dst_shape, const int3& wg_size,
 int GetMaximumPossibleWavesCount(const AppleInfo& apple_info,
                                  const BHWC& dst_shape) {
   if (apple_info.IsLocalMemoryPreferredOverGlobal()) {
-    return GetGroupsCountForLinearWH(dst_shape, {32, 1, 1}, int4(1, 1, 1, 1));
+    return GetGroupsCountForLinearWH(dst_shape, {32, 1, 1},
+                                     BHWDC(1, 1, 1, 1, 1));
   } else {
-    return GetGroupsCountForLinearWHS(dst_shape, {32, 1, 1}, int4(1, 1, 1, 1));
+    return GetGroupsCountForLinearWHS(dst_shape, {32, 1, 1},
+                                      BHWDC(1, 1, 1, 1, 1));
   }
 }
 
@@ -1972,7 +2179,7 @@ struct WorkGroupSizeOption {
 WorkGroupSizeOption CreateWorkGroupSizeOption(
     const int3& work_group_size,
     WorkGroupSizeOption::ThreadMapping mapping_type, float penalty,
-    const BHWC& dst_shape, const int4& block_size) {
+    const BHWC& dst_shape, const BHWDC& block_size) {
   WorkGroupSizeOption wg;
   wg.work_group_size = work_group_size;
   wg.thread_mapping = mapping_type;
@@ -2021,11 +2228,11 @@ ConvGeneric::KernelParams GetKernelParamsForA7A8(
   kernel_params.weights_upload_type =
       ConvGeneric::WeightsUploadType::kLocalMemory;
   kernel_params.src_depth_loop_size = 1;
-  kernel_params.block_size.x = block_size.x;
-  kernel_params.block_size.y = block_size.y;
-  kernel_params.block_size.z = 1;
-  kernel_params.block_size.w = block_size.z;
-  kernel_params.weights_layout = WeightsLayout::kOSpatialIOGroupO4I4;
+  kernel_params.block_size.b = 1;
+  kernel_params.block_size.w = block_size.x;
+  kernel_params.block_size.h = block_size.y;
+  kernel_params.block_size.d = 1;
+  kernel_params.block_size.c = block_size.z;
 
   std::vector<WorkGroupSizeOption> options;
   options.push_back(CreateWorkGroupSizeOption(
@@ -2099,8 +2306,8 @@ ConvGeneric::KernelParams GetKernelParamsForA7A8(
     kernel_params.work_group_size = optimum_wg.work_group_size;
     kernel_params.work_group_launch_order = int3(2, 0, 1);
   }
-  int total_elements = kernel_params.block_size.x * kernel_params.block_size.y *
-                       kernel_params.block_size.z * kernel_params.block_size.w;
+  int total_elements = kernel_params.block_size.w * kernel_params.block_size.h *
+                       kernel_params.block_size.d * kernel_params.block_size.c;
   if (total_elements == 1) {
     if (conv_params.src_slices % 4 == 0) {
       kernel_params.src_depth_loop_size = 4;
@@ -2159,14 +2366,14 @@ ConvGeneric::KernelParams GetKernelParamsForA9AndHigher(
     blk_total_size = 1;
   }
   kernel_params.src_depth_loop_size = 1;
-  kernel_params.block_size.x = block_size.x;
-  kernel_params.block_size.y = block_size.y;
-  kernel_params.block_size.z = 1;
-  kernel_params.block_size.w = block_size.z;
+  kernel_params.block_size.b = 1;
+  kernel_params.block_size.w = block_size.x;
+  kernel_params.block_size.h = block_size.y;
+  kernel_params.block_size.d = 1;
+  kernel_params.block_size.c = block_size.z;
   kernel_params.linear_spatial = false;
   kernel_params.linear_all = false;
   kernel_params.work_group_launch_order = int3(2, 0, 1);
-  kernel_params.weights_layout = WeightsLayout::kOSpatialIOGroupO4I4;
   int g1 = GetGroupsCount(dst_shape, kernel_params.work_group_size,
                           kernel_params.block_size);
   int g2 = GetGroupsCountForLinearWH(
@@ -2203,8 +2410,8 @@ ConvGeneric::KernelParams GetKernelParamsForA9AndHigher(
     kernel_params.weights_upload_type =
         ConvGeneric::WeightsUploadType::kGlobalMemory;
   }
-  int total_elements = kernel_params.block_size.x * kernel_params.block_size.y *
-                       kernel_params.block_size.z * kernel_params.block_size.w;
+  int total_elements = kernel_params.block_size.w * kernel_params.block_size.h *
+                       kernel_params.block_size.d * kernel_params.block_size.c;
   if (total_elements == 1) {
     if (conv_params.src_slices % 4 == 0) {
       kernel_params.src_depth_loop_size = 4;
@@ -2243,11 +2450,11 @@ ConvGeneric::KernelParams GetKernelParamsIntel(
   ConvGeneric::KernelParams kernel_params;
   kernel_params.linear_spatial = false;
   kernel_params.linear_all = false;
-  kernel_params.block_size = int4(1, 1, 1, 1);
+  kernel_params.block_size = BHWDC(1, 1, 1, 1, 1);
 
   const bool supported_wave_matmul_fp16 =
       !conv_params.Is8Bit() && !conv_params.Is4Bit() &&
-      conv_params.precision == CalculationsPrecision::F16 &&
+      conv_params.precision == CalculationsPrecision::kF16 &&
       conv_params.src_slices % 4 == 0;
   const bool supported_wave_matmul_int8 = conv_params.Is8Bit() &&
                                           conv_params.IsSrcPackedC16() &&
@@ -2268,7 +2475,7 @@ ConvGeneric::KernelParams GetKernelParamsIntel(
       kernel_params.linear_spatial = true;
       kernel_params.work_group_launch_order = int3(1, 0, 2);
     }
-    kernel_params.simd_sizes = {16};
+    kernel_params.wave_sizes = {16};
     kernel_params.fixed_work_group_size = false;
     kernel_params.work_group_size = int3(64, 1, 1);
     kernel_params.weights_upload_type =
@@ -2293,7 +2500,7 @@ ConvGeneric::KernelParams GetKernelParamsIntel(
       dst_slices_per_thread = 1;
       kernel_params.work_group_size = int3(16, 1, 1);
     }
-    kernel_params.block_size = int4(1, 1, 1, dst_slices_per_thread);
+    kernel_params.block_size = BHWDC(1, 1, 1, 1, dst_slices_per_thread);
     if (conv_params.weights_desc.layout != WeightsLayout::kUnknown) {
       kernel_params.work_group_size = int3(64, 1, 1);
       kernel_params.fixed_work_group_size = true;
@@ -2304,14 +2511,14 @@ ConvGeneric::KernelParams GetKernelParamsIntel(
           kernel_params.work_group_size = int3(32, 1, 1);
         }
       }
-      kernel_params.block_size = int4(1, 1, 1, 1);
-      kernel_params.block_size.w = kernel_params.work_group_size.x / 4;
+      kernel_params.block_size = BHWDC(1, 1, 1, 1, 1);
+      kernel_params.block_size.c = kernel_params.work_group_size.x / 4;
     }
     kernel_params.src_depth_loop_size = 4;
     if (conv_params.Is8Bit()) {
-      kernel_params.block_size = int4(1, 1, 1, 12);
+      kernel_params.block_size = BHWDC(1, 1, 1, 1, 12);
       if (task_size_per_cu < 256.0) {
-        kernel_params.block_size.w = 4;
+        kernel_params.block_size.c = 4;
       }
       if (task_size_per_cu < 64.0) {
         dst_slices_per_thread = 2;
@@ -2322,11 +2529,15 @@ ConvGeneric::KernelParams GetKernelParamsIntel(
           kernel_params.linear_spatial ? int3(16, 8, 1) : int3(16, 1, 8);
     }
     if (conv_params.Is4Bit()) {
-      kernel_params.block_size = int4(1, 1, 1, 12);
+      kernel_params.block_size = BHWDC(1, 1, 1, 1, 12);
       kernel_params.src_depth_loop_size = 2;
       kernel_params.work_group_launch_order = int3(0, 1, 2);
       kernel_params.work_group_size =
           kernel_params.linear_spatial ? int3(16, 8, 1) : int3(16, 1, 8);
+    }
+    if (kernel_params.block_size.c % 2 == 0) {
+      kernel_params.accumulator_type =
+          ConvGeneric::KernelParams::AccumulatorType::kVec8;
     }
     return kernel_params;
   }
@@ -2339,7 +2550,7 @@ ConvGeneric::KernelParams GetKernelParamsIntel(
     kernel_params.work_group_launch_order = int3(0, 1, 2);
     kernel_params.fixed_work_group_size = true;
   }
-  kernel_params.block_size = int4(1, 1, 1, 4);
+  kernel_params.block_size = BHWDC(1, 1, 1, 1, 4);
   kernel_params.src_depth_loop_size = 1;
   kernel_params.weights_upload_type =
       ConvGeneric::WeightsUploadType::kLocalMemory;
@@ -2353,7 +2564,7 @@ ConvGeneric::KernelParams GetKernelParamsIntel(
     const double task_size_per_cu = task_size / cu_count;
     if ((gpu_info.IsApiOpenCl() || gpu_info.IsApiMetal() ||
          gpu_info.IsApiWebGpu()) &&
-        conv_params.precision == CalculationsPrecision::F16 &&
+        conv_params.precision == CalculationsPrecision::kF16 &&
         conv_params.IsTrivialKernelSize() && task_size_per_cu >= 1024.0) {
       max_dst_slices_per_thread = 8;
     }
@@ -2383,53 +2594,53 @@ ConvGeneric::KernelParams GetKernelParamsIntel(
   }
   if ((conv_params.dst_slices % 8 == 0 || conv_params.dst_slices >= 64) &&
       max_dst_slices_per_thread >= 8) {
-    kernel_params.block_size.w = 8;
+    kernel_params.block_size.c = 8;
   } else if ((conv_params.dst_slices % 4 == 0 || conv_params.dst_slices >= 8) &&
              max_dst_slices_per_thread >= 4) {
-    kernel_params.block_size.w = 4;
+    kernel_params.block_size.c = 4;
   } else if ((conv_params.dst_slices % 2 == 0 || conv_params.dst_slices >= 4) &&
              max_dst_slices_per_thread >= 2) {
-    kernel_params.block_size.w = 2;
+    kernel_params.block_size.c = 2;
   } else {
-    kernel_params.block_size.w =
+    kernel_params.block_size.c =
         std::min(max_dst_slices_per_thread, conv_params.dst_slices);
   }
-  if (conv_params.src_slices % 2 == 0 && kernel_params.block_size.w <= 4) {
+  if (conv_params.src_slices % 2 == 0 && kernel_params.block_size.c <= 4) {
     kernel_params.src_depth_loop_size = 2;
   }
-  if (conv_params.src_slices % 4 == 0 && kernel_params.block_size.w <= 2) {
+  if (conv_params.src_slices % 4 == 0 && kernel_params.block_size.c <= 2) {
     kernel_params.src_depth_loop_size = 4;
   }
   if (gpu_info.IsApiMetal() &&
-      conv_params.precision != CalculationsPrecision::F32_F16 &&
+      conv_params.precision != CalculationsPrecision::kF32F16 &&
       gpu_info.SupportsExtension("ucl_wave_memory")) {
     kernel_params.weights_upload_type =
         ConvGeneric::WeightsUploadType::kWaveMemory;
-    kernel_params.simd_sizes = {8, 16};
+    kernel_params.wave_sizes = {8, 16};
   }
   if (gpu_info.IsApiOpenCl() && gpu_info.opencl_info.IsCLVK() &&
-      conv_params.precision != CalculationsPrecision::F32_F16 &&
+      conv_params.precision != CalculationsPrecision::kF32F16 &&
       gpu_info.SupportsExtension("ucl_wave_memory")) {
     // for CLVK it will work because of specific driver using subgroup
     // size 16
     kernel_params.weights_upload_type =
         ConvGeneric::WeightsUploadType::kWaveMemory;
-    kernel_params.simd_sizes = {16};
+    kernel_params.wave_sizes = {16};
   }
   if (gpu_info.IsApiOpenCl() && !gpu_info.opencl_info.IsCLVK() &&
-      conv_params.precision != CalculationsPrecision::F32_F16 &&
+      conv_params.precision != CalculationsPrecision::kF32F16 &&
       gpu_info.SupportsExtension("ucl_wave_memory")) {
-    if (conv_params.precision == CalculationsPrecision::F16 &&
+    if (conv_params.precision == CalculationsPrecision::kF16 &&
         conv_params.IsTrivialKernelSize() && !conv_params.Is8Bit() &&
         gpu_info.SupportsSubGroupWithSize(32) &&
         kernel_params.work_group_size.x >= 32) {
       kernel_params.weights_upload_type =
           ConvGeneric::WeightsUploadType::kWaveMemory;
-      kernel_params.simd_sizes = {32};
+      kernel_params.wave_sizes = {32};
     } else if (gpu_info.SupportsSubGroupWithSize(16)) {
       kernel_params.weights_upload_type =
           ConvGeneric::WeightsUploadType::kWaveMemory;
-      kernel_params.simd_sizes = {16};
+      kernel_params.wave_sizes = {16};
     } else {
       // no support of subgroup size control
       // only smallest subgroup size (8) can be used safely, otherwise
@@ -2440,16 +2651,16 @@ ConvGeneric::KernelParams GetKernelParamsIntel(
     }
   }
   if (gpu_info.IsApiWebGpu() && gpu_info.SupportsExtension("ucl_wave_memory") &&
-      (conv_params.precision == CalculationsPrecision::F32 ||
-       (conv_params.precision == CalculationsPrecision::F16 &&
+      (conv_params.precision == CalculationsPrecision::kF32 ||
+       (conv_params.precision == CalculationsPrecision::kF16 &&
         gpu_info.webgpu_info.supports_fp16))) {
     kernel_params.weights_upload_type =
         ConvGeneric::WeightsUploadType::kWaveMemory;
     // simd size is determined in the shader.
-    kernel_params.simd_sizes.clear();
+    kernel_params.wave_sizes.clear();
     for (unsigned int simd_size = gpu_info.webgpu_info.min_subgroup_size;
          simd_size <= gpu_info.webgpu_info.max_subgroup_size; simd_size *= 2) {
-      kernel_params.simd_sizes.push_back(simd_size);
+      kernel_params.wave_sizes.push_back(simd_size);
     }
     kernel_params.work_group_size.x =
         std::max(kernel_params.work_group_size.x,
@@ -2462,17 +2673,17 @@ ConvGeneric::KernelParams GetKernelParamsIntel(
   }
   if (conv_params.IsSrcPackedC16()) {
     kernel_params.src_depth_loop_size = 4;
-    kernel_params.block_size.x = 1;
-    kernel_params.block_size.y = 1;
-    kernel_params.block_size.z = 1;
+    kernel_params.block_size.w = 1;
+    kernel_params.block_size.h = 1;
+    kernel_params.block_size.d = 1;
     if (max_dst_slices_per_thread == 8) {
-      kernel_params.block_size.w = 12;
+      kernel_params.block_size.c = 12;
     } else if (max_dst_slices_per_thread == 4) {
-      kernel_params.block_size.w = 6;
+      kernel_params.block_size.c = 6;
     } else if (max_dst_slices_per_thread == 2) {
-      kernel_params.block_size.w = 2;
+      kernel_params.block_size.c = 2;
     } else {
-      kernel_params.block_size.w = 1;
+      kernel_params.block_size.c = 1;
     }
     kernel_params.work_group_size = int3(128, 2, 1);
     kernel_params.work_group_launch_order = int3(1, 0, 2);
@@ -2486,7 +2697,7 @@ ConvGeneric::KernelParams GetKernelParamsNvidia(
   ConvGeneric::KernelParams kernel_params;
   kernel_params.linear_spatial = false;
   kernel_params.linear_all = false;
-  kernel_params.block_size = int4(1, 1, 1, 1);
+  kernel_params.block_size = BHWDC(1, 1, 1, 1, 1);
 
   if (conv_params.different_weights_for_height) {
     kernel_params.work_group_size = int3(32, 1, 1);
@@ -2498,44 +2709,44 @@ ConvGeneric::KernelParams GetKernelParamsNvidia(
     kernel_params.work_group_launch_order = int3(1, 0, 2);
     kernel_params.fixed_work_group_size = true;
   }
-  kernel_params.block_size = int4(2, 1, 1, 4);
+  kernel_params.block_size = BHWDC(1, 1, 2, 1, 4);
   kernel_params.src_depth_loop_size = 1;
   kernel_params.weights_upload_type =
       ConvGeneric::WeightsUploadType::kLocalMemory;
   if (conv_params.dst_slices % 4 == 0 || conv_params.dst_slices >= 8) {
-    kernel_params.block_size.w = 4;
+    kernel_params.block_size.c = 4;
   } else if (conv_params.dst_slices % 2 == 0 || conv_params.dst_slices >= 4) {
-    kernel_params.block_size.w = 2;
+    kernel_params.block_size.c = 2;
   } else {
-    kernel_params.block_size.w = conv_params.dst_slices;
+    kernel_params.block_size.c = conv_params.dst_slices;
   }
   {
     int task_size =
         dst_shape.w * dst_shape.b * dst_shape.h * conv_params.dst_slices;
     float task_size_per_cu =
         static_cast<float>(task_size) / gpu_info.GetComputeUnitsCount();
-    int block_size = kernel_params.block_size.x * kernel_params.block_size.y *
-                     kernel_params.block_size.w;
+    int block_size = kernel_params.block_size.w * kernel_params.block_size.h *
+                     kernel_params.block_size.c;
     float threads_per_cu = task_size_per_cu / block_size;
     float warps_per_cu = threads_per_cu / 32 /*warp_size*/;
     if (warps_per_cu < 8.0f) {
-      kernel_params.block_size.x = 1;
+      kernel_params.block_size.w = 1;
     }
-    if (warps_per_cu < 4.0f && kernel_params.block_size.w >= 4) {
-      kernel_params.block_size.w /= 2;
+    if (warps_per_cu < 4.0f && kernel_params.block_size.c >= 4) {
+      kernel_params.block_size.c /= 2;
     }
-    if (warps_per_cu < 2.0f && kernel_params.block_size.w >= 2) {
-      kernel_params.block_size.w /= 2;
+    if (warps_per_cu < 2.0f && kernel_params.block_size.c >= 2) {
+      kernel_params.block_size.c /= 2;
     }
   }
   if (conv_params.src_slices % 2 == 0) {
     kernel_params.src_depth_loop_size = 2;
   }
-  if (conv_params.src_slices % 4 == 0 && kernel_params.block_size.w <= 2) {
+  if (conv_params.src_slices % 4 == 0 && kernel_params.block_size.c <= 2) {
     kernel_params.src_depth_loop_size = 4;
   }
   if (conv_params.Is8Bit()) {
-    kernel_params.block_size = int4(4, 1, 1, 2);
+    kernel_params.block_size = BHWDC(1, 1, 4, 1, 2);
     if (conv_params.src_slices % 4 == 0) {
       kernel_params.src_depth_loop_size = 4;
     } else if (conv_params.src_slices % 2 == 0) {
@@ -2553,7 +2764,7 @@ ConvGeneric::KernelParams GetKernelParamsPowerVRDXT(
   ConvGeneric::KernelParams kernel_params;
   kernel_params.linear_spatial = !conv_params.different_weights_for_height;
   kernel_params.linear_all = false;
-  kernel_params.block_size = int4(1, 1, 1, 1);
+  kernel_params.block_size = BHWDC(1, 1, 1, 1, 1);
   kernel_params.src_depth_loop_size = 1;
   kernel_params.work_group_size = int3(128, 1, 1);
   kernel_params.fixed_work_group_size = true;
@@ -2561,22 +2772,22 @@ ConvGeneric::KernelParams GetKernelParamsPowerVRDXT(
       gpu_info.SupportsExtension("ucl_wave_memory")
           ? ConvGeneric::WeightsUploadType::kWaveMemory
           : ConvGeneric::WeightsUploadType::kLocalMemory;
-  kernel_params.simd_sizes = {128};
+  kernel_params.wave_sizes = {128};
 
   bool slices_first = true;
   if (conv_params.Is8Bit()) {
     if (conv_params.IsSrcPackedW4C4()) {
-      kernel_params.block_size = int4(4, 1, 1, 2);
+      kernel_params.block_size = BHWDC(1, 1, 4, 1, 2);
       kernel_params.src_depth_loop_size =
           conv_params.src_slices % 4 == 0 ? 4 : 2;
       if (conv_params.src_slices % 2 != 0) {
         kernel_params.src_depth_loop_size = 1;
       }
     } else if (conv_params.IsSrcPackedC16()) {
-      kernel_params.block_size = int4(1, 1, 1, 4);
+      kernel_params.block_size = BHWDC(1, 1, 1, 1, 4);
       kernel_params.src_depth_loop_size = 4;
     } else {
-      kernel_params.block_size = int4(2, 1, 1, 4);
+      kernel_params.block_size = BHWDC(1, 1, 2, 1, 4);
       kernel_params.src_depth_loop_size = 1;
       kernel_params.weights_upload_type =
           ConvGeneric::WeightsUploadType::kGlobalMemory;
@@ -2597,33 +2808,33 @@ ConvGeneric::KernelParams GetKernelParamsPowerVRDXT(
         !conv_params.different_weights_for_height) {
       spatial_max_size = 4;
     }
-    kernel_params.block_size = int4(1, 1, 1, 1);
-    std::vector<int4> block_sizes;
+    kernel_params.block_size = BHWDC(1, 1, 1, 1, 1);
+    std::vector<BHWDC> block_sizes;
     if (spatial_max_size >= 4) {
-      block_sizes.push_back(int4(1, 4, 1, 2));
+      block_sizes.push_back(BHWDC(1, 4, 1, 1, 2));
     }
     if (spatial_max_size >= 2) {
-      block_sizes.push_back(int4(1, 2, 1, 2));
-      block_sizes.push_back(int4(1, 2, 1, 1));
+      block_sizes.push_back(BHWDC(1, 2, 1, 1, 2));
+      block_sizes.push_back(BHWDC(1, 2, 1, 1, 1));
     }
-    block_sizes.push_back(int4(1, 1, 1, 1));
+    block_sizes.push_back(BHWDC(1, 1, 1, 1, 1));
     for (auto& block_size : block_sizes) {
       if (conv_params.different_weights_for_height) {
-        block_size.x = block_size.y;
-        block_size.y = 1;
+        block_size.w = block_size.h;
+        block_size.h = 1;
       }
-      if (dst_shape.h % block_size.y != 0) {
-        if (block_size.y == 4 && dst_shape.h % 2 == 0) {
-          block_size.x = 2;
-          block_size.y = 2;
+      if (dst_shape.h % block_size.h != 0) {
+        if (block_size.h == 4 && dst_shape.h % 2 == 0) {
+          block_size.w = 2;
+          block_size.h = 2;
         } else {
-          block_size.x = block_size.y;
-          block_size.y = 1;
+          block_size.w = block_size.h;
+          block_size.h = 1;
         }
       }
     }
     for (const auto& block_size : block_sizes) {
-      if (block_size.w >= conv_params.dst_slices * 2) {
+      if (block_size.c >= conv_params.dst_slices * 2) {
         continue;
       }
       const int wg_count =
@@ -2637,38 +2848,38 @@ ConvGeneric::KernelParams GetKernelParamsPowerVRDXT(
     }
     kernel_params.src_depth_loop_size = conv_params.src_slices % 2 == 0 ? 2 : 1;
     if (!conv_params.src_desc.IsLinear() &&
-        !conv_params.src_desc.HasAxis(Axis::DEPTH) &&
+        !conv_params.src_desc.HasAxis(Axis::kDepth) &&
         (conv_params.kernel_size.x != 1 || conv_params.kernel_size.y != 1)) {
       kernel_params.src_depth_loop_size = 1;
       kernel_params.slices_loop_first = false;
       if (!conv_params.IsXKernelIs1()) {
         kernel_params.unroll_x_loop = true;
       }
-      kernel_params.block_size = int4(1, 4, 1, 2);
+      kernel_params.block_size = BHWDC(1, 4, 1, 1, 2);
       if (conv_params.stride.y != 1 || conv_params.stride.x != 1) {
-        kernel_params.block_size = int4(1, 2, 1, 4);
+        kernel_params.block_size = BHWDC(1, 2, 1, 1, 4);
       }
       if (conv_params.dst_slices == 1) {
-        kernel_params.block_size = int4(1, 4, 1, 1);
+        kernel_params.block_size = BHWDC(1, 4, 1, 1, 1);
       }
       if (conv_params.kernel_size.x >= 4) {
-        kernel_params.block_size.y = 2;
+        kernel_params.block_size.h = 2;
       }
       if (conv_params.kernel_size.x >= 8) {
-        kernel_params.block_size.y = 1;
+        kernel_params.block_size.h = 1;
       }
       if (spatial_max_size == 1) {
-        kernel_params.block_size = int4(1, 1, 1, 4);
+        kernel_params.block_size = BHWDC(1, 1, 1, 1, 4);
       }
     }
   }
-  // TODO(sorokin): try to find more generic solution.
+  // TODO: try to find more generic solution.
   // For winograd convs with sizes(Stable Diffusion):
   //   BHWC(2, 36, 64, 640) -> BHWC(2, 36, 64, 640);
   //   BHWC(2, 36, 16, 1280) -> BHWC(2, 36, 16, 1280);
   if (conv_params.different_weights_for_height) {
     if (dst_shape.b * dst_shape.w <= 128) {
-      kernel_params.block_size = int4(8, 1, 1, 1);
+      kernel_params.block_size = BHWDC(1, 1, 8, 1, 1);
       kernel_params.src_depth_loop_size = 1;
       kernel_params.weights_upload_type =
           ConvGeneric::WeightsUploadType::kGlobalMemory;
@@ -2676,7 +2887,7 @@ ConvGeneric::KernelParams GetKernelParamsPowerVRDXT(
       kernel_params.work_group_size = int3(16, 1, 16);
     }
     if (dst_shape.b * dst_shape.w <= 32) {
-      kernel_params.block_size = int4(8, 1, 1, 1);
+      kernel_params.block_size = BHWDC(1, 1, 8, 1, 1);
       kernel_params.src_depth_loop_size = 1;
       kernel_params.weights_upload_type =
           ConvGeneric::WeightsUploadType::kTexturesX4;
@@ -2720,17 +2931,17 @@ ConvGeneric::KernelParams GetKernelParamsImgMatMul(
   }
   kernel_params.work_group_launch_order =
       kernel_params.linear_spatial ? int3(1, 0, 2) : int3(2, 0, 1);
-  kernel_params.block_size = int4(1, 1, 1, 2);
+  kernel_params.block_size = BHWDC(1, 1, 1, 1, 2);
   kernel_params.src_depth_loop_size = 1;
   if (conv_params.src_slices % 2 == 0) {
     kernel_params.src_depth_loop_size = 2;
   }
   if (conv_params.dst_slices > 32) {
-    kernel_params.block_size = int4(1, 1, 1, 4);
+    kernel_params.block_size = BHWDC(1, 1, 1, 1, 4);
   }
 
   if (!conv_params.src_desc.IsLinear() &&
-      !conv_params.src_desc.HasAxis(Axis::DEPTH) &&
+      !conv_params.src_desc.HasAxis(Axis::kDepth) &&
       (conv_params.kernel_size.x != 1 || conv_params.kernel_size.y != 1)) {
     kernel_params.src_depth_loop_size = 1;
     kernel_params.slices_loop_first = false;
@@ -2747,7 +2958,7 @@ ConvGeneric::KernelParams GetKernelParamsPowerVR(
   ConvGeneric::KernelParams kernel_params;
   kernel_params.linear_spatial = false;
   kernel_params.linear_all = false;
-  kernel_params.block_size = int4(1, 1, 1, 1);
+  kernel_params.block_size = BHWDC(1, 1, 1, 1, 1);
 
   bool slices_first = !gpu_info.powervr_info.IsImgBxx();
   kernel_params.linear_spatial = !conv_params.different_weights_for_height;
@@ -2755,11 +2966,11 @@ ConvGeneric::KernelParams GetKernelParamsPowerVR(
       gpu_info.powervr_info.gpu_version >= PowerVRGpu::kBXE ? 128 : 32;
   kernel_params.work_group_size = int3(wg_size, 1, 1);
   kernel_params.fixed_work_group_size = true;
-  kernel_params.block_size = int4(1, 1, 1, 4);
+  kernel_params.block_size = BHWDC(1, 1, 1, 1, 4);
   kernel_params.src_depth_loop_size = 1;
   if (!gpu_info.IsApiOpenCl() ||
       (gpu_info.IsApiOpenCl() && gpu_info.opencl_info.dedicated_local_memory)) {
-    if (conv_params.precision == CalculationsPrecision::F32_F16 ||
+    if (conv_params.precision == CalculationsPrecision::kF32F16 ||
         !gpu_info.IsApiOpenCl()) {
       kernel_params.weights_upload_type =
           ConvGeneric::WeightsUploadType::kLocalMemory;
@@ -2772,26 +2983,26 @@ ConvGeneric::KernelParams GetKernelParamsPowerVR(
         ConvGeneric::WeightsUploadType::kGlobalMemory;
   }
   if (conv_params.dst_slices % 8 == 0 || conv_params.dst_slices >= 32) {
-    kernel_params.block_size.w = 8;
+    kernel_params.block_size.c = 8;
   } else if (conv_params.dst_slices % 4 == 0 || conv_params.dst_slices >= 8) {
-    kernel_params.block_size.w = 4;
+    kernel_params.block_size.c = 4;
   } else if (conv_params.dst_slices % 2 == 0 || conv_params.dst_slices >= 4) {
-    kernel_params.block_size.w = 2;
+    kernel_params.block_size.c = 2;
   } else {
-    kernel_params.block_size.w = conv_params.dst_slices;
+    kernel_params.block_size.c = conv_params.dst_slices;
   }
-  if (conv_params.precision == CalculationsPrecision::F32 &&
+  if (conv_params.precision == CalculationsPrecision::kF32 &&
       gpu_info.powervr_info.gpu_version >= PowerVRGpu::kBXE) {
-    kernel_params.block_size.w = std::min(4, kernel_params.block_size.w);
+    kernel_params.block_size.c = std::min(4, kernel_params.block_size.c);
   }
-  if (conv_params.precision == CalculationsPrecision::F16 ||
-      (conv_params.precision == CalculationsPrecision::F32_F16 &&
+  if (conv_params.precision == CalculationsPrecision::kF16 ||
+      (conv_params.precision == CalculationsPrecision::kF32F16 &&
        gpu_info.powervr_info.IsImgBxx())) {
-    kernel_params.block_size.w = std::min(4, kernel_params.block_size.w);
-    kernel_params.block_size.x = 2;
+    kernel_params.block_size.c = std::min(4, kernel_params.block_size.c);
+    kernel_params.block_size.w = 2;
     const int block_total_size =
-        kernel_params.block_size.x * kernel_params.block_size.y *
-        kernel_params.block_size.z * kernel_params.block_size.w;
+        kernel_params.block_size.w * kernel_params.block_size.h *
+        kernel_params.block_size.d * kernel_params.block_size.c;
     const int max_src_depth_loop_size =
         (gpu_info.powervr_info.IsImgBxx() ? 8 : 16) / block_total_size;
     if (conv_params.src_slices % 2 == 0) {
@@ -2829,20 +3040,20 @@ ConvGeneric::KernelParams GetKernelParamsPowerVR(
     kernel_params.weights_upload_type = gpu_info.IsApiOpenCl()
             ? ConvGeneric::WeightsUploadType::kLocalMemoryWGLoad
             : ConvGeneric::WeightsUploadType::kLocalMemory;
-    kernel_params.block_size = int4(1, 1, 1, 4);
+    kernel_params.block_size = BHWDC(1, 1, 1, 1, 4);
     kernel_params.src_depth_loop_size = 1;
     if (conv_params.src_slices % 2 == 0) {
       kernel_params.src_depth_loop_size = 2;
     }
     if (conv_params.src_slices % 4 == 0 &&
-        conv_params.precision == CalculationsPrecision::F16) {
+        conv_params.precision == CalculationsPrecision::kF16) {
       kernel_params.src_depth_loop_size = 4;
     }
     if (conv_params.IsSrcPackedC16()) {
       kernel_params.src_depth_loop_size = 4;
     }
     if (!conv_params.src_desc.IsLinear() &&
-        !conv_params.src_desc.HasAxis(Axis::DEPTH) &&
+        !conv_params.src_desc.HasAxis(Axis::kDepth) &&
         (conv_params.kernel_size.x != 1 || conv_params.kernel_size.y != 1)) {
       kernel_params.src_depth_loop_size = 1;
       kernel_params.slices_loop_first = false;
@@ -2866,7 +3077,7 @@ ConvGeneric::KernelParams GetKernelParamsAMD(
   ConvGeneric::KernelParams kernel_params;
   kernel_params.linear_spatial = false;
   kernel_params.linear_all = false;
-  kernel_params.block_size = int4(1, 1, 1, 1);
+  kernel_params.block_size = BHWDC(1, 1, 1, 1, 1);
 
   kernel_params.work_group_size = int3(8, 4, 1);
   kernel_params.work_group_launch_order = int3(0, 1, 2);
@@ -2880,50 +3091,50 @@ ConvGeneric::KernelParams GetKernelParamsAMD(
         ConvGeneric::WeightsUploadType::kGlobalMemory;
   }
   if (conv_params.dst_slices % 4 == 0 || conv_params.dst_slices >= 8) {
-    kernel_params.block_size = int4(2, 2, 1, 4);
+    kernel_params.block_size = BHWDC(1, 2, 2, 1, 4);
   } else if (conv_params.dst_slices % 2 == 0 || conv_params.dst_slices >= 4) {
-    kernel_params.block_size = int4(4, 2, 1, 2);
+    kernel_params.block_size = BHWDC(1, 2, 4, 1, 2);
   } else {
-    kernel_params.block_size = int4(4, 4, 1, 1);
+    kernel_params.block_size = BHWDC(1, 4, 4, 1, 1);
   }
-  auto reduce_block_size_wzyx = [](int4* block_size) {
-    if (block_size->w % 2 == 0) {
+  auto reduce_block_size_cdhw = [](BHWDC* block_size) {
+    if (block_size->c % 2 == 0) {
+      block_size->c /= 2;
+    } else if (block_size->d % 2 == 0) {
+      block_size->d /= 2;
+    } else if (block_size->h % 2 == 0) {
+      block_size->h /= 2;
+    } else if (block_size->w % 2 == 0) {
       block_size->w /= 2;
-    } else if (block_size->z % 2 == 0) {
-      block_size->z /= 2;
-    } else if (block_size->y % 2 == 0) {
-      block_size->y /= 2;
-    } else if (block_size->x % 2 == 0) {
-      block_size->x /= 2;
     }
   };
-  if (conv_params.precision != CalculationsPrecision::F16) {
-    reduce_block_size_wzyx(&kernel_params.block_size);
+  if (conv_params.precision != CalculationsPrecision::kF16) {
+    reduce_block_size_cdhw(&kernel_params.block_size);
   }
   {
     int task_size =
         dst_shape.w * dst_shape.b * dst_shape.h * conv_params.dst_slices;
     float task_size_per_cu =
         static_cast<float>(task_size) / gpu_info.GetComputeUnitsCount();
-    int block_size = kernel_params.block_size.x * kernel_params.block_size.y *
-                     kernel_params.block_size.w;
+    int block_size = kernel_params.block_size.w * kernel_params.block_size.h *
+                     kernel_params.block_size.c;
     float threads_per_cu = task_size_per_cu / block_size;
     float warps_per_cu = threads_per_cu / 64;
     if (warps_per_cu < 4.0f) {
-      reduce_block_size_wzyx(&kernel_params.block_size);
+      reduce_block_size_cdhw(&kernel_params.block_size);
     }
     if (warps_per_cu < 2.0f) {
-      reduce_block_size_wzyx(&kernel_params.block_size);
+      reduce_block_size_cdhw(&kernel_params.block_size);
     }
     if (warps_per_cu < 1.0f) {
-      reduce_block_size_wzyx(&kernel_params.block_size);
+      reduce_block_size_cdhw(&kernel_params.block_size);
     }
     if (warps_per_cu < 0.5f) {
-      reduce_block_size_wzyx(&kernel_params.block_size);
+      reduce_block_size_cdhw(&kernel_params.block_size);
     }
   }
-  int block_size = kernel_params.block_size.x * kernel_params.block_size.y *
-                   kernel_params.block_size.w;
+  int block_size = kernel_params.block_size.w * kernel_params.block_size.h *
+                   kernel_params.block_size.c;
   kernel_params.src_depth_loop_size = 1;
   if (block_size <= 4 && conv_params.src_slices % 2 == 0) {
     kernel_params.src_depth_loop_size = 2;
@@ -2937,7 +3148,7 @@ ConvGeneric::KernelParams GetKernelParamsAMD(
   if (conv_params.Is8Bit()) {
     kernel_params.fixed_work_group_size = true;
     kernel_params.work_group_size = int3(32, 1, 1);
-    kernel_params.block_size = int4(2, 1, 1, 4);
+    kernel_params.block_size = BHWDC(1, 1, 2, 1, 4);
     kernel_params.src_depth_loop_size = 1;
     kernel_params.work_group_launch_order = int3(2, 0, 1);
     if (conv_params.IsSrcPackedC16()) {
@@ -2953,7 +3164,7 @@ ConvGeneric::KernelParams GetKernelParamsMali(
   ConvGeneric::KernelParams kernel_params;
   kernel_params.linear_spatial = false;
   kernel_params.linear_all = false;
-  kernel_params.block_size = int4(1, 1, 1, 1);
+  kernel_params.block_size = BHWDC(1, 1, 1, 1, 1);
 
   kernel_params.work_group_launch_order = int3(0, 1, 2);
   kernel_params.work_group_size = int3(4, 4, 1);
@@ -2974,44 +3185,44 @@ ConvGeneric::KernelParams GetKernelParamsMali(
   }
   if (block_size == 8) {
     if (conv_params.dst_slices == 1 || conv_params.dst_slices == 3) {
-      kernel_params.block_size = int4(2, 2, 1, 1);
+      kernel_params.block_size = BHWDC(1, 2, 2, 1, 1);
     } else {
-      kernel_params.block_size = int4(2, 2, 1, 2);
+      kernel_params.block_size = BHWDC(1, 2, 2, 1, 2);
     }
   } else if (block_size == 4) {
     if (conv_params.dst_slices == 1 || conv_params.dst_slices == 3) {
-      kernel_params.block_size = int4(2, 2, 1, 1);
+      kernel_params.block_size = BHWDC(1, 2, 2, 1, 1);
     } else {
-      kernel_params.block_size = int4(2, 1, 1, 1);
-      if (conv_params.precision == CalculationsPrecision::F32) {
+      kernel_params.block_size = BHWDC(1, 1, 2, 1, 1);
+      if (conv_params.precision == CalculationsPrecision::kF32) {
         if (dst_shape.h == 1 || conv_params.different_weights_for_height) {
-          kernel_params.block_size.w = 2;
+          kernel_params.block_size.c = 2;
         } else if (gpu_info.mali_info.generation >= MaliInfo::Gen::kValhallV1) {
-          kernel_params.block_size.y = 2;
+          kernel_params.block_size.h = 2;
         } else {
-          kernel_params.block_size.w = 2;
+          kernel_params.block_size.c = 2;
         }
       } else {
-        kernel_params.block_size.w = 2;
+        kernel_params.block_size.c = 2;
       }
     }
   } else if (block_size == 2) {
-    kernel_params.block_size = int4(2, 1, 1, 1);
+    kernel_params.block_size = BHWDC(1, 1, 2, 1, 1);
   } else {
-    kernel_params.block_size = int4(1, 1, 1, 1);
+    kernel_params.block_size = BHWDC(1, 1, 1, 1, 1);
   }
   if (conv_params.dst_slices == 10 && block_size >= 4) {
-    kernel_params.block_size = int4(2, 1, 1, 5);
+    kernel_params.block_size = BHWDC(1, 1, 2, 1, 5);
   }
   if (block_size == 8 && mali_info.IsValhallGen4() &&
-      conv_params.precision == CalculationsPrecision::F16 &&
+      conv_params.precision == CalculationsPrecision::kF16 &&
       (dst_shape.h == 1 || conv_params.different_weights_for_height)) {
-    kernel_params.block_size = int4(2, 1, 1, 2);
+    kernel_params.block_size = BHWDC(1, 1, 2, 1, 2);
   }
   if (conv_params.different_weights_for_height &&
       dst_shape.b * dst_shape.w <= 32 && block_size >= 8) {
     kernel_params.work_group_launch_order = int3(0, 2, 1);
-    kernel_params.block_size = int4(2, 1, 1, 4);
+    kernel_params.block_size = BHWDC(1, 1, 2, 1, 4);
     if (mali_info.IsValhallGen1() || mali_info.IsValhallGen2()) {
       kernel_params.weights_upload_type =
           ConvGeneric::WeightsUploadType::kLocalMemory;
@@ -3020,9 +3231,9 @@ ConvGeneric::KernelParams GetKernelParamsMali(
     }
   }
   if (conv_params.stride.x != 1 && conv_params.src_slices <= 4) {
-    kernel_params.block_size.y =
-        std::min(2, kernel_params.block_size.y * kernel_params.block_size.x);
-    kernel_params.block_size.x = 1;
+    kernel_params.block_size.h =
+        std::min(2, kernel_params.block_size.h * kernel_params.block_size.w);
+    kernel_params.block_size.w = 1;
   }
   kernel_params.src_depth_loop_size = 1;
   if (conv_params.src_slices % 2 == 0 && block_size <= 2 &&
@@ -3031,12 +3242,12 @@ ConvGeneric::KernelParams GetKernelParamsMali(
   }
   if (conv_params.src_slices % 2 == 0 && block_size <= 4 &&
       mali_info.IsValhallGen4() &&
-      conv_params.precision == CalculationsPrecision::F32) {
+      conv_params.precision == CalculationsPrecision::kF32) {
     kernel_params.src_depth_loop_size = 2;
   }
   if (conv_params.src_slices % 4 == 0 && block_size == 1 &&
       !mali_info.IsMidgard() &&
-      conv_params.precision == CalculationsPrecision::F16) {
+      conv_params.precision == CalculationsPrecision::kF16) {
     kernel_params.src_depth_loop_size = 4;
   }
   if (conv_params.Is8Bit()) {
@@ -3046,11 +3257,11 @@ ConvGeneric::KernelParams GetKernelParamsMali(
     kernel_params.weights_upload_type =
         ConvGeneric::WeightsUploadType::kGlobalMemory;
     if (conv_params.IsSrcPackedW4C4()) {
-      kernel_params.block_size = int4(4, 1, 1, 2);
+      kernel_params.block_size = BHWDC(1, 1, 4, 1, 2);
       kernel_params.src_depth_loop_size =
           conv_params.src_slices % 2 == 0 ? 2 : 1;
     } else {
-      kernel_params.block_size = int4(2, 1, 1, 4);
+      kernel_params.block_size = BHWDC(1, 1, 2, 1, 4);
       kernel_params.src_depth_loop_size = 1;
     }
   }
@@ -3063,36 +3274,36 @@ ConvGeneric::KernelParams GetKernelParamsAdreno(
   ConvGeneric::KernelParams kernel_params;
   kernel_params.linear_spatial = false;
   kernel_params.linear_all = false;
-  kernel_params.block_size = int4(1, 1, 1, 1);
+  kernel_params.block_size = BHWDC(1, 1, 1, 1, 1);
 
   {
     const int wave_size = gpu_info.adreno_info.GetWaveSize(
-        conv_params.precision == CalculationsPrecision::F16);
+        conv_params.precision == CalculationsPrecision::kF16);
     const double task_size =
         1.0 * dst_shape.w * dst_shape.b * dst_shape.h * conv_params.dst_slices;
     const double waves =
         task_size / gpu_info.GetComputeUnitsCount() / wave_size;
     if (waves <= 6.0f) {
-      kernel_params.block_size = int4(1, 1, 1, 1);
+      kernel_params.block_size = BHWDC(1, 1, 1, 1, 1);
     } else if (waves <= 12.0f) {
-      kernel_params.block_size = int4(2, 1, 1, 1);
+      kernel_params.block_size = BHWDC(1, 1, 2, 1, 1);
     } else if (waves <= 24.0f) {
-      kernel_params.block_size = int4(2, 1, 1, 2);
+      kernel_params.block_size = BHWDC(1, 1, 2, 1, 2);
     } else {
-      kernel_params.block_size = int4(2, 2, 1, 2);
+      kernel_params.block_size = BHWDC(1, 2, 2, 1, 2);
     }
   }
   if (gpu_info.adreno_info.IsAdreno3xx()) {
-    if (conv_params.precision == CalculationsPrecision::F16) {
-      kernel_params.block_size = int4(2, 2, 1, 2);
-    } else if (conv_params.precision == CalculationsPrecision::F32_F16) {
-      kernel_params.block_size = int4(2, 1, 1, 2);
+    if (conv_params.precision == CalculationsPrecision::kF16) {
+      kernel_params.block_size = BHWDC(1, 2, 2, 1, 2);
+    } else if (conv_params.precision == CalculationsPrecision::kF32F16) {
+      kernel_params.block_size = BHWDC(1, 1, 2, 1, 2);
     } else {  // F32
-      kernel_params.block_size = int4(2, 2, 1, 1);
+      kernel_params.block_size = BHWDC(1, 2, 2, 1, 1);
     }
   }
   if (conv_params.dst_slices == 10 && dst_shape.w >= 1024) {
-    kernel_params.block_size = int4(2, 1, 1, 5);
+    kernel_params.block_size = BHWDC(1, 1, 2, 1, 5);
   }
   kernel_params.work_group_size = int3(8, 2, 1);
   kernel_params.work_group_launch_order = int3(0, 1, 2);
@@ -3104,7 +3315,7 @@ ConvGeneric::KernelParams GetKernelParamsAdreno(
     WeightsDescription weights_desc{
         /*type=*/conv_params.weights_data_type,
         /*layout=*/WeightsLayout::k2DX4I4YIsSpatialIAndXIsOOGroupO4,
-        /*output_group_size=*/kernel_params.block_size.w,
+        /*output_group_size=*/kernel_params.block_size.c,
     };
     OHWDI weights_shape =
         OHWDI(conv_params.dst_slices * 4, conv_params.kernel_size.y,
@@ -3124,7 +3335,7 @@ ConvGeneric::KernelParams GetKernelParamsAdreno(
     kernel_params.weights_upload_type =
         ConvGeneric::WeightsUploadType::kGlobalMemory;
     if (conv_params.IsSrcPackedW4C4()) {
-      kernel_params.block_size = int4(4, 1, 1, 2);
+      kernel_params.block_size = BHWDC(1, 1, 4, 1, 2);
     }
   }
 
@@ -3137,7 +3348,7 @@ ConvGeneric::KernelParams GetKernelParamsBroadcom(
   ConvGeneric::KernelParams kernel_params;
   kernel_params.linear_spatial = false;
   kernel_params.linear_all = false;
-  kernel_params.block_size = int4(1, 1, 1, 1);
+  kernel_params.block_size = BHWDC(1, 1, 1, 1, 1);
 
   kernel_params.work_group_launch_order = int3(0, 1, 2);
   kernel_params.work_group_size = int3(4, 4, 1);
@@ -3150,29 +3361,127 @@ ConvGeneric::KernelParams GetKernelParamsBroadcom(
     block_size = std::min(block_size, 4);
   }
   if (block_size == 2) {
-    kernel_params.block_size = int4(2, 1, 1, 1);
+    kernel_params.block_size = BHWDC(1, 1, 2, 1, 1);
   } else {
-    kernel_params.block_size = int4(1, 1, 1, 1);
+    kernel_params.block_size = BHWDC(1, 1, 1, 1, 1);
   }
   if (conv_params.stride.x != 1 && conv_params.src_slices <= 4) {
-    kernel_params.block_size.y =
-        std::min(2, kernel_params.block_size.y * kernel_params.block_size.x);
-    kernel_params.block_size.x = 1;
+    kernel_params.block_size.h =
+        std::min(2, kernel_params.block_size.h * kernel_params.block_size.w);
+    kernel_params.block_size.w = 1;
   }
   kernel_params.src_depth_loop_size = 1;
   if (conv_params.src_slices % 2 == 0 && block_size <= 2) {
     kernel_params.src_depth_loop_size = 2;
   }
   if (conv_params.src_slices % 2 == 0 && block_size <= 4 &&
-      conv_params.precision == CalculationsPrecision::F32) {
+      conv_params.precision == CalculationsPrecision::kF32) {
     kernel_params.src_depth_loop_size = 2;
   }
   if (conv_params.src_slices % 4 == 0 && block_size == 1 &&
-      conv_params.precision == CalculationsPrecision::F16) {
+      conv_params.precision == CalculationsPrecision::kF16) {
     kernel_params.src_depth_loop_size = 4;
   }
 
   return kernel_params;
+}
+
+WeightsDescription GetWeightsDescription(
+    const GpuInfo& gpu_info, const ConvGeneric::KernelParams& kernel_params,
+    const ConvGeneric::ConvParams& conv_params) {
+  if (kernel_params.weights_upload_type ==
+      ConvGeneric::WeightsUploadType::kIntelWave16MatMul) {
+    WeightsDescription desc;
+    desc.type = conv_params.weights_data_type;
+    desc.layout = WeightsLayout::kCustomGroups;
+    const int i_block_size =
+        16 * (16 / SizeInBitsOf(conv_params.weights_data_type));
+    desc.group_sizes.push_back({Axis::kInputChannels, i_block_size});
+    desc.group_sizes.push_back(
+        {Axis::kOutputChannels, 4 * kernel_params.block_size.c});
+    desc.group_sizes.push_back({Axis::kInputChannels, 0});
+    if (conv_params.kernel_size.x != 1) {
+      desc.group_sizes.push_back({Axis::kWidth, 0});
+    }
+    if (conv_params.kernel_size.y != 1) {
+      desc.group_sizes.push_back({Axis::kHeight, 0});
+    }
+    if (conv_params.different_weights_for_height) {
+      desc.group_sizes.push_back({Axis::kWidth, 0});
+      desc.group_sizes.push_back({Axis::kHeight, 0});
+    }
+    if (conv_params.kernel_size.z != 1) {
+      desc.group_sizes.push_back({Axis::kDepth, 0});
+    }
+    desc.group_sizes.push_back({Axis::kOutputChannels, 0});
+    return desc;
+  }
+
+  WeightsDescription desc;
+  if (kernel_params.AreWeightsBuffer()) {
+    if (gpu_info.IsDotPreferred() || conv_params.Is8Bit()) {
+      desc.layout = WeightsLayout::kOSpatialIOGroupO4I4;
+    } else {
+      desc.layout = WeightsLayout::kOSpatialIOGroupI4O4;
+    }
+  } else {
+    if (gpu_info.IsDotPreferred() || conv_params.Is8Bit()) {
+      desc.layout = WeightsLayout::k2DX4O4YIsSpatialIAndXIsOOGroupI4;
+    } else {
+      desc.layout = WeightsLayout::k2DX4I4YIsSpatialIAndXIsOOGroupO4;
+    }
+  }
+  if (!kernel_params.slices_loop_first) {
+    desc.layout = WeightsLayout::kCustomGroups;
+    desc.group_sizes = {{Axis::kOutputChannels, 4},
+                        {Axis::kInputChannels, 4},
+                        {Axis::kOutputChannels, kernel_params.block_size.c},
+                        {Axis::kWidth, 0},
+                        {Axis::kHeight, 0},
+                        {Axis::kInputChannels, 0},
+                        {Axis::kOutputChannels, 0}};
+  }
+  if (SupportsImgMatMul(gpu_info, conv_params)) {
+    desc.layout = WeightsLayout::kCustomGroups;
+    if (conv_params.precision == CalculationsPrecision::kF32) {
+      desc.group_sizes = {{Axis::kOutputChannels, 2},
+                          {Axis::kInputChannels, 4},
+                          {Axis::kOutputChannels, 2}};
+    } else {
+      desc.group_sizes = {{Axis::kInputChannels, 2},
+                          {Axis::kOutputChannels, 2},
+                          {Axis::kInputChannels, 2},
+                          {Axis::kOutputChannels, 2}};
+    }
+    desc.group_sizes.push_back(
+        {Axis::kOutputChannels, kernel_params.block_size.c});
+    if (kernel_params.slices_loop_first) {
+      desc.group_sizes.push_back({Axis::kInputChannels, 0});
+    }
+    if (conv_params.kernel_size.x != 1) {
+      desc.group_sizes.push_back({Axis::kWidth, 0});
+    }
+    if (conv_params.kernel_size.y != 1) {
+      desc.group_sizes.push_back({Axis::kHeight, 0});
+    }
+    if (conv_params.different_weights_for_height) {
+      desc.group_sizes.push_back({Axis::kWidth, 0});
+      desc.group_sizes.push_back({Axis::kHeight, 0});
+    }
+    if (conv_params.kernel_size.z != 1) {
+      desc.group_sizes.push_back({Axis::kDepth, 0});
+    }
+    if (!kernel_params.slices_loop_first) {
+      desc.group_sizes.push_back({Axis::kInputChannels, 0});
+    }
+    desc.group_sizes.push_back({Axis::kOutputChannels, 0});
+  }
+
+  desc.type = conv_params.weights_data_type;
+  if (desc.layout != WeightsLayout::kCustomGroups) {
+    desc.output_group_size = kernel_params.block_size.c;
+  }
+  return desc;
 }
 
 ConvGeneric::KernelParams GetKernelParams(
@@ -3181,7 +3490,7 @@ ConvGeneric::KernelParams GetKernelParams(
   ConvGeneric::KernelParams kernel_params;
   kernel_params.linear_spatial = false;
   kernel_params.linear_all = false;
-  kernel_params.block_size = int4(1, 1, 1, 1);
+  kernel_params.block_size = BHWDC(1, 1, 1, 1, 1);
 
   if (gpu_info.IsNvidia()) {
     kernel_params = GetKernelParamsNvidia(gpu_info, conv_params, dst_shape);
@@ -3208,7 +3517,7 @@ ConvGeneric::KernelParams GetKernelParams(
   } else if (gpu_info.IsBroadcom()) {
     kernel_params = GetKernelParamsBroadcom(gpu_info, conv_params, dst_shape);
   } else {
-    kernel_params.block_size = int4(1, 1, 1, 4);
+    kernel_params.block_size = BHWDC(1, 1, 1, 1, 4);
     kernel_params.work_group_size = int3(8, 2, 1);
     kernel_params.work_group_launch_order = int3(0, 1, 2);
     kernel_params.fixed_work_group_size = false;
@@ -3216,16 +3525,16 @@ ConvGeneric::KernelParams GetKernelParams(
     kernel_params.weights_upload_type =
         ConvGeneric::WeightsUploadType::kGlobalMemory;
     if (conv_params.dst_slices % 4 == 0 || conv_params.dst_slices >= 8) {
-      kernel_params.block_size.w = 4;
+      kernel_params.block_size.c = 4;
     } else if (conv_params.dst_slices % 2 == 0 || conv_params.dst_slices >= 4) {
-      kernel_params.block_size.w = 2;
+      kernel_params.block_size.c = 2;
     } else {
-      kernel_params.block_size.w = conv_params.dst_slices;
+      kernel_params.block_size.c = conv_params.dst_slices;
     }
     if (conv_params.src_slices % 2 == 0) {
       kernel_params.src_depth_loop_size = 2;
     }
-    if (conv_params.src_slices % 4 == 0 && kernel_params.block_size.w <= 2) {
+    if (conv_params.src_slices % 4 == 0 && kernel_params.block_size.c <= 2) {
       kernel_params.src_depth_loop_size = 4;
     }
   }
@@ -3240,11 +3549,11 @@ ConvGeneric::KernelParams GetKernelParams(
         conv_params.src_slices <= 16 && conv_params.dst_slices <= 32 &&
         (conv_params.src_slices * conv_params.dst_slices <= 128);
     if (thin_conv) {
-      kernel_params.block_size = int4(1, 2, 1, 2);
+      kernel_params.block_size = BHWDC(1, 2, 1, 1, 2);
       kernel_params.weights_upload_type =
           ConvGeneric::WeightsUploadType::kGlobalMemory;
     } else {
-      kernel_params.block_size = int4(1, 1, 1, 2);
+      kernel_params.block_size = BHWDC(1, 1, 1, 1, 2);
       kernel_params.weights_upload_type =
           ConvGeneric::WeightsUploadType::kTexturesX4;
     }
@@ -3252,14 +3561,14 @@ ConvGeneric::KernelParams GetKernelParams(
   if (conv_params.HasGroups()) {
     const int dst_group_size =
         conv_params.dst_slices / conv_params.groups_count;
-    if (dst_group_size % kernel_params.block_size.w != 0) {
-      if (kernel_params.block_size.w == 4 && dst_group_size % 2 == 0) {
-        kernel_params.block_size.w = 2;
+    if (dst_group_size % kernel_params.block_size.c != 0) {
+      if (kernel_params.block_size.c == 4 && dst_group_size % 2 == 0) {
+        kernel_params.block_size.c = 2;
       } else {
-        kernel_params.block_size.w = 1;
+        kernel_params.block_size.c = 1;
       }
       if (gpu_info.IsApple()) {
-        if (kernel_params.block_size.w == conv_params.dst_slices) {
+        if (kernel_params.block_size.c == conv_params.dst_slices) {
           kernel_params.need_dst_loop = false;
         }
         const bool use_filters_constants = !kernel_params.need_dst_loop &&
@@ -3285,78 +3594,46 @@ ConvGeneric::KernelParams GetKernelParams(
     }
   }
   if (dst_shape.w == 1) {
-    kernel_params.block_size.y *= kernel_params.block_size.x;
-    kernel_params.block_size.x = 1;
+    kernel_params.block_size.h *= kernel_params.block_size.w;
+    kernel_params.block_size.w = 1;
   }
   if (dst_shape.h == 1) {
-    kernel_params.block_size.x *= kernel_params.block_size.y;
-    kernel_params.block_size.y = 1;
+    kernel_params.block_size.w *= kernel_params.block_size.h;
+    kernel_params.block_size.h = 1;
   }
   if (conv_params.Is8Bit() && conv_params.IsSrcPackedW4C4()) {
-    if (kernel_params.block_size.x % 4 != 0) {
-      kernel_params.block_size.x = 4;
+    if (kernel_params.block_size.w % 4 != 0) {
+      kernel_params.block_size.w = 4;
     }
-  }
-  if (kernel_params.AreWeightsBuffer()) {
-    if (gpu_info.IsDotPreferred() || conv_params.Is8Bit()) {
-      kernel_params.weights_layout = WeightsLayout::kOSpatialIOGroupO4I4;
-    } else {
-      kernel_params.weights_layout = WeightsLayout::kOSpatialIOGroupI4O4;
-    }
-  } else {
-    if (gpu_info.IsDotPreferred() || conv_params.Is8Bit()) {
-      kernel_params.weights_layout =
-          WeightsLayout::k2DX4O4YIsSpatialIAndXIsOOGroupI4;
-    } else {
-      kernel_params.weights_layout =
-          WeightsLayout::k2DX4I4YIsSpatialIAndXIsOOGroupO4;
-    }
-  }
-  if (!kernel_params.slices_loop_first) {
-    kernel_params.weights_layout = WeightsLayout::kOISpatialOGroupI4O4;
-  }
-  if (SupportsImgMatMul(gpu_info, conv_params)) {
-    kernel_params.weights_layout = WeightsLayout::kCustomGroups;
-    if (conv_params.precision == CalculationsPrecision::F32) {
-      kernel_params.group_sizes = {{Axis::OUTPUT_CHANNELS, 2},
-                                   {Axis::INPUT_CHANNELS, 4},
-                                   {Axis::OUTPUT_CHANNELS, 2}};
-    } else {
-      kernel_params.group_sizes = {{Axis::INPUT_CHANNELS, 2},
-                                   {Axis::OUTPUT_CHANNELS, 2},
-                                   {Axis::INPUT_CHANNELS, 2},
-                                   {Axis::OUTPUT_CHANNELS, 2}};
-    }
-    kernel_params.group_sizes.push_back(
-        {Axis::OUTPUT_CHANNELS, kernel_params.block_size.w});
-    if (kernel_params.slices_loop_first) {
-      kernel_params.group_sizes.push_back({Axis::INPUT_CHANNELS, 0});
-    }
-    if (conv_params.kernel_size.x != 1) {
-      kernel_params.group_sizes.push_back({Axis::WIDTH, 0});
-    }
-    if (conv_params.kernel_size.y != 1) {
-      kernel_params.group_sizes.push_back({Axis::HEIGHT, 0});
-    }
-    if (conv_params.different_weights_for_height) {
-      kernel_params.group_sizes.push_back({Axis::WIDTH, 0});
-      kernel_params.group_sizes.push_back({Axis::HEIGHT, 0});
-    }
-    if (conv_params.kernel_size.z != 1) {
-      kernel_params.group_sizes.push_back({Axis::DEPTH, 0});
-    }
-    if (!kernel_params.slices_loop_first) {
-      kernel_params.group_sizes.push_back({Axis::INPUT_CHANNELS, 0});
-    }
-    kernel_params.group_sizes.push_back({Axis::OUTPUT_CHANNELS, 0});
   }
 
-  // TODO: b/319525628 - Fix kConstantMemory for WebGPU.
+  // TODO: Fix kConstantMemory for WebGPU.
   if (gpu_info.IsApiWebGpu() &&
       kernel_params.weights_upload_type ==
           ConvGeneric::WeightsUploadType::kConstantMemory) {
     kernel_params.weights_upload_type =
         ConvGeneric::WeightsUploadType::kGlobalMemory;
+  }
+
+  if (conv_params.weights_desc.layout != WeightsLayout::kUnknown &&
+      kernel_params.weights_upload_type !=
+          ConvGeneric::WeightsUploadType::kIntelWave16MatMul) {
+    // Add weights conversion optimized parameters here
+    // kernel_params.weights_upload_type =
+    //    ConvGeneric::WeightsUploadType::kLocalMemory;
+    // kernel_params.fixed_work_group_size = true;
+    // kernel_params.linear_all = false;
+
+    // AMD, S22 Exynos, not bad option
+    // kernel_params.block_size = BHWDC(1, 1, 4, 1, 2);
+    // if (kernel_params.linear_spatial) {
+    //   kernel_params.work_group_size = int3(16, 4, 1);
+    //   kernel_params.work_group_launch_order = int3(1, 0, 2);
+    // } else {
+    //   kernel_params.work_group_size = int3(16, 1, 4);
+    //   kernel_params.work_group_launch_order = int3(2, 0, 1);
+    // }
+    // kernel_params.src_depth_loop_size = 8;
   }
 
   if (conv_params.different_weights_for_height) {
@@ -3369,9 +3646,12 @@ ConvGeneric::KernelParams GetKernelParams(
       kernel_params.work_group_size.x *= kernel_params.work_group_size.y;
       kernel_params.work_group_size.y = 1;
     }
-    kernel_params.block_size.x *= kernel_params.block_size.y;
-    kernel_params.block_size.y = 1;
+    kernel_params.block_size.w *= kernel_params.block_size.h;
+    kernel_params.block_size.h = 1;
   }
+
+  kernel_params.weights_desc =
+      GetWeightsDescription(gpu_info, kernel_params, conv_params);
 
   return kernel_params;
 }
@@ -3386,11 +3666,11 @@ void AddWeightsBufferParams(const GpuInfo& gpu_info,
                             const ConvGeneric::ConvParams& conv_params,
                             ConvGeneric::KernelParams& kernel_params) {
   if (conv_params.Is8Bit()) {
-    kernel_params.weights_type = DataType::UINT32;
+    kernel_params.weights_type = DataType::kUint32;
     kernel_params.weights_element_size =
         Bind8BitWeightsAsUint32x4(gpu_info, conv_params) ? 4 : 1;
   } else if (conv_params.Is4Bit()) {
-    kernel_params.weights_type = DataType::UINT32;
+    kernel_params.weights_type = DataType::kUint32;
     kernel_params.weights_element_size = 1;
   } else {
     // float weights
@@ -3417,8 +3697,7 @@ ConvGeneric::ConvParams GetConvParams(const OperationDef& definition,
       int4(attr.padding.prepended.w, attr.padding.prepended.h, 0, 0);
   conv_params.padding_appended =
       int4(attr.padding.appended.w, attr.padding.appended.h, 0, 0);
-  auto weights_shape =
-      std::visit([](const auto& w) { return w.shape; }, attr.weights);
+  const OHWI& weights_shape = attr.GetWeightsShape();
   conv_params.kernel_size = int4(weights_shape.w, weights_shape.h, 1, 1);
   conv_params.dilation = int4(attr.dilations.w, attr.dilations.h, 1, 1);
   conv_params.weights_data_type = DeduceDataTypeFromPrecision(precision);
@@ -3444,7 +3723,7 @@ void ConvGeneric::InitArgs(const OperationDef& definition) {
     args_.AddInt("kernel_size_y", conv_params_.kernel_size.y);
     args_.AddInt("dilation_y", conv_params_.dilation.y);
   }
-  if (definition.src_tensors[0].HasAxis(Axis::DEPTH) &&
+  if (definition.src_tensors[0].HasAxis(Axis::kDepth) &&
       !conv_params_.IsZKernelIs1()) {
     args_.AddInt("stride_z", conv_params_.stride.z);
     args_.AddInt("padding_z", -conv_params_.padding_prepended.z);
@@ -3480,7 +3759,7 @@ void ConvGeneric::GenerateCode(const OperationDef& definition,
 
   ConvCodeGenerator code_gen(gpu_info, conv_params_, kernel_params_);
   code_ = code_gen.GenerateConv();
-  if (conv_params_.precision == CalculationsPrecision::F16 &&
+  if (conv_params_.precision == CalculationsPrecision::kF16 &&
       gpu_info.IsPowerVR()) {
     compiler_options_.push_back(CompilerOptions::kClFastRelaxedMath);
   }
@@ -3494,7 +3773,7 @@ void ConvGeneric::GenerateCode(const OperationDef& definition,
       compiler_options_.push_back(CompilerOptions::kClRegisterAllocation64);
     }
   }
-  if (conv_params_.precision == CalculationsPrecision::F16 &&
+  if (conv_params_.precision == CalculationsPrecision::kF16 &&
       gpu_info.IsIntel()) {
     compiler_options_.push_back(CompilerOptions::kClFastRelaxedMath);
   }
@@ -3509,7 +3788,7 @@ void ConvGeneric::GenerateCode(const OperationDef& definition,
     }
   }
   if (gpu_info.IsAdreno() && gpu_info.adreno_info.IsAdreno3xx() &&
-      conv_params_.precision == CalculationsPrecision::F16 &&
+      conv_params_.precision == CalculationsPrecision::kF16 &&
       conv_params_.IsTrivialKernelSize()) {
     compiler_options_.push_back(CompilerOptions::kAdrenoFullSimd);
   }
@@ -3518,13 +3797,13 @@ void ConvGeneric::GenerateCode(const OperationDef& definition,
 absl::Status ConvGeneric::BindArguments(ArgumentsBinder* args) {
   const int task_size_b = dst_[0]->Batch();
   const int task_size_x =
-      DivideRoundUp(dst_[0]->Width(), kernel_params_.block_size.x);
+      DivideRoundUp(dst_[0]->Width(), kernel_params_.block_size.w);
   const int task_size_y =
-      DivideRoundUp(dst_[0]->Height(), kernel_params_.block_size.y);
+      DivideRoundUp(dst_[0]->Height(), kernel_params_.block_size.h);
   const int task_size_z =
-      DivideRoundUp(dst_[0]->Depth(), kernel_params_.block_size.z);
+      DivideRoundUp(dst_[0]->Depth(), kernel_params_.block_size.d);
   const int task_size_s =
-      DivideRoundUp(dst_[0]->Slices(), kernel_params_.block_size.w);
+      DivideRoundUp(dst_[0]->Slices(), kernel_params_.block_size.c);
   ABSL_RETURN_IF_ERROR(args->SetInt("task_size_b", task_size_b));
   ABSL_RETURN_IF_ERROR(args->SetInt("task_size_x", task_size_x));
   ABSL_RETURN_IF_ERROR(args->SetInt("task_size_y", task_size_y));
@@ -3536,17 +3815,17 @@ absl::Status ConvGeneric::BindArguments(ArgumentsBinder* args) {
 int3 ConvGeneric::GetGridSize() const {
   const int task_size_b = dst_[0]->Batch();
   int task_size_x =
-      DivideRoundUp(dst_[0]->Width(), kernel_params_.block_size.x);
+      DivideRoundUp(dst_[0]->Width(), kernel_params_.block_size.w);
   int task_size_y =
-      DivideRoundUp(dst_[0]->Height(), kernel_params_.block_size.y);
+      DivideRoundUp(dst_[0]->Height(), kernel_params_.block_size.h);
   if (conv_params_.runtime_check.packed_groups.has_value()) {
     task_size_x = conv_params_.runtime_check.packed_groups->max_group_size;
     task_size_y = conv_params_.runtime_check.packed_groups->num_groups;
   }
   const int task_size_z =
-      DivideRoundUp(dst_[0]->Depth(), kernel_params_.block_size.z);
+      DivideRoundUp(dst_[0]->Depth(), kernel_params_.block_size.d);
   const int task_size_s =
-      DivideRoundUp(dst_[0]->Slices(), kernel_params_.block_size.w);
+      DivideRoundUp(dst_[0]->Slices(), kernel_params_.block_size.c);
   int3 wg;
 
   if (kernel_params_.linear_all) {
@@ -3578,7 +3857,7 @@ std::vector<int3> ConvGeneric::GetPossibleKernelWorkGroups(
   if (kernel_params_.weights_upload_type ==
       WeightsUploadType::kIntelWave16MatMul) {
     if (tuning_type == TuningType::kExhaustive) {
-      return GetWorkGroupsXMultipleOf(kernel_params_.simd_sizes[0], gpu_info,
+      return GetWorkGroupsXMultipleOf(kernel_params_.wave_sizes[0], gpu_info,
                                       kernel_info, grid_size_);
     } else {
       return {work_group_size_};
@@ -3598,7 +3877,7 @@ void ConvGeneric::AddRuntimeWeightsDef() {
     AddSrcBuffer("weights", desc);
   } else {
     TensorDescriptor desc{conv_params_.weights_data_type,
-                          TensorStorageType::TEXTURE_2D, Layout::HW};
+                          TensorStorageType::kTexture2D, Layout::kHW};
     for (int i = 0; i < 4; ++i) {
       const std::string name = "weights" + std::to_string(i);
       AddSrcTensor(name, desc);
@@ -3619,28 +3898,6 @@ ConvGeneric CreateConvGeneric(const GpuInfo& gpu_info,
   result.conv_params_.has_bias = !attr.bias.data.empty();
   result.GenerateCode(definition, gpu_info);
   result.UploadWeights(GetFloatWeights(attr));
-  result.UploadBias(gpu_info, attr.bias);
-  return result;
-}
-
-ConvGeneric CreateConvGeneric(const GpuInfo& gpu_info,
-                              const OperationDef& definition,
-                              CalculationsPrecision precision,
-                              const FullyConnectedAttributes& attr,
-                              const BHWC* dst_shape) {
-  ConvGeneric result;
-  result.conv_params_.weights_data_type =
-      DeduceDataTypeFromPrecision(precision);
-  result.conv_params_.src_desc = definition.src_tensors[0];
-  result.conv_params_.precision = precision;
-  result.conv_params_.src_slices = DivideRoundUp(attr.weights.shape.i, 4);
-  result.conv_params_.dst_slices = DivideRoundUp(attr.weights.shape.o, 4);
-  result.conv_params_.weights_desc.layout = WeightsLayout::kUnknown;
-  result.kernel_params_ =
-      GetKernelParams(gpu_info, result.conv_params_, dst_shape);
-  result.conv_params_.has_bias = !attr.bias.data.empty();
-  result.GenerateCode(definition, gpu_info);
-  result.UploadWeights(attr.weights);
   result.UploadBias(gpu_info, attr.bias);
   return result;
 }
@@ -3681,7 +3938,7 @@ bool SupportsConvGeneric(const GpuInfo& gpu_info,
   if (!gpu_info.IsApiOpenCl() || !gpu_info.IsIntel()) {
     return false;
   }
-  if (precision != CalculationsPrecision::F16) {
+  if (precision != CalculationsPrecision::kF16) {
     return false;
   }
   const bool supported_intel_gpu =
@@ -3695,11 +3952,11 @@ bool SupportsConvGeneric(const GpuInfo& gpu_info,
   }
   const int dst_slices = DivideRoundUp(weights.shape.o, 4);
   if (weights.desc.IsLinearLayout()) {
-    const bool supported_type = weights.desc.type == DataType::FLOAT32 ||
-                                weights.desc.type == DataType::FLOAT16 ||
-                                weights.desc.type == DataType::UINT8 ||
-                                weights.desc.type == DataType::UINT4 ||
-                                weights.desc.type == DataType::UINT2;
+    const bool supported_type = weights.desc.type == DataType::kFloat32 ||
+                                weights.desc.type == DataType::kFloat16 ||
+                                weights.desc.type == DataType::kUint8 ||
+                                weights.desc.type == DataType::kUint4 ||
+                                weights.desc.type == DataType::kUint2;
     if (weights.desc.layout == WeightsLayout::kOSpatialIOGroupI4O4 &&
         weights.desc.output_group_size == dst_slices && supported_type) {
       return true;
@@ -3708,15 +3965,15 @@ bool SupportsConvGeneric(const GpuInfo& gpu_info,
   } else {
     if (weights.desc.layout ==
             WeightsLayout::k2DX4I4YIsSpatialIAndXIsOOGroupO4 &&
-        (weights.desc.type == DataType::FLOAT32 ||
-         weights.desc.type == DataType::FLOAT16) &&
+        (weights.desc.type == DataType::kFloat32 ||
+         weights.desc.type == DataType::kFloat16) &&
         weights.desc.output_group_size == 1) {
       return true;
     }
     if (weights.desc.layout == WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4 &&
-        (weights.desc.type == DataType::UINT8 ||
-         weights.desc.type == DataType::UINT4 ||
-         weights.desc.type == DataType::UINT2) &&
+        (weights.desc.type == DataType::kUint8 ||
+         weights.desc.type == DataType::kUint4 ||
+         weights.desc.type == DataType::kUint2) &&
         weights.desc.output_group_size == dst_slices) {
       return true;
     }
@@ -3760,41 +4017,36 @@ ConvGeneric CreateConvGenericExternalWeights(
       buffer_desc.element_size = 16;
     } else {
       // quantized weights
-      buffer_desc.element_type = DataType::UINT32;
+      buffer_desc.element_type = DataType::kUint32;
       buffer_desc.element_size = SizeInBitsOf(weights.desc.type) / 2;
     }
-    buffer_desc.memory_type = MemoryType::GLOBAL;
+    buffer_desc.memory_type = MemoryType::kGlobal;
     result.AddSrcBuffer("weights", buffer_desc);
   } else {
     if (SizeInBitsOf(weights.desc.type) >= 16) {
       // float weights
       // k2DX4I4YIsSpatialIAndXIsOOGroupO4
-      TensorDescriptor desc{weights.desc.type, TensorStorageType::TEXTURE_2D,
-                            Layout::HW};
+      TensorDescriptor desc{weights.desc.type, TensorStorageType::kTexture2D,
+                            Layout::kHW};
       for (int i = 0; i < 4; ++i) {
         const std::string name = "weights" + std::to_string(i);
         result.AddSrcTensor(name, desc);
       }
     } else {
       // quantized weights
-      DataType texture_type = DataType::UINT32;
+      DataType texture_type = DataType::kUint32;
       if (SizeInBitsOf(weights.desc.type) == 4) {
-        texture_type = DataType::UINT16;
+        texture_type = DataType::kUint16;
       } else if (SizeInBitsOf(weights.desc.type) == 2) {
-        texture_type = DataType::UINT8;
+        texture_type = DataType::kUint8;
       }
       TensorDescriptor desc = TensorDescriptor(
-          texture_type, TensorStorageType::TEXTURE_2D, Layout::HW);
+          texture_type, TensorStorageType::kTexture2D, Layout::kHW);
       result.AddSrcTensor("weights", desc);
     }
   }
 
-  if (weights.scale) {
-    result.AddSrcTensor("weights_scale", *weights.scale);
-  }
-  if (weights.zero_point) {
-    result.AddSrcTensor("weights_zero_point", *weights.zero_point);
-  }
+  fc::AddWeightsScaleZeroPointArguments(weights, &result);
 
   if (bias) {
     result.AddSrcTensor("biases", *bias);
@@ -3904,7 +4156,7 @@ bool UseUint8MathForInt8Weights(const GpuInfo& gpu_info) {
 }
 
 void ConvGeneric::UploadWeightsI8AsU8(
-    const Tensor<OHWI, DataType::INT8>& weights) {
+    const Tensor<OHWI, DataType::kInt8>& weights) {
   const auto weights_desc = GetWeightsDescription();
   const int elements_count =
       GetTotalElementsCountForLayout(weights_desc, weights.shape);
@@ -3927,7 +4179,7 @@ void ConvGeneric::UploadWeightsI8AsU8(
     int sub_size = SizeOf(weights_desc.type) * 4 * tex_size.x * tex_size.y;
     for (int i = 0; i < 4; ++i) {
       TensorDescriptor desc = CreateConstantHWVec4TensorDescriptor(
-          weights_desc.type, TensorStorageType::TEXTURE_2D, tex_size.x,
+          weights_desc.type, TensorStorageType::kTexture2D, tex_size.x,
           tex_size.y, weights_data.data() + sub_size * i);
       args_.AddObject("weights" + std::to_string(i),
                       std::make_unique<TensorDescriptor>(std::move(desc)));
@@ -3936,7 +4188,7 @@ void ConvGeneric::UploadWeightsI8AsU8(
 }
 
 void ConvGeneric::UploadWeightsI4(
-    const Tensor<OHWI, DataType::INT8>& weights_i4) {
+    const Tensor<OHWI, DataType::kInt8>& weights_i4) {
   const auto weights_desc = GetWeightsDescription();
   const int elements_count =
       GetTotalElementsCountForLayout(weights_desc, weights_i4.shape);
@@ -3947,7 +4199,7 @@ void ConvGeneric::UploadWeightsI4(
   BufferDescriptor desc;
   desc.element_type = kernel_params_.weights_type;
   desc.element_size = kernel_params_.weights_element_size;
-  desc.memory_type = MemoryType::GLOBAL;
+  desc.memory_type = MemoryType::kGlobal;
   desc.size = weights_data.size();
   desc.data = std::move(weights_data);
   args_.AddObject("weights",
@@ -3957,13 +4209,13 @@ void ConvGeneric::UploadWeightsI4(
 ConvGeneric CreateConvGenericInt8(const GpuInfo& gpu_info,
                                   const OperationDef& definition,
                                   PackedType src_packed_type,
-                                  const Tensor<OHWI, DataType::INT8>& weights,
+                                  const Tensor<OHWI, DataType::kInt8>& weights,
                                   const BHWC* dst_shape) {
   ConvGeneric result = ConvGeneric();
   if (UseUint8MathForInt8Weights(gpu_info)) {
-    result.conv_params_.weights_data_type = DataType::UINT8;
+    result.conv_params_.weights_data_type = DataType::kUint8;
   } else {
-    result.conv_params_.weights_data_type = DataType::INT8;
+    result.conv_params_.weights_data_type = DataType::kInt8;
   }
   result.conv_params_.src_desc = definition.src_tensors[0];
   result.conv_params_.src_packed_type = src_packed_type;
@@ -3989,9 +4241,9 @@ ConvGeneric CreateConvGenericInt8ExternalWeights(const GpuInfo& gpu_info,
                                                  const BHWC* dst_shape) {
   ConvGeneric result = ConvGeneric();
   if (UseUint8MathForInt8Weights(gpu_info)) {
-    result.conv_params_.weights_data_type = DataType::UINT8;
+    result.conv_params_.weights_data_type = DataType::kUint8;
   } else {
-    result.conv_params_.weights_data_type = DataType::INT8;
+    result.conv_params_.weights_data_type = DataType::kInt8;
   }
   result.conv_params_.src_desc = definition.src_tensors[0];
   result.conv_params_.src_packed_type = src_packed_type;
@@ -4030,10 +4282,10 @@ PackedType GetConvGenericInt4SrcType(const GpuInfo& gpu_info,
 
 ConvGeneric CreateConvGenericInt4(const GpuInfo& gpu_info,
                                   const OperationDef& definition,
-                                  const Tensor<OHWI, DataType::INT8>& weights,
+                                  const Tensor<OHWI, DataType::kInt8>& weights,
                                   const BHWC* dst_shape) {
   ConvGeneric result = ConvGeneric();
-  result.conv_params_.weights_data_type = DataType::INT4;
+  result.conv_params_.weights_data_type = DataType::kInt4;
   result.conv_params_.src_desc = definition.src_tensors[0];
   result.conv_params_.src_packed_type = PackedType::kInt4C32;
   result.conv_params_.has_bias = false;
@@ -4052,7 +4304,7 @@ ConvGeneric CreateConvGenericInt4ExternalWeights(const GpuInfo& gpu_info,
                                                  const OHWI& weights_shape,
                                                  const BHWC* dst_shape) {
   ConvGeneric result = ConvGeneric();
-  result.conv_params_.weights_data_type = DataType::INT4;
+  result.conv_params_.weights_data_type = DataType::kInt4;
   result.conv_params_.src_desc = definition.src_tensors[0];
   result.conv_params_.src_packed_type = PackedType::kInt4C32;
   result.conv_params_.has_bias = false;

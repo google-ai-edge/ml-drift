@@ -22,84 +22,84 @@ namespace {
 
 TEST(DataTypeTest, GlslShaderDataTypes) {
   // Float16
-  EXPECT_EQ("float", ToGlslShaderDataType(DataType::FLOAT16));
+  EXPECT_EQ("float", ToGlslShaderDataType(DataType::kFloat16));
   EXPECT_EQ("mediump float",
-            ToGlslShaderDataType(DataType::FLOAT16, 1, /*add_precision*/ true,
+            ToGlslShaderDataType(DataType::kFloat16, 1, /*add_precision*/ true,
                                  /*explicit_fp16 */ false));
   EXPECT_EQ("float16_t",
-            ToGlslShaderDataType(DataType::FLOAT16, 1, /*add_precision*/ false,
+            ToGlslShaderDataType(DataType::kFloat16, 1, /*add_precision*/ false,
                                  /*explicit_fp16 */ true));
   EXPECT_EQ("float16_t",
-            ToGlslShaderDataType(DataType::FLOAT16, 1, /*add_precision*/ true,
+            ToGlslShaderDataType(DataType::kFloat16, 1, /*add_precision*/ true,
                                  /*explicit_fp16 */ true));
 
   // vec4 Float16
-  EXPECT_EQ("vec4", ToGlslShaderDataType(DataType::FLOAT16, 4));
+  EXPECT_EQ("vec4", ToGlslShaderDataType(DataType::kFloat16, 4));
   EXPECT_EQ("mediump vec4",
-            ToGlslShaderDataType(DataType::FLOAT16, 4, /*add_precision*/ true,
+            ToGlslShaderDataType(DataType::kFloat16, 4, /*add_precision*/ true,
                                  /*explicit_fp16 */ false));
   EXPECT_EQ("f16vec4",
-            ToGlslShaderDataType(DataType::FLOAT16, 4, /*add_precision*/ false,
+            ToGlslShaderDataType(DataType::kFloat16, 4, /*add_precision*/ false,
                                  /*explicit_fp16 */ true));
   EXPECT_EQ("f16vec4",
-            ToGlslShaderDataType(DataType::FLOAT16, 4, /*add_precision*/ true,
+            ToGlslShaderDataType(DataType::kFloat16, 4, /*add_precision*/ true,
                                  /*explicit_fp16 */ true));
 
   // Float32
-  EXPECT_EQ("float", ToGlslShaderDataType(DataType::FLOAT32));
-  EXPECT_EQ("highp float",
-            ToGlslShaderDataType(DataType::FLOAT32, 1, /*add_precision*/ true));
-  EXPECT_EQ("float", ToGlslShaderDataType(DataType::FLOAT32, 1,
+  EXPECT_EQ("float", ToGlslShaderDataType(DataType::kFloat32));
+  EXPECT_EQ("highp float", ToGlslShaderDataType(DataType::kFloat32, 1,
+                                                /*add_precision*/ true));
+  EXPECT_EQ("float", ToGlslShaderDataType(DataType::kFloat32, 1,
                                           /*add_precision*/ false));
 
   // vec2 Float32
-  EXPECT_EQ("vec2", ToGlslShaderDataType(DataType::FLOAT32, 2));
-  EXPECT_EQ("highp vec2",
-            ToGlslShaderDataType(DataType::FLOAT32, 2, /*add_precision*/ true));
-  EXPECT_EQ("vec2", ToGlslShaderDataType(DataType::FLOAT32, 2,
+  EXPECT_EQ("vec2", ToGlslShaderDataType(DataType::kFloat32, 2));
+  EXPECT_EQ("highp vec2", ToGlslShaderDataType(DataType::kFloat32, 2,
+                                               /*add_precision*/ true));
+  EXPECT_EQ("vec2", ToGlslShaderDataType(DataType::kFloat32, 2,
                                          /*add_precision*/ false));
 
   // Int
   EXPECT_EQ("int",
-            ToGlslShaderDataType(DataType::INT64, 1, /*add_precision*/ false));
+            ToGlslShaderDataType(DataType::kInt64, 1, /*add_precision*/ false));
   EXPECT_EQ("int",
-            ToGlslShaderDataType(DataType::INT32, 1, /*add_precision*/ false));
+            ToGlslShaderDataType(DataType::kInt32, 1, /*add_precision*/ false));
   EXPECT_EQ("int",
-            ToGlslShaderDataType(DataType::INT16, 1, /*add_precision*/ false));
+            ToGlslShaderDataType(DataType::kInt16, 1, /*add_precision*/ false));
   EXPECT_EQ("int",
-            ToGlslShaderDataType(DataType::INT8, 1, /*add_precision*/ false));
+            ToGlslShaderDataType(DataType::kInt8, 1, /*add_precision*/ false));
   EXPECT_EQ("int",
-            ToGlslShaderDataType(DataType::INT64, 1, /*add_precision*/ true));
+            ToGlslShaderDataType(DataType::kInt64, 1, /*add_precision*/ true));
   EXPECT_EQ("highp int",
-            ToGlslShaderDataType(DataType::INT32, 1, /*add_precision*/ true));
+            ToGlslShaderDataType(DataType::kInt32, 1, /*add_precision*/ true));
   EXPECT_EQ("mediump int",
-            ToGlslShaderDataType(DataType::INT16, 1, /*add_precision*/ true));
+            ToGlslShaderDataType(DataType::kInt16, 1, /*add_precision*/ true));
   EXPECT_EQ("lowp int",
-            ToGlslShaderDataType(DataType::INT8, 1, /*add_precision*/ true));
+            ToGlslShaderDataType(DataType::kInt8, 1, /*add_precision*/ true));
 
   // Uint
+  EXPECT_EQ("uint", ToGlslShaderDataType(DataType::kUint64, 1,
+                                         /*add_precision*/ false));
+  EXPECT_EQ("uint", ToGlslShaderDataType(DataType::kUint32, 1,
+                                         /*add_precision*/ false));
+  EXPECT_EQ("uint", ToGlslShaderDataType(DataType::kUint16, 1,
+                                         /*add_precision*/ false));
   EXPECT_EQ("uint",
-            ToGlslShaderDataType(DataType::UINT64, 1, /*add_precision*/ false));
+            ToGlslShaderDataType(DataType::kUint8, 1, /*add_precision*/ false));
   EXPECT_EQ("uint",
-            ToGlslShaderDataType(DataType::UINT32, 1, /*add_precision*/ false));
-  EXPECT_EQ("uint",
-            ToGlslShaderDataType(DataType::UINT16, 1, /*add_precision*/ false));
-  EXPECT_EQ("uint",
-            ToGlslShaderDataType(DataType::UINT8, 1, /*add_precision*/ false));
-  EXPECT_EQ("uint",
-            ToGlslShaderDataType(DataType::UINT64, 1, /*add_precision*/ true));
+            ToGlslShaderDataType(DataType::kUint64, 1, /*add_precision*/ true));
   EXPECT_EQ("highp uint",
-            ToGlslShaderDataType(DataType::UINT32, 1, /*add_precision*/ true));
+            ToGlslShaderDataType(DataType::kUint32, 1, /*add_precision*/ true));
   EXPECT_EQ("mediump uint",
-            ToGlslShaderDataType(DataType::UINT16, 1, /*add_precision*/ true));
+            ToGlslShaderDataType(DataType::kUint16, 1, /*add_precision*/ true));
   EXPECT_EQ("lowp uint",
-            ToGlslShaderDataType(DataType::UINT8, 1, /*add_precision*/ true));
+            ToGlslShaderDataType(DataType::kUint8, 1, /*add_precision*/ true));
 
-  EXPECT_EQ("bool", ToGlslShaderDataType(DataType::BOOL));
-  EXPECT_EQ("bvec4", ToGlslShaderDataType(DataType::BOOL, 4));
+  EXPECT_EQ("bool", ToGlslShaderDataType(DataType::kBool));
+  EXPECT_EQ("bvec4", ToGlslShaderDataType(DataType::kBool, 4));
   EXPECT_EQ("bool",
-            ToGlslShaderDataType(DataType::BOOL, 1, /*add_precision*/ true));
-  EXPECT_EQ("bool", ToGlslShaderDataType(DataType::BOOL, 1,
+            ToGlslShaderDataType(DataType::kBool, 1, /*add_precision*/ true));
+  EXPECT_EQ("bool", ToGlslShaderDataType(DataType::kBool, 1,
                                          /*add_precision*/ false));
 }
 

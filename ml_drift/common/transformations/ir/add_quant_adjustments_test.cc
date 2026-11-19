@@ -28,12 +28,12 @@ namespace {
 
 TEST(AddQuantAdjustmentsTest, OneNode) {
   IrModel model;
-  IrTensor* input = model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 8));
+  IrTensor* input = model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 8));
   input->quant_params = {.min = 0.0, .max = 1.0, .scale = 0.004};
 
   IrOp* add_node = model.add_op();
-  add_node->name = ToString(OperationType::ADD);
-  Tensor<Linear, DataType::FLOAT32> add_tensor;
+  add_node->name = ToString(OperationType::kAdd);
+  Tensor<Linear, DataType::kFloat32> add_tensor;
   add_tensor.shape = Linear(8);
   add_tensor.data.resize(8);
   ElementwiseAttributes add_attr;
@@ -42,7 +42,7 @@ TEST(AddQuantAdjustmentsTest, OneNode) {
 
   model.AddConsumer(input->id, add_node->id);
 
-  IrTensor* output = model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 8));
+  IrTensor* output = model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 8));
   output->quant_params = {.min = 0.0, .max = 2.0, .scale = 0.004};
   model.SetProducer(output->id, add_node->id);
   model.add_output(output->id);
@@ -59,14 +59,14 @@ TEST(AddQuantAdjustmentsTest, OneNode) {
 
 TEST(AddQuantAdjustmentsTest, GeneralCase) {
   IrModel model;
-  IrTensor* input = model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 8));
+  IrTensor* input = model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 8));
   input->quant_params = {.min = 0.0, .max = 1.0, .scale = 0.004};
   model.add_input(input->id);
 
   // First Add.
   IrOp* add1_node = model.add_op();
-  add1_node->name = ToString(OperationType::ADD);
-  Tensor<Linear, DataType::FLOAT32> add_tensor;
+  add1_node->name = ToString(OperationType::kAdd);
+  Tensor<Linear, DataType::kFloat32> add_tensor;
   add_tensor.shape = Linear(8);
   add_tensor.data.resize(8);
   ElementwiseAttributes add_attr;
@@ -75,7 +75,7 @@ TEST(AddQuantAdjustmentsTest, GeneralCase) {
 
   // QuantizeAndDequantize.
   IrOp* quant_node = model.add_op();
-  quant_node->name = ToString(OperationType::QUANTIZE_AND_DEQUANTIZE);
+  quant_node->name = ToString(OperationType::kQuantizeAndDequantize);
   QuantizeAndDequantizeAttributes quant_attr;
   quant_attr.min = -1.0;
   quant_attr.max = 1.0;
@@ -84,24 +84,24 @@ TEST(AddQuantAdjustmentsTest, GeneralCase) {
 
   // Second Add.
   IrOp* add2_node = model.add_op();
-  add2_node->name = ToString(OperationType::ADD);
+  add2_node->name = ToString(OperationType::kAdd);
   add2_node->attr = add_attr;
 
   // Connections.
   model.AddConsumer(input->id, add1_node->id);
 
-  IrTensor* link1 = model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 8));
+  IrTensor* link1 = model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 8));
   link1->quant_params = {.min = 0.0, .max = 2.0, .scale = 0.008};
   model.SetProducer(link1->id, add1_node->id);
   model.AddConsumer(link1->id, quant_node->id);
   model.AddConsumer(link1->id, add2_node->id);
 
-  IrTensor* link2 = model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 8));
+  IrTensor* link2 = model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 8));
   link2->quant_params = {.min = -1.0, .max = 1.0, .scale = 0.008};
   model.SetProducer(link2->id, quant_node->id);
   model.AddConsumer(link2->id, add2_node->id);
 
-  IrTensor* output = model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 8));
+  IrTensor* output = model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 8));
   output->quant_params = {.min = -1.0, .max = 1.0, .scale = 0.008};
   model.SetProducer(output->id, add2_node->id);
   model.add_output(output->id);
@@ -118,7 +118,7 @@ TEST(AddQuantAdjustmentsTest, GeneralCase) {
   // The new node should be appended at the end (index 3).
   const IrOp* new_qdq_op = model.op(3);
   ASSERT_NE(new_qdq_op, nullptr);
-  EXPECT_EQ(new_qdq_op->name, ToString(OperationType::QUANTIZE_AND_DEQUANTIZE));
+  EXPECT_EQ(new_qdq_op->name, ToString(OperationType::kQuantizeAndDequantize));
 
   auto new_quant_attr =
       std::any_cast<QuantizeAndDequantizeAttributes>(new_qdq_op->attr);

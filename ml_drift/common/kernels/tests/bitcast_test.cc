@@ -43,8 +43,8 @@ class BitcastTest : public Test,
 };
 
 TEST_P(BitcastTest, Grow) {
-  if (!exec_env->IsStorageSupported(src_storage(), DataType::UINT32) ||
-      !exec_env->IsStorageSupported(dst_storage(), DataType::UINT8)) {
+  if (!exec_env->IsStorageSupported(src_storage(), DataType::kUint32) ||
+      !exec_env->IsStorageSupported(dst_storage(), DataType::kUint8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(src_storage())
                  << " to " << ToString(dst_storage());
   }
@@ -52,8 +52,8 @@ TEST_P(BitcastTest, Grow) {
 }
 
 TEST_P(BitcastTest, Shrink) {
-  if (!exec_env->IsStorageSupported(src_storage(), DataType::UINT8) ||
-      !exec_env->IsStorageSupported(dst_storage(), DataType::UINT32)) {
+  if (!exec_env->IsStorageSupported(src_storage(), DataType::kUint8) ||
+      !exec_env->IsStorageSupported(dst_storage(), DataType::kUint32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(src_storage())
                  << " to " << ToString(dst_storage());
   }
@@ -61,8 +61,8 @@ TEST_P(BitcastTest, Shrink) {
 }
 
 TEST_P(BitcastTest, Stable) {
-  if (!exec_env->IsStorageSupported(src_storage(), DataType::FLOAT32) ||
-      !exec_env->IsStorageSupported(dst_storage(), DataType::UINT32)) {
+  if (!exec_env->IsStorageSupported(src_storage(), DataType::kFloat32) ||
+      !exec_env->IsStorageSupported(dst_storage(), DataType::kUint32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(src_storage())
                  << " to " << ToString(dst_storage());
   }
@@ -70,8 +70,8 @@ TEST_P(BitcastTest, Stable) {
 }
 
 TEST_P(BitcastTest, FromBoolToUchar) {
-  if (!exec_env->IsStorageSupported(src_storage(), DataType::BOOL) ||
-      !exec_env->IsStorageSupported(dst_storage(), DataType::UINT8)) {
+  if (!exec_env->IsStorageSupported(src_storage(), DataType::kBool) ||
+      !exec_env->IsStorageSupported(dst_storage(), DataType::kUint8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(src_storage())
                  << " to " << ToString(dst_storage());
   }
@@ -80,8 +80,8 @@ TEST_P(BitcastTest, FromBoolToUchar) {
 }
 
 TEST_P(BitcastTest, FromBoolToUshort) {
-  if (!exec_env->IsStorageSupported(src_storage(), DataType::BOOL) ||
-      !exec_env->IsStorageSupported(dst_storage(), DataType::UINT16)) {
+  if (!exec_env->IsStorageSupported(src_storage(), DataType::kBool) ||
+      !exec_env->IsStorageSupported(dst_storage(), DataType::kUint16)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(src_storage())
                  << " to " << ToString(dst_storage());
   }
@@ -90,8 +90,8 @@ TEST_P(BitcastTest, FromBoolToUshort) {
 }
 
 TEST_P(BitcastTest, FromBoolToFloat) {
-  if (!exec_env->IsStorageSupported(src_storage(), DataType::BOOL) ||
-      !exec_env->IsStorageSupported(dst_storage(), DataType::FLOAT32)) {
+  if (!exec_env->IsStorageSupported(src_storage(), DataType::kBool) ||
+      !exec_env->IsStorageSupported(dst_storage(), DataType::kFloat32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(src_storage())
                  << " to " << ToString(dst_storage());
   }
@@ -100,8 +100,8 @@ TEST_P(BitcastTest, FromBoolToFloat) {
 }
 
 TEST_P(BitcastTest, FromUcharToBool) {
-  if (!exec_env->IsStorageSupported(src_storage(), DataType::UINT8) ||
-      !exec_env->IsStorageSupported(dst_storage(), DataType::BOOL)) {
+  if (!exec_env->IsStorageSupported(src_storage(), DataType::kUint8) ||
+      !exec_env->IsStorageSupported(dst_storage(), DataType::kBool)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(src_storage())
                  << " to " << ToString(dst_storage());
   }
@@ -110,8 +110,8 @@ TEST_P(BitcastTest, FromUcharToBool) {
 }
 
 TEST_P(BitcastTest, FromShortToBool) {
-  if (!exec_env->IsStorageSupported(src_storage(), DataType::INT16) ||
-      !exec_env->IsStorageSupported(dst_storage(), DataType::BOOL)) {
+  if (!exec_env->IsStorageSupported(src_storage(), DataType::kInt16) ||
+      !exec_env->IsStorageSupported(dst_storage(), DataType::kBool)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(src_storage())
                  << " to " << ToString(dst_storage());
   }
@@ -120,8 +120,8 @@ TEST_P(BitcastTest, FromShortToBool) {
 }
 
 TEST_P(BitcastTest, FromFloatToBool) {
-  if (!exec_env->IsStorageSupported(src_storage(), DataType::FLOAT32) ||
-      !exec_env->IsStorageSupported(dst_storage(), DataType::BOOL)) {
+  if (!exec_env->IsStorageSupported(src_storage(), DataType::kFloat32) ||
+      !exec_env->IsStorageSupported(dst_storage(), DataType::kBool)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(src_storage())
                  << " to " << ToString(dst_storage());
   }
@@ -130,8 +130,8 @@ TEST_P(BitcastTest, FromFloatToBool) {
 }
 
 TEST_P(BitcastTest, FromFloatToUint8) {
-  if (!exec_env->IsStorageSupported(src_storage(), DataType::FLOAT32) ||
-      !exec_env->IsStorageSupported(dst_storage(), DataType::UINT8)) {
+  if (!exec_env->IsStorageSupported(src_storage(), DataType::kFloat32) ||
+      !exec_env->IsStorageSupported(dst_storage(), DataType::kUint8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(src_storage())
                  << " to " << ToString(dst_storage());
   }
@@ -140,8 +140,8 @@ TEST_P(BitcastTest, FromFloatToUint8) {
 }
 
 TEST_P(BitcastTest, FromUint8ToFloat) {
-  if (!exec_env->IsStorageSupported(src_storage(), DataType::UINT8) ||
-      !exec_env->IsStorageSupported(dst_storage(), DataType::FLOAT32)) {
+  if (!exec_env->IsStorageSupported(src_storage(), DataType::kUint8) ||
+      !exec_env->IsStorageSupported(dst_storage(), DataType::kFloat32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(src_storage())
                  << " to " << ToString(dst_storage());
   }

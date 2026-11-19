@@ -374,9 +374,17 @@ struct ExternalWeights {
 // size of the destination tensor. NOTE: Tensor values outside the range [0, dst
 // end channel) will not be well-defined. It is the developer's responsibility
 // to use tensor values that are within bounds.
+//
+// If `softmax_mask_value` is provided (along with `src_end_ch_index` and fused
+// `softmax_input_activation` in fully-connected ops), out-of-bounds source
+// channels will be replaced with `softmax_mask_value` after the softmax
+// exponential calculation. This is used when `src_end_ch_index` is not aligned
+// to 4 and unmasked tail channels need to be zeroed (or set to a specific
+// value) before the matrix multiply.
 struct ConvRuntimeCheckDesc {
   std::optional<int> src_end_ch_index = std::nullopt;
   std::optional<int> dst_end_ch_index = std::nullopt;
+  std::optional<float> softmax_mask_value = std::nullopt;
   static constexpr int kChannelsAlignment = 32;
 
   bool HasValues() const {

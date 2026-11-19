@@ -37,7 +37,6 @@
 #include "ml_drift/common/util.h"
 #include "ml_drift/webgpu/environment.h"
 #include "ml_drift/webgpu/gpu_object.h"
-#include "ml_drift/webgpu/instance.h"
 #include "ml_drift/webgpu/webgpu_api_util.h"
 #include "ml_drift/webgpu/webgpu_headers.h"
 
@@ -61,8 +60,8 @@ absl::Status AllocateTensorMemory(
   result->memory_owner = true;
   std::vector<uint64_t> storage_dims = descriptor.GetStorageDims();
   switch (descriptor.GetStorageType()) {
-    case TensorStorageType::BUFFER:
-    case TensorStorageType::IMAGE_BUFFER: {
+    case TensorStorageType::kBuffer:
+    case TensorStorageType::kImageBuffer: {
       const size_t data_size = storage_dims[0] * descriptor.GetElementSize() *
                                SizeOf(descriptor.GetDataType());
       wgpu::BufferDescriptor buffer_desc = {
@@ -71,6 +70,10 @@ absl::Status AllocateTensorMemory(
           .size = data_size,
       };
       result->buffer = device.CreateBuffer(&buffer_desc);
+      if (!result->buffer) {
+        return absl::ResourceExhaustedError(absl::StrCat(
+            "Failed to allocate WebGPU buffer of ", data_size, " bytes."));
+      }
       if (!data.empty()) {
         if (data.size() < data_size) {
           return absl::InternalError(absl::StrCat(
@@ -81,18 +84,18 @@ absl::Status AllocateTensorMemory(
       }
       return absl::OkStatus();
     }
-    case TensorStorageType::TEXTURE_ARRAY:
-    case TensorStorageType::TEXTURE_3D:
-    case TensorStorageType::TEXTURE_2D:
-    case TensorStorageType::SINGLE_TEXTURE_2D: {
+    case TensorStorageType::kTextureArray:
+    case TensorStorageType::kTexture3D:
+    case TensorStorageType::kTexture2D:
+    case TensorStorageType::kSingleTexture2D: {
       wgpu::TextureDimension dimension = wgpu::TextureDimension::e2D;
       wgpu::TextureViewDimension view_dimension =
           wgpu::TextureViewDimension::e2D;
-      if (descriptor.GetStorageType() == TensorStorageType::TEXTURE_3D) {
+      if (descriptor.GetStorageType() == TensorStorageType::kTexture3D) {
         dimension = wgpu::TextureDimension::e3D;
         view_dimension = wgpu::TextureViewDimension::e3D;
       } else if (descriptor.GetStorageType() ==
-                 TensorStorageType::TEXTURE_ARRAY) {
+                 TensorStorageType::kTextureArray) {
         dimension = wgpu::TextureDimension::e2D;
         view_dimension = wgpu::TextureViewDimension::e2DArray;
       }
@@ -106,10 +109,10 @@ absl::Status AllocateTensorMemory(
                              wgpu::TextureUsage::TextureBinding |
                              wgpu::TextureUsage::StorageBinding;
       const int channels =
-          descriptor.GetStorageType() == TensorStorageType::SINGLE_TEXTURE_2D
+          descriptor.GetStorageType() == TensorStorageType::kSingleTexture2D
               ? descriptor.GetBHWCShape().c
               : 4;
-      if (descriptor.GetStorageType() == TensorStorageType::SINGLE_TEXTURE_2D &&
+      if (descriptor.GetStorageType() == TensorStorageType::kSingleTexture2D &&
           !HasStorageSupport(descriptor.GetDataType(), channels)) {
         tex_descriptor.usage = wgpu::TextureUsage::CopySrc |
                                wgpu::TextureUsage::CopyDst |
@@ -117,13 +120,17 @@ absl::Status AllocateTensorMemory(
       }
       tex_descriptor.size.width = storage_dims[0];
       tex_descriptor.size.height = storage_dims[1];
-      if (descriptor.GetStorageType() == TensorStorageType::TEXTURE_ARRAY ||
-          descriptor.GetStorageType() == TensorStorageType::TEXTURE_3D) {
+      if (descriptor.GetStorageType() == TensorStorageType::kTextureArray ||
+          descriptor.GetStorageType() == TensorStorageType::kTexture3D) {
         tex_descriptor.size.depthOrArrayLayers = storage_dims[2];
       }
       tex_descriptor.format =
           DataTypeToTextureFormat(descriptor.GetDataType(), channels);
       result->texture = device.CreateTexture(&tex_descriptor);
+      if (!result->texture) {
+        return absl::ResourceExhaustedError(
+            "Failed to allocate WebGPU texture.");
+      }
       if (!data.empty()) {
         int pixel_size = SizeOf(descriptor.GetDataType()) * channels;
         int total_size = pixel_size * tex_descriptor.size.width *
@@ -147,7 +154,7 @@ absl::Status AllocateTensorMemory(
       tex_view_desc.mipLevelCount = 1;
       tex_view_desc.baseArrayLayer = 0;
       tex_view_desc.arrayLayerCount =
-          descriptor.GetStorageType() == TensorStorageType::TEXTURE_ARRAY
+          descriptor.GetStorageType() == TensorStorageType::kTextureArray
               ? tex_descriptor.size.depthOrArrayLayers
               : 1;
       tex_view_desc.aspect = wgpu::TextureAspect::All;
@@ -269,6 +276,11 @@ absl::Status WriteDataToBufferViaStagingBuffer(const Environment& env,
     } else {
       aligned_data.reset(
           std::aligned_alloc(kMappedPointerAlignment, aligned_data_size));
+      if (aligned_data == nullptr) {
+        return absl::ResourceExhaustedError(absl::StrCat(
+            "Failed to allocate ", aligned_data_size,
+            " bytes of aligned host memory for WebGPU staging upload."));
+      }
       memcpy(aligned_data.get(), data_ptr, data_size);
       host_mapped_desc.pointer = aligned_data.get();
     }
@@ -278,6 +290,11 @@ absl::Status WriteDataToBufferViaStagingBuffer(const Environment& env,
         .size = aligned_data_size,
     };
     staging_buffer = device.CreateBuffer(&buffer_desc);
+    if (!staging_buffer) {
+      return absl::ResourceExhaustedError(
+          absl::StrCat("Failed to create host-mapped WebGPU staging buffer of ",
+                       aligned_data_size, " bytes."));
+    }
   } else {
 #else
   {
@@ -288,7 +305,13 @@ absl::Status WriteDataToBufferViaStagingBuffer(const Environment& env,
         .mappedAtCreation = true,
     };
     staging_buffer = device.CreateBuffer(&staging_buffer_desc);
-    staging_buffer.WriteMappedRange(0, data_ptr, data_size);
+    if (!staging_buffer ||
+        staging_buffer.WriteMappedRange(0, data_ptr, data_size) !=
+            wgpu::Status::Success) {
+      return absl::ResourceExhaustedError(
+          absl::StrCat("Failed to allocate mapped WebGPU staging buffer of ",
+                       data_size, " bytes."));
+    }
     staging_buffer.Unmap();
   }
 
@@ -360,8 +383,8 @@ void SpatialTensor::Release() {
 // memory can be invalid(nullptr) for example for shared tensors.
 bool SpatialTensor::IsValidMemory() const {
   const auto& storage_type = descriptor_.GetStorageType();
-  if (storage_type == TensorStorageType::BUFFER ||
-      storage_type == TensorStorageType::IMAGE_BUFFER) {
+  if (storage_type == TensorStorageType::kBuffer ||
+      storage_type == TensorStorageType::kImageBuffer) {
     return buffer_ != nullptr;
   } else {
     return texture_view_ != nullptr;
@@ -373,7 +396,7 @@ absl::Status SpatialTensor::GetGPUResources(
     GpuResourcesWithValue* resources) const {
   const BufferDescriptor* buffer_desc = AsBufferDescriptor(obj_ptr);
   if (buffer_desc) {
-    if (descriptor_.GetStorageType() != TensorStorageType::BUFFER) {
+    if (descriptor_.GetStorageType() != TensorStorageType::kBuffer) {
       return absl::InvalidArgumentError(
           "Tensor can be used with BufferDescriptor only with "
           "TensorStorageType::BUFFER.");
@@ -389,18 +412,18 @@ absl::Status SpatialTensor::GetGPUResources(
   tensor_desc->GetGpuResources(descriptor_.GetBHWDCShape(),
                                &resources->generic);
 
-  if (descriptor_.GetStorageType() == TensorStorageType::BUFFER) {
+  if (descriptor_.GetStorageType() == TensorStorageType::kBuffer) {
     resources->buffers.push_back(
         {"buffer", BufferResource{buffer_, GetMemorySizeInBytes(), offset_}});
-  } else if (descriptor_.GetStorageType() == TensorStorageType::TEXTURE_2D ||
+  } else if (descriptor_.GetStorageType() == TensorStorageType::kTexture2D ||
              descriptor_.GetStorageType() ==
-                 TensorStorageType::SINGLE_TEXTURE_2D) {
+                 TensorStorageType::kSingleTexture2D) {
     resources->images2d.push_back({"image2d", texture_view_});
-  } else if (descriptor_.GetStorageType() == TensorStorageType::TEXTURE_ARRAY) {
+  } else if (descriptor_.GetStorageType() == TensorStorageType::kTextureArray) {
     resources->image2d_arrays.push_back({"image2d_array", texture_view_});
-  } else if (descriptor_.GetStorageType() == TensorStorageType::TEXTURE_3D) {
+  } else if (descriptor_.GetStorageType() == TensorStorageType::kTexture3D) {
     resources->images3d.push_back({"image3d", texture_view_});
-  } else if (descriptor_.GetStorageType() == TensorStorageType::IMAGE_BUFFER) {
+  } else if (descriptor_.GetStorageType() == TensorStorageType::kImageBuffer) {
     return absl::InternalError("No support of IMAGE_BUFFER in WebGPU");
   }
 
@@ -449,16 +472,16 @@ absl::Status SpatialTensor::ToDescriptor(const wgpu::Device& device,
 absl::Status SpatialTensor::WriteData(const wgpu::Queue& queue,
                                       const void* ptr) {
   switch (descriptor_.GetStorageType()) {
-    case TensorStorageType::BUFFER:
-    case TensorStorageType::IMAGE_BUFFER:
+    case TensorStorageType::kBuffer:
+    case TensorStorageType::kImageBuffer:
       WriteDataToBuffer(queue, buffer_, GetMemorySizeInBytes(), ptr);
       break;
-    case TensorStorageType::TEXTURE_ARRAY:
-    case TensorStorageType::TEXTURE_2D:
-    case TensorStorageType::TEXTURE_3D:
-    case TensorStorageType::SINGLE_TEXTURE_2D: {
+    case TensorStorageType::kTextureArray:
+    case TensorStorageType::kTexture2D:
+    case TensorStorageType::kTexture3D:
+    case TensorStorageType::kSingleTexture2D: {
       const int channels =
-          descriptor_.GetStorageType() == TensorStorageType::SINGLE_TEXTURE_2D
+          descriptor_.GetStorageType() == TensorStorageType::kSingleTexture2D
               ? Channels()
               : 4;
       const int pixel_size = SizeOf(descriptor_.GetDataType()) * channels;
@@ -476,14 +499,14 @@ absl::Status SpatialTensor::WriteData(const wgpu::Queue& queue,
 absl::Status SpatialTensor::WriteDataViaStaging(const Environment& env,
                                                 const void* ptr) {
   switch (descriptor_.GetStorageType()) {
-    case TensorStorageType::BUFFER:
-    case TensorStorageType::IMAGE_BUFFER:
+    case TensorStorageType::kBuffer:
+    case TensorStorageType::kImageBuffer:
       return WriteDataToBufferViaStagingBuffer(env, buffer_,
                                                GetMemorySizeInBytes(), ptr);
-    case TensorStorageType::TEXTURE_ARRAY:
-    case TensorStorageType::TEXTURE_2D:
-    case TensorStorageType::TEXTURE_3D:
-    case TensorStorageType::SINGLE_TEXTURE_2D:
+    case TensorStorageType::kTextureArray:
+    case TensorStorageType::kTexture2D:
+    case TensorStorageType::kTexture3D:
+    case TensorStorageType::kSingleTexture2D:
     default:
       ABSL_LOG(WARNING) << absl::StrCat(
           "Writing data via staging is not implemented yet for ",
@@ -496,17 +519,17 @@ absl::Status SpatialTensor::WriteDataViaStaging(const Environment& env,
 absl::Status SpatialTensor::ReadData(const wgpu::Device& device,
                                      void* ptr) const {
   switch (descriptor_.GetStorageType()) {
-    case TensorStorageType::BUFFER:
-    case TensorStorageType::IMAGE_BUFFER:
+    case TensorStorageType::kBuffer:
+    case TensorStorageType::kImageBuffer:
       ABSL_RETURN_IF_ERROR(ReadDataFromBuffer(
           device, device.GetQueue(), buffer_, GetMemorySizeInBytes(), ptr));
       break;
-    case TensorStorageType::TEXTURE_ARRAY:
-    case TensorStorageType::TEXTURE_2D:
-    case TensorStorageType::TEXTURE_3D:
-    case TensorStorageType::SINGLE_TEXTURE_2D: {
+    case TensorStorageType::kTextureArray:
+    case TensorStorageType::kTexture2D:
+    case TensorStorageType::kTexture3D:
+    case TensorStorageType::kSingleTexture2D: {
       const int channels =
-          descriptor_.GetStorageType() == TensorStorageType::SINGLE_TEXTURE_2D
+          descriptor_.GetStorageType() == TensorStorageType::kSingleTexture2D
               ? Channels()
               : 4;
       const int pixel_size = SizeOf(descriptor_.GetDataType()) * channels;

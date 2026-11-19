@@ -94,9 +94,9 @@ MAIN_FUNCTION($0) {
   }
   c += "  args.dst_tensor.Write(result, X, Y, S);\n";
   c += "}\n";
-  DataType acc_type = precision == CalculationsPrecision::F16
-                          ? DataType::FLOAT16
-                          : DataType::FLOAT32;
+  DataType acc_type = precision == CalculationsPrecision::kF16
+                          ? DataType::kFloat16
+                          : DataType::kFloat32;
   DataType type = DeduceDataTypeFromPrecision(precision);
   absl::StrReplaceAll({{"SType", ToUclDataType(type, 1)},
                        {"AccType", ToUclDataType(acc_type, 4)},
@@ -144,10 +144,10 @@ absl::Status IsNode(const GraphFloat32& graph, OperationType op_type,
 absl::Status IsMeanNode(const GraphFloat32& graph, Node* node,
                         NodeContext* node_context) {
   ABSL_RETURN_IF_ERROR(
-      IsNode(graph, OperationType::MEAN, 1, 1, node, node_context));
+      IsNode(graph, OperationType::kMean, 1, 1, node, node_context));
   auto mean_attr =
       std::any_cast<ReduceAttributes>(node_context->node->operation.attributes);
-  if (mean_attr.dims != std::set<Axis>{Axis::CHANNELS}) {
+  if (mean_attr.dims != std::set<Axis>{Axis::kChannels}) {
     return absl::InternalError("Expected mean node with channels reduction.");
   }
   return absl::OkStatus();
@@ -156,10 +156,10 @@ absl::Status IsMeanNode(const GraphFloat32& graph, Node* node,
 absl::Status IsReduceSumNode(const GraphFloat32& graph, Node* node,
                              NodeContext* node_context) {
   ABSL_RETURN_IF_ERROR(
-      IsNode(graph, OperationType::REDUCE_SUM, 1, 1, node, node_context));
+      IsNode(graph, OperationType::kReduceSum, 1, 1, node, node_context));
   auto reduce_attr =
       std::any_cast<ReduceAttributes>(node_context->node->operation.attributes);
-  if (reduce_attr.dims != std::set<Axis>{Axis::CHANNELS}) {
+  if (reduce_attr.dims != std::set<Axis>{Axis::kChannels}) {
     return absl::InternalError(
         "Expected reduce_sum node with channels reduction.");
   }
@@ -169,7 +169,7 @@ absl::Status IsReduceSumNode(const GraphFloat32& graph, Node* node,
 absl::Status IsMulNode(const GraphFloat32& graph, Node* node,
                        NodeContext* node_context) {
   ABSL_RETURN_IF_ERROR(
-      IsNode(graph, OperationType::MUL, 2, 1, node, node_context));
+      IsNode(graph, OperationType::kMul, 2, 1, node, node_context));
   if (node_context->inputs[0]->tensor.shape !=
       node_context->inputs[1]->tensor.shape) {
     return absl::InternalError("Expected mul node with 2 equal tensors.");
@@ -180,7 +180,7 @@ absl::Status IsMulNode(const GraphFloat32& graph, Node* node,
 absl::Status IsSliceNode(const GraphFloat32& graph, Node* node,
                          NodeContext* node_context) {
   ABSL_RETURN_IF_ERROR(
-      IsNode(graph, OperationType::SLICE, 1, 1, node, node_context));
+      IsNode(graph, OperationType::kSlice, 1, 1, node, node_context));
   auto slice_attr =
       std::any_cast<SliceAttributes>(node_context->node->operation.attributes);
   if (slice_attr.strides != BHWC(1, 1, 1, 1)) {
@@ -192,10 +192,10 @@ absl::Status IsSliceNode(const GraphFloat32& graph, Node* node,
 absl::Status IsConcatNode(const GraphFloat32& graph, Node* node,
                           NodeContext* node_context) {
   ABSL_RETURN_IF_ERROR(
-      IsNode(graph, OperationType::CONCAT, -1, 1, node, node_context));
+      IsNode(graph, OperationType::kConcat, -1, 1, node, node_context));
   auto concat_attr =
       std::any_cast<ConcatAttributes>(node_context->node->operation.attributes);
-  if (concat_attr.axis != Axis::CHANNELS) {
+  if (concat_attr.axis != Axis::kChannels) {
     return absl::InternalError("Not valid attributes in concat node.");
   }
   return absl::OkStatus();
@@ -253,7 +253,7 @@ GPUOperation CreateConvPointwise(const OperationDef& definition,
   op.tensor_to_grid_ = TensorToGrid::kWBToX_HDToY_SToZ;
 
   TensorDescriptor desc = CreateConstantHWVec4TensorDescriptor(
-      DataType::INT32, TensorStorageType::TEXTURE_2D, dst_depth * 2, 1,
+      DataType::kInt32, TensorStorageType::kTexture2D, dst_depth * 2, 1,
       reinterpret_cast<uint8_t*>(offsets_data.data()));
   op.args_.AddObject("offsets", std::make_unique<TensorDescriptor>(desc));
   return op;
@@ -371,9 +371,9 @@ absl::Status IsOp(const ir::IrModel& ir_model, OperationType op_type,
 absl::Status IsMeanOp(const ir::IrModel& ir_model, const ir::IrOp* op,
                       IrOpContext* op_context) {
   ABSL_RETURN_IF_ERROR(
-      IsOp(ir_model, OperationType::MEAN, 1, 1, op, op_context));
+      IsOp(ir_model, OperationType::kMean, 1, 1, op, op_context));
   auto mean_attr = std::any_cast<ReduceAttributes>(op_context->op->attr);
-  if (mean_attr.dims != std::set<Axis>{Axis::CHANNELS}) {
+  if (mean_attr.dims != std::set<Axis>{Axis::kChannels}) {
     return absl::InternalError("Expected mean node with channels reduction.");
   }
   return absl::OkStatus();
@@ -382,9 +382,9 @@ absl::Status IsMeanOp(const ir::IrModel& ir_model, const ir::IrOp* op,
 absl::Status IsReduceSumOp(const ir::IrModel& ir_model, const ir::IrOp* op,
                            IrOpContext* op_context) {
   ABSL_RETURN_IF_ERROR(
-      IsOp(ir_model, OperationType::REDUCE_SUM, 1, 1, op, op_context));
+      IsOp(ir_model, OperationType::kReduceSum, 1, 1, op, op_context));
   auto reduce_attr = std::any_cast<ReduceAttributes>(op_context->op->attr);
-  if (reduce_attr.dims != std::set<Axis>{Axis::CHANNELS}) {
+  if (reduce_attr.dims != std::set<Axis>{Axis::kChannels}) {
     return absl::InternalError(
         "Expected reduce_sum node with channels reduction.");
   }
@@ -394,7 +394,7 @@ absl::Status IsReduceSumOp(const ir::IrModel& ir_model, const ir::IrOp* op,
 absl::Status IsMulOp(const ir::IrModel& ir_model, const ir::IrOp* op,
                      IrOpContext* op_context) {
   ABSL_RETURN_IF_ERROR(
-      IsOp(ir_model, OperationType::MUL, 2, 1, op, op_context));
+      IsOp(ir_model, OperationType::kMul, 2, 1, op, op_context));
   if (ir_model.tensor(op_context->inputs[0])->desc.GetBHWCShape() !=
       ir_model.tensor(op_context->inputs[1])->desc.GetBHWCShape()) {
     return absl::InternalError("Expected mul node with 2 equal tensors.");
@@ -405,7 +405,7 @@ absl::Status IsMulOp(const ir::IrModel& ir_model, const ir::IrOp* op,
 absl::Status IsSliceOp(const ir::IrModel& ir_model, const ir::IrOp* op,
                        IrOpContext* op_context) {
   ABSL_RETURN_IF_ERROR(
-      IsOp(ir_model, OperationType::SLICE, 1, 1, op, op_context));
+      IsOp(ir_model, OperationType::kSlice, 1, 1, op, op_context));
   auto* slice_attr = std::any_cast<SliceAttributes>(&op_context->op->attr);
   if (!slice_attr || slice_attr->strides != BHWC(1, 1, 1, 1)) {
     return absl::InternalError("Not valid attributes in slice node.");
@@ -416,9 +416,9 @@ absl::Status IsSliceOp(const ir::IrModel& ir_model, const ir::IrOp* op,
 absl::Status IsConcatOp(const ir::IrModel& ir_model, const ir::IrOp* op,
                         IrOpContext* op_context) {
   ABSL_RETURN_IF_ERROR(
-      IsOp(ir_model, OperationType::CONCAT, -1, 1, op, op_context));
+      IsOp(ir_model, OperationType::kConcat, -1, 1, op, op_context));
   auto concat_attr = std::any_cast<ConcatAttributes>(op_context->op->attr);
-  if (concat_attr.axis != Axis::CHANNELS) {
+  if (concat_attr.axis != Axis::kChannels) {
     return absl::InternalError("Not valid attributes in concat node.");
   }
   return absl::OkStatus();

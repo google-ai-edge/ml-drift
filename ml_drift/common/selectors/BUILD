@@ -37,6 +37,7 @@ cc_library(
         "//ml_drift/common/kernels:conv_generic",
         "//ml_drift/common/kernels:conv_wave_matrix",
         "//ml_drift/common/kernels:conv_wave_matrix_mali",
+        "//ml_drift/common/kernels:conv_wave_matrix_mali_f16",
         "//ml_drift/common/kernels:conv_wave_memory",
         "//ml_drift/common/task:gpu_operation",
         "//ml_drift/common/task:tensor_desc",
@@ -161,6 +162,7 @@ cc_library(
         "//ml_drift/common/task:tensor_desc",
         "//ml_drift/common/task:weights_layout",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
     ],
 )
 

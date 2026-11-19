@@ -54,18 +54,24 @@ absl::Status ConvWaveMatrixExternalWfloatTest(TestExecutionEnvironment& env,
                                               const BHWC& src_shape,
                                               int dst_channels,
                                               bool batched_weights = false);
+absl::Status ConvWaveMatrixExternalWi8ScalarQuantizationTest(
+    TestExecutionEnvironment& env, CalculationsPrecision precision,
+    TensorStorageType storage, const BHWC& src_shape, int dst_channels);
 absl::Status ConvWaveMatrixExternalWi8Test(
     TestExecutionEnvironment& env, CalculationsPrecision precision,
     TensorStorageType storage, const BHWC& src_shape, int dst_channels,
-    bool batched_weights = false, int group_size = -1, int scale_zp_batch = -1);
+    bool batched_weights = false, int group_size = -1, int scale_zp_batch = -1,
+    bool has_zero_point = true);
 absl::Status ConvWaveMatrixExternalWi4Test(
     TestExecutionEnvironment& env, CalculationsPrecision precision,
     TensorStorageType storage, const BHWC& src_shape, int dst_channels,
-    bool batched_weights = false, int group_size = -1);
+    bool batched_weights = false, int group_size = -1,
+    bool has_zero_point = true);
 absl::Status ConvWaveMatrixExternalWi2Test(
     TestExecutionEnvironment& env, CalculationsPrecision precision,
     TensorStorageType storage, const BHWC& src_shape, int dst_channels,
-    bool batched_weights = false, int group_size = -1);
+    bool batched_weights = false, int group_size = -1,
+    bool has_zero_point = true);
 
 absl::Status ConvWaveMatrixWinograd4x4To6x6Test(TestExecutionEnvironment& env,
                                                 CalculationsPrecision precision,

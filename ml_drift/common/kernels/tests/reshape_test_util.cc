@@ -47,8 +47,8 @@ absl::Status ReshapeTest(TestExecutionEnvironment& env, DataType data_type,
   src_tensor.data = {0.5f, -1.1f, -2.2f, 3.1f, 1.2f, 2.9f};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateReshape(op_def);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
@@ -66,8 +66,8 @@ absl::Status Reshapex4Test(TestExecutionEnvironment& env, DataType data_type,
   src_tensor.data = {0.5f, -1.1f, -2.2f, 3.1f, 1.2f, 2.9f, 4.2f, -1.9f};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   const BHWC dst_shape = BHWC(1, 1, 2, 4);
   Reshapex4 operation = CreateReshapex4(op_def);
@@ -92,8 +92,8 @@ absl::Status ReshapeBigTest(TestExecutionEnvironment& env, DataType data_type,
   TensorFloat32 dst_ref_tensor = ReshapeReference(attr, src_tensor);
 
   OperationDef op_def;
-  const Layout src_layout = src_shape.b == 1 ? Layout::HWC : Layout::BHWC;
-  const Layout dst_layout = dst_shape.b == 1 ? Layout::HWC : Layout::BHWC;
+  const Layout src_layout = src_shape.b == 1 ? Layout::kHWC : Layout::kBHWC;
+  const Layout dst_layout = dst_shape.b == 1 ? Layout::kHWC : Layout::kBHWC;
   op_def.src_tensors.push_back({data_type, storage, src_layout});
   op_def.dst_tensors.push_back({data_type, storage, dst_layout});
   GPUOperation operation = CreateReshape(op_def);
@@ -117,8 +117,8 @@ absl::Status Reshape3DBigTest(TestExecutionEnvironment& env, DataType data_type,
   Tensor5DFloat32 dst_ref_tensor = ReshapeReference(attr, src_tensor);
 
   OperationDef op_def;
-  const Layout src_layout = src_shape.b == 1 ? Layout::HWDC : Layout::BHWDC;
-  const Layout dst_layout = dst_shape.b == 1 ? Layout::HWDC : Layout::BHWDC;
+  const Layout src_layout = src_shape.b == 1 ? Layout::kHWDC : Layout::kBHWDC;
+  const Layout dst_layout = dst_shape.b == 1 ? Layout::kHWDC : Layout::kBHWDC;
   op_def.src_tensors.push_back({data_type, storage, src_layout});
   op_def.dst_tensors.push_back({data_type, storage, dst_layout});
   GPUOperation operation = CreateReshape(op_def);
@@ -142,8 +142,8 @@ absl::Status Reshapex4Test(TestExecutionEnvironment& env, DataType data_type,
   TensorFloat32 dst_ref_tensor = ReshapeReference(attr, src_tensor);
 
   OperationDef op_def;
-  const Layout src_layout = src_shape.b == 1 ? Layout::HWC : Layout::BHWC;
-  const Layout dst_layout = dst_shape.b == 1 ? Layout::HWC : Layout::BHWC;
+  const Layout src_layout = src_shape.b == 1 ? Layout::kHWC : Layout::kBHWC;
+  const Layout dst_layout = dst_shape.b == 1 ? Layout::kHWC : Layout::kBHWC;
   op_def.src_tensors.push_back({data_type, storage, src_layout});
   op_def.dst_tensors.push_back({data_type, storage, dst_layout});
   Reshapex4 operation = CreateReshapex4(op_def);

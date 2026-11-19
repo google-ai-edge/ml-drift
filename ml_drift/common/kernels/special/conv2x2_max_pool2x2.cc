@@ -133,11 +133,11 @@ void UploadWeights(const std::vector<float>& constants, DataType data_type,
   BufferDescriptor desc;
   desc.element_type = data_type;
   desc.element_size = 4;
-  desc.memory_type = MemoryType::CONSTANT;
+  desc.memory_type = MemoryType::kConstant;
   desc.size = SizeOf(data_type) * constants.size();
   desc.data.resize(desc.size);
 
-  if (data_type == DataType::FLOAT32) {
+  if (data_type == DataType::kFloat32) {
     memcpy(desc.data.data(), constants.data(), desc.size);
   } else {
     half* gpu_data_half = reinterpret_cast<half*>(desc.data.data());
@@ -193,7 +193,7 @@ GPUOperation CreateConv2x2MaxPool2x2(const OperationDef& definition,
   }
 
   auto alpha0 =
-      std::get_if<Tensor<Linear, DataType::FLOAT32>>(&prelu_attr.alpha);
+      std::get_if<Tensor<Linear, DataType::kFloat32>>(&prelu_attr.alpha);
   for (int i = 0; i < 16; ++i) {
     constants.push_back(alpha0->data[i]);
   }

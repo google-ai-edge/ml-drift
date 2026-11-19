@@ -41,59 +41,59 @@ class ReduceTypedTest : public Test,
                         public WithParamInterface<TensorStorageType> {};
 
 TEST_P(ReduceTypedTest, ReduceSumChannelsInt8) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::INT8)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kInt8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(ReduceSumChannelsIntTest<DataType::INT8>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(ReduceSumChannelsIntTest<DataType::kInt8>(*exec_env, GetParam()));
 }
 
 TEST_P(ReduceTypedTest, ReduceSumChannelsInt16) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::INT16)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kInt16)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(ReduceSumChannelsIntTest<DataType::INT16>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(ReduceSumChannelsIntTest<DataType::kInt16>(*exec_env, GetParam()));
 }
 
 TEST_P(ReduceTypedTest, ReduceSumChannelsInt32) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::INT32)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kInt32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(ReduceSumChannelsIntTest<DataType::INT32>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(ReduceSumChannelsIntTest<DataType::kInt32>(*exec_env, GetParam()));
 }
 
 TEST_P(ReduceTypedTest, ReduceProductChannelsUInt8) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT8)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kUint8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
   ABSL_ASSERT_OK(
-      ReduceProductChannelsUIntTest<DataType::UINT8>(*exec_env, GetParam()));
+      ReduceProductChannelsUIntTest<DataType::kUint8>(*exec_env, GetParam()));
 }
 
 TEST_P(ReduceTypedTest, ReduceProductChannelsUInt16) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT16)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kUint16)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
   ABSL_ASSERT_OK(
-      ReduceProductChannelsUIntTest<DataType::UINT16>(*exec_env, GetParam()));
+      ReduceProductChannelsUIntTest<DataType::kUint16>(*exec_env, GetParam()));
 }
 
 TEST_P(ReduceTypedTest, ReduceProductChannelsUInt32) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT32)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kUint32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
   ABSL_ASSERT_OK(
-      ReduceProductChannelsUIntTest<DataType::UINT32>(*exec_env, GetParam()));
+      ReduceProductChannelsUIntTest<DataType::kUint32>(*exec_env, GetParam()));
 }
 
 TEST_P(ReduceTypedTest, ReduceAny) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::BOOL)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kBool)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
   ABSL_ASSERT_OK(ReduceAnyTest(*exec_env, GetParam()));
 }
 
 TEST_P(ReduceTypedTest, ReduceBool) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::BOOL)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kBool)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
   ABSL_ASSERT_OK(ReduceAllTest(*exec_env, GetParam()));
@@ -255,9 +255,9 @@ TEST_P(ReduceBigFloatTest, ReduceBHWDBigTest) {
 }
 
 std::vector<OperationType> GetReduceOps() {
-  return {OperationType::MEAN, OperationType::REDUCE_SUM,
-          OperationType::REDUCE_PRODUCT, OperationType::REDUCE_MINIMUM,
-          OperationType::REDUCE_MAXIMUM};
+  return {OperationType::kMean, OperationType::kReduceSum,
+          OperationType::kReduceProduct, OperationType::kReduceMinimum,
+          OperationType::kReduceMaximum};
 }
 
 INSTANTIATE_TEST_SUITE_P(

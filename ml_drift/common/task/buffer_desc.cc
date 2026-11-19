@@ -31,25 +31,25 @@ namespace ml_drift {
 namespace {
 DataType DataTypeFromTemplateArg(const std::string& template_arg) {
   if (template_arg == "half") {
-    return DataType::FLOAT16;
+    return DataType::kFloat16;
   } else if (template_arg == "float") {
-    return DataType::FLOAT32;
+    return DataType::kFloat32;
   } else if (template_arg == "int") {
-    return DataType::INT32;
+    return DataType::kInt32;
   } else if (template_arg == "short") {
-    return DataType::INT16;
+    return DataType::kInt16;
   } else if (template_arg == "char") {
-    return DataType::INT8;
+    return DataType::kInt8;
   } else if (template_arg == "uint") {
-    return DataType::UINT32;
+    return DataType::kUint32;
   } else if (template_arg == "ushort") {
-    return DataType::UINT16;
+    return DataType::kUint16;
   } else if (template_arg == "uchar") {
-    return DataType::UINT8;
+    return DataType::kUint8;
   } else if (template_arg == "bool") {
-    return DataType::BOOL;
+    return DataType::kBool;
   }
-  return DataType::UNKNOWN;
+  return DataType::kUnknown;
 }
 
 std::string GetVec4FromVec16(const GpuInfo& gpu_info, int index,
@@ -75,7 +75,7 @@ GPUResources BufferDescriptor::GetGPUResources(const GpuInfo& gpu_info) const {
   desc.memory_type = memory_type;
   desc.attributes = attributes;
   if ((gpu_info.IsGlsl() || gpu_info.IsApiWebGpu()) &&
-      memory_type == MemoryType::CONSTANT) {
+      memory_type == MemoryType::kConstant) {
     desc.attributes.push_back(
         std::to_string(size / (element_size * SizeOf(element_type))));
   }
@@ -133,9 +133,9 @@ absl::Status BufferDescriptor::PerformReadSelector(
                      args.size(), " was passed"));
   }
   if (gpu_info.IsGlsl()) {
-    if (element_type == DataType::FLOAT16 &&
+    if (element_type == DataType::kFloat16 &&
         !gpu_info.IsGlslSupportsExplicitFp16()) {
-      if (memory_type == MemoryType::CONSTANT) {
+      if (memory_type == MemoryType::kConstant) {
         bool is_kernel_global_space = false;
         for (const auto& attribute : attributes) {
           if (attribute == "kernel_global_space") {
@@ -156,7 +156,7 @@ absl::Status BufferDescriptor::PerformReadSelector(
         if (element_size == 4) {
           if (template_args.size() == 1) {
             DataType dst_type = DataTypeFromTemplateArg(template_args[0]);
-            if (dst_type != DataType::UINT32) {
+            if (dst_type != DataType::kUint32) {
               return absl::InvalidArgumentError("Only Read<uint> possible.");
             }
             *result = absl::StrCat("buffer[", args[0], "]");
@@ -201,7 +201,7 @@ absl::Status BufferDescriptor::PerformReadSelector(
       *result = absl::StrCat("buffer[", args[0], "]");
       return absl::OkStatus();
     }
-    if (element_type == DataType::FLOAT16 &&
+    if (element_type == DataType::kFloat16 &&
         !gpu_info.webgpu_info.supports_fp16) {
       *result = absl::StrCat("Unpack4x16float(buffer.data[", args[0], "])");
       return absl::OkStatus();
@@ -232,14 +232,14 @@ absl::Status BufferDescriptor::PerformReadVec16AsVec4x4Selector(
   if (template_args.size() == 1) {
     dst_type = DataTypeFromTemplateArg(template_args[0]);
   }
-  if (dst_type == DataType::UNKNOWN) {
+  if (dst_type == DataType::kUnknown) {
     return absl::UnavailableError(
         "Unsupported template_arg in BufferDescriptor::ReadVec16AsVec4x4.");
   }
   std::string c;
   c += "  {\n";
   if (gpu_info.IsGlsl()) {
-    if (element_type == DataType::FLOAT16 &&
+    if (element_type == DataType::kFloat16 &&
         !gpu_info.IsGlslSupportsExplicitFp16()) {
       c += "  uvec8 uw = buffer[" + args[4] + "];\n";
       c += "  mediump mat4x4 w;\n";
@@ -252,7 +252,7 @@ absl::Status BufferDescriptor::PerformReadVec16AsVec4x4Selector(
            "];\n";
     }
   } else if (gpu_info.IsApiWebGpu()) {
-    if (element_type == DataType::FLOAT16 &&
+    if (element_type == DataType::kFloat16 &&
         !gpu_info.webgpu_info.supports_fp16) {
       c += "  var uw0 : vec4<u32> = buffer.data[(" + args[4] + ") * 2 + 0];\n";
       c += "  var uw1 : vec4<u32> = buffer.data[(" + args[4] + ") * 2 + 1];\n";
@@ -286,7 +286,7 @@ absl::Status BufferDescriptor::PerformReadVec16AsVec4x4Selector(
 absl::Status BufferDescriptor::PerformReadAsU16Selector(
     const GpuInfo& gpu_info, const std::vector<std::string>& args,
     std::string* result) const {
-  if (element_size != 1 || element_type != DataType::UINT32) {
+  if (element_size != 1 || element_type != DataType::kUint32) {
     return absl::UnavailableError(
         "BufferDescriptor::ReadAsU16 possible only for uint32x1 type.");
   }
@@ -309,7 +309,7 @@ absl::Status BufferDescriptor::PerformReadAsU16Selector(
 absl::Status BufferDescriptor::PerformReadAsI16Selector(
     const GpuInfo& gpu_info, const std::vector<std::string>& args,
     std::string* result) const {
-  if (element_size != 1 || element_type != DataType::INT32) {
+  if (element_size != 1 || element_type != DataType::kInt32) {
     return absl::UnavailableError(
         "BufferDescriptor::ReadAsI16 possible only for int32x1 type.");
   }
@@ -333,7 +333,7 @@ absl::Status BufferDescriptor::PerformReadAsU8Selector(
     const GpuInfo& gpu_info, const std::vector<std::string>& args,
     std::string* result) const {
   if (element_size != 1 ||
-      (element_type != DataType::UINT32 && element_type != DataType::INT32)) {
+      (element_type != DataType::kUint32 && element_type != DataType::kInt32)) {
     return absl::UnavailableError(
         "BufferDescriptor::ReadAsU8 possible only for uint32x1 or int32x1 "
         "type.");
@@ -358,7 +358,7 @@ absl::Status BufferDescriptor::PerformReadAsI8Selector(
     const GpuInfo& gpu_info, const std::vector<std::string>& args,
     std::string* result) const {
   if (element_size != 1 ||
-      (element_type != DataType::UINT32 && element_type != DataType::INT32)) {
+      (element_type != DataType::kUint32 && element_type != DataType::kInt32)) {
     return absl::UnavailableError(
         "BufferDescriptor::ReadAsI8 possible only for uint32x1 or int32x1 "
         "type.");

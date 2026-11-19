@@ -161,6 +161,36 @@ target_link_libraries(dw3x3_conv32to16_dw3x3_conv16to16_add_conv16to32_test_open
     mld_common_tensor
 )
 
+add_library(mld_common_kernels_special_tests_experts_remap_test_util experts_remap_test_util.cc experts_remap_test_util.h)
+target_include_directories(mld_common_kernels_special_tests_experts_remap_test_util PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
+target_link_libraries(mld_common_kernels_special_tests_experts_remap_test_util
+  PUBLIC
+    absl::random_random
+    absl::status
+    absl::status_macros
+    gmock
+    gtest
+    mld_common_data_type
+    mld_common_kernels_special_experts_remap
+    mld_common_shape
+    mld_common_task_tensor_desc
+    mld_common_task_testing_ref_ops
+    mld_common_task_testing_util
+    mld_common_tensor
+    mld_common_util
+)
+
+add_executable(experts_remap_test_opencl ../../tests/opencl_kernel_test.cc experts_remap_test.cc)
+target_link_libraries(experts_remap_test_opencl
+  PUBLIC
+    absl::status_matchers
+    gmock
+    gtest
+    mld_cl_testing_cl_test
+    mld_common_kernels_special_tests_experts_remap_test_util
+    mld_common_task_testing_util
+)
+
 add_executable(thin_local_memory_fuser_test_opencl ../../tests/opencl_kernel_test.cc thin_local_memory_fuser_test.cc)
 target_link_libraries(thin_local_memory_fuser_test_opencl
   PUBLIC

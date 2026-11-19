@@ -77,7 +77,7 @@ absl::Status ReadDataFromMappableBuffer(const wgpu::Device& device,
             status = s;
             message = std::string(msg);
           }),
-      absl::Seconds(10)));
+      absl::Seconds(120)));
 
   if (status != wgpu::MapAsyncStatus::Success) {
     return absl::InternalError(message);
@@ -336,9 +336,9 @@ absl::StatusOr<wgpu::ComputePipeline> ComputePipelineHolder::Get() const {
       return thread_data_->state == ThreadData::State::kDone;
     };
     if (!thread_data_->mutex.AwaitWithTimeout(absl::Condition(&done),
-                                              absl::Seconds(30))) {
+                                              absl::Seconds(120))) {
       return absl::AbortedError(absl::StrCat(
-          "The 30 second timeout was reached while waiting for pipeline. ",
+          "The 120 second timeout was reached while waiting for pipeline. ",
           "Shader size: ", thread_data_->code.size(),
           ", total time: ", (absl::Now() - thread_data_->start), " timing: ",
           thread_data_->debug_str, ", source: ", thread_data_->code));
@@ -347,7 +347,7 @@ absl::StatusOr<wgpu::ComputePipeline> ComputePipelineHolder::Get() const {
 #else
   if (async_create_call_ && thread_data_->pipeline_future.id) {
     ABSL_RETURN_IF_ERROR(
-        Instance::Wait(thread_data_->pipeline_future, absl::Seconds(30)));
+        Instance::Wait(thread_data_->pipeline_future, absl::Seconds(120)));
     thread_data_->pipeline_future.id = 0;
   }
 #endif  // !__EMSCRIPTEN__
@@ -368,48 +368,48 @@ wgpu::TextureFormat DataTypeToTextureFormat(DataType data_type,
                                             int channels_count) {
   if (channels_count == 1) {
     switch (data_type) {
-      case DataType::FLOAT32:
+      case DataType::kFloat32:
         return wgpu::TextureFormat::R32Float;
-      case DataType::FLOAT16:
+      case DataType::kFloat16:
         return wgpu::TextureFormat::R16Float;
-      case DataType::UINT32:
+      case DataType::kUint32:
         return wgpu::TextureFormat::R32Uint;
-      case DataType::BFLOAT16:
-      case DataType::UINT16:
+      case DataType::kBfloat16:
+      case DataType::kUint16:
         return wgpu::TextureFormat::R16Uint;
-      case DataType::UINT8:
+      case DataType::kUint8:
         return wgpu::TextureFormat::R8Uint;
-      case DataType::INT32:
+      case DataType::kInt32:
         return wgpu::TextureFormat::R32Sint;
-      case DataType::INT16:
+      case DataType::kInt16:
         return wgpu::TextureFormat::R16Sint;
-      case DataType::INT8:
+      case DataType::kInt8:
         return wgpu::TextureFormat::R8Sint;
-      case DataType::BOOL:
+      case DataType::kBool:
         return wgpu::TextureFormat::R8Uint;
       default:
         return wgpu::TextureFormat::Undefined;
     }
   } else if (channels_count == 2) {
     switch (data_type) {
-      case DataType::FLOAT32:
+      case DataType::kFloat32:
         return wgpu::TextureFormat::RG32Float;
-      case DataType::FLOAT16:
+      case DataType::kFloat16:
         return wgpu::TextureFormat::RG16Float;
-      case DataType::UINT32:
+      case DataType::kUint32:
         return wgpu::TextureFormat::RG32Uint;
-      case DataType::BFLOAT16:
-      case DataType::UINT16:
+      case DataType::kBfloat16:
+      case DataType::kUint16:
         return wgpu::TextureFormat::RG16Uint;
-      case DataType::UINT8:
+      case DataType::kUint8:
         return wgpu::TextureFormat::RG8Uint;
-      case DataType::INT32:
+      case DataType::kInt32:
         return wgpu::TextureFormat::RG32Sint;
-      case DataType::INT16:
+      case DataType::kInt16:
         return wgpu::TextureFormat::RG16Sint;
-      case DataType::INT8:
+      case DataType::kInt8:
         return wgpu::TextureFormat::RG8Sint;
-      case DataType::BOOL:
+      case DataType::kBool:
         return wgpu::TextureFormat::RG8Uint;
       default:
         return wgpu::TextureFormat::Undefined;
@@ -418,24 +418,24 @@ wgpu::TextureFormat DataTypeToTextureFormat(DataType data_type,
     return wgpu::TextureFormat::Undefined;
   } else if (channels_count == 4) {
     switch (data_type) {
-      case DataType::FLOAT32:
+      case DataType::kFloat32:
         return wgpu::TextureFormat::RGBA32Float;
-      case DataType::FLOAT16:
+      case DataType::kFloat16:
         return wgpu::TextureFormat::RGBA16Float;
-      case DataType::UINT32:
+      case DataType::kUint32:
         return wgpu::TextureFormat::RGBA32Uint;
-      case DataType::BFLOAT16:
-      case DataType::UINT16:
+      case DataType::kBfloat16:
+      case DataType::kUint16:
         return wgpu::TextureFormat::RGBA16Uint;
-      case DataType::UINT8:
+      case DataType::kUint8:
         return wgpu::TextureFormat::RGBA8Uint;
-      case DataType::INT32:
+      case DataType::kInt32:
         return wgpu::TextureFormat::RGBA32Sint;
-      case DataType::INT16:
+      case DataType::kInt16:
         return wgpu::TextureFormat::RGBA16Sint;
-      case DataType::INT8:
+      case DataType::kInt8:
         return wgpu::TextureFormat::RGBA8Sint;
-      case DataType::BOOL:
+      case DataType::kBool:
         return wgpu::TextureFormat::RGBA8Uint;
       default:
         return wgpu::TextureFormat::Undefined;

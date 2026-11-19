@@ -59,8 +59,8 @@ absl::Status SubmitGpuOperations(
       ComputeTask metal_op;
       metal_op.Init(std::move(operation));
       ABSL_RETURN_IF_ERROR(metal_op.Compile(&env));
-      metal_op.SetSrcTensor(src, 0);
-      metal_op.SetDstTensor(dst, 0);
+      ABSL_RETURN_IF_ERROR(metal_op.SetSrcTensor(src, 0));
+      ABSL_RETURN_IF_ERROR(metal_op.SetDstTensor(dst, 0));
       ABSL_RETURN_IF_ERROR(metal_op.UpdateParams());
       metal_op.Encode(compute_encoder);
     }
@@ -109,13 +109,15 @@ MetalWeightsManager::GetBatchesForWeightsPreparation(Environment& env,
                                                      const ScheduleStrategy schedule_strategy,
                                                      size_t total_shared_tensor_size) {
   // Convert weights conversion requests to GPU operations.
-  std::vector<WeightsPrepOperationInfo> op_infos = ConvertWeightsPrepRequestsToOperations(
-      env.GetInfo(), std::move(weights_conversion_requests_));
+  absl::StatusOr<std::vector<WeightsPrepOperationInfo>> op_infos =
+      ConvertWeightsPrepRequestsToOperations(env.GetInfo(),
+                                             std::move(weights_conversion_requests_));
   weights_conversion_requests_.clear();
+  ABSL_RETURN_IF_ERROR(op_infos.status());
 
   // Schedule GPU operations to batches.
   std::vector<std::vector<WeightsPrepOperationInfo>> batches =
-      BatchGpuOperations(std::move(op_infos), schedule_strategy, total_shared_tensor_size);
+      BatchGpuOperations(*std::move(op_infos), schedule_strategy, total_shared_tensor_size);
   return batches;
 }
 

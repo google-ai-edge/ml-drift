@@ -179,6 +179,41 @@ TEST(NvidiaInfoTest, TestComputeUnitsCount) {
   EXPECT_EQ(NvidiaInfo("unknown brand new gpu").GetComputeUnitsCount(), 16);
 }
 
+int GetIntelComputeUnitsCount(const std::string& description) {
+  GpuInfo gpu_info;
+  GetGpuInfoFromDeviceDescription(description, GpuApi::kWebGpu, &gpu_info);
+  EXPECT_TRUE(gpu_info.IsIntel());
+  return gpu_info.GetComputeUnitsCount();
+}
+
+TEST(IntelInfoTest, TestComputeUnitsCount) {
+  // Panther Lake
+  EXPECT_EQ(
+      GetIntelComputeUnitsCount("intel xe-3lpg Intel(R) Arc(TM) B390 GPU"), 12);
+  EXPECT_EQ(
+      GetIntelComputeUnitsCount("intel xe-3lpg Intel(R) Arc(TM) B370 GPU"), 10);
+  // Lunar Lake
+  EXPECT_EQ(
+      GetIntelComputeUnitsCount("intel xe-2lpg Intel(R) Arc(TM) 140V GPU"), 8);
+  EXPECT_EQ(
+      GetIntelComputeUnitsCount("intel xe-2lpg Intel(R) Arc(TM) 130V GPU"), 7);
+  // Unlisted products
+  EXPECT_EQ(GetIntelComputeUnitsCount("intel xe-3lpg Intel(R) Graphics"), 4);
+  EXPECT_EQ(GetIntelComputeUnitsCount("intel gen-12lp Intel(R) UHD Graphics"),
+            4);
+}
+
+TEST(IntelInfoTest, TestGeneration) {
+  EXPECT_EQ(IntelInfo("intel gen-12lp intel(r) uhd graphics").generation,
+            IntelGeneration::kGen12);
+  EXPECT_EQ(IntelInfo("intel xe-lpg intel(r) arc(tm) graphics").generation,
+            IntelGeneration::kGen12);
+  EXPECT_EQ(IntelInfo("intel xe-2lpg intel(r) arc(tm) 140v gpu").generation,
+            IntelGeneration::kXe2);
+  EXPECT_EQ(IntelInfo("intel xe-3lpg intel(r) arc(tm) b390 gpu").generation,
+            IntelGeneration::kXe3);
+}
+
 AppleInfo GetAppleInfo(const std::string& description) {
   GpuInfo gpu_info;
   GetGpuInfoFromDeviceDescription(description, GpuApi::kMetal, &gpu_info);
@@ -277,6 +312,139 @@ TEST(GpuInfoTest, DefaultInitialization) {
   EXPECT_EQ(gpu_info.nvidia_info.architecture, NvidiaArchitecture::kUnknown);
   EXPECT_EQ(gpu_info.intel_info.generation, IntelGeneration::kUnknown);
   EXPECT_EQ(gpu_info.maleoon_info.gpu, MaleoonGpu::kUnknown);
+}
+
+TEST(PowerVRInfoTest, TestGpuVersionParsing) {
+  EXPECT_EQ(PowerVRInfo("PowerVR Rogue GE8320").gpu_version,
+            PowerVRGpu::kRogueGe8xxx);
+  EXPECT_EQ(PowerVRInfo("PowerVR Rogue GM9446").gpu_version,
+            PowerVRGpu::kRogueGm9xxx);
+  EXPECT_EQ(PowerVRInfo("PowerVR Rogue G6430").gpu_version, PowerVRGpu::kRogue);
+  EXPECT_EQ(PowerVRInfo("PowerVR B-Series BXM-8-256").gpu_version,
+            PowerVRGpu::kBXM);
+
+  PowerVRInfo ge8(PowerVRInfo("PowerVR Rogue GE8320"));
+  EXPECT_TRUE(ge8.IsRogue());
+  EXPECT_FALSE(ge8.IsBetterThan(PowerVRGpu::kRogueGm9xxx));
+  EXPECT_TRUE(ge8.IsBetterThan(PowerVRGpu::kRogueGe8xxx));
+
+  PowerVRInfo gm9(PowerVRInfo("PowerVR Rogue GM9446"));
+  EXPECT_TRUE(gm9.IsRogue());
+  EXPECT_TRUE(gm9.IsBetterThan(PowerVRGpu::kRogueGm9xxx));
+  EXPECT_TRUE(gm9.IsBetterThan(PowerVRGpu::kRogueGe8xxx));
+
+  PowerVRInfo bxm(PowerVRInfo("PowerVR B-Series BXM-8-256"));
+  EXPECT_FALSE(bxm.IsRogue());
+  EXPECT_TRUE(bxm.IsImgBxx());
+  EXPECT_TRUE(bxm.IsBetterThan(PowerVRGpu::kRogueGm9xxx));
+
+  PowerVRInfo unknown;
+  EXPECT_FALSE(unknown.IsBetterThan(PowerVRGpu::kRogueGe8xxx));
+}
+
+TEST(GpuInfoTest, IsMobileGpu) {
+  for (GpuVendor vendor :
+       {GpuVendor::kQualcomm, GpuVendor::kMali, GpuVendor::kPowerVR,
+        GpuVendor::kHuawei, GpuVendor::kBroadcom}) {
+    GpuInfo info;
+    info.vendor = vendor;
+    EXPECT_TRUE(info.IsMobileGpu());
+    EXPECT_FALSE(info.IsDesktopGpu());
+  }
+
+  GpuInfo apple_a15;
+  apple_a15.vendor = GpuVendor::kApple;
+  apple_a15.apple_info.gpu_type = AppleGpu::kA15;
+  EXPECT_TRUE(apple_a15.IsMobileGpu());
+  EXPECT_FALSE(apple_a15.IsDesktopGpu());
+
+  GpuInfo apple_unknown_small;
+  apple_unknown_small.vendor = GpuVendor::kApple;
+  apple_unknown_small.gpu_api = GpuApi::kMetal;
+  apple_unknown_small.apple_info.gpu_type = AppleGpu::kUnknown;
+  EXPECT_TRUE(apple_unknown_small.IsMobileGpu());
+  EXPECT_FALSE(apple_unknown_small.IsDesktopGpu());
+
+  GpuInfo opencl_arm_ext;
+  opencl_arm_ext.vendor = GpuVendor::kUnknown;
+  opencl_arm_ext.gpu_api = GpuApi::kOpenCl;
+  opencl_arm_ext.opencl_info.supports_register_allocation_arm = true;
+  EXPECT_TRUE(opencl_arm_ext.IsMobileGpu());
+  EXPECT_FALSE(opencl_arm_ext.IsDesktopGpu());
+}
+
+TEST(GpuInfoTest, IsDesktopGpu) {
+  for (GpuVendor vendor :
+       {GpuVendor::kAMD, GpuVendor::kNvidia, GpuVendor::kIntel}) {
+    GpuInfo info;
+    info.vendor = vendor;
+    EXPECT_TRUE(info.IsDesktopGpu());
+    EXPECT_FALSE(info.IsMobileGpu());
+  }
+
+  GpuInfo cuda_info;
+  cuda_info.vendor = GpuVendor::kUnknown;
+  cuda_info.gpu_api = GpuApi::kCuda;
+  EXPECT_TRUE(cuda_info.IsDesktopGpu());
+  EXPECT_FALSE(cuda_info.IsMobileGpu());
+
+  GpuInfo apple_m1;
+  apple_m1.vendor = GpuVendor::kApple;
+  apple_m1.apple_info.gpu_type = AppleGpu::kM1;
+  EXPECT_TRUE(apple_m1.IsDesktopGpu());
+  EXPECT_FALSE(apple_m1.IsMobileGpu());
+
+  GpuInfo apple_unknown_large;
+  apple_unknown_large.vendor = GpuVendor::kApple;
+  apple_unknown_large.gpu_api = GpuApi::kOpenCl;
+  apple_unknown_large.opencl_info.compute_units_count = 16;
+  EXPECT_TRUE(apple_unknown_large.IsDesktopGpu());
+  EXPECT_FALSE(apple_unknown_large.IsMobileGpu());
+
+  GpuInfo opencl_desktop_fallback;
+  opencl_desktop_fallback.vendor = GpuVendor::kUnknown;
+  opencl_desktop_fallback.gpu_api = GpuApi::kOpenCl;
+  opencl_desktop_fallback.opencl_info.dedicated_local_memory = true;
+  opencl_desktop_fallback.opencl_info.compute_units_count = 16;
+  EXPECT_TRUE(opencl_desktop_fallback.IsDesktopGpu());
+  EXPECT_FALSE(opencl_desktop_fallback.IsMobileGpu());
+}
+
+TEST(GpuInfoTest, UnclassifiedGpuIsNeitherMobileNorDesktop) {
+  GpuInfo unknown_info;
+  EXPECT_FALSE(unknown_info.IsMobileGpu());
+  EXPECT_FALSE(unknown_info.IsDesktopGpu());
+
+  GpuInfo llvmpipe_info;
+  llvmpipe_info.vendor = GpuVendor::kLlvmPipe;
+  EXPECT_FALSE(llvmpipe_info.IsMobileGpu());
+  EXPECT_FALSE(llvmpipe_info.IsDesktopGpu());
+}
+
+TEST(GpuInfoTest, MetalMaxArgumentLimits) {
+  GpuInfo a10_info;
+  GetGpuInfoFromDeviceDescription("Apple A10", GpuApi::kMetal, &a10_info);
+  EXPECT_EQ(a10_info.GetMaxBufferArguments(), 31);
+  EXPECT_EQ(a10_info.GetMaxImageArguments(), 31);
+  EXPECT_EQ(a10_info.GetMaxTextureArguments(), 31);
+
+  GpuInfo a12_info;
+  GetGpuInfoFromDeviceDescription("Apple A12", GpuApi::kMetal, &a12_info);
+  EXPECT_EQ(a12_info.GetMaxBufferArguments(), 31);
+  EXPECT_EQ(a12_info.GetMaxImageArguments(), 96);
+  EXPECT_EQ(a12_info.GetMaxTextureArguments(), 96);
+
+  GpuInfo a17_info;
+  GetGpuInfoFromDeviceDescription("Apple A17 Pro", GpuApi::kMetal, &a17_info);
+  EXPECT_EQ(a17_info.GetMaxBufferArguments(), 31);
+  EXPECT_EQ(a17_info.GetMaxImageArguments(), 128);
+  EXPECT_EQ(a17_info.GetMaxTextureArguments(), 128);
+
+  GpuInfo m4_info;
+  GetGpuInfoFromDeviceDescription("Apple M4", GpuApi::kMetal, &m4_info);
+  EXPECT_EQ(m4_info.GetMaxBufferArguments(), 31);
+  EXPECT_EQ(m4_info.GetMaxImageArguments(), 128);
+  EXPECT_EQ(m4_info.GetMaxTextureArguments(), 128);
 }
 
 }  // namespace

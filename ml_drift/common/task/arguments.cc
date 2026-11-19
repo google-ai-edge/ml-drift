@@ -116,7 +116,7 @@ absl::Status BufferToKernelLanguage(const GpuInfo& gpu_info,
   } else {
     return absl::UnimplementedError("Not supported API.");
   }
-  if (buffer_desc->element_type == DataType::FLOAT16) {
+  if (buffer_desc->element_type == DataType::kFloat16) {
     std::string postfix = "f";
     if (gpu_info.IsGlsl() && gpu_info.IsGlslSupportsExplicitFp16()) {
       postfix = "hf";
@@ -134,7 +134,7 @@ absl::Status BufferToKernelLanguage(const GpuInfo& gpu_info,
         *result += ",\n";
       }
     }
-  } else if (buffer_desc->element_type == DataType::FLOAT32) {
+  } else if (buffer_desc->element_type == DataType::kFloat32) {
     std::string postfix = "f";
     if (gpu_info.IsApiWebGpu()) {
       postfix = "";
@@ -165,9 +165,9 @@ absl::Status BufferToKernelLanguage(const GpuInfo& gpu_info,
 constexpr char Arguments::kArgsPrefix[];
 
 void Arguments::AddFloat(const std::string& name, float value, DataType type) {
-  if (type == DataType::FLOAT32 || type == DataType::BFLOAT16) {
+  if (type == DataType::kFloat32 || type == DataType::kBfloat16) {
     AddFloat(name, value);
-  } else if (type == DataType::FLOAT16) {
+  } else if (type == DataType::kFloat16) {
     AddHalf(name, half(value));
   }
 }
@@ -233,7 +233,7 @@ void Arguments::AddObjectRef(const std::string& name, AccessType access_type,
 
 void Arguments::AddObject(const std::string& name,
                           GPUObjectDescriptorPtr&& descriptor_ptr) {
-  descriptor_ptr->SetAccess(AccessType::READ);
+  descriptor_ptr->SetAccess(AccessType::kRead);
   objects_[name] = {std::move(descriptor_ptr)};
 }
 
@@ -412,7 +412,7 @@ absl::Status Arguments::ResolveKernelGlobalSpaceBuffers(const GpuInfo& gpu_info,
                                                         std::string* code) {
   for (auto it = objects_.begin(); it != objects_.end();) {
     const BufferDescriptor* buffer_desc = AsBufferDescriptor(it->second.get());
-    if (!buffer_desc || buffer_desc->memory_type != MemoryType::CONSTANT) {
+    if (!buffer_desc || buffer_desc->memory_type != MemoryType::kConstant) {
       ++it;
       continue;
     }

@@ -78,6 +78,15 @@ TEST_P(PaddingFloatTest, PaddingAppendChannelsTest) {
   ABSL_ASSERT_OK(PaddingAppendChannelsTest(*exec_env, data_type(), storage()));
 }
 
+TEST_P(PaddingFloatTest, PaddingAppendChannelsUnalignedSrcTest) {
+  if (!exec_env->IsStorageSupported(storage(), data_type())) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
+                 << " storage type: " << ToString(storage());
+  }
+  ABSL_ASSERT_OK(
+      PaddingAppendChannelsUnalignedSrcTest(*exec_env, data_type(), storage()));
+}
+
 TEST_P(PaddingFloatTest, PaddingPrependChannelsTest) {
   if (!exec_env->IsStorageSupported(storage(), data_type())) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())

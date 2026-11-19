@@ -45,21 +45,26 @@
 #include "vulkan/vulkan.h"  // IWYU pragma: keep
 
 #ifndef CL_DELEGATE_NO_GL
+#define GL_NO_PROTOTYPES
+#define EGL_NO_PROTOTYPES
+#include "ml_drift/gl/portable_gl31.h"
+#undef GL_NO_PROTOTYPES
+#undef EGL_NO_PROTOTYPES
 #endif
 
 namespace ml_drift {
 
 enum class ObjectType {
-  UNKNOWN,
+  kUnknown,
 #ifndef CL_DELEGATE_NO_GL
-  OPENGL_SSBO,
-  OPENGL_TEXTURE,
+  kOpenGlSsbo,
+  kOpenGlTexture,
 #endif
-  CPU_MEMORY,
-  OPENCL_TEXTURE,
-  OPENCL_BUFFER,
-  VULKAN_BUFFER,
-  VULKAN_TEXTURE
+  kCpuMemory,
+  kOpenClTexture,
+  kOpenClBuffer,
+  kVulkanBuffer,
+  kVulkanTexture,
 };
 
 #ifndef CL_DELEGATE_NO_GL
@@ -92,7 +97,7 @@ struct OpenClTexture {
   explicit OpenClTexture(cl_mem new_memobj) : memobj(new_memobj) {}
 
   cl_mem memobj = nullptr;
-  // TODO(akulik): should it specify texture format?
+  // TODO: should it specify texture format?
 };
 
 struct VulkanBuffer {
@@ -130,9 +135,9 @@ struct VulkanMemory {
 
 // Defines object representation.
 struct ObjectDef {
-  DataType data_type = DataType::UNKNOWN;
-  DataLayout data_layout = DataLayout::UNKNOWN;
-  ObjectType object_type = ObjectType::UNKNOWN;
+  DataType data_type = DataType::kUnknown;
+  DataLayout data_layout = DataLayout::kUnknown;
+  ObjectType object_type = ObjectType::kUnknown;
 
   // If true, then object is managed externally and needs to be provided to
   // InferenceRunner by a user before running inference.

@@ -42,11 +42,11 @@ namespace ml_drift {
 namespace {
 data::AccessType ToFB(AccessType type) {
   switch (type) {
-    case AccessType::READ:
+    case AccessType::kRead:
       return data::AccessType::READ;
-    case AccessType::WRITE:
+    case AccessType::kWrite:
       return data::AccessType::WRITE;
-    case AccessType::READ_WRITE:
+    case AccessType::kReadWrite:
       return data::AccessType::READ_WRITE;
     default:
       return data::AccessType::READ_WRITE;
@@ -55,96 +55,96 @@ data::AccessType ToFB(AccessType type) {
 
 data::DataType ToFB(DataType type) {
   switch (type) {
-    case DataType::BOOL:
+    case DataType::kBool:
       return data::DataType::BOOL;
-    case DataType::FLOAT16:
+    case DataType::kFloat16:
       return data::DataType::FLOAT16;
-    case DataType::FLOAT32:
+    case DataType::kFloat32:
       return data::DataType::FLOAT32;
-    case DataType::FLOAT64:
+    case DataType::kFloat64:
       return data::DataType::FLOAT64;
-    case DataType::BFLOAT16:
+    case DataType::kBfloat16:
       return data::DataType::BFLOAT16;
-    case DataType::UINT8:
+    case DataType::kUint8:
       return data::DataType::UINT8;
-    case DataType::INT8:
+    case DataType::kInt8:
       return data::DataType::INT8;
-    case DataType::UINT16:
+    case DataType::kUint16:
       return data::DataType::UINT16;
-    case DataType::INT16:
+    case DataType::kInt16:
       return data::DataType::INT16;
-    case DataType::UINT32:
+    case DataType::kUint32:
       return data::DataType::UINT32;
-    case DataType::INT32:
+    case DataType::kInt32:
       return data::DataType::INT32;
-    case DataType::UINT64:
+    case DataType::kUint64:
       return data::DataType::UINT64;
-    case DataType::INT64:
+    case DataType::kInt64:
       return data::DataType::INT64;
-    case DataType::INT4:
+    case DataType::kInt4:
       return data::DataType::INT4;
-    case DataType::UINT4:
+    case DataType::kUint4:
       return data::DataType::UINT4;
-    case DataType::INT3:
+    case DataType::kInt3:
       return data::DataType::INT3;
-    case DataType::UINT3:
+    case DataType::kUint3:
       return data::DataType::UINT3;
-    case DataType::INT2:
+    case DataType::kInt2:
       return data::DataType::INT2;
-    case DataType::UINT2:
+    case DataType::kUint2:
       return data::DataType::UINT2;
-    case DataType::INT1:
+    case DataType::kInt1:
       return data::DataType::INT1;
-    case DataType::UINT1:
+    case DataType::kUint1:
       return data::DataType::UINT1;
-    case DataType::UNKNOWN:
+    case DataType::kUnknown:
       return data::DataType::UNKNOWN;
   }
 }
 
 data::MemoryType ToFB(MemoryType type) {
   switch (type) {
-    case MemoryType::CONSTANT:
+    case MemoryType::kConstant:
       return data::MemoryType::CONSTANT;
-    case MemoryType::GLOBAL:
+    case MemoryType::kGlobal:
       return data::MemoryType::GLOBAL;
-    case MemoryType::LOCAL:
+    case MemoryType::kLocal:
       return data::MemoryType::LOCAL;
   }
 }
 
 data::TensorStorageType ToFB(TensorStorageType type) {
   switch (type) {
-    case TensorStorageType::BUFFER:
+    case TensorStorageType::kBuffer:
       return data::TensorStorageType::BUFFER;
-    case TensorStorageType::IMAGE_BUFFER:
+    case TensorStorageType::kImageBuffer:
       return data::TensorStorageType::IMAGE_BUFFER;
-    case TensorStorageType::TEXTURE_2D:
+    case TensorStorageType::kTexture2D:
       return data::TensorStorageType::TEXTURE_2D;
-    case TensorStorageType::TEXTURE_ARRAY:
+    case TensorStorageType::kTextureArray:
       return data::TensorStorageType::TEXTURE_ARRAY;
-    case TensorStorageType::TEXTURE_3D:
+    case TensorStorageType::kTexture3D:
       return data::TensorStorageType::TEXTURE_3D;
-    case TensorStorageType::SINGLE_TEXTURE_2D:
+    case TensorStorageType::kSingleTexture2D:
       return data::TensorStorageType::SINGLE_TEXTURE_2D;
-    case TensorStorageType::UNKNOWN:
+    case TensorStorageType::kUnknown:
       return data::TensorStorageType::UNKNOWN;
   }
 }
 
 data::Layout ToFB(Layout type) {
   switch (type) {
-    case Layout::HWC:
+    case Layout::kHWC:
       return data::Layout::HWC;
-    case Layout::BHWC:
+    case Layout::kBHWC:
       return data::Layout::BHWC;
-    case Layout::HWDC:
+    case Layout::kHWDC:
       return data::Layout::HWDC;
-    case Layout::BHWDC:
+    case Layout::kBHWDC:
       return data::Layout::BHWDC;
-    case Layout::LINEAR:
+    case Layout::kLinear:
       return data::Layout::LINEAR;
-    case Layout::HW:
+    case Layout::kHW:
       return data::Layout::HW;
     default:
       return data::Layout::UNKNOWN;
@@ -154,22 +154,22 @@ data::Layout ToFB(Layout type) {
 AccessType ToEnum(data::AccessType type) {
   switch (type) {
     case data::AccessType::READ:
-      return AccessType::READ;
+      return AccessType::kRead;
     case data::AccessType::WRITE:
-      return AccessType::WRITE;
+      return AccessType::kWrite;
     case data::AccessType::READ_WRITE:
-      return AccessType::READ_WRITE;
+      return AccessType::kReadWrite;
   }
 }
 
 MemoryType ToEnum(data::MemoryType type) {
   switch (type) {
     case data::MemoryType::CONSTANT:
-      return MemoryType::CONSTANT;
+      return MemoryType::kConstant;
     case data::MemoryType::GLOBAL:
-      return MemoryType::GLOBAL;
+      return MemoryType::kGlobal;
     case data::MemoryType::LOCAL:
-      return MemoryType::LOCAL;
+      return MemoryType::kLocal;
   }
 }
 
@@ -669,87 +669,87 @@ flatbuffers::Offset<data::GPUOperation> Encode(
 DataType ToEnum(data::DataType type) {
   switch (type) {
     case data::DataType::BOOL:
-      return DataType::BOOL;
+      return DataType::kBool;
     case data::DataType::FLOAT16:
-      return DataType::FLOAT16;
+      return DataType::kFloat16;
     case data::DataType::FLOAT32:
-      return DataType::FLOAT32;
+      return DataType::kFloat32;
     case data::DataType::FLOAT64:
-      return DataType::FLOAT64;
+      return DataType::kFloat64;
     case data::DataType::BFLOAT16:
-      return DataType::BFLOAT16;
+      return DataType::kBfloat16;
     case data::DataType::UINT8:
-      return DataType::UINT8;
+      return DataType::kUint8;
     case data::DataType::INT8:
-      return DataType::INT8;
+      return DataType::kInt8;
     case data::DataType::UINT16:
-      return DataType::UINT16;
+      return DataType::kUint16;
     case data::DataType::INT16:
-      return DataType::INT16;
+      return DataType::kInt16;
     case data::DataType::UINT32:
-      return DataType::UINT32;
+      return DataType::kUint32;
     case data::DataType::INT32:
-      return DataType::INT32;
+      return DataType::kInt32;
     case data::DataType::UINT64:
-      return DataType::UINT64;
+      return DataType::kUint64;
     case data::DataType::INT64:
-      return DataType::INT64;
+      return DataType::kInt64;
     case data::DataType::INT4:
-      return DataType::INT4;
+      return DataType::kInt4;
     case data::DataType::UINT4:
-      return DataType::UINT4;
+      return DataType::kUint4;
     case data::DataType::INT3:
-      return DataType::INT3;
+      return DataType::kInt3;
     case data::DataType::UINT3:
-      return DataType::UINT3;
+      return DataType::kUint3;
     case data::DataType::INT2:
-      return DataType::INT2;
+      return DataType::kInt2;
     case data::DataType::UINT2:
-      return DataType::UINT2;
+      return DataType::kUint2;
     case data::DataType::INT1:
-      return DataType::INT1;
+      return DataType::kInt1;
     case data::DataType::UINT1:
-      return DataType::UINT1;
+      return DataType::kUint1;
     case data::DataType::UNKNOWN:
-      return DataType::UNKNOWN;
+      return DataType::kUnknown;
   }
 }
 
 TensorStorageType ToEnum(data::TensorStorageType type) {
   switch (type) {
     case data::TensorStorageType::BUFFER:
-      return TensorStorageType::BUFFER;
+      return TensorStorageType::kBuffer;
     case data::TensorStorageType::IMAGE_BUFFER:
-      return TensorStorageType::IMAGE_BUFFER;
+      return TensorStorageType::kImageBuffer;
     case data::TensorStorageType::TEXTURE_2D:
-      return TensorStorageType::TEXTURE_2D;
+      return TensorStorageType::kTexture2D;
     case data::TensorStorageType::TEXTURE_ARRAY:
-      return TensorStorageType::TEXTURE_ARRAY;
+      return TensorStorageType::kTextureArray;
     case data::TensorStorageType::TEXTURE_3D:
-      return TensorStorageType::TEXTURE_3D;
+      return TensorStorageType::kTexture3D;
     case data::TensorStorageType::SINGLE_TEXTURE_2D:
-      return TensorStorageType::SINGLE_TEXTURE_2D;
+      return TensorStorageType::kSingleTexture2D;
     case data::TensorStorageType::UNKNOWN:
-      return TensorStorageType::UNKNOWN;
+      return TensorStorageType::kUnknown;
   }
 }
 
 Layout ToEnum(data::Layout type) {
   switch (type) {
     case data::Layout::HWC:
-      return Layout::HWC;
+      return Layout::kHWC;
     case data::Layout::BHWC:
-      return Layout::BHWC;
+      return Layout::kBHWC;
     case data::Layout::HWDC:
-      return Layout::HWDC;
+      return Layout::kHWDC;
     case data::Layout::BHWDC:
-      return Layout::BHWDC;
+      return Layout::kBHWDC;
     case data::Layout::LINEAR:
-      return Layout::LINEAR;
+      return Layout::kLinear;
     case data::Layout::HW:
-      return Layout::HW;
+      return Layout::kHW;
     default:
-      return Layout::UNKNOWN;
+      return Layout::kUnknown;
   }
 }
 

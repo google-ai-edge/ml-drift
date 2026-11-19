@@ -15,7 +15,6 @@
 #include "ml_drift/common/kernels/tests/winograd_test_util.h"
 
 #include <cmath>
-#include <cstring>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -31,8 +30,6 @@
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/task/testing_ref_ops.h"
 #include "ml_drift/common/task/testing_util.h"
-#include "ml_drift/common/task/weights_conversion.h"
-#include "ml_drift/common/task/weights_layout.h"
 #include "ml_drift/common/tensor.h"
 #include "ml_drift/common/util.h"
 #include "ml_drift/common/winograd_util.h"
@@ -58,16 +55,16 @@ absl::Status Winograd3x3ForwardTiledTest(TestExecutionEnvironment& env,
 
   TensorFloat32 dst_ref = Winograd3x3ForwardRef(src_tensor, padding, tile_size);
 
-  float eps = data_type == DataType::FLOAT32 ? 1e-5f : 1e-2f;
+  float eps = data_type == DataType::kFloat32 ? 1e-5f : 1e-2f;
   if (tile_size == 8) {
-    eps = data_type == DataType::FLOAT32 ? 2e-5f : 0.2f;
+    eps = data_type == DataType::kFloat32 ? 2e-5f : 0.2f;
   }
   if (!env.GetGpuInfo().IsRoundToNearestSupported()) {
     eps *= 4.0f;
   }
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   Winograd3x3TiledXForward operation = CreateWinograd3x3TiledXForward(
       env.GetGpuInfo(), op_def, padding, tile_size);
@@ -97,7 +94,7 @@ absl::Status Winograd3x3BackwardTiledTest(TestExecutionEnvironment& env,
     src_tensor.data[i] = sin(i);
   }
 
-  Tensor<Linear, DataType::FLOAT32> biases;
+  Tensor<Linear, DataType::kFloat32> biases;
   biases.shape = Linear(initial_shape.c);
   biases.data.resize(biases.shape.DimensionsProduct());
   for (int i = 0; i < biases.data.size(); ++i) {
@@ -108,16 +105,16 @@ absl::Status Winograd3x3BackwardTiledTest(TestExecutionEnvironment& env,
   TensorFloat32 dst_ref =
       Winograd3x3BackwardRef(src_tensor, dst_shape, tile_size);
 
-  float eps = data_type == DataType::FLOAT32 ? 1e-5f : 1e-2f;
+  float eps = data_type == DataType::kFloat32 ? 1e-5f : 1e-2f;
   if (tile_size == 8) {
-    eps = data_type == DataType::FLOAT32 ? 4e-5f : 0.3f;
+    eps = data_type == DataType::kFloat32 ? 4e-5f : 0.3f;
   }
   if (!env.GetGpuInfo().IsRoundToNearestSupported()) {
     eps *= 4.0f;
   }
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   Winograd3x3TiledXBackward operation = CreateWinograd3x3TiledXBackward(
       env.GetGpuInfo(), op_def, biases, tile_size);
@@ -145,13 +142,13 @@ absl::Status Winograd4x4To36Test(TestExecutionEnvironment& env,
 
   TensorFloat32 dst_ref = Winograd3x3ForwardRef(src_tensor, padding, tile_size);
 
-  float eps = data_type == DataType::FLOAT32 ? 1e-5f : 1e-2f;
+  float eps = data_type == DataType::kFloat32 ? 1e-5f : 1e-2f;
   if (!env.GetGpuInfo().IsRoundToNearestSupported()) {
     eps *= 4.0f;
   }
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
 
   Winograd4x4To36 operation =
@@ -180,13 +177,13 @@ absl::Status Winograd4x4To36BatchTest(TestExecutionEnvironment& env,
 
   TensorFloat32 dst_ref = Winograd3x3ForwardRef(src_tensor, padding, tile_size);
 
-  float eps = data_type == DataType::FLOAT32 ? 1e-5f : 1e-2f;
+  float eps = data_type == DataType::kFloat32 ? 1e-5f : 1e-2f;
   if (!env.GetGpuInfo().IsRoundToNearestSupported()) {
     eps *= 4.0f;
   }
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
   TensorFloat32 dst_tensor;
 
   Winograd4x4To36 operation =
@@ -210,7 +207,7 @@ absl::Status Winograd36To4x4Test(TestExecutionEnvironment& env,
     src_tensor.data[i] = sin(i);
   }
 
-  Tensor<Linear, DataType::FLOAT32> biases;
+  Tensor<Linear, DataType::kFloat32> biases;
   biases.shape = Linear(1);
   biases.data.resize(biases.shape.DimensionsProduct());
   for (int i = 0; i < biases.data.size(); ++i) {
@@ -221,13 +218,13 @@ absl::Status Winograd36To4x4Test(TestExecutionEnvironment& env,
   TensorFloat32 dst_ref =
       Winograd3x3BackwardRef(src_tensor, dst_shape, tile_size);
 
-  float eps = data_type == DataType::FLOAT32 ? 1e-5f : 1e-2f;
+  float eps = data_type == DataType::kFloat32 ? 1e-5f : 1e-2f;
   if (!env.GetGpuInfo().IsRoundToNearestSupported()) {
     eps *= 4.0f;
   }
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   Winograd36To4x4 operation = CreateWinograd36To4x4(op_def, biases);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
@@ -239,23 +236,23 @@ absl::Status Winograd36To4x4Test(TestExecutionEnvironment& env,
 
 absl::Status Winograd3x3To36Test(TestExecutionEnvironment& env) {
   const int kTileSize = 6;
-  Tensor<OHWI, DataType::FLOAT32> weights =
+  Tensor<OHWI, DataType::kFloat32> weights =
       MakeSyntheticTensor(OHWI(8, 3, 3, 12));
-  Tensor<OHWI, DataType::FLOAT32> wino_weights_ref;
+  Tensor<OHWI, DataType::kFloat32> wino_weights_ref;
   RearrangeWeightsToWinograd3x3TileNxN(weights, &wino_weights_ref, kTileSize);
 
-  Tensor<Linear, DataType::FLOAT32> src_tensor_gpu;
+  Tensor<Linear, DataType::kFloat32> src_tensor_gpu;
   src_tensor_gpu.shape = Linear(weights.shape.DimensionsProduct());
   src_tensor_gpu.data = weights.data;
   TensorDescriptor src_desc = CreateConstantLinearTensorDescriptor(
-      DataType::FLOAT32, TensorStorageType::BUFFER, src_tensor_gpu);
+      DataType::kFloat32, TensorStorageType::kBuffer, src_tensor_gpu);
 
   // reinterpreting weights as OHWI-BHWC tensor
   TensorFloat32 wino_weights_gpu;
   wino_weights_gpu.shape =
       BHWC(weights.shape.o, kTileSize, kTileSize, weights.shape.i);
-  TensorDescriptor dst_desc(DataType::FLOAT32, TensorStorageType::BUFFER,
-                            Layout::BHWC);
+  TensorDescriptor dst_desc(DataType::kFloat32, TensorStorageType::kBuffer,
+                            Layout::kBHWC);
   dst_desc.SetBHWCShape(wino_weights_gpu.shape);
   Winograd3x3To36 operation = Winograd3x3To36(src_desc, dst_desc);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(

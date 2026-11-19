@@ -46,10 +46,10 @@ absl::Status ReLUNoClipNoAlphaTest(TestExecutionEnvironment& env,
   attr.alpha = 0.0f;
   attr.activation_max = 0.0f;
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-3f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-3f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateReLU(op_def, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
@@ -70,10 +70,10 @@ absl::Status ReLUClipTest(TestExecutionEnvironment& env, DataType data_type,
   attr.alpha = 0.0f;
   attr.activation_max = 0.9f;
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-3f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-3f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateReLU(op_def, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
@@ -94,10 +94,10 @@ absl::Status ReLUAlphaTest(TestExecutionEnvironment& env, DataType data_type,
   attr.alpha = 0.5f;
   attr.activation_max = 0.0f;
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-3f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-3f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateReLU(op_def, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
@@ -118,10 +118,10 @@ absl::Status ReLUAlphaClipTest(TestExecutionEnvironment& env,
   attr.alpha = 0.5f;
   attr.activation_max = 0.5f;
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-3f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-3f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateReLU(op_def, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(

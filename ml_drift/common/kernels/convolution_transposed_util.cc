@@ -73,8 +73,8 @@ BufferDescriptor GetWeightsBufferDescForFixedSizeConvTransposed(
   desc.element_type = weights_data_type;
   desc.element_size = 4;
   desc.memory_type = weights_upload_type == WeightsUploadType::kConstantMemory
-                         ? MemoryType::CONSTANT
-                         : MemoryType::GLOBAL;
+                         ? MemoryType::kConstant
+                         : MemoryType::kGlobal;
   if (weights_upload_type == WeightsUploadType::kWaveMemory) {
     desc = GetBufferDescForWaveMemoryUpload(gpu_info, weights_data_type);
   }

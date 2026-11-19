@@ -50,11 +50,11 @@ absl::Status AbsTest(TestExecutionEnvironment& env,
   src_tensor.data = {0.0f, -1.0f, 0.05f, 0.045f};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation =
-      CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::ABS);
+      CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::kAbs);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 1, 2), &dst_tensor));
@@ -75,11 +75,11 @@ absl::Status CosTest(TestExecutionEnvironment& env,
   src_tensor.data = {0.0f, -1.0f, -0.05f, 0.045f};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation =
-      CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::COS);
+      CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::kCos);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 1, 2), &dst_tensor));
@@ -95,13 +95,13 @@ absl::Status CosIntTest(TestExecutionEnvironment& env,
   src_tensor.shape = BHWC(1, 2, 1, 2);
   src_tensor.data = {0, -10, 20, 5};
 
-  const DataType data_type = DataType::INT32;
+  const DataType data_type = DataType::kInt32;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
 
   GPUOperation operation =
-      CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::COS);
+      CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::kCos);
   TensorDescriptor src_desc, dst_desc;
   src_desc = op_def.src_tensors[0];
   src_desc.UploadData(src_tensor);
@@ -129,11 +129,11 @@ absl::Status CopyTest(TestExecutionEnvironment& env,
   src_tensor.data = {0.0f, 1.0f, 0.05f, 0.045f};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation =
-      CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::COPY);
+      CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::kCopy);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 1, 2), &dst_tensor));
@@ -151,11 +151,11 @@ absl::Status EluTest(TestExecutionEnvironment& env, DataType data_type,
   src_tensor.data = {0.0f, 1.0f, -1.0f, 100.0f, -100.0f, 0.01f, -0.01f};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation =
-      CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::ELU);
+      CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::kElu);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 1, 1, 7), &dst_tensor));
@@ -177,11 +177,11 @@ absl::Status ExpTest(TestExecutionEnvironment& env, DataType data_type,
   src_tensor.data = {0.0f, 1.0f, -1.0f, 2.5f, -1.7f, 0.01f, -0.01f};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation =
-      CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::EXP);
+      CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::kExp);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 1, 1, 7), &dst_tensor));
@@ -203,11 +203,11 @@ absl::Status FloorTest(TestExecutionEnvironment& env, DataType data_type,
   src_tensor.data = {-4.5f, -3.0f, -1.5f, 0.0f, 1.5f, 3.0f, 4.5f};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
-  GPUOperation operation =
-      CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::FLOOR);
+  GPUOperation operation = CreateElementwiseOneInput(env.GetGpuInfo(), op_def,
+                                                     OperationType::kFloor);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       src_tensor.shape, &dst_tensor));
@@ -231,11 +231,11 @@ absl::Status FloorDivTest(TestExecutionEnvironment& env, DataType data_type,
   attr.param = scalar;
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateElementwise(env.GetGpuInfo(), op_def,
-                                             OperationType::FLOOR_DIV, attr);
+                                             OperationType::kFloorDiv, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       src_tensor.shape, &dst_tensor));
@@ -257,14 +257,14 @@ absl::Status FloorDivIntTest(TestExecutionEnvironment& env,
   src_tensor_1.shape = BHWC(1, 1, 1, 7);
   src_tensor_1.data = {-4, 3, 1, -4, 5, -4, -100};
 
-  auto data_type = DataType::INT32;
+  auto data_type = DataType::kInt32;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
 
   GPUOperation operation = CreateElementwiseTwoInput(
-      env.GetGpuInfo(), op_def, OperationType::FLOOR_DIV, src_tensor_1.shape,
+      env.GetGpuInfo(), op_def, OperationType::kFloorDiv, src_tensor_1.shape,
       src_tensor_0.shape);
 
   TensorDescriptor src_desc0, src_desc1, dst_desc;
@@ -299,11 +299,11 @@ absl::Status FloorModTest(TestExecutionEnvironment& env, DataType data_type,
   attr.param = scalar;
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateElementwise(env.GetGpuInfo(), op_def,
-                                             OperationType::FLOOR_MOD, attr);
+                                             OperationType::kFloorMod, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       src_tensor.shape, &dst_tensor));
@@ -328,14 +328,14 @@ absl::Status FloorModIntTest(TestExecutionEnvironment& env,
   src_tensor_1.shape = BHWC(1, 1, 1, 7);
   src_tensor_1.data = {-4, 3, 1, -4, 5, -4, -100};
 
-  auto data_type = DataType::INT32;
+  auto data_type = DataType::kInt32;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
 
   GPUOperation operation = CreateElementwiseTwoInput(
-      env.GetGpuInfo(), op_def, OperationType::FLOOR_MOD, src_tensor_1.shape,
+      env.GetGpuInfo(), op_def, OperationType::kFloorMod, src_tensor_1.shape,
       src_tensor_0.shape);
 
   TensorDescriptor src_desc0, src_desc1, dst_desc;
@@ -371,11 +371,11 @@ absl::Status GeluTest(TestExecutionEnvironment& env, DataType data_type,
   }
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation =
-      CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::GELU);
+      CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::kGelu);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 1, 1, 6), &dst_tensor));
@@ -394,11 +394,11 @@ absl::Status HardSwishTest(TestExecutionEnvironment& env,
   src_tensor.data = {-4.5f, -3.0f, -1.5f, 0.0f, 1.5f, 3.0f, 4.5f};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateElementwiseOneInput(env.GetGpuInfo(), op_def,
-                                                     OperationType::HARD_SWISH);
+                                                     OperationType::kHardSwish);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       src_tensor.shape, &dst_tensor));
@@ -419,11 +419,11 @@ absl::Status LogTest(TestExecutionEnvironment& env, DataType data_type,
   src_tensor.data = {1.0f, 2.0f, 3.0f, 4.0f};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation =
-      CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::LOG);
+      CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::kLog);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 1, 2), &dst_tensor));
@@ -445,11 +445,11 @@ absl::Status NegTest(TestExecutionEnvironment& env,
   src_tensor.data = {1.0f, -2.0f, 0.0f, 4.0f};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation =
-      CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::NEG);
+      CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::kNeg);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 1, 2), &dst_tensor));
@@ -469,11 +469,11 @@ absl::Status RoundTest(TestExecutionEnvironment& env,
   src_tensor.data = {0.9f, 2.5f, 3.5f, 4.1f};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
-  GPUOperation operation =
-      CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::ROUND);
+  GPUOperation operation = CreateElementwiseOneInput(env.GetGpuInfo(), op_def,
+                                                     OperationType::kRound);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 1, 2), &dst_tensor));
@@ -493,11 +493,11 @@ absl::Status RsqrtTest(TestExecutionEnvironment& env,
   src_tensor.data = {1.0f, 2.0f, 3.0f, 4.0f};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
-  GPUOperation operation =
-      CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::RSQRT);
+  GPUOperation operation = CreateElementwiseOneInput(env.GetGpuInfo(), op_def,
+                                                     OperationType::kRsqrt);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 1, 2), &dst_tensor));
@@ -521,11 +521,11 @@ absl::Status SigmoidTest(TestExecutionEnvironment& env,
                      -std::log(4.0f)};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateElementwiseOneInput(env.GetGpuInfo(), op_def,
-                                                     OperationType::SIGMOID);
+                                                     OperationType::kSigmoid);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 1, 2), &dst_tensor));
@@ -545,11 +545,11 @@ absl::Status SignTest(TestExecutionEnvironment& env,
   src_tensor.data = {-0.75f, 0.54f, 1.54f, -345.0f};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation =
-      CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::SIGN);
+      CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::kSign);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 1, 2), &dst_tensor));
@@ -560,30 +560,30 @@ absl::Status SignTest(TestExecutionEnvironment& env,
 
 absl::Status SignInt8Test(TestExecutionEnvironment& env,
                           TensorStorageType storage) {
-  Tensor<BHWC, DataType::INT8> src_tensor_si8;
+  Tensor<BHWC, DataType::kInt8> src_tensor_si8;
   src_tensor_si8.shape = BHWC(1, 2, 1, 2);
   src_tensor_si8.data = {-75, 54, 120, 0};
   BHWC dst_shape_si8 = BHWC(1, 2, 1, 2);
 
-  Tensor<BHWC, DataType::INT8> ref_tensor_si8;
+  Tensor<BHWC, DataType::kInt8> ref_tensor_si8;
   ref_tensor_si8.shape = BHWC(1, 2, 1, 2);
   ref_tensor_si8.data = {-1, 1, 1, 0};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::INT8, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({DataType::INT8, storage, Layout::HWC});
+  op_def.src_tensors.push_back({DataType::kInt8, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({DataType::kInt8, storage, Layout::kHWC});
 
   TensorDescriptor src_desc, dst_desc;
   src_desc = op_def.src_tensors[0];
   src_desc.UploadData(src_tensor_si8);
   dst_desc.SetBHWCShape(ref_tensor_si8.shape);
   GPUOperation operation =
-      CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::SIGN);
+      CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::kSign);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
-  Tensor<BHWC, DataType::INT8> dst_tensor;
+  Tensor<BHWC, DataType::kInt8> dst_tensor;
   dst_desc.DownloadData(&dst_tensor);
   EXPECT_EQ(dst_tensor.data, ref_tensor_si8.data);
 
@@ -602,11 +602,11 @@ absl::Status SinTest(TestExecutionEnvironment& env,
   src_tensor.data = {0.0f, -1.0f, -0.05f, 0.045f};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation =
-      CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::SIN);
+      CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::kSin);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 1, 2), &dst_tensor));
@@ -629,11 +629,11 @@ absl::Status SqrtTest(TestExecutionEnvironment& env,
   src_tensor.data = {1.0f, 2.0f, 3.0f, 4.0f};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation =
-      CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::SQRT);
+      CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::kSqrt);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 1, 2), &dst_tensor));
@@ -654,11 +654,11 @@ absl::Status SquareTest(TestExecutionEnvironment& env,
   src_tensor.data = {1.0f, -2.0f, 3.0f, 4.0f};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateElementwiseOneInput(env.GetGpuInfo(), op_def,
-                                                     OperationType::SQUARE);
+                                                     OperationType::kSquare);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 1, 2), &dst_tensor));
@@ -679,11 +679,11 @@ absl::Status TanhTest(TestExecutionEnvironment& env,
   src_tensor.data = {-4.0f, -0.1f, 0.1f, 2.0f, 6.0f, -6.0f};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation =
-      CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::TANH);
+      CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::kTanh);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 1, 3), &dst_tensor));
@@ -708,12 +708,12 @@ absl::Status SubTest(TestExecutionEnvironment& env,
   BHWC dst_shape = BHWC(1, 2, 1, 2);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation =
-      CreateElementwiseTwoInput(env.GetGpuInfo(), op_def, OperationType::SUB,
+      CreateElementwiseTwoInput(env.GetGpuInfo(), op_def, OperationType::kSub,
                                 src_tensor_1.shape, dst_shape);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor_0, src_tensor_1},
@@ -726,21 +726,21 @@ absl::Status SubTest(TestExecutionEnvironment& env,
 
 absl::Status ShiftLeftTest(TestExecutionEnvironment& env,
                            TensorStorageType storage) {
-  Tensor<BHWC, DataType::INT32> src_tensor_0, src_tensor_1;
+  Tensor<BHWC, DataType::kInt32> src_tensor_0, src_tensor_1;
   src_tensor_0.shape = BHWC(1, 2, 1, 2);
   src_tensor_1.shape = BHWC(1, 2, 1, 2);
   src_tensor_0.data = {-1, 0, 1, 10};
   src_tensor_1.data = {1, 2, 3, 1};
   BHWC dst_shape = BHWC(1, 2, 1, 2);
 
-  Tensor<BHWC, DataType::INT32> ref_tensor;
+  Tensor<BHWC, DataType::kInt32> ref_tensor;
   ref_tensor.shape = BHWC(1, 2, 1, 2);
   ref_tensor.data = {-2, 0, 8, 20};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::INT32, storage, Layout::HWC});
-  op_def.src_tensors.push_back({DataType::INT32, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({DataType::INT32, storage, Layout::HWC});
+  op_def.src_tensors.push_back({DataType::kInt32, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({DataType::kInt32, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({DataType::kInt32, storage, Layout::kHWC});
 
   TensorDescriptor src_desc0, src_desc1, dst_desc;
   src_desc0 = op_def.src_tensors[0];
@@ -749,13 +749,13 @@ absl::Status ShiftLeftTest(TestExecutionEnvironment& env,
   src_desc1.UploadData(src_tensor_1);
   dst_desc.SetBHWCShape(dst_shape);
   GPUOperation operation = CreateElementwiseTwoInput(
-      env.GetGpuInfo(), op_def, OperationType::SHIFT_LEFT, src_tensor_1.shape,
+      env.GetGpuInfo(), op_def, OperationType::kShiftLeft, src_tensor_1.shape,
       dst_shape);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc0, &src_desc1}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
-  Tensor<BHWC, DataType::INT32> dst_tensor;
+  Tensor<BHWC, DataType::kInt32> dst_tensor;
   dst_desc.DownloadData(&dst_tensor);
   EXPECT_EQ(dst_tensor.data, ref_tensor.data);
   return absl::OkStatus();
@@ -763,21 +763,21 @@ absl::Status ShiftLeftTest(TestExecutionEnvironment& env,
 
 absl::Status ShiftRightTest(TestExecutionEnvironment& env,
                             TensorStorageType storage) {
-  Tensor<BHWC, DataType::INT32> src_tensor_0, src_tensor_1;
+  Tensor<BHWC, DataType::kInt32> src_tensor_0, src_tensor_1;
   src_tensor_0.shape = BHWC(1, 2, 1, 2);
   src_tensor_1.shape = BHWC(1, 2, 1, 2);
   src_tensor_0.data = {-1, 0, 8, 10};
   src_tensor_1.data = {1, 2, 3, 1};
   BHWC dst_shape = BHWC(1, 2, 1, 2);
 
-  Tensor<BHWC, DataType::INT32> ref_tensor;
+  Tensor<BHWC, DataType::kInt32> ref_tensor;
   ref_tensor.shape = BHWC(1, 2, 1, 2);
   ref_tensor.data = {-1, 0, 1, 5};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::INT32, storage, Layout::HWC});
-  op_def.src_tensors.push_back({DataType::INT32, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({DataType::INT32, storage, Layout::HWC});
+  op_def.src_tensors.push_back({DataType::kInt32, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({DataType::kInt32, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({DataType::kInt32, storage, Layout::kHWC});
 
   TensorDescriptor src_desc0, src_desc1, dst_desc;
   src_desc0 = op_def.src_tensors[0];
@@ -786,13 +786,13 @@ absl::Status ShiftRightTest(TestExecutionEnvironment& env,
   src_desc1.UploadData(src_tensor_1);
   dst_desc.SetBHWCShape(dst_shape);
   GPUOperation operation = CreateElementwiseTwoInput(
-      env.GetGpuInfo(), op_def, OperationType::SHIFT_RIGHT, src_tensor_1.shape,
+      env.GetGpuInfo(), op_def, OperationType::kShiftRight, src_tensor_1.shape,
       dst_shape);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc0, &src_desc1}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
-  Tensor<BHWC, DataType::INT32> dst_tensor;
+  Tensor<BHWC, DataType::kInt32> dst_tensor;
   dst_desc.DownloadData(&dst_tensor);
   EXPECT_EQ(dst_tensor.data, ref_tensor.data);
   return absl::OkStatus();
@@ -812,12 +812,12 @@ absl::Status SquaredDiffTest(TestExecutionEnvironment& env,
   BHWC dst_shape = BHWC(1, 2, 1, 2);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateElementwiseTwoInput(
-      env.GetGpuInfo(), op_def, OperationType::SQUARED_DIFF, src_tensor_1.shape,
+      env.GetGpuInfo(), op_def, OperationType::kSquaredDiff, src_tensor_1.shape,
       dst_shape);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor_0, src_tensor_1},
@@ -842,12 +842,12 @@ absl::Status DivTest(TestExecutionEnvironment& env,
   BHWC dst_shape = BHWC(1, 2, 1, 2);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation =
-      CreateElementwiseTwoInput(env.GetGpuInfo(), op_def, OperationType::DIV,
+      CreateElementwiseTwoInput(env.GetGpuInfo(), op_def, OperationType::kDiv,
                                 src_tensor_1.shape, dst_shape);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor_0, src_tensor_1},
@@ -860,16 +860,16 @@ absl::Status DivTest(TestExecutionEnvironment& env,
 
 absl::Status ModInt3Test(TestExecutionEnvironment& env,
                          TensorStorageType storage) {
-  Tensor<BHWC, DataType::INT32> src;
+  Tensor<BHWC, DataType::kInt32> src;
   src.shape = BHWC(1, 2, 1, 2);
   src.data = {3, 4, 5, 6};
-  Tensor<BHWC, DataType::INT32> ref_tensor;
+  Tensor<BHWC, DataType::kInt32> ref_tensor;
   ref_tensor.shape = BHWC(1, 2, 1, 2);
   ref_tensor.data = {0, 1, 2, 0};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::INT32, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({DataType::INT32, storage, Layout::HWC});
+  op_def.src_tensors.push_back({DataType::kInt32, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({DataType::kInt32, storage, Layout::kHWC});
   TensorDescriptor src_td, dst_td;
   src_td = op_def.src_tensors[0];
   src_td.UploadData(src);
@@ -877,11 +877,11 @@ absl::Status ModInt3Test(TestExecutionEnvironment& env,
   ElementwiseAttributes attr;
   attr.param = 3;
   GPUOperation operation =
-      CreateElementwise(env.GetGpuInfo(), op_def, OperationType::MOD, attr);
+      CreateElementwise(env.GetGpuInfo(), op_def, OperationType::kMod, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_td}, {&dst_td},
       std::make_unique<GPUOperation>(std::move(operation))));
-  Tensor<BHWC, DataType::INT32> dst_tensor;
+  Tensor<BHWC, DataType::kInt32> dst_tensor;
   dst_td.DownloadData(&dst_tensor);
   EXPECT_EQ(dst_tensor.data, ref_tensor.data);
 
@@ -890,16 +890,16 @@ absl::Status ModInt3Test(TestExecutionEnvironment& env,
 
 absl::Status ModUint5Test(TestExecutionEnvironment& env,
                           TensorStorageType storage) {
-  Tensor<BHWC, DataType::UINT32> src;
+  Tensor<BHWC, DataType::kUint32> src;
   src.shape = BHWC(1, 2, 1, 2);
   src.data = {3, 4, 5, 6};
-  Tensor<BHWC, DataType::UINT32> ref_tensor;
+  Tensor<BHWC, DataType::kUint32> ref_tensor;
   ref_tensor.shape = BHWC(1, 2, 1, 2);
   ref_tensor.data = {3, 4, 0, 1};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::UINT32, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({DataType::UINT32, storage, Layout::HWC});
+  op_def.src_tensors.push_back({DataType::kUint32, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({DataType::kUint32, storage, Layout::kHWC});
   TensorDescriptor src_td, dst_td;
   src_td = op_def.src_tensors[0];
   src_td.UploadData(src);
@@ -907,11 +907,11 @@ absl::Status ModUint5Test(TestExecutionEnvironment& env,
   ElementwiseAttributes attr;
   attr.param = 5u;
   GPUOperation operation =
-      CreateElementwise(env.GetGpuInfo(), op_def, OperationType::MOD, attr);
+      CreateElementwise(env.GetGpuInfo(), op_def, OperationType::kMod, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_td}, {&dst_td},
       std::make_unique<GPUOperation>(std::move(operation))));
-  Tensor<BHWC, DataType::UINT32> dst_tensor;
+  Tensor<BHWC, DataType::kUint32> dst_tensor;
   dst_td.DownloadData(&dst_tensor);
   EXPECT_EQ(dst_tensor.data, ref_tensor.data);
 
@@ -928,14 +928,14 @@ absl::Status PowTest(TestExecutionEnvironment& env,
   src_tensor_1.data = {0.0f, 1.0f, 2.0f, 3.0f};
   BHWC dst_shape = BHWC(1, 2, 1, 2);
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-2f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-2f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation =
-      CreateElementwiseTwoInput(env.GetGpuInfo(), op_def, OperationType::POW,
+      CreateElementwiseTwoInput(env.GetGpuInfo(), op_def, OperationType::kPow,
                                 src_tensor_1.shape, dst_shape);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor_0, src_tensor_1},
@@ -953,15 +953,15 @@ absl::Status PowWithScalarTest(TestExecutionEnvironment& env,
   src_tensor.data = {-2.0f, -3.0f, 2.0f, 0.0f};
   BHWC dst_shape = BHWC(1, 2, 1, 2);
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-2f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-2f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   ElementwiseAttributes attr;
   attr.param = 2.0f;
   GPUOperation operation =
-      CreateElementwise(env.GetGpuInfo(), op_def, OperationType::POW, attr);
+      CreateElementwise(env.GetGpuInfo(), op_def, OperationType::kPow, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor}, std::make_unique<GPUOperation>(std::move(operation)),
       dst_shape, &dst_tensor));
@@ -980,14 +980,14 @@ absl::Status AddTest(TestExecutionEnvironment& env,
   src_tensor_1.data = {0.5f, 1.0f, 3.0f, 1.5f};
   BHWC dst_shape = BHWC(1, 2, 1, 2);
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-2f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-2f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation =
-      CreateElementwiseTwoInput(env.GetGpuInfo(), op_def, OperationType::ADD,
+      CreateElementwiseTwoInput(env.GetGpuInfo(), op_def, OperationType::kAdd,
                                 src_tensor_1.shape, dst_shape);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor_0, src_tensor_1},
@@ -1011,13 +1011,13 @@ absl::Status AddWithConstantBHWCTensorTest(TestExecutionEnvironment& env,
   ElementwiseAttributes attr;
   attr.param = const_tensor;
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-2f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-2f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation =
-      CreateElementwise(env.GetGpuInfo(), op_def, OperationType::ADD, attr);
+      CreateElementwise(env.GetGpuInfo(), op_def, OperationType::kAdd, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor_0, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 1, 2), &dst_tensor));
@@ -1031,7 +1031,7 @@ absl::Status AddTiledTest(TestExecutionEnvironment& env,
                           TensorStorageType storage) {
   TensorFloat32 src_tensor_0, src_tensor_1;
 
-  for (auto axis : {Axis::WIDTH, Axis::HEIGHT, Axis::CHANNELS}) {
+  for (auto axis : {Axis::kWidth, Axis::kHeight, Axis::kChannels}) {
     src_tensor_0.shape = BHWC(1, 1, 1, 1);
     src_tensor_1.shape = BHWC(1, 1, 1, 1);
     src_tensor_0.data = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
@@ -1040,14 +1040,14 @@ absl::Status AddTiledTest(TestExecutionEnvironment& env,
     src_tensor_0.shape.set(axis, 8);
     src_tensor_1.shape.set(axis, 4);
     BHWC dst_shape = src_tensor_0.shape;
-    const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-2f;
+    const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-2f;
     OperationDef op_def;
-    op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-    op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-    op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+    op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+    op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+    op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
     TensorFloat32 dst_tensor;
     GPUOperation operation =
-        CreateElementwiseTwoInput(env.GetGpuInfo(), op_def, OperationType::ADD,
+        CreateElementwiseTwoInput(env.GetGpuInfo(), op_def, OperationType::kAdd,
                                   src_tensor_1.shape, dst_shape);
     ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
         {src_tensor_0, src_tensor_1},
@@ -1071,14 +1071,14 @@ absl::Status Atan2Test(TestExecutionEnvironment& env,
   src_tensor_1.data = {0.5f, 1.0f, 3.0f, 3.5f};
   BHWC dst_shape = BHWC(1, 2, 1, 2);
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-5f : 1e-3f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-5f : 1e-3f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation =
-      CreateElementwiseTwoInput(env.GetGpuInfo(), op_def, OperationType::ATAN2,
+      CreateElementwiseTwoInput(env.GetGpuInfo(), op_def, OperationType::kAtan2,
                                 src_tensor_1.shape, dst_shape);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor_0, src_tensor_1},
@@ -1100,14 +1100,14 @@ absl::Status Atan2IntTest(TestExecutionEnvironment& env,
   src_tensor_0.data = {1, 2, 3, 4};
   src_tensor_1.data = {1, 1, 3, 4};
 
-  auto data_type = DataType::INT32;
+  auto data_type = DataType::kInt32;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
 
   GPUOperation operation =
-      CreateElementwiseTwoInput(env.GetGpuInfo(), op_def, OperationType::ATAN2,
+      CreateElementwiseTwoInput(env.GetGpuInfo(), op_def, OperationType::kAtan2,
                                 src_tensor_1.shape, src_tensor_0.shape);
 
   TensorDescriptor src_desc0, src_desc1, dst_desc;
@@ -1141,14 +1141,14 @@ absl::Status MaximumTest(TestExecutionEnvironment& env,
   src_tensor_1.data = {1.0f, 2.0f, 3.0f, -2.0f};
   BHWC dst_shape = BHWC(1, 2, 1, 2);
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-2f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-2f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateElementwiseTwoInput(
-      env.GetGpuInfo(), op_def, OperationType::MAXIMUM, src_tensor_1.shape,
+      env.GetGpuInfo(), op_def, OperationType::kMaximum, src_tensor_1.shape,
       dst_shape);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor_0, src_tensor_1},
@@ -1161,22 +1161,22 @@ absl::Status MaximumTest(TestExecutionEnvironment& env,
 
 absl::Status MaximumInt8Test(TestExecutionEnvironment& env,
                              TensorStorageType storage) {
-  Tensor<BHWC, DataType::INT8> src_tensor_0_si8, src_tensor_1_si8;
+  Tensor<BHWC, DataType::kInt8> src_tensor_0_si8, src_tensor_1_si8;
   src_tensor_0_si8.shape = BHWC(1, 2, 1, 2);
   src_tensor_1_si8.shape = BHWC(1, 2, 1, 2);
   src_tensor_0_si8.data = {0, 1, 8, -9};
   src_tensor_1_si8.data = {-128, -1, 8, -9};
   BHWC dst_shape_si8 = BHWC(1, 2, 1, 2);
 
-  Tensor<BHWC, DataType::INT8> ref_tensor_si8;
+  Tensor<BHWC, DataType::kInt8> ref_tensor_si8;
   ref_tensor_si8.shape = BHWC(1, 2, 1, 2);
   ref_tensor_si8.data = {0, 1, 8, -9};
   BHWC dst_shape = BHWC(1, 2, 1, 2);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::INT8, storage, Layout::HWC});
-  op_def.src_tensors.push_back({DataType::INT8, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({DataType::INT8, storage, Layout::HWC});
+  op_def.src_tensors.push_back({DataType::kInt8, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({DataType::kInt8, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({DataType::kInt8, storage, Layout::kHWC});
 
   TensorDescriptor src_desc0, src_desc1, dst_desc;
   src_desc0 = op_def.src_tensors[0];
@@ -1185,13 +1185,13 @@ absl::Status MaximumInt8Test(TestExecutionEnvironment& env,
   src_desc1.UploadData(src_tensor_1_si8);
   dst_desc.SetBHWCShape(dst_shape);
   GPUOperation operation = CreateElementwiseTwoInput(
-      env.GetGpuInfo(), op_def, OperationType::MAXIMUM, src_tensor_1_si8.shape,
+      env.GetGpuInfo(), op_def, OperationType::kMaximum, src_tensor_1_si8.shape,
       dst_shape);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc0, &src_desc1}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
-  Tensor<BHWC, DataType::INT8> dst_tensor;
+  Tensor<BHWC, DataType::kInt8> dst_tensor;
   dst_desc.DownloadData(&dst_tensor);
   EXPECT_EQ(dst_tensor.data, ref_tensor_si8.data);
 
@@ -1208,13 +1208,13 @@ absl::Status MaximumWithScalarTest(TestExecutionEnvironment& env,
   ElementwiseAttributes attr;
   attr.param = -1.0f;
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-2f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-2f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
-  GPUOperation operation =
-      CreateElementwise(env.GetGpuInfo(), op_def, OperationType::MAXIMUM, attr);
+  GPUOperation operation = CreateElementwise(env.GetGpuInfo(), op_def,
+                                             OperationType::kMaximum, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor_0, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 4, 1, 1), &dst_tensor));
@@ -1225,11 +1225,11 @@ absl::Status MaximumWithScalarTest(TestExecutionEnvironment& env,
 
 absl::Status MaximumWithIntScalarTest(TestExecutionEnvironment& env,
                                       TensorStorageType storage) {
-  Tensor<BHWC, DataType::INT32> src_tensor_0;
+  Tensor<BHWC, DataType::kInt32> src_tensor_0;
   src_tensor_0.shape = BHWC(1, 4, 1, 1);
   src_tensor_0.data = {3, -4, 5, -6};
 
-  Tensor<BHWC, DataType::INT32> ref_tensor;
+  Tensor<BHWC, DataType::kInt32> ref_tensor;
   ref_tensor.shape = BHWC(1, 4, 1, 1);
   ref_tensor.data = {3, -1, 5, -1};
 
@@ -1237,23 +1237,23 @@ absl::Status MaximumWithIntScalarTest(TestExecutionEnvironment& env,
   const int value = -1;
   attr.param = value;
 
-  const auto data_type = DataType::INT32;
+  const auto data_type = DataType::kInt32;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
 
   TensorDescriptor src_0, dst;
   src_0 = op_def.src_tensors[0];
   src_0.UploadData(src_tensor_0);
   dst.SetBHWCShape(BHWC(1, 4, 1, 1));
 
-  GPUOperation operation =
-      CreateElementwise(env.GetGpuInfo(), op_def, OperationType::MAXIMUM, attr);
+  GPUOperation operation = CreateElementwise(env.GetGpuInfo(), op_def,
+                                             OperationType::kMaximum, attr);
 
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_0}, {&dst}, std::make_unique<GPUOperation>(std::move(operation))));
 
-  Tensor<BHWC, DataType::INT32> dst_tensor;
+  Tensor<BHWC, DataType::kInt32> dst_tensor;
   dst.DownloadData(&dst_tensor);
   EXPECT_EQ(dst_tensor.data, ref_tensor.data);
 
@@ -1262,11 +1262,11 @@ absl::Status MaximumWithIntScalarTest(TestExecutionEnvironment& env,
 
 absl::Status MaximumWithUintScalarTest(TestExecutionEnvironment& env,
                                        TensorStorageType storage) {
-  Tensor<BHWC, DataType::UINT32> src_tensor_0;
+  Tensor<BHWC, DataType::kUint32> src_tensor_0;
   src_tensor_0.shape = BHWC(1, 4, 1, 1);
   src_tensor_0.data = {3, 40, 5, 60};
 
-  Tensor<BHWC, DataType::UINT32> ref_tensor;
+  Tensor<BHWC, DataType::kUint32> ref_tensor;
   ref_tensor.shape = BHWC(1, 4, 1, 1);
   ref_tensor.data = {8, 40, 8, 60};
 
@@ -1274,23 +1274,23 @@ absl::Status MaximumWithUintScalarTest(TestExecutionEnvironment& env,
   const uint value = 8;
   attr.param = value;
 
-  const auto data_type = DataType::UINT32;
+  const auto data_type = DataType::kUint32;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
 
   TensorDescriptor src_0, dst;
   src_0 = op_def.src_tensors[0];
   src_0.UploadData(src_tensor_0);
   dst.SetBHWCShape(BHWC(1, 4, 1, 1));
 
-  GPUOperation operation =
-      CreateElementwise(env.GetGpuInfo(), op_def, OperationType::MAXIMUM, attr);
+  GPUOperation operation = CreateElementwise(env.GetGpuInfo(), op_def,
+                                             OperationType::kMaximum, attr);
 
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_0}, {&dst}, std::make_unique<GPUOperation>(std::move(operation))));
 
-  Tensor<BHWC, DataType::UINT32> dst_tensor;
+  Tensor<BHWC, DataType::kUint32> dst_tensor;
   dst.DownloadData(&dst_tensor);
   EXPECT_EQ(dst_tensor.data, ref_tensor.data);
 
@@ -1304,19 +1304,19 @@ absl::Status MaximumWithConstantLinearTensorTest(
   src_tensor_0.shape = BHWC(1, 2, 1, 2);
   src_tensor_0.data = {1.0f, -6.2f, -2.0f, 3.0f};
 
-  Tensor<Linear, DataType::FLOAT32> linear_tensor;
+  Tensor<Linear, DataType::kFloat32> linear_tensor;
   linear_tensor.shape = Linear(2);
   linear_tensor.data = {0.5f, 2.0f};
   ElementwiseAttributes attr;
   attr.param = linear_tensor;
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-2f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-2f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
-  GPUOperation operation =
-      CreateElementwise(env.GetGpuInfo(), op_def, OperationType::MAXIMUM, attr);
+  GPUOperation operation = CreateElementwise(env.GetGpuInfo(), op_def,
+                                             OperationType::kMaximum, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor_0, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 1, 2), &dst_tensor));
@@ -1339,13 +1339,13 @@ absl::Status MaximumWithConstantBHWCTensorTest(TestExecutionEnvironment& env,
   ElementwiseAttributes attr;
   attr.param = const_tensor;
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-2f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-2f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
-  GPUOperation operation =
-      CreateElementwise(env.GetGpuInfo(), op_def, OperationType::MAXIMUM, attr);
+  GPUOperation operation = CreateElementwise(env.GetGpuInfo(), op_def,
+                                             OperationType::kMaximum, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor_0, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 1, 2), &dst_tensor));
@@ -1366,13 +1366,13 @@ absl::Status MaximumWithConstantBHWCTensorBroadcastChannelsTest(
   ElementwiseAttributes attr;
   attr.param = const_tensor;
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-2f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-2f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
-  GPUOperation operation =
-      CreateElementwise(env.GetGpuInfo(), op_def, OperationType::MAXIMUM, attr);
+  GPUOperation operation = CreateElementwise(env.GetGpuInfo(), op_def,
+                                             OperationType::kMaximum, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor_0, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 1, 2), &dst_tensor));
@@ -1391,14 +1391,14 @@ absl::Status MinimumTest(TestExecutionEnvironment& env,
   src_tensor_1.data = {1.0f, 2.0f, 3.0f, -2.0f};
   BHWC dst_shape = BHWC(1, 2, 1, 2);
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-2f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-2f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateElementwiseTwoInput(
-      env.GetGpuInfo(), op_def, OperationType::MINIMUM, src_tensor_1.shape,
+      env.GetGpuInfo(), op_def, OperationType::kMinimum, src_tensor_1.shape,
       dst_shape);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor_0, src_tensor_1},
@@ -1411,22 +1411,22 @@ absl::Status MinimumTest(TestExecutionEnvironment& env,
 
 absl::Status MinimumInt8Test(TestExecutionEnvironment& env,
                              TensorStorageType storage) {
-  Tensor<BHWC, DataType::INT8> src_tensor_0_si8, src_tensor_1_si8;
+  Tensor<BHWC, DataType::kInt8> src_tensor_0_si8, src_tensor_1_si8;
   src_tensor_0_si8.shape = BHWC(1, 2, 1, 2);
   src_tensor_1_si8.shape = BHWC(1, 2, 1, 2);
   src_tensor_0_si8.data = {0, 1, 8, -9};
   src_tensor_1_si8.data = {-128, -1, 8, -9};
   BHWC dst_shape_si8 = BHWC(1, 2, 1, 2);
 
-  Tensor<BHWC, DataType::INT8> ref_tensor_si8;
+  Tensor<BHWC, DataType::kInt8> ref_tensor_si8;
   ref_tensor_si8.shape = BHWC(1, 2, 1, 2);
   ref_tensor_si8.data = {-128, -1, 8, -9};
   BHWC dst_shape = BHWC(1, 2, 1, 2);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::INT8, storage, Layout::HWC});
-  op_def.src_tensors.push_back({DataType::INT8, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({DataType::INT8, storage, Layout::HWC});
+  op_def.src_tensors.push_back({DataType::kInt8, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({DataType::kInt8, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({DataType::kInt8, storage, Layout::kHWC});
 
   TensorDescriptor src_desc0, src_desc1, dst_desc;
   src_desc0 = op_def.src_tensors[0];
@@ -1435,13 +1435,13 @@ absl::Status MinimumInt8Test(TestExecutionEnvironment& env,
   src_desc1.UploadData(src_tensor_1_si8);
   dst_desc.SetBHWCShape(dst_shape);
   GPUOperation operation = CreateElementwiseTwoInput(
-      env.GetGpuInfo(), op_def, OperationType::MINIMUM, src_tensor_1_si8.shape,
+      env.GetGpuInfo(), op_def, OperationType::kMinimum, src_tensor_1_si8.shape,
       dst_shape);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc0, &src_desc1}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
-  Tensor<BHWC, DataType::INT8> dst_tensor;
+  Tensor<BHWC, DataType::kInt8> dst_tensor;
   dst_desc.DownloadData(&dst_tensor);
   EXPECT_EQ(dst_tensor.data, ref_tensor_si8.data);
 
@@ -1458,13 +1458,13 @@ absl::Status MinimumWithScalarTest(TestExecutionEnvironment& env,
   ElementwiseAttributes attr;
   attr.param = -1.0f;
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-2f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-2f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
-  GPUOperation operation =
-      CreateElementwise(env.GetGpuInfo(), op_def, OperationType::MINIMUM, attr);
+  GPUOperation operation = CreateElementwise(env.GetGpuInfo(), op_def,
+                                             OperationType::kMinimum, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor_0, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 4, 1, 1), &dst_tensor));
@@ -1484,14 +1484,14 @@ absl::Status MulTest(TestExecutionEnvironment& env,
   src_tensor_1.data = {0.5f, 1.0f, 3.0f, 1.5f};
   BHWC dst_shape = BHWC(1, 2, 1, 2);
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-2f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-2f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation =
-      CreateElementwiseTwoInput(env.GetGpuInfo(), op_def, OperationType::MUL,
+      CreateElementwiseTwoInput(env.GetGpuInfo(), op_def, OperationType::kMul,
                                 src_tensor_1.shape, dst_shape);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor_0, src_tensor_1},
@@ -1513,14 +1513,14 @@ absl::Status MulBroadcastHWTest(TestExecutionEnvironment& env,
   src_tensor_1.data = {0.5f, 3.0f};
   BHWC dst_shape = BHWC(1, 2, 1, 2);
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-2f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-2f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation =
-      CreateElementwiseTwoInput(env.GetGpuInfo(), op_def, OperationType::MUL,
+      CreateElementwiseTwoInput(env.GetGpuInfo(), op_def, OperationType::kMul,
                                 src_tensor_1.shape, dst_shape);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor_0, src_tensor_1},
@@ -1541,14 +1541,14 @@ absl::Status MulBroadcastChannelsTest(TestExecutionEnvironment& env,
   src_tensor_1.data = {0.5f, 3.0f};
   BHWC dst_shape = BHWC(1, 2, 1, 2);
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-2f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-2f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation =
-      CreateElementwiseTwoInput(env.GetGpuInfo(), op_def, OperationType::MUL,
+      CreateElementwiseTwoInput(env.GetGpuInfo(), op_def, OperationType::kMul,
                                 src_tensor_1.shape, dst_shape);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor_0, src_tensor_1},
@@ -1570,13 +1570,13 @@ absl::Status SubWithScalarAtFirstPositionTest(TestExecutionEnvironment& env,
   attr.param = 4.0f;
   attr.runtime_tensor_is_second = true;
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-2f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-2f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation =
-      CreateElementwise(env.GetGpuInfo(), op_def, OperationType::SUB, attr);
+      CreateElementwise(env.GetGpuInfo(), op_def, OperationType::kSub, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor_0, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 4, 1, 1), &dst_tensor));
@@ -1594,14 +1594,14 @@ absl::Status LessTest(TestExecutionEnvironment& env,
   src_tensor_1.data = {1.0f, 0.0f, 2.0f, -4.0f};
   BHWC dst_shape = BHWC(1, 2, 1, 2);
 
-  Tensor<BHWC, DataType::BOOL> ref_tensor;
+  Tensor<BHWC, DataType::kBool> ref_tensor;
   ref_tensor.shape = BHWC(1, 2, 1, 2);
   ref_tensor.data = {true, false, false, false};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::FLOAT32, storage, Layout::HWC});
-  op_def.src_tensors.push_back({DataType::FLOAT32, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({DataType::BOOL, storage, Layout::HWC});
+  op_def.src_tensors.push_back({DataType::kFloat32, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({DataType::kFloat32, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({DataType::kBool, storage, Layout::kHWC});
 
   TensorDescriptor src_desc0, src_desc1, dst_desc;
   src_desc0 = op_def.src_tensors[0];
@@ -1610,13 +1610,13 @@ absl::Status LessTest(TestExecutionEnvironment& env,
   src_desc1.UploadData(src_tensor_1);
   dst_desc.SetBHWCShape(dst_shape);
   GPUOperation operation =
-      CreateElementwiseTwoInput(env.GetGpuInfo(), op_def, OperationType::LESS,
+      CreateElementwiseTwoInput(env.GetGpuInfo(), op_def, OperationType::kLess,
                                 src_tensor_1.shape, dst_shape);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc0, &src_desc1}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
-  Tensor<BHWC, DataType::BOOL> dst_tensor;
+  Tensor<BHWC, DataType::kBool> dst_tensor;
   dst_desc.DownloadData(&dst_tensor);
   EXPECT_EQ(dst_tensor.data, ref_tensor.data);
 
@@ -1629,7 +1629,7 @@ absl::Status LessEqualTest(TestExecutionEnvironment& env,
   src_tensor_0.shape = BHWC(1, 2, 1, 2);
   src_tensor_0.data = {0.0f, 1.0f, 2.0f, 3.0f};
 
-  ml_drift::Tensor<BHWC, DataType::BOOL> ref_tensor;
+  ml_drift::Tensor<BHWC, DataType::kBool> ref_tensor;
   ref_tensor.shape = BHWC(1, 2, 1, 2);
   ref_tensor.data = {true, true, true, false};
 
@@ -1637,19 +1637,19 @@ absl::Status LessEqualTest(TestExecutionEnvironment& env,
   attr.param = 2.0f;
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::FLOAT32, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({DataType::BOOL, storage, Layout::HWC});
+  op_def.src_tensors.push_back({DataType::kFloat32, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({DataType::kBool, storage, Layout::kHWC});
   TensorDescriptor src_desc, dst_desc;
   src_desc = op_def.src_tensors[0];
   src_desc.UploadData(src_tensor_0);
   dst_desc.SetBHWCShape(BHWC(1, 2, 1, 2));
   GPUOperation operation = CreateElementwise(env.GetGpuInfo(), op_def,
-                                             OperationType::LESS_EQUAL, attr);
+                                             OperationType::kLessEqual, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
-  ml_drift::Tensor<BHWC, DataType::BOOL> dst_tensor;
+  ml_drift::Tensor<BHWC, DataType::kBool> dst_tensor;
   dst_desc.DownloadData(&dst_tensor);
   EXPECT_EQ(dst_tensor.data, ref_tensor.data);
 
@@ -1662,7 +1662,7 @@ absl::Status GreaterTest(TestExecutionEnvironment& env,
   src_tensor_0.shape = BHWC(1, 2, 1, 2);
   src_tensor_0.data = {0.0f, 1.0f, 2.0f, 3.0f};
 
-  ml_drift::Tensor<BHWC, DataType::BOOL> ref_tensor;
+  ml_drift::Tensor<BHWC, DataType::kBool> ref_tensor;
   ref_tensor.shape = BHWC(1, 2, 1, 2);
   ref_tensor.data = {false, false, false, true};
 
@@ -1670,19 +1670,19 @@ absl::Status GreaterTest(TestExecutionEnvironment& env,
   attr.param = 2.0f;
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::FLOAT32, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({DataType::BOOL, storage, Layout::HWC});
+  op_def.src_tensors.push_back({DataType::kFloat32, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({DataType::kBool, storage, Layout::kHWC});
   TensorDescriptor src_desc, dst_desc;
   src_desc = op_def.src_tensors[0];
   src_desc.UploadData(src_tensor_0);
   dst_desc.SetBHWCShape(BHWC(1, 2, 1, 2));
-  GPUOperation operation =
-      CreateElementwise(env.GetGpuInfo(), op_def, OperationType::GREATER, attr);
+  GPUOperation operation = CreateElementwise(env.GetGpuInfo(), op_def,
+                                             OperationType::kGreater, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
-  ml_drift::Tensor<BHWC, DataType::BOOL> dst_tensor;
+  ml_drift::Tensor<BHWC, DataType::kBool> dst_tensor;
   dst_desc.DownloadData(&dst_tensor);
   EXPECT_EQ(dst_tensor.data, ref_tensor.data);
 
@@ -1695,7 +1695,7 @@ absl::Status GreaterEqualTest(TestExecutionEnvironment& env,
   src_tensor_0.shape = BHWC(1, 2, 1, 2);
   src_tensor_0.data = {0.0f, 1.0f, 2.0f, 3.0f};
 
-  ml_drift::Tensor<BHWC, DataType::BOOL> ref_tensor;
+  ml_drift::Tensor<BHWC, DataType::kBool> ref_tensor;
   ref_tensor.shape = BHWC(1, 2, 1, 2);
   ref_tensor.data = {false, false, true, true};
 
@@ -1703,19 +1703,19 @@ absl::Status GreaterEqualTest(TestExecutionEnvironment& env,
   attr.param = 2.0f;
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::FLOAT32, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({DataType::BOOL, storage, Layout::HWC});
+  op_def.src_tensors.push_back({DataType::kFloat32, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({DataType::kBool, storage, Layout::kHWC});
   TensorDescriptor src_desc, dst_desc;
   src_desc = op_def.src_tensors[0];
   src_desc.UploadData(src_tensor_0);
   dst_desc.SetBHWCShape(BHWC(1, 2, 1, 2));
   GPUOperation operation = CreateElementwise(
-      env.GetGpuInfo(), op_def, OperationType::GREATER_EQUAL, attr);
+      env.GetGpuInfo(), op_def, OperationType::kGreaterEqual, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
-  ml_drift::Tensor<BHWC, DataType::BOOL> dst_tensor;
+  ml_drift::Tensor<BHWC, DataType::kBool> dst_tensor;
   dst_desc.DownloadData(&dst_tensor);
   EXPECT_EQ(dst_tensor.data, ref_tensor.data);
 
@@ -1728,7 +1728,7 @@ absl::Status EqualTest(TestExecutionEnvironment& env,
   src_tensor_0.shape = BHWC(1, 2, 1, 2);
   src_tensor_0.data = {0.0f, 1.0f, 2.0f, 3.0f};
 
-  ml_drift::Tensor<BHWC, DataType::BOOL> ref_tensor;
+  ml_drift::Tensor<BHWC, DataType::kBool> ref_tensor;
   ref_tensor.shape = BHWC(1, 2, 1, 2);
   ref_tensor.data = {false, false, true, false};
 
@@ -1736,19 +1736,19 @@ absl::Status EqualTest(TestExecutionEnvironment& env,
   attr.param = 2.0f;
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::FLOAT32, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({DataType::BOOL, storage, Layout::HWC});
+  op_def.src_tensors.push_back({DataType::kFloat32, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({DataType::kBool, storage, Layout::kHWC});
   TensorDescriptor src_desc, dst_desc;
   src_desc = op_def.src_tensors[0];
   src_desc.UploadData(src_tensor_0);
   dst_desc.SetBHWCShape(BHWC(1, 2, 1, 2));
   GPUOperation operation =
-      CreateElementwise(env.GetGpuInfo(), op_def, OperationType::EQUAL, attr);
+      CreateElementwise(env.GetGpuInfo(), op_def, OperationType::kEqual, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
-  ml_drift::Tensor<BHWC, DataType::BOOL> dst_tensor;
+  ml_drift::Tensor<BHWC, DataType::kBool> dst_tensor;
   dst_desc.DownloadData(&dst_tensor);
   EXPECT_EQ(dst_tensor.data, ref_tensor.data);
 
@@ -1761,7 +1761,7 @@ absl::Status NotEqualTest(TestExecutionEnvironment& env,
   src_tensor_0.shape = BHWC(1, 2, 1, 2);
   src_tensor_0.data = {0.0f, 1.0f, 2.0f, 3.0f};
 
-  ml_drift::Tensor<BHWC, DataType::BOOL> ref_tensor;
+  ml_drift::Tensor<BHWC, DataType::kBool> ref_tensor;
   ref_tensor.shape = BHWC(1, 2, 1, 2);
   ref_tensor.data = {true, true, false, true};
 
@@ -1769,19 +1769,19 @@ absl::Status NotEqualTest(TestExecutionEnvironment& env,
   attr.param = 2.0f;
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::FLOAT32, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({DataType::BOOL, storage, Layout::HWC});
+  op_def.src_tensors.push_back({DataType::kFloat32, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({DataType::kBool, storage, Layout::kHWC});
   TensorDescriptor src_desc, dst_desc;
   src_desc = op_def.src_tensors[0];
   src_desc.UploadData(src_tensor_0);
   dst_desc.SetBHWCShape(BHWC(1, 2, 1, 2));
   GPUOperation operation = CreateElementwise(env.GetGpuInfo(), op_def,
-                                             OperationType::NOT_EQUAL, attr);
+                                             OperationType::kNotEqual, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
-  ml_drift::Tensor<BHWC, DataType::BOOL> dst_tensor;
+  ml_drift::Tensor<BHWC, DataType::kBool> dst_tensor;
   dst_desc.DownloadData(&dst_tensor);
   EXPECT_EQ(dst_tensor.data, ref_tensor.data);
 
@@ -1795,14 +1795,14 @@ absl::Status CosBroadcastTest(TestExecutionEnvironment& env,
   src_tensor.shape = BHWC(1, 2, 1, 1);
   src_tensor.data = {0.7f, -1.5f};
 
-  const float eps = data_type == DataType::FLOAT32 ? 5e-5f : 1e-3f;
+  const float eps = data_type == DataType::kFloat32 ? 5e-5f : 1e-3f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   BHWC output_shape(1, 2, 1, 2);
   GPUOperation operation = CreateElementwiseOneInputWithBroadcast(
-      env.GetGpuInfo(), op_def, OperationType::COS, src_tensor.shape,
+      env.GetGpuInfo(), op_def, OperationType::kCos, src_tensor.shape,
       output_shape);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
@@ -1823,14 +1823,14 @@ absl::Status MaximumScalarBroadcastInputTest(TestExecutionEnvironment& env,
   ElementwiseAttributes attr;
   attr.param = -2.0f;
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-2f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-2f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   BHWC output_shape(1, 2, 1, 2);
   GPUOperation operation = CreateElementwiseWithBroadcast(
-      env.GetGpuInfo(), op_def, OperationType::MAXIMUM, attr,
+      env.GetGpuInfo(), op_def, OperationType::kMaximum, attr,
       src_tensor_0.shape, output_shape);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor_0, std::make_unique<GPUOperation>(std::move(operation)),
@@ -1848,20 +1848,20 @@ absl::Status MulLinearBroadcastInputTest(TestExecutionEnvironment& env,
   src_tensor_0.shape = BHWC(1, 2, 1, 1);
   src_tensor_0.data = {2.0f, -3.0f};
 
-  Tensor<Linear, DataType::FLOAT32> linear_tensor;
+  Tensor<Linear, DataType::kFloat32> linear_tensor;
   linear_tensor.shape = Linear(2);
   linear_tensor.data = {0.5f, 2.0f};
   ElementwiseAttributes attr;
   attr.param = linear_tensor;
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-2f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-2f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   BHWC output_shape(1, 2, 1, 2);
   GPUOperation operation = CreateElementwiseWithBroadcast(
-      env.GetGpuInfo(), op_def, OperationType::MUL, attr, src_tensor_0.shape,
+      env.GetGpuInfo(), op_def, OperationType::kMul, attr, src_tensor_0.shape,
       output_shape);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor_0, std::make_unique<GPUOperation>(std::move(operation)),
@@ -1882,15 +1882,15 @@ absl::Status MulBroadcastBothInputsTest(TestExecutionEnvironment& env,
   src_tensor_1.data = {3.0f, 4.0f};
   ElementwiseAttributes attr;
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-2f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-2f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   BHWC output_shape(1, 1, 2, 2);
   GPUOperation operation = CreateElementwiseTwoInputWithBroadcast(
-      env.GetGpuInfo(), op_def, OperationType::MUL, src_tensor_0.shape,
+      env.GetGpuInfo(), op_def, OperationType::kMul, src_tensor_0.shape,
       src_tensor_1.shape, output_shape, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor_0, src_tensor_1},
@@ -1911,13 +1911,13 @@ absl::Status MishTest(TestExecutionEnvironment& env,
       -4.0f, -0.1f, 0.1f, 2.0f, -15.0f, -8.0f, 4.0f, 9.0f,
   };
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 5e-2f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 5e-2f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation =
-      CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::MISH);
+      CreateElementwiseOneInput(env.GetGpuInfo(), op_def, OperationType::kMish);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 2, 2), &dst_tensor));
@@ -1940,21 +1940,21 @@ absl::Status MishTest(TestExecutionEnvironment& env,
 
 absl::Status LogicalAndTest(TestExecutionEnvironment& env,
                             TensorStorageType storage) {
-  Tensor<BHWC, DataType::BOOL> src_tensor_0, src_tensor_1;
+  Tensor<BHWC, DataType::kBool> src_tensor_0, src_tensor_1;
   src_tensor_0.shape = BHWC(1, 2, 1, 2);
   src_tensor_1.shape = BHWC(1, 2, 1, 2);
   src_tensor_0.data = {true, true, false, false};
   src_tensor_1.data = {true, false, true, false};
   BHWC dst_shape = BHWC(1, 2, 1, 2);
 
-  Tensor<BHWC, DataType::BOOL> ref_tensor;
+  Tensor<BHWC, DataType::kBool> ref_tensor;
   ref_tensor.shape = BHWC(1, 2, 1, 2);
   ref_tensor.data = {true, false, false, false};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::BOOL, storage, Layout::HWC});
-  op_def.src_tensors.push_back({DataType::BOOL, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({DataType::BOOL, storage, Layout::HWC});
+  op_def.src_tensors.push_back({DataType::kBool, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({DataType::kBool, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({DataType::kBool, storage, Layout::kHWC});
 
   TensorDescriptor src_desc0, src_desc1, dst_desc;
   src_desc0 = op_def.src_tensors[0];
@@ -1963,13 +1963,13 @@ absl::Status LogicalAndTest(TestExecutionEnvironment& env,
   src_desc1.UploadData(src_tensor_1);
   dst_desc.SetBHWCShape(dst_shape);
   GPUOperation operation = CreateElementwiseTwoInput(
-      env.GetGpuInfo(), op_def, OperationType::LOGICAL_AND, src_tensor_1.shape,
+      env.GetGpuInfo(), op_def, OperationType::kLogicalAnd, src_tensor_1.shape,
       dst_shape);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc0, &src_desc1}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
-  Tensor<BHWC, DataType::BOOL> dst_tensor;
+  Tensor<BHWC, DataType::kBool> dst_tensor;
   dst_desc.DownloadData(&dst_tensor);
   EXPECT_EQ(dst_tensor.data, ref_tensor.data);
   return absl::OkStatus();
@@ -1977,22 +1977,22 @@ absl::Status LogicalAndTest(TestExecutionEnvironment& env,
 
 absl::Status LogicalAndInt8Test(TestExecutionEnvironment& env,
                                 TensorStorageType storage) {
-  Tensor<BHWC, DataType::INT8> src_tensor_0_si8, src_tensor_1_si8;
+  Tensor<BHWC, DataType::kInt8> src_tensor_0_si8, src_tensor_1_si8;
   src_tensor_0_si8.shape = BHWC(1, 2, 1, 2);
   src_tensor_1_si8.shape = BHWC(1, 2, 1, 2);
   src_tensor_0_si8.data = {127, -128, -128, 7};
   src_tensor_1_si8.data = {0, 127, -128, 15};
   BHWC dst_shape_si8 = BHWC(1, 2, 1, 2);
 
-  Tensor<BHWC, DataType::INT8> ref_tensor_si8;
+  Tensor<BHWC, DataType::kInt8> ref_tensor_si8;
   ref_tensor_si8.shape = BHWC(1, 2, 1, 2);
   ref_tensor_si8.data = {0, 0, -128, 7};
   BHWC dst_shape = BHWC(1, 2, 1, 2);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::INT8, storage, Layout::HWC});
-  op_def.src_tensors.push_back({DataType::INT8, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({DataType::INT8, storage, Layout::HWC});
+  op_def.src_tensors.push_back({DataType::kInt8, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({DataType::kInt8, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({DataType::kInt8, storage, Layout::kHWC});
 
   TensorDescriptor src_desc0, src_desc1, dst_desc;
   src_desc0 = op_def.src_tensors[0];
@@ -2001,13 +2001,13 @@ absl::Status LogicalAndInt8Test(TestExecutionEnvironment& env,
   src_desc1.UploadData(src_tensor_1_si8);
   dst_desc.SetBHWCShape(dst_shape);
   GPUOperation operation = CreateElementwiseTwoInput(
-      env.GetGpuInfo(), op_def, OperationType::LOGICAL_AND,
+      env.GetGpuInfo(), op_def, OperationType::kLogicalAnd,
       src_tensor_1_si8.shape, dst_shape);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc0, &src_desc1}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
-  Tensor<BHWC, DataType::INT8> dst_tensor;
+  Tensor<BHWC, DataType::kInt8> dst_tensor;
   dst_desc.DownloadData(&dst_tensor);
   EXPECT_EQ(dst_tensor.data, ref_tensor_si8.data);
 
@@ -2016,21 +2016,21 @@ absl::Status LogicalAndInt8Test(TestExecutionEnvironment& env,
 
 absl::Status LogicalOrTest(TestExecutionEnvironment& env,
                            TensorStorageType storage) {
-  Tensor<BHWC, DataType::BOOL> src_tensor_0, src_tensor_1;
+  Tensor<BHWC, DataType::kBool> src_tensor_0, src_tensor_1;
   src_tensor_0.shape = BHWC(1, 2, 1, 2);
   src_tensor_1.shape = BHWC(1, 2, 1, 2);
   src_tensor_0.data = {true, true, false, false};
   src_tensor_1.data = {true, false, true, false};
   BHWC dst_shape = BHWC(1, 2, 1, 2);
 
-  Tensor<BHWC, DataType::BOOL> ref_tensor;
+  Tensor<BHWC, DataType::kBool> ref_tensor;
   ref_tensor.shape = BHWC(1, 2, 1, 2);
   ref_tensor.data = {true, true, true, false};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::BOOL, storage, Layout::HWC});
-  op_def.src_tensors.push_back({DataType::BOOL, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({DataType::BOOL, storage, Layout::HWC});
+  op_def.src_tensors.push_back({DataType::kBool, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({DataType::kBool, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({DataType::kBool, storage, Layout::kHWC});
 
   TensorDescriptor src_desc0, src_desc1, dst_desc;
   src_desc0 = op_def.src_tensors[0];
@@ -2039,13 +2039,13 @@ absl::Status LogicalOrTest(TestExecutionEnvironment& env,
   src_desc1.UploadData(src_tensor_1);
   dst_desc.SetBHWCShape(dst_shape);
   GPUOperation operation = CreateElementwiseTwoInput(
-      env.GetGpuInfo(), op_def, OperationType::LOGICAL_OR, src_tensor_1.shape,
+      env.GetGpuInfo(), op_def, OperationType::kLogicalOr, src_tensor_1.shape,
       dst_shape);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc0, &src_desc1}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
-  Tensor<BHWC, DataType::BOOL> dst_tensor;
+  Tensor<BHWC, DataType::kBool> dst_tensor;
   dst_desc.DownloadData(&dst_tensor);
   EXPECT_EQ(dst_tensor.data, ref_tensor.data);
   return absl::OkStatus();
@@ -2053,22 +2053,22 @@ absl::Status LogicalOrTest(TestExecutionEnvironment& env,
 
 absl::Status LogicalOrInt8Test(TestExecutionEnvironment& env,
                                TensorStorageType storage) {
-  Tensor<BHWC, DataType::INT8> src_tensor_0_si8, src_tensor_1_si8;
+  Tensor<BHWC, DataType::kInt8> src_tensor_0_si8, src_tensor_1_si8;
   src_tensor_0_si8.shape = BHWC(1, 2, 1, 2);
   src_tensor_1_si8.shape = BHWC(1, 2, 1, 2);
   src_tensor_0_si8.data = {127, -128, -128, 7};
   src_tensor_1_si8.data = {0, 127, -128, 15};
   BHWC dst_shape_si8 = BHWC(1, 2, 1, 2);
 
-  Tensor<BHWC, DataType::INT8> ref_tensor_si8;
+  Tensor<BHWC, DataType::kInt8> ref_tensor_si8;
   ref_tensor_si8.shape = BHWC(1, 2, 1, 2);
   ref_tensor_si8.data = {127, -1, -128, 15};
   BHWC dst_shape = BHWC(1, 2, 1, 2);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::INT8, storage, Layout::HWC});
-  op_def.src_tensors.push_back({DataType::INT8, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({DataType::INT8, storage, Layout::HWC});
+  op_def.src_tensors.push_back({DataType::kInt8, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({DataType::kInt8, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({DataType::kInt8, storage, Layout::kHWC});
 
   TensorDescriptor src_desc0, src_desc1, dst_desc;
   src_desc0 = op_def.src_tensors[0];
@@ -2077,13 +2077,13 @@ absl::Status LogicalOrInt8Test(TestExecutionEnvironment& env,
   src_desc1.UploadData(src_tensor_1_si8);
   dst_desc.SetBHWCShape(dst_shape);
   GPUOperation operation = CreateElementwiseTwoInput(
-      env.GetGpuInfo(), op_def, OperationType::LOGICAL_OR,
+      env.GetGpuInfo(), op_def, OperationType::kLogicalOr,
       src_tensor_1_si8.shape, dst_shape);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc0, &src_desc1}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
-  Tensor<BHWC, DataType::INT8> dst_tensor;
+  Tensor<BHWC, DataType::kInt8> dst_tensor;
   dst_desc.DownloadData(&dst_tensor);
   EXPECT_EQ(dst_tensor.data, ref_tensor_si8.data);
 
@@ -2092,30 +2092,30 @@ absl::Status LogicalOrInt8Test(TestExecutionEnvironment& env,
 
 absl::Status LogicalNotTest(TestExecutionEnvironment& env,
                             TensorStorageType storage) {
-  Tensor<BHWC, DataType::BOOL> src_tensor;
+  Tensor<BHWC, DataType::kBool> src_tensor;
   src_tensor.shape = BHWC(1, 2, 1, 2);
   src_tensor.data = {true, true, false, false};
   BHWC dst_shape = BHWC(1, 2, 1, 2);
 
-  Tensor<BHWC, DataType::BOOL> ref_tensor;
+  Tensor<BHWC, DataType::kBool> ref_tensor;
   ref_tensor.shape = BHWC(1, 2, 1, 2);
   ref_tensor.data = {false, false, true, true};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::BOOL, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({DataType::BOOL, storage, Layout::HWC});
+  op_def.src_tensors.push_back({DataType::kBool, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({DataType::kBool, storage, Layout::kHWC});
 
   TensorDescriptor src_desc, dst_desc;
   src_desc = op_def.src_tensors[0];
   src_desc.UploadData(src_tensor);
   dst_desc.SetBHWCShape(dst_shape);
   GPUOperation operation = CreateElementwiseOneInput(
-      env.GetGpuInfo(), op_def, OperationType::LOGICAL_NOT);
+      env.GetGpuInfo(), op_def, OperationType::kLogicalNot);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
-  Tensor<BHWC, DataType::BOOL> dst_tensor;
+  Tensor<BHWC, DataType::kBool> dst_tensor;
   dst_desc.DownloadData(&dst_tensor);
   EXPECT_EQ(dst_tensor.data, ref_tensor.data);
   return absl::OkStatus();
@@ -2123,31 +2123,31 @@ absl::Status LogicalNotTest(TestExecutionEnvironment& env,
 
 absl::Status LogicalNotInt8Test(TestExecutionEnvironment& env,
                                 TensorStorageType storage) {
-  Tensor<BHWC, DataType::INT8> src_tensor_si8;
+  Tensor<BHWC, DataType::kInt8> src_tensor_si8;
   src_tensor_si8.shape = BHWC(1, 2, 1, 2);
   src_tensor_si8.data = {127, -128, 0, 7};
   BHWC dst_shape_si8 = BHWC(1, 2, 1, 2);
 
-  Tensor<BHWC, DataType::INT8> ref_tensor_si8;
+  Tensor<BHWC, DataType::kInt8> ref_tensor_si8;
   ref_tensor_si8.shape = BHWC(1, 2, 1, 2);
   ref_tensor_si8.data = {-128, 127, -1, -8};
   BHWC dst_shape = BHWC(1, 2, 1, 2);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::INT8, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({DataType::INT8, storage, Layout::HWC});
+  op_def.src_tensors.push_back({DataType::kInt8, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({DataType::kInt8, storage, Layout::kHWC});
 
   TensorDescriptor src_desc, dst_desc;
   src_desc = op_def.src_tensors[0];
   src_desc.UploadData(src_tensor_si8);
   dst_desc.SetBHWCShape(dst_shape);
   GPUOperation operation = CreateElementwiseOneInput(
-      env.GetGpuInfo(), op_def, OperationType::LOGICAL_NOT);
+      env.GetGpuInfo(), op_def, OperationType::kLogicalNot);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
-  Tensor<BHWC, DataType::INT8> dst_tensor;
+  Tensor<BHWC, DataType::kInt8> dst_tensor;
   dst_desc.DownloadData(&dst_tensor);
   EXPECT_EQ(dst_tensor.data, ref_tensor_si8.data);
 
@@ -2156,21 +2156,21 @@ absl::Status LogicalNotInt8Test(TestExecutionEnvironment& env,
 
 absl::Status LogicalXorTest(TestExecutionEnvironment& env,
                             TensorStorageType storage) {
-  Tensor<BHWC, DataType::BOOL> src_tensor_0, src_tensor_1;
+  Tensor<BHWC, DataType::kBool> src_tensor_0, src_tensor_1;
   src_tensor_0.shape = BHWC(1, 2, 1, 2);
   src_tensor_1.shape = BHWC(1, 2, 1, 2);
   src_tensor_0.data = {true, true, false, false};
   src_tensor_1.data = {true, false, true, false};
   BHWC dst_shape = BHWC(1, 2, 1, 2);
 
-  Tensor<BHWC, DataType::BOOL> ref_tensor;
+  Tensor<BHWC, DataType::kBool> ref_tensor;
   ref_tensor.shape = BHWC(1, 2, 1, 2);
   ref_tensor.data = {false, true, true, false};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::BOOL, storage, Layout::HWC});
-  op_def.src_tensors.push_back({DataType::BOOL, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({DataType::BOOL, storage, Layout::HWC});
+  op_def.src_tensors.push_back({DataType::kBool, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({DataType::kBool, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({DataType::kBool, storage, Layout::kHWC});
 
   TensorDescriptor src_desc0, src_desc1, dst_desc;
   src_desc0 = op_def.src_tensors[0];
@@ -2179,13 +2179,13 @@ absl::Status LogicalXorTest(TestExecutionEnvironment& env,
   src_desc1.UploadData(src_tensor_1);
   dst_desc.SetBHWCShape(dst_shape);
   GPUOperation operation = CreateElementwiseTwoInput(
-      env.GetGpuInfo(), op_def, OperationType::LOGICAL_XOR, src_tensor_1.shape,
+      env.GetGpuInfo(), op_def, OperationType::kLogicalXor, src_tensor_1.shape,
       dst_shape);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc0, &src_desc1}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
-  Tensor<BHWC, DataType::BOOL> dst_tensor;
+  Tensor<BHWC, DataType::kBool> dst_tensor;
   dst_desc.DownloadData(&dst_tensor);
   EXPECT_EQ(dst_tensor.data, ref_tensor.data);
   return absl::OkStatus();
@@ -2193,21 +2193,21 @@ absl::Status LogicalXorTest(TestExecutionEnvironment& env,
 
 absl::Status LogicalXorInt8Test(TestExecutionEnvironment& env,
                                 TensorStorageType storage) {
-  Tensor<BHWC, DataType::INT8> src_tensor_0_si8, src_tensor_1_si8;
+  Tensor<BHWC, DataType::kInt8> src_tensor_0_si8, src_tensor_1_si8;
   src_tensor_0_si8.shape = BHWC(1, 2, 1, 2);
   src_tensor_1_si8.shape = BHWC(1, 2, 1, 2);
   src_tensor_0_si8.data = {127, -128, -128, 7};
   src_tensor_1_si8.data = {0, 127, -128, 15};
   BHWC dst_shape_si8 = BHWC(1, 2, 1, 2);
 
-  Tensor<BHWC, DataType::INT8> ref_tensor_si8;
+  Tensor<BHWC, DataType::kInt8> ref_tensor_si8;
   ref_tensor_si8.shape = BHWC(1, 2, 1, 2);
   ref_tensor_si8.data = {127, -1, 0, 8};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::INT8, storage, Layout::HWC});
-  op_def.src_tensors.push_back({DataType::INT8, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({DataType::INT8, storage, Layout::HWC});
+  op_def.src_tensors.push_back({DataType::kInt8, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({DataType::kInt8, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({DataType::kInt8, storage, Layout::kHWC});
 
   TensorDescriptor src_desc0, src_desc1, dst_desc;
   src_desc0 = op_def.src_tensors[0];
@@ -2216,13 +2216,13 @@ absl::Status LogicalXorInt8Test(TestExecutionEnvironment& env,
   src_desc1.UploadData(src_tensor_1_si8);
   dst_desc.SetBHWCShape(dst_shape_si8);
   GPUOperation operation = CreateElementwiseTwoInput(
-      env.GetGpuInfo(), op_def, OperationType::LOGICAL_XOR,
+      env.GetGpuInfo(), op_def, OperationType::kLogicalXor,
       src_tensor_1_si8.shape, dst_shape_si8);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {&src_desc0, &src_desc1}, {&dst_desc},
       std::make_unique<GPUOperation>(std::move(operation))));
 
-  Tensor<BHWC, DataType::INT8> dst_tensor;
+  Tensor<BHWC, DataType::kInt8> dst_tensor;
   dst_desc.DownloadData(&dst_tensor);
   EXPECT_EQ(dst_tensor.data, ref_tensor_si8.data);
 
@@ -2231,21 +2231,21 @@ absl::Status LogicalXorInt8Test(TestExecutionEnvironment& env,
 
 absl::Status Add5DTest(TestExecutionEnvironment& env, DataType data_type,
                        TensorStorageType storage) {
-  Tensor<BHWDC, DataType::FLOAT32> src_tensor_0, src_tensor_1;
+  Tensor<BHWDC, DataType::kFloat32> src_tensor_0, src_tensor_1;
   src_tensor_0.shape = BHWDC(1, 2, 1, 2, 2);
   src_tensor_1.shape = BHWDC(1, 2, 1, 2, 2);
   src_tensor_0.data = {1.0f, 2.0f, 3.0f, 4.5f, 1.0f, 2.0f, 3.0f, 4.5f};
   src_tensor_1.data = {0.5f, 1.0f, 3.0f, 1.5f, 0.5f, 1.0f, 3.0f, 1.5f};
   BHWDC dst_shape = BHWDC(1, 2, 1, 2, 2);
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-2f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-2f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWDC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWDC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWDC});
-  Tensor<BHWDC, DataType::FLOAT32> dst_tensor;
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWDC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWDC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWDC});
+  Tensor<BHWDC, DataType::kFloat32> dst_tensor;
   GPUOperation operation =
-      CreateElementwiseTwoInput(env.GetGpuInfo(), op_def, OperationType::ADD,
+      CreateElementwiseTwoInput(env.GetGpuInfo(), op_def, OperationType::kAdd,
                                 src_tensor_1.shape, dst_shape);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor_0, src_tensor_1},
@@ -2260,19 +2260,19 @@ absl::Status Add5DTest(TestExecutionEnvironment& env, DataType data_type,
 absl::Status OneInputWithBroadcast5DTest(TestExecutionEnvironment& env,
                                          DataType data_type,
                                          TensorStorageType storage) {
-  Tensor<BHWDC, DataType::FLOAT32> src_tensor;
+  Tensor<BHWDC, DataType::kFloat32> src_tensor;
   src_tensor.shape = BHWDC(1, 1, 1, 1, 1);
   src_tensor.data = {2.0f};
 
   BHWDC dst_shape = BHWDC(1, 2, 1, 2, 2);
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-2f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-2f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWDC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWDC});
-  Tensor<BHWDC, DataType::FLOAT32> dst_tensor;
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWDC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWDC});
+  Tensor<BHWDC, DataType::kFloat32> dst_tensor;
   GPUOperation operation = CreateElementwiseOneInputWithBroadcast(
-      env.GetGpuInfo(), op_def, OperationType::COS, src_tensor.shape,
+      env.GetGpuInfo(), op_def, OperationType::kCos, src_tensor.shape,
       dst_shape);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
@@ -2288,11 +2288,11 @@ absl::Status OneInputWithBroadcast5DTest(TestExecutionEnvironment& env,
 absl::Status WithBroadcast5DTest(TestExecutionEnvironment& env,
                                  DataType data_type,
                                  TensorStorageType storage) {
-  Tensor<BHWDC, DataType::FLOAT32> src_tensor;
+  Tensor<BHWDC, DataType::kFloat32> src_tensor;
   src_tensor.shape = BHWDC(1, 2, 1, 2, 2);
   src_tensor.data = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
 
-  Tensor<BHWDC, DataType::FLOAT32> const_tensor;
+  Tensor<BHWDC, DataType::kFloat32> const_tensor;
   const_tensor.shape = BHWDC(1, 1, 1, 1, 2);
   const_tensor.data = {0.5f, 2.0f};
   ElementwiseAttributes attr;
@@ -2300,13 +2300,13 @@ absl::Status WithBroadcast5DTest(TestExecutionEnvironment& env,
 
   BHWDC dst_shape = BHWDC(1, 2, 1, 2, 2);
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-2f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-2f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWDC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWDC});
-  Tensor<BHWDC, DataType::FLOAT32> dst_tensor;
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWDC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWDC});
+  Tensor<BHWDC, DataType::kFloat32> dst_tensor;
   GPUOperation operation = CreateElementwiseWithBroadcast(
-      env.GetGpuInfo(), op_def, OperationType::MUL, attr, src_tensor.shape,
+      env.GetGpuInfo(), op_def, OperationType::kMul, attr, src_tensor.shape,
       dst_shape);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
@@ -2320,14 +2320,14 @@ absl::Status WithBroadcast5DTest(TestExecutionEnvironment& env,
 absl::Status WithBroadcast5DPaddedGridTest(TestExecutionEnvironment& env,
                                            DataType data_type,
                                            TensorStorageType storage) {
-  Tensor<BHWDC, DataType::FLOAT32> src_tensor;
+  Tensor<BHWDC, DataType::kFloat32> src_tensor;
   src_tensor.shape = BHWDC(1, 7, 1, 3, 1);
   src_tensor.data.resize(src_tensor.shape.DimensionsProduct());
   for (int i = 0; i < src_tensor.data.size(); ++i) {
     src_tensor.data[i] = static_cast<float>(i + 1);
   }
 
-  Tensor<BHWDC, DataType::FLOAT32> const_tensor;
+  Tensor<BHWDC, DataType::kFloat32> const_tensor;
   const_tensor.shape = BHWDC(1, 1, 1, 3, 1);
   const_tensor.data = {0.5f, 2.0f, 3.5f};
   ElementwiseAttributes attr;
@@ -2335,13 +2335,13 @@ absl::Status WithBroadcast5DPaddedGridTest(TestExecutionEnvironment& env,
 
   BHWDC dst_shape = BHWDC(1, 7, 1, 3, 1);
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-2f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-2f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWDC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWDC});
-  Tensor<BHWDC, DataType::FLOAT32> dst_tensor;
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWDC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWDC});
+  Tensor<BHWDC, DataType::kFloat32> dst_tensor;
   GPUOperation operation = CreateElementwiseWithBroadcast(
-      env.GetGpuInfo(), op_def, OperationType::ADD, attr, src_tensor.shape,
+      env.GetGpuInfo(), op_def, OperationType::kAdd, attr, src_tensor.shape,
       dst_shape);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
@@ -2362,25 +2362,25 @@ absl::Status WithBroadcast5DPaddedGridTest(TestExecutionEnvironment& env,
 absl::Status TwoInputWithBroadcast5DTest(TestExecutionEnvironment& env,
                                          DataType data_type,
                                          TensorStorageType storage) {
-  Tensor<BHWDC, DataType::FLOAT32> src_tensor_0;
+  Tensor<BHWDC, DataType::kFloat32> src_tensor_0;
   src_tensor_0.shape = BHWDC(1, 2, 1, 2, 2);
   src_tensor_0.data = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
 
-  Tensor<BHWDC, DataType::FLOAT32> src_tensor_1;
+  Tensor<BHWDC, DataType::kFloat32> src_tensor_1;
   src_tensor_1.shape = BHWDC(1, 1, 1, 1, 2);
   src_tensor_1.data = {0.5f, 2.0f};
 
   BHWDC dst_shape = BHWDC(1, 2, 1, 2, 2);
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-2f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-2f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWDC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWDC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWDC});
-  Tensor<BHWDC, DataType::FLOAT32> dst_tensor;
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWDC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWDC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWDC});
+  Tensor<BHWDC, DataType::kFloat32> dst_tensor;
   ElementwiseAttributes attr;
   GPUOperation operation = CreateElementwiseTwoInputWithBroadcast(
-      env.GetGpuInfo(), op_def, OperationType::MUL, src_tensor_0.shape,
+      env.GetGpuInfo(), op_def, OperationType::kMul, src_tensor_0.shape,
       src_tensor_1.shape, dst_shape, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src_tensor_0, src_tensor_1},

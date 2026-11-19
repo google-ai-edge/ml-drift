@@ -43,8 +43,8 @@ namespace ml_drift {
 
 namespace {
 template <typename T>
-void RearrangeWeightsForDWConv2D(const Tensor<OHWI, DataType::FLOAT32>& weights,
-                                 absl::Span<T> dst) {
+void RearrangeWeightsForDWConv2D(
+    const Tensor<OHWI, DataType::kFloat32>& weights, absl::Span<T> dst) {
   const int dst_channels = weights.shape.i * weights.shape.o;
   const int dst_depth = DivideRoundUp(dst_channels, 4);
   const int kernel_x = weights.shape.w;
@@ -72,9 +72,9 @@ void RearrangeWeightsForDWConv2D(const Tensor<OHWI, DataType::FLOAT32>& weights,
 }
 
 template void RearrangeWeightsForDWConv2D(
-    const Tensor<OHWI, DataType::FLOAT32>& weights, absl::Span<float4> dst);
+    const Tensor<OHWI, DataType::kFloat32>& weights, absl::Span<float4> dst);
 template void RearrangeWeightsForDWConv2D(
-    const Tensor<OHWI, DataType::FLOAT32>& weights, absl::Span<half4> dst);
+    const Tensor<OHWI, DataType::kFloat32>& weights, absl::Span<half4> dst);
 
 bool UseBuffersForWeights(const GpuInfo& gpu_info) {
   if (gpu_info.IsApple() &&
@@ -88,8 +88,7 @@ bool UseBuffersForWeights(const GpuInfo& gpu_info) {
 void PrepareObjects(const GpuInfo& gpu_info,
                     const DepthwiseConvolution2DAttributes& attr,
                     DataType dst_type, Arguments* args) {
-  const auto& weights_shape =
-      std::visit([](const auto& w) { return w.shape; }, attr.weights);
+  const OHWI& weights_shape = attr.GetWeightsShape();
   const int dst_channels = weights_shape.i * weights_shape.o;
   const int dst_slices = DivideRoundUp(dst_channels, 4);
   const int kernel_x = weights_shape.w;
@@ -99,11 +98,11 @@ void PrepareObjects(const GpuInfo& gpu_info,
 
   std::vector<uint8_t> data(SizeOf(dst_type) * 4 * elements_count);
 
-  if (dst_type == DataType::FLOAT32) {
+  if (dst_type == DataType::kFloat32) {
     float4* ptr = reinterpret_cast<float4*>(data.data());
     RearrangeWeightsForDWConv2D(GetFloatWeights(attr),
                                 absl::MakeSpan(ptr, elements_count));
-  } else if (dst_type == DataType::FLOAT16) {
+  } else if (dst_type == DataType::kFloat16) {
     half4* ptr = reinterpret_cast<half4*>(data.data());
     RearrangeWeightsForDWConv2D(GetFloatWeights(attr),
                                 absl::MakeSpan(ptr, elements_count));
@@ -118,7 +117,7 @@ void PrepareObjects(const GpuInfo& gpu_info,
     args->AddObject("weights", std::make_unique<BufferDescriptor>(desc));
   } else {
     TensorDescriptor desc = CreateConstantHWVec4TensorDescriptor(
-        dst_type, TensorStorageType::TEXTURE_2D, kernel_x * kernel_y,
+        dst_type, TensorStorageType::kTexture2D, kernel_x * kernel_y,
         dst_slices, data.data());
     args->AddObject("weights", std::make_unique<TensorDescriptor>(desc));
   }
@@ -134,8 +133,7 @@ void PrepareObjects(const GpuInfo& gpu_info,
 
 bool IsDepthwiseConvTiledSupported(
     const DepthwiseConvolution2DAttributes& attr) {
-  const auto& weights_shape =
-      std::visit([](const auto& w) { return w.shape; }, attr.weights);
+  const OHWI& weights_shape = attr.GetWeightsShape();
   if (weights_shape.o != 1) {
     return false;
   }
@@ -164,7 +162,7 @@ class DepthwiseConvTiled : public GPUOperation {
   std::vector<int3> GetPossibleKernelWorkGroups(
       TuningType tuning_type, const GpuInfo& gpu_info,
       const KernelInfo& kernel_info) const override {
-    if (tuning_type == TuningType::kFast) {
+    if (tuning_type != TuningType::kExhaustive || fixed_work_group_size_) {
       return {work_group_size_};
     } else {
       return GetPossibleWorkGroups(tuning_type, gpu_info, kernel_info,
@@ -172,6 +170,9 @@ class DepthwiseConvTiled : public GPUOperation {
     }
   }
   int y_tile_size_;
+  // The kernel declares reqd_work_group_size(work_group_size_), so the driver
+  // rejects every other work group size.
+  bool fixed_work_group_size_ = false;
 };
 
 std::unique_ptr<GPUOperation> CreateDepthwiseConvTiled(
@@ -179,8 +180,7 @@ std::unique_ptr<GPUOperation> CreateDepthwiseConvTiled(
     CalculationsPrecision precision,
     const DepthwiseConvolution2DAttributes& attr) {
   DepthwiseConvTiled op;
-  const auto& weights_shape =
-      std::visit([](const auto& w) { return w.shape; }, attr.weights);
+  const OHWI& weights_shape = attr.GetWeightsShape();
   const int dst_slices = DivideRoundUp(weights_shape.i, 4);
   if (gpu_info.IsPowerVR() &&
       gpu_info.powervr_info.gpu_version >= PowerVRGpu::kAXE &&
@@ -220,13 +220,14 @@ std::unique_ptr<GPUOperation> CreateDepthwiseConvTiled(
   }
   std::string c;
   if (gpu_info.IsApiOpenCl() && gpu_info.IsPowerVR()) {
+    op.fixed_work_group_size_ = true;
     c += "__attribute__((reqd_work_group_size(" +
          std::to_string(op.work_group_size_.x) + ", " +
          std::to_string(op.work_group_size_.y) + ", " +
          std::to_string(op.work_group_size_.z) + ")))\n";
   }
   c += "MAIN_FUNCTION($0) {\n";
-  if (definition.src_tensors[0].HasAxis(Axis::BATCH)) {
+  if (definition.src_tensors[0].HasAxis(Axis::kBatch)) {
     c += "  int linear_id = ucl::GetGlobalId<0>();\n";
     c += "  int dst_x = linear_id / args.dst_tensor.Batch();\n";
     c += "  int dst_b = linear_id % args.dst_tensor.Batch();\n";
@@ -258,7 +259,7 @@ std::unique_ptr<GPUOperation> CreateDepthwiseConvTiled(
     const std::string y = "y" + std::to_string(id);
     c += "  int " + y + " = dst_y * args.stride_h + args.padding_h + " +
          std::to_string(id) + ";\n";
-    if (!definition.src_tensors[0].SupportsZeroClamp(Axis::HEIGHT, gpu_info)) {
+    if (!definition.src_tensors[0].SupportsZeroClamp(Axis::kHeight, gpu_info)) {
       c += "  bool " + y + "_in = " + y + " >= 0 && " + y +
            " < args.src_tensor.Height();\n";
       c += "  " + y + " = clamp(" + y + ", 0, args.src_tensor.Height() - 1);\n";
@@ -267,7 +268,7 @@ std::unique_ptr<GPUOperation> CreateDepthwiseConvTiled(
 
   c += "  for (int kx = 0; kx < args.kernel_w; kx += 1) {\n";
   c += "    int x = x_src + kx * args.dilation_w;\n";
-  if (!definition.src_tensors[0].SupportsZeroClamp(Axis::WIDTH, gpu_info)) {
+  if (!definition.src_tensors[0].SupportsZeroClamp(Axis::kWidth, gpu_info)) {
     c += "    bool x_in = x >= 0 && x < args.src_tensor.Width();\n";
     c += "    x = clamp(x, 0, args.src_tensor.Width() - 1);\n";
   }
@@ -286,10 +287,10 @@ std::unique_ptr<GPUOperation> CreateDepthwiseConvTiled(
     const std::string s = "s" + std::to_string(id);
     const std::string y = "y" + std::to_string(id);
     std::string check;
-    if (!definition.src_tensors[0].SupportsZeroClamp(Axis::WIDTH, gpu_info)) {
+    if (!definition.src_tensors[0].SupportsZeroClamp(Axis::kWidth, gpu_info)) {
       check += "x_in";
     }
-    if (!definition.src_tensors[0].SupportsZeroClamp(Axis::HEIGHT, gpu_info)) {
+    if (!definition.src_tensors[0].SupportsZeroClamp(Axis::kHeight, gpu_info)) {
       const std::string y_in = y + "_in";
       check += check.empty() ? y_in : (" && " + y_in);
     }
@@ -325,9 +326,9 @@ std::unique_ptr<GPUOperation> CreateDepthwiseConvTiled(
   }
   c += "}\n";
 
-  const DataType acc_type = precision == CalculationsPrecision::F16
-                                ? DataType::FLOAT16
-                                : DataType::FLOAT32;
+  const DataType acc_type = precision == CalculationsPrecision::kF16
+                                ? DataType::kFloat16
+                                : DataType::kFloat32;
   const DataType type = definition.src_tensors[0].GetDataType();
   absl::StrReplaceAll({{"SType", ToUclDataType(type, 1)},
                        {"Type", ToUclDataType(type, 4)},

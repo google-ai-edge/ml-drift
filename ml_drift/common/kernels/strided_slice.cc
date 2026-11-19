@@ -95,6 +95,9 @@ StridedSlice::StridedSlice(const OperationDef& definition,
   work_group_size_ = int3(8, 4, 1);
   code_ = GetStridedSliceCode(definition, Is4Aligned(attributes_));
   tensor_to_grid_ = TensorToGrid::kWBToX_HDToY_SToZ;
+  if (definition.dst_tensors[0].GetMemorySizeInBytes() > 0) {
+    read_size_ = definition.dst_tensors[0].GetMemorySizeInBytes();
+  }
 }
 
 StridedSlice::StridedSlice(const OperationDef& definition,
@@ -103,6 +106,9 @@ StridedSlice::StridedSlice(const OperationDef& definition,
   work_group_size_ = int3(8, 4, 1);
   code_ = GetStridedSliceCode(definition, Is4Aligned(attributes_));
   tensor_to_grid_ = TensorToGrid::kWBToX_HDToY_SToZ;
+  if (definition.dst_tensors[0].GetMemorySizeInBytes() > 0) {
+    read_size_ = definition.dst_tensors[0].GetMemorySizeInBytes();
+  }
 }
 
 StridedSlice::StridedSlice(StridedSlice&& operation)
@@ -132,10 +138,10 @@ std::string StridedSlice::GetStridedSliceCode(const OperationDef& op_def,
   args_.AddInt("stride_b");
 
   const std::string batch_id =
-      op_def.dst_tensors[0].HasAxis(Axis::BATCH) ? "B" : "0";
+      op_def.dst_tensors[0].HasAxis(Axis::kBatch) ? "B" : "0";
   std::string c;
   c += "MAIN_FUNCTION($0) {\n";
-  if (op_def.dst_tensors[0].HasAxis(Axis::BATCH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kBatch)) {
     c += "  int linear_id = ucl::GetGlobalId<0>();\n";
     c += "  int X = linear_id / args.dst_tensor.Batch();\n";
     c += "  int B = linear_id % args.dst_tensor.Batch();\n";
@@ -145,7 +151,7 @@ std::string StridedSlice::GetStridedSliceCode(const OperationDef& op_def,
   }
 
   std::string coords = "X, Y";
-  if (op_def.dst_tensors[0].HasAxis(Axis::DEPTH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kDepth)) {
     c += "  int linear_y = ucl::GetGlobalId<1>();\n";
     c += "  int Y = linear_y / args.dst_tensor.Depth();\n";
     c += "  int Z = linear_y % args.dst_tensor.Depth();\n";
@@ -164,8 +170,8 @@ std::string StridedSlice::GetStridedSliceCode(const OperationDef& op_def,
   c += "  int s_y = Y * args.stride_y + args.offset_y;\n";
 
   std::string read_coords = "s_x, s_y";
-  if (op_def.src_tensors[0].HasAxis(Axis::DEPTH)) {
-    if (op_def.dst_tensors[0].HasAxis(Axis::DEPTH)) {
+  if (op_def.src_tensors[0].HasAxis(Axis::kDepth)) {
+    if (op_def.dst_tensors[0].HasAxis(Axis::kDepth)) {
       c += "  int s_d = Z * args.stride_d + args.offset_d;\n";
     } else {
       c += "  int s_d = args.offset_d;\n";
@@ -173,7 +179,7 @@ std::string StridedSlice::GetStridedSliceCode(const OperationDef& op_def,
     read_coords += ", s_d";
   }
 
-  if (op_def.src_tensors[0].HasAxis(Axis::BATCH)) {
+  if (op_def.src_tensors[0].HasAxis(Axis::kBatch)) {
     c += "  int s_b = " + batch_id + " * args.stride_b + args.offset_b;\n";
     c += "  args.src_tensor.SetBatchRef(s_b);\n";
   }

@@ -50,7 +50,7 @@ absl::Status ResizeTest(TestExecutionEnvironment& exec_env,
       src_tensor, std::make_unique<Resize>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
   const float eps =
-      op_def.src_tensors[0].GetDataType() == DataType::FLOAT32 ? 1e-5f : 0.02f;
+      op_def.src_tensors[0].GetDataType() == DataType::kFloat32 ? 1e-5f : 0.02f;
   EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), dst_ref_tensor.data));
   return absl::OkStatus();
 }
@@ -68,7 +68,7 @@ absl::Status Resize3DTest(TestExecutionEnvironment& exec_env,
       src_tensor, std::make_unique<Resize3D>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
   const float eps =
-      op_def.src_tensors[0].GetDataType() == DataType::FLOAT32 ? 1e-5f : 0.02f;
+      op_def.src_tensors[0].GetDataType() == DataType::kFloat32 ? 1e-5f : 0.02f;
   EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), dst_ref_tensor.data));
   return absl::OkStatus();
 }
@@ -82,14 +82,14 @@ absl::Status ResizeBilinearAlignedTest(TestExecutionEnvironment& env,
   src_tensor.data = {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f};
 
   Resize2DAttributes attr;
-  attr.type = SamplingType::BILINEAR;
+  attr.type = SamplingType::kBilinear;
   attr.new_shape = HW(4, 4);
   attr.align_corners = true;
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-5f : 1e-2f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-5f : 1e-2f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   Resize operation = CreateResize(op_def, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
@@ -111,14 +111,14 @@ absl::Status ResizeBilinearNonAlignedTest(TestExecutionEnvironment& env,
   src_tensor.data = {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f};
 
   Resize2DAttributes attr;
-  attr.type = SamplingType::BILINEAR;
+  attr.type = SamplingType::kBilinear;
   attr.new_shape = HW(4, 4);
   attr.align_corners = false;
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-5f : 1e-2f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-5f : 1e-2f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   Resize operation = CreateResize(op_def, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
@@ -139,15 +139,15 @@ absl::Status ResizeBilinearWithoutHalfPixelTest(TestExecutionEnvironment& env,
   src_tensor.data = {1.0f, 2.0f, 3.0f, 4.0f};
 
   Resize2DAttributes attr;
-  attr.type = SamplingType::BILINEAR;
+  attr.type = SamplingType::kBilinear;
   attr.new_shape = HW(3, 3);
   attr.align_corners = false;
   attr.half_pixel_centers = false;
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-5f : 1e-2f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-5f : 1e-2f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   Resize operation = CreateResize(op_def, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
@@ -167,15 +167,15 @@ absl::Status ResizeBilinearWithHalfPixelTest(TestExecutionEnvironment& env,
   src_tensor.data = {1.0f, 2.0f, 3.0f, 4.0f};
 
   Resize2DAttributes attr;
-  attr.type = SamplingType::BILINEAR;
+  attr.type = SamplingType::kBilinear;
   attr.new_shape = HW(3, 3);
   attr.align_corners = false;
   attr.half_pixel_centers = true;
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-5f : 1e-2f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-5f : 1e-2f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   Resize operation = CreateResize(op_def, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
@@ -184,6 +184,17 @@ absl::Status ResizeBilinearWithHalfPixelTest(TestExecutionEnvironment& env,
   EXPECT_THAT(dst_tensor.data,
               Pointwise(FloatNear(eps), {1.0f, 1.5f, 2.0f, 2.0f, 2.5f, 3.0f,
                                          3.0f, 3.5f, 4.0f}));
+
+  // Also test large width (1024 -> 2048) where coordinates exceed 512 and FP16
+  // has ULP >= 0.5, to verify fractional interpolation weights retain subpixel
+  // precision.
+  Resize2DAttributes large_attr;
+  large_attr.type = SamplingType::kBilinear;
+  large_attr.new_shape = HW(1, 2048);
+  large_attr.align_corners = false;
+  large_attr.half_pixel_centers = true;
+  TensorFloat32 large_src = MakeSyntheticTensor(BHWC(1, 1, 1024, 1));
+  ABSL_RETURN_IF_ERROR(ResizeTest(env, large_attr, large_src, op_def));
   return absl::OkStatus();
 }
 
@@ -197,12 +208,12 @@ absl::Status ResizeNearestTest(TestExecutionEnvironment& env,
   attr.align_corners = false;
   attr.half_pixel_centers = false;
   attr.new_shape = HW(2, 4);
-  attr.type = SamplingType::NEAREST;
+  attr.type = SamplingType::kNearest;
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-5f : 1e-2f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-5f : 1e-2f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   Resize operation = CreateResize(op_def, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
@@ -225,12 +236,12 @@ absl::Status ResizeNearestAlignCornersTest(TestExecutionEnvironment& env,
   attr.align_corners = true;
   attr.half_pixel_centers = false;
   attr.new_shape = HW(3, 3);
-  attr.type = SamplingType::NEAREST;
+  attr.type = SamplingType::kNearest;
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-5f : 1e-2f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-5f : 1e-2f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   Resize operation = CreateResize(op_def, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
@@ -253,12 +264,12 @@ absl::Status ResizeNearestHalfPixelCentersTest(TestExecutionEnvironment& env,
   attr.align_corners = false;
   attr.half_pixel_centers = true;
   attr.new_shape = HW(3, 3);
-  attr.type = SamplingType::NEAREST;
+  attr.type = SamplingType::kNearest;
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-5f : 1e-2f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-5f : 1e-2f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   Resize operation = CreateResize(op_def, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
@@ -274,7 +285,7 @@ absl::Status ResizeBilinearAlignedBigTest(TestExecutionEnvironment& env,
                                           DataType data_type,
                                           TensorStorageType storage) {
   Resize2DAttributes attr;
-  attr.type = SamplingType::BILINEAR;
+  attr.type = SamplingType::kBilinear;
   attr.new_shape = HW(7, 9);
   attr.align_corners = true;
 
@@ -282,8 +293,8 @@ absl::Status ResizeBilinearAlignedBigTest(TestExecutionEnvironment& env,
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   return ResizeTest(env, attr, src_tensor, op_def);
 }
 
@@ -291,7 +302,7 @@ absl::Status ResizeBilinearNonAlignedBigTest(TestExecutionEnvironment& env,
                                              DataType data_type,
                                              TensorStorageType storage) {
   Resize2DAttributes attr;
-  attr.type = SamplingType::BILINEAR;
+  attr.type = SamplingType::kBilinear;
   attr.new_shape = HW(25, 17);
   attr.align_corners = false;
 
@@ -299,8 +310,8 @@ absl::Status ResizeBilinearNonAlignedBigTest(TestExecutionEnvironment& env,
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   return ResizeTest(env, attr, src_tensor, op_def);
 }
 
@@ -308,7 +319,7 @@ absl::Status ResizeBilinearAlignedBatchedBigTest(TestExecutionEnvironment& env,
                                                  DataType data_type,
                                                  TensorStorageType storage) {
   Resize2DAttributes attr;
-  attr.type = SamplingType::BILINEAR;
+  attr.type = SamplingType::kBilinear;
   attr.new_shape = HW(7, 9);
   attr.align_corners = true;
 
@@ -316,8 +327,8 @@ absl::Status ResizeBilinearAlignedBatchedBigTest(TestExecutionEnvironment& env,
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
   return ResizeTest(env, attr, src_tensor, op_def);
 }
 
@@ -325,7 +336,7 @@ absl::Status ResizeBilinearNonAlignedBatchedBigTest(
     TestExecutionEnvironment& env, DataType data_type,
     TensorStorageType storage) {
   Resize2DAttributes attr;
-  attr.type = SamplingType::BILINEAR;
+  attr.type = SamplingType::kBilinear;
   attr.new_shape = HW(25, 17);
   attr.align_corners = false;
 
@@ -333,8 +344,8 @@ absl::Status ResizeBilinearNonAlignedBatchedBigTest(
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
   return ResizeTest(env, attr, src_tensor, op_def);
 }
 
@@ -342,7 +353,7 @@ absl::Status ResizeNearestBigTest(TestExecutionEnvironment& env,
                                   DataType data_type,
                                   TensorStorageType storage) {
   Resize2DAttributes attr;
-  attr.type = SamplingType::NEAREST;
+  attr.type = SamplingType::kNearest;
   attr.new_shape = HW(25, 17);
   attr.align_corners = false;
 
@@ -350,8 +361,8 @@ absl::Status ResizeNearestBigTest(TestExecutionEnvironment& env,
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   return ResizeTest(env, attr, src_tensor, op_def);
 }
 
@@ -359,7 +370,7 @@ absl::Status ResizeNearestBatchedBigTest(TestExecutionEnvironment& env,
                                          DataType data_type,
                                          TensorStorageType storage) {
   Resize2DAttributes attr;
-  attr.type = SamplingType::NEAREST;
+  attr.type = SamplingType::kNearest;
   attr.new_shape = HW(7, 9);
   attr.align_corners = true;
 
@@ -367,8 +378,8 @@ absl::Status ResizeNearestBatchedBigTest(TestExecutionEnvironment& env,
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
   return ResizeTest(env, attr, src_tensor, op_def);
 }
 
@@ -376,7 +387,7 @@ absl::Status ResizeBilinear3DAlignedBigTest(TestExecutionEnvironment& env,
                                             DataType data_type,
                                             TensorStorageType storage) {
   Resize3DAttributes attr;
-  attr.type = SamplingType::BILINEAR;
+  attr.type = SamplingType::kBilinear;
   attr.new_shape = HWD(7, 9, 8);
   attr.align_corners = true;
 
@@ -384,8 +395,8 @@ absl::Status ResizeBilinear3DAlignedBigTest(TestExecutionEnvironment& env,
   Tensor5DFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWDC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWDC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWDC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWDC});
   return Resize3DTest(env, attr, src_tensor, op_def);
 }
 
@@ -393,7 +404,7 @@ absl::Status ResizeBilinear3DNonAlignedBigTest(TestExecutionEnvironment& env,
                                                DataType data_type,
                                                TensorStorageType storage) {
   Resize3DAttributes attr;
-  attr.type = SamplingType::BILINEAR;
+  attr.type = SamplingType::kBilinear;
   attr.new_shape = HWD(25, 17, 22);
   attr.align_corners = false;
 
@@ -401,8 +412,8 @@ absl::Status ResizeBilinear3DNonAlignedBigTest(TestExecutionEnvironment& env,
   Tensor5DFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWDC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWDC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWDC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWDC});
   return Resize3DTest(env, attr, src_tensor, op_def);
 }
 
@@ -410,7 +421,7 @@ absl::Status ResizeBilinear3DAlignedBatchedBigTest(
     TestExecutionEnvironment& env, DataType data_type,
     TensorStorageType storage) {
   Resize3DAttributes attr;
-  attr.type = SamplingType::BILINEAR;
+  attr.type = SamplingType::kBilinear;
   attr.new_shape = HWD(7, 9, 10);
   attr.align_corners = true;
 
@@ -418,8 +429,8 @@ absl::Status ResizeBilinear3DAlignedBatchedBigTest(
   Tensor5DFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWDC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWDC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWDC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWDC});
   return Resize3DTest(env, attr, src_tensor, op_def);
 }
 
@@ -427,7 +438,7 @@ absl::Status ResizeBilinear3DNonAlignedBatchedBigTest(
     TestExecutionEnvironment& env, DataType data_type,
     TensorStorageType storage) {
   Resize3DAttributes attr;
-  attr.type = SamplingType::BILINEAR;
+  attr.type = SamplingType::kBilinear;
   attr.new_shape = HWD(25, 17, 19);
   attr.align_corners = false;
 
@@ -435,8 +446,8 @@ absl::Status ResizeBilinear3DNonAlignedBatchedBigTest(
   Tensor5DFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWDC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWDC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWDC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWDC});
   return Resize3DTest(env, attr, src_tensor, op_def);
 }
 
@@ -444,7 +455,7 @@ absl::Status ResizeNearest3DBigTest(TestExecutionEnvironment& env,
                                     DataType data_type,
                                     TensorStorageType storage) {
   Resize3DAttributes attr;
-  attr.type = SamplingType::NEAREST;
+  attr.type = SamplingType::kNearest;
   attr.new_shape = HWD(25, 17, 22);
   attr.align_corners = false;
 
@@ -452,8 +463,8 @@ absl::Status ResizeNearest3DBigTest(TestExecutionEnvironment& env,
   Tensor5DFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWDC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWDC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWDC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWDC});
   return Resize3DTest(env, attr, src_tensor, op_def);
 }
 
@@ -461,7 +472,7 @@ absl::Status ResizeNearest3DBatchedBigTest(TestExecutionEnvironment& env,
                                            DataType data_type,
                                            TensorStorageType storage) {
   Resize3DAttributes attr;
-  attr.type = SamplingType::NEAREST;
+  attr.type = SamplingType::kNearest;
   attr.new_shape = HWD(7, 9, 10);
   attr.align_corners = true;
 
@@ -469,8 +480,8 @@ absl::Status ResizeNearest3DBatchedBigTest(TestExecutionEnvironment& env,
   Tensor5DFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWDC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWDC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWDC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWDC});
   return Resize3DTest(env, attr, src_tensor, op_def);
 }
 

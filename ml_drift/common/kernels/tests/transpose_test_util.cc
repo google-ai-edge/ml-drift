@@ -53,8 +53,8 @@ absl::Status TransposeIntTest(TestExecutionEnvironment& env,
   ref_tensor.data = {1, -4, 2, 3, -3, 6};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({T, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({T, storage, Layout::HWC});
+  op_def.src_tensors.push_back({T, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({T, storage, Layout::kHWC});
   TensorDescriptor src_0, dst;
   src_0 = op_def.src_tensors[0];
   src_0.UploadData(src);
@@ -68,11 +68,11 @@ absl::Status TransposeIntTest(TestExecutionEnvironment& env,
   return absl::OkStatus();
 }
 
-template absl::Status TransposeIntTest<DataType::INT32>(
+template absl::Status TransposeIntTest<DataType::kInt32>(
     TestExecutionEnvironment& env, TensorStorageType storage);
-template absl::Status TransposeIntTest<DataType::INT16>(
+template absl::Status TransposeIntTest<DataType::kInt16>(
     TestExecutionEnvironment& env, TensorStorageType storage);
-template absl::Status TransposeIntTest<DataType::INT8>(
+template absl::Status TransposeIntTest<DataType::kInt8>(
     TestExecutionEnvironment& env, TensorStorageType storage);
 
 template <DataType T>
@@ -90,8 +90,8 @@ absl::Status TransposeUintTest(TestExecutionEnvironment& env,
   ref_tensor.data = {1, 4, 2, 5, 3, 6};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({T, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({T, storage, Layout::HWC});
+  op_def.src_tensors.push_back({T, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({T, storage, Layout::kHWC});
   TensorDescriptor src_0, dst;
   src_0 = op_def.src_tensors[0];
   src_0.UploadData(src);
@@ -105,11 +105,11 @@ absl::Status TransposeUintTest(TestExecutionEnvironment& env,
   return absl::OkStatus();
 }
 
-template absl::Status TransposeUintTest<DataType::UINT32>(
+template absl::Status TransposeUintTest<DataType::kUint32>(
     TestExecutionEnvironment& env, TensorStorageType storage);
-template absl::Status TransposeUintTest<DataType::UINT16>(
+template absl::Status TransposeUintTest<DataType::kUint16>(
     TestExecutionEnvironment& env, TensorStorageType storage);
-template absl::Status TransposeUintTest<DataType::UINT8>(
+template absl::Status TransposeUintTest<DataType::kUint8>(
     TestExecutionEnvironment& env, TensorStorageType storage);
 
 absl::Status TransposeTest(TestExecutionEnvironment& env, DataType data_type,
@@ -122,8 +122,8 @@ absl::Status TransposeTest(TestExecutionEnvironment& env, DataType data_type,
   attr.perm = BHWC(0, 1, 3, 2);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateTranspose(op_def, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
@@ -142,9 +142,9 @@ absl::Status TransposeTest(TestExecutionEnvironment& exec_env,
   TensorFloat32 dst_ref_tensor = TransposeReference(attr, src_tensor);
 
   OperationDef op_def;
-  const Layout src_layout = src_shape.b > 1 ? Layout::BHWC : Layout::HWC;
+  const Layout src_layout = src_shape.b > 1 ? Layout::kBHWC : Layout::kHWC;
   const Layout dst_layout =
-      dst_ref_tensor.shape.b > 1 ? Layout::BHWC : Layout::HWC;
+      dst_ref_tensor.shape.b > 1 ? Layout::kBHWC : Layout::kHWC;
   op_def.src_tensors.push_back({data_type, storage, src_layout});
   op_def.dst_tensors.push_back({data_type, storage, dst_layout});
   GPUOperation operation = CreateTranspose(op_def, attr);
@@ -166,9 +166,9 @@ absl::Status Transpose3DTest(TestExecutionEnvironment& exec_env,
   Tensor5DFloat32 dst_ref_tensor = TransposeReference(attr, src_tensor);
 
   OperationDef op_def;
-  const Layout src_layout = src_shape.b > 1 ? Layout::BHWDC : Layout::HWDC;
+  const Layout src_layout = src_shape.b > 1 ? Layout::kBHWDC : Layout::kHWDC;
   const Layout dst_layout =
-      dst_ref_tensor.shape.b > 1 ? Layout::BHWDC : Layout::HWDC;
+      dst_ref_tensor.shape.b > 1 ? Layout::kBHWDC : Layout::kHWDC;
   op_def.src_tensors.push_back({data_type, storage, src_layout});
   op_def.dst_tensors.push_back({data_type, storage, dst_layout});
   GPUOperation operation = CreateTranspose(op_def, attr);

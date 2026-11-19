@@ -74,7 +74,7 @@ absl::Status TryMish(const GpuInfo& gpu_info, const GraphFloat32& graph,
                      std::set<NodeId>* new_consumed_nodes,
                      GpuModelBuilder* model_builder) {
   Node* exp_node = graph.GetNode(first_node_id);
-  ABSL_RETURN_IF_ERROR(CheckIfValidNodeOfType(exp_node, OperationType::EXP));
+  ABSL_RETURN_IF_ERROR(CheckIfValidNodeOfType(exp_node, OperationType::kExp));
   ValueId input = 0;
   if (std::vector<Value*> exp_inputs = graph.FindInputs(exp_node->id);
       exp_inputs.size() == 1) {
@@ -84,8 +84,8 @@ absl::Status TryMish(const GpuInfo& gpu_info, const GraphFloat32& graph,
   }
 
   Node* increment_node = nullptr;
-  ABSL_RETURN_IF_ERROR(
-      GetNextSingleNode(graph, *exp_node, OperationType::ADD, &increment_node));
+  ABSL_RETURN_IF_ERROR(GetNextSingleNode(graph, *exp_node, OperationType::kAdd,
+                                         &increment_node));
   if (std::vector<Value*> increment_inputs =
           graph.FindInputs(increment_node->id);
       increment_inputs.size() != 1) {
@@ -100,14 +100,14 @@ absl::Status TryMish(const GpuInfo& gpu_info, const GraphFloat32& graph,
     }
   }
   Node* log_node = nullptr;
-  ABSL_RETURN_IF_ERROR(
-      GetNextSingleNode(graph, *increment_node, OperationType::LOG, &log_node));
+  ABSL_RETURN_IF_ERROR(GetNextSingleNode(graph, *increment_node,
+                                         OperationType::kLog, &log_node));
   Node* tanh_node = nullptr;
   ABSL_RETURN_IF_ERROR(
-      GetNextSingleNode(graph, *log_node, OperationType::TANH, &tanh_node));
+      GetNextSingleNode(graph, *log_node, OperationType::kTanh, &tanh_node));
   Node* mul_node = nullptr;
   ABSL_RETURN_IF_ERROR(
-      GetNextSingleNode(graph, *tanh_node, OperationType::MUL, &mul_node));
+      GetNextSingleNode(graph, *tanh_node, OperationType::kMul, &mul_node));
   // Make sure that the other input to mul is the original input.
   if (std::vector<Value*> mul_inputs = graph.FindInputs(mul_node->id);
       mul_inputs.size() != 2) {
@@ -129,7 +129,7 @@ absl::Status TryMish(const GpuInfo& gpu_info, const GraphFloat32& graph,
   model_builder->AddGpuOperation(
       std::vector<ValueId>({input_id}), std::vector<ValueId>({output_id}),
       std::make_unique<GPUOperation>(
-          CreateElementwiseOneInput(gpu_info, op_def, OperationType::MISH)),
+          CreateElementwiseOneInput(gpu_info, op_def, OperationType::kMish)),
       "mish");
 
   new_consumed_nodes->insert(exp_node->id);
@@ -186,7 +186,7 @@ absl::Status TryMish(const GpuInfo& gpu_info, const ir::IrModel& ir_model,
                      absl::flat_hash_set<ir::IrOpId>* new_consumed_ops,
                      GpuModelBuilder* model_builder) {
   const ir::IrOp* exp_op = ir_model.op(first_op_id);
-  ABSL_RETURN_IF_ERROR(CheckIfValidOpOfType(exp_op, OperationType::EXP));
+  ABSL_RETURN_IF_ERROR(CheckIfValidOpOfType(exp_op, OperationType::kExp));
   GpuModelBuilder::ValueId input = 0;
   if (const auto& exp_inputs = exp_op->inputs; exp_inputs.size() == 1) {
     input = static_cast<GpuModelBuilder::ValueId>(exp_inputs[0]);
@@ -196,7 +196,7 @@ absl::Status TryMish(const GpuInfo& gpu_info, const ir::IrModel& ir_model,
 
   const ir::IrOp* increment_op = nullptr;
   ABSL_RETURN_IF_ERROR(
-      GetNextSingleOp(ir_model, *exp_op, OperationType::ADD, &increment_op));
+      GetNextSingleOp(ir_model, *exp_op, OperationType::kAdd, &increment_op));
   if (const auto& increment_inputs = increment_op->inputs;
       increment_inputs.size() != 1) {
     // This is supposed to be addition with a scalar
@@ -211,13 +211,13 @@ absl::Status TryMish(const GpuInfo& gpu_info, const ir::IrModel& ir_model,
   }
   const ir::IrOp* log_op = nullptr;
   ABSL_RETURN_IF_ERROR(
-      GetNextSingleOp(ir_model, *increment_op, OperationType::LOG, &log_op));
+      GetNextSingleOp(ir_model, *increment_op, OperationType::kLog, &log_op));
   const ir::IrOp* tanh_op = nullptr;
   ABSL_RETURN_IF_ERROR(
-      GetNextSingleOp(ir_model, *log_op, OperationType::TANH, &tanh_op));
+      GetNextSingleOp(ir_model, *log_op, OperationType::kTanh, &tanh_op));
   const ir::IrOp* mul_op = nullptr;
   ABSL_RETURN_IF_ERROR(
-      GetNextSingleOp(ir_model, *tanh_op, OperationType::MUL, &mul_op));
+      GetNextSingleOp(ir_model, *tanh_op, OperationType::kMul, &mul_op));
   // Make sure that the other input to mul is the original input.
   if (const auto& mul_inputs = mul_op->inputs; mul_inputs.size() != 2) {
     return absl::NotFoundError("Mish not suitable.");
@@ -241,7 +241,7 @@ absl::Status TryMish(const GpuInfo& gpu_info, const ir::IrModel& ir_model,
       std::vector<GpuModelBuilder::ValueId>({input_id}),
       std::vector<GpuModelBuilder::ValueId>({output_id}),
       std::make_unique<GPUOperation>(
-          CreateElementwiseOneInput(gpu_info, op_def, OperationType::MISH)),
+          CreateElementwiseOneInput(gpu_info, op_def, OperationType::kMish)),
       "mish");
 
   new_consumed_ops->insert(exp_op->id);

@@ -51,13 +51,13 @@ absl::Status RoPETest(TestExecutionEnvironment& env, DataType data_type,
   pos_tensor.shape = BHWC(1, 1, 4, 1);
   pos_tensor.data = {1.0f, 2.0f, 3.0f, 4.0f};
 
-  const float eps = data_type == DataType::FLOAT32 ? 5e-6f : 1e-2f;
+  const float eps = data_type == DataType::kFloat32 ? 5e-6f : 1e-2f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_l;
   TensorFloat32 dst_r;
   RoPEAttributes attr;
@@ -95,11 +95,11 @@ absl::Status SplitRoPEConcatTest(TestExecutionEnvironment& env,
   pos_tensor.shape = BHWC(1, 1, 4, 1);
   pos_tensor.data = {1.0f, 2.0f, 3.0f, 4.0f};
 
-  const float eps = data_type == DataType::FLOAT32 ? 5e-6f : 1e-2f;
+  const float eps = data_type == DataType::kFloat32 ? 5e-6f : 1e-2f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst;
   RoPEAttributes attr;
   GPUOperation operation =
@@ -134,11 +134,11 @@ absl::Status SplitRoPEConcatIntPositionTest(TestExecutionEnvironment& env,
   pos_tensor.shape = BHWC(1, 1, 4, 1);
   pos_tensor.data = {1, 2, 3, 4};
 
-  const float eps = data_type == DataType::FLOAT32 ? 5e-6f : 1e-2f;
+  const float eps = data_type == DataType::kFloat32 ? 5e-6f : 1e-2f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({DataType::INT32, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({DataType::kInt32, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorDescriptor src_td = op_def.src_tensors[0];
   src_td.UploadData(src);
   TensorDescriptor pos_td = op_def.src_tensors[1];
@@ -180,11 +180,11 @@ absl::Status SplitRoPEConcatIntChannelPositionTest(
   pos_tensor.shape = BHWC(1, 1, 1, 4);
   pos_tensor.data = {1, 2, 3, 4};
 
-  const float eps = data_type == DataType::FLOAT32 ? 5e-6f : 1e-2f;
+  const float eps = data_type == DataType::kFloat32 ? 5e-6f : 1e-2f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({DataType::INT32, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({DataType::kInt32, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorDescriptor src_td = op_def.src_tensors[0];
   src_td.UploadData(src);
   TensorDescriptor pos_td = op_def.src_tensors[1];
@@ -223,11 +223,11 @@ absl::Status SplitRoPEConcatIntSinglePositionTest(TestExecutionEnvironment& env,
   pos_tensor.shape = BHWC(1, 1, 1, 1);
   pos_tensor.data = {1};
 
-  const float eps = data_type == DataType::FLOAT32 ? 5e-6f : 1e-2f;
+  const float eps = data_type == DataType::kFloat32 ? 5e-6f : 1e-2f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({DataType::INT32, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({DataType::kInt32, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorDescriptor src_td = op_def.src_tensors[0];
   src_td.UploadData(src);
   TensorDescriptor pos_td = op_def.src_tensors[1];
@@ -263,14 +263,14 @@ absl::Status SplitRoPEConcatInterleavedAxialTest(TestExecutionEnvironment& env,
   pos_tensor.shape = BHWC(1, 1, 2, 1);
   pos_tensor.data = {1.0f, 2.0f};
 
-  const float eps = data_type == DataType::FLOAT32 ? 5e-6f : 1e-2f;
+  const float eps = data_type == DataType::kFloat32 ? 5e-6f : 1e-2f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst;
   RoPEAttributes attr;
-  attr.kernel_type = RoPEKernelType::INTERLEAVED_2D;
+  attr.kernel_type = RoPEKernelType::kInterleaved2D;
   GPUOperation operation =
       CreateSplitRoPEConcat(env.GetGpuInfo(), op_def, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(

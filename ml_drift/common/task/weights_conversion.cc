@@ -303,158 +303,6 @@ void RearrangeWeightsToOHWIOGroupI4O4(const Tensor<OHWI, S>& weights,
 }
 
 template <DataType S, typename T>
-void RearrangeWeightsToOICustomSpatialI4O4(
-    const Tensor<OHWI, S>& weights, const std::vector<int>& spatial_remap,
-    absl::Span<T> dst, T pad_value) {
-  const int dst_slices = DivideRoundUp(weights.shape.o, 4);
-  const int src_slices = DivideRoundUp(weights.shape.i, 4);
-
-  int counter = 0;
-  const auto* src = weights.Data();
-  for (int d = 0; d < dst_slices; ++d) {
-    for (int s = 0; s < src_slices; ++s) {
-      for (int y = 0; y < weights.shape.h; ++y) {
-        for (int x = 0; x < weights.shape.w; ++x) {
-          const int kernel_index = spatial_remap[y * weights.shape.w + x];
-          const int kernel_index_x = kernel_index % weights.shape.w;
-          const int kernel_index_y = kernel_index / weights.shape.w;
-          for (int i = 0; i < 4; ++i) {
-            for (int j = 0; j < 4; ++j) {
-              const int s_ch = s * 4 + i;
-              const int d_ch = d * 4 + j;
-              if (s_ch < weights.shape.i && d_ch < weights.shape.o) {
-                const int f_index = weights.shape.LinearIndex(
-                    {d_ch, kernel_index_y, kernel_index_x, s_ch});
-                dst[counter++] = src[f_index];
-              } else {
-                dst[counter++] = pad_value;
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-}
-
-template <DataType S, typename T>
-void RearrangeWeightsToOICustomSpatialI4O4(
-    const Tensor<OHWDI, S>& weights, const std::vector<int>& spatial_remap,
-    absl::Span<T> dst, T pad_value) {
-  const int dst_slices = DivideRoundUp(weights.shape.o, 4);
-  const int src_slices = DivideRoundUp(weights.shape.i, 4);
-
-  int counter = 0;
-  const auto* src = weights.Data();
-  for (int d = 0; d < dst_slices; ++d) {
-    for (int s = 0; s < src_slices; ++s) {
-      for (int z = 0; z < weights.shape.d; ++z) {
-        for (int y = 0; y < weights.shape.h; ++y) {
-          for (int x = 0; x < weights.shape.w; ++x) {
-            int kernel_index =
-                spatial_remap[(z * weights.shape.h + y) * weights.shape.w + x];
-            const int kernel_index_x = kernel_index % weights.shape.w;
-            kernel_index /= weights.shape.w;
-            const int kernel_index_y = kernel_index % weights.shape.h;
-            const int kernel_index_z = kernel_index / weights.shape.h;
-            for (int i = 0; i < 4; ++i) {
-              for (int j = 0; j < 4; ++j) {
-                const int s_ch = s * 4 + i;
-                const int d_ch = d * 4 + j;
-                if (s_ch < weights.shape.i && d_ch < weights.shape.o) {
-                  const int f_index = weights.shape.LinearIndex(
-                      {d_ch, kernel_index_y, kernel_index_x, kernel_index_z,
-                       s_ch});
-                  dst[counter++] = src[f_index];
-                } else {
-                  dst[counter++] = pad_value;
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-}
-
-template <DataType S, typename T>
-void RearrangeWeightsToOICustomSpatialO4I4(
-    const Tensor<OHWI, S>& weights, const std::vector<int>& spatial_remap,
-    absl::Span<T> dst, T pad_value) {
-  const int dst_slices = DivideRoundUp(weights.shape.o, 4);
-  const int src_slices = DivideRoundUp(weights.shape.i, 4);
-
-  int counter = 0;
-  const auto* src = weights.Data();
-  for (int d = 0; d < dst_slices; ++d) {
-    for (int s = 0; s < src_slices; ++s) {
-      for (int y = 0; y < weights.shape.h; ++y) {
-        for (int x = 0; x < weights.shape.w; ++x) {
-          const int kernel_index = spatial_remap[y * weights.shape.w + x];
-          const int kernel_index_x = kernel_index % weights.shape.w;
-          const int kernel_index_y = kernel_index / weights.shape.w;
-          for (int i = 0; i < 4; ++i) {
-            for (int j = 0; j < 4; ++j) {
-              const int s_ch = s * 4 + j;
-              const int d_ch = d * 4 + i;
-              if (s_ch < weights.shape.i && d_ch < weights.shape.o) {
-                const int f_index = weights.shape.LinearIndex(
-                    {d_ch, kernel_index_y, kernel_index_x, s_ch});
-                dst[counter++] = src[f_index];
-              } else {
-                dst[counter++] = pad_value;
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-}
-
-template <DataType S, typename T>
-void RearrangeWeightsToOICustomSpatialO4I4(
-    const Tensor<OHWDI, S>& weights, const std::vector<int>& spatial_remap,
-    absl::Span<T> dst, T pad_value) {
-  const int dst_slices = DivideRoundUp(weights.shape.o, 4);
-  const int src_slices = DivideRoundUp(weights.shape.i, 4);
-
-  int counter = 0;
-  const auto* src = weights.Data();
-  for (int d = 0; d < dst_slices; ++d) {
-    for (int s = 0; s < src_slices; ++s) {
-      for (int z = 0; z < weights.shape.d; ++z) {
-        for (int y = 0; y < weights.shape.h; ++y) {
-          for (int x = 0; x < weights.shape.w; ++x) {
-            int kernel_index =
-                spatial_remap[(z * weights.shape.h + y) * weights.shape.w + x];
-            const int kernel_index_x = kernel_index % weights.shape.w;
-            kernel_index /= weights.shape.w;
-            const int kernel_index_y = kernel_index % weights.shape.h;
-            const int kernel_index_z = kernel_index / weights.shape.h;
-            for (int i = 0; i < 4; ++i) {
-              for (int j = 0; j < 4; ++j) {
-                const int s_ch = s * 4 + j;
-                const int d_ch = d * 4 + i;
-                if (s_ch < weights.shape.i && d_ch < weights.shape.o) {
-                  const int f_index = weights.shape.LinearIndex(
-                      {d_ch, kernel_index_y, kernel_index_x, kernel_index_z,
-                       s_ch});
-                  dst[counter++] = src[f_index];
-                } else {
-                  dst[counter++] = pad_value;
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-}
-
-template <DataType S, typename T>
 void RearrangeWeightsToISpatialOI4O4UnalignedIO(const Tensor<OHWI, S>& weights,
                                                 absl::Span<T> dst) {
   const int src_slices = DivideRoundUp(weights.shape.i, 4);
@@ -473,6 +321,77 @@ void RearrangeWeightsToISpatialOI4O4UnalignedIO(const Tensor<OHWI, S>& weights,
               const int f_index = weights.shape.LinearIndex({d_ch, y, x, s_ch});
               dst[counter++] = weights.data[f_index];
             }
+          }
+        }
+      }
+    }
+  }
+}
+
+template <typename SrcT, typename T>
+void ReorderI2gr0O8I2gr1O2(const SrcT* linear_ohwdi, const OHWDI& src_shape,
+                           const OHWDI& start_ohwdi, absl::Span<T> dst,
+                           T pad_value) {
+  int counter = 0;
+  for (int i1 = 0; i1 < 2; i1++) {
+    for (int o1 = 0; o1 < 8; o1++) {
+      for (int i0 = 0; i0 < 2; i0++) {
+        for (int o0 = 0; o0 < 2; o0++) {
+          int i_ch = start_ohwdi.i + i0 * 2 + i1;
+          int o_ch = start_ohwdi.o + o1 * 2 + o0;
+          if (o_ch < src_shape.o && i_ch < src_shape.i) {
+            dst[counter++] = linear_ohwdi[src_shape.LinearIndex(
+                {o_ch, start_ohwdi.h, start_ohwdi.w, start_ohwdi.d, i_ch})];
+          } else {
+            dst[counter++] = pad_value;
+          }
+        }
+      }
+    }
+  }
+}
+
+template <typename SrcT, typename T>
+void ReorderOgr1Ogr2Ogr0(
+    const SrcT* linear_ohwdi, const OHWDI& src_shape, const OHWDI& start_ohwdi,
+    const WeightsDescription::CustomGroupsOgr1Ogr2Ogr0Params& params,
+    absl::Span<T> dst, T pad_value) {
+  int counter = 0;
+  for (int o_gr1 = 0; o_gr1 < params.o_gr1_size; o_gr1++) {
+    for (int o_gr2 = 0; o_gr2 < params.o_gr2_size; o_gr2++) {
+      for (int o_gr0 = 0; o_gr0 < params.o_gr0_size; o_gr0++) {
+        const int o_ch =
+            start_ohwdi.o +
+            (o_gr2 * params.o_gr1_size + o_gr1) * params.o_gr0_size + o_gr0;
+        const int i_ch = start_ohwdi.i;
+        if (o_ch < src_shape.o && i_ch < src_shape.i) {
+          dst[counter++] = linear_ohwdi[src_shape.LinearIndex(
+              {o_ch, start_ohwdi.h, start_ohwdi.w, start_ohwdi.d, i_ch})];
+        } else {
+          dst[counter++] = pad_value;
+        }
+      }
+    }
+  }
+}
+
+template <typename SrcT, typename T>
+void ReorderOgr0Igr1Ogr1Igr0(
+    const SrcT* linear_ohwdi, const OHWDI& src_shape, const OHWDI& start_ohwdi,
+    const WeightsDescription::CustomGroupsOgr0Igr1Ogr1Igr0Params& params,
+    absl::Span<T> dst, T pad_value) {
+  int counter = 0;
+  for (int o_gr0 = 0; o_gr0 < params.o_gr0_size; o_gr0++) {
+    for (int i_gr1 = 0; i_gr1 < params.i_gr1_size; i_gr1++) {
+      for (int o_gr1 = 0; o_gr1 < params.o_gr1_size; o_gr1++) {
+        for (int i_gr0 = 0; i_gr0 < params.i_gr0_size; i_gr0++) {
+          const int o_ch = start_ohwdi.o + o_gr1 * params.o_gr0_size + o_gr0;
+          const int i_ch = start_ohwdi.i + i_gr1 * params.i_gr0_size + i_gr0;
+          if (o_ch < src_shape.o && i_ch < src_shape.i) {
+            dst[counter++] = linear_ohwdi[src_shape.LinearIndex(
+                {o_ch, start_ohwdi.h, start_ohwdi.w, start_ohwdi.d, i_ch})];
+          } else {
+            dst[counter++] = pad_value;
           }
         }
       }
@@ -517,8 +436,7 @@ void RearrangeWeightsToCustom(const Tensor<OHWI, S>& weights,
       src_coords.w = new_spatial_linear % weights.shape.w;
       src_coords.h = new_spatial_linear / weights.shape.w;
     }
-    if (src_coords.o < weights.shape.o && src_coords.h < weights.shape.h &&
-        src_coords.w < weights.shape.w && src_coords.i < weights.shape.i) {
+    if (src_coords.o < weights.shape.o && src_coords.i < weights.shape.i) {
       dst[i] = weights.data[weights.shape.LinearIndex(
           {src_coords.o, src_coords.h, src_coords.w, src_coords.i})];
     } else {
@@ -569,9 +487,7 @@ void RearrangeWeightsToCustom(const Tensor<OHWDI, S>& weights,
       src_coords.h = new_spatial_linear % weights.shape.h;
       src_coords.d = new_spatial_linear / weights.shape.h;
     }
-    if (src_coords.o < weights.shape.o && src_coords.h < weights.shape.h &&
-        src_coords.w < weights.shape.w && src_coords.d < weights.shape.d &&
-        src_coords.i < weights.shape.i) {
+    if (src_coords.o < weights.shape.o && src_coords.i < weights.shape.i) {
       dst[i] = weights.data[weights.shape.LinearIndex(
           {src_coords.o, src_coords.h, src_coords.w, src_coords.d,
            src_coords.i})];
@@ -582,6 +498,245 @@ void RearrangeWeightsToCustom(const Tensor<OHWDI, S>& weights,
   }
 }
 
+template <typename SrcT, typename T>
+void RearrangeWeightsToCustomI2gr0O8I2gr1O2(
+    const SrcT* linear_ohwdi, const OHWDI& src_shape,
+    std::vector<std::pair<Axis, int>> group_sizes,
+    const std::vector<int>& spatial_remap, absl::Span<T> dst, T pad_value) {
+  constexpr size_t kBlockElements = 64;
+  const OHWDI kBaseBlock(16, 1, 1, 1, 4);
+  std::vector<std::pair<Axis, int>> coords;
+  coords.reserve(group_sizes.size());
+  OHWDI total_size = kBaseBlock;
+  size_t blocks_count = 1;
+  for (auto& [axis, size] : group_sizes) {
+    coords.push_back({axis, 0});
+    const int prev_size = total_size.get(axis);
+    if (size <= 0) {
+      size = DivideRoundUp(src_shape.get(axis), prev_size);
+    }
+    total_size.set(axis, prev_size * size);
+    blocks_count *= size;
+  }
+  for (size_t b = 0; b < blocks_count; ++b) {
+    OHWDI src_coords = OHWDI(0, 0, 0, 0, 0);
+    OHWDI prev_sizes = kBaseBlock;
+    for (size_t group = 0; group < group_sizes.size(); ++group) {
+      const auto& [axis, group_size] = group_sizes[group];
+      if (coords[group].second == group_size) {
+        coords[group].second = 0;
+        ++coords[group + 1].second;
+      }
+      const int coord_id = coords[group].second;
+      const int prev_value = src_coords.get(axis);
+      const int prev_size = prev_sizes.get(axis);
+      src_coords.set(axis, coord_id * prev_size + prev_value);
+      prev_sizes.set(axis, group_size * prev_size);
+    }
+    if (!spatial_remap.empty()) {
+      const int spatial_linear =
+          (src_coords.d * src_shape.h + src_coords.h) * src_shape.w +
+          src_coords.w;
+      int new_spatial_linear = spatial_remap[spatial_linear];
+      src_coords.w = new_spatial_linear % src_shape.w;
+      new_spatial_linear /= src_shape.w;
+      src_coords.h = new_spatial_linear % src_shape.h;
+      src_coords.d = new_spatial_linear / src_shape.h;
+    }
+    ReorderI2gr0O8I2gr1O2(linear_ohwdi, src_shape, src_coords,
+                          dst.subspan(b * kBlockElements, kBlockElements),
+                          pad_value);
+    if (!coords.empty()) {
+      ++coords[0].second;
+    }
+  }
+}
+
+template <DataType S, typename T>
+void RearrangeWeightsToCustomI2gr0O8I2gr1O2(
+    const Tensor<OHWI, S>& weights,
+    std::vector<std::pair<Axis, int>> group_sizes,
+    const std::vector<int>& spatial_remap, absl::Span<T> dst, T pad_value) {
+  const OHWDI ohwdi_shape(weights.shape.o, weights.shape.h, weights.shape.w, 1,
+                          weights.shape.i);
+  RearrangeWeightsToCustomI2gr0O8I2gr1O2(weights.Data(), ohwdi_shape,
+                                         std::move(group_sizes), spatial_remap,
+                                         dst, pad_value);
+}
+
+template <DataType S, typename T>
+void RearrangeWeightsToCustomI2gr0O8I2gr1O2(
+    const Tensor<OHWDI, S>& weights,
+    std::vector<std::pair<Axis, int>> group_sizes,
+    const std::vector<int>& spatial_remap, absl::Span<T> dst, T pad_value) {
+  RearrangeWeightsToCustomI2gr0O8I2gr1O2(weights.Data(), weights.shape,
+                                         std::move(group_sizes), spatial_remap,
+                                         dst, pad_value);
+}
+
+template <typename SrcT, typename T>
+void RearrangeWeightsToCustomOgr1Ogr2Ogr0(
+    const SrcT* linear_ohwdi, const OHWDI& src_shape,
+    const WeightsDescription::CustomGroupsOgr1Ogr2Ogr0Params& params,
+    std::vector<std::pair<Axis, int>> group_sizes,
+    const std::vector<int>& spatial_remap, absl::Span<T> dst, T pad_value) {
+  const int o_tile_size =
+      params.o_gr0_size * params.o_gr1_size * params.o_gr2_size;
+  const size_t block_elements = static_cast<size_t>(o_tile_size);
+  const OHWDI base_block(o_tile_size, 1, 1, 1, 1);
+  std::vector<std::pair<Axis, int>> coords;
+  coords.reserve(group_sizes.size());
+  OHWDI total_size = base_block;
+  size_t blocks_count = 1;
+  for (auto& [axis, size] : group_sizes) {
+    coords.push_back({axis, 0});
+    const int prev_size = total_size.get(axis);
+    if (size <= 0) {
+      size = DivideRoundUp(src_shape.get(axis), prev_size);
+    }
+    total_size.set(axis, prev_size * size);
+    blocks_count *= size;
+  }
+  for (size_t b = 0; b < blocks_count; ++b) {
+    OHWDI src_coords = OHWDI(0, 0, 0, 0, 0);
+    OHWDI prev_sizes = base_block;
+    for (size_t group = 0; group < group_sizes.size(); ++group) {
+      const auto& [axis, group_size] = group_sizes[group];
+      if (coords[group].second == group_size) {
+        coords[group].second = 0;
+        ++coords[group + 1].second;
+      }
+      const int coord_id = coords[group].second;
+      const int prev_value = src_coords.get(axis);
+      const int prev_size = prev_sizes.get(axis);
+      src_coords.set(axis, coord_id * prev_size + prev_value);
+      prev_sizes.set(axis, group_size * prev_size);
+    }
+    if (!spatial_remap.empty()) {
+      const int spatial_linear =
+          (src_coords.d * src_shape.h + src_coords.h) * src_shape.w +
+          src_coords.w;
+      int new_spatial_linear = spatial_remap[spatial_linear];
+      src_coords.w = new_spatial_linear % src_shape.w;
+      new_spatial_linear /= src_shape.w;
+      src_coords.h = new_spatial_linear % src_shape.h;
+      src_coords.d = new_spatial_linear / src_shape.h;
+    }
+    ReorderOgr1Ogr2Ogr0(linear_ohwdi, src_shape, src_coords, params,
+                        dst.subspan(b * block_elements, block_elements),
+                        pad_value);
+    if (!coords.empty()) {
+      ++coords[0].second;
+    }
+  }
+}
+
+template <DataType S, typename T>
+void RearrangeWeightsToCustomOgr1Ogr2Ogr0(
+    const Tensor<OHWI, S>& weights,
+    const WeightsDescription::CustomGroupsOgr1Ogr2Ogr0Params& params,
+    std::vector<std::pair<Axis, int>> group_sizes,
+    const std::vector<int>& spatial_remap, absl::Span<T> dst, T pad_value) {
+  const OHWDI ohwdi_shape(weights.shape.o, weights.shape.h, weights.shape.w, 1,
+                          weights.shape.i);
+  RearrangeWeightsToCustomOgr1Ogr2Ogr0(weights.Data(), ohwdi_shape, params,
+                                       std::move(group_sizes), spatial_remap,
+                                       dst, pad_value);
+}
+
+template <DataType S, typename T>
+void RearrangeWeightsToCustomOgr1Ogr2Ogr0(
+    const Tensor<OHWDI, S>& weights,
+    const WeightsDescription::CustomGroupsOgr1Ogr2Ogr0Params& params,
+    std::vector<std::pair<Axis, int>> group_sizes,
+    const std::vector<int>& spatial_remap, absl::Span<T> dst, T pad_value) {
+  RearrangeWeightsToCustomOgr1Ogr2Ogr0(weights.Data(), weights.shape, params,
+                                       std::move(group_sizes), spatial_remap,
+                                       dst, pad_value);
+}
+
+template <typename SrcT, typename T>
+void RearrangeWeightsToCustomOgr0Igr1Ogr1Igr0(
+    const SrcT* linear_ohwdi, const OHWDI& src_shape,
+    const WeightsDescription::CustomGroupsOgr0Igr1Ogr1Igr0Params& params,
+    std::vector<std::pair<Axis, int>> group_sizes,
+    const std::vector<int>& spatial_remap, absl::Span<T> dst, T pad_value) {
+  const int o_tile_size = params.o_gr0_size * params.o_gr1_size;
+  const int i_tile_size = params.i_gr0_size * params.i_gr1_size;
+  const size_t block_elements =
+      static_cast<size_t>(o_tile_size) * static_cast<size_t>(i_tile_size);
+  const OHWDI base_block(o_tile_size, 1, 1, 1, i_tile_size);
+  std::vector<std::pair<Axis, int>> coords;
+  coords.reserve(group_sizes.size());
+  OHWDI total_size = base_block;
+  size_t blocks_count = 1;
+  for (auto& [axis, size] : group_sizes) {
+    coords.push_back({axis, 0});
+    const int prev_size = total_size.get(axis);
+    if (size <= 0) {
+      size = DivideRoundUp(src_shape.get(axis), prev_size);
+    }
+    total_size.set(axis, prev_size * size);
+    blocks_count *= size;
+  }
+  for (size_t b = 0; b < blocks_count; ++b) {
+    OHWDI src_coords = OHWDI(0, 0, 0, 0, 0);
+    OHWDI prev_sizes = base_block;
+    for (size_t group = 0; group < group_sizes.size(); ++group) {
+      const auto& [axis, group_size] = group_sizes[group];
+      if (coords[group].second == group_size) {
+        coords[group].second = 0;
+        ++coords[group + 1].second;
+      }
+      const int coord_id = coords[group].second;
+      const int prev_value = src_coords.get(axis);
+      const int prev_size = prev_sizes.get(axis);
+      src_coords.set(axis, coord_id * prev_size + prev_value);
+      prev_sizes.set(axis, group_size * prev_size);
+    }
+    if (!spatial_remap.empty()) {
+      const int spatial_linear =
+          (src_coords.d * src_shape.h + src_coords.h) * src_shape.w +
+          src_coords.w;
+      int new_spatial_linear = spatial_remap[spatial_linear];
+      src_coords.w = new_spatial_linear % src_shape.w;
+      new_spatial_linear /= src_shape.w;
+      src_coords.h = new_spatial_linear % src_shape.h;
+      src_coords.d = new_spatial_linear / src_shape.h;
+    }
+    ReorderOgr0Igr1Ogr1Igr0(linear_ohwdi, src_shape, src_coords, params,
+                            dst.subspan(b * block_elements, block_elements),
+                            pad_value);
+    if (!coords.empty()) {
+      ++coords[0].second;
+    }
+  }
+}
+
+template <DataType S, typename T>
+void RearrangeWeightsToCustomOgr0Igr1Ogr1Igr0(
+    const Tensor<OHWI, S>& weights,
+    const WeightsDescription::CustomGroupsOgr0Igr1Ogr1Igr0Params& params,
+    std::vector<std::pair<Axis, int>> group_sizes,
+    const std::vector<int>& spatial_remap, absl::Span<T> dst, T pad_value) {
+  const OHWDI ohwdi_shape(weights.shape.o, weights.shape.h, weights.shape.w, 1,
+                          weights.shape.i);
+  RearrangeWeightsToCustomOgr0Igr1Ogr1Igr0(weights.Data(), ohwdi_shape, params,
+                                           std::move(group_sizes),
+                                           spatial_remap, dst, pad_value);
+}
+
+template <DataType S, typename T>
+void RearrangeWeightsToCustomOgr0Igr1Ogr1Igr0(
+    const Tensor<OHWDI, S>& weights,
+    const WeightsDescription::CustomGroupsOgr0Igr1Ogr1Igr0Params& params,
+    std::vector<std::pair<Axis, int>> group_sizes,
+    const std::vector<int>& spatial_remap, absl::Span<T> dst, T pad_value) {
+  RearrangeWeightsToCustomOgr0Igr1Ogr1Igr0(weights.Data(), weights.shape,
+                                           params, std::move(group_sizes),
+                                           spatial_remap, dst, pad_value);
+}
+
 // Parses the 4 msb/lsb of value, and returns it in the 4 lsb.
 inline uint8_t GetUint4FromUint8(uint8_t value, bool msb) {
   return msb ? (value >> 4) : (value & 0xF);
@@ -589,7 +744,7 @@ inline uint8_t GetUint4FromUint8(uint8_t value, bool msb) {
 
 // Note that this assumes we shift by 8u
 void Uint4PackedkOSpatialIOGroupI4O4(
-    const Tensor<OHWI, DataType::UINT8>& weights,
+    const Tensor<OHWI, DataType::kUint8>& weights,
     const WeightsDescription& dst_weight_desc, absl::Span<uint8_t> dst,
     absl::Span<int32_t> weights_sum_i, unsigned int pad_value, bool swap_dims) {
   const int dst_group_size = dst_weight_desc.GetOutputGroupSize();
@@ -669,7 +824,7 @@ void Uint4PackedkOSpatialIOGroupI4O4(
 
 // Note that this assumes we shift by 8u
 void Uint4Packedk2DYIsSpatialIOAndXIsOGroupI4O4(
-    const Tensor<OHWI, DataType::UINT8>& weights,
+    const Tensor<OHWI, DataType::kUint8>& weights,
     const WeightsDescription& dst_weight_desc, absl::Span<uint8_t> dst,
     absl::Span<int32_t> weights_sum_i, unsigned int pad_value, bool swap_dims) {
   const int dst_group_size = dst_weight_desc.GetOutputGroupSize();
@@ -754,7 +909,7 @@ inline uint8_t GetUint2FromUint8(uint8_t value, int bit_offset) {
 
 // Note that this assumes we shift by 2u
 void Uint2Packedk2DYIsSpatialIOAndXIsOGroupI4O4(
-    const Tensor<OHWI, DataType::UINT8>& weights,
+    const Tensor<OHWI, DataType::kUint8>& weights,
     const WeightsDescription& dst_weight_desc, absl::Span<uint8_t> dst,
     absl::Span<int32_t> weights_sum_i, unsigned int pad_value, bool swap_dims) {
   const int dst_group_size = dst_weight_desc.GetOutputGroupSize();
@@ -834,7 +989,7 @@ void Uint2Packedk2DYIsSpatialIOAndXIsOGroupI4O4(
 
 // Note that this assumes we shift by 2u
 void Uint2PackedkOSpatialIOGroupI4O4(
-    const Tensor<OHWI, DataType::UINT8>& weights,
+    const Tensor<OHWI, DataType::kUint8>& weights,
     const WeightsDescription& dst_weight_desc, absl::Span<uint8_t> dst,
     absl::Span<int32_t> weights_sum_i, unsigned int pad_value, bool swap_dims) {
   const int dst_group_size = dst_weight_desc.GetOutputGroupSize();
@@ -911,6 +1066,20 @@ void Uint2PackedkOSpatialIOGroupI4O4(
     }
   }
 }
+
+int GetCustomGroupsOutputGroupSize(
+    const std::vector<std::pair<Axis, int>>& group_sizes, int output_channels) {
+  if (group_sizes.size() >= 2 &&
+      group_sizes[2].first == Axis::kOutputChannels) {
+    if (group_sizes[2].second > 0) {
+      return group_sizes[2].second;
+    } else {
+      return DivideRoundUp(output_channels, 4);
+    }
+  } else {
+    return 1;
+  }
+}
 }  // namespace
 
 std::unique_ptr<half[]> ConvertF32F16(const std::vector<float>& src) {
@@ -919,7 +1088,7 @@ std::unique_ptr<half[]> ConvertF32F16(const std::vector<float>& src) {
 
 #ifdef __aarch64__
 void RearrangeWeightsToOHWIOGroupI4O4(
-    const Tensor<OHWI, DataType::FLOAT32>& weights, int out_group_size,
+    const Tensor<OHWI, DataType::kFloat32>& weights, int out_group_size,
     __fp16* dst) {
   const float* src = weights.data.data();
   const int dst_slices = DivideRoundUp(weights.shape.o, 4);
@@ -963,8 +1132,6 @@ unsigned int GetTotalElementsCountForLayout(
   switch (weight_desc.layout) {
     case WeightsLayout::kOSpatialIOGroupI4O4:
     case WeightsLayout::kOSpatialIOGroupO4I4:
-    case WeightsLayout::kOISpatialOGroupI4O4:
-    case WeightsLayout::kOISpatialOGroupO4I4:
     case WeightsLayout::k2DX4I4YIsSpatialIAndXIsOOGroupO4:
     case WeightsLayout::k2DX4O4YIsSpatialIAndXIsOOGroupI4: {
       const int o_group_size = weight_desc.GetOutputGroupSize();
@@ -972,12 +1139,6 @@ unsigned int GetTotalElementsCountForLayout(
       size_t o_alignment = 4 * o_group_size;
       return AlignByN(shape.i, i_alignment) * AlignByN(shape.o, o_alignment) *
              shape.h * shape.w * shape.d;
-    }
-    case WeightsLayout::kOICustomSpatialI4O4:
-    case WeightsLayout::kOICustomSpatialO4I4: {
-      unsigned int i_aligned = AlignByN(shape.i, 4);
-      unsigned int o_aligned = AlignByN(shape.o, 4);
-      return i_aligned * o_aligned * weight_desc.spatial_remap.size();
     }
     case WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4: {
       unsigned int i_slices = DivideRoundUp(shape.i, 4);
@@ -989,8 +1150,24 @@ unsigned int GetTotalElementsCountForLayout(
     case WeightsLayout::kISpatialOI4O4UnalignedIO: {
       return shape.DimensionsProduct();
     }
-    case WeightsLayout::kCustomGroups: {
+    case WeightsLayout::kCustomGroups:
+    case WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2:
+    case WeightsLayout::kCustomGroupsOgr1Ogr2Ogr0:
+    case WeightsLayout::kCustomGroupsOgr0Igr1Ogr1Igr0: {
       OHWDI total_size = OHWDI(1, 1, 1, 1, 1);
+      if (weight_desc.layout == WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2) {
+        total_size = OHWDI(16, 1, 1, 1, 4);
+      } else if (weight_desc.layout ==
+                 WeightsLayout::kCustomGroupsOgr1Ogr2Ogr0) {
+        const auto& p = weight_desc.params0;
+        total_size =
+            OHWDI(p.o_gr0_size * p.o_gr1_size * p.o_gr2_size, 1, 1, 1, 1);
+      } else if (weight_desc.layout ==
+                 WeightsLayout::kCustomGroupsOgr0Igr1Ogr1Igr0) {
+        const auto& p = weight_desc.params1;
+        total_size = OHWDI(p.o_gr0_size * p.o_gr1_size, 1, 1, 1,
+                           p.i_gr0_size * p.i_gr1_size);
+      }
       for (auto [axis, size] : weight_desc.group_sizes) {
         const int prev_size = total_size.get(axis);
         if (size <= 0) {
@@ -1041,12 +1218,12 @@ uint2 Get2dResourceSize(const WeightsDescription& weight_desc,
 }
 
 // weights.data needs an extra XNN_EXTRA_BYTES/sizeof(float) bytes reserved
-void RearrangeWeights(const Tensor<OHWI, DataType::FLOAT32>& weights,
+void RearrangeWeights(const Tensor<OHWI, DataType::kFloat32>& weights,
                       const WeightsDescription& dst_weight_desc,
                       absl::Span<uint8_t> dst) {
   if (!weights.spanned_data.empty() &&
       weights.spanned_data.size() == weights.shape.DimensionsProduct()) {
-    const_cast<Tensor<OHWI, DataType::FLOAT32>&>(weights)
+    const_cast<Tensor<OHWI, DataType::kFloat32>&>(weights)
         .MoveDataForCpuRearrange(weights.shape.DimensionsProduct() +
                                  XNN_EXTRA_BYTES / sizeof(float));
   }
@@ -1057,13 +1234,13 @@ void RearrangeWeights(const Tensor<OHWI, DataType::FLOAT32>& weights,
   float* f32_ptr = reinterpret_cast<float*>(dst.data());
   half* f16_ptr = reinterpret_cast<half*>(dst.data());
   std::vector<size_t> reshape_order;
-  const int dst_group_size = dst_weight_desc.GetOutputGroupSize();
+  int dst_group_size = dst_weight_desc.GetOutputGroupSize();
   switch (dst_weight_desc.layout) {
     case WeightsLayout::kOSpatialIOGroupI4O4:
       // kOSpatialIOGroupI4O4 is the most common layout. As such, we have
       // some optimized paths. If we are using Aarch64 on F16, use intrinsics.
 #ifdef __aarch64__
-      if (dst_weight_desc.type == DataType::FLOAT16) {
+      if (dst_weight_desc.type == DataType::kFloat16) {
         RearrangeWeightsToOHWIOGroupI4O4(weights, dst_group_size,
                                          reinterpret_cast<__fp16*>(dst.data()));
         return;
@@ -1074,11 +1251,11 @@ void RearrangeWeights(const Tensor<OHWI, DataType::FLOAT32>& weights,
         // If we need to use both XNNPACK transpose and pad, benchmarks have
         // shown it to be slightly slower than RearrangeWeightsToOHWIOGroupI4O4.
         // Since this is the most common layout, we keep a custom call.
-        if (dst_weight_desc.type == DataType::FLOAT32) {
+        if (dst_weight_desc.type == DataType::kFloat32) {
           RearrangeWeightsToOHWIOGroupI4O4(weights, dst_group_size,
                                            absl::MakeSpan(f32_ptr, flt_count),
                                            0.0f);
-        } else if (dst_weight_desc.type == DataType::FLOAT16) {
+        } else if (dst_weight_desc.type == DataType::kFloat16) {
           RearrangeWeightsToOHWIOGroupI4O4(weights, dst_group_size,
                                            absl::MakeSpan(f16_ptr, flt_count),
                                            half(0.0f));
@@ -1093,70 +1270,93 @@ void RearrangeWeights(const Tensor<OHWI, DataType::FLOAT32>& weights,
     case WeightsLayout::kOSpatialIOGroupO4I4:
       reshape_order = {0, 3, 4, 1, 2, 5};
       break;
-    case WeightsLayout::kOISpatialOGroupO4I4:
-      reshape_order = {0, 4, 3, 1, 2, 5};
-      break;
-    case WeightsLayout::kOISpatialOGroupI4O4:
-      reshape_order = {0, 4, 3, 1, 5, 2};
-      break;
     case WeightsLayout::k2DX4I4YIsSpatialIAndXIsOOGroupO4:
       reshape_order = {5, 3, 4, 0, 1, 2};
       break;
     case WeightsLayout::k2DX4O4YIsSpatialIAndXIsOOGroupI4:
       reshape_order = {2, 3, 4, 0, 1, 5};
       break;
-    case WeightsLayout::kOICustomSpatialI4O4: {
-      if (dst_weight_desc.type == DataType::FLOAT32) {
-        RearrangeWeightsToOICustomSpatialI4O4(
-            weights, dst_weight_desc.spatial_remap,
-            absl::MakeSpan(f32_ptr, flt_count), 0.0f);
-      } else if (dst_weight_desc.type == DataType::FLOAT16) {
-        RearrangeWeightsToOICustomSpatialI4O4(
-            weights, dst_weight_desc.spatial_remap,
-            absl::MakeSpan(f16_ptr, flt_count), half(0.0f));
-      }
-      return;
-    }
-    case WeightsLayout::kOICustomSpatialO4I4: {
-      if (dst_weight_desc.type == DataType::FLOAT32) {
-        RearrangeWeightsToOICustomSpatialO4I4(
-            weights, dst_weight_desc.spatial_remap,
-            absl::MakeSpan(f32_ptr, flt_count), 0.0f);
-      } else if (dst_weight_desc.type == DataType::FLOAT16) {
-        RearrangeWeightsToOICustomSpatialO4I4(
-            weights, dst_weight_desc.spatial_remap,
-            absl::MakeSpan(f16_ptr, flt_count), half(0.0f));
-      }
-      return;
-    }
     case WeightsLayout::kISpatialOI4O4UnalignedIO: {
-      if (dst_weight_desc.type == DataType::FLOAT32) {
+      if (dst_weight_desc.type == DataType::kFloat32) {
         RearrangeWeightsToISpatialOI4O4UnalignedIO(
             weights, absl::MakeSpan(f32_ptr, flt_count));
-      } else if (dst_weight_desc.type == DataType::FLOAT16) {
+      } else if (dst_weight_desc.type == DataType::kFloat16) {
         RearrangeWeightsToISpatialOI4O4UnalignedIO(
             weights, absl::MakeSpan(f16_ptr, flt_count));
       }
       return;
     }
     case WeightsLayout::kCustomGroups:
-      if (dst_weight_desc.type == DataType::FLOAT32) {
-        RearrangeWeightsToCustom(weights, dst_weight_desc.group_sizes,
-                                 dst_weight_desc.spatial_remap,
-                                 absl::MakeSpan(f32_ptr, flt_count), 0.0f);
-      } else if (dst_weight_desc.type == DataType::FLOAT16) {
-        RearrangeWeightsToCustom(
+      if (dst_weight_desc.IsOISpatialOGroupO4I4()) {
+        reshape_order = {0, 4, 3, 1, 2, 5};
+        dst_group_size = GetCustomGroupsOutputGroupSize(
+            dst_weight_desc.group_sizes, weights.shape.o);
+        break;
+      } else if (dst_weight_desc.IsOISpatialOGroupI4O4()) {
+        reshape_order = {0, 4, 3, 1, 5, 2};
+        dst_group_size = GetCustomGroupsOutputGroupSize(
+            dst_weight_desc.group_sizes, weights.shape.o);
+        break;
+      } else {
+        if (dst_weight_desc.type == DataType::kFloat32) {
+          RearrangeWeightsToCustom(weights, dst_weight_desc.group_sizes,
+                                   dst_weight_desc.spatial_remap,
+                                   absl::MakeSpan(f32_ptr, flt_count), 0.0f);
+        } else if (dst_weight_desc.type == DataType::kFloat16) {
+          RearrangeWeightsToCustom(weights, dst_weight_desc.group_sizes,
+                                   dst_weight_desc.spatial_remap,
+                                   absl::MakeSpan(f16_ptr, flt_count),
+                                   half(0.0f));
+        }
+        return;
+      }
+    case WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2: {
+      if (dst_weight_desc.type == DataType::kFloat32) {
+        RearrangeWeightsToCustomI2gr0O8I2gr1O2(
+            weights, dst_weight_desc.group_sizes, dst_weight_desc.spatial_remap,
+            absl::MakeSpan(f32_ptr, flt_count), 0.0f);
+      } else if (dst_weight_desc.type == DataType::kFloat16) {
+        RearrangeWeightsToCustomI2gr0O8I2gr1O2(
             weights, dst_weight_desc.group_sizes, dst_weight_desc.spatial_remap,
             absl::MakeSpan(f16_ptr, flt_count), half(0.0f));
       }
       return;
+    }
+    case WeightsLayout::kCustomGroupsOgr1Ogr2Ogr0: {
+      if (dst_weight_desc.type == DataType::kFloat32) {
+        RearrangeWeightsToCustomOgr1Ogr2Ogr0(
+            weights, dst_weight_desc.params0, dst_weight_desc.group_sizes,
+            dst_weight_desc.spatial_remap, absl::MakeSpan(f32_ptr, flt_count),
+            0.0f);
+      } else if (dst_weight_desc.type == DataType::kFloat16) {
+        RearrangeWeightsToCustomOgr1Ogr2Ogr0(
+            weights, dst_weight_desc.params0, dst_weight_desc.group_sizes,
+            dst_weight_desc.spatial_remap, absl::MakeSpan(f16_ptr, flt_count),
+            half(0.0f));
+      }
+      return;
+    }
+    case WeightsLayout::kCustomGroupsOgr0Igr1Ogr1Igr0: {
+      if (dst_weight_desc.type == DataType::kFloat32) {
+        RearrangeWeightsToCustomOgr0Igr1Ogr1Igr0(
+            weights, dst_weight_desc.params1, dst_weight_desc.group_sizes,
+            dst_weight_desc.spatial_remap, absl::MakeSpan(f32_ptr, flt_count),
+            0.0f);
+      } else if (dst_weight_desc.type == DataType::kFloat16) {
+        RearrangeWeightsToCustomOgr0Igr1Ogr1Igr0(
+            weights, dst_weight_desc.params1, dst_weight_desc.group_sizes,
+            dst_weight_desc.spatial_remap, absl::MakeSpan(f16_ptr, flt_count),
+            half(0.0f));
+      }
+      return;
+    }
     case WeightsLayout::kUnknown:
       return;
   }
-  if (dst_weight_desc.type == DataType::FLOAT32) {
+  if (dst_weight_desc.type == DataType::kFloat32) {
     Reshape(weights.Data(), weights.shape, dst_group_size, reshape_order,
             /*pad_value=*/0.0f, f32_ptr);
-  } else if (dst_weight_desc.type == DataType::FLOAT16) {
+  } else if (dst_weight_desc.type == DataType::kFloat16) {
     Reshape(
         ConvertF32F16(weights.Data(), weights.shape.DimensionsProduct()).get(),
         weights.shape, dst_group_size, reshape_order,
@@ -1165,12 +1365,12 @@ void RearrangeWeights(const Tensor<OHWI, DataType::FLOAT32>& weights,
 }
 
 // weights.data needs an extra XNN_EXTRA_BYTES/sizeof(float) bytes reserved
-void RearrangeWeights(const Tensor<OHWDI, DataType::FLOAT32>& weights,
+void RearrangeWeights(const Tensor<OHWDI, DataType::kFloat32>& weights,
                       const WeightsDescription& dst_weight_desc,
                       absl::Span<uint8_t> dst) {
   if (!weights.spanned_data.empty() &&
       weights.spanned_data.size() == weights.shape.DimensionsProduct()) {
-    const_cast<Tensor<OHWDI, DataType::FLOAT32>&>(weights)
+    const_cast<Tensor<OHWDI, DataType::kFloat32>&>(weights)
         .MoveDataForCpuRearrange(weights.shape.DimensionsProduct() +
                                  XNN_EXTRA_BYTES / sizeof(float));
   }
@@ -1180,6 +1380,7 @@ void RearrangeWeights(const Tensor<OHWDI, DataType::FLOAT32>& weights,
       GetTotalElementsCountForLayout(dst_weight_desc, weights.shape);
   float* f32_ptr = reinterpret_cast<float*>(dst.data());
   half* f16_ptr = reinterpret_cast<half*>(dst.data());
+  int dst_group_size = dst_weight_desc.GetOutputGroupSize();
   std::vector<size_t> reshape_order;
   switch (dst_weight_desc.layout) {
     case WeightsLayout::kOSpatialIOGroupI4O4:
@@ -1191,64 +1392,86 @@ void RearrangeWeights(const Tensor<OHWDI, DataType::FLOAT32>& weights,
     case WeightsLayout::kOSpatialIOGroupO4I4:
       reshape_order = {0, 3, 4, 1, 2, 5};
       break;
-    case WeightsLayout::kOISpatialOGroupO4I4:
-      reshape_order = {0, 4, 3, 1, 2, 5};
-      break;
-    case WeightsLayout::kOISpatialOGroupI4O4:
-      reshape_order = {0, 4, 3, 1, 5, 2};
-      break;
     case WeightsLayout::k2DX4I4YIsSpatialIAndXIsOOGroupO4:
       reshape_order = {5, 3, 4, 0, 1, 2};
       break;
     case WeightsLayout::k2DX4O4YIsSpatialIAndXIsOOGroupI4:
       reshape_order = {2, 3, 4, 0, 1, 5};
       break;
-    case WeightsLayout::kOICustomSpatialI4O4: {
-      if (dst_weight_desc.type == DataType::FLOAT32) {
-        RearrangeWeightsToOICustomSpatialI4O4(
-            weights, dst_weight_desc.spatial_remap,
-            absl::MakeSpan(f32_ptr, flt_count), 0.0f);
-      } else if (dst_weight_desc.type == DataType::FLOAT16) {
-        RearrangeWeightsToOICustomSpatialI4O4(
-            weights, dst_weight_desc.spatial_remap,
-            absl::MakeSpan(f16_ptr, flt_count), half(0.0f));
-      }
-      return;
-    }
-    case WeightsLayout::kOICustomSpatialO4I4: {
-      if (dst_weight_desc.type == DataType::FLOAT32) {
-        RearrangeWeightsToOICustomSpatialO4I4(
-            weights, dst_weight_desc.spatial_remap,
-            absl::MakeSpan(f32_ptr, flt_count), 0.0f);
-      } else if (dst_weight_desc.type == DataType::FLOAT16) {
-        RearrangeWeightsToOICustomSpatialO4I4(
-            weights, dst_weight_desc.spatial_remap,
-            absl::MakeSpan(f16_ptr, flt_count), half(0.0f));
-      }
-      return;
-    }
     case WeightsLayout::kCustomGroups:
-      if (dst_weight_desc.type == DataType::FLOAT32) {
-        RearrangeWeightsToCustom(weights, dst_weight_desc.group_sizes,
-                                 dst_weight_desc.spatial_remap,
-                                 absl::MakeSpan(f32_ptr, flt_count), 0.0f);
-      } else if (dst_weight_desc.type == DataType::FLOAT16) {
-        RearrangeWeightsToCustom(
+      if (dst_weight_desc.IsOISpatialOGroupO4I4()) {
+        reshape_order = {0, 4, 3, 1, 2, 5};
+        dst_group_size = GetCustomGroupsOutputGroupSize(
+            dst_weight_desc.group_sizes, weights.shape.o);
+        break;
+      } else if (dst_weight_desc.IsOISpatialOGroupI4O4()) {
+        reshape_order = {0, 4, 3, 1, 5, 2};
+        dst_group_size = GetCustomGroupsOutputGroupSize(
+            dst_weight_desc.group_sizes, weights.shape.o);
+        break;
+      } else {
+        if (dst_weight_desc.type == DataType::kFloat32) {
+          RearrangeWeightsToCustom(weights, dst_weight_desc.group_sizes,
+                                   dst_weight_desc.spatial_remap,
+                                   absl::MakeSpan(f32_ptr, flt_count), 0.0f);
+        } else if (dst_weight_desc.type == DataType::kFloat16) {
+          RearrangeWeightsToCustom(weights, dst_weight_desc.group_sizes,
+                                   dst_weight_desc.spatial_remap,
+                                   absl::MakeSpan(f16_ptr, flt_count),
+                                   half(0.0f));
+        }
+        return;
+      }
+    case WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2: {
+      if (dst_weight_desc.type == DataType::kFloat32) {
+        RearrangeWeightsToCustomI2gr0O8I2gr1O2(
+            weights, dst_weight_desc.group_sizes, dst_weight_desc.spatial_remap,
+            absl::MakeSpan(f32_ptr, flt_count), 0.0f);
+      } else if (dst_weight_desc.type == DataType::kFloat16) {
+        RearrangeWeightsToCustomI2gr0O8I2gr1O2(
             weights, dst_weight_desc.group_sizes, dst_weight_desc.spatial_remap,
             absl::MakeSpan(f16_ptr, flt_count), half(0.0f));
       }
       return;
+    }
+    case WeightsLayout::kCustomGroupsOgr1Ogr2Ogr0: {
+      if (dst_weight_desc.type == DataType::kFloat32) {
+        RearrangeWeightsToCustomOgr1Ogr2Ogr0(
+            weights, dst_weight_desc.params0, dst_weight_desc.group_sizes,
+            dst_weight_desc.spatial_remap, absl::MakeSpan(f32_ptr, flt_count),
+            0.0f);
+      } else if (dst_weight_desc.type == DataType::kFloat16) {
+        RearrangeWeightsToCustomOgr1Ogr2Ogr0(
+            weights, dst_weight_desc.params0, dst_weight_desc.group_sizes,
+            dst_weight_desc.spatial_remap, absl::MakeSpan(f16_ptr, flt_count),
+            half(0.0f));
+      }
+      return;
+    }
+    case WeightsLayout::kCustomGroupsOgr0Igr1Ogr1Igr0: {
+      if (dst_weight_desc.type == DataType::kFloat32) {
+        RearrangeWeightsToCustomOgr0Igr1Ogr1Igr0(
+            weights, dst_weight_desc.params1, dst_weight_desc.group_sizes,
+            dst_weight_desc.spatial_remap, absl::MakeSpan(f32_ptr, flt_count),
+            0.0f);
+      } else if (dst_weight_desc.type == DataType::kFloat16) {
+        RearrangeWeightsToCustomOgr0Igr1Ogr1Igr0(
+            weights, dst_weight_desc.params1, dst_weight_desc.group_sizes,
+            dst_weight_desc.spatial_remap, absl::MakeSpan(f16_ptr, flt_count),
+            half(0.0f));
+      }
+      return;
+    }
     case WeightsLayout::kISpatialOI4O4UnalignedIO:
       ABSL_CHECK(false) << "Not implemented";
       return;
     case WeightsLayout::kUnknown:
       return;
   }
-  const int dst_group_size = dst_weight_desc.GetOutputGroupSize();
-  if (dst_weight_desc.type == DataType::FLOAT32) {
+  if (dst_weight_desc.type == DataType::kFloat32) {
     Reshape(weights.Data(), weights.shape, dst_group_size, reshape_order,
             /*pad_value=*/0.0f, f32_ptr);
-  } else if (dst_weight_desc.type == DataType::FLOAT16) {
+  } else if (dst_weight_desc.type == DataType::kFloat16) {
     Reshape(
         ConvertF32F16(weights.Data(), weights.shape.DimensionsProduct()).get(),
         weights.shape, dst_group_size, reshape_order,
@@ -1257,12 +1480,12 @@ void RearrangeWeights(const Tensor<OHWDI, DataType::FLOAT32>& weights,
 }
 
 // weights.data needs an extra XNN_EXTRA_BYTES/sizeof(int8_t) bytes reserved
-void RearrangeWeights(const Tensor<OHWI, DataType::INT8>& weights,
+void RearrangeWeights(const Tensor<OHWI, DataType::kInt8>& weights,
                       const WeightsDescription& dst_weight_desc,
                       absl::Span<uint8_t> dst) {
   if (!weights.spanned_data.empty() &&
       weights.spanned_data.size() == weights.shape.DimensionsProduct()) {
-    const_cast<Tensor<OHWI, DataType::INT8>&>(weights).MoveDataForCpuRearrange(
+    const_cast<Tensor<OHWI, DataType::kInt8>&>(weights).MoveDataForCpuRearrange(
         weights.shape.DimensionsProduct() + XNN_EXTRA_BYTES / sizeof(int8_t));
   }
   ABSL_CHECK_GE(weights.data.size(), weights.shape.DimensionsProduct() +
@@ -1272,7 +1495,7 @@ void RearrangeWeights(const Tensor<OHWI, DataType::INT8>& weights,
   int8_t* i8_ptr = reinterpret_cast<int8_t*>(dst.data());
   auto dst_span = absl::MakeSpan(i8_ptr, elements_count);
   std::vector<size_t> reshape_order;
-  const int dst_group_size = dst_weight_desc.GetOutputGroupSize();
+  int dst_group_size = dst_weight_desc.GetOutputGroupSize();
   switch (dst_weight_desc.layout) {
     case WeightsLayout::kOSpatialIOGroupI4O4:
       if (weights.shape.o % (dst_group_size * 4) != 0 ||
@@ -1289,36 +1512,44 @@ void RearrangeWeights(const Tensor<OHWI, DataType::INT8>& weights,
     case WeightsLayout::kOSpatialIOGroupO4I4:
       reshape_order = {0, 3, 4, 1, 2, 5};
       break;
-    case WeightsLayout::kOISpatialOGroupO4I4:
-      reshape_order = {0, 4, 3, 1, 2, 5};
-      break;
-    case WeightsLayout::kOISpatialOGroupI4O4:
-      reshape_order = {0, 4, 3, 1, 5, 2};
-      break;
     case WeightsLayout::k2DX4I4YIsSpatialIAndXIsOOGroupO4:
       reshape_order = {5, 3, 4, 0, 1, 2};
       break;
     case WeightsLayout::k2DX4O4YIsSpatialIAndXIsOOGroupI4:
       reshape_order = {2, 3, 4, 0, 1, 5};
       break;
-    case WeightsLayout::kOICustomSpatialI4O4: {
-      RearrangeWeightsToOICustomSpatialI4O4(weights,
-                                            dst_weight_desc.spatial_remap,
-                                            dst_span, static_cast<int8_t>(0));
+    case WeightsLayout::kCustomGroups:
+      if (dst_weight_desc.IsOISpatialOGroupO4I4()) {
+        reshape_order = {0, 4, 3, 1, 2, 5};
+        dst_group_size = GetCustomGroupsOutputGroupSize(
+            dst_weight_desc.group_sizes, weights.shape.o);
+        break;
+      } else if (dst_weight_desc.IsOISpatialOGroupI4O4()) {
+        reshape_order = {0, 4, 3, 1, 5, 2};
+        dst_group_size = GetCustomGroupsOutputGroupSize(
+            dst_weight_desc.group_sizes, weights.shape.o);
+        break;
+      } else {
+        RearrangeWeightsToCustom(weights, dst_weight_desc.group_sizes,
+                                 dst_weight_desc.spatial_remap, dst_span,
+                                 static_cast<int8_t>(0));
+        return;
+      }
+    case WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2:
+      RearrangeWeightsToCustomI2gr0O8I2gr1O2(
+          weights, dst_weight_desc.group_sizes, dst_weight_desc.spatial_remap,
+          dst_span, static_cast<int8_t>(0));
       return;
-    }
-    case WeightsLayout::kOICustomSpatialO4I4: {
-      RearrangeWeightsToOICustomSpatialO4I4(weights,
-                                            dst_weight_desc.spatial_remap,
-                                            dst_span, static_cast<int8_t>(0));
+    case WeightsLayout::kCustomGroupsOgr1Ogr2Ogr0:
+      RearrangeWeightsToCustomOgr1Ogr2Ogr0(
+          weights, dst_weight_desc.params0, dst_weight_desc.group_sizes,
+          dst_weight_desc.spatial_remap, dst_span, static_cast<int8_t>(0));
       return;
-    }
-    case WeightsLayout::kCustomGroups: {
-      RearrangeWeightsToCustom(weights, dst_weight_desc.group_sizes,
-                               dst_weight_desc.spatial_remap, dst_span,
-                               static_cast<int8_t>(0));
+    case WeightsLayout::kCustomGroupsOgr0Igr1Ogr1Igr0:
+      RearrangeWeightsToCustomOgr0Igr1Ogr1Igr0(
+          weights, dst_weight_desc.params1, dst_weight_desc.group_sizes,
+          dst_weight_desc.spatial_remap, dst_span, static_cast<int8_t>(0));
       return;
-    }
     case WeightsLayout::kISpatialOI4O4UnalignedIO:
       ABSL_CHECK(false) << "Not implemented";
       return;
@@ -1330,18 +1561,19 @@ void RearrangeWeights(const Tensor<OHWI, DataType::INT8>& weights,
 }
 
 // weights.data needs an extra XNN_EXTRA_BYTES/sizeof(uint8_t) bytes reserved
-void RearrangeWeights(const Tensor<OHWI, DataType::UINT8>& weights,
+void RearrangeWeights(const Tensor<OHWI, DataType::kUint8>& weights,
                       const WeightsDescription& dst_weight_desc,
                       absl::Span<uint8_t> dst, uint8_t pad_value) {
   if (!weights.spanned_data.empty() &&
       weights.spanned_data.size() == weights.shape.DimensionsProduct()) {
-    const_cast<Tensor<OHWI, DataType::UINT8>&>(weights).MoveDataForCpuRearrange(
-        weights.shape.DimensionsProduct() + XNN_EXTRA_BYTES / sizeof(uint8_t));
+    const_cast<Tensor<OHWI, DataType::kUint8>&>(weights)
+        .MoveDataForCpuRearrange(weights.shape.DimensionsProduct() +
+                                 XNN_EXTRA_BYTES / sizeof(uint8_t));
   }
   ABSL_CHECK_GE(weights.data.size(), weights.shape.DimensionsProduct() +
                                           XNN_EXTRA_BYTES / sizeof(uint8_t));
   std::vector<size_t> reshape_order;
-  const int dst_group_size = dst_weight_desc.GetOutputGroupSize();
+  int dst_group_size = dst_weight_desc.GetOutputGroupSize();
   switch (dst_weight_desc.layout) {
     case WeightsLayout::kOSpatialIOGroupI4O4:
       if (weights.shape.o % (dst_group_size * 4) != 0 ||
@@ -1358,33 +1590,43 @@ void RearrangeWeights(const Tensor<OHWI, DataType::UINT8>& weights,
     case WeightsLayout::kOSpatialIOGroupO4I4:
       reshape_order = {0, 3, 4, 1, 2, 5};
       break;
-    case WeightsLayout::kOISpatialOGroupO4I4:
-      reshape_order = {0, 4, 3, 1, 2, 5};
-      break;
-    case WeightsLayout::kOISpatialOGroupI4O4:
-      reshape_order = {0, 4, 3, 1, 5, 2};
-      break;
     case WeightsLayout::k2DX4I4YIsSpatialIAndXIsOOGroupO4:
       reshape_order = {5, 3, 4, 0, 1, 2};
       break;
     case WeightsLayout::k2DX4O4YIsSpatialIAndXIsOOGroupI4:
       reshape_order = {2, 3, 4, 0, 1, 5};
       break;
-    case WeightsLayout::kOICustomSpatialI4O4: {
-      RearrangeWeightsToOICustomSpatialI4O4(
-          weights, dst_weight_desc.spatial_remap, dst, pad_value);
+    case WeightsLayout::kCustomGroups:
+      if (dst_weight_desc.IsOISpatialOGroupO4I4()) {
+        reshape_order = {0, 4, 3, 1, 2, 5};
+        dst_group_size = GetCustomGroupsOutputGroupSize(
+            dst_weight_desc.group_sizes, weights.shape.o);
+        break;
+      } else if (dst_weight_desc.IsOISpatialOGroupI4O4()) {
+        reshape_order = {0, 4, 3, 1, 5, 2};
+        dst_group_size = GetCustomGroupsOutputGroupSize(
+            dst_weight_desc.group_sizes, weights.shape.o);
+        break;
+      } else {
+        RearrangeWeightsToCustom(weights, dst_weight_desc.group_sizes,
+                                 dst_weight_desc.spatial_remap, dst, pad_value);
+        return;
+      }
+    case WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2:
+      RearrangeWeightsToCustomI2gr0O8I2gr1O2(
+          weights, dst_weight_desc.group_sizes, dst_weight_desc.spatial_remap,
+          dst, pad_value);
       return;
-    }
-    case WeightsLayout::kOICustomSpatialO4I4: {
-      RearrangeWeightsToOICustomSpatialO4I4(
-          weights, dst_weight_desc.spatial_remap, dst, pad_value);
+    case WeightsLayout::kCustomGroupsOgr1Ogr2Ogr0:
+      RearrangeWeightsToCustomOgr1Ogr2Ogr0(
+          weights, dst_weight_desc.params0, dst_weight_desc.group_sizes,
+          dst_weight_desc.spatial_remap, dst, pad_value);
       return;
-    }
-    case WeightsLayout::kCustomGroups: {
-      RearrangeWeightsToCustom(weights, dst_weight_desc.group_sizes,
-                               dst_weight_desc.spatial_remap, dst, pad_value);
+    case WeightsLayout::kCustomGroupsOgr0Igr1Ogr1Igr0:
+      RearrangeWeightsToCustomOgr0Igr1Ogr1Igr0(
+          weights, dst_weight_desc.params1, dst_weight_desc.group_sizes,
+          dst_weight_desc.spatial_remap, dst, pad_value);
       return;
-    }
     case WeightsLayout::kISpatialOI4O4UnalignedIO:
       ABSL_CHECK(false) << "Not implemented";
       return;
@@ -1396,11 +1638,11 @@ void RearrangeWeights(const Tensor<OHWI, DataType::UINT8>& weights,
           /*pad_value=*/pad_value, reinterpret_cast<uint8_t*>(dst.data()));
 }
 
-void RearrangeWeightsInt8AsUint8(const Tensor<OHWI, DataType::INT8>& weights,
+void RearrangeWeightsInt8AsUint8(const Tensor<OHWI, DataType::kInt8>& weights,
                                  const WeightsDescription& dst_weight_desc,
                                  absl::Span<uint8_t> dst, int shift_value,
                                  unsigned int pad_value) {
-  Tensor<OHWI, DataType::UINT8> weights_ui8;
+  Tensor<OHWI, DataType::kUint8> weights_ui8;
   weights_ui8.shape = weights.shape;
   weights_ui8.data.resize(weights_ui8.shape.DimensionsProduct() +
                           XNN_EXTRA_BYTES / sizeof(uint8_t));
@@ -1412,7 +1654,7 @@ void RearrangeWeightsInt8AsUint8(const Tensor<OHWI, DataType::INT8>& weights,
                    static_cast<uint8_t>(pad_value));
 }
 
-void RearrangeWeightsInt8AsUint4(const Tensor<OHWI, DataType::INT8>& weights,
+void RearrangeWeightsInt8AsUint4(const Tensor<OHWI, DataType::kInt8>& weights,
                                  const WeightsDescription& dst_weight_desc,
                                  absl::Span<uint8_t> dst, int shift_value,
                                  unsigned int pad_value) {
@@ -1427,7 +1669,7 @@ void RearrangeWeightsInt8AsUint4(const Tensor<OHWI, DataType::INT8>& weights,
   }
 }
 
-void RearrangeWeightsInt8AsUint2(const Tensor<OHWI, DataType::INT8>& weights,
+void RearrangeWeightsInt8AsUint2(const Tensor<OHWI, DataType::kInt8>& weights,
                                  const WeightsDescription& dst_weight_desc,
                                  absl::Span<uint8_t> dst, int shift_value,
                                  unsigned int pad_value) {
@@ -1444,11 +1686,11 @@ void RearrangeWeightsInt8AsUint2(const Tensor<OHWI, DataType::INT8>& weights,
   }
 }
 
-void RearrangeWeightsInt4(const Tensor<OHWI, DataType::INT8>& weights_i4,
+void RearrangeWeightsInt4(const Tensor<OHWI, DataType::kInt8>& weights_i4,
                           const WeightsDescription& dst_weight_desc,
                           absl::Span<uint8_t> dst) {
   WeightsDescription weight_desc = dst_weight_desc;
-  weight_desc.type = DataType::INT8;
+  weight_desc.type = DataType::kInt8;
   const int elements_count =
       GetTotalElementsCountForLayout(weight_desc, weights_i4.shape);
 
@@ -1466,11 +1708,11 @@ void RearrangeWeightsInt4(const Tensor<OHWI, DataType::INT8>& weights_i4,
   }
 }
 
-void RearrangeWeightsUint2(const Tensor<OHWI, DataType::UINT8>& weights_i2,
+void RearrangeWeightsUint2(const Tensor<OHWI, DataType::kUint8>& weights_i2,
                            const WeightsDescription& dst_weight_desc,
                            absl::Span<uint8_t> dst) {
   WeightsDescription weight_desc = dst_weight_desc;
-  weight_desc.type = DataType::UINT8;
+  weight_desc.type = DataType::kUint8;
   const int elements_count =
       GetTotalElementsCountForLayout(weight_desc, weights_i2.shape);
 
@@ -1488,9 +1730,9 @@ void RearrangeWeightsUint2(const Tensor<OHWI, DataType::UINT8>& weights_i2,
   }
 }
 
-Tensor<Linear, DataType::INT32> GetWeightsAccumulatedInputChannels(
-    const Tensor<OHWI, DataType::INT8>& weights) {
-  Tensor<Linear, DataType::INT32> weights_sum_i;
+Tensor<Linear, DataType::kInt32> GetWeightsAccumulatedInputChannels(
+    const Tensor<OHWI, DataType::kInt8>& weights) {
+  Tensor<Linear, DataType::kInt32> weights_sum_i;
   weights_sum_i.shape = Linear(weights.shape.o);
   weights_sum_i.data.resize(weights_sum_i.shape.DimensionsProduct());
   const int8_t* src = weights.Data();
@@ -1509,7 +1751,7 @@ Tensor<Linear, DataType::INT32> GetWeightsAccumulatedInputChannels(
 }
 
 absl::Status RearrangeWeightsUInt4Packed(
-    const Tensor<OHWI, DataType::UINT8>& weights,
+    const Tensor<OHWI, DataType::kUint8>& weights,
     const WeightsDescription& dst_weight_desc, absl::Span<uint8_t> dst,
     absl::Span<int32_t> weights_sum_i, unsigned int pad_value, bool swap_dims) {
   switch (dst_weight_desc.layout) {
@@ -1527,7 +1769,7 @@ absl::Status RearrangeWeightsUInt4Packed(
 }
 
 absl::Status RearrangeWeightsUInt2Packed(
-    const Tensor<OHWI, DataType::UINT8>& weights,
+    const Tensor<OHWI, DataType::kUint8>& weights,
     const WeightsDescription& dst_weight_desc, absl::Span<uint8_t> dst,
     absl::Span<int32_t> weights_sum_i, unsigned int pad_value, bool swap_dims) {
   switch (dst_weight_desc.layout) {
@@ -1545,7 +1787,7 @@ absl::Status RearrangeWeightsUInt2Packed(
 }
 
 std::vector<TensorDescriptor> GetTensorDescriptorsForWeightsLayout(
-    const ml_drift::Tensor<OHWI, DataType::FLOAT32>& weights,
+    const ml_drift::Tensor<OHWI, DataType::kFloat32>& weights,
     const WeightsDescription& weights_desc) {
   const int flt_count =
       GetTotalElementsCountForLayout(weights_desc, weights.shape);
@@ -1559,7 +1801,7 @@ std::vector<TensorDescriptor> GetTensorDescriptorsForWeightsLayout(
     uint2 tex_size = Get2dResourceSize(weights_desc, weights.shape);
     for (int i = 0; i < 4; ++i) {
       weights_tensors[i] = TensorDescriptor(
-          weights_desc.type, TensorStorageType::TEXTURE_2D, Layout::HW);
+          weights_desc.type, TensorStorageType::kTexture2D, Layout::kHW);
       weights_tensors[i].SetBHWCShape(BHWC(1, tex_size.y, tex_size.x, 4));
       weights_tensors[i].UploadDataRaw(absl::MakeConstSpan(
           weights_data.data() +
@@ -1569,7 +1811,7 @@ std::vector<TensorDescriptor> GetTensorDescriptorsForWeightsLayout(
   } else {
     weights_tensors.resize(1);
     weights_tensors[0] = TensorDescriptor(
-        weights_desc.type, TensorStorageType::BUFFER, Layout::LINEAR);
+        weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear);
     weights_tensors[0].SetBHWCShape(BHWC(1, 1, 1, flt_count));
     weights_tensors[0].UploadDataRaw(absl::MakeConstSpan(weights_data));
   }
@@ -1577,37 +1819,39 @@ std::vector<TensorDescriptor> GetTensorDescriptorsForWeightsLayout(
 }
 
 TensorDescriptor GetTensorDescriptorForWeightsLayout(
-    const ml_drift::Tensor<OHWI, DataType::INT8>& weights,
+    const ml_drift::Tensor<OHWI, DataType::kInt8>& weights,
     const WeightsDescription& weights_desc) {
   const int elements_per_8bits = 8 / SizeInBitsOf(weights_desc.type);
   std::vector<uint8_t> data(
       GetTotalElementsCountForLayout(weights_desc, weights.shape) /
       elements_per_8bits);
-  if (weights_desc.type == DataType::UINT8) {
+  if (weights_desc.type == DataType::kUint8) {
     RearrangeWeightsInt8AsUint8(weights, weights_desc, absl::MakeSpan(data),
                                 128, 128u);
-  } else if (weights_desc.type == DataType::UINT4) {
+  } else if (weights_desc.type == DataType::kUint4) {
     RearrangeWeightsInt8AsUint4(weights, weights_desc, absl::MakeSpan(data), 8,
                                 8u);
-  } else if (weights_desc.type == DataType::UINT2) {
+  } else if (weights_desc.type == DataType::kUint2) {
     RearrangeWeightsInt8AsUint2(weights, weights_desc, absl::MakeSpan(data), 2,
                                 2u);
+  } else if (weights_desc.type == DataType::kInt8) {
+    RearrangeWeights(weights, weights_desc, absl::MakeSpan(data));
   }
 
   TensorDescriptor weights_td;
   if (weights_desc.IsLinearLayout()) {
-    weights_td = TensorDescriptor(DataType::UINT8, TensorStorageType::BUFFER,
-                                  Layout::LINEAR);
+    weights_td = TensorDescriptor(DataType::kUint8, TensorStorageType::kBuffer,
+                                  Layout::kLinear);
     weights_td.SetBHWCShape(BHWC(1, 1, 1, data.size()));
   } else {
-    DataType texture_type = DataType::UINT32;
-    if (weights_desc.type == DataType::UINT4) {
-      texture_type = DataType::UINT16;
-    } else if (weights_desc.type == DataType::UINT2) {
-      texture_type = DataType::UINT8;
+    DataType texture_type = DataType::kUint32;
+    if (weights_desc.type == DataType::kUint4) {
+      texture_type = DataType::kUint16;
+    } else if (weights_desc.type == DataType::kUint2) {
+      texture_type = DataType::kUint8;
     }
-    weights_td = TensorDescriptor(texture_type, TensorStorageType::TEXTURE_2D,
-                                  Layout::HW);
+    weights_td = TensorDescriptor(texture_type, TensorStorageType::kTexture2D,
+                                  Layout::kHW);
     uint2 tex_size = Get2dResourceSize(weights_desc, weights.shape);
     tex_size.x /= 4;  // because we store 16 elements per pixel
     weights_td.SetBHWDCShape(BHWDC(1, tex_size.y, tex_size.x, 1, 4));
@@ -1624,21 +1868,21 @@ std::vector<TensorDescriptor> GetTensorDescriptorsForWeightsLayout(
       weights_desc.layout == WeightsLayout::k2DX4O4YIsSpatialIAndXIsOOGroupI4) {
     uint2 tex_size = Get2dResourceSize(weights_desc, weights_shape);
     weights_td = TensorDescriptor(weights_desc.type,
-                                  TensorStorageType::TEXTURE_2D, Layout::HW);
+                                  TensorStorageType::kTexture2D, Layout::kHW);
     weights_td.SetBHWCShape(BHWC(1, tex_size.y, tex_size.x, 4));
     return std::vector<TensorDescriptor>(4, weights_td);
   } else if (weights_desc.layout ==
              WeightsLayout::k2DYIsSpatialIOAndXIsOGroupI4O4) {
     uint2 tex_size = Get2dResourceSize(weights_desc, weights_shape);
     DataType texture_type;
-    if (weights_desc.type == DataType::UINT8) {
-      texture_type = DataType::UINT32;
-    } else if (weights_desc.type == DataType::UINT4) {
-      texture_type = DataType::UINT16;
-    } else if (weights_desc.type == DataType::UINT2) {
-      texture_type = DataType::UINT8;
+    if (weights_desc.type == DataType::kUint8) {
+      texture_type = DataType::kUint32;
+    } else if (weights_desc.type == DataType::kUint4) {
+      texture_type = DataType::kUint16;
+    } else if (weights_desc.type == DataType::kUint2) {
+      texture_type = DataType::kUint8;
     } else {
-      // TODO: b/378522761 - Support other data types.
+      // TODO: Support other data types.
       ABSL_LOG(FATAL) << absl::StrCat(
           "Weights conversion to k2DYIsSpatialIOAndXIsOGroupI4O4 layout with "
           "data "
@@ -1646,22 +1890,22 @@ std::vector<TensorDescriptor> GetTensorDescriptorsForWeightsLayout(
           ToString(weights_desc.type), " is unsupported.");
     }
     tex_size.x /= SizeInBitsOf(texture_type) / SizeInBitsOf(weights_desc.type);
-    weights_td = TensorDescriptor(texture_type, TensorStorageType::TEXTURE_2D,
-                                  Layout::HW);
+    weights_td = TensorDescriptor(texture_type, TensorStorageType::kTexture2D,
+                                  Layout::kHW);
     weights_td.SetBHWCShape(BHWC(1, tex_size.y, tex_size.x, 1));
     return {weights_td};
   } else {
-    weights_td = TensorDescriptor(weights_desc.type, TensorStorageType::BUFFER,
-                                  Layout::LINEAR);
+    weights_td = TensorDescriptor(weights_desc.type, TensorStorageType::kBuffer,
+                                  Layout::kLinear);
     size_t elements_count =
         GetTotalElementsCountForLayout(weights_desc, weights_shape);
     // For Int4 or UInt4 weights, we would store them in packed format: two
     // values are stored in one element (one byte).
-    if (weights_desc.type == DataType::INT4 ||
-        weights_desc.type == DataType::UINT4) {
+    if (weights_desc.type == DataType::kInt4 ||
+        weights_desc.type == DataType::kUint4) {
       elements_count = DivideRoundUp(elements_count, 2);
-    } else if (weights_desc.type == DataType::INT2 ||
-               weights_desc.type == DataType::UINT2) {
+    } else if (weights_desc.type == DataType::kInt2 ||
+               weights_desc.type == DataType::kUint2) {
       elements_count = DivideRoundUp(elements_count, 4);
     }
     weights_td.SetBHWCShape(BHWC(1, 1, 1, elements_count));

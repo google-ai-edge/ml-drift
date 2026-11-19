@@ -58,11 +58,18 @@ std::string GetDynamicUpdateSliceCode(const OperationDef& op_def) {
     offset_c = start_position.y;
   }
   if (args.start_indices.Channels() == 1) {
-    // 1d: offset -> 000c, start_position -> c - {x}
-    offset_b = 0;
-    offset_h = 0;
-    offset_w = 0;
-    offset_c = start_position.x;
+    if (args.start_indices.Width() == 4) {
+      offset_b = ucl::Convert<int>(args.start_indices.Read(0, 0, 0).x);
+      offset_h = ucl::Convert<int>(args.start_indices.Read(1, 0, 0).x);
+      offset_w = ucl::Convert<int>(args.start_indices.Read(2, 0, 0).x);
+      offset_c = ucl::Convert<int>(args.start_indices.Read(3, 0, 0).x);
+    } else {
+      // 1d: offset -> 000c, start_position -> c - {x}
+      offset_b = 0;
+      offset_h = 0;
+      offset_w = 0;
+      offset_c = start_position.x;
+    }
   }
 
   if (offset_b + args.update_slice.Batch() > args.dst_tensor.Batch()) {
@@ -90,7 +97,6 @@ std::string GetDynamicUpdateSliceCode(const OperationDef& op_def) {
   int update_b = DST_B - offset_b;
   int update_x = DST_X - offset_w;
   int update_y = DST_Y - offset_h;
-  int update_s = DST_S - offset_s;
   if (update_b >= 0 && update_b < args.update_slice.Batch() &&
       update_x >= 0 && update_x < args.update_slice.Width() &&
       update_y >= 0 && update_y < args.update_slice.Height()) {

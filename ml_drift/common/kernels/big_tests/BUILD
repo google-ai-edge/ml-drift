@@ -16,11 +16,9 @@ load("@rules_cc//cc:defs.bzl", "cc_test")
 load("//ml_drift/common:build_config.bzl", "mld_gpu_tests_tags")
 
 package(
-    default_hdrs_check = "strict",
     default_testonly = 1,
     default_visibility = ["//visibility:public"],
     licenses = ["notice"],
-    linkstatic = 1,
 )
 
 cc_test(

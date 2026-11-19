@@ -131,12 +131,12 @@ void AddConstantsGpuBuffer(const GpuInfo& gpu_info, DataType data_type,
   desc.element_size = 4;
   desc.memory_type = gpu_info.IsMali() || gpu_info.IsBroadcom() ||
                              gpu_info.IsLlvmPipe() || gpu_info.IsAMD()
-                         ? MemoryType::GLOBAL
-                         : MemoryType::CONSTANT;
+                         ? MemoryType::kGlobal
+                         : MemoryType::kConstant;
   desc.size = SizeOf(data_type) * weights.size();
   desc.data.resize(desc.size);
 
-  if (data_type == DataType::FLOAT32) {
+  if (data_type == DataType::kFloat32) {
     memcpy(desc.data.data(), weights.data(), desc.size);
   } else {
     half* gpu_data_half = reinterpret_cast<half*>(desc.data.data());
@@ -202,7 +202,7 @@ absl::Status TryConcatConv(const GpuInfo& gpu_info, const GraphFloat32& graph,
     return absl::NotFoundError("ConcatConv not suitable.");
   }
   if (OperationTypeFromString(concat_node->operation.type) !=
-      OperationType::CONCAT) {
+      OperationType::kConcat) {
     return absl::NotFoundError("ConcatConv not suitable.");
   }
   auto concat_inputs = graph.FindInputs(concat_node->id);
@@ -220,12 +220,12 @@ absl::Status TryConcatConv(const GpuInfo& gpu_info, const GraphFloat32& graph,
   const auto& src0_td = src0_handle.tensor_desc;
   const auto& src1_td = src1_handle.tensor_desc;
   const auto& src2_td = src2_handle.tensor_desc;
-  if (!src0_td.SupportsZeroClamp(Axis::WIDTH, gpu_info) ||
-      !src0_td.SupportsZeroClamp(Axis::HEIGHT, gpu_info) ||
-      !src1_td.SupportsZeroClamp(Axis::WIDTH, gpu_info) ||
-      !src1_td.SupportsZeroClamp(Axis::HEIGHT, gpu_info) ||
-      !src2_td.SupportsZeroClamp(Axis::WIDTH, gpu_info) ||
-      !src2_td.SupportsZeroClamp(Axis::HEIGHT, gpu_info)) {
+  if (!src0_td.SupportsZeroClamp(Axis::kWidth, gpu_info) ||
+      !src0_td.SupportsZeroClamp(Axis::kHeight, gpu_info) ||
+      !src1_td.SupportsZeroClamp(Axis::kWidth, gpu_info) ||
+      !src1_td.SupportsZeroClamp(Axis::kHeight, gpu_info) ||
+      !src2_td.SupportsZeroClamp(Axis::kWidth, gpu_info) ||
+      !src2_td.SupportsZeroClamp(Axis::kHeight, gpu_info)) {
     return absl::NotFoundError("ConcatConv not suitable.");
   }
   auto concat_output = graph.FindOutputs(concat_node->id)[0];
@@ -238,7 +238,7 @@ absl::Status TryConcatConv(const GpuInfo& gpu_info, const GraphFloat32& graph,
     return absl::NotFoundError("ConcatConv not suitable.");
   }
   if (OperationTypeFromString(conv_node->operation.type) !=
-      OperationType::CONVOLUTION_2D) {
+      OperationType::kConvolution2D) {
     return absl::NotFoundError("ConcatConv not suitable.");
   }
   auto conv_inputs = graph.FindInputs(conv_node->id);
@@ -254,7 +254,7 @@ absl::Status TryConcatConv(const GpuInfo& gpu_info, const GraphFloat32& graph,
 
   auto concat_attr =
       std::any_cast<ConcatAttributes>(concat_node->operation.attributes);
-  if (concat_attr.axis != Axis::CHANNELS) {
+  if (concat_attr.axis != Axis::kChannels) {
     return absl::NotFoundError("ConcatConv not suitable.");
   }
 
@@ -327,7 +327,7 @@ absl::Status TryConcatConv(const GpuInfo& gpu_info, const ir::IrModel& ir_model,
   if (concat_op == nullptr) {
     return absl::NotFoundError("ConcatConv not suitable.");
   }
-  if (OperationTypeFromString(concat_op->name) != OperationType::CONCAT) {
+  if (OperationTypeFromString(concat_op->name) != OperationType::kConcat) {
     return absl::NotFoundError("ConcatConv not suitable.");
   }
   const auto& concat_inputs = concat_op->inputs;
@@ -346,12 +346,12 @@ absl::Status TryConcatConv(const GpuInfo& gpu_info, const ir::IrModel& ir_model,
   const auto& src0_td = src0_handle.tensor_desc;
   const auto& src1_td = src1_handle.tensor_desc;
   const auto& src2_td = src2_handle.tensor_desc;
-  if (!src0_td.SupportsZeroClamp(Axis::WIDTH, gpu_info) ||
-      !src0_td.SupportsZeroClamp(Axis::HEIGHT, gpu_info) ||
-      !src1_td.SupportsZeroClamp(Axis::WIDTH, gpu_info) ||
-      !src1_td.SupportsZeroClamp(Axis::HEIGHT, gpu_info) ||
-      !src2_td.SupportsZeroClamp(Axis::WIDTH, gpu_info) ||
-      !src2_td.SupportsZeroClamp(Axis::HEIGHT, gpu_info)) {
+  if (!src0_td.SupportsZeroClamp(Axis::kWidth, gpu_info) ||
+      !src0_td.SupportsZeroClamp(Axis::kHeight, gpu_info) ||
+      !src1_td.SupportsZeroClamp(Axis::kWidth, gpu_info) ||
+      !src1_td.SupportsZeroClamp(Axis::kHeight, gpu_info) ||
+      !src2_td.SupportsZeroClamp(Axis::kWidth, gpu_info) ||
+      !src2_td.SupportsZeroClamp(Axis::kHeight, gpu_info)) {
     return absl::NotFoundError("ConcatConv not suitable.");
   }
   auto concat_output = concat_op->outputs[0];
@@ -363,7 +363,7 @@ absl::Status TryConcatConv(const GpuInfo& gpu_info, const ir::IrModel& ir_model,
   if (conv_op == nullptr) {
     return absl::NotFoundError("ConcatConv not suitable.");
   }
-  if (OperationTypeFromString(conv_op->name) != OperationType::CONVOLUTION_2D) {
+  if (OperationTypeFromString(conv_op->name) != OperationType::kConvolution2D) {
     return absl::NotFoundError("ConcatConv not suitable.");
   }
   auto conv_output = conv_op->outputs[0];
@@ -376,7 +376,7 @@ absl::Status TryConcatConv(const GpuInfo& gpu_info, const ir::IrModel& ir_model,
   op_def.dst_tensors.push_back(dst_handle.tensor_desc);
 
   auto concat_attr = std::any_cast<ConcatAttributes>(concat_op->attr);
-  if (concat_attr.axis != Axis::CHANNELS) {
+  if (concat_attr.axis != Axis::kChannels) {
     return absl::NotFoundError("ConcatConv not suitable.");
   }
 

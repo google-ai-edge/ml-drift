@@ -48,7 +48,7 @@ void InitializeQuantizedWeights(
     std::vector<int8_t>& weights_data_int8, std::vector<float>& scale_data,
     std::vector<int32_t>& zero_point_data,
     std::vector<float>* absl_nullable weights_data_float32_ptr = nullptr,
-    DataType quantization_type = DataType::INT8);
+    DataType quantization_type = DataType::kInt8);
 
 void InitializeWeightsSumIData(std::vector<int8_t>& weights_data,
                                std::vector<int32_t>& reference_output,
@@ -84,15 +84,15 @@ absl::StatusOr<GraphFloat32> CreateQuantizedConvGraph(const BHWC& input_shape,
 
   GraphFloat32 graph;
   auto input = graph.NewValue();
-  input->tensor.type = DataType::FLOAT32;
+  input->tensor.type = DataType::kFloat32;
   input->tensor.shape = input_shape;
   auto conv_node = graph.NewNode();
-  conv_node->operation.type = ToString(OperationType::CONVOLUTION_2D);
+  conv_node->operation.type = ToString(OperationType::kConvolution2D);
   conv_node->operation.attributes = std::move(conv_attr);
   graph.AddConsumer(conv_node->id, input->id);
   Value* conv_output = nullptr;
   ABSL_RETURN_IF_ERROR(AddOutput(&graph, conv_node, &conv_output));
-  conv_output->tensor.type = DataType::FLOAT32;
+  conv_output->tensor.type = DataType::kFloat32;
   conv_output->tensor.shape = output_shape;
   return graph;
 }

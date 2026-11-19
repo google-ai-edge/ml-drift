@@ -82,6 +82,8 @@ GPUOperation CreatePositionalEmbedding(const GpuInfo& gpu_info,
       {{"Type", ToUclDataType(definition.dst_tensors[0].GetDataType(), 4)}},
       &code);
   op.code_ = code;
+  // Timescale exp/mul (2), pos * inv_timescale (1), sin/cos (1), add (1) = 5.
+  op.flops_ = definition.dst_tensors[0].GetBHWDCShape().DimensionsProduct() * 5;
   return op;
 }
 

@@ -85,87 +85,87 @@ class TileTypedTest : public Test,
                       public WithParamInterface<TensorStorageType> {};
 
 TEST_P(TileTypedTest, TileChannelsInt8Test) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::INT8)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kInt8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(TileChannelsIntTest<DataType::INT8>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(TileChannelsIntTest<DataType::kInt8>(*exec_env, GetParam()));
 }
 
 TEST_P(TileTypedTest, TileChannelsInt16Test) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::INT16)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kInt16)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(TileChannelsIntTest<DataType::INT16>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(TileChannelsIntTest<DataType::kInt16>(*exec_env, GetParam()));
 }
 
 TEST_P(TileTypedTest, TileChannelsInt32Test) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::INT32)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kInt32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(TileChannelsIntTest<DataType::INT32>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(TileChannelsIntTest<DataType::kInt32>(*exec_env, GetParam()));
 }
 
 TEST_P(TileTypedTest, TileChannelsUInt8Test) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT8)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kUint8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(TileChannelsIntTest<DataType::UINT8>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(TileChannelsIntTest<DataType::kUint8>(*exec_env, GetParam()));
 }
 
 TEST_P(TileTypedTest, TileChannelsUInt16Test) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT16)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kUint16)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(TileChannelsIntTest<DataType::UINT16>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(TileChannelsIntTest<DataType::kUint16>(*exec_env, GetParam()));
 }
 
 TEST_P(TileTypedTest, TileChannelsUInt32Test) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT32)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kUint32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(TileChannelsIntTest<DataType::UINT32>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(TileChannelsIntTest<DataType::kUint32>(*exec_env, GetParam()));
 }
 
 TEST_P(TileTypedTest, TileChannelsX4Int8Test) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::INT8)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kInt8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(TileChannelsX4IntTest<DataType::INT8>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(TileChannelsX4IntTest<DataType::kInt8>(*exec_env, GetParam()));
 }
 
 TEST_P(TileTypedTest, TileChannelsX4Int16Test) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::INT16)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kInt16)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(TileChannelsX4IntTest<DataType::INT16>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(TileChannelsX4IntTest<DataType::kInt16>(*exec_env, GetParam()));
 }
 
 TEST_P(TileTypedTest, TileChannelsX4Int32Test) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::INT32)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kInt32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(TileChannelsX4IntTest<DataType::INT32>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(TileChannelsX4IntTest<DataType::kInt32>(*exec_env, GetParam()));
 }
 
 TEST_P(TileTypedTest, TileChannelsX4UInt8Test) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT8)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kUint8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(TileChannelsX4IntTest<DataType::UINT8>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(TileChannelsX4IntTest<DataType::kUint8>(*exec_env, GetParam()));
 }
 
 TEST_P(TileTypedTest, TileChannelsX4UInt16Test) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT16)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kUint16)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(TileChannelsX4IntTest<DataType::UINT16>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(TileChannelsX4IntTest<DataType::kUint16>(*exec_env, GetParam()));
 }
 
 TEST_P(TileTypedTest, TileChannelsX4UInt32Test) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT32)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kUint32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  ABSL_ASSERT_OK(TileChannelsX4IntTest<DataType::UINT32>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(TileChannelsX4IntTest<DataType::kUint32>(*exec_env, GetParam()));
 }
 
 TEST_P(TileFloatTest, Tile5DTest) {

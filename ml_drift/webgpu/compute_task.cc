@@ -218,7 +218,8 @@ absl::Status ComputeTask::SetDstBuffer(int index, Buffer* buffer) {
 }
 
 absl::Status ComputeTask::Tune(const Environment& env, TuningType tuning_type) {
-  if (!env.GetInfo().webgpu_info.supports_timestamp_query) {
+  if (tuning_type == TuningType::kExhaustive &&
+      !env.GetInfo().webgpu_info.supports_timestamp_query) {
     tuning_type = TuningType::kFast;
   }
   KernelInfo kernel_info;
@@ -397,7 +398,8 @@ absl::Status ComputeTask::Execute(const Environment& env) {
   return absl::OkStatus();
 }
 
-absl::Duration ComputeTask::GetOperationTime(const Environment& env) {
+absl::StatusOr<absl::Duration> ComputeTask::GetOperationTime(
+    const Environment& env) {
   const int kMaxRuns = 5000;
   const int kMaxIterations = 5;
   const double kConvergeTolerance = 10.0;  // in percents
@@ -410,14 +412,14 @@ absl::Duration ComputeTask::GetOperationTime(const Environment& env) {
     wgpu::CommandEncoder encoder = env.device().CreateCommandEncoder();
     wgpu::ComputePassEncoder compute_encoder = encoder.BeginComputePass();
     for (int j = 0; j < num_runs; ++j) {
-      Encode(compute_encoder).IgnoreError();
+      ABSL_RETURN_IF_ERROR(Encode(compute_encoder));
     }
     compute_encoder.End();
     wgpu::CommandBuffer cb = encoder.Finish();
     auto start = absl::Now();
     env.queue().Submit(1, &cb);
-    WaitUntilCompleted(env.queue(), env.device(), absl::Seconds(10))
-        .IgnoreError();
+    ABSL_RETURN_IF_ERROR(
+        WaitUntilCompleted(env.queue(), env.device(), absl::Seconds(10)));
     auto end = absl::Now();
 
     duration = (end - start) / static_cast<float>(num_runs);

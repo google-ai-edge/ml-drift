@@ -39,11 +39,19 @@ class ConvAppleMPPFloat16Test : public Test,
                                 public WithParamInterface<TensorStorageType> {
  public:
   void SetUp() override {
-    if (!SupportsConvAppleMPP(exec_env->GetGpuInfo())) {
+    if (!SupportsConvAppleMPP(exec_env->GetGpuInfo(), BHWC(1, 1, 1, 32))) {
       GTEST_SKIP() << "Not supported on this device.";
     }
   }
 };
+
+TEST_P(ConvAppleMPPFloat16Test, SmallTest) {
+  ABSL_ASSERT_OK(ConvAppleMPPTest(*exec_env, GetParam(), BHWC(1, 7, 4, 32), 13));
+}
+
+TEST_P(ConvAppleMPPFloat16Test, ConvAppleMPPBatchedTest) {
+  ABSL_ASSERT_OK(ConvAppleMPPTest(*exec_env, GetParam(), BHWC(5, 7, 4, 32), 13));
+}
 
 TEST_P(ConvAppleMPPFloat16Test, BigTest) {
   const BHWC src_shape(1, 1, 128, 128);
@@ -208,7 +216,7 @@ TEST_P(ConvAppleMPPFloat16Test, RuntimeDstEndChannelsTest) {
 
 INSTANTIATE_TEST_SUITE_P(
     ConvAppleMPPFloat16TestSuite, ConvAppleMPPFloat16Test,
-    ValuesIn(GetTensorStoragesTypes()),
+    ValuesIn(GetTensorStoragesTypesWithoutSingleTexture2D()),
     [](const TestParamInfo<ConvAppleMPPFloat16Test::ParamType>& info) {
       return absl::StrReplaceAll(ToString(info.param), {{":", ""}});
     });
@@ -216,7 +224,7 @@ INSTANTIATE_TEST_SUITE_P(
 class BaseTest : public Test, public WithParamInterface<TensorStorageType> {
  public:
   void SetUp() override {
-    if (!SupportsConvAppleMPP(exec_env->GetGpuInfo())) {
+    if (!SupportsConvAppleMPP(exec_env->GetGpuInfo(), BHWC(1, 1, 1, 32))) {
       GTEST_SKIP() << "Not supported on this device.";
     }
   }
@@ -243,12 +251,12 @@ TEST_P(BaseTest, ConvAppleMPPInt8ExternalBatchedWi4Test) {
                                                    src_shape, dst_channels));
 }
 
-INSTANTIATE_TEST_SUITE_P(ConvAppleMPPInt8BigTestSuite, BaseTest,
-                         ValuesIn(GetTensorStoragesTypes()),
-                         [](const TestParamInfo<BaseTest::ParamType>& info) {
-                           return absl::StrReplaceAll(ToString(info.param),
-                                                      {{":", ""}});
-                         });
+INSTANTIATE_TEST_SUITE_P(
+    ConvAppleMPPInt8BigTestSuite, BaseTest,
+    ValuesIn(GetTensorStoragesTypesWithoutSingleTexture2D()),
+    [](const TestParamInfo<BaseTest::ParamType>& info) {
+      return absl::StrReplaceAll(ToString(info.param), {{":", ""}});
+    });
 
 class SrcQuantizationTest
     : public Test,
@@ -256,7 +264,7 @@ class SrcQuantizationTest
           std::tuple<DataType, TensorStorageType, TensorStorageType>> {
  public:
   void SetUp() override {
-    if (!SupportsConvAppleMPP(exec_env->GetGpuInfo())) {
+    if (!SupportsConvAppleMPP(exec_env->GetGpuInfo(), BHWC(1, 1, 1, 32))) {
       GTEST_SKIP() << "Not supported on this device.";
     }
   }
@@ -273,9 +281,10 @@ TEST_P(SrcQuantizationTest, ConvAppleMPPInt8WithSrcQuantizationBigTest) {
 
 INSTANTIATE_TEST_SUITE_P(
     ConvAppleMPPInt8WithSrcQuantizationTestSuite, SrcQuantizationTest,
-    ::testing::Combine(ValuesIn({DataType::FLOAT16, DataType::FLOAT32}),
-                       ValuesIn(GetTensorStoragesTypes()),
-                       ValuesIn(GetTensorStoragesTypes())),
+    ::testing::Combine(
+        ValuesIn({DataType::kFloat16, DataType::kFloat32}),
+        ValuesIn(GetTensorStoragesTypesWithoutSingleTexture2D()),
+        ValuesIn(GetTensorStoragesTypesWithoutSingleTexture2D())),
     [](const TestParamInfo<SrcQuantizationTest::ParamType>& info) {
       return absl::StrCat(
           ToString(std::get<0>(info.param)), "_int",

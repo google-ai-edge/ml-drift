@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/status_matchers.h"
 #include "absl/status/status.h"
@@ -43,7 +44,7 @@ TEST(MakeFullyConnected, Smoke) {
   attr0.strides = HW(1, 1);
   attr0.dilations = HW(1, 1);
   auto& attr0_weights =
-      attr0.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
+      attr0.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
   attr0_weights.shape = OHWI(16, 1, 1, 8);
   attr0.bias.shape = Linear(16);
 
@@ -53,7 +54,7 @@ TEST(MakeFullyConnected, Smoke) {
   attr1.strides = HW(4, 4);
   attr1.dilations = HW(1, 1);
   auto& attr1_weights =
-      attr1.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
+      attr1.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
   attr1_weights.shape = OHWI(16, 4, 4, 16);
   attr1.bias.shape = Linear(16);
 
@@ -63,34 +64,32 @@ TEST(MakeFullyConnected, Smoke) {
   attr2.strides = HW(1, 1);
   attr2.dilations = HW(1, 1);
   auto& attr2_weights =
-      attr2.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
+      attr2.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
   attr2_weights.shape = OHWI(32, 1, 1, 16);
   attr2.bias.shape = Linear(32);
 
   auto conv1x1_node0 = graph.NewNode();
-  conv1x1_node0->operation.type = ToString(OperationType::CONVOLUTION_2D);
+  conv1x1_node0->operation.type = ToString(OperationType::kConvolution2D);
   conv1x1_node0->operation.attributes = attr0;
   auto conv4x4_node1 = graph.NewNode();
-  conv4x4_node1->operation.type = ToString(OperationType::CONVOLUTION_2D);
+  conv4x4_node1->operation.type = ToString(OperationType::kConvolution2D);
   conv4x4_node1->operation.attributes = attr1;
   auto conv1x1_node2 = graph.NewNode();
-  conv1x1_node2->operation.type = ToString(OperationType::CONVOLUTION_2D);
+  conv1x1_node2->operation.type = ToString(OperationType::kConvolution2D);
   conv1x1_node2->operation.attributes = attr2;
 
   graph.AddConsumer(conv1x1_node0->id, input->id);
 
   Value* output = nullptr;
-  ASSERT_TRUE(AddOutput(&graph, conv1x1_node2, &output).ok());
+  ABSL_ASSERT_OK(AddOutput(&graph, conv1x1_node2, &output));
   output->tensor.shape = BHWC(1, 1, 1, 32);
 
   Value* link1 = nullptr;
-  ASSERT_TRUE(
-      ConnectTwoNodes(&graph, conv1x1_node0, conv4x4_node1, &link1).ok());
+  ABSL_ASSERT_OK(ConnectTwoNodes(&graph, conv1x1_node0, conv4x4_node1, &link1));
   link1->tensor.shape = BHWC(1, 4, 4, 16);
 
   Value* link2 = nullptr;
-  ASSERT_TRUE(
-      ConnectTwoNodes(&graph, conv4x4_node1, conv1x1_node2, &link2).ok());
+  ABSL_ASSERT_OK(ConnectTwoNodes(&graph, conv4x4_node1, conv1x1_node2, &link2));
   link2->tensor.shape = BHWC(1, 1, 1, 16);
 
   ASSERT_EQ(3, graph.nodes().size());
@@ -102,11 +101,11 @@ TEST(MakeFullyConnected, Smoke) {
 
   ASSERT_EQ(3, graph.nodes().size());
   ASSERT_EQ(4, graph.values().size());
-  ASSERT_EQ(ToString(OperationType::CONVOLUTION_2D),
+  ASSERT_EQ(ToString(OperationType::kConvolution2D),
             graph.nodes()[0]->operation.type);
-  ASSERT_EQ(ToString(OperationType::CONVOLUTION_2D),
+  ASSERT_EQ(ToString(OperationType::kConvolution2D),
             graph.nodes()[1]->operation.type);
-  ASSERT_EQ(ToString(OperationType::FULLY_CONNECTED),
+  ASSERT_EQ(ToString(OperationType::kFullyConnected),
             graph.nodes()[2]->operation.type);
   auto fc_attr = std::any_cast<FullyConnectedAttributes>(
       graph.nodes()[2]->operation.attributes);

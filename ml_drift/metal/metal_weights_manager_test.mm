@@ -69,13 +69,13 @@ using ml_drift::TensorDescriptor;
 
   // Define testing parameters.
   CreateGpuModelInfo create_info;
-  create_info.storage_type = TensorStorageType::BUFFER;
-  create_info.precision = CalculationsPrecision::F32;
+  create_info.storage_type = TensorStorageType::kBuffer;
+  create_info.precision = CalculationsPrecision::kF32;
   size_t num_weights_to_prepare = 8;
   OHWI weights_shape = OHWI(100, 1, 1, 100);
   size_t num_weights_elements = weights_shape.DimensionsProduct();
   WeightsDescription weights_desc = {
-      .type = DataType::FLOAT32,
+      .type = DataType::kFloat32,
       .layout = WeightsLayout::kOSpatialIOGroupO4I4,
       .output_group_size = 16,
   };
@@ -91,9 +91,8 @@ using ml_drift::TensorDescriptor;
       raw_data[i] = std::sin(i * 0.1f + w) + w;
     }
     raw_data_vecs.push_back(std::move(raw_data));
-    weights_manager.RegisterWeightsConversion(
-        {main_model_weight_id}, weights_desc, weights_shape, DataType::FLOAT32,
-        raw_data_vecs.back().data());
+    weights_manager.RegisterWeightsConversion({main_model_weight_id}, weights_desc, weights_shape,
+                                              DataType::kFloat32, raw_data_vecs.back().data());
   }
 
   // InferenceContext execution.

@@ -88,7 +88,7 @@ Softmax1x1 CreateSoftmax1x1Impl(const OperationDef& definition,
   if (runtime_check.end_ch_index.has_value()) {
     softmax1x1.args_.AddInt("end_ch_index", *runtime_check.end_ch_index);
     BufferDescriptor buffer_desc;
-    buffer_desc.element_type = DataType::INT32;
+    buffer_desc.element_type = DataType::kInt32;
     buffer_desc.element_size = 1;
     softmax1x1.AddSrcBuffer("params", buffer_desc);
   }
@@ -102,25 +102,28 @@ Softmax1x1::Softmax1x1(const OperationDef& definition, const GpuInfo& gpu_info,
                        const SoftmaxRuntimeCheckDesc& runtime_check)
     : reduce_only_(reduce_only), runtime_check_(runtime_check) {
   // work_group_size_.x must be power of 2
-  if (gpu_info.IsAdreno()) {
-    if (gpu_info.adreno_info.IsAdreno3xx()) {
-      work_group_size_ = int3(32, 1, 1);
-    } else if (gpu_info.adreno_info.IsAdreno4xx()) {
-      work_group_size_ = int3(64, 1, 1);
-    } else if (gpu_info.adreno_info.IsAdreno5xx()) {
-      work_group_size_ = int3(128, 1, 1);
-    } else {
-      // Adreno 6xx and later
-      work_group_size_ = int3(512, 1, 1);
+  work_group_size_ = int3(256, 1, 1);
+  if (gpu_info.IsMobileGpu()) {
+    if (gpu_info.IsAdreno()) {
+      if (gpu_info.adreno_info.IsAdreno3xx()) {
+        work_group_size_ = int3(32, 1, 1);
+      } else if (gpu_info.adreno_info.IsAdreno4xx()) {
+        work_group_size_ = int3(64, 1, 1);
+      } else if (gpu_info.adreno_info.IsAdreno5xx()) {
+        work_group_size_ = int3(128, 1, 1);
+      } else {
+        // Adreno 6xx and later
+        work_group_size_ = int3(512, 1, 1);
+      }
+    } else if (gpu_info.IsMali()) {
+      int wg_size_x = 1024;
+      if (gpu_info.mali_info.IsMidgard()) {
+        // Mali Midgard OpenCL drivers can report CL_KERNEL_WORK_GROUP_SIZE of
+        // 64 for this kernel, so a 128-thread work group fails to launch.
+        wg_size_x = gpu_info.IsApiOpenCl() ? 64 : 128;
+      }
+      work_group_size_ = int3(wg_size_x, 1, 1);
     }
-  } else if (gpu_info.IsMali()) {
-    if (gpu_info.mali_info.IsMidgard()) {
-      work_group_size_ = int3(128, 1, 1);
-    } else {
-      work_group_size_ = int3(1024, 1, 1);
-    }
-  } else {
-    work_group_size_ = int3(256, 1, 1);
   }
   const int end_slice = DivideRoundUp(shape.c, 4);
   while (work_group_size_.x >= end_slice * 2) {
@@ -136,6 +139,8 @@ Softmax1x1::Softmax1x1(const OperationDef& definition, const GpuInfo& gpu_info,
     }
   }
   code_ = GetSoftmaxKernelCode(definition, gpu_info);
+  // Reduce: max, sub, exp, sum = 4; full softmax adds sub, exp, mul (+3 = 7).
+  flops_ = shape.DimensionsProduct() * (reduce_only ? 4 : 7);
 }
 
 std::string Softmax1x1::GetSoftmaxKernelCode(const OperationDef& op_def,
@@ -145,7 +150,7 @@ std::string Softmax1x1::GetSoftmaxKernelCode(const OperationDef& op_def,
 
   std::string c;
   c += "MAIN_FUNCTION($0) {\n";
-  if (op_def.dst_tensors[0].HasAxis(Axis::BATCH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kBatch)) {
     c += "  int linear_id = ucl::GetGroupId<1>();\n";
     c += "  int X = linear_id / args.dst_tensor.Batch();\n";
     c += "  int B = linear_id % args.dst_tensor.Batch();\n";
@@ -156,7 +161,7 @@ std::string Softmax1x1::GetSoftmaxKernelCode(const OperationDef& op_def,
     c += "  int X = ucl::GetGroupId<1>();\n";
   }
   std::string coords = "X, Y";
-  if (op_def.dst_tensors[0].HasAxis(Axis::DEPTH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kDepth)) {
     c += "  int linear_y = ucl::GetGroupId<2>();\n";
     c += "  int Y = linear_y / args.dst_tensor.Depth();\n";
     c += "  int Z = linear_y % args.dst_tensor.Depth();\n";
@@ -173,7 +178,7 @@ std::string Softmax1x1::GetSoftmaxKernelCode(const OperationDef& op_def,
   std::string coords_s0 = coords + ", 0";
   std::string coords_s = coords + ", s";
   std::string coords_dst_s = coords + ", dst_s";
-  if (op_def.dst_tensors[0].HasAxis(Axis::BATCH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kBatch)) {
     coords_s0 += ", B";
     coords_s += ", B";
     coords_dst_s += ", B";
@@ -261,9 +266,11 @@ std::string Softmax1x1::GetSoftmaxKernelCode(const OperationDef& op_def,
     c += "}\n";
   }
   const std::string exp_func = gpu_info.IsApiOpenCl() ? "native_exp" : "exp";
-  const std::string end_channel = runtime_check_.end_ch_index.has_value()
-                                      ? "args.params.Read(args.end_ch_index)"
-                                      : "args.src_tensor.Channels()";
+  const std::string end_channel =
+      runtime_check_.end_ch_index.has_value()
+          ? "min(args.params.Read(args.end_ch_index), "
+            "args.src_tensor.Channels())"
+          : "args.src_tensor.Channels()";
   absl::StrReplaceAll(
       {{"EXP_FUNC", exp_func},
        {"END_CHANNEL", end_channel},
