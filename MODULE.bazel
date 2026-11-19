@@ -1,9 +1,9 @@
 module(
     name = "ml_drift",
-    bazel_compatibility = [">=7.7.0"],
+    bazel_compatibility = [">=8.0.0"],
 )
 
-bazel_dep(name = "rules_python", version = "0.40.0")
+bazel_dep(name = "rules_python", version = "1.7.0")
 
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
 python.toolchain(
@@ -13,7 +13,15 @@ python.toolchain(
 )
 use_repo(python, python = "python_3_11")
 
-bazel_dep(name = "abseil-cpp", version = "20250814.1", repo_name = "com_google_absl")
+pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
+pip.parse(
+    hub_name = "pypi",
+    python_version = "3.11",
+    requirements_lock = "//:requirements.txt",
+)
+use_repo(pip, "pypi")
+
+bazel_dep(name = "abseil-cpp", version = "20260817.0", repo_name = "com_google_absl")
 
 # To calculate integrity:
 # wget -O temp_module_archive.tar.gz <archive URL>
@@ -21,17 +29,17 @@ bazel_dep(name = "abseil-cpp", version = "20250814.1", repo_name = "com_google_a
 # echo "sha256-${HASH}"
 archive_override(
     module_name = "abseil-cpp",
-    integrity = "sha256-FpL3fRc5us8/lDNxiLeFg88JurfkINLcbFYFpPhnhaE=",
+    integrity = "sha256-9+BRed85xFQ0ytQz9Xg4QLs3iO8yKXb5E4vGtys6EH0=",
     patch_strip = 1,
     patches = [
         "//third_party:absl_cctz_patch.diff",
     ],
-    strip_prefix = "abseil-cpp-20250814.1",
-    urls = ["https://github.com/abseil/abseil-cpp/archive/refs/tags/20250814.1.tar.gz"],
+    strip_prefix = "abseil-cpp-20260817.0",
+    urls = ["https://github.com/abseil/abseil-cpp/releases/download/20260817.0/abseil-cpp-20260817.0.tar.gz"],
 )
 
-bazel_dep(name = "googletest", version = "1.17.0", repo_name = "com_google_googletest")
-bazel_dep(name = "rules_android_ndk", version = "0.1.2")
+bazel_dep(name = "googletest", version = "1.18.0", repo_name = "com_google_googletest")
+bazel_dep(name = "rules_android_ndk", version = "0.1.3")
 
 if_android_ndk_home_extension = use_extension(
     "//third_party:android_ndk.bzl",
@@ -40,10 +48,7 @@ if_android_ndk_home_extension = use_extension(
 if_android_ndk_home_extension.configure(api_level = 21)
 use_repo(if_android_ndk_home_extension, "androidndk")
 
-bazel_dep(
-    name = "rules_android",
-    version = "0.6.0",
-)
+bazel_dep(name = "rules_android", version = "0.7.1")
 
 android_sdk_repository_extension = use_extension(
     "@rules_android//rules/android_sdk_repository:rule.bzl",
@@ -51,13 +56,21 @@ android_sdk_repository_extension = use_extension(
 )
 use_repo(android_sdk_repository_extension, "androidsdk")
 
+# Apple CC toolchain. Required to compile objc_library targets (ml_drift/metal)
+# with Bazel 8+. Must be declared before rules_cc so its toolchain takes
+# precedence on macOS; it is a no-op on other hosts.
+bazel_dep(
+    name = "apple_support",
+    version = "2.6.1",
+    repo_name = "build_bazel_apple_support",
+)
 bazel_dep(
     name = "rules_cc",
-    version = "0.2.0",
+    version = "0.2.22",
 )
 bazel_dep(
     name = "rules_java",
-    version = "8.14.0",
+    version = "9.3.0",
 )
 bazel_dep(
     name = "fp16",
@@ -65,11 +78,11 @@ bazel_dep(
 )
 bazel_dep(
     name = "bazel_skylib",
-    version = "1.8.1",
+    version = "1.9.2",
 )
 bazel_dep(
     name = "platforms",
-    version = "1.0.0",
+    version = "1.1.0",
 )
 bazel_dep(
     name = "cpuinfo",
@@ -82,7 +95,7 @@ bazel_dep(
 )
 bazel_dep(
     name = "re2",
-    version = "2024-07-02.bcr.1",
+    version = "2025-11-05.bcr.1",
     repo_name = "com_github_google_re2",
 )
 
@@ -157,6 +170,24 @@ http_archive(
     urls = ["https://github.com/bazelbuild/rules_android/archive/v0.1.1.zip"],
 )
 
+EGL_HEADERS_COMMIT = "db3425b8246136faccb5e2782b5694960bd6edf1"
+
+http_archive(
+    name = "egl_headers",
+    build_file = "//third_party/egl_headers:egl_headers.BUILD",
+    strip_prefix = "EGL-Registry-{commit}/api".format(commit = EGL_HEADERS_COMMIT),
+    urls = ["https://github.com/KhronosGroup/EGL-Registry/archive/{commit}.tar.gz".format(commit = EGL_HEADERS_COMMIT)],
+)
+
+OPENGL_HEADERS_COMMIT = "1cdd228e34966dd6b95bd203e9f84faba0f371a1"
+
+http_archive(
+    name = "opengl_headers",
+    build_file = "//third_party/opengl_headers:opengl_headers.BUILD",
+    strip_prefix = "OpenGL-Registry-{commit}/api".format(commit = OPENGL_HEADERS_COMMIT),
+    urls = ["https://github.com/KhronosGroup/OpenGL-Registry/archive/{commit}.tar.gz".format(commit = OPENGL_HEADERS_COMMIT)],
+)
+
 flatbuffers = use_extension("//third_party/flatbuffers:workspace.bzl", "flatbuffers")
 flatbuffers.build(
     build_file = "//third_party/flatbuffers:BUILD.bazel",
@@ -172,3 +203,63 @@ flatbuffers.build(
     ],
 )
 use_repo(flatbuffers, "flatbuffers")
+
+bazel_dep(
+    name = "protobuf",
+    version = "35.0",
+)
+bazel_dep(
+    name = "rules_rust",
+    version = "0.69.0",
+)
+
+rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
+rust.toolchain(edition = "2021")
+use_repo(rust, "rust_toolchains")
+
+register_toolchains("@rust_toolchains//:all")
+
+crate = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
+crate.spec(
+    default_features = False,
+    features = ["onig"],
+    package = "tokenizers",
+    version = "=0.21.0",
+)
+crate.spec(
+    features = ["derive"],
+    package = "serde",
+    version = "1.0",
+)
+crate.spec(
+    package = "serde_json",
+    version = "1.0",
+)
+crate.from_specs()
+use_repo(crate, crate_index = "crates")
+
+http_archive(
+    name = "sentencepiece",
+    build_file = "//third_party/sentencepiece:sentencepiece.BUILD",
+    patch_cmds = [
+        "printf '#ifndef CONFIG_H_\\n#define CONFIG_H_\\n#define VERSION \"0.2.2\"\\n#define PACKAGE \"sentencepiece\"\\n#define PACKAGE_STRING \"sentencepiece\"\\n#define INSTALL_DATADIR \"\"\\n#endif\\n' > config.h",
+        "mv src/* .",
+        # Replace third_party/absl/ with absl/ in *.h and *.cc files.
+        "sed -i -e 's|#include \"third_party/absl/|#include \"absl/|g' *.h *.cc",
+        # Replace third_party/protobuf-lite/ with google/protobuf/ in *.h and *.cc files.
+        "sed -i -e 's|#include \"third_party/protobuf-lite/google/protobuf/|#include \"google/protobuf/|g' *.h *.cc",
+        "sed -i -e 's|#include \"third_party/protobuf/|#include \"google/protobuf/|g' *.h *.cc",
+        "rm -rf third_party/protobuf-lite third_party/protobuf third_party/absl third_party/abseil-cpp",
+    ],
+    sha256 = "92381f713e094a15a1ccff1ac4a5315a4c4b82a99ac1332d6ac53c9dc8e1bcf1",
+    strip_prefix = "sentencepiece-0.2.2",
+    url = "https://github.com/google/sentencepiece/archive/refs/tags/v0.2.2.tar.gz",
+)
+
+http_archive(
+    name = "tokenizers_cpp",
+    build_file = "//third_party/tokenizers_cpp:tokenizers_cpp.BUILD",
+    sha256 = "3e0b9ec325a326b0a2cef5cf164ee94a74ac372c5881ae5af634036db0441823",
+    strip_prefix = "tokenizers-cpp-0.1.1",
+    url = "https://github.com/mlc-ai/tokenizers-cpp/archive/refs/tags/v0.1.1.tar.gz",
+)

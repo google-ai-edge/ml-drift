@@ -16,11 +16,9 @@ load("@rules_cc//cc:defs.bzl", "cc_test")
 load("//ml_drift/common:build_config.bzl", "mld_gpu_tests_tags")
 
 package(
-    default_hdrs_check = "strict",
     default_testonly = 1,
     default_visibility = ["//visibility:public"],
     licenses = ["notice"],
-    linkstatic = 1,
 )
 
 cc_test(
@@ -38,11 +36,9 @@ cc_test(
         "//ml_drift/common:operations",
         "//ml_drift/common:precision",
         "//ml_drift/common:shape",
-        "//ml_drift/common:status",
         "//ml_drift/common:tensor",
         "//ml_drift/common:util",
         "//ml_drift/common:winograd_util",
-        "//ml_drift/common/default:status_matchers",
         "//ml_drift/common/kernels:conv_generic",
         "//ml_drift/common/kernels:winograd",
         "//ml_drift/common/task:gpu_operation",
@@ -51,6 +47,9 @@ cc_test(
         "//ml_drift/common/task:testing_util",
         "//ml_drift/common/task:weights_conversion",
         "@XNNPACK",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
+        "@com_google_absl//absl/status:status_matchers",
         "@com_google_googletest//:gtest",
     ],
 )

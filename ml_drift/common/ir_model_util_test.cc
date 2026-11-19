@@ -19,7 +19,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/gpu_model.h"
@@ -43,16 +43,18 @@ GpuInfo GetTestGpuInfo() {
   gpu_info.opencl_info.image2d_max_width = 16384;
   gpu_info.opencl_info.image2d_max_height = 16384;
   gpu_info.opencl_info.image_buffer_max_size = 65536;
-  gpu_info.opencl_info.supported_images_2d.r_layout.insert(DataType::FLOAT32);
-  gpu_info.opencl_info.supported_images_2d.rg_layout.insert(DataType::FLOAT32);
-  gpu_info.opencl_info.supported_images_2d.rgb_layout.insert(DataType::FLOAT32);
+  gpu_info.opencl_info.supported_images_2d.r_layout.insert(DataType::kFloat32);
+  gpu_info.opencl_info.supported_images_2d.rg_layout.insert(DataType::kFloat32);
+  gpu_info.opencl_info.supported_images_2d.rgb_layout.insert(
+      DataType::kFloat32);
   gpu_info.opencl_info.supported_images_2d.rgba_layout.insert(
-      DataType::FLOAT32);
-  gpu_info.opencl_info.supported_images_2d.r_layout.insert(DataType::FLOAT16);
-  gpu_info.opencl_info.supported_images_2d.rg_layout.insert(DataType::FLOAT16);
-  gpu_info.opencl_info.supported_images_2d.rgb_layout.insert(DataType::FLOAT16);
+      DataType::kFloat32);
+  gpu_info.opencl_info.supported_images_2d.r_layout.insert(DataType::kFloat16);
+  gpu_info.opencl_info.supported_images_2d.rg_layout.insert(DataType::kFloat16);
+  gpu_info.opencl_info.supported_images_2d.rgb_layout.insert(
+      DataType::kFloat16);
   gpu_info.opencl_info.supported_images_2d.rgba_layout.insert(
-      DataType::FLOAT16);
+      DataType::kFloat16);
   gpu_info.opencl_info.supports_images = true;
   gpu_info.vendor = GpuVendor::kQualcomm;
   gpu_info.adreno_info.generation = AdrenoInfo::Generation::kGen7;
@@ -61,39 +63,39 @@ GpuInfo GetTestGpuInfo() {
 
 TEST(IrModelUtilTest, TryAddThenReduce) {
   IrModel ir_model;
-  IrTensor* input1 = ir_model.add_tensor(DataType::FLOAT32, BHWC(1, 2, 2, 4));
-  IrTensor* input2 = ir_model.add_tensor(DataType::FLOAT32, BHWC(1, 2, 2, 4));
+  IrTensor* input1 = ir_model.add_tensor(DataType::kFloat32, BHWC(1, 2, 2, 4));
+  IrTensor* input2 = ir_model.add_tensor(DataType::kFloat32, BHWC(1, 2, 2, 4));
   ir_model.add_input(input1->id);
   ir_model.add_input(input2->id);
 
   IrOp* add_op = ir_model.add_op();
-  add_op->name = ToString(OperationType::ADD);
+  add_op->name = ToString(OperationType::kAdd);
   add_op->attr = ElementwiseAttributes{};
   ir_model.AddConsumer(input1->id, add_op->id);
   ir_model.AddConsumer(input2->id, add_op->id);
 
-  IrTensor* add_out = ir_model.add_tensor(DataType::FLOAT32, BHWC(1, 2, 2, 4));
+  IrTensor* add_out = ir_model.add_tensor(DataType::kFloat32, BHWC(1, 2, 2, 4));
   ir_model.SetProducer(add_out->id, add_op->id);
 
   IrOp* reduce_op = ir_model.add_op();
-  reduce_op->name = ToString(OperationType::REDUCE_SUM);
+  reduce_op->name = ToString(OperationType::kReduceSum);
   ReduceAttributes reduce_attr;
-  reduce_attr.dims = {Axis::CHANNELS};
+  reduce_attr.dims = {Axis::kChannels};
   reduce_op->attr = reduce_attr;
   ir_model.AddConsumer(add_out->id, reduce_op->id);
 
   IrTensor* reduce_out =
-      ir_model.add_tensor(DataType::FLOAT32, BHWC(1, 2, 2, 1));
+      ir_model.add_tensor(DataType::kFloat32, BHWC(1, 2, 2, 1));
   ir_model.SetProducer(reduce_out->id, reduce_op->id);
   ir_model.add_output(reduce_out->id);
 
   CreateGpuModelInfo create_info;
-  create_info.precision = CalculationsPrecision::F32;
-  create_info.storage_type = TensorStorageType::BUFFER;
+  create_info.precision = CalculationsPrecision::kF32;
+  create_info.storage_type = TensorStorageType::kBuffer;
   GpuInfo gpu_info = GetTestGpuInfo();
 
   GpuModel gpu_model;
-  MLD_ASSERT_OK(IrModelToGpuModel(ir_model, create_info, gpu_info, &gpu_model));
+  ABSL_ASSERT_OK(IrModelToGpuModel(ir_model, create_info, gpu_info, &gpu_model));
   // 1 fused node instead of 2.
   EXPECT_EQ(gpu_model.nodes.size(), 1);
   EXPECT_EQ(gpu_model.nodes[0].inputs.size(), 2);
@@ -103,56 +105,57 @@ TEST(IrModelUtilTest, TryAddThenReduce) {
 
 TEST(IrModelUtilTest, TryMish) {
   IrModel ir_model;
-  IrTensor* input = ir_model.add_tensor(DataType::FLOAT32, BHWC(1, 2, 2, 4));
+  IrTensor* input = ir_model.add_tensor(DataType::kFloat32, BHWC(1, 2, 2, 4));
   ir_model.add_input(input->id);
 
   IrOp* exp_op = ir_model.add_op();
-  exp_op->name = ToString(OperationType::EXP);
+  exp_op->name = ToString(OperationType::kExp);
   exp_op->attr = ElementwiseAttributes{};
   ir_model.AddConsumer(input->id, exp_op->id);
-  IrTensor* exp_out = ir_model.add_tensor(DataType::FLOAT32, BHWC(1, 2, 2, 4));
+  IrTensor* exp_out = ir_model.add_tensor(DataType::kFloat32, BHWC(1, 2, 2, 4));
   ir_model.SetProducer(exp_out->id, exp_op->id);
 
   IrOp* add_op = ir_model.add_op();
-  add_op->name = ToString(OperationType::ADD);
+  add_op->name = ToString(OperationType::kAdd);
   ElementwiseAttributes add_attr;
   add_attr.param = 1.0f;
   add_op->attr = add_attr;
   ir_model.AddConsumer(exp_out->id, add_op->id);
-  IrTensor* add_out = ir_model.add_tensor(DataType::FLOAT32, BHWC(1, 2, 2, 4));
+  IrTensor* add_out = ir_model.add_tensor(DataType::kFloat32, BHWC(1, 2, 2, 4));
   ir_model.SetProducer(add_out->id, add_op->id);
 
   IrOp* log_op = ir_model.add_op();
-  log_op->name = ToString(OperationType::LOG);
+  log_op->name = ToString(OperationType::kLog);
   log_op->attr = ElementwiseAttributes{};
   ir_model.AddConsumer(add_out->id, log_op->id);
-  IrTensor* log_out = ir_model.add_tensor(DataType::FLOAT32, BHWC(1, 2, 2, 4));
+  IrTensor* log_out = ir_model.add_tensor(DataType::kFloat32, BHWC(1, 2, 2, 4));
   ir_model.SetProducer(log_out->id, log_op->id);
 
   IrOp* tanh_op = ir_model.add_op();
-  tanh_op->name = ToString(OperationType::TANH);
+  tanh_op->name = ToString(OperationType::kTanh);
   tanh_op->attr = ElementwiseAttributes{};
   ir_model.AddConsumer(log_out->id, tanh_op->id);
-  IrTensor* tanh_out = ir_model.add_tensor(DataType::FLOAT32, BHWC(1, 2, 2, 4));
+  IrTensor* tanh_out =
+      ir_model.add_tensor(DataType::kFloat32, BHWC(1, 2, 2, 4));
   ir_model.SetProducer(tanh_out->id, tanh_op->id);
 
   IrOp* mul_op = ir_model.add_op();
-  mul_op->name = ToString(OperationType::MUL);
+  mul_op->name = ToString(OperationType::kMul);
   mul_op->attr = ElementwiseAttributes{};
   ir_model.AddConsumer(tanh_out->id, mul_op->id);
   ir_model.AddConsumer(input->id, mul_op->id);
-  IrTensor* mul_out = ir_model.add_tensor(DataType::FLOAT32, BHWC(1, 2, 2, 4));
+  IrTensor* mul_out = ir_model.add_tensor(DataType::kFloat32, BHWC(1, 2, 2, 4));
   ir_model.SetProducer(mul_out->id, mul_op->id);
 
   ir_model.add_output(mul_out->id);
 
   CreateGpuModelInfo create_info;
-  create_info.precision = CalculationsPrecision::F32;
-  create_info.storage_type = TensorStorageType::BUFFER;
+  create_info.precision = CalculationsPrecision::kF32;
+  create_info.storage_type = TensorStorageType::kBuffer;
   GpuInfo gpu_info = GetTestGpuInfo();
 
   GpuModel gpu_model;
-  MLD_ASSERT_OK(IrModelToGpuModel(ir_model, create_info, gpu_info, &gpu_model));
+  ABSL_ASSERT_OK(IrModelToGpuModel(ir_model, create_info, gpu_info, &gpu_model));
   // 1 fused mish node instead of 5 individual elementwise ops.
   EXPECT_EQ(gpu_model.nodes.size(), 1);
   EXPECT_EQ(gpu_model.nodes[0].name, "mish");
@@ -160,51 +163,52 @@ TEST(IrModelUtilTest, TryMish) {
 
 TEST(IrModelUtilTest, TryConcatConv) {
   IrModel ir_model;
-  IrTensor* input1 = ir_model.add_tensor(DataType::FLOAT32, BHWC(1, 2, 2, 1));
-  IrTensor* input2 = ir_model.add_tensor(DataType::FLOAT32, BHWC(1, 2, 2, 1));
-  IrTensor* input3 = ir_model.add_tensor(DataType::FLOAT32, BHWC(1, 2, 2, 1));
+  IrTensor* input1 = ir_model.add_tensor(DataType::kFloat32, BHWC(1, 2, 2, 1));
+  IrTensor* input2 = ir_model.add_tensor(DataType::kFloat32, BHWC(1, 2, 2, 1));
+  IrTensor* input3 = ir_model.add_tensor(DataType::kFloat32, BHWC(1, 2, 2, 1));
   ir_model.add_input(input1->id);
   ir_model.add_input(input2->id);
   ir_model.add_input(input3->id);
 
   IrOp* concat_op = ir_model.add_op();
-  concat_op->name = ToString(OperationType::CONCAT);
+  concat_op->name = ToString(OperationType::kConcat);
   ConcatAttributes concat_attr;
-  concat_attr.axis = Axis::CHANNELS;
+  concat_attr.axis = Axis::kChannels;
   concat_op->attr = concat_attr;
   ir_model.AddConsumer(input1->id, concat_op->id);
   ir_model.AddConsumer(input2->id, concat_op->id);
   ir_model.AddConsumer(input3->id, concat_op->id);
   IrTensor* concat_out =
-      ir_model.add_tensor(DataType::FLOAT32, BHWC(1, 2, 2, 3));
+      ir_model.add_tensor(DataType::kFloat32, BHWC(1, 2, 2, 3));
   ir_model.SetProducer(concat_out->id, concat_op->id);
 
   IrOp* conv_op = ir_model.add_op();
-  conv_op->name = ToString(OperationType::CONVOLUTION_2D);
+  conv_op->name = ToString(OperationType::kConvolution2D);
   Convolution2DAttributes conv_attr;
   conv_attr.padding.prepended = HW(1, 1);
   conv_attr.padding.appended = HW(1, 1);
   conv_attr.strides = HW(1, 1);
   conv_attr.dilations = HW(1, 1);
-  Tensor<OHWI, DataType::FLOAT32> weights;
+  Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = OHWI(4, 3, 3, 3);
   // Add 16 elements for XNN_EXTRA_BYTES
   weights.data.resize(4 * 3 * 3 * 3 + 16, 1.0f);
   conv_attr.weights = std::move(weights);
-  Tensor<Linear, DataType::FLOAT32> bias;
+  Tensor<Linear, DataType::kFloat32> bias;
   bias.shape = Linear(4);
   bias.data.resize(4, 0.0f);
   conv_attr.bias = std::move(bias);
   conv_op->attr = conv_attr;
   ir_model.AddConsumer(concat_out->id, conv_op->id);
 
-  IrTensor* conv_out = ir_model.add_tensor(DataType::FLOAT32, BHWC(1, 2, 2, 4));
+  IrTensor* conv_out =
+      ir_model.add_tensor(DataType::kFloat32, BHWC(1, 2, 2, 4));
   ir_model.SetProducer(conv_out->id, conv_op->id);
   ir_model.add_output(conv_out->id);
 
   CreateGpuModelInfo create_info;
-  create_info.precision = CalculationsPrecision::F32;
-  create_info.storage_type = TensorStorageType::TEXTURE_2D;
+  create_info.precision = CalculationsPrecision::kF32;
+  create_info.storage_type = TensorStorageType::kTexture2D;
   // ConcatConv is a special kernel, needs to be enabled.
   create_info.hints.Add(ModelHints::kAllowSpecialKernels);
   GpuInfo gpu_info = GetTestGpuInfo();
@@ -213,7 +217,7 @@ TEST(IrModelUtilTest, TryConcatConv) {
   gpu_info.mali_info.generation = MaliInfo::Gen::kUnknown;
 
   GpuModel gpu_model;
-  MLD_ASSERT_OK(IrModelToGpuModel(ir_model, create_info, gpu_info, &gpu_model));
+  ABSL_ASSERT_OK(IrModelToGpuModel(ir_model, create_info, gpu_info, &gpu_model));
   // 1 fused node instead of 2.
   EXPECT_EQ(gpu_model.nodes.size(), 1);
   EXPECT_EQ(gpu_model.nodes[0].inputs.size(), 3);
@@ -223,101 +227,401 @@ TEST(IrModelUtilTest, TryConcatConv) {
 
 TEST(IrModelUtilTest, TryResizeAddConvLocalMemoryFuser) {
   IrModel ir_model;
-  IrTensor* input1 = ir_model.add_tensor(DataType::FLOAT32, BHWC(1, 2, 2, 4));
-  IrTensor* input2 = ir_model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 4));
+  IrTensor* input1 = ir_model.add_tensor(DataType::kFloat32, BHWC(1, 2, 2, 4));
+  IrTensor* input2 = ir_model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 4));
   ir_model.add_input(input1->id);
   ir_model.add_input(input2->id);
 
   IrOp* resize_op = ir_model.add_op();
-  resize_op->name = ToString(OperationType::RESIZE);
+  resize_op->name = ToString(OperationType::kResize);
   Resize2DAttributes resize_attr;
   resize_attr.new_shape = HW(4, 4);
-  resize_attr.type = SamplingType::BILINEAR;
+  resize_attr.type = SamplingType::kBilinear;
   resize_op->attr = resize_attr;
   ir_model.AddConsumer(input1->id, resize_op->id);
   IrTensor* resize_out =
-      ir_model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 4));
+      ir_model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 4));
   ir_model.SetProducer(resize_out->id, resize_op->id);
 
   IrOp* add_op = ir_model.add_op();
-  add_op->name = ToString(OperationType::ADD);
+  add_op->name = ToString(OperationType::kAdd);
   add_op->attr = ElementwiseAttributes{};
   ir_model.AddConsumer(resize_out->id, add_op->id);
   ir_model.AddConsumer(input2->id, add_op->id);
-  IrTensor* add_out = ir_model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 4));
+  IrTensor* add_out = ir_model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 4));
   ir_model.SetProducer(add_out->id, add_op->id);
 
   IrOp* conv_op = ir_model.add_op();
-  conv_op->name = ToString(OperationType::CONVOLUTION_2D);
+  conv_op->name = ToString(OperationType::kConvolution2D);
   Convolution2DAttributes conv_attr;
   conv_attr.padding.prepended = HW(1, 1);
   conv_attr.padding.appended = HW(1, 1);
   conv_attr.strides = HW(1, 1);
   conv_attr.dilations = HW(1, 1);
-  Tensor<OHWI, DataType::FLOAT32> weights;
+  Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = OHWI(1, 3, 3, 4);
   // Add 16 elements for XNN_EXTRA_BYTES
   weights.data.resize(1 * 3 * 3 * 4 + 16, 1.0f);
   conv_attr.weights = std::move(weights);
-  Tensor<Linear, DataType::FLOAT32> bias;
+  Tensor<Linear, DataType::kFloat32> bias;
   bias.shape = Linear(1);
   bias.data.resize(1, 0.0f);
   conv_attr.bias = std::move(bias);
   conv_op->attr = conv_attr;
   ir_model.AddConsumer(add_out->id, conv_op->id);
 
-  IrTensor* conv_out = ir_model.add_tensor(DataType::FLOAT32, BHWC(1, 4, 4, 1));
+  IrTensor* conv_out =
+      ir_model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 1));
   ir_model.SetProducer(conv_out->id, conv_op->id);
   ir_model.add_output(conv_out->id);
 
   CreateGpuModelInfo create_info;
-  create_info.precision = CalculationsPrecision::F32;
-  create_info.storage_type = TensorStorageType::TEXTURE_2D;
+  create_info.precision = CalculationsPrecision::kF32;
+  create_info.storage_type = TensorStorageType::kTexture2D;
   // LocalMemory fusers require special kernel hints
   create_info.hints.Add(ModelHints::kAllowSpecialKernels);
   GpuInfo gpu_info = GetTestGpuInfo();  // Faked Mali
 
   GpuModel gpu_model;
-  MLD_ASSERT_OK(IrModelToGpuModel(ir_model, create_info, gpu_info, &gpu_model));
+  ABSL_ASSERT_OK(IrModelToGpuModel(ir_model, create_info, gpu_info, &gpu_model));
   // 1 fused node instead of 3.
   EXPECT_EQ(gpu_model.nodes.size(), 1);
 }
 
+TEST(IrModelUtilTest,
+     TryResizeAddConvLocalMemoryFuserWithQuantizeAndDequantize) {
+  IrModel ir_model;
+  IrTensor* input1 = ir_model.add_tensor(DataType::kFloat32, BHWC(1, 2, 2, 4));
+  IrTensor* input2 = ir_model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 4));
+  ir_model.add_input(input1->id);
+  ir_model.add_input(input2->id);
+
+  IrOp* resize_op = ir_model.add_op();
+  resize_op->name = ToString(OperationType::kResize);
+  Resize2DAttributes resize_attr;
+  resize_attr.new_shape = HW(4, 4);
+  resize_attr.type = SamplingType::kBilinear;
+  resize_op->attr = resize_attr;
+  ir_model.AddConsumer(input1->id, resize_op->id);
+  IrTensor* resize_out =
+      ir_model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 4));
+  ir_model.SetProducer(resize_out->id, resize_op->id);
+
+  QuantizeAndDequantizeAttributes qdq_attr;
+  qdq_attr.min = -1.0f;
+  qdq_attr.max = 1.0f;
+  qdq_attr.scale = 1.0f / 127.5f;
+
+  IrOp* qdq1_op = ir_model.add_op();
+  qdq1_op->name = ToString(OperationType::kQuantizeAndDequantize);
+  qdq1_op->attr = qdq_attr;
+  ir_model.AddConsumer(resize_out->id, qdq1_op->id);
+  IrTensor* qdq1_out =
+      ir_model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 4));
+  ir_model.SetProducer(qdq1_out->id, qdq1_op->id);
+
+  IrOp* qdq2_op = ir_model.add_op();
+  qdq2_op->name = ToString(OperationType::kQuantizeAndDequantize);
+  qdq2_op->attr = qdq_attr;
+  ir_model.AddConsumer(qdq1_out->id, qdq2_op->id);
+  IrTensor* qdq2_out =
+      ir_model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 4));
+  ir_model.SetProducer(qdq2_out->id, qdq2_op->id);
+
+  IrOp* add_op = ir_model.add_op();
+  add_op->name = ToString(OperationType::kAdd);
+  add_op->attr = ElementwiseAttributes{};
+  ir_model.AddConsumer(qdq2_out->id, add_op->id);
+  ir_model.AddConsumer(input2->id, add_op->id);
+  IrTensor* add_out = ir_model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 4));
+  ir_model.SetProducer(add_out->id, add_op->id);
+
+  IrOp* qdq3_op = ir_model.add_op();
+  qdq3_op->name = ToString(OperationType::kQuantizeAndDequantize);
+  qdq3_op->attr = qdq_attr;
+  ir_model.AddConsumer(add_out->id, qdq3_op->id);
+  IrTensor* qdq3_out =
+      ir_model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 4));
+  ir_model.SetProducer(qdq3_out->id, qdq3_op->id);
+
+  IrOp* conv_op = ir_model.add_op();
+  conv_op->name = ToString(OperationType::kConvolution2D);
+  Convolution2DAttributes conv_attr;
+  conv_attr.padding.prepended = HW(1, 1);
+  conv_attr.padding.appended = HW(1, 1);
+  conv_attr.strides = HW(1, 1);
+  conv_attr.dilations = HW(1, 1);
+  Tensor<OHWI, DataType::kFloat32> weights;
+  weights.shape = OHWI(1, 3, 3, 4);
+  weights.data.resize(1 * 3 * 3 * 4 + 16, 1.0f);
+  conv_attr.weights = std::move(weights);
+  Tensor<Linear, DataType::kFloat32> bias;
+  bias.shape = Linear(1);
+  bias.data.resize(1, 0.0f);
+  conv_attr.bias = std::move(bias);
+  conv_op->attr = conv_attr;
+  ir_model.AddConsumer(qdq3_out->id, conv_op->id);
+
+  IrTensor* conv_out =
+      ir_model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 1));
+  ir_model.SetProducer(conv_out->id, conv_op->id);
+  ir_model.add_output(conv_out->id);
+
+  CreateGpuModelInfo create_info;
+  create_info.precision = CalculationsPrecision::kF32;
+  create_info.storage_type = TensorStorageType::kTexture2D;
+  create_info.hints.Add(ModelHints::kAllowSpecialKernels);
+  GpuInfo gpu_info = GetTestGpuInfo();
+
+  GpuModel gpu_model;
+  ABSL_ASSERT_OK(IrModelToGpuModel(ir_model, create_info, gpu_info, &gpu_model));
+  ASSERT_EQ(gpu_model.nodes.size(), 1);
+  EXPECT_THAT(gpu_model.nodes[0].name,
+              ::testing::HasSubstr("convolution_2d (+ resize input + add)"));
+}
+
+// Regression test for: a RESIZE -> ADD -> CONVOLUTION_2D chain in
+// which the ADD has its second operand folded into its attributes, so it only
+// has a single runtime input. The fuser used to unconditionally read
+// add_op->inputs[1], running off the end of the vector.
+TEST(IrModelUtilTest, ResizeAddConvLocalMemoryFuserSkipsSingleInputAdd) {
+  IrModel ir_model;
+  IrTensor* input1 = ir_model.add_tensor(DataType::kFloat32, BHWC(1, 2, 2, 4));
+  ir_model.add_input(input1->id);
+
+  IrOp* resize_op = ir_model.add_op();
+  resize_op->name = ToString(OperationType::kResize);
+  Resize2DAttributes resize_attr;
+  resize_attr.new_shape = HW(4, 4);
+  resize_attr.type = SamplingType::kBilinear;
+  resize_op->attr = resize_attr;
+  ir_model.AddConsumer(input1->id, resize_op->id);
+  IrTensor* resize_out =
+      ir_model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 4));
+  ir_model.SetProducer(resize_out->id, resize_op->id);
+
+  // The ADD adds a constant scalar, so the resize output is its only input.
+  IrOp* add_op = ir_model.add_op();
+  add_op->name = ToString(OperationType::kAdd);
+  ElementwiseAttributes add_attr;
+  add_attr.param = 1.0f;
+  add_op->attr = add_attr;
+  ir_model.AddConsumer(resize_out->id, add_op->id);
+  IrTensor* add_out = ir_model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 4));
+  ir_model.SetProducer(add_out->id, add_op->id);
+
+  IrOp* conv_op = ir_model.add_op();
+  conv_op->name = ToString(OperationType::kConvolution2D);
+  Convolution2DAttributes conv_attr;
+  conv_attr.padding.prepended = HW(1, 1);
+  conv_attr.padding.appended = HW(1, 1);
+  conv_attr.strides = HW(1, 1);
+  conv_attr.dilations = HW(1, 1);
+  Tensor<OHWI, DataType::kFloat32> weights;
+  weights.shape = OHWI(1, 3, 3, 4);
+  // Add 16 elements for XNN_EXTRA_BYTES
+  weights.data.resize(1 * 3 * 3 * 4 + 16, 1.0f);
+  conv_attr.weights = std::move(weights);
+  Tensor<Linear, DataType::kFloat32> bias;
+  bias.shape = Linear(1);
+  bias.data.resize(1, 0.0f);
+  conv_attr.bias = std::move(bias);
+  conv_op->attr = conv_attr;
+  ir_model.AddConsumer(add_out->id, conv_op->id);
+
+  IrTensor* conv_out =
+      ir_model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 1));
+  ir_model.SetProducer(conv_out->id, conv_op->id);
+  ir_model.add_output(conv_out->id);
+
+  CreateGpuModelInfo create_info;
+  create_info.precision = CalculationsPrecision::kF32;
+  create_info.storage_type = TensorStorageType::kTexture2D;
+  // LocalMemory fusers require special kernel hints
+  create_info.hints.Add(ModelHints::kAllowSpecialKernels);
+  GpuInfo gpu_info = GetTestGpuInfo();  // Faked Mali
+
+  // Must not read out of bounds; the fuser simply declines to fuse.
+  GpuModel gpu_model;
+  ABSL_ASSERT_OK(IrModelToGpuModel(ir_model, create_info, gpu_info, &gpu_model));
+  for (const auto& node : gpu_model.nodes) {
+    EXPECT_THAT(node.name, ::testing::Not(::testing::HasSubstr(
+                               "convolution_2d (+ resize input + add)")));
+  }
+}
+
+// A RESIZE -> ADD -> CONVOLUTION_2D chain in which the ADD output is consumed
+// by the CONVOLUTION_2D *and* is a graph output. The fuser collapses all three
+// ops into one that only produces the conv output, so the ADD output is dropped
+// from the GpuModel even though it is still advertised as a model output.
+TEST(IrModelUtilTest, ResizeAddConvLocalMemoryFuserPreservesGraphOutput) {
+  IrModel ir_model;
+  IrTensor* input1 = ir_model.add_tensor(DataType::kFloat32, BHWC(1, 2, 2, 4));
+  IrTensor* input2 = ir_model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 4));
+  ir_model.add_input(input1->id);
+  ir_model.add_input(input2->id);
+
+  IrOp* resize_op = ir_model.add_op();
+  resize_op->name = ToString(OperationType::kResize);
+  Resize2DAttributes resize_attr;
+  resize_attr.new_shape = HW(4, 4);
+  resize_attr.type = SamplingType::kBilinear;
+  resize_op->attr = resize_attr;
+  ir_model.AddConsumer(input1->id, resize_op->id);
+  IrTensor* resize_out =
+      ir_model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 4));
+  ir_model.SetProducer(resize_out->id, resize_op->id);
+
+  IrOp* add_op = ir_model.add_op();
+  add_op->name = ToString(OperationType::kAdd);
+  add_op->attr = ElementwiseAttributes{};
+  ir_model.AddConsumer(resize_out->id, add_op->id);
+  ir_model.AddConsumer(input2->id, add_op->id);
+  IrTensor* add_out = ir_model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 4));
+  ir_model.SetProducer(add_out->id, add_op->id);
+
+  IrOp* conv_op = ir_model.add_op();
+  conv_op->name = ToString(OperationType::kConvolution2D);
+  Convolution2DAttributes conv_attr;
+  conv_attr.padding.prepended = HW(1, 1);
+  conv_attr.padding.appended = HW(1, 1);
+  conv_attr.strides = HW(1, 1);
+  conv_attr.dilations = HW(1, 1);
+  Tensor<OHWI, DataType::kFloat32> weights;
+  weights.shape = OHWI(1, 3, 3, 4);
+  // Add 16 elements for XNN_EXTRA_BYTES
+  weights.data.resize(1 * 3 * 3 * 4 + 16, 1.0f);
+  conv_attr.weights = std::move(weights);
+  Tensor<Linear, DataType::kFloat32> bias;
+  bias.shape = Linear(1);
+  bias.data.resize(1, 0.0f);
+  conv_attr.bias = std::move(bias);
+  conv_op->attr = conv_attr;
+  ir_model.AddConsumer(add_out->id, conv_op->id);
+
+  IrTensor* conv_out =
+      ir_model.add_tensor(DataType::kFloat32, BHWC(1, 4, 4, 1));
+  ir_model.SetProducer(conv_out->id, conv_op->id);
+
+  // Both the intermediate ADD output and the final CONV output are model
+  // outputs.
+  ir_model.add_output(add_out->id);
+  ir_model.add_output(conv_out->id);
+
+  CreateGpuModelInfo create_info;
+  create_info.precision = CalculationsPrecision::kF32;
+  create_info.storage_type = TensorStorageType::kTexture2D;
+  create_info.hints.Add(ModelHints::kAllowSpecialKernels);
+  GpuInfo gpu_info = GetTestGpuInfo();  // Faked Mali
+
+  GpuModel gpu_model;
+  ABSL_ASSERT_OK(IrModelToGpuModel(ir_model, create_info, gpu_info, &gpu_model));
+
+  bool advertised_as_output = false;
+  for (const auto& [id, ref] : gpu_model.output_ids_and_refs) {
+    if (id == add_out->id) advertised_as_output = true;
+  }
+  ASSERT_TRUE(advertised_as_output)
+      << "Precondition: add_out should be advertised as a model output.";
+
+  // A backing tensor must exist, otherwise the delegate dereferences a null
+  // GpuSpatialTensor. (This part currently holds.)
+  EXPECT_TRUE(gpu_model.tensors.contains(add_out->id))
+      << "Graph output " << add_out->id << " has no tensor in the GpuModel.";
+
+  // ...and some node must actually write it, otherwise the caller reads
+  // uninitialized GPU memory.
+  bool produced_by_some_node = false;
+  for (const auto& node : gpu_model.nodes) {
+    for (const auto& out_id : node.outputs) {
+      if (out_id == add_out->id) produced_by_some_node = true;
+    }
+  }
+  EXPECT_TRUE(produced_by_some_node)
+      << "Graph output " << add_out->id
+      << " is advertised as a model output but no node produces it; the "
+         "fuser collapsed its producer away. nodes="
+      << gpu_model.nodes.size();
+}
+
 TEST(IrModelUtilTest, HandlesTombstonedOpsAndTensors) {
   IrModel ir_model;
-  IrTensor* input1 = ir_model.add_tensor(DataType::FLOAT32, BHWC(1, 2, 2, 4));
+  IrTensor* input1 = ir_model.add_tensor(DataType::kFloat32, BHWC(1, 2, 2, 4));
   ir_model.add_input(input1->id);
 
   // Intermediate identity op to be tombstoned
   IrOp* relu_op = ir_model.add_op();
-  relu_op->name = ToString(OperationType::RELU);
+  relu_op->name = ToString(OperationType::kRelu);
   relu_op->attr = ReLUAttributes{};
   ir_model.AddConsumer(input1->id, relu_op->id);
 
-  IrTensor* relu_out = ir_model.add_tensor(DataType::FLOAT32, BHWC(1, 2, 2, 4));
+  IrTensor* relu_out =
+      ir_model.add_tensor(DataType::kFloat32, BHWC(1, 2, 2, 4));
   ir_model.SetProducer(relu_out->id, relu_op->id);
 
   IrOp* add_op = ir_model.add_op();
-  add_op->name = ToString(OperationType::ADD);
+  add_op->name = ToString(OperationType::kAdd);
   add_op->attr = ElementwiseAttributes{};
   ir_model.AddConsumer(relu_out->id, add_op->id);
   ir_model.AddConsumer(input1->id, add_op->id);
 
-  IrTensor* add_out = ir_model.add_tensor(DataType::FLOAT32, BHWC(1, 2, 2, 4));
+  IrTensor* add_out = ir_model.add_tensor(DataType::kFloat32, BHWC(1, 2, 2, 4));
   ir_model.SetProducer(add_out->id, add_op->id);
   ir_model.add_output(add_out->id);
 
   // RemoveSimpleOp tombstones relu_op (null op entry in model_ops).
-  MLD_ASSERT_OK(ir_model.RemoveSimpleOp(relu_op->id));
+  ABSL_ASSERT_OK(ir_model.RemoveSimpleOp(relu_op->id));
 
   CreateGpuModelInfo create_info;
-  create_info.precision = CalculationsPrecision::F32;
-  create_info.storage_type = TensorStorageType::BUFFER;
+  create_info.precision = CalculationsPrecision::kF32;
+  create_info.storage_type = TensorStorageType::kBuffer;
   GpuInfo gpu_info = GetTestGpuInfo();
 
   GpuModel gpu_model;
-  MLD_ASSERT_OK(IrModelToGpuModel(ir_model, create_info, gpu_info, &gpu_model));
+  ABSL_ASSERT_OK(IrModelToGpuModel(ir_model, create_info, gpu_info, &gpu_model));
   EXPECT_EQ(gpu_model.nodes.size(), 1);
+}
+
+TEST(IrModelUtilTest, SwapsInputIdsWhenLatestWrittenTensorIsNotFirstInput) {
+  // Verifies that when ConvertOperations swaps the inputs vector to put the
+  // latest written tensor at index 0, input_ids is also swapped so that op
+  // input IDs stay in sync with inputs.
+  IrModel ir_model;
+  IrTensor* input1 = ir_model.add_tensor(DataType::kFloat32, BHWC(1, 2, 2, 4));
+  ir_model.add_input(input1->id);
+
+  IrOp* relu_op = ir_model.add_op();
+  relu_op->name = ToString(OperationType::kRelu);
+  ReLUAttributes relu_attr;
+  relu_op->attr = relu_attr;
+  ir_model.AddConsumer(input1->id, relu_op->id);
+
+  IrTensor* relu_out =
+      ir_model.add_tensor(DataType::kFloat32, BHWC(1, 2, 2, 4));
+  ir_model.SetProducer(relu_out->id, relu_op->id);
+
+  // An op that consumes [input1, relu_out] where relu_out was the latest
+  // written tensor and is at index 1.
+  IrOp* add_op = ir_model.add_op();
+  add_op->name = ToString(OperationType::kAdd);
+  ElementwiseAttributes add_attr;
+  add_op->attr = add_attr;
+  ir_model.AddConsumer(input1->id, add_op->id);
+  ir_model.AddConsumer(relu_out->id, add_op->id);
+
+  IrTensor* add_out = ir_model.add_tensor(DataType::kFloat32, BHWC(1, 2, 2, 4));
+  ir_model.SetProducer(add_out->id, add_op->id);
+  ir_model.add_output(add_out->id);
+
+  CreateGpuModelInfo create_info;
+  create_info.precision = CalculationsPrecision::kF16;
+  create_info.storage_type = TensorStorageType::kBuffer;
+  GpuInfo gpu_info = GetTestGpuInfo();
+
+  GpuModel gpu_model;
+  ABSL_ASSERT_OK(IrModelToGpuModel(ir_model, create_info, gpu_info, &gpu_model));
+  ASSERT_EQ(gpu_model.nodes.size(), 1);
+  EXPECT_FALSE(gpu_model.nodes[0].gpu_operation->code_.empty());
 }
 
 }  // namespace

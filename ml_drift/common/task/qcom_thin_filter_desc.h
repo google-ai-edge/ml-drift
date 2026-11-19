@@ -19,8 +19,8 @@
 #include <string>
 #include <vector>
 
+#include "absl/status/status.h"
 #include "ml_drift/common/gpu_info.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/gpu_object_desc.h"
 
 namespace ml_drift {

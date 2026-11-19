@@ -24,10 +24,10 @@
 #include <string>
 #include <vector>
 
+#include "absl/status/status.h"
 #include "absl/time/time.h"
 #include "ml_drift/common/precision.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/gpu_operation.h"
 #include "ml_drift/common/task/tuning_type.h"
 #include "ml_drift/common/types.h"
@@ -81,10 +81,10 @@ class ComputeTask {
   void EncodeToICB(id<MTLIndirectComputeCommand> icb_command);
   void AddResourcesToEncoder(id<MTLComputeCommandEncoder> encoder) const;
 
-  void SetSrcTensor(MetalSpatialTensor* tensor, int index);
-  void SetDstTensor(MetalSpatialTensor* tensor, int index);
-  void SetSrcBuffer(Buffer* buffer, int index);
-  void SetDstBuffer(Buffer* buffer, int index);
+  absl::Status SetSrcTensor(MetalSpatialTensor* tensor, int index);
+  absl::Status SetDstTensor(MetalSpatialTensor* tensor, int index);
+  absl::Status SetSrcBuffer(Buffer* buffer, int index);
+  absl::Status SetDstBuffer(Buffer* buffer, int index);
 
   absl::Status Tune(TuningType tuning_type, Environment* env);
 

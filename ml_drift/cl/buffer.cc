@@ -18,11 +18,13 @@
 #include <cstdint>
 #include <utility>
 
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
+#include "absl/status/statusor.h"
 #include "ml_drift/cl/cl_context.h"
 #include "ml_drift/cl/gpu_object.h"
 #include "ml_drift/cl/opencl_wrapper.h"
 #include "ml_drift/cl/util.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/buffer_desc.h"
 #include "ml_drift/common/task/gpu_object_desc.h"
 
@@ -92,7 +94,7 @@ absl::Status Buffer::GetGPUResources(const GPUObjectDescriptor* obj_ptr,
 
 absl::Status Buffer::CreateFromBufferDescriptor(const BufferDescriptor& desc,
                                                 CLContext* context) {
-  bool read_only = desc.memory_type == MemoryType::CONSTANT;
+  bool read_only = desc.memory_type == MemoryType::kConstant;
   uint8_t* data_ptr = desc.data.empty()
                           ? nullptr
                           : const_cast<unsigned char*>(desc.data.data());

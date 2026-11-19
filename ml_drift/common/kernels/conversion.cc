@@ -90,7 +90,7 @@ TensorToBhwcBuffer CreateTensorToBhwcBufferAlignedOp(
   op.is_aligned_ = true;
   op.AddSrcTensor("tensor", src_desc);
   TensorDescriptor dst_tensor_desc(dst_desc.element_type,
-                                   TensorStorageType::BUFFER, Layout::LINEAR);
+                                   TensorStorageType::kBuffer, Layout::kLinear);
   op.AddDstTensor("buffer", dst_tensor_desc);
 
   op.code_ += R"(MAIN_FUNCTION($0) {
@@ -193,7 +193,7 @@ BhwcBufferToTensor CreateBhwcBufferAlignedToTensorOp(
     const TensorDescriptor& dst_desc) {
   BhwcBufferToTensor op;
   TensorDescriptor src_tensor_desc(src_desc.element_type,
-                                   TensorStorageType::BUFFER, Layout::LINEAR);
+                                   TensorStorageType::kBuffer, Layout::kLinear);
   op.AddSrcTensor("buffer", src_tensor_desc);
   op.AddDstTensor("tensor", dst_desc);
   op.tensor_to_grid_ = TensorToGrid::kWBToX_HDToY_SToZ;

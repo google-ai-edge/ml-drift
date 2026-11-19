@@ -15,8 +15,8 @@
 #ifndef ML_DRIFT_COMMON_KERNELS_TESTS_ELEMENTWISE_TEST_UTIL_H_
 #define ML_DRIFT_COMMON_KERNELS_TESTS_ELEMENTWISE_TEST_UTIL_H_
 
+#include "absl/status/status.h"
 #include "ml_drift/common/data_type.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/task/testing_util.h"
 
@@ -111,6 +111,8 @@ absl::Status ModUint5Test(TestExecutionEnvironment& env,
 absl::Status PowTest(TestExecutionEnvironment& env,
                      DataType data_type,
                      TensorStorageType storage);
+absl::Status PowWithScalarTest(TestExecutionEnvironment& env,
+                               DataType data_type, TensorStorageType storage);
 absl::Status AddTest(TestExecutionEnvironment& env,
                      DataType data_type,
                      TensorStorageType storage);

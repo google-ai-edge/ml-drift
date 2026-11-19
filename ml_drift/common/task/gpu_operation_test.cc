@@ -21,7 +21,7 @@
 #include "benchmark/benchmark.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "xnnpack.h"  // from @XNNPACK
 #include "ml_drift/common/access_type.h"
 #include "ml_drift/common/data_type.h"
@@ -50,7 +50,7 @@ TEST(GpuOperationTest, RemovesComments) {
      */
     int baz; /* foo */// more comment)";
   GpuInfo gpu_info;
-  MLD_EXPECT_OK(op.AssembleCode(gpu_info));
+  ABSL_EXPECT_OK(op.AssembleCode(gpu_info));
   EXPECT_EQ(op.code_, R"(
     int foo;
     int bar;
@@ -64,7 +64,7 @@ TEST(GpuOperationTest, RemovesCommentsEndsWithLongComment) {
     int foo;/*
     comment */)";
   GpuInfo gpu_info;
-  MLD_EXPECT_OK(op.AssembleCode(gpu_info));
+  ABSL_EXPECT_OK(op.AssembleCode(gpu_info));
   EXPECT_EQ(op.code_, R"(
     int foo;)");
 }
@@ -88,7 +88,7 @@ TEST(GpuOperationTest, MarksActiveArguments) {
     int e =  args.i1+args.u1+_args.u2;args.)";
   op.code_ = code;
   GpuInfo gpu_info;
-  MLD_EXPECT_OK(op.AssembleCode(gpu_info));
+  ABSL_EXPECT_OK(op.AssembleCode(gpu_info));
   EXPECT_EQ(op.code_, code);
 
   const auto& args = op.args_;
@@ -107,12 +107,12 @@ TEST(GpuOperationTest, TestNoSelector) {
   GPUOperation op;
 
   BufferDescriptor desc;
-  desc.element_type = DataType::FLOAT32;
+  desc.element_type = DataType::kFloat32;
   desc.element_size = 4;
-  desc.memory_type = MemoryType::GLOBAL;
+  desc.memory_type = MemoryType::kGlobal;
 
-  op.args_.AddObjectRef("weights", AccessType::READ,
-                    std::make_unique<BufferDescriptor>(std::move(desc)));
+  op.args_.AddObjectRef("weights", AccessType::kRead,
+                        std::make_unique<BufferDescriptor>(std::move(desc)));
 
   op.code_ = R"(
     if (a < 3) {
@@ -131,7 +131,7 @@ void BM_AssembleCode(benchmark::State& state) {
   conv_attr.strides = HW(1, 1);
   conv_attr.dilations = HW(1, 1);
   auto& attr_weights =
-      conv_attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
+      conv_attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(16, 1, 1, 128);
   attr_weights.data.resize(attr_weights.shape.DimensionsProduct() +
                            XNN_EXTRA_BYTES / sizeof(float));
@@ -140,17 +140,83 @@ void BM_AssembleCode(benchmark::State& state) {
 
   OperationDef op_def;
   op_def.src_tensors.push_back(
-      {DataType::FLOAT32, TensorStorageType::TEXTURE_2D, Layout::HWC});
+      {DataType::kFloat32, TensorStorageType::kTexture2D, Layout::kHWC});
   op_def.dst_tensors.push_back(
-      {DataType::FLOAT32, TensorStorageType::TEXTURE_2D, Layout::HWC});
+      {DataType::kFloat32, TensorStorageType::kTexture2D, Layout::kHWC});
 
   for (auto s : state) {
     ConvGeneric conv_operation = CreateConvGeneric(
-        gpu_info, op_def, CalculationsPrecision::F32, conv_attr);
-    MLD_EXPECT_OK(conv_operation.AssembleCode(gpu_info));
+        gpu_info, op_def, CalculationsPrecision::kF32, conv_attr);
+    ABSL_EXPECT_OK(conv_operation.AssembleCode(gpu_info));
   }
 }
 BENCHMARK(BM_AssembleCode);
+
+TEST(GpuOperationTest, FuseInputReorderAllowed) {
+  GPUOperation op;
+
+  // Disabled by default
+  EXPECT_FALSE(op.FuseInputReorderAllowed());
+
+  op.AllowFuseInputReorder(true);
+  EXPECT_TRUE(op.FuseInputReorderAllowed());
+
+  op.AllowFuseInputReorder(false);
+  EXPECT_FALSE(op.FuseInputReorderAllowed());
+}
+
+TEST(GpuOperationTest, AddInputReorderUpdatesDescriptor) {
+  GPUOperation op;
+  TensorDescriptor orig_desc;
+  orig_desc.SetBHWDCShape(BHWDC(1, 8, 1, 1, 8));
+  op.args_.AddObjectRef("src_k", AccessType::kRead,
+                        std::make_unique<TensorDescriptor>(orig_desc));
+
+  TensorDescriptor src_desc;
+  src_desc.SetBHWDCShape(BHWDC(1, 2, 4, 1, 8));
+  TensorDescriptor dst_desc;
+  dst_desc.SetBHWDCShape(BHWDC(1, 8, 1, 1, 8));
+
+  op.AddInputReorder("src_k", "SRC_X = DST_X; SRC_Y = DST_Y; SRC_S = DST_S;",
+                     &src_desc, &dst_desc);
+
+  TensorDescriptor desc;
+  ABSL_EXPECT_OK(op.GetTensorDescriptor("src_k", &desc));
+  EXPECT_EQ(desc.GetBHWDCShape(), BHWDC(1, 2, 4, 1, 8));
+}
+
+TEST(GpuOperationTest, AssembleCodeWithInputReorder) {
+  GPUOperation op;
+  TensorDescriptor orig_desc(DataType::kFloat32, TensorStorageType::kBuffer,
+                             Layout::kBHWC);
+  orig_desc.SetBHWDCShape(BHWDC(1, 8, 1, 1, 8));
+  op.AddSrcTensor("src_k", orig_desc);
+
+  TensorDescriptor dst_tensor_desc(DataType::kFloat32,
+                                   TensorStorageType::kBuffer, Layout::kBHWC);
+  dst_tensor_desc.SetBHWDCShape(BHWDC(1, 8, 1, 1, 8));
+  op.AddDstTensor("dst_tensor", dst_tensor_desc);
+
+  TensorDescriptor src_desc(DataType::kFloat32, TensorStorageType::kBuffer,
+                            Layout::kBHWC);
+  src_desc.SetBHWDCShape(BHWDC(1, 2, 4, 1, 8));
+  TensorDescriptor dst_desc(DataType::kFloat32, TensorStorageType::kBuffer,
+                            Layout::kBHWC);
+  dst_desc.SetBHWDCShape(BHWDC(1, 8, 1, 1, 8));
+
+  op.AddInputReorder("src_k", "SRC_X = DST_X; SRC_Y = DST_Y; SRC_S = DST_S;",
+                     &src_desc, &dst_desc);
+  op.code_ = R"(
+MAIN_FUNCTION($0) {
+  args.dst_tensor::type v = args.src_k.Read(0, 0, 0, 0);
+  args.dst_tensor.Write(v, 0, 0, 0, 0);
+}
+)";
+
+  GpuInfo gpu_info;
+  gpu_info.gpu_api = GpuApi::kWebGpu;
+  ABSL_EXPECT_OK(op.AssembleCode(gpu_info));
+}
 
 }  // namespace
 }  // namespace ml_drift

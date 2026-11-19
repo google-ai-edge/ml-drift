@@ -40,7 +40,7 @@ std::string GetMaxUnpoolingKernelCode(const GpuInfo& gpu_info,
 
   std::string c;
   c += "MAIN_FUNCTION($0) {\n";
-  if (op_def.dst_tensors[0].HasAxis(Axis::BATCH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kBatch)) {
     c += "  int linear_id = ucl::GetGlobalId<0>();\n";
     c += "  int X = linear_id / args.dst_tensor.Batch();\n";
     c += "  int B = linear_id % args.dst_tensor.Batch();\n";
@@ -50,7 +50,7 @@ std::string GetMaxUnpoolingKernelCode(const GpuInfo& gpu_info,
   } else {
     c += "  int X = ucl::GetGlobalId<0>();\n";
   }
-  if (op_def.dst_tensors[0].HasAxis(Axis::DEPTH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kDepth)) {
     c += "  int linear_id_1 = ucl::GetGlobalId<1>();\n";
     c += "  int Y = linear_id_1 / args.dst_tensor.Depth();\n";
     c += "  int Z = linear_id_1 % args.dst_tensor.Depth();\n";
@@ -66,7 +66,7 @@ std::string GetMaxUnpoolingKernelCode(const GpuInfo& gpu_info,
   c += "  int t_x = X - (src_x * args.stride_x - args.padding_x);\n";
   c += "  int src_y = (Y + args.padding_y) / args.stride_y;\n";
   c += "  int t_y = Y - (src_y * args.stride_y - args.padding_y);\n";
-  if (op_def.dst_tensors[0].HasAxis(Axis::DEPTH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kDepth)) {
     c += "  int src_z = (Z + args.padding_z) / args.stride_z;\n";
     c += "  int t_z = Z - (src_z * args.stride_z - args.padding_z);\n";
     c += "  int t_index = (t_y * args.kernel_size_x + t_x) * "
@@ -75,27 +75,27 @@ std::string GetMaxUnpoolingKernelCode(const GpuInfo& gpu_info,
     c += "  int t_index = t_y * args.kernel_size_x + t_x;\n";
   }
   std::string inbounds_check;
-  if (!op_def.src_tensors[0].SupportsZeroClamp(Axis::WIDTH, gpu_info) ||
-      !op_def.src_tensors[1].SupportsZeroClamp(Axis::WIDTH, gpu_info)) {
+  if (!op_def.src_tensors[0].SupportsZeroClamp(Axis::kWidth, gpu_info) ||
+      !op_def.src_tensors[1].SupportsZeroClamp(Axis::kWidth, gpu_info)) {
     c += "  bool inside_x = src_x >= 0 && src_x < args.src_tensor.Width();\n";
     c += "  src_x = clamp(src_x, 0, args.src_tensor.Width() - 1);\n";
     AppendConditionally("inside_x", " && ", &inbounds_check);
   }
-  if (!op_def.src_tensors[0].SupportsZeroClamp(Axis::HEIGHT, gpu_info) ||
-      !op_def.src_tensors[1].SupportsZeroClamp(Axis::HEIGHT, gpu_info)) {
+  if (!op_def.src_tensors[0].SupportsZeroClamp(Axis::kHeight, gpu_info) ||
+      !op_def.src_tensors[1].SupportsZeroClamp(Axis::kHeight, gpu_info)) {
     c += "  bool inside_y = src_y >= 0 && src_y < args.src_tensor.Height();\n";
     c += "  src_y = clamp(src_y, 0, args.src_tensor.Height() - 1);\n";
     AppendConditionally("inside_y", " && ", &inbounds_check);
   }
-  if (op_def.dst_tensors[0].HasAxis(Axis::DEPTH)) {
-    if (!op_def.src_tensors[0].SupportsZeroClamp(Axis::DEPTH, gpu_info) ||
-        !op_def.src_tensors[1].SupportsZeroClamp(Axis::DEPTH, gpu_info)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kDepth)) {
+    if (!op_def.src_tensors[0].SupportsZeroClamp(Axis::kDepth, gpu_info) ||
+        !op_def.src_tensors[1].SupportsZeroClamp(Axis::kDepth, gpu_info)) {
       c += "  bool inside_z = src_z >= 0 && src_z < args.src_tensor.Depth();\n";
       c += "  src_z = clamp(src_z, 0, args.src_tensor.Depth() - 1);\n";
       AppendConditionally("inside_z", " && ", &inbounds_check);
     }
   }
-  std::string src_args = op_def.dst_tensors[0].HasAxis(Axis::DEPTH)
+  std::string src_args = op_def.dst_tensors[0].HasAxis(Axis::kDepth)
                              ? "src_x, src_y, src_z, S"
                              : "src_x, src_y, S";
   c +=
@@ -112,7 +112,7 @@ std::string GetMaxUnpoolingKernelCode(const GpuInfo& gpu_info,
   c += "  if (t_index == ind.y) { result.y = src.y; }\n";
   c += "  if (t_index == ind.z) { result.z = src.z; }\n";
   c += "  if (t_index == ind.w) { result.w = src.w; }\n";
-  if (op_def.dst_tensors[0].HasAxis(Axis::DEPTH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kDepth)) {
     c += "  args.dst_tensor.Write(result, X, Y, Z, S);\n";
   } else {
     c += "  args.dst_tensor.Write(result, X, Y, S);\n";

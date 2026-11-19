@@ -51,23 +51,23 @@ struct NumAxisFunc {
 
 std::string ToString(Axis axis) {
   switch (axis) {
-    case Axis::BATCH:
+    case Axis::kBatch:
       return "batch";
-    case Axis::CHANNELS:
+    case Axis::kChannels:
       return "channels";
-    case Axis::INPUT_CHANNELS:
+    case Axis::kInputChannels:
       return "input_channels";
-    case Axis::OUTPUT_CHANNELS:
+    case Axis::kOutputChannels:
       return "output_channels";
-    case Axis::HEIGHT:
+    case Axis::kHeight:
       return "height";
-    case Axis::WIDTH:
+    case Axis::kWidth:
       return "width";
-    case Axis::VALUE:
+    case Axis::kValue:
       return "value";
-    case Axis::DEPTH:
+    case Axis::kDepth:
       return "depth";
-    case Axis::UNKNOWN:
+    case Axis::kUnknown:
       return "unknown";
   }
   return "undefined";
@@ -75,37 +75,37 @@ std::string ToString(Axis axis) {
 
 std::string ToString(Layout layout) {
   switch (layout) {
-    case Layout::SCALAR:
+    case Layout::kScalar:
       return "scalar";
-    case Layout::LINEAR:
+    case Layout::kLinear:
       return "linear";
-    case Layout::HW:
+    case Layout::kHW:
       return "hw";
-    case Layout::HWD:
+    case Layout::kHWD:
       return "hwd";
-    case Layout::CHW:
+    case Layout::kCHW:
       return "chw";
-    case Layout::HWC:
+    case Layout::kHWC:
       return "hwc";
-    case Layout::HWDC:
+    case Layout::kHWDC:
       return "hwdc";
-    case Layout::OHWI:
+    case Layout::kOHWI:
       return "ohwi";
-    case Layout::IHWO:
+    case Layout::kIHWO:
       return "ihwo";
-    case Layout::OIHW:
+    case Layout::kOIHW:
       return "oihw";
-    case Layout::IOHW:
+    case Layout::kIOHW:
       return "iohw";
-    case Layout::BHWC:
+    case Layout::kBHWC:
       return "bhwc";
-    case Layout::BHWDC:
+    case Layout::kBHWDC:
       return "bhwdc";
-    case Layout::OHWDI:
+    case Layout::kOHWDI:
       return "ohwdi";
-    case Layout::HWIO:
+    case Layout::kHWIO:
       return "hwio";
-    case Layout::UNKNOWN:
+    case Layout::kUnknown:
       return "unknown";
   }
   return "undefined";

@@ -26,10 +26,12 @@
 #include <vector>
 
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/log/absl_log.h"
 #include "absl/random/bit_gen_ref.h"
 #include "absl/random/random.h"
+#include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
@@ -37,7 +39,6 @@
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/precision.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/gpu_operation.h"
 #include "ml_drift/common/task/profiling_info.h"
 #include "ml_drift/common/task/tensor_desc.h"
@@ -143,7 +144,7 @@ class TestExecutionEnvironment {
 };
 
 constexpr std::array<DataType, 2> GetFloatTypes() {
-  return {DataType::FLOAT16, DataType::FLOAT32};
+  return {DataType::kFloat16, DataType::kFloat32};
 }
 
 class FloatTest : public testing::Test,
@@ -200,9 +201,8 @@ void GenerateData(absl::BitGenRef gen, uint8_t* data, int size);
 template <>
 void GenerateData(absl::BitGenRef gen, bool* data, int size);
 
-template <DataType DataTypeT = DataType::FLOAT32, typename ShapeT>
-ml_drift::Tensor<ShapeT, DataTypeT> MakeSyntheticTensor(
-    const ShapeT& shape) {
+template <DataType DataTypeT = DataType::kFloat32, typename ShapeT>
+ml_drift::Tensor<ShapeT, DataTypeT> MakeSyntheticTensor(const ShapeT& shape) {
   ml_drift::Tensor<ShapeT, DataTypeT> tensor;
   tensor.shape = shape;
   tensor.data.resize(shape.DimensionsProduct());
@@ -212,9 +212,9 @@ ml_drift::Tensor<ShapeT, DataTypeT> MakeSyntheticTensor(
 }
 
 template <typename ShapeT>
-ml_drift::Tensor<ShapeT, DataType::FLOAT32> MakeZeroTensor(
+ml_drift::Tensor<ShapeT, DataType::kFloat32> MakeZeroTensor(
     const ShapeT& shape) {
-  ml_drift::Tensor<ShapeT, DataType::FLOAT32> tensor;
+  ml_drift::Tensor<ShapeT, DataType::kFloat32> tensor;
   tensor.shape = shape;
   tensor.data = std::vector<float>(shape.DimensionsProduct(), 0);
   return tensor;

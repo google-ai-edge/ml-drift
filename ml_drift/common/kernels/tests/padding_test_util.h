@@ -15,7 +15,7 @@
 #ifndef ML_DRIFT_COMMON_KERNELS_TESTS_PADDING_TEST_UTIL_H_
 #define ML_DRIFT_COMMON_KERNELS_TESTS_PADDING_TEST_UTIL_H_
 
-#include "ml_drift/common/status.h"
+#include "absl/status/status.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/task/testing_util.h"
 
@@ -39,6 +39,9 @@ absl::Status PaddingPrependHeightTest(TestExecutionEnvironment& env,
 absl::Status PaddingAppendChannelsTest(TestExecutionEnvironment& env,
                                        DataType data_type,
                                        TensorStorageType storage);
+absl::Status PaddingAppendChannelsUnalignedSrcTest(
+    TestExecutionEnvironment& env, DataType data_type,
+    TensorStorageType storage);
 absl::Status PaddingPrependChannelsTest(TestExecutionEnvironment& env,
                                         DataType data_type,
                                         TensorStorageType storage);

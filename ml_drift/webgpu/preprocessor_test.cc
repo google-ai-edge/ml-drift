@@ -18,7 +18,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "ml_drift/common/gpu_info.h"
 
 namespace ml_drift {
@@ -47,7 +47,7 @@ MAIN_FUNCTION($0) {
 }
 )";
   ExtensionsInfo extensions_info;
-  MLD_ASSERT_OK(ConvertToWGSL(GetWebGpuInfo(), &input, &extensions_info));
+  ABSL_ASSERT_OK(ConvertToWGSL(GetWebGpuInfo(), &input, &extensions_info));
   EXPECT_EQ(input, R"(
 MAIN_FUNCTION($0) {
   var a0 : i32;
@@ -70,7 +70,7 @@ MAIN_FUNCTION($0) {
 }
 )";
   ExtensionsInfo extensions_info;
-  MLD_ASSERT_OK(ConvertToWGSL(GetWebGpuInfo(), &input, &extensions_info));
+  ABSL_ASSERT_OK(ConvertToWGSL(GetWebGpuInfo(), &input, &extensions_info));
   EXPECT_EQ(input, R"(
 MAIN_FUNCTION($0) {
   var a1 : f32= 0.8934;
@@ -87,7 +87,7 @@ MAIN_FUNCTION($0) {
 }
 )";
   ExtensionsInfo extensions_info;
-  MLD_ASSERT_OK(ConvertToWGSL(GetWebGpuInfo(), &input, &extensions_info));
+  ABSL_ASSERT_OK(ConvertToWGSL(GetWebGpuInfo(), &input, &extensions_info));
   EXPECT_EQ(input, R"(
 MAIN_FUNCTION($0) {
   if (X < Y) {return;}
@@ -104,7 +104,7 @@ MAIN_FUNCTION($0) {
 }
 )";
   ExtensionsInfo extensions_info;
-  MLD_ASSERT_OK(ConvertToWGSL(GetWebGpuInfo(), &input, &extensions_info));
+  ABSL_ASSERT_OK(ConvertToWGSL(GetWebGpuInfo(), &input, &extensions_info));
   EXPECT_EQ(input, R"(
 MAIN_FUNCTION($0) {
   loop {
@@ -124,7 +124,7 @@ MAIN_FUNCTION($0) {
 }
 )";
   ExtensionsInfo extensions_info;
-  MLD_ASSERT_OK(ConvertToWGSL(GetWebGpuInfo(), &input, &extensions_info));
+  ABSL_ASSERT_OK(ConvertToWGSL(GetWebGpuInfo(), &input, &extensions_info));
   std::string expected = R"(
 MAIN_FUNCTION($0) {
     {i = 0;
@@ -152,7 +152,7 @@ MAIN_FUNCTION($0) {
 }
 )";
   ExtensionsInfo extensions_info;
-  MLD_ASSERT_OK(ConvertToWGSL(GetWebGpuInfo(), &input, &extensions_info));
+  ABSL_ASSERT_OK(ConvertToWGSL(GetWebGpuInfo(), &input, &extensions_info));
   EXPECT_EQ(input, R"(
 MAIN_FUNCTION($0) {
   x =  select( c,  b , a );
@@ -167,7 +167,7 @@ MAIN_FUNCTION($0) {
 }
 )";
   ExtensionsInfo extensions_info;
-  MLD_ASSERT_OK(ConvertToWGSL(GetWebGpuInfo(), &input, &extensions_info));
+  ABSL_ASSERT_OK(ConvertToWGSL(GetWebGpuInfo(), &input, &extensions_info));
   EXPECT_EQ(input, R"(
 MAIN_FUNCTION($0) {
   x=x+1;
@@ -182,7 +182,7 @@ MAIN_FUNCTION($0) {
 }
 )";
   ExtensionsInfo extensions_info;
-  MLD_ASSERT_OK(ConvertToWGSL(GetWebGpuInfo(), &input, &extensions_info));
+  ABSL_ASSERT_OK(ConvertToWGSL(GetWebGpuInfo(), &input, &extensions_info));
   EXPECT_EQ(input, R"(
 var<workgroup> cache : array<array<f32, 4>, 32>;
 MAIN_FUNCTION($0) {
@@ -202,7 +202,7 @@ MAIN_FUNCTION($0) {
 }
 )";
   ExtensionsInfo extensions_info;
-  MLD_ASSERT_OK(ConvertToWGSL(GetWebGpuInfo(), &input, &extensions_info));
+  ABSL_ASSERT_OK(ConvertToWGSL(GetWebGpuInfo(), &input, &extensions_info));
   EXPECT_EQ(input, R"(
 MAIN_FUNCTION($0) {
   /* some comment */var x : i32;
@@ -224,7 +224,7 @@ MAIN_FUNCTION($0) {
 }
 )";
   ExtensionsInfo extensions_info;
-  MLD_ASSERT_OK(ConvertToWGSL(GetWebGpuInfo(), &input, &extensions_info));
+  ABSL_ASSERT_OK(ConvertToWGSL(GetWebGpuInfo(), &input, &extensions_info));
   EXPECT_EQ(input, R"(
 MAIN_FUNCTION($0) {
   var x : i32; // some comment;
@@ -242,7 +242,7 @@ MAIN_FUNCTION($0) {
 }
 )";
   ExtensionsInfo extensions_info;
-  MLD_ASSERT_OK(ConvertToWGSL(GetWebGpuInfo(), &input, &extensions_info));
+  ABSL_ASSERT_OK(ConvertToWGSL(GetWebGpuInfo(), &input, &extensions_info));
   EXPECT_EQ(input, R"(
 MAIN_FUNCTION($0) {
   var x : f32= abs(1.0);
@@ -259,7 +259,7 @@ MAIN_FUNCTION($0) {
 }
 )";
   ExtensionsInfo extensions_info;
-  MLD_ASSERT_OK(ConvertToWGSL(GetWebGpuInfo(), &input, &extensions_info));
+  ABSL_ASSERT_OK(ConvertToWGSL(GetWebGpuInfo(), &input, &extensions_info));
   EXPECT_EQ(input, R"(
 
 MAIN_FUNCTION($0) {
@@ -277,7 +277,7 @@ MAIN_FUNCTION($0) {
 }
 )";
   ExtensionsInfo extensions_info;
-  MLD_ASSERT_OK(ConvertToWGSL(GetWebGpuInfo(), &input, &extensions_info));
+  ABSL_ASSERT_OK(ConvertToWGSL(GetWebGpuInfo(), &input, &extensions_info));
   EXPECT_EQ(input, R"(
 MAIN_FUNCTION($0) {
   var x : i32= 1;
@@ -295,7 +295,7 @@ MAIN_FUNCTION($0) {
 }
 )";
   ExtensionsInfo extensions_info;
-  MLD_ASSERT_OK(ConvertToWGSL(GetWebGpuInfo(), &input, &extensions_info));
+  ABSL_ASSERT_OK(ConvertToWGSL(GetWebGpuInfo(), &input, &extensions_info));
   EXPECT_EQ(input, R"(
 
 
@@ -315,7 +315,7 @@ MAIN_FUNCTION($0) {
 }
 )";
   ExtensionsInfo extensions_info;
-  MLD_ASSERT_OK(ConvertToWGSL(GetWebGpuInfo(), &input, &extensions_info));
+  ABSL_ASSERT_OK(ConvertToWGSL(GetWebGpuInfo(), &input, &extensions_info));
   EXPECT_EQ(input, R"(
 
 
@@ -336,7 +336,7 @@ MAIN_FUNCTION($0) {
 }
 )";
   ExtensionsInfo extensions_info;
-  MLD_ASSERT_OK(ConvertToWGSL(GetWebGpuInfo(), &input, &extensions_info));
+  ABSL_ASSERT_OK(ConvertToWGSL(GetWebGpuInfo(), &input, &extensions_info));
   EXPECT_EQ(input, R"(
 
 

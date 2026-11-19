@@ -15,10 +15,10 @@
 #ifndef ML_DRIFT_CL_COMMAND_BUFFER_H_
 #define ML_DRIFT_CL_COMMAND_BUFFER_H_
 
+#include "absl/status/status.h"
 #include "ml_drift/cl/cl_command_queue.h"
 #include "ml_drift/cl/cl_event.h"
 #include "ml_drift/cl/cl_operation.h"
-#include "ml_drift/common/status.h"
 
 namespace ml_drift {
 namespace cl {

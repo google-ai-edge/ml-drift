@@ -18,13 +18,14 @@
 #include <string>
 #include <vector>
 
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
+#include "absl/status/status.h"
 #include "ml_drift/common/model.h"
 #include "ml_drift/common/model_transformer.h"
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/tensor.h"
 
 namespace ml_drift {
@@ -40,17 +41,17 @@ TEST(MakeMeanFromGlobalAveragePooling, Smoke) {
   attr.padding.appended = HW(0, 0);
   attr.strides = HW(4, 4);
   attr.kernel = HW(4, 4);
-  attr.type = PoolingType::AVERAGE;
+  attr.type = PoolingType::kAverage;
   attr.output_indices = false;
 
   auto pool_node = graph.NewNode();
-  pool_node->operation.type = ToString(OperationType::POOLING_2D);
+  pool_node->operation.type = ToString(OperationType::kPooling2D);
   pool_node->operation.attributes = attr;
 
   graph.AddConsumer(pool_node->id, input->id);
 
   Value* output = nullptr;
-  ASSERT_TRUE(AddOutput(&graph, pool_node, &output).ok());
+  ABSL_ASSERT_OK(AddOutput(&graph, pool_node, &output));
   output->tensor.shape = BHWC(1, 1, 1, 8);
 
   ASSERT_EQ(1, graph.nodes().size());
@@ -62,7 +63,7 @@ TEST(MakeMeanFromGlobalAveragePooling, Smoke) {
 
   ASSERT_EQ(1, graph.nodes().size());
   ASSERT_EQ(2, graph.values().size());
-  ASSERT_EQ(ToString(OperationType::MEAN), graph.nodes()[0]->operation.type);
+  ASSERT_EQ(ToString(OperationType::kMean), graph.nodes()[0]->operation.type);
 }
 
 }  // namespace

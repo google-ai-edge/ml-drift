@@ -14,7 +14,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/kernels/tests/conv_transpose_thin_test_util.h"
 #include "ml_drift/common/kernels/tests/kernel_test.h"
@@ -36,7 +36,7 @@ TEST_P(ConvTransposeThinFloatTest, ConvolutionTransposedThinSimpleWeightsTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ConvolutionTransposedThinSimpleWeightsTest(*exec_env, precision(),
+  ABSL_ASSERT_OK(ConvolutionTransposedThinSimpleWeightsTest(*exec_env, precision(),
                                                        storage()));
 }
 
@@ -46,7 +46,7 @@ TEST_P(ConvTransposeThinFloatTest, ConvolutionTransposedThinTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ConvolutionTransposedThinTest(*exec_env, precision(), storage()));
+  ABSL_ASSERT_OK(ConvolutionTransposedThinTest(*exec_env, precision(), storage()));
 }
 
 TEST_P(ConvTransposeThinFloatTest, ConvolutionTransposedThinBigTest) {
@@ -55,7 +55,7 @@ TEST_P(ConvTransposeThinFloatTest, ConvolutionTransposedThinBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       ConvolutionTransposedThinBigTest(*exec_env, precision(), storage()));
 }
 
@@ -65,7 +65,7 @@ TEST_P(ConvTransposeThinFloatTest, ConvolutionTransposedThinBatchedBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ConvolutionTransposedThinBatchedBigTest(*exec_env, precision(),
+  ABSL_ASSERT_OK(ConvolutionTransposedThinBatchedBigTest(*exec_env, precision(),
                                                     storage()));
 }
 
@@ -76,7 +76,7 @@ TEST_P(ConvTransposeThinFloatTest,
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ConvolutionTransposed3x3ThinSimpleWeightsTest(
+  ABSL_ASSERT_OK(ConvolutionTransposed3x3ThinSimpleWeightsTest(
       *exec_env, precision(), storage()));
 }
 
@@ -86,7 +86,7 @@ TEST_P(ConvTransposeThinFloatTest, ConvolutionTransposed3x3ThinTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       ConvolutionTransposed3x3ThinTest(*exec_env, precision(), storage()));
 }
 
@@ -96,7 +96,7 @@ TEST_P(ConvTransposeThinFloatTest, ConvolutionTransposed3x3ThinBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       ConvolutionTransposed3x3ThinBigTest(*exec_env, precision(), storage()));
 }
 
@@ -106,7 +106,7 @@ TEST_P(ConvTransposeThinFloatTest, ConvolutionTransposed3x3ThinBatchedBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ConvolutionTransposed3x3ThinBatchedBigTest(*exec_env, precision(),
+  ABSL_ASSERT_OK(ConvolutionTransposed3x3ThinBatchedBigTest(*exec_env, precision(),
                                                        storage()));
 }
 
@@ -117,7 +117,7 @@ TEST_P(ConvTransposeThinFloatTest,
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ConvolutionTransposed3x3ThinExternalWeightsBigTest(
+  ABSL_ASSERT_OK(ConvolutionTransposed3x3ThinExternalWeightsBigTest(
       *exec_env, precision(), storage()));
 }
 

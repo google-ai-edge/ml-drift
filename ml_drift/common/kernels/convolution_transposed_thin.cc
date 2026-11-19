@@ -37,7 +37,7 @@ ConvolutionTransposedThin::ConvolutionTransposedThin(
   code_ = GenerateConvolutionTransposedCode(
       definition, precision, DivideRoundUp(attr.weights.shape.i, 4),
       attr.weights.shape.o, int2(attr.weights.shape.w, attr.weights.shape.h));
-  if (precision == CalculationsPrecision::F16 && gpu_info.IsAdreno() &&
+  if (precision == CalculationsPrecision::kF16 && gpu_info.IsAdreno() &&
       gpu_info.adreno_info.IsAdreno3xx()) {
     compiler_options_.push_back(CompilerOptions::kAdrenoFullSimd);
   }
@@ -71,18 +71,18 @@ std::string ConvolutionTransposedThin::GenerateConvolutionTransposedCode(
   std::string accum_type;
 
   switch (precision) {
-    case CalculationsPrecision::F32:
-    case CalculationsPrecision::F32_F16:
+    case CalculationsPrecision::kF32:
+    case CalculationsPrecision::kF32F16:
       accum_type = "float" + type_postfix;
       break;
-    case CalculationsPrecision::F16:
+    case CalculationsPrecision::kF16:
       accum_type = "half" + type_postfix;
       break;
   }
 
   std::string c;
   c += "MAIN_FUNCTION($0) {\n";
-  if (op_def.dst_tensors[0].HasAxis(Axis::BATCH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kBatch)) {
     c += "  int linear_id = ucl::GetGlobalId<0>();\n";
     c += "  int X = linear_id / args.dst_tensor.Batch();\n";
     c += "  int B = linear_id % args.dst_tensor.Batch();\n";
@@ -175,9 +175,9 @@ ConvolutionTransposedThin CreateConvolutionTransposedThin(
     CalculationsPrecision precision,
     const ConvolutionTransposedAttributes& attr) {
   ConvolutionTransposedThin result(definition, precision, attr, gpu_info);
-  const DataType weights_data_type = precision == CalculationsPrecision::F32
-                                         ? DataType::FLOAT32
-                                         : DataType::FLOAT16;
+  const DataType weights_data_type = precision == CalculationsPrecision::kF32
+                                         ? DataType::kFloat32
+                                         : DataType::kFloat16;
   result.UploadData(gpu_info, attr.weights, attr.bias, weights_data_type);
   return result;
 }

@@ -1,0 +1,14 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
+--only-binary=:all:
+filelock>=3.0.0
+fsspec>=2023.1.0
+jinja2>=3.0.0
+markupsafe>=2.0.0
+mpmath>=1.0.0
+networkx>=3.0
+numpy>=1.24.0,<2.3.0
+safetensors>=0.4.0
+setuptools>=60.0.0
+sympy>=1.12
+torch>=2.0.0
+typing-extensions>=4.8.0

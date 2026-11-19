@@ -38,7 +38,7 @@ std::string GetSoftmaxReducedExp(const OperationDef& op_def,
   std::string c;
   c += "MAIN_FUNCTION($0) {\n";
   std::string coords = "X, Y";
-  if (op_def.dst_tensors[0].HasAxis(Axis::BATCH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kBatch)) {
     c += "  int linear_id = ucl::GetGlobalId<0>();\n";
     c += "  int X = linear_id / args.dst_tensor.Batch();\n";
     c += "  int B = linear_id % args.dst_tensor.Batch();\n";
@@ -51,7 +51,7 @@ std::string GetSoftmaxReducedExp(const OperationDef& op_def,
          std::to_string(wg_size.x * wg_size.y) + "];\n";
   }
 
-  if (op_def.dst_tensors[0].HasAxis(Axis::DEPTH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kDepth)) {
     coords += ", Z";
     if (!use_wg_reduction) {
       c += "  if (X >= args.dst_tensor.Width() || Y >= "
@@ -70,7 +70,7 @@ std::string GetSoftmaxReducedExp(const OperationDef& op_def,
 
   std::string coords_s0 = coords + ", 0";
   std::string coords_s = coords + ", d";
-  if (op_def.dst_tensors[0].HasAxis(Axis::BATCH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kBatch)) {
     coords_s0 += ", B";
     coords_s += ", B";
   }
@@ -165,6 +165,10 @@ std::pair<int, int2> GetMinGroupsForSpatialSize(const BHWC& shape,
 }
 
 int3 GetWorkGroupSize(const GpuInfo& gpu_info, const BHWC& shape) {
+  // Mali Midgard OpenCL drivers can report CL_KERNEL_WORK_GROUP_SIZE of 64 for
+  // this kernel, so a 128-thread work group fails to launch.
+  const bool is_midgard_opencl = gpu_info.IsApiOpenCl() && gpu_info.IsMali() &&
+                                 gpu_info.mali_info.IsMidgard();
   std::vector<int> spatial_sizes = {32, 16, 8, 4};
   float wg_per_cu_threshold = 4.0f;
   if (gpu_info.IsMali()) {
@@ -176,13 +180,16 @@ int3 GetWorkGroupSize(const GpuInfo& gpu_info, const BHWC& shape) {
     float wg_per_cu =
         static_cast<float>(min_group.first) / gpu_info.GetComputeUnitsCount();
     if (wg_per_cu >= wg_per_cu_threshold) {
-      int total_wg_size = 128;
+      int total_wg_size = is_midgard_opencl ? 64 : 128;
       int3 wg_size;
       wg_size.x = min_group.second.x;
       wg_size.y = min_group.second.y;
       wg_size.z = total_wg_size / spatial_size;
       return wg_size;
     }
+  }
+  if (is_midgard_opencl) {
+    return {4, 1, 16};
   }
   return {4, 1, 32};
 }
@@ -196,7 +203,7 @@ Softmax CreateSoftmaxImpl(const OperationDef& definition,
   if (runtime_check.end_ch_index.has_value()) {
     softmax.args_.AddInt("end_ch_index", *runtime_check.end_ch_index);
     BufferDescriptor buffer_desc;
-    buffer_desc.element_type = DataType::INT32;
+    buffer_desc.element_type = DataType::kInt32;
     buffer_desc.element_size = 1;
     softmax.AddSrcBuffer("params", buffer_desc);
   }
@@ -225,12 +232,12 @@ Softmax::Softmax(const OperationDef& definition, const GpuInfo& gpu_info,
                                        work_group_size_);
 
   std::string coords = "X, Y";
-  if (definition.dst_tensors[0].HasAxis(Axis::DEPTH)) {
+  if (definition.dst_tensors[0].HasAxis(Axis::kDepth)) {
     coords += ", Z";
   }
   std::string coords_s0 = coords + ", 0";
   std::string coords_s = coords + ", d";
-  if (definition.dst_tensors[0].HasAxis(Axis::BATCH)) {
+  if (definition.dst_tensors[0].HasAxis(Axis::kBatch)) {
     coords_s0 += ", B";
     coords_s += ", B";
   }
@@ -239,7 +246,7 @@ Softmax::Softmax(const OperationDef& definition, const GpuInfo& gpu_info,
     // only reduction step, final step must be done as a separate kernel.
     if (use_wg_reduction_) {
       c += "  if (ucl::GetLocalId<2>() != 0) return;\n";
-      if (definition.dst_tensors[0].HasAxis(Axis::DEPTH)) {
+      if (definition.dst_tensors[0].HasAxis(Axis::kDepth)) {
         c += "  if (X >= args.dst_tensor.Width() || Y >= "
              "args.dst_tensor.Height() || Z >= "
              "args.dst_tensor.Depth()) "
@@ -302,9 +309,11 @@ Softmax::Softmax(const OperationDef& definition, const GpuInfo& gpu_info,
     c += "  }\n";
     c += "}\n";
   }
-  const std::string end_channel = runtime_check.end_ch_index.has_value()
-                                      ? "args.params.Read(args.end_ch_index)"
-                                      : "args.src_tensor.Channels()";
+  const std::string end_channel =
+      runtime_check.end_ch_index.has_value()
+          ? "min(args.params.Read(args.end_ch_index), "
+            "args.src_tensor.Channels())"
+          : "args.src_tensor.Channels()";
   const std::string exp_func = gpu_info.IsApiOpenCl() ? "native_exp" : "exp";
   absl::StrReplaceAll({{"EXP_FUNC", exp_func},
                        {"END_CHANNEL", end_channel},
@@ -314,6 +323,8 @@ Softmax::Softmax(const OperationDef& definition, const GpuInfo& gpu_info,
                       &c);
   code_ = c;
   tensor_to_grid_ = TensorToGrid::kWBToX_HDToY_ZIs1;
+  // Reduce: max, sub, exp, sum = 4; full softmax adds sub, exp, mul (+3 = 7).
+  flops_ = shape.DimensionsProduct() * (reduce_only ? 4 : 7);
 }
 
 std::vector<int3> Softmax::GetPossibleKernelWorkGroups(
@@ -341,20 +352,37 @@ Softmax CreateSoftmaxReduce(const OperationDef& definition,
                            runtime_check);
 }
 
-GPUOperation CreateSoftmaxFinal(const OperationDef& definition) {
+GPUOperation CreateSoftmaxFinal(const OperationDef& definition, int channels) {
   ElementwiseDescriptor op_desc;
   std::string coords = "X_COORD, Y_COORD";
-  if (definition.src_tensors[1].HasAxis(Axis::DEPTH)) {
+  if (definition.src_tensors[1].HasAxis(Axis::kDepth)) {
     coords += ", Z_COORD";
   }
   coords += ", 0";
-  if (definition.src_tensors[1].HasAxis(Axis::BATCH)) {
+  if (definition.src_tensors[1].HasAxis(Axis::kBatch)) {
     coords += ", B_COORD";
   }
   op_desc.code = "  args.src_tensor_1::type exp_val = args.src_tensor_1.Read(" +
                  coords + ");\n";
+  if (channels > 0 && channels % 4 != 0) {
+    op_desc.args.AddInt("ch_count", channels);
+    op_desc.code += R"(
+  if (S_COORD * 4 + 1 >= args.ch_count) {
+    in_value.y = exp_val.y;
+  }
+  if (S_COORD * 4 + 2 >= args.ch_count) {
+    in_value.z = exp_val.y;
+  }
+  if (S_COORD * 4 + 3 >= args.ch_count) {
+    in_value.w = exp_val.y;
+  }
+)";
+  }
   op_desc.code += "  out_value = exp(in_value - exp_val.y) * exp_val.x;\n";
-  return CreateGpuOperation(definition, std::move(op_desc));
+  GPUOperation op = CreateGpuOperation(definition, std::move(op_desc));
+  // exp(in_value - max) * inv_sum: sub, exp, mul = 3 FLOPs.
+  op.flops_ = definition.dst_tensors[0].GetBHWDCShape().DimensionsProduct() * 3;
+  return op;
 }
 
 }  // namespace ml_drift

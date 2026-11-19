@@ -14,7 +14,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/kernels/tests/kernel_test.h"
 #include "ml_drift/common/kernels/tests/max_unpooling_test_util.h"
@@ -34,7 +34,7 @@ TEST_P(MaxUnpoolingFloatTest, MaxUnpoolingTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(MaxUnpoolingTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(MaxUnpoolingTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(MaxUnpoolingFloatTest, MaxUnpoolingBigTest) {
@@ -42,7 +42,7 @@ TEST_P(MaxUnpoolingFloatTest, MaxUnpoolingBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(MaxUnpoolingBigTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(MaxUnpoolingBigTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(MaxUnpoolingFloatTest, MaxUnpoolingBatchedBigTest) {
@@ -50,7 +50,7 @@ TEST_P(MaxUnpoolingFloatTest, MaxUnpoolingBatchedBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(MaxUnpoolingBatchedBigTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(MaxUnpoolingBatchedBigTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(MaxUnpoolingFloatTest, MaxUnpooling3DBigTest) {
@@ -58,7 +58,7 @@ TEST_P(MaxUnpoolingFloatTest, MaxUnpooling3DBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(MaxUnpooling3DBigTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(MaxUnpooling3DBigTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(MaxUnpoolingFloatTest, MaxUnpooling3DBatchedBigTest) {
@@ -66,7 +66,7 @@ TEST_P(MaxUnpoolingFloatTest, MaxUnpooling3DBatchedBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(MaxUnpooling3DBatchedBigTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(MaxUnpooling3DBatchedBigTest(*exec_env, data_type(), storage()));
 }
 
 INSTANTIATE_TEST_SUITE_P(

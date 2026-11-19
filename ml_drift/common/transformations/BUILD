@@ -13,7 +13,6 @@
 # limitations under the License.
 
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
-load("//ml_drift/common:build_config.bzl", "mld_platform_alias")
 
 package(
     default_visibility = ["//visibility:public"],
@@ -28,8 +27,8 @@ cc_library(
         "//ml_drift/common:model",
         "//ml_drift/common:model_transformer",
         "//ml_drift/common:operations",
-        "//ml_drift/common:status",
         "//ml_drift/common:tensor",
+        "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
     ],
 )
@@ -45,9 +44,9 @@ cc_test(
         "//ml_drift/common:model_transformer",
         "//ml_drift/common:operations",
         "//ml_drift/common:shape",
-        "//ml_drift/common:status",
         "//ml_drift/common:tensor",
-        "//ml_drift/common/default:status_matchers",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_matchers",
         "@com_google_absl//absl/types:optional",
         "@com_google_googletest//:gtest_main",
     ],
@@ -63,8 +62,8 @@ cc_library(
         "//ml_drift/common:model_transformer",
         "//ml_drift/common:operations",
         "//ml_drift/common:shape",
-        "//ml_drift/common:status",
         "//ml_drift/common:tensor",
+        "@com_google_absl//absl/status",
     ],
 )
 
@@ -79,9 +78,9 @@ cc_test(
         "//ml_drift/common:model_transformer",
         "//ml_drift/common:operations",
         "//ml_drift/common:shape",
-        "//ml_drift/common:status",
         "//ml_drift/common:tensor",
-        "//ml_drift/common/default:status_matchers",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_matchers",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -96,8 +95,8 @@ cc_library(
         "//ml_drift/common:model_transformer",
         "//ml_drift/common:operations",
         "//ml_drift/common:shape",
-        "//ml_drift/common:status",
         "//ml_drift/common:tensor",
+        "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
     ],
 )
@@ -113,9 +112,9 @@ cc_test(
         "//ml_drift/common:model_transformer",
         "//ml_drift/common:operations",
         "//ml_drift/common:shape",
-        "//ml_drift/common:status",
         "//ml_drift/common:tensor",
-        "//ml_drift/common/default:status_matchers",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_matchers",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -143,9 +142,9 @@ cc_test(
         "//ml_drift/common:model_transformer",
         "//ml_drift/common:operations",
         "//ml_drift/common:shape",
-        "//ml_drift/common:status",
         "//ml_drift/common:tensor",
-        "//ml_drift/common/default:status_matchers",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_matchers",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -155,7 +154,6 @@ cc_library(
     srcs = ["make_fully_connected.cc"],
     hdrs = ["make_fully_connected.h"],
     deps = [
-        "//ml_drift/common:data_type",
         "//ml_drift/common:model",
         "//ml_drift/common:model_transformer",
         "//ml_drift/common:operations",
@@ -175,9 +173,9 @@ cc_test(
         "//ml_drift/common:model_transformer",
         "//ml_drift/common:operations",
         "//ml_drift/common:shape",
-        "//ml_drift/common:status",
         "//ml_drift/common:tensor",
-        "//ml_drift/common/default:status_matchers",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_matchers",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -191,8 +189,8 @@ cc_library(
         "//ml_drift/common:model_transformer",
         "//ml_drift/common:operations",
         "//ml_drift/common:shape",
-        "//ml_drift/common:status",
         "//ml_drift/common:tensor",
+        "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
     ],
 )
@@ -207,9 +205,9 @@ cc_test(
         "//ml_drift/common:model_transformer",
         "//ml_drift/common:operations",
         "//ml_drift/common:shape",
-        "//ml_drift/common:status",
         "//ml_drift/common:tensor",
-        "//ml_drift/common/default:status_matchers",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_matchers",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -230,8 +228,8 @@ cc_library(
         "//ml_drift/common:model_transformer",
         "//ml_drift/common:operations",
         "//ml_drift/common:shape",
-        "//ml_drift/common:status",
         "//ml_drift/common:tensor",
+        "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
     ],
 )
@@ -247,9 +245,9 @@ cc_test(
         "//ml_drift/common:model_transformer",
         "//ml_drift/common:operations",
         "//ml_drift/common:shape",
-        "//ml_drift/common:status",
         "//ml_drift/common:tensor",
-        "//ml_drift/common/default:status_matchers",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_matchers",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -269,8 +267,8 @@ cc_library(
         ":remove_noop",
         "//ml_drift/common:model",
         "//ml_drift/common:model_transformer",
-        "//ml_drift/common:status",
-    ] + mld_platform_alias("custom_transformations", "//ml_drift/common/"),
+        "@com_google_absl//absl/status",
+    ],
 )
 
 cc_library(
@@ -283,8 +281,8 @@ cc_library(
         "//ml_drift/common:model_transformer",
         "//ml_drift/common:operations",
         "//ml_drift/common:shape",
-        "//ml_drift/common:status",
         "//ml_drift/common:tensor",
+        "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
     ],
 )
@@ -300,9 +298,9 @@ cc_test(
         "//ml_drift/common:model_transformer",
         "//ml_drift/common:operations",
         "//ml_drift/common:shape",
-        "//ml_drift/common:status",
         "//ml_drift/common:tensor",
-        "//ml_drift/common/default:status_matchers",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_matchers",
         "@com_google_googletest//:gtest_main",
     ],
 )

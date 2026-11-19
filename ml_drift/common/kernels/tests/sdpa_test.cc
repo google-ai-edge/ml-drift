@@ -19,7 +19,9 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
+#include "absl/status/status_macros.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/str_replace.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_model.h"
@@ -30,7 +32,6 @@
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/precision.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/task/testing_util.h"
 #include "ml_drift/common/tensor.h"
@@ -52,7 +53,7 @@ absl::StatusOr<TensorFloat32> RunModel(
     TensorStorageType storage_type, TestExecutionEnvironment& exec_env) {
   TensorFloat32 inference_result;
   CreateGpuModelInfo create_info;
-  create_info.precision = ml_drift::CalculationsPrecision::F32;
+  create_info.precision = ml_drift::CalculationsPrecision::kF32;
   create_info.storage_type = storage_type;
   create_info.hints.Add(ModelHints::kAllowSpecialKernels);
   create_info.hints.Add(ml_drift::ModelHints::kFastTuning);
@@ -78,7 +79,7 @@ TEST_P(SdpaTest, SdpaWithoutMask) {
   GraphFloat32 model;
   Node* sdpa = model.NewNode();
   sdpa->operation.type =
-      ToString(ml_drift::OperationType::SCALED_DOT_PRODUCT_ATTENTION);
+      ToString(ml_drift::OperationType::kScaledDotProductAttention);
   ScaledDotProductAttentionAttributes attr;
   attr.scale = 1;
   sdpa->operation.attributes = std::move(attr);
@@ -88,22 +89,22 @@ TEST_P(SdpaTest, SdpaWithoutMask) {
   Value* output = model.NewValue();
 
   TensorRef<BHWC> query_ref;
-  query_ref.type = DataType::FLOAT32;
+  query_ref.type = DataType::kFloat32;
   query_ref.ref = 0;
   query_ref.shape = BHWC(1, 4, 1, 4);
 
   TensorRef<BHWC> key_ref;
-  key_ref.type = DataType::FLOAT32;
+  key_ref.type = DataType::kFloat32;
   key_ref.ref = 1;
   key_ref.shape = BHWC(1, 4, 1, 4);
 
   TensorRef<BHWC> value_ref;
-  value_ref.type = DataType::FLOAT32;
+  value_ref.type = DataType::kFloat32;
   value_ref.ref = 2;
   value_ref.shape = BHWC(1, 4, 1, 4);
 
   TensorRef<BHWC> output_ref;
-  output_ref.type = DataType::FLOAT32;
+  output_ref.type = DataType::kFloat32;
   output_ref.ref = 3;
   output_ref.shape = BHWC(1, 4, 1, 4);
 
@@ -139,10 +140,11 @@ TEST_P(SdpaTest, SdpaWithoutMask) {
   }
 
   TensorFloat32 inference_result;
-  MLD_ASSERT_OK_AND_ASSIGN(
-      inference_result,
+  auto inference_result_or =
       RunModel(model, input_tensor_q, input_tensor_k, input_tensor_v,
-               /*input_tensor_mask=*/{}, GetParam(), *exec_env));
+               /*input_tensor_mask=*/{}, GetParam(), *exec_env);
+  ABSL_ASSERT_OK(inference_result_or);
+  inference_result = std::move(inference_result_or.value());
 
   TensorFloat32 expected;
   expected.shape = ml_drift::BHWC(1, 4, 1, 4);
@@ -160,7 +162,7 @@ TEST_P(SdpaTest, SdpaWithMaskNoScale) {
   GraphFloat32 model;
   Node* sdpa = model.NewNode();
   sdpa->operation.type =
-      ToString(ml_drift::OperationType::SCALED_DOT_PRODUCT_ATTENTION);
+      ToString(ml_drift::OperationType::kScaledDotProductAttention);
   ScaledDotProductAttentionAttributes attr;
   sdpa->operation.attributes = std::move(attr);
   Value* query = model.NewValue();
@@ -170,27 +172,27 @@ TEST_P(SdpaTest, SdpaWithMaskNoScale) {
   Value* output = model.NewValue();
 
   TensorRef<BHWC> query_ref;
-  query_ref.type = DataType::FLOAT32;
+  query_ref.type = DataType::kFloat32;
   query_ref.ref = 0;
   query_ref.shape = BHWC(1, 4, 1, 4);
 
   TensorRef<BHWC> key_ref;
-  key_ref.type = DataType::FLOAT32;
+  key_ref.type = DataType::kFloat32;
   key_ref.ref = 1;
   key_ref.shape = BHWC(1, 4, 1, 4);
 
   TensorRef<BHWC> value_ref;
-  value_ref.type = DataType::FLOAT32;
+  value_ref.type = DataType::kFloat32;
   value_ref.ref = 2;
   value_ref.shape = BHWC(1, 4, 1, 4);
 
   TensorRef<BHWC> mask_ref;
-  mask_ref.type = DataType::FLOAT32;
+  mask_ref.type = DataType::kFloat32;
   mask_ref.ref = 3;
   mask_ref.shape = BHWC(1, 1, 1, 4);
 
   TensorRef<BHWC> output_ref;
-  output_ref.type = DataType::FLOAT32;
+  output_ref.type = DataType::kFloat32;
   output_ref.ref = 4;
   output_ref.shape = BHWC(1, 4, 1, 4);
 
@@ -235,10 +237,11 @@ TEST_P(SdpaTest, SdpaWithMaskNoScale) {
   }
 
   TensorFloat32 inference_result;
-  MLD_ASSERT_OK_AND_ASSIGN(
-      inference_result,
+  auto inference_result_or =
       RunModel(model, input_tensor_q, input_tensor_k, input_tensor_v,
-               input_tensor_mask, GetParam(), *exec_env));
+               input_tensor_mask, GetParam(), *exec_env);
+  ABSL_ASSERT_OK(inference_result_or);
+  inference_result = std::move(inference_result_or.value());
 
   TensorFloat32 expected;
   expected.shape = ml_drift::BHWC(1, 4, 1, 4);
@@ -256,7 +259,7 @@ TEST_P(SdpaTest, SdpaWithMaskZeroScale) {
   GraphFloat32 model;
   Node* sdpa = model.NewNode();
   sdpa->operation.type =
-      ToString(ml_drift::OperationType::SCALED_DOT_PRODUCT_ATTENTION);
+      ToString(ml_drift::OperationType::kScaledDotProductAttention);
   ScaledDotProductAttentionAttributes attr;
   attr.scale = 0;
   sdpa->operation.attributes = std::move(attr);
@@ -267,27 +270,27 @@ TEST_P(SdpaTest, SdpaWithMaskZeroScale) {
   Value* output = model.NewValue();
 
   TensorRef<BHWC> query_ref;
-  query_ref.type = DataType::FLOAT32;
+  query_ref.type = DataType::kFloat32;
   query_ref.ref = 0;
   query_ref.shape = BHWC(1, 4, 1, 4);
 
   TensorRef<BHWC> key_ref;
-  key_ref.type = DataType::FLOAT32;
+  key_ref.type = DataType::kFloat32;
   key_ref.ref = 1;
   key_ref.shape = BHWC(1, 4, 1, 4);
 
   TensorRef<BHWC> value_ref;
-  value_ref.type = DataType::FLOAT32;
+  value_ref.type = DataType::kFloat32;
   value_ref.ref = 2;
   value_ref.shape = BHWC(1, 4, 1, 4);
 
   TensorRef<BHWC> mask_ref;
-  mask_ref.type = DataType::FLOAT32;
+  mask_ref.type = DataType::kFloat32;
   mask_ref.ref = 3;
   mask_ref.shape = BHWC(1, 1, 1, 4);
 
   TensorRef<BHWC> output_ref;
-  output_ref.type = DataType::FLOAT32;
+  output_ref.type = DataType::kFloat32;
   output_ref.ref = 4;
   output_ref.shape = BHWC(1, 4, 1, 4);
 
@@ -332,10 +335,11 @@ TEST_P(SdpaTest, SdpaWithMaskZeroScale) {
   }
 
   TensorFloat32 inference_result;
-  MLD_ASSERT_OK_AND_ASSIGN(
-      inference_result,
+  auto inference_result_or =
       RunModel(model, input_tensor_q, input_tensor_k, input_tensor_v,
-               input_tensor_mask, GetParam(), *exec_env));
+               input_tensor_mask, GetParam(), *exec_env);
+  ABSL_ASSERT_OK(inference_result_or);
+  inference_result = std::move(inference_result_or.value());
 
   TensorFloat32 expected;
   expected.shape = ml_drift::BHWC(1, 4, 1, 4);
@@ -353,7 +357,7 @@ TEST_P(SdpaTest, SdpaWithMaskNegativeScale) {
   GraphFloat32 model;
   Node* sdpa = model.NewNode();
   sdpa->operation.type =
-      ToString(ml_drift::OperationType::SCALED_DOT_PRODUCT_ATTENTION);
+      ToString(ml_drift::OperationType::kScaledDotProductAttention);
   ScaledDotProductAttentionAttributes attr;
   attr.scale = -5;
   sdpa->operation.attributes = std::move(attr);
@@ -364,27 +368,27 @@ TEST_P(SdpaTest, SdpaWithMaskNegativeScale) {
   Value* output = model.NewValue();
 
   TensorRef<BHWC> query_ref;
-  query_ref.type = DataType::FLOAT32;
+  query_ref.type = DataType::kFloat32;
   query_ref.ref = 0;
   query_ref.shape = BHWC(1, 4, 1, 4);
 
   TensorRef<BHWC> key_ref;
-  key_ref.type = DataType::FLOAT32;
+  key_ref.type = DataType::kFloat32;
   key_ref.ref = 1;
   key_ref.shape = BHWC(1, 4, 1, 4);
 
   TensorRef<BHWC> value_ref;
-  value_ref.type = DataType::FLOAT32;
+  value_ref.type = DataType::kFloat32;
   value_ref.ref = 2;
   value_ref.shape = BHWC(1, 4, 1, 4);
 
   TensorRef<BHWC> mask_ref;
-  mask_ref.type = DataType::FLOAT32;
+  mask_ref.type = DataType::kFloat32;
   mask_ref.ref = 3;
   mask_ref.shape = BHWC(1, 1, 1, 4);
 
   TensorRef<BHWC> output_ref;
-  output_ref.type = DataType::FLOAT32;
+  output_ref.type = DataType::kFloat32;
   output_ref.ref = 4;
   output_ref.shape = BHWC(1, 4, 1, 4);
 
@@ -429,10 +433,11 @@ TEST_P(SdpaTest, SdpaWithMaskNegativeScale) {
   }
 
   TensorFloat32 inference_result;
-  MLD_ASSERT_OK_AND_ASSIGN(
-      inference_result,
+  auto inference_result_or =
       RunModel(model, input_tensor_q, input_tensor_k, input_tensor_v,
-               input_tensor_mask, GetParam(), *exec_env));
+               input_tensor_mask, GetParam(), *exec_env);
+  ABSL_ASSERT_OK(inference_result_or);
+  inference_result = std::move(inference_result_or.value());
 
   TensorFloat32 expected;
   expected.shape = ml_drift::BHWC(1, 4, 1, 4);

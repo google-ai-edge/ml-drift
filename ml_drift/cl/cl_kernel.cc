@@ -18,11 +18,12 @@
 #include <string>
 #include <utility>
 
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
 #include "absl/strings/str_cat.h"
 #include "ml_drift/cl/cl_program.h"
 #include "ml_drift/cl/opencl_wrapper.h"
 #include "ml_drift/cl/util.h"
-#include "ml_drift/common/status.h"
 #include <CL/cl.h>
 #include <CL/cl_platform.h>
 

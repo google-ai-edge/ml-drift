@@ -20,7 +20,7 @@
 namespace ml_drift {
 namespace metal {
 
-// TODO(cl/432271593): Remove this alias once all users are migrated to
+// TODO: Remove this alias once all users are migrated to
 // Environment.
 using MetalDevice = ml_drift::metal::Environment;
 

@@ -15,7 +15,7 @@
 #ifndef ML_DRIFT_COMMON_KERNELS_TESTS_SPACE_TO_DEPTH_TEST_UTIL_H_
 #define ML_DRIFT_COMMON_KERNELS_TESTS_SPACE_TO_DEPTH_TEST_UTIL_H_
 
-#include "ml_drift/common/status.h"
+#include "absl/status/status.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/task/testing_util.h"
 
@@ -33,6 +33,12 @@ absl::Status SpaceToDepthTensorShape1x2x2x3BlockSize2Test(
 absl::Status SpaceToDepthTensorShape1x4x4x1BlockSize2Test(
     TestExecutionEnvironment& env, DataType data_type,
     TensorStorageType storage);
+absl::Status SpaceToDepthTensorShape2x2x2x1BlockSize2Test(
+    TestExecutionEnvironment& env, DataType data_type,
+    TensorStorageType storage);
+absl::Status SpaceToDepthTensorShape2x2x4x1BlockSize2Test(
+    TestExecutionEnvironment& env, DataType data_type,
+    TensorStorageType storage);
 
 absl::Status DepthToSpaceFrom1x1x1x4To1x2x2x1Test(TestExecutionEnvironment& env,
                                                   DataType data_type,
@@ -41,6 +47,12 @@ absl::Status DepthToSpaceFrom1x1x1x16To1x2x2x4Test(
     TestExecutionEnvironment& env, DataType data_type,
     TensorStorageType storage);
 absl::Status DepthToSpaceFrom1x2x2x16To1x4x4x4Test(
+    TestExecutionEnvironment& env, DataType data_type,
+    TensorStorageType storage);
+absl::Status DepthToSpaceFrom2x1x1x4To2x2x2x1Test(TestExecutionEnvironment& env,
+                                                  DataType data_type,
+                                                  TensorStorageType storage);
+absl::Status DepthToSpaceFrom2x1x1x16To2x2x2x4Test(
     TestExecutionEnvironment& env, DataType data_type,
     TensorStorageType storage);
 

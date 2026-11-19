@@ -15,9 +15,9 @@
 #ifndef ML_DRIFT_COMMON_KERNELS_TESTS_CONV_GENERIC_TEST_UTIL_H_
 #define ML_DRIFT_COMMON_KERNELS_TESTS_CONV_GENERIC_TEST_UTIL_H_
 
+#include "absl/status/status.h"
 #include "ml_drift/common/precision.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/task/testing_util.h"
 
@@ -123,10 +123,6 @@ absl::Status ConvGenericInt8ExternalWeightsBigTest(
     TensorStorageType dst_storage);
 // Big test vs ref implementation.
 absl::Status ConvGenericInt8WithSrcQuantizationBigTest(
-    TestExecutionEnvironment& env, TensorStorageType quantized_storage,
-    TensorStorageType float_storage);
-// Big test vs ref implementation. Converts weights to int8 before using conv.
-absl::Status ConvGenericInt8WeightsInt4WithSrcQuantizationBigTest(
     TestExecutionEnvironment& env, TensorStorageType quantized_storage,
     TensorStorageType float_storage);
 

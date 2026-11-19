@@ -20,4 +20,7 @@ def mld_platform_alias(name, platform_dir):
     return [platform_dir + "default:" + name]
 
 def mld_gpu_tests_tags():
-    return ["requires-gpu-nvidia"]
+    return ["requires-gpu-sm90"]
+
+def mld_gpu_full_tests_tags():
+    return ["requires-gpu-sm90-full"]

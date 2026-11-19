@@ -17,6 +17,7 @@
 #include <set>
 
 #include "absl/container/flat_hash_set.h"
+#include "absl/status/status.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/gpu_model_builder.h"
 #include "ml_drift/common/ir_model.h"
@@ -30,7 +31,6 @@
 #include "ml_drift/common/kernels/special/thin_pointwise_fuser.h"
 #include "ml_drift/common/model.h"
 #include "ml_drift/common/model_hints.h"
-#include "ml_drift/common/status.h"
 
 namespace ml_drift {
 absl::Status GPUSubgraphFromGraph(

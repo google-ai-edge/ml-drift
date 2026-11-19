@@ -15,8 +15,8 @@
 #ifndef ML_DRIFT_WEBGPU_CONVERTER_H_
 #define ML_DRIFT_WEBGPU_CONVERTER_H_
 
+#include "absl/status/status.h"
 #include "ml_drift/common/data_type.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/buffer_desc.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/webgpu/buffer.h"

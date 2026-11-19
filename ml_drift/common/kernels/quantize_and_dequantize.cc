@@ -14,6 +14,7 @@
 
 #include "ml_drift/common/kernels/quantize_and_dequantize.h"
 
+#include <cmath>
 #include <memory>
 #include <string>
 #include <utility>
@@ -42,7 +43,7 @@ GPUOperation CreateQuantizeAndOrDequantize(
     bool is_quantize_only) {
   QuantizeAndDequantizeAttributes adjusted_attr = attr;
   const DataType src_type = definition.src_tensors[0].GetDataType();
-  const bool is_fp16 = src_type == DataType::FLOAT16;
+  const bool is_fp16 = src_type == DataType::kFloat16;
   if (is_fp16 && attr.scale < 0.000062f) {
     // The smallest positive normal number for Half-precision floating-point
     // format is 2^-14 ~ 0.000062f. Therefore, if the scale is lesser than this
@@ -57,29 +58,65 @@ GPUOperation CreateQuantizeAndOrDequantize(
   const std::string in_out_type = ToUclDataType(src_type, 4);
   std::string op_code;
   if (adjusted_attr.scale == 0.0f) {
-    op_code = R"(
-$0 clamped_value = min(ucl::Init<$0>(args.max), max(ucl::Init<$0>(args.min), in_value));
-$0 quantized_value = round((clamped_value - ucl::Init<$0>(args.min)) / ucl::Init<$0>(args.scale));)";
+    // scale == 0 means min == max, so every input maps to code 0, which
+    // dequantizes to min. Emit those constants rather than dividing by scale,
+    // which would produce NaN.
+    if (is_quantize_only) {
+      op_code = R"(
+out_value = ucl::Init<$0>(0.0f);)";
+    } else {
+      op_code = R"(
+out_value = ucl::Init<$0>(args.min);)";
+    }
   } else {
-    op_desc.args.AddFloat("inverse_scale", 1.0f / adjusted_attr.scale,
+    // Quantize around the zero point zp = -min / scale rather than computing
+    // (x - min) / scale directly: the latter lands in [0, 2^bits - 1], where
+    // F16 can only resolve 0.125-0.25, so ~5% of codes would round differently
+    // than in F32. zp is split on the host into an integer part (added back
+    // exactly at the end) and a fractional part in [-0.5, 0.5], so the
+    // rounded value stays around [-2^(bits-1), 2^(bits-1)] with F16 spacing
+    // <= 0.0625. Rounding uses floor(t + 0.5) (round half up) because t can be
+    // negative, and round() would round negative ties away from zero, unlike
+    // the direct form whose argument is never negative.
+    const float inverse_scale = 1.0f / adjusted_attr.scale;
+    const float zero_point = -adjusted_attr.min * inverse_scale;
+    const float zero_point_int = std::round(zero_point);
+    const float zero_point_frac = zero_point - zero_point_int;
+    op_desc.args.AddFloat("inverse_scale", inverse_scale, src_type);
+    op_desc.args.AddFloat("zero_point_frac_plus_half", zero_point_frac + 0.5f,
                           src_type);
+    op_desc.args.AddFloat(
+        "q_min",
+        std::floor(adjusted_attr.min * inverse_scale + zero_point_frac + 0.5f),
+        src_type);
+    op_desc.args.AddFloat(
+        "q_max",
+        std::floor(adjusted_attr.max * inverse_scale + zero_point_frac + 0.5f),
+        src_type);
     op_code = R"(
 $0 clamped_value = min(ucl::Init<$0>(args.max), max(ucl::Init<$0>(args.min), in_value));
-$0 quantized_value = round((clamped_value - ucl::Init<$0>(args.min)) * ucl::Init<$0>(args.inverse_scale));)";
-  }
-
-  op_code += "\n";
-  if (is_quantize_only) {
-    op_code += R"(
-out_value = quantized_value;)";
-  } else {
-    op_code += R"(
-$0 dequantized_value = quantized_value * ucl::Init<$0>(args.scale) + ucl::Init<$0>(args.min);
-out_value = dequantized_value;)";
+$0 centered_q = floor(clamped_value * ucl::Init<$0>(args.inverse_scale) + ucl::Init<$0>(args.zero_point_frac_plus_half));
+centered_q = min(ucl::Init<$0>(args.q_max), max(ucl::Init<$0>(args.q_min), centered_q));)";
+    op_code += '\n';
+    if (is_quantize_only) {
+      op_desc.args.AddFloat("zero_point_int", zero_point_int, src_type);
+      op_code += R"(
+out_value = centered_q + ucl::Init<$0>(args.zero_point_int);)";
+    } else {
+      // (q - zp) * scale = (centered_q - zero_point_frac) * scale.
+      op_desc.args.AddFloat("dequant_offset",
+                            -zero_point_frac * adjusted_attr.scale, src_type);
+      op_code += R"(
+out_value = centered_q * ucl::Init<$0>(args.scale) + ucl::Init<$0>(args.dequant_offset);)";
+    }
   }
   op_desc.code = absl::Substitute(op_code, in_out_type);
 
-  return CreateGpuOperation(definition, std::move(op_desc));
+  GPUOperation op = CreateGpuOperation(definition, std::move(op_desc));
+  // Quantize: min, max, sub, mul/div = 4; dequantize adds mul, add (+2 = 6).
+  op.flops_ = definition.dst_tensors[0].GetBHWDCShape().DimensionsProduct() *
+              (is_quantize_only ? 4 : 6);
+  return op;
 }
 
 GPUOperation CreateQuantizeAndDequantize(
@@ -175,7 +212,8 @@ std::string ReduceCode(const std::string& memory,
 std::string GetCode(const int3& work_group_size,
                     const TensorDescriptor& src_desc, bool slices_first,
                     const PackedType dst_type, int channels, bool calculate_sum,
-                    bool is_params_fp16) {
+                    bool is_params_fp16, bool symmetric,
+                    bool cap_symmetric_scale) {
   const int wg_reduction_size =
       slices_first ? work_group_size.x : work_group_size.z;
   const int wg_spatial_size = slices_first
@@ -189,7 +227,11 @@ std::string GetCode(const int3& work_group_size,
   std::string c;
   c += "MAIN_FUNCTION($0) {\n";
   if (work_group_reduction) {
-    c += "__local SrcType2 shared_mem[WG_REDUCTION_SIZE][WG_SPATIAL_SIZE];\n";
+    if (symmetric) {
+      c += "__local SrcType shared_mem[WG_REDUCTION_SIZE][WG_SPATIAL_SIZE];\n";
+    } else {
+      c += "__local SrcType2 shared_mem[WG_REDUCTION_SIZE][WG_SPATIAL_SIZE];\n";
+    }
   }
   if (dst_type == PackedType::kInt8W4C4 || dst_type == PackedType::kInt8C16 ||
       dst_type == PackedType::kInt4C32) {
@@ -223,7 +265,7 @@ std::string GetCode(const int3& work_group_size,
     c += "  int sub_x = linear_wb % 4;\n";
     c += "  linear_wb = linear_wb / 4;\n";
   }
-  if (src_desc.HasAxis(Axis::BATCH)) {
+  if (src_desc.HasAxis(Axis::kBatch)) {
     c += "  int X = linear_wb / args.src_tensor.Batch();\n";
     c += "  int B = linear_wb % args.src_tensor.Batch();\n";
     c += "  args.src_tensor.SetBatchRef(B);\n";
@@ -240,8 +282,12 @@ std::string GetCode(const int3& work_group_size,
     c += "  if (X >= args.src_tensor.Width()) { return; }\n";
     c += "  if (Y >= args.src_tensor.Height()) { return; }\n";
   }
-  c += "  SrcType min_value = args.src_tensor.Read(0, 0, 0).x;\n";
-  c += "  SrcType max_value = min_value;\n";
+  if (symmetric) {
+    c += "  SrcType abs_max = ucl::Init<SrcType>(0.0f);\n";
+  } else {
+    c += "  SrcType min_value = args.src_tensor.Read(0, 0, 0).x;\n";
+    c += "  SrcType max_value = min_value;\n";
+  }
   c += "  int x_clamped = min(X, args.src_tensor.Width() - 1);\n";
   c += "  int y_clamped = min(Y, args.src_tensor.Height() - 1);\n";
   if (register_cache) {
@@ -257,7 +303,26 @@ std::string GetCode(const int3& work_group_size,
          "WG_REDUCTION_SIZE) {\n";
     c += "    SrcType4 t = args.src_tensor.Read(x_clamped, y_clamped, S);\n";
   }
-  if (channels % 4 == 0) {
+  if (symmetric) {
+    c += "    SrcType4 abs_t = fabs(t);\n";
+    if (channels % 4 == 0) {
+      c += "    abs_max = max(abs_max, max(max(abs_t.x, abs_t.y), "
+           "max(abs_t.z, abs_t.w)));\n";
+    } else {
+      c += R"(
+    abs_max = max(abs_max, abs_t.x);
+    if (S * 4 + 1 < args.src_tensor.Channels()) {
+      abs_max = max(abs_max, abs_t.y);
+    }
+    if (S * 4 + 2 < args.src_tensor.Channels()) {
+      abs_max = max(abs_max, abs_t.z);
+    }
+    if (S * 4 + 3 < args.src_tensor.Channels()) {
+      abs_max = max(abs_max, abs_t.w);
+    }
+)";
+    }
+  } else if (channels % 4 == 0) {
     c += R"(
     min_value = min(min_value, t.x);
     max_value = max(max_value, t.x);
@@ -287,27 +352,52 @@ std::string GetCode(const int3& work_group_size,
 )";
   }
   c += "  }\n";
-  if (work_group_reduction) {
-    c += "  SrcType2 min_max_value = ucl::Init<SrcType2>(min_value, "
-         "max_value);\n";
-    const std::string calculate_func =
-        R"({SrcType2 temp_value = shared_mem[$0][local_id];
+  if (symmetric) {
+    if (work_group_reduction) {
+      const std::string calculate_func =
+          "abs_max = max(abs_max, shared_mem[$0][local_id]);";
+      c += ReduceCode(
+          /*memory=*/"shared_mem[$0][local_id]", /*reduction_id=*/"local_id_s",
+          /*reduce_value=*/"abs_max", calculate_func, wg_reduction_size);
+    }
+    c += R"(  float abs_max_f32 = ucl::Convert<float>(abs_max);
+  float inv_scale = 0.0f;
+  float scale = 0.0f;
+  float offset = 0.0f;
+  if (abs_max_f32 > 0.0f) {
+    inv_scale = max(args.min_scale, abs_max_f32 / args.symmetric_half_range);
+)";
+    if (cap_symmetric_scale) {
+      c += "    inv_scale = min(inv_scale, args.max_scale);\n";
+    }
+    c += "    scale = 1.0f / inv_scale;\n";
+    if (!IsSigned(dst_type)) {
+      c += "    offset = -inv_scale * args.zero_point;\n";
+    }
+    c += "  }\n";
+  } else {
+    if (work_group_reduction) {
+      c += "  SrcType2 min_max_value = ucl::Init<SrcType2>(min_value, "
+           "max_value);\n";
+      const std::string calculate_func =
+          R"({SrcType2 temp_value = shared_mem[$0][local_id];
   min_max_value.x = min(min_max_value.x, temp_value.x);
   min_max_value.y = max(min_max_value.y, temp_value.y);})";
-    c += ReduceCode(
-        /*memory=*/"shared_mem[$0][local_id]", /*reduction_id=*/"local_id_s",
-        /*reduce_value=*/"min_max_value", calculate_func, wg_reduction_size);
-    c += "  min_value = min_max_value.x;\n";
-    c += "  max_value = min_max_value.y;\n";
-  }
-  c += "  float range = ucl::Convert<float>(max_value - min_value);\n";
-  if (IsSigned(dst_type)) {
-    c += "  float offset = ucl::Convert<float>(min_value) + range / 2.0f;\n";
-  } else {
+      c += ReduceCode(
+          /*memory=*/"shared_mem[$0][local_id]", /*reduction_id=*/"local_id_s",
+          /*reduce_value=*/"min_max_value", calculate_func, wg_reduction_size);
+      c += "  min_value = min_max_value.x;\n";
+      c += "  max_value = min_max_value.y;\n";
+    }
+    c += "  float src_range = ucl::Convert<float>(max_value - min_value);\n";
     c += "  float offset = ucl::Convert<float>(min_value);\n";
+    c += "  float scale = ucl::Convert<float>(args.dst_range) / src_range;\n";
+    c += "  float inv_scale = src_range / "
+         "ucl::Convert<float>(args.dst_range);\n";
+    if (IsSigned(dst_type)) {
+      c += "  offset += src_range * args.src_range_middle;\n";
+    }
   }
-  c += "  float scale = args.scale_range / range;\n";
-  c += "  float inv_scale = range / args.scale_range;\n";
   c += "  int sum = 0;\n";
   if (dst_type == PackedType::kInt8W4C4 || dst_type == PackedType::kUint8W4C4 ||
       dst_type == PackedType::kInt8C16 || dst_type == PackedType::kUint8C16 ||
@@ -330,12 +420,25 @@ std::string GetCode(const int3& work_group_size,
            "S);\n";
     }
   }
-  c += R"(
-    src = (src - offset) * scale;
-    src = min(ucl::Init<float4>(args.high_bound), src);
-    src = max(ucl::Init<float4>(args.low_bound), src);
+  if (symmetric) {
+    c += R"(
+    src = floor(src * scale + ucl::Init<float4>(args.zero_point_plus_half));
+    src = min(ucl::Init<float4>(ucl::Convert<float>(args.dst_range)),
+              max(ucl::Init<float4>(0.0f), src));
     int4 src_quantized = ucl::Convert<int4>(src);
 )";
+  } else {
+    c += R"(
+    src = (src - ucl::Convert<float>(min_value)) * scale;
+    src += ucl::Init<float4>(0.5f);  // ro replicate round() that used on CPU
+    int4 src_quantized = ucl::Convert<int4>(src);
+    src_quantized = min(ucl::Init<int4>(args.dst_range), src_quantized);
+    src_quantized = max(ucl::Init<int4>(0), src_quantized);
+)";
+  }
+  if (IsSigned(dst_type)) {
+    c += "    src_quantized -= ucl::Init<int4>((args.dst_range + 1) / 2);\n";
+  }
   if (calculate_sum) {
     c += "    if (S < args.src_tensor.Slices()) {\n";
     if (channels % 4 == 0) {
@@ -592,7 +695,7 @@ class Quantization : public GPUOperation {
   Quantization() = default;
   explicit Quantization(const OperationDef& definition, PackedType dst_type,
                         const GpuInfo& gpu_info, const BHWC& shape,
-                        bool calculate_sum)
+                        bool calculate_sum, bool symmetric)
       : dst_type_(dst_type) {
     work_group_reduction_ = true;
     int wg_reduction_size = 1;
@@ -645,26 +748,51 @@ class Quantization : public GPUOperation {
     } else {
       work_group_size_ = int3(128, 1, 1);
     }
-    if (gpu_info.IsPowerVR()) {
+    if (gpu_info.IsPowerVR() || gpu_info.IsMali()) {
       compiler_options_.push_back(CompilerOptions::kClFastRelaxedMath);
     }
     AddSrcTensor("src_tensor", definition.src_tensors[0]);
     AddDstTensor("dst_tensor", definition.dst_tensors[0]);
     AddDstTensor("dst_params", definition.dst_tensors[1]);
     const int range = 1 << GetTypeSizeInBits(dst_type);
-    const int low_bound = IsSigned(dst_type) ? -(range / 2) : 0;
-    const int high_bound = low_bound + range - 1;
-    args_.AddFloat("scale_range", range - 1);
-    args_.AddFloat("low_bound", low_bound);
-    args_.AddFloat("high_bound", high_bound);
+    args_.AddInt("dst_range", range - 1);
     const bool is_params_fp16 =
-        definition.dst_tensors[1].GetDataType() == DataType::FLOAT16;
+        definition.dst_tensors[1].GetDataType() == DataType::kFloat16;
+    bool cap_symmetric_scale = false;
+    if (symmetric) {
+      // Clamp params to normal FP16 range if stored as FP16, or if src is FP16
+      // (downstream ops may cast params to the source type).
+      const bool scale_may_be_fp16 =
+          definition.src_tensors[0].GetDataType() == DataType::kFloat16 ||
+          is_params_fp16;
+      // Avoid FP16 subnormals (which GPUs may flush to zero) and 1 / inv_scale
+      // overflow in FP32.
+      const float min_scale = scale_may_be_fp16 ? kMinNormalHalf : 1.0e-30f;
+      args_.AddFloat("min_scale", min_scale);
+      args_.AddFloat("symmetric_half_range", static_cast<float>(range / 2 - 1));
+      if (!IsSigned(dst_type)) {
+        const float zero_point = static_cast<float>(range / 2);
+        args_.AddFloat("zero_point", zero_point);
+        if (scale_may_be_fp16) {
+          // Cap inv_scale so offset = -inv_scale * zero_point doesn't overflow
+          // FP16 when max(|x|) is near kMaxHalf.
+          args_.AddFloat("max_scale", kMaxHalf / zero_point);
+          cap_symmetric_scale = true;
+        }
+      }
+      args_.AddFloat("zero_point_plus_half",
+                     static_cast<float>(range / 2) + 0.5f);
+    } else {
+      args_.AddFloat("src_range_middle",
+                     static_cast<float>(range / 2) / (range - 1));
+    }
     if (is_params_fp16) {
       // sum is int, so type match.
       args_.AddInt("max_f16", static_cast<int>(kMaxHalf));
     }
     code_ = GetCode(work_group_size_, definition.src_tensors[0], slices_first_,
-                    dst_type, shape.c, calculate_sum, is_params_fp16);
+                    dst_type, shape.c, calculate_sum, is_params_fp16, symmetric,
+                    cap_symmetric_scale);
   }
 
   std::vector<int3> GetPossibleKernelWorkGroups(
@@ -704,9 +832,13 @@ std::unique_ptr<GPUOperation> CreateQuantization(const OperationDef& definition,
                                                  PackedType dst_type,
                                                  const GpuInfo& gpu_info,
                                                  const BHWC& shape,
-                                                 bool calculate_sum) {
-  return std::make_unique<Quantization>(
-      Quantization(definition, dst_type, gpu_info, shape, calculate_sum));
+                                                 bool calculate_sum,
+                                                 bool symmetric) {
+  auto op = std::make_unique<Quantization>(Quantization(
+      definition, dst_type, gpu_info, shape, calculate_sum, symmetric));
+  // Min/max or abs-max reduction (2) + quantize scale/zero_point/clamp (3) = 5.
+  op->flops_ = shape.DimensionsProduct() * 5;
+  return op;
 }
 
 // Wzp == 0:
@@ -743,7 +875,7 @@ GPUOperation CreateDequantization(const OHWI& weights_shape,
   std::string c;
   c += "  float4 src_params = args.params_tensor.Read<float>(X_COORD, Y_COORD, "
        "0";
-  if (src_scale_zp_sum.HasAxis(Axis::BATCH)) {
+  if (src_scale_zp_sum.HasAxis(Axis::kBatch)) {
     c += ", B_COORD";
   }
   c += ");\n";
@@ -751,7 +883,7 @@ GPUOperation CreateDequantization(const OHWI& weights_shape,
   const bool pvr_checks =
       gpu_info.IsPowerVR() &&
       gpu_info.SupportsExtension("cl_img_pixel_subgroup_dot");
-  if (src.GetDataType() == DataType::UINT32) {
+  if (src.GetDataType() == DataType::kUint32) {
     // Adjusting sum(Su * Wu) to sum(Su * Wi)
     // Uint8MathForInt8 used only with src as uint(Su)
     //   sum(Su * Wi) = sum(Su * (Wu - 128)) =
@@ -812,11 +944,11 @@ GPUOperation CreateDequantization(const OHWI& weights_shape,
   // The default case cause compilation failure in combination with complex main
   // kernel(convolution) in Adreno with driver major version lower than 45.
   if (gpu_info.IsAdreno() &&
-      weights_sum.GetStorageType() == TensorStorageType::BUFFER) {
+      weights_sum.GetStorageType() == TensorStorageType::kBuffer) {
     BufferDescriptor buffer_desc;
     buffer_desc.element_type = weights_sum.GetDataType();
     buffer_desc.element_size = 4;
-    buffer_desc.memory_type = MemoryType::CONSTANT;
+    buffer_desc.memory_type = MemoryType::kConstant;
     op.AddSrcBuffer("weights_sum", buffer_desc);
   } else {
     op.AddSrcTensor("weights_sum", weights_sum);
@@ -825,6 +957,9 @@ GPUOperation CreateDequantization(const OHWI& weights_shape,
   if (weights_zero_point) {
     op.AddSrcTensor("weights_zero_point", *weights_zero_point);
   }
+  // Scale mul + weights_sum FMA (~5 FLOPs); zero_point adds 2 FMAs (+4 = 9).
+  op.flops_ = dst.GetBHWDCShape().DimensionsProduct() *
+              (weights_zero_point != nullptr ? 9 : 5);
   return op;
 }
 

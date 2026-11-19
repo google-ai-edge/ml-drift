@@ -18,7 +18,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_replace.h"
 #include "ml_drift/common/data_type.h"
@@ -50,10 +50,10 @@ TEST_P(BaseTest, ConvWaveMatrixMaliInt8BigTest) {
   if (!SupportsConvWaveMatrixMaliInt8(exec_env->GetGpuInfo(), src_shape)) {
     GTEST_SKIP() << "ConvWaveMatrixMaliInt8 not supported on this device.";
   }
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::INT32)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kInt32)) {
     GTEST_SKIP() << "Unsupported storage: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(ConvWaveMatrixMaliInt8BigTest(*exec_env, GetParam(), src_shape));
+  ABSL_ASSERT_OK(ConvWaveMatrixMaliInt8BigTest(*exec_env, GetParam(), src_shape));
 }
 
 TEST_P(BaseTest, ConvWaveMatrixMaliInt8ExternalWeightsBigTest) {
@@ -61,10 +61,10 @@ TEST_P(BaseTest, ConvWaveMatrixMaliInt8ExternalWeightsBigTest) {
   if (!SupportsConvWaveMatrixMaliInt8(exec_env->GetGpuInfo(), src_shape)) {
     GTEST_SKIP() << "ConvWaveMatrixMaliInt8 not supported on this device.";
   }
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::INT32)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kInt32)) {
     GTEST_SKIP() << "Unsupported storage: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(ConvWaveMatrixMaliInt8ExternalWeightsBigTest(*exec_env, GetParam(),
+  ABSL_ASSERT_OK(ConvWaveMatrixMaliInt8ExternalWeightsBigTest(*exec_env, GetParam(),
                                                          src_shape));
 }
 
@@ -93,13 +93,13 @@ TEST_P(SrcQuantizationTest, ConvWaveMatrixMaliInt8WithSrcQuantizationBig) {
     GTEST_SKIP() << "ConvWaveMatrixMaliInt8 not supported on this device.";
   }
   const auto& [float_type, int_storage, float_storage] = GetParam();
-  if (!exec_env->IsStorageSupported(int_storage, DataType::INT32)) {
+  if (!exec_env->IsStorageSupported(int_storage, DataType::kInt32)) {
     GTEST_SKIP() << "Unsupported int storage: " << ToString(int_storage);
   }
   if (!exec_env->IsStorageSupported(float_storage, float_type)) {
     GTEST_SKIP() << "Unsupported float storage: " << ToString(float_storage);
   }
-  MLD_ASSERT_OK(ConvWaveMatrixMaliInt8WithSrcQuantizationBigTest(
+  ABSL_ASSERT_OK(ConvWaveMatrixMaliInt8WithSrcQuantizationBigTest(
       *exec_env, int_storage, float_storage, float_type, src_shape));
 }
 
@@ -110,19 +110,19 @@ TEST_P(SrcQuantizationTest,
     GTEST_SKIP() << "ConvWaveMatrixMaliInt8 not supported on this device.";
   }
   const auto& [float_type, int_storage, float_storage] = GetParam();
-  if (!exec_env->IsStorageSupported(int_storage, DataType::INT32)) {
+  if (!exec_env->IsStorageSupported(int_storage, DataType::kInt32)) {
     GTEST_SKIP() << "Unsupported int storage: " << ToString(int_storage);
   }
   if (!exec_env->IsStorageSupported(float_storage, float_type)) {
     GTEST_SKIP() << "Unsupported float storage: " << ToString(float_storage);
   }
-  MLD_ASSERT_OK(ConvWaveMatrixMaliInt8WithSrcQuantizationBigTest(
+  ABSL_ASSERT_OK(ConvWaveMatrixMaliInt8WithSrcQuantizationBigTest(
       *exec_env, int_storage, float_storage, float_type, src_shape));
 }
 
 INSTANTIATE_TEST_SUITE_P(
     ConvWaveMatrixMaliSrcQuantizationTestSuite, SrcQuantizationTest,
-    Combine(ValuesIn({DataType::FLOAT16, DataType::FLOAT32}),
+    Combine(ValuesIn({DataType::kFloat16, DataType::kFloat32}),
             ValuesIn(GetTensorStoragesTypesWithoutSingleTexture2D()),
             ValuesIn(GetTensorStoragesTypesWithoutSingleTexture2D())),
     [](const TestParamInfo<SrcQuantizationTest::ParamType>& info) {

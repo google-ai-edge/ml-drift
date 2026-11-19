@@ -18,9 +18,9 @@
 namespace ml_drift {
 
 enum class AccessType {
-  READ,
-  WRITE,
-  READ_WRITE,
+  kRead,
+  kWrite,
+  kReadWrite,
 };
 
 }  // namespace ml_drift

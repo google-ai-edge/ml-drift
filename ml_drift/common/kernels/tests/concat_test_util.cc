@@ -20,13 +20,14 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/kernels/concat_xy.h"
 #include "ml_drift/common/kernels/concat_z.h"
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/gpu_operation.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/task/testing_ref_ops.h"
@@ -129,13 +130,13 @@ absl::Status ConcatChannelsBoolTest(TestExecutionEnvironment& env,
   src2.data = {true, true, false, false, true, true};
 
   ConcatAttributes attr;
-  attr.axis = Axis::CHANNELS;
+  attr.axis = Axis::kChannels;
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::BOOL, storage, Layout::HWC});
-  op_def.src_tensors.push_back({DataType::BOOL, storage, Layout::HWC});
-  op_def.src_tensors.push_back({DataType::BOOL, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({DataType::BOOL, storage, Layout::HWC});
+  op_def.src_tensors.push_back({DataType::kBool, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({DataType::kBool, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({DataType::kBool, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({DataType::kBool, storage, Layout::kHWC});
 
   TensorDescriptor src_0, src_1, src_2, dst;
   src_0 = op_def.src_tensors[0];
@@ -168,12 +169,12 @@ absl::Status ConcatIntTest(TestExecutionEnvironment& env,
   src1.data = {4, 5, 6, 7, 8, 9, 10, 11};
 
   ConcatAttributes attr;
-  attr.axis = Axis::WIDTH;
+  attr.axis = Axis::kWidth;
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorDescriptor src_0, src_1, dst;
   src_0 = op_def.src_tensors[0];
   src_1 = op_def.src_tensors[1];
@@ -193,17 +194,17 @@ absl::Status ConcatIntTest(TestExecutionEnvironment& env,
   return absl::OkStatus();
 }
 
-template absl::Status ConcatIntTest<DataType::INT8>(
+template absl::Status ConcatIntTest<DataType::kInt8>(
     TestExecutionEnvironment& env, TensorStorageType storage);
-template absl::Status ConcatIntTest<DataType::INT16>(
+template absl::Status ConcatIntTest<DataType::kInt16>(
     TestExecutionEnvironment& env, TensorStorageType storage);
-template absl::Status ConcatIntTest<DataType::INT32>(
+template absl::Status ConcatIntTest<DataType::kInt32>(
     TestExecutionEnvironment& env, TensorStorageType storage);
-template absl::Status ConcatIntTest<DataType::UINT8>(
+template absl::Status ConcatIntTest<DataType::kUint8>(
     TestExecutionEnvironment& env, TensorStorageType storage);
-template absl::Status ConcatIntTest<DataType::UINT16>(
+template absl::Status ConcatIntTest<DataType::kUint16>(
     TestExecutionEnvironment& env, TensorStorageType storage);
-template absl::Status ConcatIntTest<DataType::UINT32>(
+template absl::Status ConcatIntTest<DataType::kUint32>(
     TestExecutionEnvironment& env, TensorStorageType storage);
 
 absl::Status ConcatWidthTest(TestExecutionEnvironment& env, DataType data_type,
@@ -215,18 +216,18 @@ absl::Status ConcatWidthTest(TestExecutionEnvironment& env, DataType data_type,
   src1.data = {1.0f, -1.2f, -0.45f, 1.045f, 1.1f, -1.3f, -0.55f, 2.045f};
 
   ConcatAttributes attr;
-  attr.axis = Axis::WIDTH;
+  attr.axis = Axis::kWidth;
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateConcatXY(op_def, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src0, src1}, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 3, 2), &dst_tensor));
-  const float eps = data_type == DataType::FLOAT32 ? 0.0f : 1e-3f;
+  const float eps = data_type == DataType::kFloat32 ? 0.0f : 1e-3f;
   EXPECT_THAT(
       dst_tensor.data,
       Pointwise(FloatNear(eps), {0.0f, -1.0f, 1.0f, -1.2f, -0.45f, 1.045f,
@@ -243,18 +244,18 @@ absl::Status ConcatHeightTest(TestExecutionEnvironment& env, DataType data_type,
   src1.data = {1.0, -1.2};
 
   ConcatAttributes attr;
-  attr.axis = Axis::HEIGHT;
+  attr.axis = Axis::kHeight;
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateConcatXY(op_def, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src0, src1}, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 3, 1, 2), &dst_tensor));
-  const float eps = data_type == DataType::FLOAT32 ? 0.0f : 1e-3f;
+  const float eps = data_type == DataType::kFloat32 ? 0.0f : 1e-3f;
   EXPECT_THAT(dst_tensor.data,
               Pointwise(FloatNear(eps), {0.0, -1.0, -0.05, 0.045, 1.0, -1.2}));
   return absl::OkStatus();
@@ -271,19 +272,19 @@ absl::Status ConcatChannelsTest(TestExecutionEnvironment& env,
   src2.data = {5.0, 6.0, 7.0, 8.0, 9.0, 10.0};
 
   ConcatAttributes attr;
-  attr.axis = Axis::CHANNELS;
+  attr.axis = Axis::kChannels;
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateConcatZ(op_def, {1, 2, 3}, env.GetGpuInfo());
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src0, src1, src2}, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 1, 6), &dst_tensor));
-  const float eps = data_type == DataType::FLOAT32 ? 0.0f : 1e-3f;
+  const float eps = data_type == DataType::kFloat32 ? 0.0f : 1e-3f;
   EXPECT_THAT(dst_tensor.data,
               Pointwise(FloatNear(eps), {0.0, 1.0, 2.0, 5.0, 6.0, 7.0, -1.0,
                                          3.0, 4.0, 8.0, 9.0, 10.0}));
@@ -300,18 +301,18 @@ absl::Status ConcatChannelsAlignedx4Test(TestExecutionEnvironment& env,
   src1.data = {5.0, 6.0, 7.0, 8.0, -5.0, -6.0, -7.0, -8.0};
 
   ConcatAttributes attr;
-  attr.axis = Axis::CHANNELS;
+  attr.axis = Axis::kChannels;
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateConcatZ(op_def, {4, 4}, env.GetGpuInfo());
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       {src0, src1}, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 2, 1, 8), &dst_tensor));
-  const float eps = data_type == DataType::FLOAT32 ? 0.0f : 1e-3f;
+  const float eps = data_type == DataType::kFloat32 ? 0.0f : 1e-3f;
   EXPECT_THAT(
       dst_tensor.data,
       Pointwise(FloatNear(eps), {-1.0, -2.0, -3.0, -4.0, 5.0, 6.0, 7.0, 8.0,
@@ -332,13 +333,13 @@ absl::Status ConcatWidthBigTest(TestExecutionEnvironment& env,
   }
 
   ConcatAttributes attr;
-  attr.axis = Axis::WIDTH;
+  attr.axis = Axis::kWidth;
 
   OperationDef op_def;
   for (int i = 0; i < src_tensors.size(); ++i) {
-    op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
+    op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
   }
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   return ConcatTest(env, attr, src_tensors, op_def);
 }
 
@@ -357,13 +358,13 @@ absl::Status ConcatWidthBatchedBigTest(TestExecutionEnvironment& env,
   }
 
   ConcatAttributes attr;
-  attr.axis = Axis::WIDTH;
+  attr.axis = Axis::kWidth;
 
   OperationDef op_def;
   for (int i = 0; i < src_tensors.size(); ++i) {
-    op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
+    op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
   }
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
   return ConcatTest(env, attr, src_tensors, op_def);
 }
 
@@ -381,13 +382,13 @@ absl::Status ConcatHeightBigTest(TestExecutionEnvironment& env,
   }
 
   ConcatAttributes attr;
-  attr.axis = Axis::HEIGHT;
+  attr.axis = Axis::kHeight;
 
   OperationDef op_def;
   for (int i = 0; i < src_tensors.size(); ++i) {
-    op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
+    op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
   }
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   return ConcatTest(env, attr, src_tensors, op_def);
 }
 
@@ -406,13 +407,13 @@ absl::Status ConcatHeightBatchedBigTest(TestExecutionEnvironment& env,
   }
 
   ConcatAttributes attr;
-  attr.axis = Axis::HEIGHT;
+  attr.axis = Axis::kHeight;
 
   OperationDef op_def;
   for (int i = 0; i < src_tensors.size(); ++i) {
-    op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
+    op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
   }
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
   return ConcatTest(env, attr, src_tensors, op_def);
 }
 
@@ -430,13 +431,13 @@ absl::Status ConcatBatchBigTest(TestExecutionEnvironment& env,
   }
 
   ConcatAttributes attr;
-  attr.axis = Axis::BATCH;
+  attr.axis = Axis::kBatch;
 
   OperationDef op_def;
   for (int i = 0; i < src_tensors.size(); ++i) {
-    op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
+    op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
   }
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
   return ConcatTest(env, attr, src_tensors, op_def);
 }
 
@@ -454,13 +455,13 @@ absl::Status ConcatDepthBigTest(TestExecutionEnvironment& env,
   }
 
   ConcatAttributes attr;
-  attr.axis = Axis::DEPTH;
+  attr.axis = Axis::kDepth;
 
   OperationDef op_def;
   for (int i = 0; i < src_tensors.size(); ++i) {
-    op_def.src_tensors.push_back({data_type, storage, Layout::HWDC});
+    op_def.src_tensors.push_back({data_type, storage, Layout::kHWDC});
   }
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWDC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWDC});
   return ConcatTest(env, attr, src_tensors, op_def);
 }
 
@@ -479,13 +480,13 @@ absl::Status ConcatDepthBatchedBigTest(TestExecutionEnvironment& env,
   }
 
   ConcatAttributes attr;
-  attr.axis = Axis::DEPTH;
+  attr.axis = Axis::kDepth;
 
   OperationDef op_def;
   for (int i = 0; i < src_tensors.size(); ++i) {
-    op_def.src_tensors.push_back({data_type, storage, Layout::BHWDC});
+    op_def.src_tensors.push_back({data_type, storage, Layout::kBHWDC});
   }
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWDC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWDC});
   return ConcatTest(env, attr, src_tensors, op_def);
 }
 
@@ -502,13 +503,13 @@ absl::Status ConcatChannelsBigTest(TestExecutionEnvironment& env,
   }
 
   ConcatAttributes attr;
-  attr.axis = Axis::CHANNELS;
+  attr.axis = Axis::kChannels;
 
   OperationDef op_def;
   for (int i = 0; i < src_tensors.size(); ++i) {
-    op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
+    op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
   }
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   return ConcatChannelsTest(env, attr, src_tensors, op_def);
 }
 
@@ -526,13 +527,13 @@ absl::Status ConcatChannelsBatchedBigTest(TestExecutionEnvironment& env,
   }
 
   ConcatAttributes attr;
-  attr.axis = Axis::CHANNELS;
+  attr.axis = Axis::kChannels;
 
   OperationDef op_def;
   for (int i = 0; i < src_tensors.size(); ++i) {
-    op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
+    op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
   }
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
   return ConcatChannelsTest(env, attr, src_tensors, op_def);
 }
 
@@ -550,13 +551,13 @@ absl::Status ConcatChannelsx4BigTest(TestExecutionEnvironment& env,
   }
 
   ConcatAttributes attr;
-  attr.axis = Axis::CHANNELS;
+  attr.axis = Axis::kChannels;
 
   OperationDef op_def;
   for (int i = 0; i < src_tensors.size(); ++i) {
-    op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
+    op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
   }
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   return ConcatChannelsTest(env, attr, src_tensors, op_def);
 }
 
@@ -575,13 +576,13 @@ absl::Status ConcatChannelsx4BatchedBigTest(TestExecutionEnvironment& env,
   }
 
   ConcatAttributes attr;
-  attr.axis = Axis::CHANNELS;
+  attr.axis = Axis::kChannels;
 
   OperationDef op_def;
   for (int i = 0; i < src_tensors.size(); ++i) {
-    op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
+    op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
   }
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
   return ConcatChannelsTest(env, attr, src_tensors, op_def);
 }
 
@@ -600,13 +601,13 @@ absl::Status ConcatChannelsBHWDCBigTest(TestExecutionEnvironment& env,
   }
 
   ConcatAttributes attr;
-  attr.axis = Axis::CHANNELS;
+  attr.axis = Axis::kChannels;
 
   OperationDef op_def;
   for (int i = 0; i < src_tensors.size(); ++i) {
-    op_def.src_tensors.push_back({data_type, storage, Layout::BHWDC});
+    op_def.src_tensors.push_back({data_type, storage, Layout::kBHWDC});
   }
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWDC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWDC});
   return ConcatChannelsTest(env, attr, src_tensors, op_def);
 }
 

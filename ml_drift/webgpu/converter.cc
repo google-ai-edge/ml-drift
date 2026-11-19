@@ -17,10 +17,11 @@
 #include <memory>
 #include <utility>
 
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/kernels/conversion.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/buffer_desc.h"
 #include "ml_drift/common/task/gpu_object_desc.h"
 #include "ml_drift/common/task/gpu_operation.h"
@@ -62,7 +63,7 @@ absl::Status TensorToBHWCBufferConverter::Init(const Environment& env,
   BufferDescriptor dst_desc;
   dst_desc.element_type = buffer_type;
   dst_desc.element_size = 1;
-  dst_desc.memory_type = MemoryType::GLOBAL;
+  dst_desc.memory_type = MemoryType::kGlobal;
   return Init(env, src_desc, dst_desc);
 }
 
@@ -100,7 +101,7 @@ absl::Status BHWCBufferToTensorConverter::Init(
   BufferDescriptor src_desc;
   src_desc.element_type = buffer_type;
   src_desc.element_size = 1;
-  src_desc.memory_type = MemoryType::GLOBAL;
+  src_desc.memory_type = MemoryType::kGlobal;
   return Init(env, src_desc, dst_desc);
 }
 

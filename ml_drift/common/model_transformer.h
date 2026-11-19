@@ -35,17 +35,17 @@ enum class TransformStatus {
   // This is different from DECLINED code below that provides in-depth
   // explanation why a transformation that could have been applied but was not
   // due to some issues.
-  SKIPPED,
+  kSkipped,
 
   // Transformation was declined, therefore, a model was not modified.
-  DECLINED,
+  kDeclined,
 
   // Transformation was applied successfully
-  APPLIED,
+  kApplied,
 
   // Transformation may partially be applied, but left a model in an invalid
   // state. This error should be considered unrecoverable.
-  INVALID,
+  kInvalid,
 };
 
 struct TransformResult {
@@ -111,7 +111,7 @@ class ModelTransformer {
 
   GraphFloat32* graph_;
 
-  // TODO(b/163423950): Clean up messaging mechanism.
+  // TODO: Clean up messaging mechanism.
   std::string last_transformation_message_;
   std::deque<NodeId> to_process_;
   absl::flat_hash_set<NodeId> processed_;

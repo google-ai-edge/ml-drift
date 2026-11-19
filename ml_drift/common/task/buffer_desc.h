@@ -19,19 +19,19 @@
 #include <string>
 #include <vector>
 
+#include "absl/status/status.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/gpu_object_desc.h"
 
 namespace ml_drift {
 
-// TODO(linchan): b/427808277 - Change struct BufferDescriptor to class.
+// TODO: Change struct BufferDescriptor to class.
 struct BufferDescriptor : public GPUObjectDescriptor {
   bool IsBufferDescriptor() const override { return true; }
   DataType element_type;
   int element_size;
-  MemoryType memory_type = MemoryType::GLOBAL;
+  MemoryType memory_type = MemoryType::kGlobal;
   std::vector<std::string> attributes;
 
   // optional

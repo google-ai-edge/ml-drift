@@ -27,24 +27,24 @@ namespace {
 std::string GetReverseCode(const OperationDef& op_def,
                            const ReverseAttributes& attr) {
   std::string write_coords;
-  if (attr.axes.find(Axis::WIDTH) != attr.axes.end()) {
+  if (attr.axes.find(Axis::kWidth) != attr.axes.end()) {
     write_coords += "args.dst_tensor.Width() - X - 1, ";
   } else {
     write_coords += "X, ";
   }
-  if (attr.axes.find(Axis::HEIGHT) != attr.axes.end()) {
+  if (attr.axes.find(Axis::kHeight) != attr.axes.end()) {
     write_coords += "args.dst_tensor.Height() - Y - 1, ";
   } else {
     write_coords += "Y, ";
   }
-  if (attr.axes.find(Axis::CHANNELS) != attr.axes.end()) {
+  if (attr.axes.find(Axis::kChannels) != attr.axes.end()) {
     write_coords += "args.dst_tensor.Slices() - S - 1";
   } else {
     write_coords += "S";
   }
-  if (op_def.dst_tensors[0].HasAxis(Axis::BATCH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kBatch)) {
     write_coords += ", ";
-    if (attr.axes.find(Axis::BATCH) != attr.axes.end()) {
+    if (attr.axes.find(Axis::kBatch) != attr.axes.end()) {
       write_coords += "args.dst_tensor.Batch() - B - 1";
     } else {
       write_coords += "B";
@@ -52,7 +52,7 @@ std::string GetReverseCode(const OperationDef& op_def,
   }
   std::string c;
   c += "MAIN_FUNCTION($0) {\n";
-  if (op_def.dst_tensors[0].HasAxis(Axis::BATCH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kBatch)) {
     c += "  int linear_id = ucl::GetGlobalId<0>();\n";
     c += "  int X = linear_id / args.dst_tensor.Batch();\n";
     c += "  int B = linear_id % args.dst_tensor.Batch();\n";
@@ -68,7 +68,7 @@ std::string GetReverseCode(const OperationDef& op_def,
   c += "    return; \n";
   c += "  } \n";
   c += "  args.src_tensor::type result = args.src_tensor.Read(X, Y, S);\n";
-  if (attr.axes.find(Axis::CHANNELS) != attr.axes.end()) {
+  if (attr.axes.find(Axis::kChannels) != attr.axes.end()) {
     c += "  if ((S + 1) * 4 > args.dst_tensor.Channels()) {\n";
     c += "    int extra = args.dst_tensor.Channels() % 4;\n";
     c += "    if (extra == 2) {\n";

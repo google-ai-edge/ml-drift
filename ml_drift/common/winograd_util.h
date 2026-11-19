@@ -47,8 +47,8 @@ std::unique_ptr<float[]> GetTransposedMatrixForWinograd3(int width);
 // outer tile size = tile_size = N
 // inner tile size = tile_size - 2 = N - 2
 void RearrangeWeightsToWinograd3x3TileNxN(
-    const Tensor<OHWI, DataType::FLOAT32>& src_weights,
-    Tensor<OHWI, DataType::FLOAT32>* dst_weights, int tile_size);
+    const Tensor<OHWI, DataType::kFloat32>& src_weights,
+    Tensor<OHWI, DataType::kFloat32>* dst_weights, int tile_size);
 
 bool IsSuitableForWinograd3x3(const Convolution2DAttributes& attr);
 

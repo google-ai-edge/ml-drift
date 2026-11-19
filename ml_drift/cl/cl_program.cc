@@ -14,7 +14,6 @@
 
 #include "ml_drift/cl/cl_program.h"
 
-#include <algorithm>
 #include <cstdint>
 #include <cstring>
 #include <string>
@@ -22,6 +21,9 @@
 #include <vector>
 
 #include "absl/debugging/leak_check.h"
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/types/span.h"
 #include "ml_drift/cl/cl_context.h"
@@ -29,7 +31,6 @@
 #include "ml_drift/cl/opencl_wrapper.h"
 #include "ml_drift/cl/util.h"
 #include "ml_drift/common/gpu_info.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/compiler_options.h"
 #include <CL/cl.h>
 #include <CL/cl_platform.h>
@@ -71,7 +72,7 @@ absl::Status GetBinarySize(cl_program program, size_t* binary_size) {
 
 absl::Status BuildProgram(cl_program program, cl_device_id device_id,
                           const std::string& compiler_options) {
-  // TODO: b/279347631 - Remove after Nvidia driver is fixed.
+  // TODO: Remove after Nvidia driver is fixed.
   absl::LeakCheckDisabler disabler;
   const int error_code = clBuildProgram(
       program, 0, nullptr, compiler_options.c_str(), nullptr, nullptr);
@@ -137,15 +138,36 @@ std::string CompilerOptionToString(const GpuInfo& gpu_info,
     case CompilerOptions::kClUniformWorkGroupSize:
       return "-cl-uniform-work-group-size";
     case CompilerOptions::kClPixelDisableRecompile:
-      return "-pixel-disable-recompile";
+      if (!gpu_info.opencl_info.IsCLVK() && gpu_info.IsPowerVR()) {
+        return "-pixel-disable-recompile";
+      } else {
+        return "";
+      }
     case CompilerOptions::kClPixelDisableKernelBlobCache:
-      return "-pixel-disable-kernelblobcache";
+      if (!gpu_info.opencl_info.IsCLVK() && gpu_info.IsPowerVR()) {
+        return "-pixel-disable-kernelblobcache";
+      } else {
+        return "";
+      }
     case CompilerOptions::kClPixelEnableImmediateRecompile:
-      return "-pixel-enable-immediaterecompile";
+      if (!gpu_info.opencl_info.IsCLVK() && gpu_info.IsPowerVR()) {
+        return "-pixel-enable-immediaterecompile";
+      } else {
+        return "";
+      }
     case CompilerOptions::kClIntel256GRFPerThread:
-      return "-cl-intel-256-GRF-per-thread";
+      if (!gpu_info.opencl_info.IsCLVK() &&
+          gpu_info.SupportsExtension("cl_intel_subgroups")) {
+        return "-cl-intel-256-GRF-per-thread";
+      } else {
+        return "";
+      }
     case CompilerOptions::kClAmdSaveTempsAndroid:
-      return "-save-temps=/data/local/tmp/";
+      if (!gpu_info.opencl_info.IsCLVK() && gpu_info.IsAMD()) {
+        return "-save-temps=/data/local/tmp/";
+      } else {
+        return "";
+      }
     default:
       return "";
   }
@@ -233,17 +255,7 @@ absl::StatusOr<CLProgram> CreateCLProgram(
       CreateCLProgram(
           code, CompilerOptionsToString(device.GetInfo(), compiler_options),
           context, device));
-  const bool fix_adreno_binary =
-      std::find(compiler_options.begin(), compiler_options.end(),
-                CompilerOptions::kClAdrenoFixBinary) != compiler_options.end();
-  if (fix_adreno_binary) {
-    std::vector<uint8_t> binary;
-    ABSL_RETURN_IF_ERROR(program.GetBinary(&binary));
-    FixAdrenoBinary(&binary);
-    return CreateCLProgramFromBinary(context, device, binary);
-  } else {
-    return program;
-  }
+  return program;
 }
 
 absl::StatusOr<CLProgram> CreateCLProgramFromBinary(

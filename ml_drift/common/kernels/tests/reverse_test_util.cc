@@ -19,11 +19,12 @@
 #include <vector>
 
 #include "gmock/gmock.h"
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/kernels/reverse.h"
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/gpu_operation.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/task/testing_util.h"
@@ -40,11 +41,11 @@ absl::Status ReverseHWCTest(TestExecutionEnvironment& env, DataType data_type,
   src_tensor.shape = BHWC(1, 1, 3, 2);
   src_tensor.data = {1, 2, 3, 4, 5, 6};
   ReverseAttributes attr;
-  attr.axes = {Axis::CHANNELS};
+  attr.axes = {Axis::kChannels};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::FLOAT32, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({DataType::FLOAT32, storage, Layout::HWC});
+  op_def.src_tensors.push_back({DataType::kFloat32, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({DataType::kFloat32, storage, Layout::kHWC});
   TensorDescriptor src, dst;
   src = op_def.src_tensors[0];
   src.UploadData(src_tensor);
@@ -64,11 +65,11 @@ absl::Status ReverseBHWCTest(TestExecutionEnvironment& env, DataType data_type,
   src_tensor.shape = BHWC(3, 1, 1, 2);
   src_tensor.data = {1, 2, 3, 4, 5, 6};
   ReverseAttributes attr;
-  attr.axes = {Axis::BATCH};
+  attr.axes = {Axis::kBatch};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::FLOAT32, storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({DataType::FLOAT32, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({DataType::kFloat32, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({DataType::kFloat32, storage, Layout::kBHWC});
   TensorDescriptor src, dst;
   src = op_def.src_tensors[0];
   src.UploadData(src_tensor);

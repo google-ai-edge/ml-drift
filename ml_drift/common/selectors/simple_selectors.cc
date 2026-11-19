@@ -19,6 +19,8 @@
 #include <utility>
 #include <vector>
 
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/kernels/add.h"
@@ -38,13 +40,9 @@
 #include "ml_drift/common/kernels/reduce.h"
 #include "ml_drift/common/kernels/relu.h"
 #include "ml_drift/common/kernels/resampler.h"
-#include "ml_drift/common/kernels/reshape.h"
-#include "ml_drift/common/kernels/reshapex4.h"
 #include "ml_drift/common/kernels/resize.h"
 #include "ml_drift/common/kernels/reverse.h"
 #include "ml_drift/common/kernels/select_v2.h"
-#include "ml_drift/common/kernels/softmax.h"
-#include "ml_drift/common/kernels/softmax1x1.h"
 #include "ml_drift/common/kernels/space_to_depth.h"
 #include "ml_drift/common/kernels/split.h"
 #include "ml_drift/common/kernels/tile.h"
@@ -52,12 +50,10 @@
 #include "ml_drift/common/model_hints.h"
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/gpu_operation.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/task/weights_layout.h"
 #include "ml_drift/common/tensor.h"
-#include "ml_drift/common/util.h"
 
 namespace ml_drift {
 
@@ -127,35 +123,21 @@ absl::Status SelectConcat(const ConcatAttributes& attr,
                           const OperationDef& op_def, const GpuInfo& gpu_info,
                           std::unique_ptr<GPUOperation>* ptr) {
   switch (attr.axis) {
-    case Axis::CHANNELS: {
+    case Axis::kChannels: {
       GPUOperation operation = CreateConcatZ(op_def, channels, gpu_info);
       *ptr = std::make_unique<GPUOperation>(std::move(operation));
       return absl::OkStatus();
     }
-    case Axis::BATCH:
-    case Axis::DEPTH:
-    case Axis::HEIGHT:
-    case Axis::WIDTH: {
+    case Axis::kBatch:
+    case Axis::kDepth:
+    case Axis::kHeight:
+    case Axis::kWidth: {
       GPUOperation operation = CreateConcatXY(op_def, attr);
       *ptr = std::make_unique<GPUOperation>(std::move(operation));
       return absl::OkStatus();
     }
     default:
       return absl::UnimplementedError("No concat for this axis.");
-  }
-}
-
-void SelectReshape(int src_channels, int dst_channels,
-                   const OperationDef& op_def,
-                   std::unique_ptr<GPUOperation>* ptr) {
-  if (src_channels % 4 == 0 && dst_channels % 4 == 0 &&
-      !op_def.src_tensors[0].HasAxis(Axis::DEPTH) &&
-      !op_def.dst_tensors[0].HasAxis(Axis::DEPTH)) {
-    Reshapex4 operation = CreateReshapex4(op_def);
-    *ptr = std::make_unique<Reshapex4>(std::move(operation));
-  } else {
-    GPUOperation operation = CreateReshape(op_def);
-    *ptr = std::make_unique<GPUOperation>(std::move(operation));
   }
 }
 
@@ -173,11 +155,14 @@ void SelectDepthToSpace(const SpaceToDepthAttributes& attr,
   *ptr = std::make_unique<GPUOperation>(std::move(operation));
 }
 
-void SelectEmbeddingLookup(const EmbeddingLookupAttributes& attr,
-                           const OperationDef& op_def, const GpuInfo& gpu_info,
-                           std::unique_ptr<GPUOperation>* ptr) {
-  GPUOperation operation = CreateEmbeddingLookup(op_def, gpu_info, attr);
+absl::Status SelectEmbeddingLookup(const EmbeddingLookupAttributes& attr,
+                                   const OperationDef& op_def,
+                                   const GpuInfo& gpu_info,
+                                   std::unique_ptr<GPUOperation>* ptr) {
+  ABSL_ASSIGN_OR_RETURN(GPUOperation operation,
+                        CreateEmbeddingLookup(op_def, gpu_info, attr));
   *ptr = std::make_unique<GPUOperation>(std::move(operation));
+  return absl::OkStatus();
 }
 
 void SelectSplit(const SplitAttributes& attr, const GpuInfo& gpu_info,
@@ -189,8 +174,10 @@ void SelectSplit(const SplitAttributes& attr, const GpuInfo& gpu_info,
 
 std::unique_ptr<GPUOperation> SelectPadding(const GpuInfo& gpu_info,
                                             const PadAttributes& attr,
-                                            const OperationDef& op_def) {
-  return std::make_unique<GPUOperation>(CreatePadding(gpu_info, op_def, attr));
+                                            const OperationDef& op_def,
+                                            int src_channels) {
+  return std::make_unique<GPUOperation>(
+      CreatePadding(gpu_info, op_def, attr, src_channels));
 }
 
 std::unique_ptr<GPUOperation> SelectReduce(const std::set<Axis>& axis_to_reduce,
@@ -200,22 +187,6 @@ std::unique_ptr<GPUOperation> SelectReduce(const std::set<Axis>& axis_to_reduce,
                                            const GpuInfo& gpu_info) {
   return std::make_unique<Reduce>(
       CreateReduce(axis_to_reduce, src_shape, op_type, op_def, gpu_info));
-}
-
-std::unique_ptr<GPUOperation> SelectSoftmax(
-    const GpuInfo& gpu_info, const BHWC& shape, const OperationDef& op_def,
-    const SoftmaxRuntimeCheckDesc& runtime_check) {
-  const int spatial_size = shape.b * shape.w * shape.h;
-  const int spatial_size_per_cu =
-      DivideRoundUp(spatial_size, gpu_info.GetComputeUnitsCount());
-  if (spatial_size_per_cu >= 4 || (spatial_size >= 8 && shape.c >= 1024 * 8)) {
-    Softmax operation = CreateSoftmax(op_def, gpu_info, shape, runtime_check);
-    return std::make_unique<Softmax>(std::move(operation));
-  } else {
-    Softmax1x1 operation =
-        CreateSoftmax1x1(op_def, gpu_info, shape, runtime_check);
-    return std::make_unique<Softmax1x1>(std::move(operation));
-  }
 }
 
 std::unique_ptr<GPUOperation> SelectTile(const OperationDef& op_def) {
@@ -238,7 +209,7 @@ std::unique_ptr<GPUOperation> SelectWinograd3x3Forward(
 
 std::unique_ptr<GPUOperation> SelectWinograd3x3Backward(
     const GpuInfo& gpu_info, const OperationDef& op_def, int tile_size,
-    const Tensor<Linear, DataType::FLOAT32>& biases) {
+    const Tensor<Linear, DataType::kFloat32>& biases) {
   if (gpu_info.IsAMD() && tile_size == 6) {
     Winograd36To4x4 operation = CreateWinograd36To4x4(op_def, biases);
     return std::make_unique<Winograd36To4x4>(std::move(operation));

@@ -91,11 +91,11 @@ void DepthwiseConv3x3::UploadWeightsAndBiases(const Tensor<OHWI, T>& weights,
   const int elements_count = texture_width * texture_height;
 
   std::vector<uint8_t> data(SizeOf(dst_type) * 4 * elements_count);
-  if (dst_type == DataType::FLOAT32) {
+  if (dst_type == DataType::kFloat32) {
     float4* ptr = reinterpret_cast<float4*>(data.data());
     RearrangeWeightsAndBiasesData(weights, biases,
                                   absl::MakeSpan(ptr, elements_count));
-  } else if (dst_type == DataType::FLOAT16) {
+  } else if (dst_type == DataType::kFloat16) {
     half4* ptr = reinterpret_cast<half4*>(data.data());
     RearrangeWeightsAndBiasesData(weights, biases,
                                   absl::MakeSpan(ptr, elements_count));
@@ -111,7 +111,7 @@ void DepthwiseConv3x3::UploadWeightsAndBiases(const Tensor<OHWI, T>& weights,
                     std::make_unique<BufferDescriptor>(std::move(desc)));
   } else {
     TensorDescriptor desc = CreateConstantHWVec4TensorDescriptor(
-        dst_type, TensorStorageType::TEXTURE_2D, texture_width, texture_height,
+        dst_type, TensorStorageType::kTexture2D, texture_width, texture_height,
         data.data());
     args_.AddObject("weights", std::make_unique<TensorDescriptor>(desc));
   }

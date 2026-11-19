@@ -19,10 +19,11 @@
 #include <utility>
 #include <vector>
 
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
 #include "ml_drift/common/access_type.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/buffer_desc.h"
 #include "ml_drift/common/task/gpu_object_desc.h"
 #include "ml_drift/common/task/tensor_desc.h"
@@ -69,8 +70,8 @@ absl::Status AllocateTensorMemory(id<MTLDevice> device,
   const void* data_ptr =
       descriptor.GetData().empty() ? nullptr : descriptor.GetData().data();
   switch (descriptor.GetStorageType()) {
-    case TensorStorageType::BUFFER:
-    case TensorStorageType::IMAGE_BUFFER: {
+    case TensorStorageType::kBuffer:
+    case TensorStorageType::kImageBuffer: {
       const size_t data_size = storage_dims[0] * descriptor.GetElementSize() *
                                SizeOf(descriptor.GetDataType());
       if (data_ptr) {
@@ -82,14 +83,19 @@ absl::Status AllocateTensorMemory(id<MTLDevice> device,
                                       options:MTLResourceStorageModeShared];
       }
       if (!*buffer) {
+        // As in metal::Buffer, a nil buffer for a non-empty allocation means the device could not
+        // provide the memory.
+        if (data_size > 0) {
+          return absl::ResourceExhaustedError("Failed to allocate id<MTLBuffer>");
+        }
         return absl::UnknownError("Failed to allocate id<MTLBuffer>");
       }
-      if (descriptor.GetStorageType() == TensorStorageType::IMAGE_BUFFER) {
+      if (descriptor.GetStorageType() == TensorStorageType::kImageBuffer) {
         ABSL_RETURN_IF_ERROR(CreateTextureBuffer(*buffer, 0, descriptor, texture));
       }
       return absl::OkStatus();
     }
-    case TensorStorageType::TEXTURE_2D: {
+    case TensorStorageType::kTexture2D: {
       MTLTextureDescriptor* texture_desc = [MTLTextureDescriptor
           texture2DDescriptorWithPixelFormat:DataTypeToPixelFormat(
                                                  descriptor.GetDataType(),
@@ -104,7 +110,7 @@ absl::Status AllocateTensorMemory(id<MTLDevice> device,
 
       *texture = [device newTextureWithDescriptor:texture_desc];
       if (!*texture) {
-        return absl::UnknownError("Failed to allocate id<MTLTexture>");
+        return absl::ResourceExhaustedError("Failed to allocate id<MTLTexture>");
       }
       if (data_ptr) {
         id<MTLCommandQueue> command_queue = [device newCommandQueue];
@@ -113,7 +119,7 @@ absl::Status AllocateTensorMemory(id<MTLDevice> device,
       }
       return absl::OkStatus();
     }
-    case TensorStorageType::TEXTURE_3D: {
+    case TensorStorageType::kTexture3D: {
       MTLTextureDescriptor* texture_desc = [[MTLTextureDescriptor alloc] init];
       texture_desc.width = storage_dims[0];
       texture_desc.height = storage_dims[1];
@@ -127,7 +133,7 @@ absl::Status AllocateTensorMemory(id<MTLDevice> device,
 
       *texture = [device newTextureWithDescriptor:texture_desc];
       if (!*texture) {
-        return absl::UnknownError("Failed to allocate id<MTLTexture>");
+        return absl::ResourceExhaustedError("Failed to allocate id<MTLTexture>");
       }
       if (data_ptr) {
         id<MTLCommandQueue> command_queue = [device newCommandQueue];
@@ -136,7 +142,7 @@ absl::Status AllocateTensorMemory(id<MTLDevice> device,
       }
       return absl::OkStatus();
     }
-    case TensorStorageType::TEXTURE_ARRAY: {
+    case TensorStorageType::kTextureArray: {
       MTLTextureDescriptor* texture_desc = [[MTLTextureDescriptor alloc] init];
       texture_desc.width = storage_dims[0];
       texture_desc.height = storage_dims[1];
@@ -150,7 +156,7 @@ absl::Status AllocateTensorMemory(id<MTLDevice> device,
 
       *texture = [device newTextureWithDescriptor:texture_desc];
       if (!*texture) {
-        return absl::UnknownError("Failed to allocate id<MTLTexture>");
+        return absl::ResourceExhaustedError("Failed to allocate id<MTLTexture>");
       }
       if (data_ptr) {
         id<MTLCommandQueue> command_queue = [device newCommandQueue];
@@ -159,7 +165,7 @@ absl::Status AllocateTensorMemory(id<MTLDevice> device,
       }
       return absl::OkStatus();
     }
-    case TensorStorageType::SINGLE_TEXTURE_2D: {
+    case TensorStorageType::kSingleTexture2D: {
       MTLTextureDescriptor* texture_desc = [MTLTextureDescriptor
           texture2DDescriptorWithPixelFormat:DataTypeToPixelFormat(
                                                  descriptor.GetDataType(),
@@ -175,7 +181,7 @@ absl::Status AllocateTensorMemory(id<MTLDevice> device,
 
       *texture = [device newTextureWithDescriptor:texture_desc];
       if (!*texture) {
-        return absl::UnknownError("Failed to allocate id<MTLTexture>");
+        return absl::ResourceExhaustedError("Failed to allocate id<MTLTexture>");
       }
       if (data_ptr) {
         id<MTLCommandQueue> command_queue = [device newCommandQueue];
@@ -241,7 +247,7 @@ absl::Status MetalSpatialTensor::GetGPUResources(
     GPUResourcesWithValue* resources) const {
   const auto* buffer_desc = dynamic_cast<const BufferDescriptor*>(obj_ptr);
   if (buffer_desc) {
-    if (descriptor_.GetStorageType() != TensorStorageType::BUFFER) {
+    if (descriptor_.GetStorageType() != TensorStorageType::kBuffer) {
       return absl::InvalidArgumentError(
           "Tensor can be used with BufferDescriptor only wtih "
           "TensorStorageType::BUFFER.");
@@ -257,23 +263,23 @@ absl::Status MetalSpatialTensor::GetGPUResources(
                                &resources->generic);
 
   const auto& storage_type = descriptor_.GetStorageType();
-  if (storage_type == TensorStorageType::BUFFER) {
+  if (storage_type == TensorStorageType::kBuffer) {
     resources->buffers.push_back({"buffer", {memory_, buffer_offset_}});
-  } else if (storage_type == TensorStorageType::TEXTURE_2D ||
-             storage_type == TensorStorageType::SINGLE_TEXTURE_2D) {
-    if (obj_ptr->GetAccess() == AccessType::WRITE &&
+  } else if (storage_type == TensorStorageType::kTexture2D ||
+             storage_type == TensorStorageType::kSingleTexture2D) {
+    if (obj_ptr->GetAccess() == AccessType::kWrite &&
         tensor_desc->GetUseBufferForWriteOnlyTexture2d()) {
       resources->AddInt("aligned_texture_width", aligned_texture_width_);
       resources->buffers.push_back({"buffer", {memory_, buffer_offset_}});
     } else {
       resources->images2d.push_back({"image2d", texture_mem_});
     }
-  } else if (storage_type == TensorStorageType::TEXTURE_3D) {
+  } else if (storage_type == TensorStorageType::kTexture3D) {
     resources->images3d.push_back({"image3d", texture_mem_});
-  } else if (storage_type == TensorStorageType::TEXTURE_ARRAY) {
+  } else if (storage_type == TensorStorageType::kTextureArray) {
     resources->image2d_arrays.push_back({"image2d_array", texture_mem_});
-  } else if (storage_type == TensorStorageType::IMAGE_BUFFER) {
-    if (obj_ptr->GetAccess() == AccessType::WRITE &&
+  } else if (storage_type == TensorStorageType::kImageBuffer) {
+    if (obj_ptr->GetAccess() == AccessType::kWrite &&
         tensor_desc->GetUseBufferForWriteOnlyImageBuffer()) {
       resources->buffers.push_back({"buffer", {memory_, buffer_offset_}});
     } else {
@@ -326,21 +332,21 @@ absl::Status MetalSpatialTensor::WriteData(id<MTLCommandQueue> command_queue,
                                            const void* ptr,
                                            bool wait_for_completion) {
   switch (descriptor_.GetStorageType()) {
-    case TensorStorageType::BUFFER:
-    case TensorStorageType::IMAGE_BUFFER:
+    case TensorStorageType::kBuffer:
+    case TensorStorageType::kImageBuffer:
       WriteDataToBuffer(memory_, buffer_offset_, command_queue, ptr,
                         GetMemorySizeInBytes(), wait_for_completion);
       break;
-    case TensorStorageType::TEXTURE_2D:
-    case TensorStorageType::SINGLE_TEXTURE_2D:
+    case TensorStorageType::kTexture2D:
+    case TensorStorageType::kSingleTexture2D:
       WriteDataToTexture2D(texture_mem_, command_queue, ptr,
                            wait_for_completion);
       break;
-    case TensorStorageType::TEXTURE_3D:
+    case TensorStorageType::kTexture3D:
       WriteDataToTexture3D(texture_mem_, command_queue, ptr,
                            wait_for_completion);
       break;
-    case TensorStorageType::TEXTURE_ARRAY:
+    case TensorStorageType::kTextureArray:
       WriteDataToTexture2DArray(texture_mem_, command_queue, ptr,
                                 wait_for_completion);
       break;
@@ -353,20 +359,20 @@ absl::Status MetalSpatialTensor::WriteData(id<MTLCommandQueue> command_queue,
 absl::Status MetalSpatialTensor::ReadData(id<MTLDevice> device,
                                           void* ptr) const {
   switch (descriptor_.GetStorageType()) {
-    case TensorStorageType::BUFFER:
-    case TensorStorageType::IMAGE_BUFFER:
+    case TensorStorageType::kBuffer:
+    case TensorStorageType::kImageBuffer:
       std::memcpy(
           ptr, reinterpret_cast<uint8_t*>([memory_ contents]) + buffer_offset_,
           GetMemorySizeInBytes());
       break;
-    case TensorStorageType::TEXTURE_2D:
-    case TensorStorageType::SINGLE_TEXTURE_2D:
+    case TensorStorageType::kTexture2D:
+    case TensorStorageType::kSingleTexture2D:
       ReadDataFromTexture2D(texture_mem_, device, ptr);
       break;
-    case TensorStorageType::TEXTURE_3D:
+    case TensorStorageType::kTexture3D:
       ReadDataFromTexture3D(texture_mem_, device, ptr);
       break;
-    case TensorStorageType::TEXTURE_ARRAY:
+    case TensorStorageType::kTextureArray:
       ReadDataFromTexture2DArray(texture_mem_, device, ptr);
       break;
     default:
@@ -385,7 +391,7 @@ absl::Status MetalSpatialTensor::SetBufferHandle(id<MTLBuffer> buffer) {
     return absl::OkStatus();
   }
   memory_ = buffer;
-  if (descriptor_.GetStorageType() == TensorStorageType::IMAGE_BUFFER) {
+  if (descriptor_.GetStorageType() == TensorStorageType::kImageBuffer) {
     @autoreleasepool {
       id<MTLTexture> texture_buffer = nullptr;
       ABSL_RETURN_IF_ERROR(CreateTextureBuffer(memory_, 0, descriptor_, &texture_buffer));
@@ -413,8 +419,7 @@ absl::Status CreateTensorSharedBuffer(id<MTLBuffer> buffer,
                                       uint64_t buffer_offset) {
   @autoreleasepool {
     id<MTLTexture> texture_buffer = nullptr;
-    if (buffer &&
-        descriptor.GetStorageType() == TensorStorageType::IMAGE_BUFFER) {
+    if (buffer && descriptor.GetStorageType() == TensorStorageType::kImageBuffer) {
       ABSL_RETURN_IF_ERROR(CreateTextureBuffer(buffer, buffer_offset, descriptor, &texture_buffer));
     }
     *result =
@@ -478,9 +483,9 @@ absl::Status CreateTensorSharedImage2DBuffer(id<MTLBuffer> buffer,
 TensorStorageType GetFastestStorageType(const GpuInfo& gpu_info) {
   if (gpu_info.IsApple() &&
       gpu_info.apple_info.IsFamilyOrLower(AppleInfo::Family::kApple2)) {
-    return TensorStorageType::TEXTURE_2D;
+    return TensorStorageType::kTexture2D;
   } else {
-    return TensorStorageType::BUFFER;
+    return TensorStorageType::kBuffer;
   }
 }
 

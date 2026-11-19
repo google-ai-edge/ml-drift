@@ -32,20 +32,20 @@ std::string GetConcatKernelCode(const OperationDef& op_def,
   }
 
   std::map<Axis, std::string> axis_to_selector = {
-      {Axis::WIDTH, "Width"}, {Axis::HEIGHT, "Height"},
-      {Axis::DEPTH, "Depth"}, {Axis::CHANNELS, "Channels"},
-      {Axis::BATCH, "Batch"},
+      {Axis::kWidth, "Width"}, {Axis::kHeight, "Height"},
+      {Axis::kDepth, "Depth"}, {Axis::kChannels, "Channels"},
+      {Axis::kBatch, "Batch"},
   };
   std::map<Axis, std::string> axis_to_coord = {
-      {Axis::WIDTH, "X"},    {Axis::HEIGHT, "Y"}, {Axis::DEPTH, "D"},
-      {Axis::CHANNELS, "S"}, {Axis::BATCH, "B"},
+      {Axis::kWidth, "X"},    {Axis::kHeight, "Y"}, {Axis::kDepth, "D"},
+      {Axis::kChannels, "S"}, {Axis::kBatch, "B"},
   };
 
   std::vector<std::string> src_coords;
   std::vector<std::string> dst_coords;
-  for (auto axis :
-       {Axis::WIDTH, Axis::HEIGHT, Axis::DEPTH, Axis::CHANNELS, Axis::BATCH}) {
-    if (op_def.src_tensors[0].HasAxis(axis) && axis != Axis::BATCH) {
+  for (auto axis : {Axis::kWidth, Axis::kHeight, Axis::kDepth, Axis::kChannels,
+                    Axis::kBatch}) {
+    if (op_def.src_tensors[0].HasAxis(axis) && axis != Axis::kBatch) {
       if (axis == attr.axis) {
         src_coords.push_back("coord");
       } else {
@@ -67,14 +67,14 @@ std::string GetConcatKernelCode(const OperationDef& op_def,
 
   std::string c;
   c += "MAIN_FUNCTION($0) {\n";
-  if (op_def.dst_tensors[0].HasAxis(Axis::BATCH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kBatch)) {
     c += "  int linear_id_0 = ucl::GetGlobalId<0>();\n";
     c += "  int X = linear_id_0 / args.dst_tensor.Batch();\n";
     c += "  int B = linear_id_0 % args.dst_tensor.Batch();\n";
   } else {
     c += "  int X = ucl::GetGlobalId<0>();\n";
   }
-  if (op_def.dst_tensors[0].HasAxis(Axis::DEPTH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kDepth)) {
     c += "  int linear_id_1 = ucl::GetGlobalId<1>();\n";
     c += "  int Y = linear_id_1 / args.dst_tensor.Depth();\n";
     c += "  int D = linear_id_1 % args.dst_tensor.Depth();\n";
@@ -92,8 +92,8 @@ std::string GetConcatKernelCode(const OperationDef& op_def,
     const std::string field =
         "args." + tensor_names[i] + "." + axis_to_selector[attr.axis] + "()";
     c += "  if (coord >= 0 && coord < " + field + ") { \n";
-    if (op_def.src_tensors[i].HasAxis(Axis::BATCH)) {
-      if (attr.axis == Axis::BATCH) {
+    if (op_def.src_tensors[i].HasAxis(Axis::kBatch)) {
+      if (attr.axis == Axis::kBatch) {
         c += "  args." + tensor_names[i] + ".SetBatchRef(coord);\n";
       } else {
         c += "  args." + tensor_names[i] + ".SetBatchRef(B);\n";

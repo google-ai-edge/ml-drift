@@ -20,8 +20,10 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/container/flat_hash_map.h"
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_model.h"
 #include "ml_drift/common/gpu_model_builder.h"
@@ -30,7 +32,6 @@
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/precision.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/gpu_operation.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/task/testing_ref_ops.h"
@@ -55,12 +56,12 @@ absl::Status CreateLinearGraph(const BHWC& input_shape,
   input->tensor.shape = input_shape;
 
   auto dw_node = graph->NewNode();
-  dw_node->operation.type = ToString(OperationType::DEPTHWISE_CONVOLUTION);
+  dw_node->operation.type = ToString(OperationType::kDepthwiseConvolution);
   dw_node->operation.attributes = dw_attr;
   graph->AddConsumer(dw_node->id, input->id);
 
   auto conv_node = graph->NewNode();
-  conv_node->operation.type = ToString(OperationType::CONVOLUTION_2D);
+  conv_node->operation.type = ToString(OperationType::kConvolution2D);
   conv_node->operation.attributes = conv_attr;
   Value* dw_output = nullptr;
   ABSL_RETURN_IF_ERROR(ConnectTwoNodes(graph, dw_node, conv_node, &dw_output));
@@ -85,12 +86,12 @@ absl::Status CreateLinearGraph(const BHWC& input_shape,
   input->tensor.shape = input_shape;
 
   auto conv2d_node = graph->NewNode();
-  conv2d_node->operation.type = ToString(OperationType::CONVOLUTION_2D);
+  conv2d_node->operation.type = ToString(OperationType::kConvolution2D);
   conv2d_node->operation.attributes = conv2d_attr;
   graph->AddConsumer(conv2d_node->id, input->id);
 
   auto conv1x1_node = graph->NewNode();
-  conv1x1_node->operation.type = ToString(OperationType::CONVOLUTION_2D);
+  conv1x1_node->operation.type = ToString(OperationType::kConvolution2D);
   conv1x1_node->operation.attributes = conv1x1_attr;
   Value* conv2d_output = nullptr;
   ABSL_RETURN_IF_ERROR(
@@ -113,7 +114,7 @@ absl::flat_hash_map<ValueId, TensorDescriptor> GetTensorDescriptors(
     TensorStorageType storage_type) {
   absl::flat_hash_map<ValueId, TensorDescriptor> result;
   for (Value* value : graph.values()) {
-    Layout layout = value->tensor.shape.b == 1 ? Layout::HWC : Layout::BHWC;
+    Layout layout = value->tensor.shape.b == 1 ? Layout::kHWC : Layout::kBHWC;
     auto tensor_desc = TensorDescriptor{data_type, storage_type, layout};
     tensor_desc.SetBHWCShape(value->tensor.shape);
     result[value->id] = tensor_desc;
@@ -162,7 +163,7 @@ absl::Status DWPlusConv1x1Test(TestExecutionEnvironment* exec_env,
         .hints = {},
         .storage = op_def.dst_tensors[0].GetStorageType(),
         .use_f32_accum_for_f16_convolutions =
-            precision == CalculationsPrecision::F32_F16,
+            precision == CalculationsPrecision::kF32F16,
     };
     GpuModelBuilder model_builder =
         GpuModelBuilder(exec_env->GetGpuInfo(), options,
@@ -175,18 +176,18 @@ absl::Status DWPlusConv1x1Test(TestExecutionEnvironment* exec_env,
   }
 
   TensorFloat32 dst_0;
-  MLD_EXPECT_OK(exec_env->ExecuteGpuModel(
+  ABSL_EXPECT_OK(exec_env->ExecuteGpuModel(
       {src_tensor}, std::vector<TensorFloat32*>{&dst_0}, &gpu_model));
   EXPECT_THAT(dst_0.data, Pointwise(FloatNear(0.02f), result.data));
 
   // Batch test
   for (auto& src : op_def.src_tensors) {
-    src =
-        TensorDescriptor(src.GetDataType(), src.GetStorageType(), Layout::BHWC);
+    src = TensorDescriptor(src.GetDataType(), src.GetStorageType(),
+                           Layout::kBHWC);
   }
   for (auto& dst : op_def.dst_tensors) {
-    dst =
-        TensorDescriptor(dst.GetDataType(), dst.GetStorageType(), Layout::BHWC);
+    dst = TensorDescriptor(dst.GetDataType(), dst.GetStorageType(),
+                           Layout::kBHWC);
   }
 
   src_shape.b = 3;
@@ -210,7 +211,7 @@ absl::Status DWPlusConv1x1Test(TestExecutionEnvironment* exec_env,
         .hints = {},
         .storage = op_def.dst_tensors[0].GetStorageType(),
         .use_f32_accum_for_f16_convolutions =
-            precision == CalculationsPrecision::F32_F16,
+            precision == CalculationsPrecision::kF32F16,
     };
     GpuModelBuilder model_builder =
         GpuModelBuilder(exec_env->GetGpuInfo(), options,
@@ -222,7 +223,7 @@ absl::Status DWPlusConv1x1Test(TestExecutionEnvironment* exec_env,
         {values_ids[0]}, {values_ids[2]}, &gpu_model_batched));
   }
 
-  MLD_EXPECT_OK(exec_env->ExecuteGpuModel(
+  ABSL_EXPECT_OK(exec_env->ExecuteGpuModel(
       {src_tensor}, std::vector<TensorFloat32*>{&dst_0}, &gpu_model_batched));
   EXPECT_THAT(dst_0.data, Pointwise(FloatNear(0.02f), result.data));
 
@@ -272,7 +273,7 @@ absl::Status Conv2dConv1x1Test(TestExecutionEnvironment* exec_env, int kernel_x,
         .hints = {},
         .storage = op_def.dst_tensors[0].GetStorageType(),
         .use_f32_accum_for_f16_convolutions =
-            precision == CalculationsPrecision::F32_F16,
+            precision == CalculationsPrecision::kF32F16,
     };
     GpuModelBuilder model_builder =
         GpuModelBuilder(exec_env->GetGpuInfo(), options,
@@ -285,18 +286,18 @@ absl::Status Conv2dConv1x1Test(TestExecutionEnvironment* exec_env, int kernel_x,
   }
 
   TensorFloat32 dst_0;
-  MLD_EXPECT_OK(exec_env->ExecuteGpuModel(
+  ABSL_EXPECT_OK(exec_env->ExecuteGpuModel(
       {src_tensor}, std::vector<TensorFloat32*>{&dst_0}, &gpu_model));
   EXPECT_THAT(dst_0.data, Pointwise(FloatNear(0.02f), result.data));
 
   // Batch test
   for (auto& src : op_def.src_tensors) {
-    src =
-        TensorDescriptor(src.GetDataType(), src.GetStorageType(), Layout::BHWC);
+    src = TensorDescriptor(src.GetDataType(), src.GetStorageType(),
+                           Layout::kBHWC);
   }
   for (auto& dst : op_def.dst_tensors) {
-    dst =
-        TensorDescriptor(dst.GetDataType(), dst.GetStorageType(), Layout::BHWC);
+    dst = TensorDescriptor(dst.GetDataType(), dst.GetStorageType(),
+                           Layout::kBHWC);
   }
 
   src_shape.b = 3;
@@ -320,7 +321,7 @@ absl::Status Conv2dConv1x1Test(TestExecutionEnvironment* exec_env, int kernel_x,
         .hints = {},
         .storage = op_def.dst_tensors[0].GetStorageType(),
         .use_f32_accum_for_f16_convolutions =
-            precision == CalculationsPrecision::F32_F16,
+            precision == CalculationsPrecision::kF32F16,
     };
     GpuModelBuilder model_builder =
         GpuModelBuilder(exec_env->GetGpuInfo(), options,
@@ -332,7 +333,7 @@ absl::Status Conv2dConv1x1Test(TestExecutionEnvironment* exec_env, int kernel_x,
         {values_ids[0]}, {values_ids[2]}, &gpu_model_batched));
   }
 
-  MLD_EXPECT_OK(exec_env->ExecuteGpuModel(
+  ABSL_EXPECT_OK(exec_env->ExecuteGpuModel(
       {src_tensor}, std::vector<TensorFloat32*>{&dst_0}, &gpu_model_batched));
   EXPECT_THAT(dst_0.data, Pointwise(FloatNear(0.02f), result.data));
 
@@ -348,9 +349,9 @@ TEST_P(FloatTest, DWPlusConv1x1_4_4) {
                  << " storage type: " << ToString(storage());
   }
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage(), Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage(), Layout::HWC});
-  MLD_EXPECT_OK(DWPlusConv1x1Test(exec_env, {4, 4}, op_def, precision()));
+  op_def.src_tensors.push_back({data_type, storage(), Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage(), Layout::kHWC});
+  ABSL_EXPECT_OK(DWPlusConv1x1Test(exec_env, {4, 4}, op_def, precision()));
 }
 
 TEST_P(FloatTest, DWPlusConv1x1_3_11) {
@@ -360,9 +361,9 @@ TEST_P(FloatTest, DWPlusConv1x1_3_11) {
                  << " storage type: " << ToString(storage());
   }
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage(), Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage(), Layout::HWC});
-  MLD_EXPECT_OK(DWPlusConv1x1Test(exec_env, {3, 11}, op_def, precision()));
+  op_def.src_tensors.push_back({data_type, storage(), Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage(), Layout::kHWC});
+  ABSL_EXPECT_OK(DWPlusConv1x1Test(exec_env, {3, 11}, op_def, precision()));
 }
 
 TEST_P(FloatTest, DWPlusConv1x1_7_9) {
@@ -372,9 +373,9 @@ TEST_P(FloatTest, DWPlusConv1x1_7_9) {
                  << " storage type: " << ToString(storage());
   }
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage(), Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage(), Layout::HWC});
-  MLD_EXPECT_OK(DWPlusConv1x1Test(exec_env, {7, 9}, op_def, precision()));
+  op_def.src_tensors.push_back({data_type, storage(), Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage(), Layout::kHWC});
+  ABSL_EXPECT_OK(DWPlusConv1x1Test(exec_env, {7, 9}, op_def, precision()));
 }
 
 TEST_P(FloatTest, Conv3x2from4to4Conv1x1from4to8) {
@@ -384,9 +385,9 @@ TEST_P(FloatTest, Conv3x2from4to4Conv1x1from4to8) {
                  << " storage type: " << ToString(storage());
   }
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage(), Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage(), Layout::HWC});
-  MLD_EXPECT_OK(Conv2dConv1x1Test(exec_env, 3, 2, {4, 4, 8}, op_def, precision()));
+  op_def.src_tensors.push_back({data_type, storage(), Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage(), Layout::kHWC});
+  ABSL_EXPECT_OK(Conv2dConv1x1Test(exec_env, 3, 2, {4, 4, 8}, op_def, precision()));
 }
 
 TEST_P(FloatTest, Conv1x1from8to4Conv1x1from4to8) {
@@ -396,9 +397,9 @@ TEST_P(FloatTest, Conv1x1from8to4Conv1x1from4to8) {
                  << " storage type: " << ToString(storage());
   }
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage(), Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage(), Layout::HWC});
-  MLD_EXPECT_OK(Conv2dConv1x1Test(exec_env, 1, 1, {8, 4, 8}, op_def, precision()));
+  op_def.src_tensors.push_back({data_type, storage(), Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage(), Layout::kHWC});
+  ABSL_EXPECT_OK(Conv2dConv1x1Test(exec_env, 1, 1, {8, 4, 8}, op_def, precision()));
 }
 
 INSTANTIATE_TEST_SUITE_P(FloatTestSuite, FloatTest,

@@ -108,7 +108,7 @@ def flatbuffer_library_public(
             cmd = reflection_genrule_cmd,
             message = "Generating flatbuffer reflection binary for %s:" % (name),
         )
-        # TODO(b/114456773): Make bazel rules proper and supported by flatbuffer
+        # TODO: Make bazel rules proper and supported by flatbuffer
         # Have to comment this since FilesetEntry is not supported in bazel
         # starlark.
         # native.Fileset(
@@ -450,7 +450,7 @@ def flatbuffer_py_library(
         include_paths = include_paths,
     )
 
-    # TODO(b/235550563): Remove the concatnation rule with 2.0.6 update.
+    # TODO: Remove the concatnation rule with 2.0.6 update.
     concat_py_srcs = "{}_generated".format(name)
     _concat_flatbuffer_py_srcs(
         name = concat_py_srcs,

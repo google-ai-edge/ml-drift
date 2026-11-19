@@ -25,7 +25,7 @@ namespace ml_drift {
 std::string GetSelectV2Code(const OperationDef& op_def) {
   std::string c;
   c += "MAIN_FUNCTION($0) {\n";
-  if (op_def.dst_tensors[0].HasAxis(Axis::BATCH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kBatch)) {
     c += R"(
   int linear_id = ucl::GetGlobalId<0>();
   int X = linear_id / args.dst_tensor.Batch();
@@ -102,6 +102,7 @@ GPUOperation CreateSelectV2(const OperationDef& definition,
   op.AddSrcTensor("false_tensor", definition.src_tensors[2]);
   op.AddDstTensor("dst_tensor", definition.dst_tensors[0]);
   op.code_ = GetSelectV2Code(definition);
+  op.flops_ = definition.dst_tensors[0].GetBHWDCShape().DimensionsProduct();
   return op;
 }
 

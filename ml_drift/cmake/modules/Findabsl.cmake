@@ -17,7 +17,7 @@ include(FetchContent)
 FetchContent_Declare(
   abseil
   GIT_REPOSITORY https://github.com/abseil/abseil-cpp.git
-  GIT_TAG 20250814.0
+  GIT_TAG 20260817.0
 )
 
 # Set options to avoid building tests if GTest is not found or is a different version
@@ -25,7 +25,17 @@ set(ABSL_PROPAGATE_CXX_STD ON)
 set(ABSL_BUILD_TESTING OFF CACHE BOOL "")
 set(ABSL_USE_SYSTEM_GTEST ON CACHE BOOL "Use system-provided GoogleTest")
 
-# TODO(dlho): conditionalize these
+# Build Abseil's PUBLIC TESTONLY helper libraries (e.g. absl::status_matchers).
+# These are needed by ML Drift's tests but are not created unless test helpers
+# are enabled, and they are not exported by an installed Abseil. Since Abseil is
+# added via add_subdirectory here, reuse the GoogleTest targets that ML Drift has
+# already made available (see FindGTest.cmake) instead of having Abseil find or
+# download its own copy.
+set(ABSL_BUILD_TEST_HELPERS ON CACHE BOOL "" FORCE)
+set(ABSL_USE_EXTERNAL_GOOGLETEST ON CACHE BOOL "" FORCE)
+set(ABSL_FIND_GOOGLETEST OFF CACHE BOOL "" FORCE)
+
+# TODO: conditionalize these
 set(ABSL_ENABLE_INSTALL ON CACHE BOOL "" FORCE)
 set(ABSL_PROPAGATE_CXX_STD ON CACHE BOOL "" FORCE)
 

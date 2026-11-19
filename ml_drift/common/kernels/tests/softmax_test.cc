@@ -14,7 +14,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/kernels/tests/kernel_test.h"
 #include "ml_drift/common/kernels/tests/softmax_test_util.h"
@@ -34,7 +34,7 @@ TEST_P(SoftmaxFloatTest, SoftmaxTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(SoftmaxTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(SoftmaxTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(SoftmaxFloatTest, SoftmaxWGTest) {
@@ -42,7 +42,7 @@ TEST_P(SoftmaxFloatTest, SoftmaxWGTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(SoftmaxWGTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(SoftmaxWGTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(SoftmaxFloatTest, SoftmaxReduceTest) {
@@ -50,7 +50,7 @@ TEST_P(SoftmaxFloatTest, SoftmaxReduceTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(SoftmaxReduceTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(SoftmaxReduceTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(SoftmaxFloatTest, SoftmaxBigNumberTest) {
@@ -58,7 +58,7 @@ TEST_P(SoftmaxFloatTest, SoftmaxBigNumberTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(SoftmaxBigNumberTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(SoftmaxBigNumberTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(SoftmaxFloatTest, SoftmaxRuntimeChannelsTest) {
@@ -66,7 +66,7 @@ TEST_P(SoftmaxFloatTest, SoftmaxRuntimeChannelsTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(SoftmaxRuntimeChannelsTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(SoftmaxRuntimeChannelsTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(SoftmaxFloatTest, SoftmaxBigTest) {
@@ -74,7 +74,7 @@ TEST_P(SoftmaxFloatTest, SoftmaxBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(SoftmaxBigTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(SoftmaxBigTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(SoftmaxFloatTest, SoftmaxBatchedBigTest) {
@@ -82,7 +82,7 @@ TEST_P(SoftmaxFloatTest, SoftmaxBatchedBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(SoftmaxBatchedBigTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(SoftmaxBatchedBigTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(SoftmaxFloatTest, SoftmaxReduceBigTest) {
@@ -90,7 +90,7 @@ TEST_P(SoftmaxFloatTest, SoftmaxReduceBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(SoftmaxReduceBigTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(SoftmaxReduceBigTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(SoftmaxFloatTest, SoftmaxReduceRuntimeChannelsBigTest) {
@@ -98,7 +98,7 @@ TEST_P(SoftmaxFloatTest, SoftmaxReduceRuntimeChannelsBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       SoftmaxReduceRuntimeChannelsBigTest(*exec_env, data_type(), storage()));
 }
 
@@ -107,7 +107,7 @@ TEST_P(SoftmaxFloatTest, SoftmaxRuntimeChannelsBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(SoftmaxRuntimeChannelsBigTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(SoftmaxRuntimeChannelsBigTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(SoftmaxFloatTest, Softmax1x1Test) {
@@ -115,7 +115,7 @@ TEST_P(SoftmaxFloatTest, Softmax1x1Test) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(Softmax1x1Test(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(Softmax1x1Test(*exec_env, data_type(), storage()));
 }
 
 TEST_P(SoftmaxFloatTest, Softmax1x1BigNumberTest) {
@@ -123,7 +123,7 @@ TEST_P(SoftmaxFloatTest, Softmax1x1BigNumberTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(Softmax1x1BigNumberTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(Softmax1x1BigNumberTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(SoftmaxFloatTest, Softmax1x1RuntimeChannelsTest) {
@@ -131,7 +131,7 @@ TEST_P(SoftmaxFloatTest, Softmax1x1RuntimeChannelsTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(Softmax1x1RuntimeChannelsTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(Softmax1x1RuntimeChannelsTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(SoftmaxFloatTest, Softmax1x1Custom1Test) {
@@ -139,7 +139,7 @@ TEST_P(SoftmaxFloatTest, Softmax1x1Custom1Test) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(Softmax1x1Custom1Test(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(Softmax1x1Custom1Test(*exec_env, data_type(), storage()));
 }
 
 TEST_P(SoftmaxFloatTest, Softmax1x1BigTest) {
@@ -147,7 +147,7 @@ TEST_P(SoftmaxFloatTest, Softmax1x1BigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(Softmax1x1BigTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(Softmax1x1BigTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(SoftmaxFloatTest, Softmax1x1BatchedBigTest) {
@@ -155,7 +155,7 @@ TEST_P(SoftmaxFloatTest, Softmax1x1BatchedBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(Softmax1x1BatchedBigTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(Softmax1x1BatchedBigTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(SoftmaxFloatTest, Softmax1x1ReduceBigTest) {
@@ -163,7 +163,7 @@ TEST_P(SoftmaxFloatTest, Softmax1x1ReduceBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(Softmax1x1ReduceBigTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(Softmax1x1ReduceBigTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(SoftmaxFloatTest, Softmax1x1ReduceRuntimeChannelsBigTest) {
@@ -171,7 +171,7 @@ TEST_P(SoftmaxFloatTest, Softmax1x1ReduceRuntimeChannelsBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(Softmax1x1ReduceRuntimeChannelsBigTest(*exec_env, data_type(),
+  ABSL_ASSERT_OK(Softmax1x1ReduceRuntimeChannelsBigTest(*exec_env, data_type(),
                                                    storage()));
 }
 
@@ -180,7 +180,7 @@ TEST_P(SoftmaxFloatTest, Softmax1x1RuntimeChannelsBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       Softmax1x1RuntimeChannelsBigTest(*exec_env, data_type(), storage()));
 }
 
@@ -189,7 +189,7 @@ TEST_P(SoftmaxFloatTest, Softmax5DTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(Softmax5DTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(Softmax5DTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(SoftmaxFloatTest, Softmax1x15DTest) {
@@ -197,7 +197,7 @@ TEST_P(SoftmaxFloatTest, Softmax1x15DTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(Softmax1x15DTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(Softmax1x15DTest(*exec_env, data_type(), storage()));
 }
 
 INSTANTIATE_TEST_SUITE_P(

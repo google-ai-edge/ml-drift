@@ -20,11 +20,12 @@
 #include <vector>
 
 #include "gmock/gmock.h"
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/kernels/lstm.h"
 #include "ml_drift/common/precision.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/gpu_operation.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/task/testing_ref_ops.h"
@@ -47,7 +48,7 @@ absl::Status LSTMTest(TestExecutionEnvironment& exec_env,
   auto operation = CreateLSTM(op_def, exec_env.GetGpuInfo());
 
   std::vector<TensorFloat32> dsts(2);
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(
       {intermediate_tensor, prev_state},
       std::make_unique<GPUOperation>(std::move(operation)),
       {dsts_ref[0].shape, dsts_ref[1].shape}, {&dsts[0], &dsts[1]}));
@@ -82,13 +83,13 @@ absl::Status LstmTest(TestExecutionEnvironment& env,
   prev_state.shape = BHWC(1, 1, 1, 4);
   prev_state.data = {1.0f, 2.0f, 3.0f, 4.0f};
 
-  const float eps = precision == CalculationsPrecision::F32 ? 1e-6f : 2e-3f;
+  const float eps = precision == CalculationsPrecision::kF32 ? 1e-6f : 2e-3f;
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
   TensorFloat32 new_state;
   TensorFloat32 new_activ;
   GPUOperation operation = CreateLSTM(op_def, env.GetGpuInfo());
@@ -123,10 +124,10 @@ absl::Status LstmBigTest(TestExecutionEnvironment& env,
   TensorFloat32 intermediate_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
   return LSTMTest(env, prev_state, intermediate_tensor, op_def);
 }
 

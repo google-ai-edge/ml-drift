@@ -20,7 +20,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/strings/match.h"
 #include "ml_drift/common/access_type.h"
 #include "ml_drift/common/data_type.h"
@@ -33,12 +33,12 @@ namespace ml_drift {
 namespace cl {
 TEST(CLArgumentsTest, TestSelectorResolve) {
   BufferDescriptor desc;
-  desc.element_type = DataType::FLOAT32;
+  desc.element_type = DataType::kFloat32;
   desc.element_size = 4;
-  desc.memory_type = MemoryType::GLOBAL;
+  desc.memory_type = MemoryType::kGlobal;
 
   Arguments args;
-  args.AddObjectRef("weights", AccessType::READ,
+  args.AddObjectRef("weights", AccessType::kRead,
                     std::make_unique<BufferDescriptor>(std::move(desc)));
   std::string sample_code = R"(
 __kernel void main_function($0) {
@@ -49,7 +49,7 @@ __kernel void main_function($0) {
 
   CLArguments cl_args;
   GpuInfo gpu_info;
-  MLD_ASSERT_OK(cl_args.Init(gpu_info, /*context=*/nullptr, &args, &sample_code));
+  ABSL_ASSERT_OK(cl_args.Init(gpu_info, /*context=*/nullptr, &args, &sample_code));
   EXPECT_TRUE(absl::StrContains(sample_code, "value = weights.Read(id);"));
   EXPECT_TRUE(
       absl::StrContains(sample_code, "__global float4* weights_buffer"));

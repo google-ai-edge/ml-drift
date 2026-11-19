@@ -19,12 +19,12 @@
 #include <set>
 #include <vector>
 
+#include "absl/status/status.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/model_hints.h"
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/gpu_operation.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/task/weights_layout.h"
@@ -68,23 +68,16 @@ absl::Status SelectConcat(const ConcatAttributes& attr,
                           const OperationDef& op_def, const GpuInfo& gpu_info,
                           std::unique_ptr<GPUOperation>* ptr);
 
-void SelectReshape(int src_channels, int dst_channels,
-                   const OperationDef& op_def,
-                   std::unique_ptr<GPUOperation>* ptr);
-
 std::unique_ptr<GPUOperation> SelectPadding(const GpuInfo& gpu_info,
                                             const PadAttributes& attr,
-                                            const OperationDef& op_def);
+                                            const OperationDef& op_def,
+                                            int src_channels);
 
 std::unique_ptr<GPUOperation> SelectReduce(const std::set<Axis>& axis_to_reduce,
                                            const BHWC& src_shape,
                                            OperationType op_type,
                                            const OperationDef& op_def,
                                            const GpuInfo& gpu_info);
-
-std::unique_ptr<GPUOperation> SelectSoftmax(
-    const GpuInfo& gpu_info, const BHWC& shape, const OperationDef& op_def,
-    const SoftmaxRuntimeCheckDesc& runtime_check = {});
 
 void SelectSpaceToDepth(const SpaceToDepthAttributes& attr,
                         const OperationDef& op_def,
@@ -94,9 +87,10 @@ void SelectDepthToSpace(const SpaceToDepthAttributes& attr,
                         const OperationDef& op_def,
                         std::unique_ptr<GPUOperation>* ptr);
 
-void SelectEmbeddingLookup(const EmbeddingLookupAttributes& attr,
-                           const OperationDef& op_def, const GpuInfo& gpu_info,
-                           std::unique_ptr<GPUOperation>* ptr);
+absl::Status SelectEmbeddingLookup(const EmbeddingLookupAttributes& attr,
+                                   const OperationDef& op_def,
+                                   const GpuInfo& gpu_info,
+                                   std::unique_ptr<GPUOperation>* ptr);
 
 void SelectSplit(const SplitAttributes& attr, const GpuInfo& gpu_info,
                  const std::vector<int>& channels, const OperationDef& op_def,
@@ -110,7 +104,7 @@ std::unique_ptr<GPUOperation> SelectWinograd3x3Forward(
 
 std::unique_ptr<GPUOperation> SelectWinograd3x3Backward(
     const GpuInfo& gpu_info, const OperationDef& op_def, int tile_size,
-    const Tensor<Linear, DataType::FLOAT32>& biases);
+    const Tensor<Linear, DataType::kFloat32>& biases);
 
 std::unique_ptr<GPUOperation> SelectQuantizeAndDequantize(
     const QuantizeAndDequantizeAttributes& attr, const OperationDef& op_def);

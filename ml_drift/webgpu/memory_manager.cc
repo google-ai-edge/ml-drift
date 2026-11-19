@@ -16,6 +16,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <map>
 #include <memory>
 #include <utility>
@@ -25,12 +26,16 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/node_hash_map.h"
 #include "absl/hash/hash.h"
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
+#include "absl/status/statusor.h"
+#include "absl/strings/str_cat.h"
+#include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/gpu_model.h"
 #include "ml_drift/common/memory_management.h"
 #include "ml_drift/common/memory_management/types.h"
 #include "ml_drift/common/model.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/types.h"
 #include "ml_drift/webgpu/buffer.h"
@@ -54,8 +59,8 @@ void AddUsage(ValueId id, int task_index,
 }
 
 bool IsBufferBased(const TensorStorageType& type) {
-  return type == TensorStorageType::BUFFER ||
-         type == TensorStorageType::IMAGE_BUFFER;
+  return type == TensorStorageType::kBuffer ||
+         type == TensorStorageType::kImageBuffer;
 }
 
 // Returns a vector of T* sorted in increasing memory size.
@@ -100,7 +105,7 @@ const SpatialTensor* TakeAvailableTexture(
 
 // Takes the smallest available buffer which can hold `size`.
 const Buffer* TakeAvailableBuffer(std::vector<const Buffer*>& available_buffers,
-                                  size_t size) {
+                                  uint64_t size) {
   auto it = absl::c_find_if(available_buffers, [size](const Buffer* b) {
     return b->GetMemorySizeInBytes() >= size;
   });
@@ -149,6 +154,7 @@ absl::StatusOr<MemoryManager::ModelId> MemoryManager::AllocateMemory(
         spatial_tensor;
   }
   absl::flat_hash_map<uint64_t, SpatialTensor*> mutable_tensors;
+  const int oom_before = environment.GetDeviceUnhandledErrorsOutOfMemoryCount();
   for (const auto& external : external_tensors.mutable_tensors) {
     Key key = Key(next_model_id_, external.first);
     auto tensor_desc = GetTensorDescriptor(key);
@@ -161,18 +167,34 @@ absl::StatusOr<MemoryManager::ModelId> MemoryManager::AllocateMemory(
     auto* tensor = external_mutable_tensors.back().get();
     ABSL_RETURN_IF_ERROR(
         CreateTensor(environment.device(), tensor_desc, tensor));
+    if (environment.GetDeviceUnhandledErrorsOutOfMemoryCount() > oom_before) {
+      return absl::ResourceExhaustedError(
+          "WebGPU ran out of memory while allocating mutable model tensors.");
+    }
     mutable_tensors[tensor_desc_unique_key] = tensor;
     // It will be reset to nullptr by the caller later.
     external_mutable_tensors_[key] = tensor;
   }
   ABSL_RETURN_IF_ERROR(AllocateMemoryForConstTensors(environment, gpu_model));
+  if (environment.GetDeviceUnhandledErrorsOutOfMemoryCount() > oom_before) {
+    return absl::ResourceExhaustedError(
+        "WebGPU ran out of memory while allocating constant model tensors.");
+  }
   std::map<ValueId, int2> buffer_usages;
   std::map<ValueId, int2> texture_usages;
   ABSL_RETURN_IF_ERROR(
       CollectUsageInformation(gpu_model, &buffer_usages, &texture_usages));
 
   ABSL_RETURN_IF_ERROR(AllocateMemoryForBuffers(environment, buffer_usages));
+  if (environment.GetDeviceUnhandledErrorsOutOfMemoryCount() > oom_before) {
+    return absl::ResourceExhaustedError(
+        "WebGPU ran out of memory while allocating intermediate buffers.");
+  }
   ABSL_RETURN_IF_ERROR(AllocateMemoryForTextures(environment, texture_usages));
+  if (environment.GetDeviceUnhandledErrorsOutOfMemoryCount() > oom_before) {
+    return absl::ResourceExhaustedError(
+        "WebGPU ran out of memory while allocating intermediate textures.");
+  }
   return next_model_id_++;
 }
 
@@ -267,11 +289,16 @@ absl::Status MemoryManager::CollectUsageInformation(
 
 absl::Status MemoryManager::AllocateMemoryForConstTensors(
     const Environment& environment, const GpuModel& gpu_model) {
+  const int oom_before = environment.GetDeviceUnhandledErrorsOutOfMemoryCount();
   for (const auto& description : gpu_model.const_tensors) {
-    auto& tensor = const_tensors_[Key(next_model_id_, description.first)];
-    tensor = std::make_unique<SpatialTensor>();
+    auto tensor = std::make_unique<SpatialTensor>();
     ABSL_RETURN_IF_ERROR(
         tensor->CreateFromDescriptor(environment.device(), description.second));
+    if (environment.GetDeviceUnhandledErrorsOutOfMemoryCount() > oom_before) {
+      return absl::ResourceExhaustedError(
+          "WebGPU ran out of memory while allocating constant model tensors.");
+    }
+    const_tensors_[Key(next_model_id_, description.first)] = std::move(tensor);
   }
   return absl::OkStatus();
 }
@@ -281,19 +308,35 @@ absl::Status MemoryManager::AllocateMemoryForBuffers(
     const std::map<ValueId, int2>& buffer_usages) {
   std::map<ValueId, int> value_id_to_shared_buffer_tensors;
 
+  // Each tensor is bound as a single storage buffer binding, so it must fit
+  // within both maxBufferSize and maxStorageBufferBindingSize.
+  const uint64_t max_buffer_size = environment.GetInfo().GetMaxBufferSize();
   std::vector<TensorUsageRecord<size_t>> usage_records;
-  for (auto& usage : buffer_usages) {
-    const auto& td = GetTensorDescriptor(Key(next_model_id_, usage.first));
-    size_t buffer_size = td.GetMemorySizeInBytes();
-    value_id_to_shared_buffer_tensors[usage.first] = usage_records.size();
-    usage_records.push_back({buffer_size, static_cast<TaskId>(usage.second.x),
-                             static_cast<TaskId>(usage.second.y)});
+  for (const auto& [tensor_id, task_range] : buffer_usages) {
+    const auto& td = GetTensorDescriptor(Key(next_model_id_, tensor_id));
+    const uint64_t buffer_size = td.GetMemorySizeInBytes();
+    if (max_buffer_size > 0 && buffer_size > max_buffer_size) {
+      return absl::ResourceExhaustedError(absl::StrCat(
+          "Intermediate tensor ", tensor_id, " requires ", buffer_size,
+          " bytes, which exceeds the device's max buffer size of ",
+          max_buffer_size, " bytes."));
+    }
+    if (buffer_size > std::numeric_limits<size_t>::max()) {
+      return absl::ResourceExhaustedError(absl::StrCat(
+          "Intermediate tensor ", tensor_id, " requires ", buffer_size,
+          " bytes, which exceeds the platform address space."));
+    }
+    value_id_to_shared_buffer_tensors[tensor_id] = usage_records.size();
+    usage_records.push_back({static_cast<size_t>(buffer_size),
+                             static_cast<TaskId>(task_range.x),
+                             static_cast<TaskId>(task_range.y)});
   }
 
   ObjectsAssignment<size_t> assignment;
   ABSL_RETURN_IF_ERROR(AssignObjectsToTensors(
-      usage_records, MemoryStrategy::GREEDY_BEST, &assignment));
+      usage_records, MemoryStrategy::kGreedyBest, &assignment));
 
+  const int oom_before = environment.GetDeviceUnhandledErrorsOutOfMemoryCount();
   std::vector<wgpu::Buffer> buffers(assignment.object_sizes.size());
   std::vector<const Buffer*> available_buffers =
       GetSortedVector(shared_buffers_);
@@ -301,8 +344,14 @@ absl::Status MemoryManager::AllocateMemoryForBuffers(
     size_t size = assignment.object_sizes[i];
     const Buffer* buffer = TakeAvailableBuffer(available_buffers, size);
     if (!buffer) {
-      shared_buffers_.push_back(std::make_unique<Buffer>(
-          CreateBufferStorage(environment.device(), size)));
+      Buffer created = CreateBufferStorage(environment.device(), size);
+      if (!created.GetMemoryHandle() ||
+          environment.GetDeviceUnhandledErrorsOutOfMemoryCount() > oom_before) {
+        return absl::ResourceExhaustedError(absl::StrCat(
+            "WebGPU ran out of memory while allocating intermediate buffer of ",
+            size, " bytes."));
+      }
+      shared_buffers_.push_back(std::make_unique<Buffer>(std::move(created)));
       buffer = shared_buffers_.back().get();
     }
     buffers[i] = buffer->GetMemoryHandle();
@@ -347,8 +396,9 @@ absl::Status MemoryManager::AllocateMemoryForTextures(
 
   ObjectsAssignment<TensorDescComparator> assignment;
   ABSL_RETURN_IF_ERROR(AssignObjectsToTensors(
-      usage_records, MemoryStrategy::EQUALITY, &assignment));
+      usage_records, MemoryStrategy::kEquality, &assignment));
 
+  const int oom_before = environment.GetDeviceUnhandledErrorsOutOfMemoryCount();
   std::vector<std::pair<wgpu::Texture, wgpu::TextureView>> textures(
       assignment.object_sizes.size());
   std::vector<const SpatialTensor*> available_tensors =
@@ -357,11 +407,15 @@ absl::Status MemoryManager::AllocateMemoryForTextures(
     const auto& td = assignment.object_sizes[i].tensor_desc;
     const SpatialTensor* tensor = TakeAvailableTexture(available_tensors, td);
     if (!tensor) {
-      auto& new_tensor =
-          shared_texture_tensors_.emplace_back(new SpatialTensor());
+      auto new_tensor = std::make_unique<SpatialTensor>();
       ABSL_RETURN_IF_ERROR(
           CreateTensor(environment.device(), td, new_tensor.get()));
-      tensor = new_tensor.get();
+      if (environment.GetDeviceUnhandledErrorsOutOfMemoryCount() > oom_before) {
+        return absl::ResourceExhaustedError(
+            "WebGPU ran out of memory while allocating intermediate textures.");
+      }
+      shared_texture_tensors_.push_back(std::move(new_tensor));
+      tensor = shared_texture_tensors_.back().get();
     }
     textures[i] = {tensor->GetTextureHandle(), tensor->GetTextureViewHandle()};
   }

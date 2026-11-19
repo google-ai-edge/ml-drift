@@ -15,10 +15,10 @@
 #ifndef ML_DRIFT_COMMON_KERNELS_TESTS_CONV_WAVE_MEMORY_TEST_UTIL_H_
 #define ML_DRIFT_COMMON_KERNELS_TESTS_CONV_WAVE_MEMORY_TEST_UTIL_H_
 
+#include "absl/status/status.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/precision.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/task/testing_util.h"
 
@@ -26,7 +26,7 @@ namespace ml_drift {
 absl::Status ConvWaveMemoryTest(TestExecutionEnvironment& env,
                                 CalculationsPrecision precision,
                                 TensorStorageType storage, const BHWC& shape,
-                                int dst_channels);
+                                const OHWI& weights_shape);
 
 absl::Status ConvWaveMemoryGroupedX3Test(TestExecutionEnvironment& env,
                                          CalculationsPrecision precision,

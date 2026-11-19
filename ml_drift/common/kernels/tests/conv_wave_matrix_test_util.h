@@ -15,9 +15,9 @@
 #ifndef ML_DRIFT_COMMON_KERNELS_TESTS_CONV_WAVE_MATRIX_TEST_UTIL_H_
 #define ML_DRIFT_COMMON_KERNELS_TESTS_CONV_WAVE_MATRIX_TEST_UTIL_H_
 
+#include "absl/status/status.h"
 #include "ml_drift/common/precision.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/task/testing_util.h"
 
@@ -54,18 +54,24 @@ absl::Status ConvWaveMatrixExternalWfloatTest(TestExecutionEnvironment& env,
                                               const BHWC& src_shape,
                                               int dst_channels,
                                               bool batched_weights = false);
+absl::Status ConvWaveMatrixExternalWi8ScalarQuantizationTest(
+    TestExecutionEnvironment& env, CalculationsPrecision precision,
+    TensorStorageType storage, const BHWC& src_shape, int dst_channels);
 absl::Status ConvWaveMatrixExternalWi8Test(
     TestExecutionEnvironment& env, CalculationsPrecision precision,
     TensorStorageType storage, const BHWC& src_shape, int dst_channels,
-    bool batched_weights = false, int group_size = -1, int scale_zp_batch = -1);
+    bool batched_weights = false, int group_size = -1, int scale_zp_batch = -1,
+    bool has_zero_point = true);
 absl::Status ConvWaveMatrixExternalWi4Test(
     TestExecutionEnvironment& env, CalculationsPrecision precision,
     TensorStorageType storage, const BHWC& src_shape, int dst_channels,
-    bool batched_weights = false, int group_size = -1);
+    bool batched_weights = false, int group_size = -1,
+    bool has_zero_point = true);
 absl::Status ConvWaveMatrixExternalWi2Test(
     TestExecutionEnvironment& env, CalculationsPrecision precision,
     TensorStorageType storage, const BHWC& src_shape, int dst_channels,
-    bool batched_weights = false, int group_size = -1);
+    bool batched_weights = false, int group_size = -1,
+    bool has_zero_point = true);
 
 absl::Status ConvWaveMatrixWinograd4x4To6x6Test(TestExecutionEnvironment& env,
                                                 CalculationsPrecision precision,

@@ -48,8 +48,15 @@ class ConvConstants : public GPUOperation {
     WeightsDescription desc;
     desc.type = weights_data_type_;
     if (weights_shape_.i % 4 == 0 && weights_shape_.o % 4 == 0) {
-      desc.layout = WeightsLayout::kOISpatialOGroupI4O4;
-      desc.output_group_size = DivideRoundUp(weights_shape_.o, 4);
+      desc.layout = WeightsLayout::kCustomGroups;
+      desc.group_sizes = {
+          {Axis::kOutputChannels, 4},
+          {Axis::kInputChannels, 4},
+          {Axis::kOutputChannels, DivideRoundUp(weights_shape_.o, 4)},
+          {Axis::kWidth, 0},
+          {Axis::kHeight, 0},
+          {Axis::kInputChannels, 0},
+          {Axis::kOutputChannels, 0}};
     } else {
       desc.layout = WeightsLayout::kISpatialOI4O4UnalignedIO;
     }
@@ -76,7 +83,7 @@ class ConvConstants : public GPUOperation {
       const TensorDescriptor* bias);
 
   void UploadWeights(const GpuInfo& gpu_info,
-                     const Tensor<OHWI, DataType::FLOAT32>& weights);
+                     const Tensor<OHWI, DataType::kFloat32>& weights);
 
   bool src_local_memory_caching_ = false;
   DataType weights_data_type_;

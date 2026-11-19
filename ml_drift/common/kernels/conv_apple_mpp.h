@@ -25,6 +25,7 @@
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/kernel_info.h"
+#include "ml_drift/common/operations.h"
 #include "ml_drift/common/shape.h"
 #include "ml_drift/common/task/buffer_desc.h"
 #include "ml_drift/common/task/gpu_operation.h"
@@ -41,11 +42,42 @@ namespace ml_drift {
 // Convolution implementation for Apple GPUs with MetalPerformancePrimitives.
 class ConvAppleMPP : public GPUOperation {
  public:
-  ConvAppleMPP(const TensorDescriptor& src, const OHWI& weights_shape,
-               DataType weights_data_type,
-               bool different_weights_for_height = false,
-               bool softmax_input_activation = false,
-               const ConvRuntimeCheckDesc& runtime_check = {});
+  struct ConvParams {
+    WeightsDescription weights_desc;         // only used for ExternalWeights
+    OHWI scale_zp_shape = OHWI(1, 1, 1, 1);  // only used for ExternalWeights
+    bool has_zero_point = false;             // only used for ExternalWeights
+    int src_group_slices = 0;                // only used for ExternalWeights
+    DataType weights_data_type;
+    bool x_kernel_is_1 = true;
+    bool y_kernel_is_1 = true;
+    OHWI weights_shape;
+    bool softmax_input_activation = false;
+    bool batched_weights = false;
+    bool has_bias = true;
+    ConvRuntimeCheckDesc runtime_check;
+
+    void InitKernelXY(const Convolution2DAttributes& attr) {
+      const OHWI& weights_shape = attr.GetWeightsShape();
+      x_kernel_is_1 = weights_shape.w == 1 && attr.strides.w == 1 &&
+                      attr.dilations.w == 1 && attr.padding.prepended.w == 0 &&
+                      attr.padding.appended.w == 0;
+      y_kernel_is_1 = weights_shape.h == 1 && attr.strides.h == 1 &&
+                      attr.dilations.h == 1 && attr.padding.prepended.h == 0 &&
+                      attr.padding.appended.h == 0;
+    }
+  };
+
+  struct KernelParams {
+    int m_tile = 64;
+    int k_tile = 0;
+    int n_tile = 64;
+    int simdgroups = 4;
+    bool manual_k_tiling = false;
+    bool manual_src_reading = false;
+  };
+
+  ConvAppleMPP(const TensorDescriptor& src, const ConvParams& params,
+               int m_tile = 64, int n_tile = 128);
   // Move only
   ConvAppleMPP(ConvAppleMPP&& kernel) = default;
   ConvAppleMPP& operator=(ConvAppleMPP&& kernel) = default;
@@ -59,18 +91,23 @@ class ConvAppleMPP : public GPUOperation {
   int3 GetGridSize() const override;
 
   WeightsDescription GetWeightsDescription() const {
-    if (external_weights_params_.weights_desc.layout !=
-        WeightsLayout::kUnknown) {
-      return external_weights_params_.weights_desc;
+    if (conv_params_.weights_desc.layout != WeightsLayout::kUnknown) {
+      return conv_params_.weights_desc;
     }
     WeightsDescription weights_desc;
-    weights_desc.type = weights_data_type_;
+    weights_desc.type = conv_params_.weights_data_type;
     weights_desc.layout = WeightsLayout::kCustomGroups;
     weights_desc.group_sizes = {
-        {Axis::OUTPUT_CHANNELS, AlignByN(weights_shape_.o, 4)},
-        {Axis::INPUT_CHANNELS, AlignByN(weights_shape_.i, 4)}};
-    if (batched_weights_) {
-      weights_desc.group_sizes.push_back({Axis::HEIGHT, 0});
+        {Axis::kOutputChannels, AlignByN(conv_params_.weights_shape.o, 4)},
+        {Axis::kInputChannels, AlignByN(conv_params_.weights_shape.i, 4)}};
+    if (conv_params_.batched_weights) {
+      weights_desc.group_sizes.push_back({Axis::kHeight, 0});
+    }
+    if (!conv_params_.x_kernel_is_1) {
+      weights_desc.group_sizes.push_back({Axis::kWidth, 0});
+    }
+    if (!conv_params_.y_kernel_is_1) {
+      weights_desc.group_sizes.push_back({Axis::kHeight, 0});
     }
     return weights_desc;
   }
@@ -82,30 +119,11 @@ class ConvAppleMPP : public GPUOperation {
   template <DataType T>
   void UploadBias(const Tensor<Linear, T>& bias);
 
-  struct ExternalWeightsParams {
-    WeightsDescription weights_desc;
-    OHWI scale_zp_shape = OHWI(1, 1, 1, 1);
-    bool has_zero_point = false;
-    int src_group_slices = 0;
-  };
-  void SetExternalWeightsParams(const ExternalWeightsParams& weights_params) {
-    external_weights_params_ = weights_params;
-  }
-  void SetMTile(int m_tile) { m_tile_ = m_tile; }
-  void SetNTile(int n_tile) { n_tile_ = n_tile; }
-  std::string GetKernelCode(bool has_batch, bool has_bias = false) const;
-
  private:
-  TensorDescriptor src_desc_;
-  int m_tile_ = 64;
-  int n_tile_ = 64;
-  int simdgroups_ = 4;
-  OHWI weights_shape_;
-  DataType weights_data_type_;
-  bool batched_weights_ = false;
-  bool softmax_input_activation_ = false;
-  ConvRuntimeCheckDesc runtime_check_;
-  ExternalWeightsParams external_weights_params_;
+  ConvParams conv_params_;
+  KernelParams kernel_params_;
+
+  std::string GetKernelCode(const TensorDescriptor& src) const;
 };
 
 template <DataType T>
@@ -116,7 +134,7 @@ void ConvAppleMPP::UploadWeights(const Tensor<OHWI, T>& weights) {
       GetTotalElementsCountForLayout(weights_desc, weights.shape);
 
   BufferDescriptor buffer_desc;
-  buffer_desc.element_type = weights_data_type_;
+  buffer_desc.element_type = conv_params_.weights_data_type;
   buffer_desc.element_size = 1;
   buffer_desc.size = elements_count * SizeOf(weights_desc.type);
   buffer_desc.data.resize(buffer_desc.size);
@@ -128,21 +146,25 @@ void ConvAppleMPP::UploadWeights(const Tensor<OHWI, T>& weights) {
 template <DataType T>
 void ConvAppleMPP::UploadBias(const Tensor<Linear, T>& bias) {
   TensorDescriptor bias_tensor_desc = CreateConstantLinearTensorDescriptor(
-      weights_data_type_, TensorStorageType::BUFFER, bias);
+      conv_params_.weights_data_type, TensorStorageType::kBuffer, bias);
   args_.AddObject("biases", std::make_unique<TensorDescriptor>(
                                 std::move(bias_tensor_desc)));
 }
 
 // Checks if the Apple MPP convolution is supported on the given GPU.
-bool SupportsConvAppleMPP(const GpuInfo& gpu_info);
+bool SupportsConvAppleMPP(const GpuInfo& gpu_info, const BHWC& src_shape);
 bool SupportsConvAppleMPP(const GpuInfo& gpu_info,
                           const ExternalWeights& weights);
+
+ConvAppleMPP CreateConvAppleMPP(const TensorDescriptor& src,
+                                const TensorDescriptor& dst,
+                                const Convolution2DAttributes& attr);
 
 // Creates an Apple MPP convolution operation with the given attributes.
 ConvAppleMPP CreateConvAppleMPP(
     const TensorDescriptor& src, const TensorDescriptor& dst,
-    const Tensor<OHWI, DataType::FLOAT32>& weights,
-    const Tensor<Linear, DataType::FLOAT32>& bias = {});
+    const Tensor<OHWI, DataType::kFloat32>& weights,
+    const Tensor<Linear, DataType::kFloat32>& bias = {});
 
 // Creates an Apple MPP convolution operation with external weights.
 ConvAppleMPP CreateConvAppleMPPExternalWeights(
@@ -164,7 +186,7 @@ ConvAppleMPP CreateConvAppleMPPExternalWeights(
 // Creates an Apple MPP convolution operation with INT8 weights.
 ConvAppleMPP CreateConvAppleMPPInt8(
     const TensorDescriptor& src, const TensorDescriptor& dst,
-    const Tensor<OHWI, DataType::INT8>& weights);
+    const Tensor<OHWI, DataType::kInt8>& weights);
 
 // Creates an Apple MPP convolution operation with INT8 external weights.
 ConvAppleMPP CreateConvAppleMPPInt8(const TensorDescriptor& src,

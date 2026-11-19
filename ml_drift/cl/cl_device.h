@@ -17,10 +17,10 @@
 
 #include <string>
 
+#include "absl/status/status.h"
 #include "ml_drift/cl/opencl_wrapper.h"
 #include "ml_drift/cl/util.h"
 #include "ml_drift/common/gpu_info.h"
-#include "ml_drift/common/status.h"
 
 namespace ml_drift {
 namespace cl {
@@ -42,7 +42,7 @@ class CLDevice {
   cl_platform_id platform() const { return platform_id_; }
   std::string GetPlatformVersion() const;
 
-  // To track bug on some Adreno. b/131099086
+  // To track bug on some Adreno.
   void DisableOneLayerTextureArray();
 
   void AddExtension(const std::string& extension) {

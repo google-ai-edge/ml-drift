@@ -14,7 +14,8 @@
 
 #include "ml_drift/cl/opencl_wrapper.h"
 
-#include "ml_drift/cl/default/qcom_wrapper.h"
+#include "absl/debugging/leak_check.h"
+#include "ml_drift/cl/qcom_wrapper.h"
 
 #if defined(_WIN32)
 #define __WINDOWS__
@@ -28,8 +29,8 @@
 
 #include <string>
 
+#include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
-#include "ml_drift/common/status.h"
 
 namespace ml_drift {
 namespace cl {
@@ -103,6 +104,7 @@ absl::Status HasPlatform() {
     return absl::UnknownError("clGetPlatformIDs is not loaded.");
   }
   cl_uint num_platforms;
+  absl::LeakCheckDisabler disabler;
   cl_int status = clGetPlatformIDs(0, nullptr, &num_platforms);
   if (status == CL_SUCCESS && num_platforms != 0) {
     return absl::OkStatus();
@@ -122,7 +124,8 @@ absl::Status LoadOpenCL(const char* lib_name) {
 #ifdef __WINDOWS__
     std::string error = "error code - " + std::to_string(GetLastError());
 #else
-    std::string error(dlerror());
+    const char* dlerror_result = dlerror();
+    std::string error(dlerror_result ? dlerror_result : "unknown error");
 #endif
     return absl::UnknownError(absl::StrCat(
         "Can not open OpenCL library(", lib_name, ") on this device: ", error));
@@ -144,13 +147,16 @@ absl::Status LoadPixelOpenCL(const char* lib_name) {
   typedef void (*enableOpenCL_t)();
   enableOpenCL_t enableOpenCL =
       reinterpret_cast<enableOpenCL_t>(dlsym(libopencl, "enableOpenCL"));
+  if (enableOpenCL == nullptr) {
+    return absl::UnknownError("Can not find enableOpenCL symbol");
+  }
   enableOpenCL();
   LoadOpenCLFunctions(libopencl, true);
   return HasPlatform();
 }
 #endif
 
-absl::Status LoadOpenCL() {
+absl::Status LoadOpenCLOnce() {
 #ifdef __WINDOWS__
   static const char* kClLibName = "OpenCL.dll";
 #elif defined(__APPLE__)
@@ -169,6 +175,11 @@ absl::Status LoadOpenCL() {
   return absl::UnknownError("Can not find OpenCL library on this device");
 }
 
+absl::Status LoadOpenCL() {
+  static const absl::Status* status = new absl::Status(LoadOpenCLOnce());
+  return *status;
+}
+
 void LoadOpenCLFunctionExtensions(cl_platform_id platform_id) {
   // cl_khr_command_buffer extension
   LoadFunctionExtension(platform_id, clCreateCommandBufferKHR);
@@ -183,6 +194,9 @@ void LoadOpenCLFunctionExtensions(cl_platform_id platform_id) {
   LoadFunctionExtension(platform_id, clCreateSemaphoreWithPropertiesKHR);
   LoadFunctionExtension(platform_id, clEnqueueWaitSemaphoresKHR);
   LoadFunctionExtension(platform_id, clEnqueueSignalSemaphoresKHR);
+
+  // cl_arm_import_memory extension
+  LoadFunctionExtension(platform_id, clImportMemoryARM);
 }
 
 #ifdef __WINDOWS__
@@ -457,6 +471,9 @@ PFN_clCreateImageWithProperties clCreateImageWithProperties;
 PFN_clCreateSemaphoreWithPropertiesKHR clCreateSemaphoreWithPropertiesKHR;
 PFN_clEnqueueWaitSemaphoresKHR clEnqueueWaitSemaphoresKHR;
 PFN_clEnqueueSignalSemaphoresKHR clEnqueueSignalSemaphoresKHR;
+
+// cl_arm_import_memory extension
+PFN_clImportMemoryARM clImportMemoryARM;
 
 DEFINE_QCOM_FUNCTION_PTRS
 

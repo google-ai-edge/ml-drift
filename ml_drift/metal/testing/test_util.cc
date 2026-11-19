@@ -23,12 +23,12 @@
 #include <utility>
 #include <vector>
 
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
 #include "absl/strings/substitute.h"
-#include "ml_drift/common/convert.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/tensor.h"
 #include "ml_drift/common/types.h"
@@ -40,16 +40,16 @@ namespace ml_drift {
 namespace metal {
 
 std::vector<DataType> MetalExecutionEnvironment::GetSupportedDataTypes() const {
-  return {DataType::FLOAT32, DataType::FLOAT16};
+  return {DataType::kFloat32, DataType::kFloat16};
 }
 
 std::vector<TensorStorageType> MetalExecutionEnvironment::GetSupportedStorages(
     DataType data_type) const {
   std::vector<TensorStorageType> storages = {
-      TensorStorageType::BUFFER, TensorStorageType::TEXTURE_2D,
-      TensorStorageType::TEXTURE_3D, TensorStorageType::TEXTURE_ARRAY};
+      TensorStorageType::kBuffer, TensorStorageType::kTexture2D,
+      TensorStorageType::kTexture3D, TensorStorageType::kTextureArray};
   if (GetGpuInfo().SupportsImageBuffer()) {
-    storages.push_back(TensorStorageType::IMAGE_BUFFER);
+    storages.push_back(TensorStorageType::kImageBuffer);
   }
   return storages;
 }
@@ -75,10 +75,10 @@ absl::Status MetalExecutionEnvironment::ExecuteGpuOperationInternal(
     gpu_task.Init(std::move(operation));
     ABSL_RETURN_IF_ERROR(gpu_task.Compile(&device_));
     for (int i = 0; i < src_cpu.size(); ++i) {
-      gpu_task.SetSrcTensor(&src[i], i);
+      ABSL_RETURN_IF_ERROR(gpu_task.SetSrcTensor(&src[i], i));
     }
     for (int i = 0; i < dst_cpu.size(); ++i) {
-      gpu_task.SetDstTensor(&dst[i], i);
+      ABSL_RETURN_IF_ERROR(gpu_task.SetDstTensor(&dst[i], i));
     }
     ABSL_RETURN_IF_ERROR(gpu_task.UpdateParams());
 

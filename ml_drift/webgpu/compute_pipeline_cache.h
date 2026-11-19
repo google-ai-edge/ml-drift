@@ -17,6 +17,7 @@
 
 #include <sys/types.h>
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -24,9 +25,11 @@
 #include <vector>
 
 #include "absl/container/flat_hash_map.h"
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
+#include "absl/status/statusor.h"
 #include "ml_drift/common/executor.h"
 #include "ml_drift/common/gpu_info.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/webgpu/preprocessor.h"
 #include "ml_drift/webgpu/webgpu_api_util.h"
 #include "ml_drift/webgpu/webgpu_headers.h"
@@ -76,6 +79,11 @@ class ComputePipelineCache {
   void set_executor(std::unique_ptr<Executor> executor) {
     executor_ = std::move(executor);
   }
+
+  // Unique shaders converted to WGSL and compute pipelines built from them;
+  // there is one pipeline per (shader, work group size).
+  size_t GetShaderCount() const { return cached_code_.size(); }
+  size_t GetPipelineCount() const { return cached_data_.size(); }
 
  private:
   absl::flat_hash_map<uint64_t, std::unique_ptr<ComputePipelineHolder>>

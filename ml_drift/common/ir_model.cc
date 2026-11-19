@@ -14,14 +14,16 @@
 
 #include "ml_drift/common/ir_model.h"
 
+#include <algorithm>
 #include <memory>
 #include <optional>
 #include <string>
 #include <vector>
 
 #include "absl/algorithm/container.h"
+#include "absl/container/flat_hash_set.h"
 #include "absl/log/absl_check.h"
-#include "ml_drift/common/status.h"
+#include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "ml_drift/common/shape.h"
 #include "ml_drift/common/task/tensor_desc.h"
@@ -32,7 +34,7 @@ std::string IrOp::str() const {
   return absl::StrCat("o#", id, " (", name, ")");
 }
 
-// TODO: who/impjdi - Move shape extraction to TensorDesc::str().
+// TODO: Move shape extraction to TensorDesc::str().
 std::string IrTensor::str() const {
   const auto shape = desc.GetBHWDCShape();
   return absl::StrCat("t#", id, " (", shape.b, "x", shape.h, "x", shape.w, "x",
@@ -196,6 +198,52 @@ absl::Status IrModel::RemoveSimpleOp(IrOpId op_id) {
   }
 
   ops_[op->id].reset();
+  return absl::OkStatus();
+}
+
+absl::Status IrModel::RemoveOp(IrOpId op_id) {
+  if (op_id >= ops_.size() || ops_[op_id] == nullptr) {
+    return absl::InvalidArgumentError(absl::StrCat("Invalid op ID: ", op_id));
+  }
+
+  IrOp* op = ops_[op_id].get();
+  absl::flat_hash_set<IrTensorId> affected_tensors;
+  for (IrTensorId in_id : op->inputs) {
+    affected_tensors.insert(in_id);
+    if (in_id < tensors_.size() && tensors_[in_id] != nullptr) {
+      tensors_[in_id]->consumers.erase(op_id);
+    }
+  }
+  for (IrTensorId out_id : op->outputs) {
+    affected_tensors.insert(out_id);
+    if (out_id < tensors_.size() && tensors_[out_id] != nullptr) {
+      if (tensors_[out_id]->producer == op_id) {
+        tensors_[out_id]->producer.reset();
+      }
+    }
+  }
+  ops_[op_id].reset();
+
+  for (IrTensorId tensor_id : affected_tensors) {
+    if (tensor_id >= tensors_.size() || tensors_[tensor_id] == nullptr) {
+      continue;
+    }
+    IrTensor* t = tensors_[tensor_id].get();
+    if (!t->producer.has_value() && t->consumers.empty()) {
+      inputs_.erase(std::remove(inputs_.begin(), inputs_.end(), tensor_id),
+                    inputs_.end());
+      outputs_.erase(std::remove(outputs_.begin(), outputs_.end(), tensor_id),
+                     outputs_.end());
+      tensors_[tensor_id].reset();
+    } else if (t->consumers.empty() && t->producer.has_value() &&
+               !IsGraphOutput(tensor_id)) {
+      add_output(tensor_id);
+    } else if (!t->consumers.empty() && !t->producer.has_value() &&
+               !IsGraphInput(tensor_id)) {
+      add_input(tensor_id);
+    }
+  }
+
   return absl::OkStatus();
 }
 

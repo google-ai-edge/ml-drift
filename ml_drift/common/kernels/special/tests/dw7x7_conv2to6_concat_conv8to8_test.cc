@@ -19,13 +19,13 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
+#include "absl/status/status.h"
 #include "absl/strings/str_replace.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/kernels/tests/kernel_test.h"
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/gpu_operation.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/task/testing_ref_ops.h"
@@ -45,7 +45,7 @@ namespace {
 absl::Status DW7x7Conv2To6ConcatConv8to8Test(TestExecutionEnvironment* exec_env,
                                              const OperationDef& op_def) {
   ConcatAttributes concat_attr;
-  concat_attr.axis = Axis::CHANNELS;
+  concat_attr.axis = Axis::kChannels;
 
   DepthwiseConvolution2DAttributes dw_attr;
   dw_attr.padding.prepended = HW(2, 2);
@@ -82,7 +82,7 @@ absl::Status DW7x7Conv2To6ConcatConv8to8Test(TestExecutionEnvironment* exec_env,
   pool_attr.padding.appended = HW(0, 0);
   pool_attr.strides = HW(2, 2);
   pool_attr.kernel = HW(2, 2);
-  pool_attr.type = PoolingType::MAX;
+  pool_attr.type = PoolingType::kMax;
 
   auto src_shape = BHWC(1, 14, 16, 2);
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
@@ -100,7 +100,7 @@ absl::Status DW7x7Conv2To6ConcatConv8to8Test(TestExecutionEnvironment* exec_env,
       op_def, dw_attr, conv2to6, prelu_0, conv8to8, prelu_1);
 
   TensorFloat32 dst_0, dst_1;
-  MLD_EXPECT_OK(exec_env->ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env->ExecuteGPUOperation(
       {src_tensor}, std::make_unique<GPUOperation>(std::move(operation)),
       {result0_ref.shape, result1_ref.shape}, {&dst_0, &dst_1}));
   EXPECT_THAT(dst_0.data, Pointwise(FloatNear(0.1f), result0_ref.data));
@@ -116,7 +116,7 @@ TEST_P(StorageTest, DW7x7Conv2To6ConcatConv8to8Test) {
   if (!IsDW7x7Conv2To6ConcatConv8to8Supported(exec_env->GetGpuInfo())) {
     GTEST_SKIP() << "Skipped unsupported DW7x7Conv2To6ConcatConv8to8 Test.";
   }
-  const DataType data_type = DataType::FLOAT16;
+  const DataType data_type = DataType::kFloat16;
   const TensorStorageType storage = GetParam();
   if (!exec_env->IsStorageSupported(storage, data_type)) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
@@ -124,10 +124,10 @@ TEST_P(StorageTest, DW7x7Conv2To6ConcatConv8to8Test) {
   }
   OperationDef op_def;
   op_def.src_tensors.push_back(
-      {DataType::FLOAT16, TensorStorageType::SINGLE_TEXTURE_2D, Layout::HWC});
-  op_def.dst_tensors.push_back({DataType::FLOAT16, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({DataType::FLOAT16, storage, Layout::HWC});
-  MLD_EXPECT_OK(DW7x7Conv2To6ConcatConv8to8Test(exec_env, op_def));
+      {DataType::kFloat16, TensorStorageType::kSingleTexture2D, Layout::kHWC});
+  op_def.dst_tensors.push_back({DataType::kFloat16, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({DataType::kFloat16, storage, Layout::kHWC});
+  ABSL_EXPECT_OK(DW7x7Conv2To6ConcatConv8to8Test(exec_env, op_def));
 }
 
 INSTANTIATE_TEST_SUITE_P(Suite, StorageTest, ValuesIn(GetTensorStoragesTypes()),

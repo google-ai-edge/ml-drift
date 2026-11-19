@@ -14,7 +14,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/kernels/tests/kernel_test.h"
 #include "ml_drift/common/kernels/tests/relu_test_util.h"
@@ -34,7 +34,7 @@ TEST_P(ReLUFloatTest, ReLUNoClipNoAlphaTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ReLUNoClipNoAlphaTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(ReLUNoClipNoAlphaTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(ReLUFloatTest, ReLUClipTest) {
@@ -42,7 +42,7 @@ TEST_P(ReLUFloatTest, ReLUClipTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ReLUClipTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(ReLUClipTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(ReLUFloatTest, ReLUAlphaTest) {
@@ -50,7 +50,7 @@ TEST_P(ReLUFloatTest, ReLUAlphaTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ReLUAlphaTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(ReLUAlphaTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(ReLUFloatTest, ReLUAlphaClipTest) {
@@ -58,7 +58,7 @@ TEST_P(ReLUFloatTest, ReLUAlphaClipTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ReLUAlphaClipTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(ReLUAlphaClipTest(*exec_env, data_type(), storage()));
 }
 
 INSTANTIATE_TEST_SUITE_P(

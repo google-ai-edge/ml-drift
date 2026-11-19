@@ -14,7 +14,7 @@
 
 #include "ml_drift/metal/environment.h"
 
-#import <sys/utsname.h>
+#include <sys/utsname.h>
 
 #include <string>
 
@@ -75,31 +75,34 @@ GpuInfo CreateGpuInfoFromMetalDevice(id<MTLDevice> device) {
 
   gpu_info.metal_info.language_version =
       ToMetalLanguageVersion(GetMaxSupportedMTLLanguageVersion(device));
+  if (@available(macOS 26.4, iOS 26.4, tvOS 26.4, visionOS 26.4, *)) {
+    gpu_info.metal_info.has_bugs_with_mpp = false;
+  } else {
+    gpu_info.metal_info.has_bugs_with_mpp = true;
+  }
 
   if (gpu_info.metal_info.IsSIMDMatMulSupported() && gpu_info.IsApple() &&
       gpu_info.apple_info.IsSIMDMatMulSupported()) {
-    gpu_info.wave_mat_mul_ops.push_back(
-        WaveMatMulOpDescriptor{.m_size = 8,
-                               .n_size = 8,
-                               .k_size = 8,
-                               .left_type = DataType::FLOAT16,
-                               .right_type = DataType::FLOAT16,
-                               .result_type = DataType::FLOAT16});
-    gpu_info.wave_mat_mul_ops.push_back(
-        WaveMatMulOpDescriptor{.m_size = 8,
-                               .n_size = 8,
-                               .k_size = 8,
-                               .left_type = DataType::FLOAT32,
-                               .right_type = DataType::FLOAT32,
-                               .result_type = DataType::FLOAT32});
+    gpu_info.wave_mat_mul_ops.push_back(WaveMatMulOpDescriptor{.m_size = 8,
+                                                               .n_size = 8,
+                                                               .k_size = 8,
+                                                               .left_type = DataType::kFloat16,
+                                                               .right_type = DataType::kFloat16,
+                                                               .result_type = DataType::kFloat16});
+    gpu_info.wave_mat_mul_ops.push_back(WaveMatMulOpDescriptor{.m_size = 8,
+                                                               .n_size = 8,
+                                                               .k_size = 8,
+                                                               .left_type = DataType::kFloat32,
+                                                               .right_type = DataType::kFloat32,
+                                                               .result_type = DataType::kFloat32});
     if (gpu_info.metal_info.IsNativeBfloatSupported()) {
       gpu_info.wave_mat_mul_ops.push_back(
           WaveMatMulOpDescriptor{.m_size = 8,
                                  .n_size = 8,
                                  .k_size = 8,
-                                 .left_type = DataType::BFLOAT16,
-                                 .right_type = DataType::BFLOAT16,
-                                 .result_type = DataType::BFLOAT16});
+                                 .left_type = DataType::kBfloat16,
+                                 .right_type = DataType::kBfloat16,
+                                 .result_type = DataType::kBfloat16});
     }
   }
   gpu_info.metal_info.is_simulator =

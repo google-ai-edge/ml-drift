@@ -14,7 +14,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/kernels/tests/kernel_test.h"
 #include "ml_drift/common/kernels/tests/split_test_util.h"
@@ -34,7 +34,7 @@ TEST_P(SplitFloatTest, SplitChannelsTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(SplitChannelsTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(SplitChannelsTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(SplitFloatTest, SplitChannelsX4Test) {
@@ -42,7 +42,7 @@ TEST_P(SplitFloatTest, SplitChannelsX4Test) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(SplitChannelsX4Test(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(SplitChannelsX4Test(*exec_env, data_type(), storage()));
 }
 
 TEST_P(SplitFloatTest, SplitWidthTest) {
@@ -50,7 +50,7 @@ TEST_P(SplitFloatTest, SplitWidthTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(SplitWidthTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(SplitWidthTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(SplitFloatTest, SplitHeightTest) {
@@ -58,7 +58,7 @@ TEST_P(SplitFloatTest, SplitHeightTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(SplitHeightTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(SplitHeightTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(SplitFloatTest, SplitBatchTest) {
@@ -66,7 +66,7 @@ TEST_P(SplitFloatTest, SplitBatchTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(SplitBatchTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(SplitBatchTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(SplitFloatTest, SplitDepthTest) {
@@ -74,7 +74,7 @@ TEST_P(SplitFloatTest, SplitDepthTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(SplitDepthTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(SplitDepthTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(SplitFloatTest, Split5DTest) {
@@ -82,7 +82,7 @@ TEST_P(SplitFloatTest, Split5DTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(Split5DTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(Split5DTest(*exec_env, data_type(), storage()));
 }
 
 INSTANTIATE_TEST_SUITE_P(

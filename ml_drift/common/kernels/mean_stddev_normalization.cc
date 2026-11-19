@@ -121,59 +121,63 @@ int3 GetRecommendedWorkGroupSize(const GpuInfo& gpu_info, const BHWC& shape) {
   const int total_spatial_size = shape.b * shape.h * shape.w;
   const float spatial_per_cu =
       static_cast<float>(total_spatial_size) / gpu_info.GetComputeUnitsCount();
-  if (gpu_info.IsMali()) {
-    // Don't use more than 64 work items per work group on ARM Mali. They
-    // implement local memory using the global memory, larger workgroups have
-    // severe performance penalty.
+  if (gpu_info.IsMobileGpu()) {
+    // Default mobile baseline: don't use more than 64 work items per work
+    // group on ARM Mali / PowerVR / mobile Apple (local memory penalties).
     desired_work_group_size = 64;
-  }
-  if (gpu_info.IsAdreno()) {
-    AdrenoInfo info = gpu_info.adreno_info;
-    desired_work_group_size = 256;
-    if (info.IsAdreno3xx()) {
-      if (info.adreno_gpu == AdrenoGpu::kAdreno320 ||
-          info.adreno_gpu == AdrenoGpu::kAdreno330) {
-        desired_work_group_size = 128;
-      } else {
-        desired_work_group_size = 64;
-      }
-    } else if (info.IsAdreno4xx()) {
-      if (info.adreno_gpu == AdrenoGpu::kAdreno430) {
-        desired_work_group_size = 256;
-      } else {
-        desired_work_group_size = 128;
-      }
-    } else if (info.IsAdreno5xx()) {
-      if (info.adreno_gpu == AdrenoGpu::kAdreno530 ||
-          info.adreno_gpu == AdrenoGpu::kAdreno540) {
-        desired_work_group_size = 256;
-      } else {
-        desired_work_group_size = 128;
-      }
-    }
-  }
-  if (gpu_info.IsPowerVR()) {
-    desired_work_group_size = 64;
-  }
-  if (gpu_info.IsApple()) {
-    desired_work_group_size = 64;
-  }
-  if (gpu_info.IsAMD()) {
-    if (spatial_per_cu > 16) {
-      desired_work_group_size = 512;
-    } else if (spatial_per_cu > 8) {
+    if (gpu_info.IsAdreno()) {
+      AdrenoInfo info = gpu_info.adreno_info;
       desired_work_group_size = 256;
-    } else {
-      desired_work_group_size = 128;
+      if (info.IsAdreno3xx()) {
+        if (info.adreno_gpu == AdrenoGpu::kAdreno320 ||
+            info.adreno_gpu == AdrenoGpu::kAdreno330) {
+          desired_work_group_size = 128;
+        } else {
+          desired_work_group_size = 64;
+        }
+      } else if (info.IsAdreno4xx()) {
+        if (info.adreno_gpu == AdrenoGpu::kAdreno430) {
+          desired_work_group_size = 256;
+        } else {
+          desired_work_group_size = 128;
+        }
+      } else if (info.IsAdreno5xx()) {
+        if (info.adreno_gpu == AdrenoGpu::kAdreno530 ||
+            info.adreno_gpu == AdrenoGpu::kAdreno540) {
+          desired_work_group_size = 256;
+        } else {
+          desired_work_group_size = 128;
+        }
+      }
     }
-  }
-  if (gpu_info.IsIntel()) {
+  } else if (gpu_info.IsDesktopGpu()) {
+    // Default desktop baseline: 128 work items per work group.
     desired_work_group_size = 128;
+    if (gpu_info.IsAMD()) {
+      if (spatial_per_cu > 16) {
+        desired_work_group_size = 512;
+      } else if (spatial_per_cu > 8) {
+        desired_work_group_size = 256;
+      }
+    } else if (gpu_info.IsNvidia()) {
+      desired_work_group_size = gpu_info.GetMaxWorkGroupSizeForZ();
+    }
   }
   int3 work_group_size(1, 1, 1);
   if (spatial_per_cu < 2.0f) {
-    desired_work_group_size = gpu_info.GetMaxWorkGroupSizeForZ();
-    while (desired_work_group_size >= tensor_slices * 2) {
+    if (!gpu_info.IsMali()) {
+      desired_work_group_size = gpu_info.GetMaxWorkGroupSizeForZ();
+    }
+    if (gpu_info.GetMaxWorkGroupSizeForZ() > 0) {
+      desired_work_group_size =
+          std::min(desired_work_group_size, gpu_info.GetMaxWorkGroupSizeForZ());
+    }
+    if (gpu_info.GetMaxWorkGroupTotalSize() > 0) {
+      desired_work_group_size = std::min(desired_work_group_size,
+                                         gpu_info.GetMaxWorkGroupTotalSize());
+    }
+    while (desired_work_group_size >= tensor_slices * 2 &&
+           desired_work_group_size > 1) {
       desired_work_group_size /= 2;
     }
     work_group_size.x = 1;
@@ -195,17 +199,36 @@ int3 GetRecommendedWorkGroupSize(const GpuInfo& gpu_info, const BHWC& shape) {
       };
       work_group_size.z = slices_to_group_size[tensor_slices];
     }
-    desired_work_group_size =
-        std::min(desired_work_group_size, gpu_info.GetMaxWorkGroupTotalSize());
+    if (gpu_info.GetMaxWorkGroupSizeForZ() > 0) {
+      work_group_size.z =
+          std::min(work_group_size.z, gpu_info.GetMaxWorkGroupSizeForZ());
+    }
+    if (gpu_info.GetMaxWorkGroupTotalSize() > 0) {
+      desired_work_group_size = std::min(desired_work_group_size,
+                                         gpu_info.GetMaxWorkGroupTotalSize());
+    }
     work_group_size.x =
-        desired_work_group_size / AlignByN(work_group_size.z, 4);
+        std::max(1, desired_work_group_size / AlignByN(work_group_size.z, 4));
     work_group_size.y = 1;
     while (work_group_size.x >= (shape.b * shape.w) * 2) {
       work_group_size.x /= 2;
       work_group_size.y *= 2;
     }
+    if (gpu_info.GetMaxWorkGroupSizeForX() > 0) {
+      while (work_group_size.x > gpu_info.GetMaxWorkGroupSizeForX() &&
+             work_group_size.x > 1) {
+        work_group_size.x /= 2;
+        work_group_size.y *= 2;
+      }
+    }
     while (work_group_size.y >= shape.h * 2) {
       work_group_size.y /= 2;
+    }
+    if (gpu_info.GetMaxWorkGroupSizeForY() > 0) {
+      while (work_group_size.y > gpu_info.GetMaxWorkGroupSizeForY() &&
+             work_group_size.y > 1) {
+        work_group_size.y /= 2;
+      }
     }
   }
   return work_group_size;
@@ -389,7 +412,7 @@ std::string GetHWCNormalizationCodeGroupSize1(const GpuInfo& gpu_info,
   c += "MAIN_FUNCTION($0) {\n";
   c += "__local float4 shared_mem0[WG_Z][WG_SPATIAL];\n";
   c += "__local float4 shared_mem1[WG_Z][WG_SPATIAL];\n";
-  if (op_def.src_tensors[0].HasAxis(Axis::BATCH)) {
+  if (op_def.src_tensors[0].HasAxis(Axis::kBatch)) {
     c += "  int linear_id = ucl::GetGlobalId<0>();\n";
     c += "  int B = linear_id / WG_X;\n";
     c += "  args.src_tensor.SetBatchRef(B);\n";
@@ -403,7 +426,7 @@ std::string GetHWCNormalizationCodeGroupSize1(const GpuInfo& gpu_info,
   float4 sum_squares = ucl::Init<float4>(0.0f);
 )";
   std::string coords = "X, Y";
-  if (op_def.src_tensors[0].HasAxis(Axis::DEPTH)) {
+  if (op_def.src_tensors[0].HasAxis(Axis::kDepth)) {
     coords += ", D";
     c += "  for (int linear_y = ucl::GetLocalId<1>(); linear_y < "
          "args.src_tensor.Height() * args.src_tensor.Depth(); linear_y += "
@@ -453,7 +476,7 @@ std::string GetHWCNormalizationCodeGroupSize1(const GpuInfo& gpu_info,
   float4 stddev_inv = rsqrt(variance + args.variance_bias);
   // Calculate (t-mean)/stddev for each element
 )";
-  if (op_def.src_tensors[0].HasAxis(Axis::DEPTH)) {
+  if (op_def.src_tensors[0].HasAxis(Axis::kDepth)) {
     c += "  for (int linear_y = ucl::GetLocalId<1>(); linear_y < "
          "args.src_tensor.Height() * args.src_tensor.Depth(); linear_y += "
          "WG_Y) {\n";
@@ -502,7 +525,7 @@ std::string GetHWCNormalizationCode(const GpuInfo& gpu_info,
   } else {
     c += "__local float4 shared_mem[" + std::to_string(wg_total_size) + "];\n";
   }
-  if (op_def.src_tensors[0].HasAxis(Axis::BATCH)) {
+  if (op_def.src_tensors[0].HasAxis(Axis::kBatch)) {
     c += "  int linear_id = ucl::GetGlobalId<0>();\n";
     c += "  int B = linear_id / ucl::GetGroupSize<0>();\n";
     c += "  args.src_tensor.SetBatchRef(B);\n";
@@ -664,8 +687,8 @@ std::string GetHWCNormalizationCode(const GpuInfo& gpu_info,
 MeanStdDevNormalization::MeanStdDevNormalization(
     const OperationDef& definition, const GpuInfo& gpu_info, const BHWC& shape,
     float variance_bias, bool two_step,
-    const Tensor<Linear, DataType::FLOAT32>* gamma,
-    const Tensor<Linear, DataType::FLOAT32>* beta) {
+    const Tensor<Linear, DataType::kFloat32>* gamma,
+    const Tensor<Linear, DataType::kFloat32>* beta) {
   work_group_reduction_ = UseWorkGroupReduction(gpu_info, shape);
   if (work_group_reduction_) {
     work_group_size_ = GetRecommendedWorkGroupSize(gpu_info, shape);
@@ -674,7 +697,7 @@ MeanStdDevNormalization::MeanStdDevNormalization(
   }
   args_.AddFloat("variance_bias", variance_bias);
   args_.AddFloat("inv_ch_count", 1.0f / shape.c);
-  has_depth_ = definition.src_tensors[0].HasAxis(Axis::DEPTH);
+  has_depth_ = definition.src_tensors[0].HasAxis(Axis::kDepth);
   AddSrcTensor("src_tensor", definition.src_tensors[0]);
   AddDstTensor("dst_tensor", definition.dst_tensors[0]);
   if (gamma) {
@@ -690,9 +713,12 @@ MeanStdDevNormalization::MeanStdDevNormalization(
                                 std::move(beta_tensor_desc)));
   }
   code_ = GetNormalizationCode(gpu_info,
-                               definition.dst_tensors[0].HasAxis(Axis::BATCH),
+                               definition.dst_tensors[0].HasAxis(Axis::kBatch),
                                shape.c % 4 == 0, two_step, gamma != nullptr,
                                beta != nullptr, has_depth_);
+  // Mean (1), variance (2), and (t - mean) * stddev_inv (1) = 4, + gamma/beta.
+  flops_ = shape.DimensionsProduct() *
+           (4 + (gamma != nullptr ? 1 : 0) + (beta != nullptr ? 1 : 0));
 }
 
 std::string MeanStdDevNormalization::GetNormalizationCode(
@@ -833,8 +859,8 @@ MeanStdDevNormalization CreateMeanStdDevNormalization(
 
 MeanStdDevNormalization CreateMeanStdDevNormalization(
     const OperationDef& definition, const GpuInfo& gpu_info, const BHWC& shape,
-    float variance_bias, const Tensor<Linear, DataType::FLOAT32>& gamma,
-    const Tensor<Linear, DataType::FLOAT32>& beta, bool two_step) {
+    float variance_bias, const Tensor<Linear, DataType::kFloat32>& gamma,
+    const Tensor<Linear, DataType::kFloat32>& beta, bool two_step) {
   return MeanStdDevNormalization(definition, gpu_info, shape, variance_bias,
                                  two_step, &gamma, &beta);
 }
@@ -852,13 +878,15 @@ MeanStdDevNormalization CreateRMSNormalization(const OperationDef& definition,
   }
   norm.args_.AddFloat("variance_bias", variance_bias);
   norm.args_.AddFloat("inv_ch_count", 1.0f / shape.c);
-  norm.has_depth_ = definition.src_tensors[0].HasAxis(Axis::DEPTH);
+  norm.has_depth_ = definition.src_tensors[0].HasAxis(Axis::kDepth);
   norm.AddSrcTensor("src_tensor", definition.src_tensors[0]);
   norm.AddDstTensor("dst_tensor", definition.dst_tensors[0]);
   norm.code_ = GetRMSNormalizationCode(
-      gpu_info, definition.dst_tensors[0].HasAxis(Axis::BATCH),
+      gpu_info, definition.dst_tensors[0].HasAxis(Axis::kBatch),
       shape.c % 4 == 0, norm.work_group_reduction_, norm.work_group_size_,
       norm.has_depth_);
+  // Square-accumulate reduction (2) + scale by rsqrt (1) = 3 FLOPs.
+  norm.flops_ = shape.DimensionsProduct() * 3;
   return norm;
 }
 
@@ -873,22 +901,24 @@ std::unique_ptr<GPUOperation> CreateStatisticalTopK(
     norm.work_group_size_ = int3(8, 8, 1);
   }
   norm.args_.AddFloat("inv_ch_count", 1.0f / shape.c);
-  norm.has_depth_ = definition.src_tensors[0].HasAxis(Axis::DEPTH);
+  norm.has_depth_ = definition.src_tensors[0].HasAxis(Axis::kDepth);
   norm.args_.AddFloat("stddev_multiplier", stddev_multiplier);
   norm.AddSrcTensor("src_tensor", definition.src_tensors[0]);
   norm.AddDstTensor("dst_tensor", definition.dst_tensors[0]);
   norm.code_ = GetStatisticalTopKCode(
-      gpu_info, definition.dst_tensors[0].HasAxis(Axis::BATCH),
+      gpu_info, definition.dst_tensors[0].HasAxis(Axis::kBatch),
       shape.c % 4 == 0, norm.work_group_reduction_, norm.work_group_size_,
       norm.has_depth_);
+  // Mean (1), variance (2), and max(t, cutoff) - cutoff (1) = 4 FLOPs.
+  norm.flops_ = shape.DimensionsProduct() * 4;
   return std::make_unique<MeanStdDevNormalization>(std::move(norm));
 }
 
 HWCGroupNormalization::HWCGroupNormalization(
     const OperationDef& definition, const GpuInfo& gpu_info, const BHWC& shape,
     int groups, float variance_bias,
-    const Tensor<Linear, DataType::FLOAT32>& gamma,
-    const Tensor<Linear, DataType::FLOAT32>& beta)
+    const Tensor<Linear, DataType::kFloat32>& gamma,
+    const Tensor<Linear, DataType::kFloat32>& beta)
     : groups_(groups) {
   const int group_size = shape.c / groups;
   int max_total_size = 128;
@@ -956,6 +986,8 @@ HWCGroupNormalization::HWCGroupNormalization(
     code_ = GetHWCNormalizationCode(gpu_info, definition, work_group_size_,
                                     group_size);
   }
+  // Mean (1), variance (2), normalize (1), and * gamma + beta (2) = 6 FLOPs.
+  flops_ = shape.DimensionsProduct() * 6;
 }
 
 int3 HWCGroupNormalization::GetGridSize() const {

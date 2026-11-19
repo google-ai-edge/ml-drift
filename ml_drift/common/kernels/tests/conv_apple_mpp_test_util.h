@@ -15,13 +15,17 @@
 #ifndef ML_DRIFT_COMMON_KERNELS_TESTS_CONV_APPLE_MPP_TEST_UTIL_H_
 #define ML_DRIFT_COMMON_KERNELS_TESTS_CONV_APPLE_MPP_TEST_UTIL_H_
 
+#include "absl/status/status.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/task/testing_util.h"
 
 namespace ml_drift {
+
+absl::Status ConvAppleMPPTest(TestExecutionEnvironment& env,
+                              TensorStorageType storage, const BHWC& shape,
+                              int dst_channels);
 
 absl::Status ConvAppleMPPBigTest(TestExecutionEnvironment& env,
                                  TensorStorageType dst_storage,

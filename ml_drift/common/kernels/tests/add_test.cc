@@ -14,7 +14,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/strings/str_replace.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/kernels/tests/add_test_util.h"
@@ -35,54 +35,55 @@ class AddTypedTest : public Test,
                      public WithParamInterface<TensorStorageType> {};
 
 TEST_P(AddTypedTest, TwoEqualTensors) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::BFLOAT16)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kBfloat16)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(AddTwoEqualTensorsBFloatTest(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(AddTwoEqualTensorsBFloatTest(*exec_env, GetParam()));
 }
 
 TEST_P(AddTypedTest, TwoEqualInt8Tensors) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::INT8)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kInt8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(AddTwoEqualIntTensorsTest<DataType::INT8>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(AddTwoEqualIntTensorsTest<DataType::kInt8>(*exec_env, GetParam()));
 }
 
 TEST_P(AddTypedTest, TwoEqualInt16Tensors) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::INT16)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kInt16)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(AddTwoEqualIntTensorsTest<DataType::INT16>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(AddTwoEqualIntTensorsTest<DataType::kInt16>(*exec_env, GetParam()));
 }
 
 TEST_P(AddTypedTest, TwoEqualInt32Tensors) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::INT32)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kInt32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(AddTwoEqualIntTensorsTest<DataType::INT32>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(AddTwoEqualIntTensorsTest<DataType::kInt32>(*exec_env, GetParam()));
 }
 
 TEST_P(AddTypedTest, TwoEqualUint8Tensors) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT8)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kUint8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(AddTwoEqualUintTensorsTest<DataType::UINT8>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(
+      AddTwoEqualUintTensorsTest<DataType::kUint8>(*exec_env, GetParam()));
 }
 
 TEST_P(AddTypedTest, TwoEqualUint16Tensors) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT16)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kUint16)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(
-      AddTwoEqualUintTensorsTest<DataType::UINT16>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(
+      AddTwoEqualUintTensorsTest<DataType::kUint16>(*exec_env, GetParam()));
 }
 
 TEST_P(AddTypedTest, TwoEqualUint32Tensors) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT32)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kUint32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(
-      AddTwoEqualUintTensorsTest<DataType::UINT32>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(
+      AddTwoEqualUintTensorsTest<DataType::kUint32>(*exec_env, GetParam()));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -98,7 +99,7 @@ TEST_P(AddFloatTest, TwoEqualTensors) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(AddTwoEqualTensorsTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(AddTwoEqualTensorsTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(AddFloatTest, FirstTensorHasMoreChannelsThanSecond) {
@@ -106,7 +107,7 @@ TEST_P(AddFloatTest, FirstTensorHasMoreChannelsThanSecond) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(AddFirstTensorHasMoreChannelsThanSecondTest(*exec_env, data_type(),
+  ABSL_ASSERT_OK(AddFirstTensorHasMoreChannelsThanSecondTest(*exec_env, data_type(),
                                                         storage()));
 }
 
@@ -115,7 +116,7 @@ TEST_P(AddFloatTest, FirstTensorHasLessChannelsThanSecond) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(AddFirstTensorHasLessChannelsThanSecondTest(*exec_env, data_type(),
+  ABSL_ASSERT_OK(AddFirstTensorHasLessChannelsThanSecondTest(*exec_env, data_type(),
                                                         storage()));
 }
 
@@ -124,7 +125,7 @@ TEST_P(AddFloatTest, AddBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(AddBigTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(AddBigTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(AddFloatTest, AddBatchedBigTest) {
@@ -132,7 +133,7 @@ TEST_P(AddFloatTest, AddBatchedBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(AddBatchedBigTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(AddBatchedBigTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(AddFloatTest, AddNotEqualBigTest) {
@@ -140,7 +141,7 @@ TEST_P(AddFloatTest, AddNotEqualBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(AddNotEqualBigTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(AddNotEqualBigTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(AddFloatTest, AddNotEqualBatchedBigTest) {
@@ -148,7 +149,7 @@ TEST_P(AddFloatTest, AddNotEqualBatchedBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(AddNotEqualBatchedBigTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(AddNotEqualBatchedBigTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(AddFloatTest, AddNotEqualFirstTensorBigTest) {
@@ -156,7 +157,7 @@ TEST_P(AddFloatTest, AddNotEqualFirstTensorBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(AddNotEqualFirstTensorBigTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(AddNotEqualFirstTensorBigTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(AddFloatTest, AddNotEqualFirstTensorBatchedBigTest) {
@@ -164,7 +165,7 @@ TEST_P(AddFloatTest, AddNotEqualFirstTensorBatchedBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       AddNotEqualFirstTensorBatchedBigTest(*exec_env, data_type(), storage()));
 }
 
@@ -180,7 +181,7 @@ TEST_P(AddFloatTest, AddBroadcast5DTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(AddBroadcast5DTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(AddBroadcast5DTest(*exec_env, data_type(), storage()));
 }
 
 }  // namespace ml_drift

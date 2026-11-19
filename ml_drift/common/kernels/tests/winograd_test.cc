@@ -14,7 +14,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/kernels/tests/kernel_test.h"
 #include "ml_drift/common/kernels/tests/winograd_test_util.h"
@@ -35,7 +35,7 @@ TEST_P(WinogradFloatTest, Winograd3x3ForwardTiledTile6Small) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(Winograd3x3ForwardTiledTest(*exec_env, data_type(), storage(),
+  ABSL_ASSERT_OK(Winograd3x3ForwardTiledTest(*exec_env, data_type(), storage(),
                                         BHWC(1, 4, 4, 1), /*tile_size=*/6));
 }
 
@@ -44,7 +44,7 @@ TEST_P(WinogradFloatTest, Winograd3x3BackwardTiledTile6Small) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(Winograd3x3BackwardTiledTest(*exec_env, data_type(), storage(),
+  ABSL_ASSERT_OK(Winograd3x3BackwardTiledTest(*exec_env, data_type(), storage(),
                                          BHWC(1, 4, 4, 1), /*tile_size=*/6));
 }
 
@@ -53,7 +53,7 @@ TEST_P(WinogradFloatTest, Winograd3x3ForwardTiledTile8Big) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(Winograd3x3ForwardTiledTest(*exec_env, data_type(), storage(),
+  ABSL_ASSERT_OK(Winograd3x3ForwardTiledTest(*exec_env, data_type(), storage(),
                                         BHWC(1, 60, 60, 4), /*tile_size=*/8));
 }
 
@@ -62,7 +62,7 @@ TEST_P(WinogradFloatTest, Winograd3x3BackwardTiledTile8Big) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(Winograd3x3BackwardTiledTest(*exec_env, data_type(), storage(),
+  ABSL_ASSERT_OK(Winograd3x3BackwardTiledTest(*exec_env, data_type(), storage(),
                                          BHWC(1, 60, 60, 4), /*tile_size=*/8));
 }
 
@@ -71,7 +71,7 @@ TEST_P(WinogradFloatTest, Winograd4x4To36) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(Winograd4x4To36Test(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(Winograd4x4To36Test(*exec_env, data_type(), storage()));
 }
 
 TEST_P(WinogradFloatTest, Winograd4x4To36Batch) {
@@ -79,7 +79,7 @@ TEST_P(WinogradFloatTest, Winograd4x4To36Batch) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(Winograd4x4To36BatchTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(Winograd4x4To36BatchTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(WinogradFloatTest, Winograd36To4x4) {
@@ -87,7 +87,7 @@ TEST_P(WinogradFloatTest, Winograd36To4x4) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(Winograd36To4x4Test(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(Winograd36To4x4Test(*exec_env, data_type(), storage()));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -98,7 +98,7 @@ INSTANTIATE_TEST_SUITE_P(
     });
 
 TEST(WinogradWeightsConversionTest, Winograd3x3To36) {
-  MLD_ASSERT_OK(Winograd3x3To36Test(*exec_env));
+  ABSL_ASSERT_OK(Winograd3x3To36Test(*exec_env));
 }
 
 }  // namespace ml_drift
