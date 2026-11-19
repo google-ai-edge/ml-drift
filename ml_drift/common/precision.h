@@ -22,7 +22,11 @@
 
 namespace ml_drift {
 
-enum class CalculationsPrecision { F32, F32_F16, F16 };
+enum class CalculationsPrecision {
+  kF32,
+  kF32F16,
+  kF16,
+};
 // F32 - all data and all math ops in F32
 // F16 - all data and all math ops in F16
 // F32_F16 - as F16, but some operations (Convolution,
@@ -33,8 +37,8 @@ enum class CalculationsPrecision { F32, F32_F16, F16 };
 DataType DeduceDataTypeFromPrecision(CalculationsPrecision precision);
 
 constexpr std::array<CalculationsPrecision, 3> GetCalculationsPrecisions() {
-  return {CalculationsPrecision::F32, CalculationsPrecision::F16,
-          CalculationsPrecision::F32_F16};
+  return {CalculationsPrecision::kF32, CalculationsPrecision::kF16,
+          CalculationsPrecision::kF32F16};
 }
 std::string ToString(CalculationsPrecision precision);
 

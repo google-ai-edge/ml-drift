@@ -18,6 +18,7 @@
 #include <stdbool.h>
 
 #include <cstdint>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -44,9 +45,21 @@ struct ProfilingInfo {
     bool add_work_group_size = false;
   };
 
+  // Dispatches accumulated per operation type.
+  struct OpTypeStatistics {
+    int count = 0;
+    absl::Duration total_time = absl::ZeroDuration();
+    uint64_t total_flops = 0;
+    uint64_t total_bytes = 0;  // read + write
+  };
+
   std::vector<DispatchInfo> dispatches;
 
   absl::Duration GetTotalTime() const;
+
+  // Groups dispatches by operation type, i.e. the first word of the dispatch
+  // label, ordered by operation type.
+  std::map<std::string, OpTypeStatistics> GetStatisticsPerOpType() const;
 
   // Returns report (string of lines delimited by \n)
   // This method uses GPU counters and measure GPU time only.

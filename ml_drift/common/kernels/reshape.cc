@@ -25,7 +25,7 @@ namespace {
 std::string GetReshapeCode(const OperationDef& op_def) {
   std::string c;
   c += "MAIN_FUNCTION($0) {\n";
-  if (op_def.dst_tensors[0].HasAxis(Axis::BATCH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kBatch)) {
     c += "  int linear_id_0 = ucl::GetGlobalId<0>();\n";
     c += "  int X = linear_id_0 / args.dst_tensor.Batch();\n";
     c += "  int B = linear_id_0 % args.dst_tensor.Batch();\n";
@@ -33,7 +33,7 @@ std::string GetReshapeCode(const OperationDef& op_def) {
   } else {
     c += "  int X = ucl::GetGlobalId<0>();\n";
   }
-  if (op_def.dst_tensors[0].HasAxis(Axis::DEPTH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kDepth)) {
     c += "  int linear_id_1 = ucl::GetGlobalId<1>();\n";
     c += "  int Y = linear_id_1 / args.dst_tensor.Depth();\n";
     c += "  int D = linear_id_1 % args.dst_tensor.Depth();\n";
@@ -51,9 +51,9 @@ std::string GetReshapeCode(const OperationDef& op_def) {
   c += "  temps[2] = args.src_tensor::scalar_zero_value;\n";
   c += "  temps[3] = args.src_tensor::scalar_zero_value;\n";
   const std::string batch_id =
-      op_def.dst_tensors[0].HasAxis(Axis::BATCH) ? "B" : "0";
+      op_def.dst_tensors[0].HasAxis(Axis::kBatch) ? "B" : "0";
   c += "  int base = " + batch_id + ";\n";
-  if (op_def.dst_tensors[0].HasAxis(Axis::DEPTH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kDepth)) {
     c += "  base = (((base * args.dst_tensor.Height() + Y) * "
          "args.dst_tensor.Width() + X) * args.dst_tensor.Depth() + D) * "
          "args.dst_tensor.Channels() + Z * 4;\n";
@@ -68,7 +68,7 @@ std::string GetReshapeCode(const OperationDef& op_def) {
   c += "      int src_c = p % args.src_tensor.Channels();\n";
   c += "      p = p / args.src_tensor.Channels();\n";
   std::string coords = "src_x, src_y, src_c";
-  if (op_def.src_tensors[0].HasAxis(Axis::DEPTH)) {
+  if (op_def.src_tensors[0].HasAxis(Axis::kDepth)) {
     c += "      int src_d = p % args.src_tensor.Depth();\n";
     c += "      p = p / args.src_tensor.Depth();\n";
     coords = "src_x, src_y, src_d, src_c";
@@ -76,7 +76,7 @@ std::string GetReshapeCode(const OperationDef& op_def) {
   c += "      int src_x = p % args.src_tensor.Width();\n";
   c += "      p = p / args.src_tensor.Width();\n";
   c += "      int src_y = p % args.src_tensor.Height();\n";
-  if (op_def.src_tensors[0].HasAxis(Axis::BATCH)) {
+  if (op_def.src_tensors[0].HasAxis(Axis::kBatch)) {
     c += "      int src_b = p / args.src_tensor.Height();\n";
     coords += ", src_b";
   }
@@ -89,7 +89,7 @@ std::string GetReshapeCode(const OperationDef& op_def) {
   c += "  result.z = temps[2];\n";
   c += "  result.w = temps[3];\n";
   std::string dst_coords =
-      op_def.dst_tensors[0].HasAxis(Axis::DEPTH) ? "X, Y, D, Z" : "X, Y, Z";
+      op_def.dst_tensors[0].HasAxis(Axis::kDepth) ? "X, Y, D, Z" : "X, Y, Z";
   c += "  args.dst_tensor.Write(result, " + dst_coords + ");\n";
   c += "}\n";
   return c;

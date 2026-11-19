@@ -26,6 +26,8 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/random/bit_gen_ref.h"
 #include "absl/random/random.h"
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_replace.h"
 #include "ml_drift/common/data_type.h"
@@ -34,7 +36,6 @@
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/precision.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/gpu_operation.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/tensor.h"
@@ -90,7 +91,7 @@ absl::Status TestExecutionEnvironment::ExecuteGPUOperation(
     TensorDescriptor tensor_desc;
     ABSL_RETURN_IF_ERROR(operation->GetTensorDescriptor(
         operation->GetSrcTensorsNames()[i], &tensor_desc));
-    if (src_shape.b != 1 && !tensor_desc.HasAxis(Axis::BATCH)) {
+    if (src_shape.b != 1 && !tensor_desc.HasAxis(Axis::kBatch)) {
       return absl::InvalidArgumentError(
           "Layout doesn't have Batch dimension, but shape.b != 1");
     }
@@ -101,11 +102,11 @@ absl::Status TestExecutionEnvironment::ExecuteGPUOperation(
     TensorDescriptor tensor_desc;
     ABSL_RETURN_IF_ERROR(operation->GetTensorDescriptor(
         operation->GetDstTensorsNames()[i], &tensor_desc));
-    if (dst_shape.b != 1 && !tensor_desc.HasAxis(Axis::BATCH)) {
+    if (dst_shape.b != 1 && !tensor_desc.HasAxis(Axis::kBatch)) {
       return absl::InvalidArgumentError(
           "Layout doesn't have Batch dimension, but shape.b != 1");
     }
-    if (dst_cpu[i]->GetDataType() == DataType::UNKNOWN) {
+    if (dst_cpu[i]->GetDataType() == DataType::kUnknown) {
       *dst_cpu[i] = tensor_desc;
     }
     dst_cpu[i]->SetBHWDCShape(dst_shape);
@@ -249,12 +250,12 @@ absl::Status TestExecutionEnvironment::ExecuteGpuModel(
 
 template absl::Status TestExecutionEnvironment::ExecuteGpuModel(
     const std::vector<TensorFloat32>& src_cpu,
-    const std::vector<Tensor<BHWC, DataType::FLOAT32>*>& dst_cpu,
+    const std::vector<Tensor<BHWC, DataType::kFloat32>*>& dst_cpu,
     GpuModel* gpu_model);
 
 template absl::Status TestExecutionEnvironment::ExecuteGpuModel(
     const std::vector<TensorFloat32>& src_cpu,
-    const std::vector<Tensor<BHWC, DataType::INT32>*>& dst_cpu,
+    const std::vector<Tensor<BHWC, DataType::kInt32>*>& dst_cpu,
     GpuModel* gpu_model);
 
 template <>
@@ -316,8 +317,7 @@ void GenerateData(absl::BitGenRef gen, bool* data, int size) {
 float GetEpsilon(CalculationsPrecision precision, const GpuInfo& gpu_info,
                  const Convolution2DAttributes& attr) {
   return GetEpsilon(precision, gpu_info) *
-         GetMADSAmount(
-             std::visit([](const auto& w) { return w.shape; }, attr.weights));
+         GetMADSAmount(attr.GetWeightsShape());
 }
 
 float GetEpsilon(CalculationsPrecision precision, const GpuInfo& gpu_info,
@@ -332,8 +332,7 @@ float GetEpsilon(CalculationsPrecision precision, const GpuInfo& gpu_info,
 
 float GetEpsilon(CalculationsPrecision precision, const GpuInfo& gpu_info,
                  const DepthwiseConvolution2DAttributes& attr) {
-  const auto& weights_shape =
-      std::visit([](const auto& w) { return w.shape; }, attr.weights);
+  const OHWI& weights_shape = attr.GetWeightsShape();
   return GetEpsilon(precision, gpu_info) *
          (weights_shape.h * weights_shape.w + 1);
 }

@@ -14,6 +14,8 @@
 
 #include "ml_drift/webgpu/environment.h"
 
+#include <atomic>
+#include <cstddef>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -22,11 +24,12 @@
 #include "xnnpack.h"  // from @XNNPACK
 #include "absl/base/attributes.h"
 #include "absl/log/absl_log.h"
+#include "absl/status/status.h"         // IWYU pragma: keep
+#include "absl/status/status_macros.h"  // IWYU pragma: keep
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
-#include "ml_drift/common/status.h"  // IWYU pragma: keep
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/webgpu/instance.h"
 #include "ml_drift/webgpu/webgpu_headers.h"  // IWYU pragma: keep
@@ -47,20 +50,23 @@ void PrintDeviceError(const wgpu::Device& device, wgpu::ErrorType error,
   if (error == wgpu::ErrorType::NoError) {
     return;
   }
-  device_unhandled_errors->total_count++;
+  device_unhandled_errors->total_count.fetch_add(1, std::memory_order_relaxed);
   switch (error) {
     case wgpu::ErrorType::Validation:
       Environment::OnError(
           absl::StrCat("Validation error: ", std::string_view(msg)));
       return;
     case wgpu::ErrorType::OutOfMemory:
+      device_unhandled_errors->out_of_memory_count.fetch_add(
+          1, std::memory_order_relaxed);
       Environment::OnError(
           absl::StrCat("Out of memory: ", std::string_view(msg)));
       return;
     case wgpu::ErrorType::Internal: {
       auto string_view = std::string_view(msg);
       if (absl::StrContains(string_view, "CreateComputePipelines failed")) {
-        device_unhandled_errors->create_compute_pipeline_count++;
+        device_unhandled_errors->create_compute_pipeline_count.fetch_add(
+            1, std::memory_order_relaxed);
       }
       Environment::OnError(
           absl::StrCat("Internal error: ", string_view));
@@ -202,19 +208,19 @@ void AddGpuLimits(wgpu::Device device, WebGpuInfo& webgpu_info) {
 DataType ToDataType(wgpu::SubgroupMatrixComponentType component_type) {
   switch (component_type) {
     case wgpu::SubgroupMatrixComponentType::F32:
-      return DataType::FLOAT32;
+      return DataType::kFloat32;
     case wgpu::SubgroupMatrixComponentType::F16:
-      return DataType::FLOAT16;
+      return DataType::kFloat16;
     case wgpu::SubgroupMatrixComponentType::I32:
-      return DataType::INT32;
+      return DataType::kInt32;
     case wgpu::SubgroupMatrixComponentType::U32:
-      return DataType::UINT32;
+      return DataType::kUint32;
     case wgpu::SubgroupMatrixComponentType::I8:
-      return DataType::INT8;
+      return DataType::kInt8;
     case wgpu::SubgroupMatrixComponentType::U8:
-      return DataType::UINT8;
+      return DataType::kUint8;
     default:
-      return DataType::UNKNOWN;
+      return DataType::kUnknown;
   }
 }
 
@@ -271,8 +277,8 @@ std::string ToString(const wgpu::Adapter& adapter) {
 TensorStorageType GetFastestStorageType(const GpuInfo& gpu_info) {
   return !gpu_info.SupportsImages() || gpu_info.IsApple() ||
                  gpu_info.IsNvidia() || gpu_info.IsAMD()
-             ? TensorStorageType::BUFFER
-             : TensorStorageType::TEXTURE_2D;
+             ? TensorStorageType::kBuffer
+             : TensorStorageType::kTexture2D;
 }
 
 Environment::ErrorFn Environment::error_fn_ = &DefaultError;
@@ -308,7 +314,7 @@ absl::Status Environment::Initialize(const wgpu::Device& device,
   // MLDrift-WebGPU on Apple laptops and desktops (no mWeb on Apple devices), as
   // a temporary patch to allow for closer-to-proper behavior, we can fall back
   // to the lowest common denominator for our use case as being an M1 GPU.
-  // TODO: b/354237981 - We should detect GPU variations on web better, either
+  // TODO: We should detect GPU variations on web better, either
   // through new WebGPU APIs or perhaps using detected capabilities/features.
   std::string_view architecture_with_overrides(adapter_info.architecture);
   if (std::string(adapter_info.vendor) == "apple" &&
@@ -330,6 +336,12 @@ absl::Status Environment::Initialize(const wgpu::Device& device,
     } else if (requested == "subgroups" && DeviceHasSubgroups(device_)) {
       ABSL_LOG(INFO) << "Subgroups Enabled!";
       gpu_info_.webgpu_info.supports_subgroups = true;
+#ifndef __EMSCRIPTEN__
+    } else if (requested == "subgroup_matrix" &&
+               device_.HasFeature(
+                   wgpu::FeatureName::ChromiumExperimentalSubgroupMatrix)) {
+      gpu_info_.webgpu_info.supports_subgroup_matrix = true;
+#endif  // !__EMSCRIPTEN__
     }
   }
 #ifdef __EMSCRIPTEN__
@@ -343,7 +355,27 @@ absl::Status Environment::Initialize(const wgpu::Device& device,
       JsGetDeviceMaxSubgroupSize(reinterpret_cast<void*>(device_.Get()));
   EnsureValidSubgroup(subgroup_limits, &gpu_info_.webgpu_info);
 #else
+  gpu_info_.webgpu_info.supports_timestamp_query =
+      device_.HasFeature(wgpu::FeatureName::TimestampQuery);
+  gpu_info_.webgpu_info.supports_host_mapped_pointer =
+      device_.HasFeature(wgpu::FeatureName::HostMappedPointer);
+
   EnsureValidSubgroup(adapter_info, &gpu_info_.webgpu_info);
+
+  if (gpu_info_.webgpu_info.supports_subgroup_matrix) {
+    wgpu::AdapterPropertiesSubgroupMatrixConfigs subgroup_matrix_configs;
+    wgpu::AdapterInfo info;
+    info.nextInChain = &subgroup_matrix_configs;
+    if (device_.GetAdapterInfo(&info) == wgpu::Status::Success) {
+      for (size_t i = 0; i < subgroup_matrix_configs.configCount; ++i) {
+        gpu_info_.wave_mat_mul_ops.push_back(
+            ToWaveMatMulOpDescriptor(subgroup_matrix_configs.configs[i]));
+      }
+    }
+  }
+
+  gpu_info_.webgpu_info.is_integrated_gpu =
+      adapter_info.adapterType == wgpu::AdapterType::IntegratedGPU;
 #endif  // __EMSCRIPTEN__
 
   AddGpuLimits(device_, gpu_info_.webgpu_info);
@@ -389,15 +421,33 @@ absl::Status Environment::Initialize(const InitParams& params) {
   // Buffer uploads may happen on other threads, so enable synchronization.
   features.push_back(wgpu::FeatureName::ImplicitDeviceSynchronization);
 
+  wgpu::AdapterInfo info;
+  adapter.GetInfo(&info);
+  const auto gpu_description = absl::StrCat(
+      std::string_view(info.vendor), " ", std::string_view(info.device), " ",
+      std::string_view(info.architecture));
+  SetPlatformDescription(gpu_description);
+  GetGpuInfoFromDeviceDescription(gpu_description, GpuApi::kWebGpu, &gpu_info_);
+
   std::vector<const char*> enabled_toggles;
   enabled_toggles.push_back("disable_robustness");
   enabled_toggles.push_back("fxc_optimizations");
   enabled_toggles.push_back("d3d_disable_ieee_strictness");
   enabled_toggles.push_back("disable_polyfills_on_integer_div_and_mod");
   enabled_toggles.push_back("dump_shaders_on_failure");
+
+  std::vector<const char*> disabled_toggles;
+  if (info.backendType == wgpu::BackendType::Vulkan && gpu_info_.IsAdreno()) {
+    // TODO: Remove once the Adreno shader compiler no longer
+    // crashes on SPIR-V reconvergence modes.
+    disabled_toggles.push_back("use_spirv_reconvergence_mode");
+  }
+
   wgpu::DawnTogglesDescriptor toggles_desc;
   toggles_desc.enabledToggles = enabled_toggles.data();
   toggles_desc.enabledToggleCount = enabled_toggles.size();
+  toggles_desc.disabledToggles = disabled_toggles.data();
+  toggles_desc.disabledToggleCount = disabled_toggles.size();
 
   wgpu::DawnCacheDeviceDescriptor cache_desc;
   if (params.cache_descriptor) {
@@ -442,13 +492,6 @@ absl::Status Environment::Initialize(const InitParams& params) {
 
   queue_ = device_.GetQueue();
 
-  wgpu::AdapterInfo info;
-  adapter.GetInfo(&info);
-  const auto gpu_description = absl::StrCat(
-      std::string_view(info.vendor), " ", std::string_view(info.device), " ",
-      std::string_view(info.architecture));
-  SetPlatformDescription(gpu_description);
-  GetGpuInfoFromDeviceDescription(gpu_description, GpuApi::kWebGpu, &gpu_info_);
   gpu_info_.webgpu_info.supports_subgroups =
       device_.HasFeature(wgpu::FeatureName::Subgroups);
   gpu_info_.webgpu_info.supports_fp16 =

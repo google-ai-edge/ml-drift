@@ -34,7 +34,7 @@ std::string GetBitcastCode(const OperationDef& op_def,
   // boilerplate
   std::string c;
   c += "MAIN_FUNCTION($0) {\n";
-  if (op_def.dst_tensors[0].HasAxis(Axis::BATCH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kBatch)) {
     c += "  int linear_id = ucl::GetGlobalId<0>();\n";
     c += "  int X = linear_id / args.dst_tensor.Batch();\n";
     c += "  int B = linear_id % args.dst_tensor.Batch();\n";
@@ -51,7 +51,7 @@ std::string GetBitcastCode(const OperationDef& op_def,
   c += "  } \n";
 
   // Convert from bool special bc stored as char
-  if (src_type == DataType::BOOL) {
+  if (src_type == DataType::kBool) {
     switch (SizeOf(dst_type)) {
       case 1: {
         c += "  uchar accum = 0u;\n";
@@ -84,8 +84,8 @@ std::string GetBitcastCode(const OperationDef& op_def,
     c += "    accum += bits << to_shift;\n";
     c += "  }\n";
     c += "  args.dst_tensor::type to_write;\n";
-    if (dst_type == DataType::UINT8 || dst_type == DataType::UINT16 ||
-        dst_type == DataType::UINT32) {
+    if (dst_type == DataType::kUint8 || dst_type == DataType::kUint16 ||
+        dst_type == DataType::kUint32) {
       c += "  to_write.x = accum;\n";
     } else {
       c += "  to_write.x = ucl::Reinterpret<uint, dst_type>(accum);\n";
@@ -97,12 +97,12 @@ std::string GetBitcastCode(const OperationDef& op_def,
   }
 
   // Convert to bool special bc stored as char
-  if (dst_type == DataType::BOOL) {
+  if (dst_type == DataType::kBool) {
     c += "  args.src_tensor::scalar_type read = args.src_tensor.Read(X, Y, "
          "0).x;\n";
     switch (SizeOf(src_type)) {
       case 1: {
-        if (src_type == DataType::UINT8) {
+        if (src_type == DataType::kUint8) {
           c += "  uchar expanded = read;\n";
         } else {
           c += "  uchar expanded = ucl::Reinterpret<" +
@@ -112,7 +112,7 @@ std::string GetBitcastCode(const OperationDef& op_def,
         break;
       }
       case 2: {
-        if (src_type == DataType::UINT16) {
+        if (src_type == DataType::kUint16) {
           c += "  ushort expanded = read;\n";
         } else {
           c += "  ushort expanded = ucl::Reinterpret<" +
@@ -122,7 +122,7 @@ std::string GetBitcastCode(const OperationDef& op_def,
         break;
       }
       default: {  // 4
-        if (src_type == DataType::UINT32) {
+        if (src_type == DataType::kUint32) {
           c += "  uint expanded = read;\n";
         } else {
           c += "  uint expanded = ucl::Reinterpret<" + ToUclDataType(src_type) +

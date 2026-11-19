@@ -19,7 +19,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_replace.h"
 #include "ml_drift/common/data_type.h"
@@ -38,40 +38,13 @@ using ::testing::ValuesIn;
 
 class FullyConnectedFloatTest : public FloatTest {};
 
-TEST_P(FullyConnectedFloatTest, FullyConnectedTest) {
-  const DataType data_type = DeduceDataTypeFromPrecision(precision());
-  if (!exec_env->IsStorageSupported(storage(), data_type)) {
-    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
-                 << " storage type: " << ToString(storage());
-  }
-  MLD_ASSERT_OK(FullyConnectedTest(*exec_env, precision(), storage()));
-}
-
-TEST_P(FullyConnectedFloatTest, FullyConnectedLargeTest) {
-  const DataType data_type = DeduceDataTypeFromPrecision(precision());
-  if (!exec_env->IsStorageSupported(storage(), data_type)) {
-    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
-                 << " storage type: " << ToString(storage());
-  }
-  MLD_ASSERT_OK(FullyConnectedLargeTest(*exec_env, precision(), storage()));
-}
-
-TEST_P(FullyConnectedFloatTest, FullyConnectedExtraLargeTest) {
-  const DataType data_type = DeduceDataTypeFromPrecision(precision());
-  if (!exec_env->IsStorageSupported(storage(), data_type)) {
-    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
-                 << " storage type: " << ToString(storage());
-  }
-  MLD_ASSERT_OK(FullyConnectedExtraLargeTest(*exec_env, precision(), storage()));
-}
-
 TEST_P(FullyConnectedFloatTest, FullyConnectedInt8Test) {
   const DataType data_type = DeduceDataTypeFromPrecision(precision());
   if (!exec_env->IsStorageSupported(storage(), data_type)) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(FullyConnectedInt8Test(*exec_env, precision(), storage()));
+  ABSL_ASSERT_OK(FullyConnectedInt8Test(*exec_env, precision(), storage()));
 }
 
 TEST_P(FullyConnectedFloatTest, FullyConnectedInt8BlockwiseAttributesTest) {
@@ -80,7 +53,7 @@ TEST_P(FullyConnectedFloatTest, FullyConnectedInt8BlockwiseAttributesTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(FullyConnectedInt8BlockwiseAttributesTest(*exec_env, precision(),
+  ABSL_ASSERT_OK(FullyConnectedInt8BlockwiseAttributesTest(*exec_env, precision(),
                                                       storage()));
 }
 
@@ -91,7 +64,7 @@ TEST_P(FullyConnectedFloatTest,
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(FullyConnectedInt8BlockwiseAttributesWithZeroPointsTest(
+  ABSL_ASSERT_OK(FullyConnectedInt8BlockwiseAttributesWithZeroPointsTest(
       *exec_env, precision(), storage()));
 }
 
@@ -101,7 +74,7 @@ TEST_P(FullyConnectedFloatTest, FullyConnectedWeightsAsSpatialTensorTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(FullyConnectedWeightsAsSpatialTensorTest(
+  ABSL_ASSERT_OK(FullyConnectedWeightsAsSpatialTensorTest(
       *exec_env, precision(), storage(), OHWI(340, 1, 1, 128),
       BHWC(1, 1, 1, 128)));
 }
@@ -113,7 +86,7 @@ TEST_P(FullyConnectedFloatTest,
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(FullyConnectedWeightsAsSpatialTensorTest(
+  ABSL_ASSERT_OK(FullyConnectedWeightsAsSpatialTensorTest(
       *exec_env, precision(), storage(), OHWI(340, 4, 1, 128),
       BHWC(1, 4, 2, 128)));
 }
@@ -124,27 +97,8 @@ TEST_P(FullyConnectedFloatTest, FullyConnectedInt4Sparse2x4) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(FullyConnectedInt4Sparse2x4Test(*exec_env, precision(), storage(),
+  ABSL_ASSERT_OK(FullyConnectedInt4Sparse2x4Test(*exec_env, precision(), storage(),
                                             BHWC(1, 1, 1, 256), 256));
-}
-
-TEST_P(FullyConnectedFloatTest, FullyConnectedBigTest) {
-  const DataType data_type = DeduceDataTypeFromPrecision(precision());
-  if (!exec_env->IsStorageSupported(storage(), data_type)) {
-    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
-                 << " storage type: " << ToString(storage());
-  }
-  MLD_ASSERT_OK(FullyConnectedBigTest(*exec_env, precision(), storage()));
-}
-
-TEST_P(FullyConnectedFloatTest, FullyConnectedWidth3Height2BigTest) {
-  const DataType data_type = DeduceDataTypeFromPrecision(precision());
-  if (!exec_env->IsStorageSupported(storage(), data_type)) {
-    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
-                 << " storage type: " << ToString(storage());
-  }
-  MLD_ASSERT_OK(
-      FullyConnectedWidth3Height2BigTest(*exec_env, precision(), storage()));
 }
 
 TEST_P(FullyConnectedFloatTest, FullyConnectedExternalWeightsBigTest) {
@@ -153,8 +107,18 @@ TEST_P(FullyConnectedFloatTest, FullyConnectedExternalWeightsBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       FullyConnectedExternalWeightsBigTest(*exec_env, precision(), storage()));
+}
+
+TEST_P(FullyConnectedFloatTest, FullyConnectedRuntimeChWfloatTest) {
+  const DataType data_type = DeduceDataTypeFromPrecision(precision());
+  if (!exec_env->IsStorageSupported(storage(), data_type)) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
+                 << " storage type: " << ToString(storage());
+  }
+  ABSL_ASSERT_OK(
+      FullyConnectedRuntimeChWfloatTest(*exec_env, precision(), storage()));
 }
 
 TEST_P(FullyConnectedFloatTest, FullyConnectedBatchedWeightsBigTest) {
@@ -163,8 +127,26 @@ TEST_P(FullyConnectedFloatTest, FullyConnectedBatchedWeightsBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       FullyConnectedBatchedWeightsBigTest(*exec_env, precision(), storage()));
+}
+
+TEST_P(FullyConnectedFloatTest, FullyConnectedRingedOTest) {
+  const DataType data_type = DeduceDataTypeFromPrecision(precision());
+  if (!exec_env->IsStorageSupported(storage(), data_type)) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
+                 << " storage type: " << ToString(storage());
+  }
+  ABSL_ASSERT_OK(FullyConnectedRingedOTest(*exec_env, precision(), storage()));
+}
+
+TEST_P(FullyConnectedFloatTest, FullyConnectedRingedITest) {
+  const DataType data_type = DeduceDataTypeFromPrecision(precision());
+  if (!exec_env->IsStorageSupported(storage(), data_type)) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
+                 << " storage type: " << ToString(storage());
+  }
+  ABSL_ASSERT_OK(FullyConnectedRingedITest(*exec_env, precision(), storage()));
 }
 
 TEST_P(FullyConnectedFloatTest, FullyConnectedInt8BigTest) {
@@ -173,7 +155,18 @@ TEST_P(FullyConnectedFloatTest, FullyConnectedInt8BigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(FullyConnectedInt8BigTest(*exec_env, precision(), storage()));
+  ABSL_ASSERT_OK(FullyConnectedInt8BigTest(*exec_env, precision(), storage(),
+                                      BHWC(1, 1, 1, 171)));
+}
+
+TEST_P(FullyConnectedFloatTest, FullyConnectedInt8Width15BigTest) {
+  const DataType data_type = DeduceDataTypeFromPrecision(precision());
+  if (!exec_env->IsStorageSupported(storage(), data_type)) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
+                 << " storage type: " << ToString(storage());
+  }
+  ABSL_ASSERT_OK(FullyConnectedInt8BigTest(*exec_env, precision(), storage(),
+                                      BHWC(1, 1, 15, 171)));
 }
 
 TEST_P(FullyConnectedFloatTest, FullyConnectedInt8Width2Batch2BigTest) {
@@ -182,8 +175,10 @@ TEST_P(FullyConnectedFloatTest, FullyConnectedInt8Width2Batch2BigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(
-      FullyConnectedInt8Width2Batch2BigTest(*exec_env, precision(), storage()));
+  for (int batch_size : {2, 10, 20}) {
+    ABSL_ASSERT_OK(FullyConnectedInt8BigTest(*exec_env, precision(), storage(),
+                                        BHWC(batch_size, 1, 2, 171)));
+  }
 }
 
 TEST_P(FullyConnectedFloatTest, FullyConnectedInt8GroupedQuantizationBigTest) {
@@ -192,7 +187,7 @@ TEST_P(FullyConnectedFloatTest, FullyConnectedInt8GroupedQuantizationBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(FullyConnectedInt8GroupedQuantizationBigTest(*exec_env, precision(),
+  ABSL_ASSERT_OK(FullyConnectedInt8GroupedQuantizationBigTest(*exec_env, precision(),
                                                          storage()));
 }
 
@@ -202,8 +197,17 @@ TEST_P(FullyConnectedFloatTest, FullyConnectedInt8ExternalBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       FullyConnectedInt8ExternalBigTest(*exec_env, precision(), storage()));
+}
+
+TEST_P(FullyConnectedFloatTest, FullyConnectedRuntimeChWi8Test) {
+  const DataType data_type = DeduceDataTypeFromPrecision(precision());
+  if (!exec_env->IsStorageSupported(storage(), data_type)) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
+                 << " storage type: " << ToString(storage());
+  }
+  ABSL_ASSERT_OK(FullyConnectedRuntimeChWi8Test(*exec_env, precision(), storage()));
 }
 
 TEST_P(FullyConnectedFloatTest, FullyConnectedInt8BatchedWeightsBigTest) {
@@ -212,11 +216,11 @@ TEST_P(FullyConnectedFloatTest, FullyConnectedInt8BatchedWeightsBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  if (!exec_env->IsStorageSupported(storage(), DataType::INT32)) {
-    GTEST_SKIP() << "Unsupported data type: " << ToString(DataType::INT32)
+  if (!exec_env->IsStorageSupported(storage(), DataType::kInt32)) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(DataType::kInt32)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(FullyConnectedInt8BatchedWeightsBigTest(*exec_env, precision(),
+  ABSL_ASSERT_OK(FullyConnectedInt8BatchedWeightsBigTest(*exec_env, precision(),
                                                     storage()));
 }
 
@@ -226,11 +230,11 @@ TEST_P(FullyConnectedFloatTest, FullyConnectedInt8BatchedWeightsIdsBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(FullyConnectedInt8BatchedWeightsIdsBigTest(
+  ABSL_ASSERT_OK(FullyConnectedInt8BatchedWeightsIdsBigTest(
       *exec_env, precision(), storage(), BHWC(1, 1, 1, 32), BHWC(1, 1, 1, 1)));
-  MLD_ASSERT_OK(FullyConnectedInt8BatchedWeightsIdsBigTest(
+  ABSL_ASSERT_OK(FullyConnectedInt8BatchedWeightsIdsBigTest(
       *exec_env, precision(), storage(), BHWC(1, 8, 1, 32), BHWC(1, 1, 1, 8)));
-  MLD_ASSERT_OK(FullyConnectedInt8BatchedWeightsIdsBigTest(
+  ABSL_ASSERT_OK(FullyConnectedInt8BatchedWeightsIdsBigTest(
       *exec_env, precision(), storage(), BHWC(1, 128, 1, 64),
       BHWC(1, 1, 1, 128)));
 }
@@ -242,7 +246,7 @@ TEST_P(FullyConnectedFloatTest,
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(FullyConnectedInt8BatchedWeightsIdsBigTest(
+  ABSL_ASSERT_OK(FullyConnectedInt8BatchedWeightsIdsBigTest(
       *exec_env, precision(), storage(), BHWC(1, 1, 1, 32), BHWC(1, 1, 1, 4)));
 }
 
@@ -253,7 +257,7 @@ TEST_P(FullyConnectedFloatTest,
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(FullyConnectedInt8ExternalGroupedQuantizationBigTest(
+  ABSL_ASSERT_OK(FullyConnectedInt8ExternalGroupedQuantizationBigTest(
       *exec_env, precision(), storage()));
 }
 
@@ -263,7 +267,7 @@ TEST_P(FullyConnectedFloatTest, FullyConnectedInt4BigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(FullyConnectedInt4BigTest(*exec_env, precision(), storage()));
+  ABSL_ASSERT_OK(FullyConnectedInt4BigTest(*exec_env, precision(), storage()));
 }
 
 TEST_P(FullyConnectedFloatTest, FullyConnectedInt4BlockwiseTest) {
@@ -272,7 +276,7 @@ TEST_P(FullyConnectedFloatTest, FullyConnectedInt4BlockwiseTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(FullyConnectedInt4BlockwiseTest(*exec_env, precision(), storage()));
+  ABSL_ASSERT_OK(FullyConnectedInt4BlockwiseTest(*exec_env, precision(), storage()));
 }
 
 TEST_P(FullyConnectedFloatTest, FullyConnectedInt4WidthIs4BigTest) {
@@ -281,7 +285,7 @@ TEST_P(FullyConnectedFloatTest, FullyConnectedInt4WidthIs4BigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       FullyConnectedInt4WidthIs4BigTest(*exec_env, precision(), storage()));
 }
 
@@ -291,7 +295,7 @@ TEST_P(FullyConnectedFloatTest, FullyConnectedInt4GroupedQuantizationBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(FullyConnectedInt4GroupedQuantizationBigTest(*exec_env, precision(),
+  ABSL_ASSERT_OK(FullyConnectedInt4GroupedQuantizationBigTest(*exec_env, precision(),
                                                          storage()));
 }
 
@@ -301,8 +305,17 @@ TEST_P(FullyConnectedFloatTest, FullyConnectedInt4ExternalWeightsBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(FullyConnectedInt4ExternalWeightsBigTest(*exec_env, precision(),
+  ABSL_ASSERT_OK(FullyConnectedInt4ExternalWeightsBigTest(*exec_env, precision(),
                                                      storage()));
+}
+
+TEST_P(FullyConnectedFloatTest, FullyConnectedRuntimeChWi4Test) {
+  const DataType data_type = DeduceDataTypeFromPrecision(precision());
+  if (!exec_env->IsStorageSupported(storage(), data_type)) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
+                 << " storage type: " << ToString(storage());
+  }
+  ABSL_ASSERT_OK(FullyConnectedRuntimeChWi4Test(*exec_env, precision(), storage()));
 }
 
 TEST_P(FullyConnectedFloatTest,
@@ -312,7 +325,7 @@ TEST_P(FullyConnectedFloatTest,
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(FullyConnectedInt4ExternalGroupedQuantizationBigTest(
+  ABSL_ASSERT_OK(FullyConnectedInt4ExternalGroupedQuantizationBigTest(
       *exec_env, precision(), storage()));
 }
 
@@ -322,7 +335,7 @@ TEST_P(FullyConnectedFloatTest, FullyConnectedInt2BigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(FullyConnectedInt2BigTest(*exec_env, precision(), storage()));
+  ABSL_ASSERT_OK(FullyConnectedInt2BigTest(*exec_env, precision(), storage()));
 }
 
 TEST_P(FullyConnectedFloatTest, FullyConnectedInt2BlockwiseTest) {
@@ -331,7 +344,7 @@ TEST_P(FullyConnectedFloatTest, FullyConnectedInt2BlockwiseTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(FullyConnectedInt2BlockwiseTest(*exec_env, precision(), storage()));
+  ABSL_ASSERT_OK(FullyConnectedInt2BlockwiseTest(*exec_env, precision(), storage()));
 }
 
 TEST_P(FullyConnectedFloatTest, FullyConnectedInt2WidthIs4BigTest) {
@@ -340,7 +353,7 @@ TEST_P(FullyConnectedFloatTest, FullyConnectedInt2WidthIs4BigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       FullyConnectedInt2WidthIs4BigTest(*exec_env, precision(), storage()));
 }
 
@@ -350,7 +363,7 @@ TEST_P(FullyConnectedFloatTest, FullyConnectedInt2GroupedQuantizationBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(FullyConnectedInt2GroupedQuantizationBigTest(*exec_env, precision(),
+  ABSL_ASSERT_OK(FullyConnectedInt2GroupedQuantizationBigTest(*exec_env, precision(),
                                                          storage()));
 }
 
@@ -360,8 +373,17 @@ TEST_P(FullyConnectedFloatTest, FullyConnectedInt2ExternalWeightsBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(FullyConnectedInt2ExternalWeightsBigTest(*exec_env, precision(),
+  ABSL_ASSERT_OK(FullyConnectedInt2ExternalWeightsBigTest(*exec_env, precision(),
                                                      storage()));
+}
+
+TEST_P(FullyConnectedFloatTest, FullyConnectedRuntimeChWi2Test) {
+  const DataType data_type = DeduceDataTypeFromPrecision(precision());
+  if (!exec_env->IsStorageSupported(storage(), data_type)) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
+                 << " storage type: " << ToString(storage());
+  }
+  ABSL_ASSERT_OK(FullyConnectedRuntimeChWi2Test(*exec_env, precision(), storage()));
 }
 
 TEST_P(FullyConnectedFloatTest,
@@ -371,7 +393,7 @@ TEST_P(FullyConnectedFloatTest,
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(FullyConnectedInt2ExternalGroupedQuantizationBigTest(
+  ABSL_ASSERT_OK(FullyConnectedInt2ExternalGroupedQuantizationBigTest(
       *exec_env, precision(), storage()));
 }
 
@@ -381,7 +403,7 @@ TEST_P(FullyConnectedFloatTest, FullyConnectedPackedGroupsTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(FullyConnectedPackedGroupsTest(*exec_env, precision(), storage()));
+  ABSL_ASSERT_OK(FullyConnectedPackedGroupsTest(*exec_env, precision(), storage()));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -406,15 +428,15 @@ TEST_P(FullyConnectedIntTest, FullyConnectedSi8Wi8BigTest) {
   if (!SupportsFullyConnectedUint8Math(exec_env->GetGpuInfo())) {
     GTEST_SKIP() << "Unsupported FullyConnectedIntTest";
   }
-  if (!exec_env->IsStorageSupported(src_storage(), DataType::UINT8)) {
+  if (!exec_env->IsStorageSupported(src_storage(), DataType::kUint8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(src_storage())
-                 << " to " << ToString(DataType::UINT8);
+                 << " to " << ToString(DataType::kUint8);
   }
-  if (!exec_env->IsStorageSupported(dst_storage(), DataType::UINT32)) {
+  if (!exec_env->IsStorageSupported(dst_storage(), DataType::kUint32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(dst_storage())
-                 << " to " << ToString(DataType::UINT32);
+                 << " to " << ToString(DataType::kUint32);
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       FullyConnectedSi8Wi8BigTest(*exec_env, src_storage(), dst_storage()));
 }
 
@@ -422,15 +444,15 @@ TEST_P(FullyConnectedIntTest, FullyConnectedSi8Wi4BigTest) {
   if (!SupportsFullyConnectedUint8Math(exec_env->GetGpuInfo())) {
     GTEST_SKIP() << "Unsupported FullyConnectedIntTest";
   }
-  if (!exec_env->IsStorageSupported(src_storage(), DataType::UINT8)) {
+  if (!exec_env->IsStorageSupported(src_storage(), DataType::kUint8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(src_storage())
-                 << " to " << ToString(DataType::UINT8);
+                 << " to " << ToString(DataType::kUint8);
   }
-  if (!exec_env->IsStorageSupported(dst_storage(), DataType::UINT32)) {
+  if (!exec_env->IsStorageSupported(dst_storage(), DataType::kUint32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(dst_storage())
-                 << " to " << ToString(DataType::UINT32);
+                 << " to " << ToString(DataType::kUint32);
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       FullyConnectedSi8Wi4BigTest(*exec_env, src_storage(), dst_storage()));
 }
 
@@ -438,15 +460,15 @@ TEST_P(FullyConnectedIntTest, FullyConnectedSi8Wi2BigTest) {
   if (!SupportsFullyConnectedUint8Math(exec_env->GetGpuInfo())) {
     GTEST_SKIP() << "Unsupported FullyConnectedIntTest";
   }
-  if (!exec_env->IsStorageSupported(src_storage(), DataType::UINT8)) {
+  if (!exec_env->IsStorageSupported(src_storage(), DataType::kUint8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(src_storage())
-                 << " to " << ToString(DataType::UINT8);
+                 << " to " << ToString(DataType::kUint8);
   }
-  if (!exec_env->IsStorageSupported(dst_storage(), DataType::UINT32)) {
+  if (!exec_env->IsStorageSupported(dst_storage(), DataType::kUint32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(dst_storage())
-                 << " to " << ToString(DataType::UINT32);
+                 << " to " << ToString(DataType::kUint32);
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       FullyConnectedSi8Wi2BigTest(*exec_env, src_storage(), dst_storage()));
 }
 

@@ -20,8 +20,10 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "xnnpack.h"  // from @XNNPACK
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/kernels/conv_generic.h"
 #include "ml_drift/common/kernels/tests/kernel_test.h"
@@ -29,7 +31,6 @@
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/precision.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/gpu_operation.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/task/testing_ref_ops.h"
@@ -73,7 +74,7 @@ absl::Status ConvGenericWinograd4x4To6x6Test(TestExecutionEnvironment& exec_env,
   conv_result.shape =
       BHWC(src_tensor.shape.b, 36, tiles_x * tiles_y, dst_ref_tensor.shape.c);
 
-  Tensor<OHWI, DataType::FLOAT32> wino_weights;
+  Tensor<OHWI, DataType::kFloat32> wino_weights;
   RearrangeWeightsToWinograd3x3TileNxN(weights, &wino_weights, 6);
 
   Convolution2DAttributes wino_attr;
@@ -82,7 +83,7 @@ absl::Status ConvGenericWinograd4x4To6x6Test(TestExecutionEnvironment& exec_env,
   wino_attr.strides = HW(1, 1);
   wino_attr.dilations = HW(1, 1);
   auto& wino_attr_weights =
-      wino_attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
+      wino_attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
   wino_attr_weights.shape = wino_weights.shape;
 
   auto convolution = CreateConvGenericExternalWeights(
@@ -156,8 +157,8 @@ absl::Status ConvolutionGenericExternalWeightsTest(
   }
   srcs_td[weights_gpu.size() + 1] = &bias_tensor_desc;
 
-  TensorDescriptor params_td = {DataType::INT32, TensorStorageType::BUFFER,
-                                Layout::HWC};
+  TensorDescriptor params_td = {DataType::kInt32, TensorStorageType::kBuffer,
+                                Layout::kHWC};
   TensorInt32 params_tensor = runtime_channels.GenerateTensorInt32();
   if (std::any_of(params_tensor.data.begin(), params_tensor.data.end(),
                   [](int x) { return x != -1; })) {
@@ -220,8 +221,8 @@ absl::Status ConvolutionGenericExternalBatchedWeightsTest(
     srcs_td[1 + i] = &weights_gpu[i];
   }
 
-  TensorDescriptor params_td = {DataType::INT32, TensorStorageType::BUFFER,
-                                Layout::HWC};
+  TensorDescriptor params_td = {DataType::kInt32, TensorStorageType::kBuffer,
+                                Layout::kHWC};
   TensorInt32 params_tensor = runtime_channels.GenerateTensorInt32();
   if (std::any_of(params_tensor.data.begin(), params_tensor.data.end(),
                   [](int x) { return x != -1; })) {
@@ -263,7 +264,7 @@ absl::Status ConvolutionGenericBatchedMatMulTest(
   TensorFloat32 dst_ref_tensor = BatchedMatMulReference(
       left_tensor, right_tensor, aligned_runtime_channels);
 
-  ml_drift::Tensor<OHWI, DataType::FLOAT32> weights;
+  ml_drift::Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape =
       OHWI(right_tensor.shape.c, right_tensor.shape.h, 1, right_tensor.shape.w);
   weights.data.resize(weights.shape.DimensionsProduct() +
@@ -286,7 +287,7 @@ absl::Status ConvolutionGenericBatchedMatMulTest(
   attr.strides = HW(1, 1);
   attr.dilations = HW(1, 1);
   auto& attr_weights =
-      attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::FLOAT32>>();
+      attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = weights.shape;
 
   auto operation = CreateConvGenericExternalWeights(
@@ -308,8 +309,8 @@ absl::Status ConvolutionGenericBatchedMatMulTest(
     srcs_td[1 + i] = &weights_gpu[i];
   }
 
-  TensorDescriptor params_td = {DataType::INT32, TensorStorageType::BUFFER,
-                                Layout::HWC};
+  TensorDescriptor params_td = {DataType::kInt32, TensorStorageType::kBuffer,
+                                Layout::kHWC};
   TensorInt32 params_tensor = runtime_channels.GenerateTensorInt32();
   if (std::any_of(params_tensor.data.begin(), params_tensor.data.end(),
                   [](int x) { return x != -1; })) {
@@ -360,15 +361,15 @@ TEST_P(ConvolutionFloatTest, ConvolutionGenericWinograd4x4To6x6) {
   attr.strides = HW(1, 1);
   attr.dilations = HW(1, 1);
   auto weights = MakeSyntheticTensor(OHWI(dst_channels, 3, 3, src_channels));
-  attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>(std::move(weights));
+  attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>(std::move(weights));
   attr.bias = MakeSyntheticTensor(Linear(dst_channels));
   auto src_shape = BHWC(1, 17, 13, src_channels);
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage(), Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage(), Layout::HWC});
-  MLD_EXPECT_OK(ConvGenericWinograd4x4To6x6Test(*exec_env, attr, src_tensor, op_def,
+  op_def.src_tensors.push_back({data_type, storage(), Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage(), Layout::kHWC});
+  ABSL_EXPECT_OK(ConvGenericWinograd4x4To6x6Test(*exec_env, attr, src_tensor, op_def,
                                             precision()));
 }
 
@@ -391,9 +392,9 @@ TEST_P(ConvolutionFloatTest, ConvolutionGenericWinograd4x4To6x6Batched) {
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage(), Layout::BHWC});
-  op_def.dst_tensors.push_back({data_type, storage(), Layout::BHWC});
-  MLD_EXPECT_OK(ConvGenericWinograd4x4To6x6Test(*exec_env, attr, src_tensor, op_def,
+  op_def.src_tensors.push_back({data_type, storage(), Layout::kBHWC});
+  op_def.dst_tensors.push_back({data_type, storage(), Layout::kBHWC});
+  ABSL_EXPECT_OK(ConvGenericWinograd4x4To6x6Test(*exec_env, attr, src_tensor, op_def,
                                             precision()));
 }
 
@@ -417,11 +418,11 @@ TEST_P(ConvolutionFloatTest, ConvolutionGenericExternalWeights) {
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef conv_def;
-  conv_def.src_tensors.push_back({data_type, storage(), Layout::HWC});
+  conv_def.src_tensors.push_back({data_type, storage(), Layout::kHWC});
   conv_def.src_tensors.push_back(
-      {data_type, TensorStorageType::BUFFER, Layout::UNKNOWN});
-  conv_def.dst_tensors.push_back({data_type, storage(), Layout::HWC});
-  MLD_EXPECT_OK(ConvolutionGenericExternalWeightsTest(*exec_env, src_tensor, attr,
+      {data_type, TensorStorageType::kBuffer, Layout::kUnknown});
+  conv_def.dst_tensors.push_back({data_type, storage(), Layout::kHWC});
+  ABSL_EXPECT_OK(ConvolutionGenericExternalWeightsTest(*exec_env, src_tensor, attr,
                                                   conv_def, precision(),
                                                   TestingRuntimeChannels()));
 }
@@ -452,11 +453,11 @@ TEST_P(ConvolutionFloatTest, ConvolutionGenericExternalWeightsRuntimeCh) {
       {.src_end_ch = 4, .dst_end_ch = 20}};
   for (auto runtime_channels : test_runtime_channels) {
     OperationDef conv_def;
-    conv_def.src_tensors.push_back({data_type, storage(), Layout::HWC});
+    conv_def.src_tensors.push_back({data_type, storage(), Layout::kHWC});
     conv_def.src_tensors.push_back(
-        {data_type, TensorStorageType::BUFFER, Layout::UNKNOWN});
-    conv_def.dst_tensors.push_back({data_type, storage(), Layout::HWC});
-    MLD_EXPECT_OK(ConvolutionGenericExternalWeightsTest(
+        {data_type, TensorStorageType::kBuffer, Layout::kUnknown});
+    conv_def.dst_tensors.push_back({data_type, storage(), Layout::kHWC});
+    ABSL_EXPECT_OK(ConvolutionGenericExternalWeightsTest(
         *exec_env, src_tensor, attr, conv_def, precision(), runtime_channels));
   }
 }
@@ -474,8 +475,7 @@ TEST_P(ConvolutionFloatTest, ConvolutionGenericExternalBatchedWeights) {
   attr.strides = HW(1, 1);
   attr.dilations = HW(1, 1);
   attr.weights = MakeSyntheticTensor(OHWI(64, 6, 1, src_shape.c));
-  attr.bias = MakeZeroTensor(Linear(
-      std::visit([](auto& w) -> auto& { return w.shape; }, attr.weights).o));
+  attr.bias = MakeZeroTensor(Linear(attr.GetWeightsShape().o));
 
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
@@ -486,9 +486,9 @@ TEST_P(ConvolutionFloatTest, ConvolutionGenericExternalBatchedWeights) {
       {.src_end_ch = 18, .dst_end_ch = 19}};
   for (auto runtime_channels : test_runtime_channels) {
     OperationDef conv_def;
-    conv_def.src_tensors.push_back({data_type, storage(), Layout::HWC});
-    conv_def.dst_tensors.push_back({data_type, storage(), Layout::HWC});
-    MLD_EXPECT_OK(ConvolutionGenericExternalBatchedWeightsTest(
+    conv_def.src_tensors.push_back({data_type, storage(), Layout::kHWC});
+    conv_def.dst_tensors.push_back({data_type, storage(), Layout::kHWC});
+    ABSL_EXPECT_OK(ConvolutionGenericExternalBatchedWeightsTest(
         *exec_env, src_tensor, attr, conv_def, precision(), runtime_channels));
   }
 }
@@ -513,9 +513,9 @@ TEST_P(ConvolutionFloatTest, ConvolutionGenericBatchedMatMul) {
 
   for (auto runtime_channels : test_runtime_channels) {
     OperationDef conv_def;
-    conv_def.src_tensors.push_back({data_type, storage(), Layout::HWC});
-    conv_def.dst_tensors.push_back({data_type, storage(), Layout::HWC});
-    MLD_EXPECT_OK(ConvolutionGenericBatchedMatMulTest(
+    conv_def.src_tensors.push_back({data_type, storage(), Layout::kHWC});
+    conv_def.dst_tensors.push_back({data_type, storage(), Layout::kHWC});
+    ABSL_EXPECT_OK(ConvolutionGenericBatchedMatMulTest(
         *exec_env, left_tensor, right_tensor, conv_def, precision(),
         runtime_channels));
   }

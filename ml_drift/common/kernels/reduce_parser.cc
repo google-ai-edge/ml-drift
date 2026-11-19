@@ -21,6 +21,8 @@
 #include <vector>
 
 #include "absl/container/flat_hash_set.h"
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
 #include "absl/strings/str_cat.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/gpu_model_builder.h"
@@ -29,7 +31,6 @@
 #include "ml_drift/common/model.h"
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/gpu_operation.h"
 
 namespace ml_drift {
@@ -40,7 +41,8 @@ absl::Status TryAddThenReduce(const GpuInfo& gpu_info,
                               GpuModelBuilder* model_builder) {
   auto* add_node = graph.GetNode(first_node_id);
   if (add_node == nullptr ||
-      OperationTypeFromString(add_node->operation.type) != OperationType::ADD) {
+      OperationTypeFromString(add_node->operation.type) !=
+          OperationType::kAdd) {
     return absl::NotFoundError("AddThenReduce not suitable.");
   }
   auto add_inputs = graph.FindInputs(add_node->id);
@@ -59,11 +61,11 @@ absl::Status TryAddThenReduce(const GpuInfo& gpu_info,
   }
   auto reduce_op_type = OperationTypeFromString(reduce_node->operation.type);
   std::set<Axis> axis_to_reduce;
-  if (reduce_op_type == OperationType::MEAN ||
-      reduce_op_type == OperationType::REDUCE_MAXIMUM ||
-      reduce_op_type == OperationType::REDUCE_MINIMUM ||
-      reduce_op_type == OperationType::REDUCE_PRODUCT ||
-      reduce_op_type == OperationType::REDUCE_SUM) {
+  if (reduce_op_type == OperationType::kMean ||
+      reduce_op_type == OperationType::kReduceMaximum ||
+      reduce_op_type == OperationType::kReduceMinimum ||
+      reduce_op_type == OperationType::kReduceProduct ||
+      reduce_op_type == OperationType::kReduceSum) {
     auto attr =
         std::any_cast<ReduceAttributes>(reduce_node->operation.attributes);
     axis_to_reduce = attr.dims;
@@ -105,7 +107,7 @@ absl::Status TryAddThenReduce(
     GpuModelBuilder* model_builder) {
   auto* add_op = ir_model.op(first_op_id);
   if (add_op == nullptr ||
-      OperationTypeFromString(add_op->name) != OperationType::ADD) {
+      OperationTypeFromString(add_op->name) != OperationType::kAdd) {
     return absl::NotFoundError("AddThenReduce not suitable.");
   }
   const auto& add_inputs = add_op->inputs;
@@ -125,11 +127,11 @@ absl::Status TryAddThenReduce(
   }
   auto reduce_op_type = OperationTypeFromString(reduce_op->name);
   std::set<Axis> axis_to_reduce;
-  if (reduce_op_type == OperationType::MEAN ||
-      reduce_op_type == OperationType::REDUCE_MAXIMUM ||
-      reduce_op_type == OperationType::REDUCE_MINIMUM ||
-      reduce_op_type == OperationType::REDUCE_PRODUCT ||
-      reduce_op_type == OperationType::REDUCE_SUM) {
+  if (reduce_op_type == OperationType::kMean ||
+      reduce_op_type == OperationType::kReduceMaximum ||
+      reduce_op_type == OperationType::kReduceMinimum ||
+      reduce_op_type == OperationType::kReduceProduct ||
+      reduce_op_type == OperationType::kReduceSum) {
     auto attr = std::any_cast<ReduceAttributes>(reduce_op->attr);
     axis_to_reduce = attr.dims;
   } else {

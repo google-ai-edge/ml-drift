@@ -60,7 +60,7 @@ bool ModelTransformer::Apply(const std::string& name,
     }
     auto result = transformation->ApplyToNode(node, graph_);
     last_transformation_message_ = result.message;
-    if (result.status == TransformStatus::INVALID) {
+    if (result.status == TransformStatus::kInvalid) {
       return false;
     }
   }
@@ -102,11 +102,11 @@ bool ModelTransformer::ApplyStartingWithNode(
           graph_->FindProducer(graph_->FindInputs(first_in_sequence)[0]->id);
       auto result = transformation->ApplyToNodesSequence(nodes, graph_);
       last_transformation_message_ = result.message;
-      if (result.status == TransformStatus::INVALID) {
+      if (result.status == TransformStatus::kInvalid) {
         // graph is broken now.
         return false;
       }
-      if (result.status == TransformStatus::APPLIED) {
+      if (result.status == TransformStatus::kApplied) {
         // Also remove first node of a sequence from a set of processed node.
         // Out of all nodes in a sequence only first one may have been added
         // to "processed" set because other nodes do not have more than one

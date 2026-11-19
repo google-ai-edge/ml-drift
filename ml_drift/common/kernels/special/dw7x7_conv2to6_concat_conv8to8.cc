@@ -25,6 +25,8 @@
 #include <vector>
 
 #include "absl/container/flat_hash_set.h"
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
 #include "absl/strings/str_replace.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/flops_util.h"
@@ -35,7 +37,6 @@
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/precision.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/buffer_desc.h"
 #include "ml_drift/common/task/gpu_object_desc.h"
 #include "ml_drift/common/task/gpu_operation.h"
@@ -48,17 +49,13 @@ namespace ml_drift {
 namespace {
 
 bool IsConvKernelXis1(const Convolution2DAttributes& conv_attr) {
-  return std::visit([](const auto& w) { return w.shape.w; },
-                    conv_attr.weights) == 1 &&
-         conv_attr.dilations.w == 1 && conv_attr.strides.w == 1 &&
-         conv_attr.padding.prepended.w == 0 &&
+  return conv_attr.GetWeightsShape().w == 1 && conv_attr.dilations.w == 1 &&
+         conv_attr.strides.w == 1 && conv_attr.padding.prepended.w == 0 &&
          conv_attr.padding.appended.w == 0;
 }
 bool IsConvKernelYis1(const Convolution2DAttributes& conv_attr) {
-  return std::visit([](const auto& w) { return w.shape.h; },
-                    conv_attr.weights) == 1 == 1 &&
-         conv_attr.dilations.h == 1 && conv_attr.strides.h == 1 &&
-         conv_attr.padding.prepended.h == 0 &&
+  return conv_attr.GetWeightsShape().h == 1 && conv_attr.dilations.h == 1 &&
+         conv_attr.strides.h == 1 && conv_attr.padding.prepended.h == 0 &&
          conv_attr.padding.appended.h == 0;
 }
 
@@ -143,11 +140,11 @@ void UploadWeights(const std::vector<float>& constants, DataType data_type,
   BufferDescriptor desc;
   desc.element_type = data_type;
   desc.element_size = 4;
-  desc.memory_type = MemoryType::CONSTANT;
+  desc.memory_type = MemoryType::kConstant;
   desc.size = SizeOf(data_type) * constants.size();
   desc.data.resize(desc.size);
 
-  if (data_type == DataType::FLOAT32) {
+  if (data_type == DataType::kFloat32) {
     memcpy(desc.data.data(), constants.data(), desc.size);
   } else {
     half* gpu_data_half = reinterpret_cast<half*>(desc.data.data());
@@ -199,7 +196,7 @@ GPUOperation CreateDW7x7Conv2To6ConcatConv8to8(
     constants.push_back(conv2to6_weights_data[i]);
   }
 
-  auto alpha0 = std::get_if<Tensor<Linear, DataType::FLOAT32>>(&prelu0.alpha);
+  auto alpha0 = std::get_if<Tensor<Linear, DataType::kFloat32>>(&prelu0.alpha);
   for (int i = 0; i < 6; ++i) {
     constants.push_back(alpha0->data[i]);
   }
@@ -238,7 +235,7 @@ GPUOperation CreateDW7x7Conv2To6ConcatConv8to8(
     }
   }
 
-  auto alpha1 = std::get_if<Tensor<Linear, DataType::FLOAT32>>(&prelu1.alpha);
+  auto alpha1 = std::get_if<Tensor<Linear, DataType::kFloat32>>(&prelu1.alpha);
   for (int i = 0; i < 8; ++i) {
     constants.push_back(alpha1->data[i]);
   }
@@ -250,8 +247,7 @@ GPUOperation CreateDW7x7Conv2To6ConcatConv8to8(
   result.code_ = GenerateConvolutionCode(definition);
   result.tensor_to_grid_ = TensorToGrid::kWBToX_HDToY_ZIs1;
 
-  const auto& weights_shape =
-      std::visit([](const auto& w) { return w.shape; }, dw_attr.weights);
+  const OHWI& weights_shape = dw_attr.GetWeightsShape();
   QcomThinFilterDescriptor f0_desc;
   f0_desc.kernel_size_x = weights_shape.w;
   f0_desc.kernel_size_y = weights_shape.h;
@@ -281,7 +277,7 @@ absl::Status TryDW7x7Conv2To6ConcatConv8to8(
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   if (OperationTypeFromString(dw_node->operation.type) !=
-      OperationType::DEPTHWISE_CONVOLUTION) {
+      OperationType::kDepthwiseConvolution) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
 
@@ -294,15 +290,14 @@ absl::Status TryDW7x7Conv2To6ConcatConv8to8(
                         model_builder->GetTensor(dw_inputs[0]->id));
 
   if (model_builder->GetConvPrecision(dw_handle.tensor_desc.GetDataType()) !=
-      CalculationsPrecision::F16) {
+      CalculationsPrecision::kF16) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
 
   DepthwiseConvolution2DAttributes* dw_attr =
       std::any_cast<DepthwiseConvolution2DAttributes>(
           &dw_node->operation.attributes);
-  const auto& dw_weights_shape =
-      std::visit([](const auto& w) { return w.shape; }, dw_attr->weights);
+  const OHWI& dw_weights_shape = dw_attr->GetWeightsShape();
   const bool kGoodDwWeights =
       dw_weights_shape.w == 7 && dw_weights_shape.h == 7 &&
       dw_weights_shape.i == 2 && dw_weights_shape.o == 1;
@@ -315,7 +310,7 @@ absl::Status TryDW7x7Conv2To6ConcatConv8to8(
   }
 
   if (dw_handle.tensor_desc.GetStorageType() !=
-      TensorStorageType::SINGLE_TEXTURE_2D) {
+      TensorStorageType::kSingleTexture2D) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   auto dw_outputs = graph.FindOutputs(dw_node->id);
@@ -332,13 +327,12 @@ absl::Status TryDW7x7Conv2To6ConcatConv8to8(
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   if (OperationTypeFromString(conv1_node->operation.type) !=
-      OperationType::CONVOLUTION_2D) {
+      OperationType::kConvolution2D) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   Convolution2DAttributes* conv1_attr =
       std::any_cast<Convolution2DAttributes>(&conv1_node->operation.attributes);
-  const auto& conv1_weights_shape =
-      std::visit([](const auto& w) { return w.shape; }, conv1_attr->weights);
+  const OHWI& conv1_weights_shape = conv1_attr->GetWeightsShape();
   if (!IsConv1x1(*conv1_attr) || conv1_weights_shape.i != 2 ||
       conv1_weights_shape.o != 6) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
@@ -357,7 +351,7 @@ absl::Status TryDW7x7Conv2To6ConcatConv8to8(
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   if (OperationTypeFromString(prelu1_node->operation.type) !=
-      OperationType::PRELU) {
+      OperationType::kPrelu) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   auto prelu1_outputs = graph.FindOutputs(prelu1_node->id);
@@ -374,7 +368,7 @@ absl::Status TryDW7x7Conv2To6ConcatConv8to8(
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   if (OperationTypeFromString(concat_node->operation.type) !=
-      OperationType::CONCAT) {
+      OperationType::kConcat) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   auto concat_outputs = graph.FindOutputs(concat_node->id);
@@ -395,12 +389,12 @@ absl::Status TryDW7x7Conv2To6ConcatConv8to8(
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   if (OperationTypeFromString(pooling_node->operation.type) !=
-      OperationType::POOLING_2D) {
+      OperationType::kPooling2D) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   Pooling2DAttributes* pooling_attr =
       std::any_cast<Pooling2DAttributes>(&pooling_node->operation.attributes);
-  if (pooling_attr->type != PoolingType::MAX || pooling_attr->output_indices ||
+  if (pooling_attr->type != PoolingType::kMax || pooling_attr->output_indices ||
       pooling_attr->kernel.w != 2 || pooling_attr->kernel.h != 2 ||
       pooling_attr->strides.w != 2 || pooling_attr->strides.h != 2 ||
       pooling_attr->padding.prepended.w != 0 ||
@@ -420,13 +414,12 @@ absl::Status TryDW7x7Conv2To6ConcatConv8to8(
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   if (OperationTypeFromString(conv2_node->operation.type) !=
-      OperationType::CONVOLUTION_2D) {
+      OperationType::kConvolution2D) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   Convolution2DAttributes* conv2_attr =
       std::any_cast<Convolution2DAttributes>(&conv2_node->operation.attributes);
-  const auto& conv2_weights_shape =
-      std::visit([](const auto& w) { return w.shape; }, conv2_attr->weights);
+  const OHWI& conv2_weights_shape = conv2_attr->GetWeightsShape();
   if (!IsConv1x1(*conv2_attr) || conv2_weights_shape.i != 8 ||
       conv2_weights_shape.o != 8) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
@@ -445,7 +438,7 @@ absl::Status TryDW7x7Conv2To6ConcatConv8to8(
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   if (OperationTypeFromString(prelu2_node->operation.type) !=
-      OperationType::PRELU) {
+      OperationType::kPrelu) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   auto prelu2_outputs = graph.FindOutputs(prelu2_node->id);
@@ -506,7 +499,7 @@ absl::Status TryDW7x7Conv2To6ConcatConv8to8(
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   if (OperationTypeFromString(dw_op->name) !=
-      OperationType::DEPTHWISE_CONVOLUTION) {
+      OperationType::kDepthwiseConvolution) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
 
@@ -518,13 +511,12 @@ absl::Status TryDW7x7Conv2To6ConcatConv8to8(
   ABSL_ASSIGN_OR_RETURN(auto dw_handle, model_builder->GetTensor(dw_inputs[0]));
 
   if (model_builder->GetConvPrecision(dw_handle.tensor_desc.GetDataType()) !=
-      CalculationsPrecision::F16) {
+      CalculationsPrecision::kF16) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
 
   auto dw_attr = std::any_cast<DepthwiseConvolution2DAttributes>(dw_op->attr);
-  const auto& dw_weights_shape =
-      std::visit([](const auto& w) { return w.shape; }, dw_attr.weights);
+  const OHWI& dw_weights_shape = dw_attr.GetWeightsShape();
   const bool kGoodDwWeights =
       dw_weights_shape.w == 7 && dw_weights_shape.h == 7 &&
       dw_weights_shape.i == 2 && dw_weights_shape.o == 1;
@@ -539,7 +531,7 @@ absl::Status TryDW7x7Conv2To6ConcatConv8to8(
   auto dw_handle_or_err = model_builder->GetTensor(dw_inputs[0]);
   if (!dw_handle_or_err.ok() ||
       dw_handle_or_err.value().tensor_desc.GetStorageType() !=
-          TensorStorageType::SINGLE_TEXTURE_2D) {
+          TensorStorageType::kSingleTexture2D) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   auto dw_outputs = dw_op->outputs;
@@ -556,12 +548,11 @@ absl::Status TryDW7x7Conv2To6ConcatConv8to8(
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   if (OperationTypeFromString(conv1_op->name) !=
-      OperationType::CONVOLUTION_2D) {
+      OperationType::kConvolution2D) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   auto conv1_attr = std::any_cast<Convolution2DAttributes>(conv1_op->attr);
-  const auto& conv1_weights_shape =
-      std::visit([](const auto& w) { return w.shape; }, conv1_attr.weights);
+  const OHWI& conv1_weights_shape = conv1_attr.GetWeightsShape();
   if (!IsConv1x1(conv1_attr) || conv1_weights_shape.i != 2 ||
       conv1_weights_shape.o != 6) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
@@ -579,7 +570,7 @@ absl::Status TryDW7x7Conv2To6ConcatConv8to8(
   if (consumed_ops.find(prelu1_op->id) != consumed_ops.end()) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
-  if (OperationTypeFromString(prelu1_op->name) != OperationType::PRELU) {
+  if (OperationTypeFromString(prelu1_op->name) != OperationType::kPrelu) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   auto prelu1_outputs = prelu1_op->outputs;
@@ -595,7 +586,7 @@ absl::Status TryDW7x7Conv2To6ConcatConv8to8(
   if (consumed_ops.find(concat_op->id) != consumed_ops.end()) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
-  if (OperationTypeFromString(concat_op->name) != OperationType::CONCAT) {
+  if (OperationTypeFromString(concat_op->name) != OperationType::kConcat) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   auto concat_outputs = concat_op->outputs;
@@ -615,11 +606,11 @@ absl::Status TryDW7x7Conv2To6ConcatConv8to8(
   if (consumed_ops.find(pooling_op->id) != consumed_ops.end()) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
-  if (OperationTypeFromString(pooling_op->name) != OperationType::POOLING_2D) {
+  if (OperationTypeFromString(pooling_op->name) != OperationType::kPooling2D) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   auto pooling_attr = std::any_cast<Pooling2DAttributes>(pooling_op->attr);
-  if (pooling_attr.type != PoolingType::MAX || pooling_attr.output_indices ||
+  if (pooling_attr.type != PoolingType::kMax || pooling_attr.output_indices ||
       pooling_attr.kernel.w != 2 || pooling_attr.kernel.h != 2 ||
       pooling_attr.strides.w != 2 || pooling_attr.strides.h != 2 ||
       pooling_attr.padding.prepended.w != 0 ||
@@ -639,12 +630,11 @@ absl::Status TryDW7x7Conv2To6ConcatConv8to8(
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   if (OperationTypeFromString(conv2_op->name) !=
-      OperationType::CONVOLUTION_2D) {
+      OperationType::kConvolution2D) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   auto conv2_attr = std::any_cast<Convolution2DAttributes>(conv2_op->attr);
-  const auto& conv2_weights_shape =
-      std::visit([](const auto& w) { return w.shape; }, conv2_attr.weights);
+  const OHWI& conv2_weights_shape = conv2_attr.GetWeightsShape();
   if (!IsConv1x1(conv2_attr) || conv2_weights_shape.i != 8 ||
       conv2_weights_shape.o != 8) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
@@ -662,7 +652,7 @@ absl::Status TryDW7x7Conv2To6ConcatConv8to8(
   if (consumed_ops.find(prelu2_op->id) != consumed_ops.end()) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
-  if (OperationTypeFromString(prelu2_op->name) != OperationType::PRELU) {
+  if (OperationTypeFromString(prelu2_op->name) != OperationType::kPrelu) {
     return absl::NotFoundError("DW7x7Conv2To6ConcatConv8to8 not suitable.");
   }
   auto prelu2_outputs = prelu2_op->outputs;

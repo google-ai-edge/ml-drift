@@ -23,6 +23,8 @@
 #include "gmock/gmock.h"
 #include "xnnpack.h"  // from @XNNPACK
 #include "absl/log/absl_log.h"
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
 #include "absl/types/span.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
@@ -32,7 +34,6 @@
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/precision.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/gpu_operation.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/task/testing_ref_ops.h"
@@ -159,7 +160,7 @@ absl::Status ConvWaveMemoryWinograd4x4To6x6(TestExecutionEnvironment& exec_env,
       CreateWinograd3x3TiledXBackward(exec_env.GetGpuInfo(), op_def, attr.bias,
                                       6));
 
-  Tensor<OHWI, DataType::FLOAT32> wino_weights;
+  Tensor<OHWI, DataType::kFloat32> wino_weights;
   RearrangeWeightsToWinograd3x3TileNxN(GetFloatWeights(attr), &wino_weights, 6);
 
   Convolution2DAttributes wino_attr;
@@ -168,7 +169,7 @@ absl::Status ConvWaveMemoryWinograd4x4To6x6(TestExecutionEnvironment& exec_env,
   wino_attr.strides = HW(1, 1);
   wino_attr.dilations = HW(1, 1);
   auto& wino_attr_weights =
-      wino_attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
+      wino_attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
   wino_attr_weights.shape = wino_weights.shape;
 
   auto convolution = CreateConvWaveMemoryExternalWeights(
@@ -223,7 +224,7 @@ absl::Status ConvWaveMemoryBatchedMatMulTest(TestExecutionEnvironment& exec_env,
   TensorFloat32 dst_ref_tensor =
       BatchedMatMulReference(left_tensor, right_tensor);
 
-  ml_drift::Tensor<OHWI, DataType::FLOAT32> weights;
+  ml_drift::Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape =
       OHWI(right_tensor.shape.c, right_tensor.shape.h, 1, right_tensor.shape.w);
   weights.data.resize(weights.shape.DimensionsProduct() +
@@ -245,7 +246,7 @@ absl::Status ConvWaveMemoryBatchedMatMulTest(TestExecutionEnvironment& exec_env,
   attr.padding.appended = HW(0, 0);
   attr.strides = HW(1, 1);
   attr.dilations = HW(1, 1);
-  auto& attr_weights = attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
+  auto& attr_weights = attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = weights.shape;
 
   auto operation = CreateConvWaveMemoryExternalWeights(
@@ -286,9 +287,9 @@ bool UseUint8MathForInt8Weights(const GpuInfo& gpu_info) {
 
 absl::Status ConvWaveMemoryInt8Test(
     TestExecutionEnvironment& exec_env,
-    const ml_drift::Tensor<BHWC, DataType::UINT8>& src_tensor_ui8,
+    const ml_drift::Tensor<BHWC, DataType::kUint8>& src_tensor_ui8,
     const PackedType quantized_type,
-    const ml_drift::Tensor<OHWI, DataType::INT8>& weights_i8,
+    const ml_drift::Tensor<OHWI, DataType::kInt8>& weights_i8,
     const OperationDef& op_def) {
   const int src_sum_scale =
       UseUint8MathForInt8Weights(exec_env.GetGpuInfo()) ? 128 : 0;
@@ -303,7 +304,7 @@ absl::Status ConvWaveMemoryInt8Test(
     const BHWC packed_shape =
         BHWC(src_tensor_ui8.shape.b, src_tensor_ui8.shape.h,
              src_tensor_ui8.shape.w, DivideRoundUp(src_tensor_ui8.shape.c, 4));
-    ml_drift::Tensor<BHWC, DataType::UINT32> src_tensor_ui32;
+    ml_drift::Tensor<BHWC, DataType::kUint32> src_tensor_ui32;
     src_tensor_ui32.shape = packed_shape;
     src_tensor_ui32.data.resize(packed_shape.DimensionsProduct());
     uint32_t* dst_ptr = src_tensor_ui32.data.data();
@@ -354,9 +355,9 @@ absl::Status ConvWaveMemoryInt8Test(
 
 absl::Status ConvWaveMemoryInt8ExternalWeightsTest(
     TestExecutionEnvironment& exec_env,
-    const ml_drift::Tensor<BHWC, DataType::UINT8>& src_tensor_ui8,
+    const ml_drift::Tensor<BHWC, DataType::kUint8>& src_tensor_ui8,
     const PackedType quantized_type,
-    const ml_drift::Tensor<OHWI, DataType::INT8>& weights_i8,
+    const ml_drift::Tensor<OHWI, DataType::kInt8>& weights_i8,
     const OperationDef& op_def) {
   const int src_sum_scale =
       UseUint8MathForInt8Weights(exec_env.GetGpuInfo()) ? 128 : 0;
@@ -373,8 +374,8 @@ absl::Status ConvWaveMemoryInt8ExternalWeightsTest(
         GetTotalElementsCountForLayout(weights_desc, weights_i8.shape));
     RearrangeWeightsInt8AsUint8(weights_i8, weights_desc, absl::MakeSpan(data),
                                 128, 0u);
-    weights_i8_td = TensorDescriptor(weights_desc.type,
-                                     TensorStorageType::BUFFER, Layout::LINEAR);
+    weights_i8_td = TensorDescriptor(
+        weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear);
     weights_i8_td.SetBHWDCShape(BHWDC(1, 1, 1, 1, data.size()));
     weights_i8_td.UploadDataRaw(absl::MakeConstSpan(data));
   } else {
@@ -383,8 +384,8 @@ absl::Status ConvWaveMemoryInt8ExternalWeightsTest(
         GetTotalElementsCountForLayout(weights_desc, weights_i8.shape));
     RearrangeWeights(weights_i8, weights_desc, absl::MakeSpan(data));
 
-    weights_i8_td = TensorDescriptor(weights_desc.type,
-                                     TensorStorageType::BUFFER, Layout::LINEAR);
+    weights_i8_td = TensorDescriptor(
+        weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear);
     weights_i8_td.SetBHWDCShape(BHWDC(1, 1, 1, 1, data.size()));
     weights_i8_td.UploadDataRaw(absl::MakeConstSpan(data));
   }
@@ -394,7 +395,7 @@ absl::Status ConvWaveMemoryInt8ExternalWeightsTest(
     const BHWC packed_shape =
         BHWC(src_tensor_ui8.shape.b, src_tensor_ui8.shape.h,
              src_tensor_ui8.shape.w, DivideRoundUp(src_tensor_ui8.shape.c, 4));
-    ml_drift::Tensor<BHWC, DataType::UINT32> src_tensor_ui32;
+    ml_drift::Tensor<BHWC, DataType::kUint32> src_tensor_ui32;
     src_tensor_ui32.shape = packed_shape;
     src_tensor_ui32.data.resize(packed_shape.DimensionsProduct());
     uint32_t* dst_ptr = src_tensor_ui32.data.data();
@@ -446,9 +447,9 @@ absl::Status ConvWaveMemoryInt8ExternalWeightsTest(
 absl::Status ConvWaveMemoryInt8WithSrcQuantizationTest(
     TestExecutionEnvironment& exec_env,
     const ml_drift::TensorFloat32& src_tensor,
-    const ml_drift::Tensor<OHWI, DataType::INT8>& weights_i8,
-    const ml_drift::Tensor<Linear, DataType::FLOAT32>& weights_scale,
-    const ml_drift::Tensor<Linear, DataType::FLOAT32>* weights_zero_point,
+    const ml_drift::Tensor<OHWI, DataType::kInt8>& weights_i8,
+    const ml_drift::Tensor<Linear, DataType::kFloat32>& weights_scale,
+    const ml_drift::Tensor<Linear, DataType::kFloat32>* weights_zero_point,
     const PackedType quantized_type,
     const TensorStorageType quantized_storage_type, const DataType float_type,
     const TensorStorageType float_storage_type) {
@@ -464,10 +465,12 @@ absl::Status ConvWaveMemoryInt8WithSrcQuantizationTest(
   TensorDescriptor src_quantized_td;
   {
     OperationDef op_def;
-    op_def.src_tensors.push_back({float_type, float_storage_type, Layout::HWC});
+    op_def.src_tensors.push_back(
+        {float_type, float_storage_type, Layout::kHWC});
     op_def.dst_tensors.push_back({ToSpatialTensorType(quantized_type),
-                                  quantized_storage_type, Layout::HWC});
-    op_def.dst_tensors.push_back({float_type, float_storage_type, Layout::HWC});
+                                  quantized_storage_type, Layout::kHWC});
+    op_def.dst_tensors.push_back(
+        {float_type, float_storage_type, Layout::kHWC});
     const bool need_src_sum = weights_zero_point != nullptr ||
                               UseUint8MathForInt8Weights(exec_env.GetGpuInfo());
     auto quantization_op =
@@ -503,16 +506,16 @@ absl::Status ConvWaveMemoryInt8WithSrcQuantizationTest(
 
   OperationDef conv_def;
   conv_def.src_tensors.push_back({ToSpatialTensorType(quantized_type),
-                                  quantized_storage_type, Layout::HWC});
+                                  quantized_storage_type, Layout::kHWC});
   const DataType dst_conv_type =
-      UseUint8MathForInt8Weights(exec_env.GetGpuInfo()) ? DataType::UINT32
-                                                        : DataType::INT32;
+      UseUint8MathForInt8Weights(exec_env.GetGpuInfo()) ? DataType::kUint32
+                                                        : DataType::kInt32;
   conv_def.dst_tensors.push_back(
-      {dst_conv_type, float_storage_type, Layout::HWC});
+      {dst_conv_type, float_storage_type, Layout::kHWC});
   auto conv_op = CreateConvWaveMemoryInt8ExternalWeights(
       exec_env.GetGpuInfo(), conv_def, weights_i8.shape, &dst_ref_tensor.shape);
 
-  TensorDescriptor dequant_dst = {float_type, float_storage_type, Layout::HWC};
+  TensorDescriptor dequant_dst = {float_type, float_storage_type, Layout::kHWC};
   auto dequant_op = CreateDequantization(
       weights_i8.shape, exec_env.GetGpuInfo(), conv_def.dst_tensors[0],
       dequant_dst, src_params_td, weights_sum_i_td, weights_scale_td,
@@ -527,8 +530,8 @@ absl::Status ConvWaveMemoryInt8WithSrcQuantizationTest(
         GetTotalElementsCountForLayout(weights_desc, weights_i8.shape));
     RearrangeWeightsInt8AsUint8(weights_i8, weights_desc, absl::MakeSpan(data),
                                 128, 0u);
-    weights_i8_td = TensorDescriptor(weights_desc.type,
-                                     TensorStorageType::BUFFER, Layout::LINEAR);
+    weights_i8_td = TensorDescriptor(
+        weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear);
     weights_i8_td.SetBHWDCShape(BHWDC(1, 1, 1, 1, data.size()));
     weights_i8_td.UploadDataRaw(absl::MakeConstSpan(data));
   } else {
@@ -537,8 +540,8 @@ absl::Status ConvWaveMemoryInt8WithSrcQuantizationTest(
         GetTotalElementsCountForLayout(weights_desc, weights_i8.shape));
     RearrangeWeights(weights_i8, weights_desc, absl::MakeSpan(data));
 
-    weights_i8_td = TensorDescriptor(weights_desc.type,
-                                     TensorStorageType::BUFFER, Layout::LINEAR);
+    weights_i8_td = TensorDescriptor(
+        weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear);
     weights_i8_td.SetBHWDCShape(BHWDC(1, 1, 1, 1, data.size()));
     weights_i8_td.UploadDataRaw(absl::MakeConstSpan(data));
   }
@@ -570,26 +573,24 @@ absl::Status ConvWaveMemoryInt8WithSrcQuantizationTest(
 absl::Status ConvWaveMemoryTest(TestExecutionEnvironment& env,
                                 CalculationsPrecision precision,
                                 TensorStorageType storage, const BHWC& shape,
-                                int dst_channels) {
-  const int src_channels = shape.c;
+                                const OHWI& weights_shape) {
   Convolution2DAttributes attr;
   attr.padding.prepended = HW(1, 0);
   attr.padding.appended = HW(0, 1);
   attr.strides = HW(1, 2);
   attr.dilations = HW(2, 1);
-  auto synthetic_weights =
-      MakeSyntheticTensor(OHWI(dst_channels, 2, 3, src_channels));
-  auto& attr_weights = attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>(
+  auto synthetic_weights = MakeSyntheticTensor(weights_shape);
+  auto& attr_weights = attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>(
       std::move(synthetic_weights));
   attr_weights.data.resize(attr_weights.data.size() +
                            XNN_EXTRA_BYTES / sizeof(float));
-  attr.bias = MakeSyntheticTensor(Linear(dst_channels));
+  attr.bias = MakeSyntheticTensor(Linear(weights_shape.o));
 
   TensorFloat32 src_tensor = MakeSyntheticTensor(shape);
 
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  const Layout layout = shape.b == 1 ? Layout::HWC : Layout::BHWC;
+  const Layout layout = shape.b == 1 ? Layout::kHWC : Layout::kBHWC;
   op_def.src_tensors.push_back({data_type, storage, layout});
   op_def.dst_tensors.push_back({data_type, storage, layout});
   ABSL_RETURN_IF_ERROR(
@@ -610,7 +611,7 @@ absl::Status ConvWaveMemoryGroupedX3Test(TestExecutionEnvironment& env,
   attr.dilations = HW(2, 1);
   auto synthetic_weights =
       MakeSyntheticTensor(OHWI(dst_channels, 2, 3, src_channels / attr.groups));
-  auto& attr_weights = attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>(
+  auto& attr_weights = attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>(
       std::move(synthetic_weights));
   attr_weights.data.resize(attr_weights.data.size() +
                            XNN_EXTRA_BYTES / sizeof(float));
@@ -622,8 +623,8 @@ absl::Status ConvWaveMemoryGroupedX3Test(TestExecutionEnvironment& env,
 
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   ABSL_RETURN_IF_ERROR(
       ConvWaveMemoryTest(env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();
@@ -642,7 +643,7 @@ absl::Status ConvWaveMemoryGroupedX7Test(TestExecutionEnvironment& env,
   attr.dilations = HW(2, 1);
   auto synthetic_weights =
       MakeSyntheticTensor(OHWI(dst_channels, 2, 3, src_channels / attr.groups));
-  auto& attr_weights = attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>(
+  auto& attr_weights = attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>(
       std::move(synthetic_weights));
   attr_weights.data.resize(attr_weights.data.size() +
                            XNN_EXTRA_BYTES / sizeof(float));
@@ -654,8 +655,8 @@ absl::Status ConvWaveMemoryGroupedX7Test(TestExecutionEnvironment& env,
 
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   ABSL_RETURN_IF_ERROR(
       ConvWaveMemoryTest(env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();
@@ -673,7 +674,7 @@ absl::Status ConvWaveMemoryExternalWeightsTest(TestExecutionEnvironment& env,
   attr.dilations = HW(1, 2);
   auto synthetic_weights = MakeSyntheticTensor(
       OHWI(weights_shape.b, weights_shape.h, weights_shape.w, weights_shape.c));
-  auto& attr_weights = attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>(
+  auto& attr_weights = attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>(
       std::move(synthetic_weights));
   attr_weights.data.resize(attr_weights.data.size() +
                            XNN_EXTRA_BYTES / sizeof(float));
@@ -683,10 +684,10 @@ absl::Status ConvWaveMemoryExternalWeightsTest(TestExecutionEnvironment& env,
 
   OperationDef conv_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  conv_def.src_tensors.push_back({data_type, storage, Layout::HWC});
+  conv_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
   conv_def.src_tensors.push_back(
-      {data_type, TensorStorageType::BUFFER, Layout::UNKNOWN});
-  conv_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+      {data_type, TensorStorageType::kBuffer, Layout::kUnknown});
+  conv_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   ABSL_RETURN_IF_ERROR(ConvWaveMemoryExternalWeightsTest(env, src_tensor, attr,
                                                          conv_def, precision));
   return absl::OkStatus();
@@ -702,7 +703,7 @@ absl::Status ConvWaveMemoryExternalBatchedWeightsTest(
   attr.strides = HW(1, 1);
   attr.dilations = HW(1, 1);
   auto synthetic_weights = MakeSyntheticTensor(OHWI(64, 6, 1, src_shape.c));
-  auto& attr_weights = attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>(
+  auto& attr_weights = attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>(
       std::move(synthetic_weights));
   attr_weights.data.resize(attr_weights.data.size() +
                            XNN_EXTRA_BYTES / sizeof(float));
@@ -712,8 +713,8 @@ absl::Status ConvWaveMemoryExternalBatchedWeightsTest(
 
   OperationDef conv_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  conv_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  conv_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  conv_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  conv_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   ABSL_RETURN_IF_ERROR(ConvWaveMemoryExternalBatchedWeightsTest(
       env, src_tensor, attr, conv_def, precision));
   return absl::OkStatus();
@@ -731,7 +732,7 @@ absl::Status ConvWaveMemoryWinograd4x4To6x6Test(TestExecutionEnvironment& env,
   attr.dilations = HW(1, 1);
   auto synthetic_weights =
       MakeSyntheticTensor(OHWI(dst_channels, 3, 3, src_channels));
-  auto& attr_weights = attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>(
+  auto& attr_weights = attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>(
       std::move(synthetic_weights));
   attr_weights.data.resize(attr_weights.data.size() +
                            XNN_EXTRA_BYTES / sizeof(float));
@@ -743,8 +744,8 @@ absl::Status ConvWaveMemoryWinograd4x4To6x6Test(TestExecutionEnvironment& env,
 
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   ABSL_RETURN_IF_ERROR(
       ConvWaveMemoryWinograd4x4To6x6(env, attr, src_tensor, op_def, precision));
   return absl::OkStatus();
@@ -761,8 +762,8 @@ absl::Status ConvWaveMemoryBatchedMatMulTest(TestExecutionEnvironment& env,
 
   OperationDef conv_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  conv_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  conv_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  conv_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  conv_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   ABSL_RETURN_IF_ERROR(ConvWaveMemoryBatchedMatMulTest(
       env, left_tensor, right_tensor, conv_def, precision));
   return absl::OkStatus();
@@ -776,7 +777,7 @@ absl::Status ConvWaveMemoryPackedGroupsTest(TestExecutionEnvironment& env,
   const int weights_batch_size = 16;
   const int num_groups_per_item = 4;
 
-  Tensor<OHWI, DataType::FLOAT32> weights = MakeSyntheticTensor(
+  Tensor<OHWI, DataType::kFloat32> weights = MakeSyntheticTensor(
       OHWI(dst_channels, weights_batch_size, 1, src_shape.c));
   weights.data.resize(weights.shape.DimensionsProduct() +
                       XNN_EXTRA_BYTES / sizeof(float));
@@ -798,8 +799,8 @@ absl::Status ConvWaveMemoryPackedGroupsTest(TestExecutionEnvironment& env,
 
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
 
   ConvRuntimeCheckDesc::PackedGroups packed_groups;
   packed_groups.params_offset = 0;
@@ -814,7 +815,7 @@ absl::Status ConvWaveMemoryPackedGroupsTest(TestExecutionEnvironment& env,
   conv_attr.strides = HW(1, 1);
   conv_attr.dilations = HW(1, 1);
   auto& conv_attr_weights =
-      conv_attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
+      conv_attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
   conv_attr_weights.shape = weights.shape;
 
   auto convolution = CreateConvWaveMemoryExternalWeights(
@@ -827,7 +828,8 @@ absl::Status ConvWaveMemoryPackedGroupsTest(TestExecutionEnvironment& env,
       GetTensorDescriptorsForWeightsLayout(weights,
                                            convolution.GetWeightsDescription());
 
-  TensorDescriptor src_desc = TensorDescriptor(data_type, storage, Layout::HWC);
+  TensorDescriptor src_desc =
+      TensorDescriptor(data_type, storage, Layout::kHWC);
   src_desc.UploadData(src_packed);
 
   std::vector<int32_t> runtime_params_cpu(weights_batch_size * 2, 0);
@@ -835,12 +837,13 @@ absl::Status ConvWaveMemoryPackedGroupsTest(TestExecutionEnvironment& env,
     runtime_params_cpu[i] = groups_sizes.data[i];
     runtime_params_cpu[weights_batch_size + i] = groups_offsets.data[i];
   }
-  TensorDescriptor runtime_params_td(DataType::INT32, TensorStorageType::BUFFER,
-                                     Layout::LINEAR);
+  TensorDescriptor runtime_params_td(
+      DataType::kInt32, TensorStorageType::kBuffer, Layout::kLinear);
   runtime_params_td.SetBHWCShape(BHWC(1, 1, 1, weights_batch_size * 2));
   runtime_params_td.UploadData(runtime_params_cpu.data());
 
-  TensorDescriptor dst_desc = TensorDescriptor(data_type, storage, Layout::HWC);
+  TensorDescriptor dst_desc =
+      TensorDescriptor(data_type, storage, Layout::kHWC);
   dst_desc.SetBHWCShape(dst_packed_shape);
   std::vector<TensorDescriptor*> srcs_td(weights_gpu.size() + 2);
   int idx = 0;
@@ -871,7 +874,7 @@ absl::Status ConvWaveMemoryInt8Test(TestExecutionEnvironment& env,
 
   auto weights_f32 =
       MakeSyntheticTensor(OHWI(dst_channels, 1, 1, src_channels));
-  ml_drift::Tensor<OHWI, DataType::INT8> weights_i8;
+  ml_drift::Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(dst_channels, 1, 1, src_channels);
   weights_i8.data.resize(weights_i8.shape.DimensionsProduct() +
                          XNN_EXTRA_BYTES / sizeof(int8_t));
@@ -881,14 +884,14 @@ absl::Status ConvWaveMemoryInt8Test(TestExecutionEnvironment& env,
 
   auto src_shape = BHWC(1, 17, 13, src_channels);
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
-  Tensor<BHWC, DataType::UINT8> src_ui8_tensor;
+  Tensor<BHWC, DataType::kUint8> src_ui8_tensor;
   src_ui8_tensor.shape = src_shape;
   src_ui8_tensor.data.resize(src_shape.DimensionsProduct());
   for (int i = 0; i < src_shape.DimensionsProduct(); ++i) {
     src_ui8_tensor.data[i] = (src_tensor.data[i] + 1.0f) * 127.0f;
   }
 
-  const DataType dst_data_type = DataType::INT32;
+  const DataType dst_data_type = DataType::kInt32;
   for (const PackedType quantized_type :
        {PackedType::kUint8C4, PackedType::kUint8C16}) {
     const DataType src_data_type = ToSpatialTensorType(quantized_type);
@@ -899,8 +902,8 @@ absl::Status ConvWaveMemoryInt8Test(TestExecutionEnvironment& env,
       continue;
     }
     OperationDef op_def;
-    op_def.src_tensors.push_back({src_data_type, src_storage, Layout::HWC});
-    op_def.dst_tensors.push_back({dst_data_type, dst_storage, Layout::HWC});
+    op_def.src_tensors.push_back({src_data_type, src_storage, Layout::kHWC});
+    op_def.dst_tensors.push_back({dst_data_type, dst_storage, Layout::kHWC});
     ABSL_RETURN_IF_ERROR(ConvWaveMemoryInt8Test(
         env, src_ui8_tensor, quantized_type, weights_i8, op_def));
   }
@@ -916,7 +919,7 @@ absl::Status ConvWaveMemoryInt8ExternalWeightsTest(
 
   auto weights_f32 =
       MakeSyntheticTensor(OHWI(dst_channels, 1, 1, src_channels));
-  ml_drift::Tensor<OHWI, DataType::INT8> weights_i8;
+  ml_drift::Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(dst_channels, 1, 1, src_channels);
   weights_i8.data.resize(weights_i8.shape.DimensionsProduct() +
                          XNN_EXTRA_BYTES / sizeof(int8_t));
@@ -926,14 +929,14 @@ absl::Status ConvWaveMemoryInt8ExternalWeightsTest(
 
   auto src_shape = BHWC(1, 17, 13, src_channels);
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
-  Tensor<BHWC, DataType::UINT8> src_ui8_tensor;
+  Tensor<BHWC, DataType::kUint8> src_ui8_tensor;
   src_ui8_tensor.shape = src_shape;
   src_ui8_tensor.data.resize(src_shape.DimensionsProduct());
   for (int i = 0; i < src_shape.DimensionsProduct(); ++i) {
     src_ui8_tensor.data[i] = (src_tensor.data[i] + 1.0f) * 127.0f;
   }
 
-  const DataType dst_data_type = DataType::INT32;
+  const DataType dst_data_type = DataType::kInt32;
   for (const PackedType quantized_type :
        {PackedType::kUint8C4, PackedType::kUint8C16}) {
     const DataType src_data_type = ToSpatialTensorType(quantized_type);
@@ -944,8 +947,8 @@ absl::Status ConvWaveMemoryInt8ExternalWeightsTest(
       continue;
     }
     OperationDef op_def;
-    op_def.src_tensors.push_back({src_data_type, src_storage, Layout::HWC});
-    op_def.dst_tensors.push_back({dst_data_type, dst_storage, Layout::HWC});
+    op_def.src_tensors.push_back({src_data_type, src_storage, Layout::kHWC});
+    op_def.dst_tensors.push_back({dst_data_type, dst_storage, Layout::kHWC});
     ABSL_RETURN_IF_ERROR(ConvWaveMemoryInt8ExternalWeightsTest(
         env, src_ui8_tensor, quantized_type, weights_i8, op_def));
   }
@@ -955,7 +958,7 @@ absl::Status ConvWaveMemoryInt8ExternalWeightsTest(
 absl::Status ConvWaveMemoryInt8WithSrcQuantizationTest(
     TestExecutionEnvironment& env, TensorStorageType int_storage,
     TensorStorageType float_storage, DataType float_type) {
-  if (float_type != DataType::FLOAT16 && float_type != DataType::FLOAT32) {
+  if (float_type != DataType::kFloat16 && float_type != DataType::kFloat32) {
     return absl::InvalidArgumentError("Unsupported float type: " +
                                       ToString(float_type));
   }
@@ -964,7 +967,7 @@ absl::Status ConvWaveMemoryInt8WithSrcQuantizationTest(
 
   auto weights_f32 =
       MakeSyntheticTensor(OHWI(dst_channels, 1, 1, src_channels));
-  ml_drift::Tensor<OHWI, DataType::INT8> weights_i8;
+  ml_drift::Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(dst_channels, 1, 1, src_channels);
   weights_i8.data.resize(weights_i8.shape.DimensionsProduct() +
                          XNN_EXTRA_BYTES / sizeof(int8_t));
@@ -1030,8 +1033,8 @@ absl::Status ConvWaveMemoryRuntimeChannelsTest(
     srcs_td[1 + i] = &weights_gpu[i];
   }
 
-  TensorDescriptor params_td = {DataType::INT32, TensorStorageType::BUFFER,
-                                Layout::HWC};
+  TensorDescriptor params_td = {DataType::kInt32, TensorStorageType::kBuffer,
+                                Layout::kHWC};
   TensorInt32 params_tensor = runtime_channels.GenerateTensorInt32();
   if (std::any_of(params_tensor.data.begin(), params_tensor.data.end(),
                   [](int x) { return x != -1; })) {
@@ -1081,10 +1084,10 @@ absl::Status ConvWaveMemoryRuntimeSrcEndChannelsTest(
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef conv_def;
-  conv_def.src_tensors.push_back({data_type, storage, Layout::HWC});
+  conv_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
   conv_def.src_tensors.push_back(
-      {data_type, TensorStorageType::BUFFER, Layout::UNKNOWN});
-  conv_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+      {data_type, TensorStorageType::kBuffer, Layout::kUnknown});
+  conv_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
 
   if (!IsConvWaveMemorySupported(env.GetGpuInfo())) {
     return absl::UnimplementedError(env.SkipTestMessage());
@@ -1093,7 +1096,7 @@ absl::Status ConvWaveMemoryRuntimeSrcEndChannelsTest(
   for (int src_ch = 4; src_ch <= weights_shape.i; src_ch += 4) {
     TestingRuntimeChannels runtime_channels;
     runtime_channels.src_end_ch = src_ch;
-    MLD_EXPECT_OK(ConvWaveMemoryRuntimeChannelsTest(env, src_tensor, attr, conv_def,
+    ABSL_EXPECT_OK(ConvWaveMemoryRuntimeChannelsTest(env, src_tensor, attr, conv_def,
                                                 precision, runtime_channels));
   }
   return absl::OkStatus();
@@ -1116,10 +1119,10 @@ absl::Status ConvWaveMemoryRuntimeDstEndChannelsTest(
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef conv_def;
-  conv_def.src_tensors.push_back({data_type, storage, Layout::HWC});
+  conv_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
   conv_def.src_tensors.push_back(
-      {data_type, TensorStorageType::BUFFER, Layout::UNKNOWN});
-  conv_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+      {data_type, TensorStorageType::kBuffer, Layout::kUnknown});
+  conv_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
 
   if (!IsConvWaveMemorySupported(env.GetGpuInfo())) {
     return absl::UnimplementedError(env.SkipTestMessage());
@@ -1128,7 +1131,7 @@ absl::Status ConvWaveMemoryRuntimeDstEndChannelsTest(
   for (int dst_ch = 0; dst_ch <= weights_shape.o; dst_ch += 4) {
     TestingRuntimeChannels runtime_channels;
     runtime_channels.dst_end_ch = dst_ch;
-    MLD_EXPECT_OK(ConvWaveMemoryRuntimeChannelsTest(env, src_tensor, attr, conv_def,
+    ABSL_EXPECT_OK(ConvWaveMemoryRuntimeChannelsTest(env, src_tensor, attr, conv_def,
                                                 precision, runtime_channels));
   }
   return absl::OkStatus();

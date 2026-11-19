@@ -18,7 +18,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/types/span.h"
 #include "ml_drift/cl/cl_test.h"
 #include "ml_drift/common/types.h"
@@ -34,11 +34,11 @@ namespace {
 TEST_F(OpenCLTest, BufferTestFloat) {
   const std::vector<float> kInput = {1.0f, 2.0f, 3.0f, -4.0f, 5.1f};
   Buffer buffer;
-  MLD_ASSERT_OK(CreateReadWriteBuffer(sizeof(float) * kInput.size(),
+  ABSL_ASSERT_OK(CreateReadWriteBuffer(sizeof(float) * kInput.size(),
                                   &env_.context(), &buffer));
-  MLD_ASSERT_OK(buffer.WriteData(env_.queue(), absl::MakeConstSpan(kInput)));
+  ABSL_ASSERT_OK(buffer.WriteData(env_.queue(), absl::MakeConstSpan(kInput)));
   std::vector<float> output;
-  MLD_ASSERT_OK(buffer.ReadData<float>(env_.queue(), &output));
+  ABSL_ASSERT_OK(buffer.ReadData<float>(env_.queue(), &output));
 
   const std::vector<float> kExpected = {1.0f, 2.0f, 3.0f, -4.0f, 5.1f};
   EXPECT_THAT(output, Pointwise(Eq(), kExpected));
@@ -50,11 +50,11 @@ TEST_F(OpenCLTest, BufferTestHalf) {
 
   const std::vector<half> kInput = {half(1.4f), half(2.1f), half(2.2f)};
   Buffer buffer;
-  MLD_ASSERT_OK(CreateReadWriteBuffer(sizeof(half) * kInput.size(), &env_.context(),
+  ABSL_ASSERT_OK(CreateReadWriteBuffer(sizeof(half) * kInput.size(), &env_.context(),
                                   &buffer));
-  MLD_ASSERT_OK(buffer.WriteData(env_.queue(), absl::MakeConstSpan(kInput)));
+  ABSL_ASSERT_OK(buffer.WriteData(env_.queue(), absl::MakeConstSpan(kInput)));
   std::vector<half> output_fp16;
-  MLD_ASSERT_OK(buffer.ReadData<half>(env_.queue(), &output_fp16));
+  ABSL_ASSERT_OK(buffer.ReadData<half>(env_.queue(), &output_fp16));
   std::vector<float> output_fp32;
   output_fp32.reserve(output_fp16.size());
   for (const half& fp16 : output_fp16) {

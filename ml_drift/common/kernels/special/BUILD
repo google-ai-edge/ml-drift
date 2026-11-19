@@ -33,7 +33,6 @@ cc_library(
         "//ml_drift/common:model",
         "//ml_drift/common:operations",
         "//ml_drift/common:shape",
-        "//ml_drift/common:status",
         "//ml_drift/common:tensor",
         "//ml_drift/common:types",
         "//ml_drift/common:util",
@@ -46,6 +45,8 @@ cc_library(
         "//ml_drift/common/task:tuning_type",
         "//ml_drift/common/task:work_group_picking",
         "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
         "@com_google_absl//absl/strings",
     ],
 )
@@ -79,12 +80,13 @@ cc_library(
         "//ml_drift/common:operations",
         "//ml_drift/common:precision",
         "//ml_drift/common:shape",
-        "//ml_drift/common:status",
         "//ml_drift/common:types",
         "//ml_drift/common:util",
         "//ml_drift/common/task:gpu_operation",
         "//ml_drift/common/task:tensor_desc",
         "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
         "@com_google_absl//absl/strings",
     ],
 )
@@ -147,7 +149,6 @@ cc_library(
         "//ml_drift/common:operations",
         "//ml_drift/common:precision",
         "//ml_drift/common:shape",
-        "//ml_drift/common:status",
         "//ml_drift/common:tensor",
         "//ml_drift/common:types",
         "//ml_drift/common/task:buffer_desc",
@@ -156,6 +157,8 @@ cc_library(
         "//ml_drift/common/task:qcom_thin_filter_desc",
         "//ml_drift/common/task:tensor_desc",
         "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
         "@com_google_absl//absl/strings",
     ],
 )
@@ -196,6 +199,26 @@ cc_library(
 )
 
 cc_library(
+    name = "experts_remap",
+    srcs = ["experts_remap.cc"],
+    hdrs = ["experts_remap.h"],
+    deps = [
+        "//ml_drift/common:data_type",
+        "//ml_drift/common:gpu_info",
+        "//ml_drift/common:kernel_info",
+        "//ml_drift/common:types",
+        "//ml_drift/common/task:arguments",
+        "//ml_drift/common/task:buffer_desc",
+        "//ml_drift/common/task:gpu_operation",
+        "//ml_drift/common/task:tensor_desc",
+        "//ml_drift/common/task:tuning_type",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_library(
     name = "thin_local_memory_fuser",
     srcs = ["thin_local_memory_fuser.cc"],
     hdrs = ["thin_local_memory_fuser.h"],
@@ -209,7 +232,6 @@ cc_library(
         "//ml_drift/common:model",
         "//ml_drift/common:operations",
         "//ml_drift/common:shape",
-        "//ml_drift/common:status",
         "//ml_drift/common:tensor",
         "//ml_drift/common:types",
         "//ml_drift/common:util",
@@ -222,6 +244,8 @@ cc_library(
         "//ml_drift/common/task:tensor_desc",
         "//ml_drift/common/task:tuning_type",
         "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
         "@com_google_absl//absl/strings",
     ],
 )
@@ -240,7 +264,6 @@ cc_library(
         "//ml_drift/common:operations",
         "//ml_drift/common:precision",
         "//ml_drift/common:shape",
-        "//ml_drift/common:status",
         "//ml_drift/common:tensor",
         "//ml_drift/common:types",
         "//ml_drift/common:util",
@@ -255,6 +278,8 @@ cc_library(
         "//ml_drift/common/task:tensor_desc",
         "//ml_drift/common/task:util",
         "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
         "@com_google_absl//absl/strings",
     ],
 )

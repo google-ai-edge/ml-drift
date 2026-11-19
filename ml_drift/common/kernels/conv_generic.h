@@ -22,6 +22,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/status/status.h"
 #include "absl/types/span.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
@@ -29,7 +30,6 @@
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/precision.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/arguments.h"
 #include "ml_drift/common/task/buffer_desc.h"
 #include "ml_drift/common/task/gpu_object_desc.h"
@@ -55,7 +55,8 @@ class ConvGeneric : public GPUOperation {
     kWaveMemory,
   };
   struct KernelParams {
-    int4 block_size;  // WHDS
+    // block_size.b must be equal to 1; block_size.c is in slices.
+    BHWDC block_size = BHWDC(1, 1, 1, 1, 1);
     bool fixed_work_group_size;
     int3 work_group_size;
     int3 work_group_launch_order;
@@ -74,7 +75,7 @@ class ConvGeneric : public GPUOperation {
                // false.
     bool unroll_x_loop = false;  // applicable with slices_loop_first = false;
     WeightsUploadType weights_upload_type;
-    WeightsLayout weights_layout;
+    WeightsDescription weights_desc;
     // weights_type and weights_element_size is how we bind weights buffer to
     // kernel. It can differ from ConvParams.weights_data_type. For example when
     // we use int8 weights, we use INT8 as ConvParams.weights_data_type, but we
@@ -86,11 +87,18 @@ class ConvGeneric : public GPUOperation {
     // this option it will be batch-slice-spatial
     bool linear_all_slices_first = false;
 
-    // Must be in ascending order
-    std::vector<int> simd_sizes = {1};
+    enum class AccumulatorType {
+      kVec4,
+      kVec8,  // supported only for Intel GPU with kIntelWave16MatMul weights
+              // upload type
+      kHalf4x4AsUint8,
+      kHalf4x8AsUint16,
+      kHalf4x16AsUint32,
+    };
+    AccumulatorType accumulator_type = AccumulatorType::kVec4;
 
-    // for WeightsLayout::kCustomGroups;
-    std::vector<std::pair<Axis, int>> group_sizes;
+    // Must be in ascending order
+    std::vector<int> wave_sizes = {1};
 
     bool AreWeightsBuffer() const {
       return weights_upload_type != WeightsUploadType::kTexturesX4;
@@ -103,7 +111,7 @@ class ConvGeneric : public GPUOperation {
     int src_group_slices = 0;                // only used for ExternalWeights
     TensorDescriptor src_desc;
     PackedType src_packed_type;  // applicable for 8/4 bit convolutions
-    CalculationsPrecision precision = CalculationsPrecision::F32;
+    CalculationsPrecision precision = CalculationsPrecision::kF32;
     int4 stride = int4(1, 1, 1, 1);
     int4 padding_prepended = int4(0, 0, 0, 0);
     int4 padding_appended = int4(0, 0, 0, 0);
@@ -130,12 +138,12 @@ class ConvGeneric : public GPUOperation {
       return IsXKernelIs1() && IsYKernelIs1() && IsZKernelIs1();
     }
     bool Is8Bit() const {
-      return weights_data_type == DataType::INT8 ||
-             weights_data_type == DataType::UINT8;
+      return weights_data_type == DataType::kInt8 ||
+             weights_data_type == DataType::kUint8;
     }
     bool Is4Bit() const {
-      return weights_data_type == DataType::INT4 ||
-             weights_data_type == DataType::UINT4;
+      return weights_data_type == DataType::kInt4 ||
+             weights_data_type == DataType::kUint4;
     }
     bool IsSrcPackedW4C4() const {
       return Is8Bit() && (src_packed_type == PackedType::kInt8W4C4 ||
@@ -165,52 +173,7 @@ class ConvGeneric : public GPUOperation {
     if (conv_params_.weights_desc.layout != WeightsLayout::kUnknown) {
       return conv_params_.weights_desc;
     }
-    if (kernel_params_.weights_upload_type ==
-        ConvGeneric::WeightsUploadType::kIntelWave16MatMul) {
-      WeightsDescription desc;
-      desc.type = conv_params_.weights_data_type;
-      desc.layout = WeightsLayout::kCustomGroups;
-      if (conv_params_.Is8Bit()) {
-        desc.group_sizes.push_back({Axis::INPUT_CHANNELS, 2});
-      } else if (conv_params_.Is4Bit()) {
-        desc.group_sizes.push_back({Axis::INPUT_CHANNELS, 4});
-      }
-      desc.group_sizes.push_back({Axis::OUTPUT_CHANNELS, 4});
-      if (conv_params_.Is8Bit()) {
-        // keep last block in i2o4i2 layout to work with gpu conversion kernel
-        desc.group_sizes.push_back({Axis::INPUT_CHANNELS, 2});
-        desc.group_sizes.push_back({Axis::INPUT_CHANNELS, 8});
-      } else {
-        desc.group_sizes.push_back({Axis::INPUT_CHANNELS, 16});
-      }
-      desc.group_sizes.push_back(
-          {Axis::OUTPUT_CHANNELS, kernel_params_.block_size.w});
-      desc.group_sizes.push_back({Axis::INPUT_CHANNELS, 0});
-      if (conv_params_.kernel_size.x != 1) {
-        desc.group_sizes.push_back({Axis::WIDTH, 0});
-      }
-      if (conv_params_.kernel_size.y != 1) {
-        desc.group_sizes.push_back({Axis::HEIGHT, 0});
-      }
-      if (conv_params_.different_weights_for_height) {
-        desc.group_sizes.push_back({Axis::WIDTH, 0});
-        desc.group_sizes.push_back({Axis::HEIGHT, 0});
-      }
-      if (conv_params_.kernel_size.z != 1) {
-        desc.group_sizes.push_back({Axis::DEPTH, 0});
-      }
-      desc.group_sizes.push_back({Axis::OUTPUT_CHANNELS, 0});
-      return desc;
-    }
-    WeightsDescription desc;
-    desc.type = conv_params_.weights_data_type;
-    desc.layout = kernel_params_.weights_layout;
-    if (kernel_params_.weights_layout == WeightsLayout::kCustomGroups) {
-      desc.group_sizes = kernel_params_.group_sizes;
-    } else {
-      desc.output_group_size = kernel_params_.block_size.w;
-    }
-    return desc;
+    return kernel_params_.weights_desc;
   }
 
   std::string_view GetDebugName() const override { return "conv_generic"; }
@@ -226,8 +189,8 @@ class ConvGeneric : public GPUOperation {
 
   template <DataType T>
   void UploadWeights(const Tensor<OHWI, T>& weights);
-  void UploadWeightsI4(const Tensor<OHWI, DataType::INT8>& weights_i4);
-  void UploadWeightsI8AsU8(const Tensor<OHWI, DataType::INT8>& weights);
+  void UploadWeightsI4(const Tensor<OHWI, DataType::kInt8>& weights_i4);
+  void UploadWeightsI8AsU8(const Tensor<OHWI, DataType::kInt8>& weights);
 
   template <DataType T>
   void UploadWeights(const Tensor<OHWDI, T>& weights);
@@ -241,20 +204,14 @@ class ConvGeneric : public GPUOperation {
   MemoryType GetBufferWeightsMemoryType() const {
     return kernel_params_.weights_upload_type ==
                    ConvGeneric::WeightsUploadType::kConstantMemory
-               ? MemoryType::CONSTANT
-               : MemoryType::GLOBAL;
+               ? MemoryType::kConstant
+               : MemoryType::kGlobal;
   }
 
   friend ConvGeneric CreateConvGeneric(const GpuInfo& gpu_info,
                                        const OperationDef& definition,
                                        CalculationsPrecision precision,
                                        const Convolution2DAttributes& attr,
-                                       const BHWC* dst_shape);
-
-  friend ConvGeneric CreateConvGeneric(const GpuInfo& gpu_info,
-                                       const OperationDef& definition,
-                                       CalculationsPrecision precision,
-                                       const FullyConnectedAttributes& attr,
                                        const BHWC* dst_shape);
 
   friend ConvGeneric CreateConvGenericExternalWeights(
@@ -278,7 +235,7 @@ class ConvGeneric : public GPUOperation {
 
   friend ConvGeneric CreateConvGenericInt8(
       const GpuInfo& gpu_info, const OperationDef& definition,
-      PackedType src_packed_type, const Tensor<OHWI, DataType::INT8>& weights,
+      PackedType src_packed_type, const Tensor<OHWI, DataType::kInt8>& weights,
       const BHWC* dst_shape);
   friend ConvGeneric CreateConvGenericInt8ExternalWeights(
       const GpuInfo& gpu_info, const OperationDef& definition,
@@ -287,7 +244,7 @@ class ConvGeneric : public GPUOperation {
 
   friend ConvGeneric CreateConvGenericInt4(
       const GpuInfo& gpu_info, const OperationDef& definition,
-      const Tensor<OHWI, DataType::INT8>& weights, const BHWC* dst_shape);
+      const Tensor<OHWI, DataType::kInt8>& weights, const BHWC* dst_shape);
   friend ConvGeneric CreateConvGenericInt4ExternalWeights(
       const GpuInfo& gpu_info, const OperationDef& definition,
       const OHWI& weights_shape, const BHWC* dst_shape);
@@ -329,7 +286,7 @@ void ConvGeneric::UploadWeights(const Tensor<OHWI, T>& weights) {
     int sub_size = SizeOf(weights_desc.type) * 4 * tex_size.x * tex_size.y;
     for (int i = 0; i < 4; ++i) {
       TensorDescriptor desc = CreateConstantHWVec4TensorDescriptor(
-          weights_desc.type, TensorStorageType::TEXTURE_2D, tex_size.x,
+          weights_desc.type, TensorStorageType::kTexture2D, tex_size.x,
           tex_size.y, weights_data.data() + sub_size * i);
       args_.AddObject("weights" + std::to_string(i),
                       std::make_unique<TensorDescriptor>(std::move(desc)));
@@ -360,7 +317,7 @@ void ConvGeneric::UploadWeights(const Tensor<OHWDI, T>& weights) {
     int sub_size = SizeOf(weights_desc.type) * 4 * tex_size.x * tex_size.y;
     for (int i = 0; i < 4; ++i) {
       TensorDescriptor desc = CreateConstantHWVec4TensorDescriptor(
-          weights_desc.type, TensorStorageType::TEXTURE_2D, tex_size.x,
+          weights_desc.type, TensorStorageType::kTexture2D, tex_size.x,
           tex_size.y, weights_data.data() + sub_size * i);
       args_.AddObject("weights" + std::to_string(i),
                       std::make_unique<TensorDescriptor>(std::move(desc)));
@@ -373,13 +330,6 @@ ConvGeneric CreateConvGeneric(const GpuInfo& gpu_info,
                               const OperationDef& definition,
                               CalculationsPrecision precision,
                               const Convolution2DAttributes& attr,
-                              const BHWC* dst_shape = nullptr);
-
-// Creates a generic convolution operation for fully connected layers.
-ConvGeneric CreateConvGeneric(const GpuInfo& gpu_info,
-                              const OperationDef& definition,
-                              CalculationsPrecision precision,
-                              const FullyConnectedAttributes& attr,
                               const BHWC* dst_shape = nullptr);
 
 // Creates a generic convolution operation with external weights.
@@ -420,7 +370,7 @@ bool UseUint8MathForInt8Weights(const GpuInfo& gpu_info);
 ConvGeneric CreateConvGenericInt8(const GpuInfo& gpu_info,
                                   const OperationDef& definition,
                                   PackedType src_packed_type,
-                                  const Tensor<OHWI, DataType::INT8>& weights,
+                                  const Tensor<OHWI, DataType::kInt8>& weights,
                                   const BHWC* dst_shape = nullptr);
 
 // Creates a generic INT8 convolution operation with external weights.
@@ -437,7 +387,7 @@ PackedType GetConvGenericInt4SrcType(const GpuInfo& gpu_info,
 // Creates a generic INT4 convolution operation.
 ConvGeneric CreateConvGenericInt4(const GpuInfo& gpu_info,
                                   const OperationDef& definition,
-                                  const Tensor<OHWI, DataType::INT8>& weights,
+                                  const Tensor<OHWI, DataType::kInt8>& weights,
                                   const BHWC* dst_shape = nullptr);
 
 // Creates a generic INT4 convolution operation with external weights.

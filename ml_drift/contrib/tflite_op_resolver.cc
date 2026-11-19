@@ -47,7 +47,7 @@ void RegisterCustomOps(::tflite::MutableOpResolver* resolver) {
                       RegisterButNotImplement("custom_call.RmsNorm"));
   resolver->AddCustom("custom_call.PixelShuffle",
                       RegisterButNotImplement("custom_call.PixelShuffle"));
-  // TODO(b/347788210): Decide on which namespace to keep.
+  // TODO: Decide on which namespace to keep.
   resolver->AddCustom(
       "odml.scaled_dot_product_attention",
       RegisterButNotImplement("odml.scaled_dot_product_attention"));

@@ -17,6 +17,8 @@
 
 // Common headers for all APIs.
 
+#include "absl/status/status.h"              // IWYU pragma: export
+#include "absl/status/statusor.h"            // IWYU pragma: export
 #include "ml_drift/common/gpu_info.h"        // IWYU pragma: export
 #include "ml_drift/common/gpu_model.h"       // IWYU pragma: export
 #include "ml_drift/common/gpu_model_util.h"  // IWYU pragma: export
@@ -24,7 +26,6 @@
 #include "ml_drift/common/model_hints.h"     // IWYU pragma: export
 #include "ml_drift/common/precision.h"       // IWYU pragma: export
 #include "ml_drift/common/shape.h"           // IWYU pragma: export
-#include "ml_drift/common/status.h"          // IWYU pragma: export
 #include "ml_drift/common/task/tensor_desc.h"  // IWYU pragma: export
 #include "ml_drift/common/tensor.h"  // IWYU pragma: export
 
@@ -34,8 +35,7 @@
 //
 //   ml_drift::metal::Environment env;
 //
-//   ml_drift::GpuModel gpu_model;
-//   ABSL_QCHECK_OK(LoadTfLite(model, &gpu_model));
+//   ml_drift::GpuModel gpu_model = LoadModel(...);
 //
 //   ml_drift::metal::InferenceContext context;
 //   ml_drift::CreateGpuModelInfo ci;
@@ -69,8 +69,7 @@
 //   ml_drift::cl::Environment env;
 //   ABSL_QCHECK_OK(ml_drift::cl::CreateEnvironment(&env));
 //
-//   ml_drift::GpuModel gpu_model;
-//   ABSL_QCHECK_OK(LoadTfLiteModelFile(model_file, &gpu_model));
+//   ml_drift::GpuModel gpu_model = LoadModel(...);
 //
 //   ml_drift::cl::InferenceContext context;
 //   ml_drift::CreateGpuModelInfo ci;
@@ -102,8 +101,7 @@
 //   ml_drift::webgpu::Environment env;  // uses default backend
 //   ABSL_QCHECK_OK(env.Initialize());
 //
-//   ml_drift::GpuModel gpu_model;
-//   ABSL_QCHECK_OK(LoadTfLiteModelFile(model_file, &gpu_model));
+//   ml_drift::GpuModel gpu_model = LoadModel(...);
 //
 //   ml_drift::webgpu::InferenceContext context;
 //   ml_drift::CreateGpuModelInfo ci;

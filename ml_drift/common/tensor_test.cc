@@ -20,7 +20,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/algorithm/container.h"
 #include "absl/types/span.h"
 #include "ml_drift/common/data_type.h"
@@ -43,7 +43,7 @@ class TensorTest : public testing::TestWithParam<bool> {
   TensorFloat32 CreateTensor() {
     TensorFloat32 tensor;
     if (OwnsData()) {
-      tensor = MakeZeroTensor<BHWC, DataType::FLOAT32>(Shape());
+      tensor = MakeZeroTensor<BHWC, DataType::kFloat32>(Shape());
       absl::c_copy(ReferenceData(), tensor.data.begin());
     } else {
       tensor.shape = Shape();

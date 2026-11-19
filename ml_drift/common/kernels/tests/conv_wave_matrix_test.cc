@@ -16,7 +16,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_replace.h"
@@ -47,7 +47,7 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrix1x1Test) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixTest) {
@@ -61,7 +61,7 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixTest) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrix1x1BatchTest) {
@@ -75,7 +75,7 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrix1x1BatchTest) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrix1x1ExternalWeightsTest) {
@@ -90,7 +90,7 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrix1x1ExternalWeightsTest) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalWeightsTest) {
@@ -105,7 +105,7 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalWeightsTest) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalBatchedWeightsTest) {
@@ -120,7 +120,7 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalBatchedWeightsTest) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixPackedGroupsTest) {
@@ -137,7 +137,7 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixPackedGroupsTest) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalWfloatTest) {
@@ -154,7 +154,7 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalWfloatTest) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalBatchedWfloatTest) {
@@ -172,7 +172,25 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalBatchedWfloatTest) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
+}
+
+TEST_P(ConvWaveMatrixFloatTest,
+       ConvWaveMatrixExternalWi8ScalarQuantizationTest) {
+  const DataType data_type = DeduceDataTypeFromPrecision(precision());
+  if (!exec_env->IsStorageSupported(storage(), data_type)) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
+                 << " storage type: " << ToString(storage());
+  }
+  const BHWC src_shape(1, 1, 32, 128);
+  const int dst_channels = 64;
+  auto status = ConvWaveMatrixExternalWi8ScalarQuantizationTest(
+      *exec_env, precision(), storage(), src_shape, dst_channels);
+  if (!status.ok() &&
+      absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
+    GTEST_SKIP() << status.message();
+  }
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalWi8Test) {
@@ -189,7 +207,7 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalWi8Test) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalBatchedWi8Test) {
@@ -207,7 +225,7 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalBatchedWi8Test) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalGroupedWi8Test) {
@@ -226,7 +244,7 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalGroupedWi8Test) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalBatchedGroupedWi8Test) {
@@ -245,7 +263,7 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalBatchedGroupedWi8Test) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest,
@@ -266,7 +284,28 @@ TEST_P(ConvWaveMatrixFloatTest,
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
+}
+
+TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalGroupedWi8NoZpTest) {
+  const DataType data_type = DeduceDataTypeFromPrecision(precision());
+  if (!exec_env->IsStorageSupported(storage(), data_type)) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
+                 << " storage type: " << ToString(storage());
+  }
+  const BHWC src_shape(1, 1, 32, 128);
+  const int dst_channels = 64;
+  auto status = ConvWaveMatrixExternalWi8Test(*exec_env, precision(), storage(),
+                                              src_shape, dst_channels,
+                                              /*batched_weights=*/false,
+                                              /*group_size=*/32,
+                                              /*scale_zp_batch=*/-1,
+                                              /*has_zero_point=*/false);
+  if (!status.ok() &&
+      absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
+    GTEST_SKIP() << status.message();
+  }
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalWi4Test) {
@@ -283,7 +322,7 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalWi4Test) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalBatchedWi4Test) {
@@ -301,7 +340,7 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalBatchedWi4Test) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalGroupedWi4Test) {
@@ -320,7 +359,7 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalGroupedWi4Test) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalBatchedGroupedWi4Test) {
@@ -339,7 +378,28 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalBatchedGroupedWi4Test) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
+}
+
+// Q4_0
+TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalGroupedWi4NoZpTest) {
+  const DataType data_type = DeduceDataTypeFromPrecision(precision());
+  if (!exec_env->IsStorageSupported(storage(), data_type)) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
+                 << " storage type: " << ToString(storage());
+  }
+  const BHWC src_shape(1, 1, 32, 128);
+  const int dst_channels = 64;
+  auto status = ConvWaveMatrixExternalWi4Test(*exec_env, precision(), storage(),
+                                              src_shape, dst_channels,
+                                              /*batched_weights=*/false,
+                                              /*group_size=*/32,
+                                              /*has_zero_point=*/false);
+  if (!status.ok() &&
+      absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
+    GTEST_SKIP() << status.message();
+  }
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalWi2Test) {
@@ -356,7 +416,7 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalWi2Test) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalBatchedWi2Test) {
@@ -374,7 +434,7 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalBatchedWi2Test) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalGroupedWi2Test) {
@@ -393,7 +453,7 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalGroupedWi2Test) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalBatchedGroupedWi2Test) {
@@ -412,7 +472,27 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalBatchedGroupedWi2Test) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
+}
+
+TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixExternalGroupedWi2NoZpTest) {
+  const DataType data_type = DeduceDataTypeFromPrecision(precision());
+  if (!exec_env->IsStorageSupported(storage(), data_type)) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
+                 << " storage type: " << ToString(storage());
+  }
+  const BHWC src_shape(1, 1, 32, 128);
+  const int dst_channels = 64;
+  auto status = ConvWaveMatrixExternalWi2Test(*exec_env, precision(), storage(),
+                                              src_shape, dst_channels,
+                                              /*batched_weights=*/false,
+                                              /*group_size=*/32,
+                                              /*has_zero_point=*/false);
+  if (!status.ok() &&
+      absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
+    GTEST_SKIP() << status.message();
+  }
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixWinograd4x4To6x6Test) {
@@ -427,7 +507,7 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixWinograd4x4To6x6Test) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixRuntimeSrcEndChannelsTest) {
@@ -442,7 +522,7 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixRuntimeSrcEndChannelsTest) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixRuntimeDstEndChannelsTest) {
@@ -457,7 +537,7 @@ TEST_P(ConvWaveMatrixFloatTest, ConvWaveMatrixRuntimeDstEndChannelsTest) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -478,12 +558,12 @@ class Int8Test : public testing::Test,
 
 TEST_P(Int8Test, ConvWaveMatrixInt8Test) {
   // Check dst storage. Check src storage w/i helper.
-  if (!exec_env->IsStorageSupported(dst_storage(), DataType::INT32)) {
+  if (!exec_env->IsStorageSupported(dst_storage(), DataType::kInt32)) {
     GTEST_SKIP() << "Unsupported dst storage type: " << ToString(dst_storage())
-                 << " data type: " << ToString(DataType::INT32);
-  } else if (!exec_env->IsStorageSupported(src_storage(), DataType::INT32)) {
+                 << " data type: " << ToString(DataType::kInt32);
+  } else if (!exec_env->IsStorageSupported(src_storage(), DataType::kInt32)) {
     GTEST_SKIP() << "Unsupported src storage type: " << ToString(src_storage())
-                 << " data type: " << ToString(DataType::INT32);
+                 << " data type: " << ToString(DataType::kInt32);
   }
   auto status = ConvWaveMatrixInt8Test(*exec_env, src_storage(), dst_storage());
   if (!status.ok() &&
@@ -494,12 +574,12 @@ TEST_P(Int8Test, ConvWaveMatrixInt8Test) {
 
 TEST_P(Int8Test, ConvWaveMatrixInt8ExternalWeightsTest) {
   // Check dst storage. Check src storage w/i helper.
-  if (!exec_env->IsStorageSupported(dst_storage(), DataType::INT32)) {
+  if (!exec_env->IsStorageSupported(dst_storage(), DataType::kInt32)) {
     GTEST_SKIP() << "Unsupported dst storage type: " << ToString(dst_storage())
-                 << " data type: " << ToString(DataType::INT32);
-  } else if (!exec_env->IsStorageSupported(src_storage(), DataType::INT32)) {
+                 << " data type: " << ToString(DataType::kInt32);
+  } else if (!exec_env->IsStorageSupported(src_storage(), DataType::kInt32)) {
     GTEST_SKIP() << "Unsupported src storage type: " << ToString(src_storage())
-                 << " data type: " << ToString(DataType::INT32);
+                 << " data type: " << ToString(DataType::kInt32);
   }
   auto status = ConvWaveMatrixInt8ExternalWeightsTest(*exec_env, src_storage(),
                                                       dst_storage());
@@ -507,17 +587,17 @@ TEST_P(Int8Test, ConvWaveMatrixInt8ExternalWeightsTest) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(Int8Test, ConvWaveMatrixInt8WithSrcQuantizationTest) {
   // Check dst storage. Check src storage w/i helper.
-  if (!exec_env->IsStorageSupported(dst_storage(), DataType::INT32)) {
+  if (!exec_env->IsStorageSupported(dst_storage(), DataType::kInt32)) {
     GTEST_SKIP() << "Unsupported dst storage type: " << ToString(dst_storage())
-                 << " data type: " << ToString(DataType::INT32);
-  } else if (!exec_env->IsStorageSupported(src_storage(), DataType::INT32)) {
+                 << " data type: " << ToString(DataType::kInt32);
+  } else if (!exec_env->IsStorageSupported(src_storage(), DataType::kInt32)) {
     GTEST_SKIP() << "Unsupported src storage type: " << ToString(src_storage())
-                 << " data type: " << ToString(DataType::INT32);
+                 << " data type: " << ToString(DataType::kInt32);
   }
   auto status = ConvWaveMatrixInt8WithSrcQuantizationTest(
       *exec_env, src_storage(), dst_storage());
@@ -525,7 +605,7 @@ TEST_P(Int8Test, ConvWaveMatrixInt8WithSrcQuantizationTest) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 INSTANTIATE_TEST_SUITE_P(

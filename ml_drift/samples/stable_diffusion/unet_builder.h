@@ -19,12 +19,14 @@
 #include <string>
 #include <vector>
 
+#include "absl/base/nullability.h"
+#include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/gpu_model.h"
 #include "ml_drift/common/gpu_model_builder.h"
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 
 namespace ml_drift {
 
@@ -67,7 +69,8 @@ class UnetBuilder {
   absl::Status Build(
       const Config& config, const GpuInfo& gpu_info,
       const CreateGpuModelInfo& create_info, int width, int height,
-      GpuModel* gpu_model, GpuModelBuilder::TensorHandle* latent_ptr = nullptr,
+      GpuModelBuilder* absl_nonnull builder_ptr,
+      GpuModelBuilder::TensorHandle* latent_ptr = nullptr,
       GpuModelBuilder::TensorHandle* temb_ptr = nullptr,
       GpuModelBuilder::TensorHandle* guidance_ptr = nullptr,
       GpuModelBuilder::TensorHandle* text_proj_ptr = nullptr,
@@ -80,7 +83,8 @@ class UnetBuilder {
   absl::Status BuildControlNet(
       const Config& config, const GpuInfo& gpu_info,
       const CreateGpuModelInfo& create_info, int width, int height,
-      GpuModel* gpu_model, GpuModelBuilder::TensorHandle* latent_ptr = nullptr,
+      GpuModelBuilder* absl_nonnull builder_ptr,
+      GpuModelBuilder::TensorHandle* latent_ptr = nullptr,
       GpuModelBuilder::TensorHandle* condition_ptr = nullptr,
       GpuModelBuilder::TensorHandle* temb_ptr = nullptr,
       GpuModelBuilder::TensorHandle* guidance_ptr = nullptr,
@@ -91,7 +95,8 @@ class UnetBuilder {
   absl::Status BuildUNetWithPlugins(
       const Config& config, const GpuInfo& gpu_info,
       const CreateGpuModelInfo& create_info, int width, int height,
-      GpuModel* gpu_model, GpuModelBuilder::TensorHandle* latent_ptr = nullptr,
+      GpuModelBuilder* absl_nonnull builder_ptr,
+      GpuModelBuilder::TensorHandle* latent_ptr = nullptr,
       std::vector<GpuModelBuilder::TensorHandle>* plugin_tensors = nullptr,
       GpuModelBuilder::TensorHandle* temb_ptr = nullptr,
       GpuModelBuilder::TensorHandle* guidance_ptr = nullptr,
@@ -174,7 +179,7 @@ class UnetBuilder {
       GpuModelBuilder::TensorHandle* debug_tensor_ptr = nullptr);
 
   Config config_;
-  GpuModelBuilder builder_;
+  GpuModelBuilder* builder_ptr_;
   GpuInfo gpu_info_;
 };
 }  // namespace ml_drift

@@ -34,7 +34,7 @@ GPUOperation CreateUnequalAdd(const OperationDef& op_def) {
   op.tensor_to_grid_ = TensorToGrid::kWBToX_HDToY_SToZ;
   std::string c;
   c += "MAIN_FUNCTION($0) {\n";
-  if (op_def.dst_tensors[0].HasAxis(Axis::BATCH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kBatch)) {
     c += "  int linear_id = ucl::GetGlobalId<0>();\n";
     c += "  int X = linear_id / args.dst_tensor.Batch();\n";
     c += "  int B = linear_id % args.dst_tensor.Batch();\n";
@@ -47,7 +47,7 @@ GPUOperation CreateUnequalAdd(const OperationDef& op_def) {
     c += "  int X = ucl::GetGlobalId<0>();\n";
   }
   std::string coords = "X, Y";
-  if (op_def.dst_tensors[0].HasAxis(Axis::DEPTH)) {
+  if (op_def.dst_tensors[0].HasAxis(Axis::kDepth)) {
     c += "  int linear_y = ucl::GetGlobalId<1>();\n";
     c += "  int Y = linear_y / args.dst_tensor.Depth();\n";
     c += "  int D = linear_y % args.dst_tensor.Depth();\n";
@@ -70,6 +70,9 @@ GPUOperation CreateUnequalAdd(const OperationDef& op_def) {
   c += "  args.dst_tensor.Write(src, " + coords + ");\n";
   c += "} \n";
   op.code_ = std::move(c);
+  op.flops_ = op_def.dst_tensors[0].GetBHWDCShape().DimensionsProduct() *
+              (op_def.src_tensors.size() > 1 ? op_def.src_tensors.size() - 1
+                                             : 1);
   return op;
 }
 }  // namespace
@@ -84,11 +87,11 @@ GPUOperation CreateAdd(const OperationDef& definition,
   for (int i = 1; i < definition.src_tensors.size(); ++i) {
     const std::string tensor_name = absl::StrCat("src_tensor_", i);
     std::string coords = "X_COORD, Y_COORD";
-    if (definition.src_tensors[i].HasAxis(Axis::DEPTH)) {
+    if (definition.src_tensors[i].HasAxis(Axis::kDepth)) {
       coords += ", Z_COORD";
     }
     coords += ", S_COORD";
-    if (definition.src_tensors[i].HasAxis(Axis::BATCH)) {
+    if (definition.src_tensors[i].HasAxis(Axis::kBatch)) {
       coords += ", B_COORD";
     }
     op_desc.code += "if (S_COORD < args." + tensor_name + ".Slices()) {\n";
@@ -96,7 +99,12 @@ GPUOperation CreateAdd(const OperationDef& definition,
         "  out_value += args." + tensor_name + ".Read(" + coords + ");\n";
     op_desc.code += "}\n";
   }
-  return CreateGpuOperation(definition, std::move(op_desc));
+  GPUOperation op = CreateGpuOperation(definition, std::move(op_desc));
+  op.flops_ =
+      definition.dst_tensors[0].GetBHWDCShape().DimensionsProduct() *
+      (definition.src_tensors.size() > 1 ? definition.src_tensors.size() - 1
+                                         : 1);
+  return op;
 }
 
 }  // namespace ml_drift

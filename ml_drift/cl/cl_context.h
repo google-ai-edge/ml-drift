@@ -15,11 +15,11 @@
 #ifndef ML_DRIFT_CL_CL_CONTEXT_H_
 #define ML_DRIFT_CL_CL_CONTEXT_H_
 
+#include "absl/status/status.h"
 #include "ml_drift/cl/cl_device.h"
 #include "ml_drift/cl/opencl_wrapper.h"
 #include "ml_drift/cl/util_types.h"
 #include "ml_drift/common/data_type.h"
-#include "ml_drift/common/status.h"
 
 namespace ml_drift {
 namespace cl {

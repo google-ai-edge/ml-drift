@@ -24,8 +24,8 @@
 #include <string>
 #include <vector>
 
+#include "absl/status/status.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/tensor.h"
 
 namespace ml_drift {

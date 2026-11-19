@@ -19,12 +19,12 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
+#include "absl/status/status.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/kernels/tests/kernel_test.h"
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/gpu_operation.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/task/testing_ref_ops.h"
@@ -59,7 +59,7 @@ absl::Status Conv2x2MaxPool2x2Test(TestExecutionEnvironment* exec_env,
   pool_attr.padding.appended = HW(0, 0);
   pool_attr.strides = HW(2, 2);
   pool_attr.kernel = HW(2, 2);
-  pool_attr.type = PoolingType::MAX;
+  pool_attr.type = PoolingType::kMax;
 
   auto src_shape = BHWC(1, 7, 8, 8);
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
@@ -70,7 +70,7 @@ absl::Status Conv2x2MaxPool2x2Test(TestExecutionEnvironment* exec_env,
   auto operation = CreateConv2x2MaxPool2x2(op_def, conv2x2, prelu);
 
   TensorFloat32 dst_0, dst_1;
-  MLD_EXPECT_OK(exec_env->ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env->ExecuteGPUOperation(
       {src_tensor}, std::make_unique<GPUOperation>(std::move(operation)),
       {out_ref_0.shape, out_ref_1.shape}, {&dst_0, &dst_1}));
   EXPECT_THAT(dst_0.data, Pointwise(FloatNear(0.02f), out_ref_0.data));
@@ -86,16 +86,16 @@ TEST_P(DataTypeTest, Conv2x2MaxPool2x2) {
                  << " storage type: " << ToString(storage());
   }
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type(), storage(), Layout::HWC});
-  op_def.dst_tensors.push_back({data_type(), storage(), Layout::HWC});
-  op_def.dst_tensors.push_back({data_type(), storage(), Layout::HWC});
-  if (!op_def.src_tensors[0].SupportsZeroClamp(Axis::WIDTH,
+  op_def.src_tensors.push_back({data_type(), storage(), Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type(), storage(), Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type(), storage(), Layout::kHWC});
+  if (!op_def.src_tensors[0].SupportsZeroClamp(Axis::kWidth,
                                                exec_env->GetGpuInfo()) ||
-      !op_def.src_tensors[0].SupportsZeroClamp(Axis::HEIGHT,
+      !op_def.src_tensors[0].SupportsZeroClamp(Axis::kHeight,
                                                exec_env->GetGpuInfo())) {
     GTEST_SKIP() << "Source tensor does not support zero clamp.";
   }
-  MLD_EXPECT_OK(Conv2x2MaxPool2x2Test(exec_env, op_def));
+  ABSL_EXPECT_OK(Conv2x2MaxPool2x2Test(exec_env, op_def));
 }
 
 INSTANTIATE_TEST_SUITE_P(

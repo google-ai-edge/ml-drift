@@ -24,12 +24,13 @@
 #include <utility>
 #include <vector>
 
+#include "absl/container/flat_hash_map.h"
+#include "absl/status/status.h"
 #include "flatbuffers/buffer.h"
 #include "flatbuffers/flatbuffer_builder.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/kernel_info.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/arguments.h"
 #include "ml_drift/common/task/buffer_desc.h"
 #include "ml_drift/common/task/compiler_options.h"
@@ -85,6 +86,12 @@ struct CodeInfo {
   bool uses_sub_group_local_id = false;
   bool uses_sub_group_id = false;
   bool uses_sub_group_size = false;
+};
+
+struct LinkableContext {
+  std::string code;
+  TensorDescriptor* tensor_desc = nullptr;
+  TensorDescriptor* final_tensor_desc = nullptr;  // for reorder.
 };
 
 class GPUOperation {
@@ -148,14 +155,27 @@ class GPUOperation {
     reorder_code_ = code;
     reorder_op_ = true;
   }
+  const std::string& GetReorderCode() const { return reorder_code_; }
+  void AddInputReorder(const std::string& input_name, std::string reorder_code,
+                       TensorDescriptor* src_tensor_desc,
+                       TensorDescriptor* dst_tensor_desc);
   bool IsReorderOp() const { return reorder_op_; }
   void ResolveReorderFinalShape(const BHWC& final_shape);
   void ResolveReorderFinalShape(const BHWDC& final_shape);
+
+  void AllowFuseInputReorder(bool value = true) {
+    allow_fuse_input_reorder_ = value;
+  }
+  bool FuseInputReorderAllowed() const { return allow_fuse_input_reorder_; }
 
   virtual absl::Status BindArguments(ArgumentsBinder* args) {
     return absl::OkStatus();
   }
   void RecalculateGridSize() { grid_size_ = GetGridSize(); }
+  void SetGridSize(const int3& grid_size) {
+    grid_size_ = grid_size;
+    tensor_to_grid_ = TensorToGrid::kCustom;
+  }
   void RecalculateWorkGroupsCount();
 
   virtual std::string_view GetDebugName() const { return ""; }
@@ -246,8 +266,11 @@ class GPUOperation {
   bool reorder_op_ = false;   // temporary, used during op construction
   int reorder_op_count_ = 0;  // temporary, used during op construction
   std::string reorder_code_;  // temporary, used during op construction
+  absl::flat_hash_map<std::string, LinkableContext> input_reorder_linkables_;
 
   bool const_expr_resolved_ = false;  // temporary, used during op construction
+  bool allow_fuse_input_reorder_ =
+      false;  // temporary, used during op construction
 };
 
 GPUOperation CreateGpuOperation(const TensorDescriptor& src,
@@ -351,9 +374,17 @@ struct ExternalWeights {
 // size of the destination tensor. NOTE: Tensor values outside the range [0, dst
 // end channel) will not be well-defined. It is the developer's responsibility
 // to use tensor values that are within bounds.
+//
+// If `softmax_mask_value` is provided (along with `src_end_ch_index` and fused
+// `softmax_input_activation` in fully-connected ops), out-of-bounds source
+// channels will be replaced with `softmax_mask_value` after the softmax
+// exponential calculation. This is used when `src_end_ch_index` is not aligned
+// to 4 and unmasked tail channels need to be zeroed (or set to a specific
+// value) before the matrix multiply.
 struct ConvRuntimeCheckDesc {
   std::optional<int> src_end_ch_index = std::nullopt;
   std::optional<int> dst_end_ch_index = std::nullopt;
+  std::optional<float> softmax_mask_value = std::nullopt;
   static constexpr int kChannelsAlignment = 32;
 
   bool HasValues() const {
@@ -373,6 +404,11 @@ struct ConvRuntimeCheckDesc {
     int max_group_size;
   };
   std::optional<PackedGroups> packed_groups;
+
+  // Experimental feature.
+  std::optional<int> ring_o_offset_index = std::nullopt;
+  std::optional<int> ring_i_offset_index = std::nullopt;
+  std::optional<int> ring_size = std::nullopt;
 };
 
 // A struct to allow runtime-configurable channel bounds with softmax ops.

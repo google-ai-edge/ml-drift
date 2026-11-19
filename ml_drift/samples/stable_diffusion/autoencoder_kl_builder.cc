@@ -19,13 +19,15 @@
 #include <string>
 #include <vector>
 
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
+#include "absl/status/statusor.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/gpu_model.h"
 #include "ml_drift/common/gpu_model_builder.h"
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/precision.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/types.h"
 #include "ml_drift/samples/stable_diffusion/util.h"
 
@@ -139,7 +141,7 @@ GpuModelBuilder::TensorHandle AutoencoderKLBuilder::Downsample(
     attr.padding.appended = HW(0, 0);
     attr.strides = HW(2, 2);
     attr.kernel = HW(2, 2);
-    attr.type = PoolingType::AVERAGE;
+    attr.type = PoolingType::kAverage;
     return builder_.Pooling(src, attr);
   }
 }

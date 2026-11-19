@@ -18,7 +18,7 @@
 #include <vector>
 
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/status/status_matchers.h"
 #include "ml_drift/cl/cl_test.h"
 #include "ml_drift/cl/tensor.h"
@@ -35,8 +35,8 @@ TEST_F(OpenCLTest, MemoryManagerSharingSavesMemory) {
   GpuModel model;
 
   // Define an intermediate tensor of size 1024 floats (4KB)
-  TensorDescriptor desc(DataType::FLOAT32, TensorStorageType::BUFFER,
-                        Layout::BHWC);
+  TensorDescriptor desc(DataType::kFloat32, TensorStorageType::kBuffer,
+                        Layout::kBHWC);
   desc.SetBHWCShape(BHWC(1, 1, 1, 1024));
 
   model.tensors[1] = desc;
@@ -49,7 +49,7 @@ TEST_F(OpenCLTest, MemoryManagerSharingSavesMemory) {
 
   // Allocate memory for Model 1
   std::vector<std::unique_ptr<Tensor>> temp_tensors_1;
-  MLD_ASSERT_OK(memory_manager
+  ABSL_ASSERT_OK(memory_manager
                 .AllocateMemory(model, env_.device().GetInfo(), ext_tensors,
                                 temp_tensors_1, &env_.context())
                 .status());
@@ -60,7 +60,7 @@ TEST_F(OpenCLTest, MemoryManagerSharingSavesMemory) {
 
   // Allocate memory for Model 2 (sequential run)
   std::vector<std::unique_ptr<Tensor>> temp_tensors_2;
-  MLD_ASSERT_OK(memory_manager
+  ABSL_ASSERT_OK(memory_manager
                 .AllocateMemory(model, env_.device().GetInfo(), ext_tensors,
                                 temp_tensors_2, &env_.context())
                 .status());

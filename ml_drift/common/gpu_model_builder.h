@@ -28,6 +28,8 @@
 #include <vector>
 
 #include "absl/container/flat_hash_map.h"
+#include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "absl/types/span.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
@@ -39,7 +41,6 @@
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/precision.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/gpu_operation.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/task/weights_layout.h"
@@ -48,13 +49,12 @@
 
 namespace ml_drift {
 
-class OpBase;
-
+class OpBaseImpl;
 class WeightsManager;
 
 struct GpuModelBuilderOptions {
   ModelHints hints;
-  TensorStorageType storage = TensorStorageType::BUFFER;
+  TensorStorageType storage = TensorStorageType::kBuffer;
   bool use_f32_accum_for_f16_convolutions = false;
 };
 
@@ -78,7 +78,7 @@ class GpuModelBuilder {
   GpuModelBuilder(const GpuInfo& gpu_info, ModelHints hints,
                   CalculationsPrecision precision, TensorStorageType storage)
       : use_f32_accum_for_f16_convolutions_(precision ==
-                                            CalculationsPrecision::F32_F16),
+                                            CalculationsPrecision::kF32F16),
         gpu_info_(gpu_info),
         hints_(hints),
         default_storage_(storage) {}
@@ -120,14 +120,14 @@ class GpuModelBuilder {
   GpuModelBuilder CreateBuilder() const;
 
   CalculationsPrecision GetConvPrecision(DataType data_type) const {
-    if (data_type != DataType::FLOAT16) {
-      return CalculationsPrecision::F32;
+    if (data_type != DataType::kFloat16) {
+      return CalculationsPrecision::kF32;
     }
     // FLOAT16
     if (use_f32_accum_for_f16_convolutions_) {
-      return CalculationsPrecision::F32_F16;
+      return CalculationsPrecision::kF32F16;
     } else {
-      return CalculationsPrecision::F16;
+      return CalculationsPrecision::kF16;
     }
   }
 
@@ -155,7 +155,7 @@ class GpuModelBuilder {
 
   TensorHandle AddConstantTensor(TensorDescriptor&& tensor_desc);
   TensorHandle AddConstantTensor(
-      const Tensor<Linear, DataType::FLOAT32>& tensor, DataType data_type);
+      const Tensor<Linear, DataType::kFloat32>& tensor, DataType data_type);
   TensorHandle AddConstantTensor(const TensorFloat32& tensor,
                                  DataType data_type);
 
@@ -184,7 +184,7 @@ class GpuModelBuilder {
       const ConvolutionTransposedAttributes& attr);
   TensorHandle EmbeddingLookup(const TensorHandle& src, const Weights& weights,
                                DataType dst_type,
-                               Axis lookup_axis = Axis::CHANNELS);
+                               Axis lookup_axis = Axis::kChannels);
   WeightsDescription GetFullyConnectedWeightsDesc(
       DataType data_type, const OHWI& weights_shape) const;
   absl::StatusOr<TensorHandle> FullyConnectedExternalWeights(
@@ -239,6 +239,13 @@ class GpuModelBuilder {
       const TensorHandle& src, const QuantizeAndDequantizeAttributes& attr);
   TensorHandle StaticRangeQuantization(
       const TensorHandle& src, const QuantizeAndDequantizeAttributes& attr);
+  // Returns 2 tensors: quantized and params (inv_scale, offset, [sum]). See
+  // CreateQuantization() in kernels/quantize_and_dequantize.h for the params
+  // contract and for `symmetric`.
+  std::vector<TensorHandle> Quantize(const TensorHandle& src,
+                                     PackedType quantized_type,
+                                     bool calculate_sum = false,
+                                     bool symmetric = false);
 
   TensorHandle ReLU(const TensorHandle& src, const ReLUAttributes& attr);
 
@@ -271,14 +278,14 @@ class GpuModelBuilder {
   TensorHandle Add(const TensorHandle& src, double value);
   TensorHandle Add(const TensorHandle& src, int value);
   TensorHandle Add(const TensorHandle& src,
-                   const Tensor<Linear, DataType::FLOAT32>& value);
+                   const Tensor<Linear, DataType::kFloat32>& value);
   TensorHandle Add(const TensorHandle& left, const TensorHandle& right);
 
   TensorHandle Multiplication(const TensorHandle& src, float value);
   TensorHandle Multiplication(const TensorHandle& src, double value);
   TensorHandle Multiplication(const TensorHandle& src, int value);
   TensorHandle Multiplication(const TensorHandle& src,
-                              const Tensor<Linear, DataType::FLOAT32>& value);
+                              const Tensor<Linear, DataType::kFloat32>& value);
   TensorHandle Multiplication(const TensorHandle& left,
                               const TensorHandle& right);
 
@@ -339,18 +346,18 @@ class GpuModelBuilder {
                        const Pooling2DAttributes& attr);
 
   TensorHandle LayerNormalization(
-      const TensorHandle& src, const Tensor<Linear, DataType::FLOAT32>& gamma,
-      const Tensor<Linear, DataType::FLOAT32>& beta, float epsilon);
+      const TensorHandle& src, const Tensor<Linear, DataType::kFloat32>& gamma,
+      const Tensor<Linear, DataType::kFloat32>& beta, float epsilon);
 
   TensorHandle HWCGroupNormalization(
       const TensorHandle& src, int groups,
-      const Tensor<Linear, DataType::FLOAT32>& gamma,
-      const Tensor<Linear, DataType::FLOAT32>& beta, float epsilon);
+      const Tensor<Linear, DataType::kFloat32>& gamma,
+      const Tensor<Linear, DataType::kFloat32>& beta, float epsilon);
 
   TensorHandle RMSNormalization(
       const TensorHandle& src, float epsilon,
-      const Tensor<Linear, DataType::FLOAT32>* gamma = nullptr,
-      const Tensor<Linear, DataType::FLOAT32>* beta = nullptr);
+      const Tensor<Linear, DataType::kFloat32>* gamma = nullptr,
+      const Tensor<Linear, DataType::kFloat32>* beta = nullptr);
 
   TensorHandle StatisticalTopK(const TensorHandle& src,
                                float stddev_multiplier);
@@ -446,12 +453,12 @@ class GpuModelBuilder {
                                const TensorHandle& mean,
                                const TensorHandle& mean_squares,
                                const TensorHandle& dst,
-                               const Tensor<HWC, DataType::FLOAT32>& gamma,
-                               const Tensor<HWC, DataType::FLOAT32>& beta,
+                               const Tensor<HWC, DataType::kFloat32>& gamma,
+                               const Tensor<HWC, DataType::kFloat32>& beta,
                                float epsilon);
   TensorHandle HWCGroupNorm(const TensorHandle& src, int groups, float epsilon,
-                            const Tensor<Linear, DataType::FLOAT32>& gamma,
-                            const Tensor<Linear, DataType::FLOAT32>& beta);
+                            const Tensor<Linear, DataType::kFloat32>& gamma,
+                            const Tensor<Linear, DataType::kFloat32>& beta);
 
   TensorHandle SiLU(const TensorHandle& src);
 
@@ -530,10 +537,8 @@ class GpuModelBuilder {
       const TensorHandle* weights_scale = nullptr,
       const TensorHandle* weights_zero_point = nullptr);
   std::vector<TensorHandle> WeightsConversion(
-      const TensorHandle& src_weights, const TensorHandle* weights_scale,
-      const TensorHandle* weights_zero_point,
-      const WeightsDescription& src_desc, const WeightsDescription& dst_desc,
-      const OHWI& weights_shape, const ConvRuntimeCheckDesc& runtime_check = {},
+      const Weights& weights, const WeightsDescription& dst_desc,
+      const ConvRuntimeCheckDesc& runtime_check = {},
       const TensorHandle* runtime_check_tensor = nullptr);
 
   std::vector<TensorHandle> GetWinograd3x3WeightsFromOHWI(
@@ -555,31 +560,42 @@ class GpuModelBuilder {
   //
   // op_name: The string name of the registered operation.
   // inputs:  Input tensor handles.
-  // attrs:   Attributes for the operation. This method will validate and
-  //          normalize them against the defined schema.
+  // attrs:   Attributes for the operation. They are parsed into the
+  //          operation's declared `Attrs` (see op_base.h); an undeclared key
+  //          or a value of the wrong type returns InvalidArgumentError.
   // returns: Output tensor handles.
   absl::StatusOr<std::vector<TensorHandle>> AppendOp(
       std::string_view op_name, const std::vector<TensorHandle>& inputs,
       const OpAttrs& attrs = OpAttrs());
   // GetLastGpuOperation is intended for use by the operation extension
   // framework; avoid using directly in standard graph construction.
-  // TODO(dlho): Remove this after killing stable diffusion OpHolder.
+  // TODO: Remove this after killing stable diffusion OpHolder.
   std::unique_ptr<GPUOperation>& GetLastGpuOperation() {
     return gpu_model_.nodes.back().gpu_operation;
   }
 
  private:
-  friend class OpBase;
+  friend class OpBaseImpl;
 
   // Adds a source tensor to the GPUOperation and registers the tensor
   // dependency inside the GpuModel graph.
-  void AddSrcTensor(GPUOperation* op, const std::string& name,
+  void AddSrcTensor(GPUOperation* op, std::string_view name,
                     const TensorHandle& handle);
+
+  // Adds a source buffer to the GPUOperation and registers the tensor
+  // dependency inside the GpuModel graph.
+  void AddSrcBuffer(GPUOperation* op, std::string_view name,
+                    const TensorHandle& handle, int element_size = 1);
 
   // Adds a destination tensor to the GPUOperation and registers the tensor
   // output mapping inside the GpuModel graph.
-  void AddDstTensor(GPUOperation* op, const std::string& name,
+  void AddDstTensor(GPUOperation* op, std::string_view name,
                     const TensorHandle& handle);
+
+  // Adds a destination buffer to the GPUOperation and registers the tensor
+  // output mapping inside the GpuModel graph.
+  void AddDstBuffer(GPUOperation* op, std::string_view name,
+                    const TensorHandle& handle, int element_size = 1);
 
   TensorHandle BatchedMatMulSoftmaxBatchedMatMulSingleKernel(
       const TensorHandle& a_tensor, const TensorHandle& b_tensor,
@@ -605,20 +621,14 @@ class GpuModelBuilder {
                                        const TensorHandle& position,
                                        const RoPEAttributes& attr);
 
-  using FcInt8Weights =
-      std::variant<std::pair<const WeightsDescription*, const TensorHandle*>,
-                   const Tensor<OHWI, DataType::INT8>*>;
   TensorHandle FullyConnectedInt8QuantizedWithSrcQuantization(
-      const TensorHandle& src, const OHWI& weights_shape,
-      const FcInt8Weights& weights, const TensorHandle& weights_scale,
-      const TensorHandle* weights_zero_point, const TensorHandle& weights_sum_i,
-      const TensorHandle* biases);
+      const TensorHandle& src, const Weights& weights,
+      const TensorHandle* biases,
+      WeightsDescription* conv_weights_desc_ptr = nullptr);
 
   TensorHandle FullyConnectedInt4QuantizedWithSrcQuantization(
-      const TensorHandle& src, const OHWI& weights_shape,
-      const WeightsDescription& weights_desc, const TensorHandle& weights,
-      const TensorHandle& weights_scale, const TensorHandle* weights_zero_point,
-      const TensorHandle& weights_sum_i, const TensorHandle* biases);
+      const TensorHandle& src, const Weights& weights,
+      const TensorHandle* biases);
 
   // src_exp - the reduced softmax tensor from src to optimize attention
   // calculations.
@@ -631,20 +641,17 @@ class GpuModelBuilder {
       const ConvRuntimeCheckDesc& runtime_check = {},
       const TensorHandle* runtime_check_tensor = nullptr);
 
-  Weights GetWeights(const std::variant<Tensor<OHWI, DataType::INT8>,
-                                        Tensor<OHWI, DataType::INT2>>& weights);
-  Weights GetWeights(const std::variant<Tensor<OHWI, DataType::INT8>,
-                                        Tensor<OHWI, DataType::INT4>>& weights);
+  Weights GetWeights(
+      const std::variant<Tensor<OHWI, DataType::kInt8>,
+                         Tensor<OHWI, DataType::kInt2>>& weights);
+  Weights GetWeights(
+      const std::variant<Tensor<OHWI, DataType::kInt8>,
+                         Tensor<OHWI, DataType::kInt4>>& weights);
 
-  TensorHandle GetWeightsScale(const Tensor<OHWI, DataType::FLOAT32>& scale,
+  TensorHandle GetWeightsScale(const Tensor<OHWI, DataType::kFloat32>& scale,
                                DataType float_type);
   TensorHandle GetWeightsZeroPoint(
-      const Tensor<OHWI, DataType::INT32>& zero_point, DataType float_type);
-
-  // returns 2 tensors: quantized and params(min/max/sum)
-  std::vector<TensorHandle> Quantize(const TensorHandle& src,
-                                     PackedType quantized_type,
-                                     bool calculate_sum);
+      const Tensor<OHWI, DataType::kInt32>& zero_point, DataType float_type);
 
   // original top-k works for C dimension, BxHxWxC -> BxHxWxTopK
   // this one works with reshaped src-dst, B = 1, H = BxHxW, W = C / 4, C = 4;
@@ -655,16 +662,18 @@ class GpuModelBuilder {
   TensorHandle ToDHWBCC4(const TensorHandle& src);
 
   std::vector<TensorHandle> GetWeights(
-      const Tensor<OHWI, DataType::FLOAT32>& weights,
+      const Tensor<OHWI, DataType::kFloat32>& weights,
       WeightsDescription weights_desc);
   std::vector<TensorHandle> GetWeights(const Convolution2DAttributes& attr,
                                        WeightsDescription weights_desc);
   std::vector<TensorHandle> GetWinograd3x3Weights(
-      const Tensor<OHWI, DataType::FLOAT32>& weights,
+      const Tensor<OHWI, DataType::kFloat32>& weights,
       WeightsDescription conv_weights_desc, int tile_size);
 
   absl::StatusOr<std::pair<int, int>> GetNodeAndIndexByOutputId(
       ValueId output_id) const;
+
+  void RecordStatus(absl::Status status);
 
   bool use_f32_accum_for_f16_convolutions_ = false;
   GpuInfo gpu_info_;
@@ -672,6 +681,7 @@ class GpuModelBuilder {
   TensorStorageType default_storage_;
   GpuModel gpu_model_;
   uint64_t id_counter_ = 0;
+  absl::Status status_;
   std::shared_ptr<WeightsManager> weights_manager_ = nullptr;
 
   struct SharedWeights {
@@ -815,7 +825,9 @@ class WeightsManager {
   std::vector<WeightsConversionRequest> weights_conversion_requests_;
 
   // Convert the collected weights conversion requests to GPU operations.
-  static std::vector<WeightsPrepOperationInfo>
+  // Returns an error if a source or destination tensor of a conversion exceeds
+  // the device limits, e.g. the max buffer size.
+  static absl::StatusOr<std::vector<WeightsPrepOperationInfo>>
   ConvertWeightsPrepRequestsToOperations(
       const GpuInfo& gpu_info,
       std::vector<WeightsConversionRequest>&& requests);

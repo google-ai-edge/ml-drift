@@ -15,11 +15,11 @@
 #ifndef ML_DRIFT_COMMON_TASK_SERIALIZATION_BASE_H_
 #define ML_DRIFT_COMMON_TASK_SERIALIZATION_BASE_H_
 
+#include "absl/status/status.h"
 #include "flatbuffers/buffer.h"
 #include "flatbuffers/flatbuffer_builder.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/gpu_operation.h"
 #include "ml_drift/common/task/serialization_base_generated.h"
 #include "ml_drift/common/task/tensor_desc.h"

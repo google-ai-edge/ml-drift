@@ -52,18 +52,14 @@ void AppendConditionally(const std::string& value, const std::string& delimiter,
 }
 
 inline bool IsConvKernelXis1(const Convolution2DAttributes& conv_attr) {
-  return std::visit([](const auto& w) { return w.shape.w; },
-                    conv_attr.weights) == 1 &&
-         conv_attr.dilations.w == 1 && conv_attr.strides.w == 1 &&
-         conv_attr.padding.prepended.w == 0 &&
+  return conv_attr.GetWeightsShape().w == 1 && conv_attr.dilations.w == 1 &&
+         conv_attr.strides.w == 1 && conv_attr.padding.prepended.w == 0 &&
          conv_attr.padding.appended.w == 0;
 }
 
 inline bool IsConvKernelYis1(const Convolution2DAttributes& conv_attr) {
-  return std::visit([](const auto& w) { return w.shape.h; },
-                    conv_attr.weights) == 1 &&
-         conv_attr.dilations.h == 1 && conv_attr.strides.h == 1 &&
-         conv_attr.padding.prepended.h == 0 &&
+  return conv_attr.GetWeightsShape().h == 1 && conv_attr.dilations.h == 1 &&
+         conv_attr.strides.h == 1 && conv_attr.padding.prepended.h == 0 &&
          conv_attr.padding.appended.h == 0;
 }
 
@@ -130,7 +126,7 @@ std::string GenerateConvImg(const ConvWaveMemory::ConvParams& conv_params,
 )";
     return absl::Substitute(c, dst, src, index * 4 + 0, index * 4 + 1,
                             index * 4 + 2, index * 4 + 3);
-  } else if (conv_params.precision == CalculationsPrecision::F32) {
+  } else if (conv_params.precision == CalculationsPrecision::kF32) {
     c += "  $0.x = __builtin_PXL_dot_f32_x4($1, weights_cache_wave_var0, $2, "
          "$0.x);\n";
     c += "  $0.y = __builtin_PXL_dot_f32_x4($1, weights_cache_wave_var0, $3, "
@@ -141,7 +137,7 @@ std::string GenerateConvImg(const ConvWaveMemory::ConvParams& conv_params,
          "$0.w);\n";
     return absl::Substitute(c, dst, src, index * 4 + 0, index * 4 + 1,
                             index * 4 + 2, index * 4 + 3);
-  } else if (conv_params.precision == CalculationsPrecision::F16) {
+  } else if (conv_params.precision == CalculationsPrecision::kF16) {
     c += "  $0a = pixel_dot4_f16_x2($1, weights_cache_wave_var0, "
          "$2, $0a);\n";
     c += "  $0b = pixel_dot4_f16_x2($1, weights_cache_wave_var0, "
@@ -155,7 +151,7 @@ std::string GenerateConv(const ConvWaveMemory::ConvParams& conv_params,
                          const std::string& dst, const std::string& src,
                          int index) {
   std::string code;
-  if (conv_params.weights_data_type == DataType::INT8) {
+  if (conv_params.weights_data_type == DataType::kInt8) {
     code += "  $0.x = qcom_dot8_acc(weights_cache[$2].x, $1_uint, $0.x);\n";
     code += "  $0.y = qcom_dot8_acc(weights_cache[$2].y, $1_uint, $0.y);\n";
     code += "  $0.z = qcom_dot8_acc(weights_cache[$2].z, $1_uint, $0.z);\n";
@@ -163,14 +159,14 @@ std::string GenerateConv(const ConvWaveMemory::ConvParams& conv_params,
     return absl::Substitute(code, dst, src, index);
   }
   switch (conv_params.precision) {
-    case CalculationsPrecision::F32:
-    case CalculationsPrecision::F16:
+    case CalculationsPrecision::kF32:
+    case CalculationsPrecision::kF16:
       code += "  $0 += $1.x * weights_cache[$2];\n";
       code += "  $0 += $1.y * weights_cache[$3];\n";
       code += "  $0 += $1.z * weights_cache[$4];\n";
       code += "  $0 += $1.w * weights_cache[$5];\n";
       break;
-    case CalculationsPrecision::F32_F16:
+    case CalculationsPrecision::kF32F16:
       code +=
           "  $0 += ucl::Convert<float4>($1.x * weights_cache[$2] + $1.y * "
           "weights_cache[$3] + $1.z * "
@@ -183,12 +179,12 @@ std::string GenerateConv(const ConvWaveMemory::ConvParams& conv_params,
 
 DataType GetAccumulatorType(const ConvWaveMemory::ConvParams& conv_params) {
   if (IsFloatType(conv_params.weights_data_type)) {
-    return conv_params.precision == CalculationsPrecision::F16
-               ? DataType::FLOAT16
-               : DataType::FLOAT32;
+    return conv_params.precision == CalculationsPrecision::kF16
+               ? DataType::kFloat16
+               : DataType::kFloat32;
   } else {
-    return IsSigned(conv_params.weights_data_type) ? DataType::INT32
-                                                   : DataType::UINT32;
+    return IsSigned(conv_params.weights_data_type) ? DataType::kInt32
+                                                   : DataType::kUint32;
   }
 }
 
@@ -207,10 +203,10 @@ std::string GenerateConvolutionGeneric(
     if (conv_params.Is8Bit()) {
       c += "uint __builtin_PXL_dot_u8_x16(uint4 a, uint4 b, uint index, uint "
            "acc);\n";
-    } else if (conv_params.precision == CalculationsPrecision::F32) {
+    } else if (conv_params.precision == CalculationsPrecision::kF32) {
       c += "float __builtin_PXL_dot_f32_x4(float4 a, float4 b, uint index, "
            "float acc);\n";
-    } else if (conv_params.precision == CalculationsPrecision::F16) {
+    } else if (conv_params.precision == CalculationsPrecision::kF16) {
       c +=
           "uint __builtin_PXL_dot_x2_f16_x4(uint2 a, uint4 b, uint sglid, uint "
           "acc);\n";
@@ -224,8 +220,8 @@ std::string GenerateConvolutionGeneric(
   c += "MAIN_FUNCTION($0) {\n";
   c += GenerateDstCoords(kernel_params.precise_spatial,
                          kernel_params.slices_first,
-                         src_tensor.HasAxis(Axis::BATCH));
-  if (src_tensor.HasAxis(Axis::BATCH)) {
+                         src_tensor.HasAxis(Axis::kBatch));
+  if (src_tensor.HasAxis(Axis::kBatch)) {
     c += "  args.src_tensor.SetBatchRef(B);\n";
     c += "  args.dst_tensor.SetBatchRef(B);\n";
   }
@@ -261,7 +257,7 @@ std::string GenerateConvolutionGeneric(
   const std::string zero_value = GetZeroValue(acc_type);
   const bool accum_as_vec2 =
       kernel_params.img_wave_dot &&
-      conv_params.precision == CalculationsPrecision::F16;
+      conv_params.precision == CalculationsPrecision::kF16;
   const int acc_vec_size = accum_as_vec2 ? 2 : 4;
   const std::string acc_type_ucl = ToUclDataType(acc_type, acc_vec_size);
   for (int s_out = 0; s_out < kernel_params.slices_out; ++s_out) {
@@ -319,7 +315,7 @@ std::string GenerateConvolutionGeneric(
     wave_cache_size /= 4;
     wave_cache_type = "uint4";
   } else if (kernel_params.img_wave_dot &&
-             conv_params.precision == CalculationsPrecision::F16) {
+             conv_params.precision == CalculationsPrecision::kF16) {
     // f16 conv uses 8 x float16 (128 bit per thread) instead of 4 x float16
     // values.
     wave_cache_size /= 2;
@@ -347,7 +343,7 @@ std::string GenerateConvolutionGeneric(
     c += "  int y = 0;\n";
     c += "  do {\n";
     c += "    coord_y = mad24(y, args.dilation_y, y_coord);\n";
-    if (!src_tensor.SupportsZeroClamp(Axis::HEIGHT, gpu_info)) {
+    if (!src_tensor.SupportsZeroClamp(Axis::kHeight, gpu_info)) {
       AppendConditionally("in_y", " && ", &oob_check);
       c += "    bool in_y = coord_y >= 0 && coord_y < "
            "args.src_tensor.Height();\n";
@@ -360,7 +356,7 @@ std::string GenerateConvolutionGeneric(
     c += "    int x = 0;\n";
     c += "    do {\n";
     c += "      coord_x = mad24(x, args.dilation_x, x_coord);\n";
-    if (!src_tensor.SupportsZeroClamp(Axis::WIDTH, gpu_info)) {
+    if (!src_tensor.SupportsZeroClamp(Axis::kWidth, gpu_info)) {
       AppendConditionally("in_x", " && ", &oob_check);
       c += "      bool in_x = coord_x >= 0 && coord_x < "
            "args.src_tensor.Width();\n";
@@ -408,12 +404,18 @@ std::string GenerateConvolutionGeneric(
     }
   };
   if (kernel_params.unroll_x_loop) {
-    for (int kx = 0; kx < conv_params.weights_shape.w; ++kx) {
-      c += "    coord_x = mad24(" + std::to_string(kx) +
-           ", args.dilation_x, x_coord);\n";
-      c += "    Type src" + std::to_string(kx) + " = " + read_src();
+    for (int s = 0; s < kernel_params.slices_in; ++s) {
+      for (int kx = 0; kx < conv_params.weights_shape.w; ++kx) {
+        const std::string src_name =
+            "src_x" + std::to_string(kx) + "_s" + std::to_string(s);
+        c += "    coord_x = mad24(" + std::to_string(kx) +
+             ", args.dilation_x, x_coord);\n";
+        c += "    Type " + src_name + " = " + read_src();
+      }
+      c += "  coord_s++;\n";
     }
-  } else if (src_type == DataType::UINT32) {
+    c += "  coord_s -= " + std::to_string(kernel_params.slices_in) + ";\n";
+  } else if (src_type == DataType::kUint32) {
     for (int s_in = 0; s_in < kernel_params.slices_in / 4; ++s_in) {
       const std::string val_name = "src" + std::to_string(s_in);
       c += "  uint4 " + val_name + " = " + read_src();
@@ -430,7 +432,7 @@ std::string GenerateConvolutionGeneric(
     const int src_slices = DivideRoundUp(conv_params.weights_shape.i, 4);
     for (int s_in = 0; s_in < kernel_params.slices_in; ++s_in) {
       const std::string val = "src" + std::to_string(s_in);
-      if (src_type == DataType::UINT8) {
+      if (src_type == DataType::kUint8) {
         c += "        uchar4 " + val + ";\n";
         if (kernel_params.img_wave_dot &&
             src_slices % kernel_params.slices_in != 0) {
@@ -454,7 +456,7 @@ std::string GenerateConvolutionGeneric(
       }
     }
     if (kernel_params.img_wave_dot && conv_params.Is8Bit() &&
-        src_type == DataType::UINT8) {
+        src_type == DataType::kUint8) {
       c += "        uint4 src_packed = (uint4)(src0_uint, src1_uint, "
            "src2_uint, src3_uint);\n";
     }
@@ -470,7 +472,7 @@ std::string GenerateConvolutionGeneric(
   if (kernel_params.img_wave_dot) {
     if (conv_params.Is8Bit()) {
       weights_base_ptr = "((__global uint4*)(" + weights_base_ptr + "))";
-    } else if (conv_params.precision == CalculationsPrecision::F16) {
+    } else if (conv_params.precision == CalculationsPrecision::kF16) {
       weights_base_ptr = "((__global half8*)(" + weights_base_ptr + "))";
     }
   }
@@ -483,16 +485,18 @@ std::string GenerateConvolutionGeneric(
     in_slices /= 4;
   }
   if (kernel_params.unroll_x_loop) {
+    int offset = 0;
     for (int kx = 0; kx < conv_params.weights_shape.w; ++kx) {
-      std::string src_name = "src" + std::to_string(kx);
-      for (int s_out = 0; s_out < kernel_params.slices_out; ++s_out) {
-        const std::string dst_name = "r" + std::to_string(s_out);
-        if (kernel_params.img_wave_dot) {
-          c += GenerateConvImg(conv_params, dst_name, src_name,
-                               kx * kernel_params.slices_out + s_out);
-        } else {
-          c += GenerateConv(conv_params, dst_name, src_name,
-                            kx * kernel_params.slices_out + s_out);
+      for (int s = 0; s < kernel_params.slices_in; ++s) {
+        std::string src_name =
+            "src_x" + std::to_string(kx) + "_s" + std::to_string(s);
+        for (int s_out = 0; s_out < kernel_params.slices_out; ++s_out) {
+          const std::string dst_name = "r" + std::to_string(s_out);
+          if (kernel_params.img_wave_dot) {
+            c += GenerateConvImg(conv_params, dst_name, src_name, offset++);
+          } else {
+            c += GenerateConv(conv_params, dst_name, src_name, offset++);
+          }
         }
       }
     }
@@ -500,7 +504,7 @@ std::string GenerateConvolutionGeneric(
     for (int s_in = 0; s_in < in_slices; ++s_in) {
       std::string src_name = "src" + std::to_string(s_in);
       if (kernel_params.img_wave_dot && conv_params.Is8Bit() &&
-          src_type == DataType::UINT8) {
+          src_type == DataType::kUint8) {
         src_name = "src_packed";
       }
       for (int s_out = 0; s_out < kernel_params.slices_out; ++s_out) {
@@ -596,7 +600,7 @@ ConvWaveMemory::KernelParams GetKernelParamsAdreno(
   ConvWaveMemory::KernelParams kernel_params;
   kernel_params.wave_size = 128;
   kernel_params.slices_in = 1;
-  if (src_slices % 2 == 0 && params.precision != CalculationsPrecision::F32) {
+  if (src_slices % 2 == 0 && params.precision != CalculationsPrecision::kF32) {
     kernel_params.slices_in = 2;
   }
   const AdrenoInfo& adreno_info = gpu_info.adreno_info;
@@ -606,7 +610,7 @@ ConvWaveMemory::KernelParams GetKernelParamsAdreno(
     kernel_params.slices_first = true;
   }
 
-  if (dst_slices % 8 == 0 && params.precision == CalculationsPrecision::F16 &&
+  if (dst_slices % 8 == 0 && params.precision == CalculationsPrecision::kF16 &&
       (adreno_info.adreno_gpu == AdrenoGpu::kAdreno642 ||
        adreno_info.adreno_gpu == AdrenoGpu::kAdreno650 ||
        adreno_info.adreno_gpu == AdrenoGpu::kAdreno660 ||
@@ -620,21 +624,20 @@ ConvWaveMemory::KernelParams GetKernelParamsAdreno(
     kernel_params.slices_out = 1;
   }
 
-  if (params.weights_data_type == DataType::INT8) {
+  if (params.weights_data_type == DataType::kInt8) {
     if (gpu_info.adreno_info.generation >= AdrenoInfo::Generation::kGen7) {
       kernel_params.slices_out = 16;
     } else {
       kernel_params.slices_out = 8;
     }
     kernel_params.slices_in = src_slices % 2 == 0 ? 2 : 1;
-    if (params.src_desc.GetDataType() == DataType::UINT32) {
+    if (params.src_desc.GetDataType() == DataType::kUint32) {
       kernel_params.slices_in = 4;
       kernel_params.slices_out = 8;
     }
   }
 
-  if (!params.src_desc.IsLinear() &&
-      (!params.x_kernel_is_1 || !params.y_kernel_is_1)) {
+  if (!params.src_desc.IsLinear() && !params.x_kernel_is_1) {
     kernel_params.slices_in = 1;
     kernel_params.slices_loop_first = false;
   }
@@ -680,6 +683,11 @@ ConvWaveMemory::KernelParams GetKernelParamsAdreno(
     }
   }
 
+  if (!kernel_params.slices_loop_first && kernel_params.slices_out <= 4 &&
+      params.weights_shape.w <= 3) {
+    kernel_params.unroll_x_loop = true;
+  }
+
   return kernel_params;
 }
 
@@ -698,18 +706,25 @@ ConvWaveMemory::KernelParams GetKernelParamsPowerVR(
       kernel_params.img_wave_dot = true;
       kernel_params.slices_out = 4;
       kernel_params.slices_in = 4;
-      if (params.src_desc.GetDataType() == DataType::UINT32) {
+      if (params.src_desc.GetDataType() == DataType::kUint32) {
         kernel_params.slices_in = src_slices % 8 == 0 ? 8 : 4;
       }
-    } else if (params.precision == CalculationsPrecision::F32 ||
-               params.precision == CalculationsPrecision::F16) {
+    } else if (params.precision == CalculationsPrecision::kF32 ||
+               params.precision == CalculationsPrecision::kF16) {
       kernel_params.img_wave_dot = true;
       kernel_params.slices_in = 1;
       kernel_params.slices_out =
-          params.precision == CalculationsPrecision::F16 ? 8 : 4;
+          params.precision == CalculationsPrecision::kF16 ? 8 : 4;
 
       if (!params.src_desc.IsLinear() &&
-          (!params.x_kernel_is_1 || !params.y_kernel_is_1)) {
+          (!params.x_kernel_is_1 || !params.y_kernel_is_1) &&
+          params.weights_shape.w <= 8) {
+        // 128 is simd size for this branch
+        // every thread loads 16 bytes of data(float4 or half8)
+        // i4o4 block is 64/32 bytes(f32/f16)
+        // w_shape.w * slices_out(4) is number of i4o4 blocks
+        // w_shape.w * slices_out(4) * 4 must be <= 128 (for f32) => w <= 8
+        // w_shape.w * slices_out(4) * 2 must be <= 128 (for f16) => w <= 16
         kernel_params.slices_loop_first = false;
         kernel_params.slices_in = 1;
         kernel_params.slices_out = 4;
@@ -742,10 +757,10 @@ ConvWaveMemory::KernelParams GetKernelParamsPowerVR(
         if (waves_per_cu < 256.0 && kernel_params.slices_out >= 8) {
           kernel_params.slices_out = 4;
         }
-        if (waves_per_cu < 128.0 && kernel_params.slices_out >= 4) {
+        if (waves_per_cu < 64.0 && kernel_params.slices_out >= 4) {
           kernel_params.slices_out = 2;
         }
-        if (waves_per_cu < 64.0 && kernel_params.slices_out >= 2) {
+        if (waves_per_cu < 32.0 && kernel_params.slices_out >= 2) {
           kernel_params.slices_out = 1;
         }
       }
@@ -753,14 +768,19 @@ ConvWaveMemory::KernelParams GetKernelParamsPowerVR(
         kernel_params.slices_out =
             std::min(kernel_params.slices_out, dst_slices);
       }
-      if (kernel_params.slices_loop_first) {
-        int max_slices_in = src_slices % 2 == 0 ? 2 : 1;
-        max_slices_in = src_slices % 4 == 0 ? 4 : max_slices_in;
-        if (kernel_params.slices_out <= 2) {
-          kernel_params.slices_in = std::min(max_slices_in, 4);
-        } else {
-          kernel_params.slices_in = std::min(max_slices_in, 2);
+      int max_slices_in = src_slices % 2 == 0 ? 2 : 1;
+      max_slices_in = src_slices % 4 == 0 ? 4 : max_slices_in;
+      if (!kernel_params.slices_loop_first) {
+        max_slices_in = 1;
+        if (kernel_params.unroll_x_loop &&
+            kernel_params.slices_out * params.weights_shape.w <= 3) {
+          max_slices_in = src_slices % 2 == 0 ? 2 : 1;
         }
+      }
+      if (kernel_params.slices_out <= 2) {
+        kernel_params.slices_in = std::min(max_slices_in, 4);
+      } else {
+        kernel_params.slices_in = std::min(max_slices_in, 2);
       }
     }
   }
@@ -817,6 +837,7 @@ ConvWaveMemory::ConvWaveMemory(const ConvWaveMemory::ConvParams& conv_params,
                                const OHWI& weights_shape,
                                const BHWC* dst_shape) {
   conv_params_ = conv_params;
+  conv_params_.weights_shape = weights_shape;
   const int src_slices = DivideRoundUp(weights_shape.i, 4);
   const int dst_slices = DivideRoundUp(weights_shape.o, 4);
   if (conv_params_.groups_count != 1) {
@@ -854,8 +875,6 @@ ConvWaveMemory::ConvWaveMemory(const ConvWaveMemory::ConvParams& conv_params,
   if (!conv_params.y_kernel_is_1) {
     args_.AddInt("kernel_size_y", weights_shape.h);
   }
-
-  conv_params_.weights_shape = weights_shape;
 }
 
 void ConvWaveMemory::GenerateCode(const GpuInfo& gpu_info,
@@ -881,7 +900,7 @@ void ConvWaveMemory::GenerateCode(const GpuInfo& gpu_info,
   }
   if (gpu_info.IsApiOpenCl() && gpu_info.IsAdreno() &&
       gpu_info.adreno_info.IsAdreno8xx() &&
-      conv_params_.precision == CalculationsPrecision::F16) {
+      conv_params_.precision == CalculationsPrecision::kF16) {
     compiler_options_.push_back(CompilerOptions::kClAdrenoFixBinary);
   }
 }
@@ -944,11 +963,11 @@ std::vector<int3> ConvWaveMemory::GetPossibleKernelWorkGroups(
                                          kernel_info, grid_size_);
       case TuningType::kFast:
       default:
-        if (conv_params_.weights_data_type == DataType::INT8 &&
+        if (conv_params_.weights_data_type == DataType::kInt8 &&
             gpu_info.IsAdreno()) {
           if (gpu_info.adreno_info.IsAdreno8xx()) {
             int src_slices = src_[0]->Slices();
-            if (conv_params_.src_desc.GetDataType() == DataType::UINT32) {
+            if (conv_params_.src_desc.GetDataType() == DataType::kUint32) {
               src_slices *= 4;
             }
             const int dst_slices = dst_[0]->Slices();
@@ -1012,25 +1031,6 @@ ConvWaveMemory CreateConvWaveMemory(const GpuInfo& gpu_info,
   return result;
 }
 
-ConvWaveMemory CreateConvWaveMemory(const GpuInfo& gpu_info,
-                                    const OperationDef& definition,
-                                    CalculationsPrecision precision,
-                                    const FullyConnectedAttributes& attr,
-                                    const BHWC* dst_shape) {
-  ConvWaveMemory::ConvParams conv_params;
-  conv_params.src_desc = definition.src_tensors[0];
-  conv_params.precision = precision;
-  conv_params.weights_data_type = DeduceDataTypeFromPrecision(precision);
-  conv_params.x_kernel_is_1 = true;
-  conv_params.y_kernel_is_1 = true;
-  ConvWaveMemory result(conv_params, gpu_info, attr.weights.shape, dst_shape);
-  result.conv_params_.has_bias = !attr.bias.data.empty();
-  result.GenerateCode(gpu_info, definition);
-  result.UploadWeights(gpu_info, attr.weights);
-  result.UploadBias(gpu_info, attr.bias);
-  return result;
-}
-
 ConvWaveMemory CreateConvWaveMemoryExternalWeights(
     const GpuInfo& gpu_info, const OperationDef& definition,
     CalculationsPrecision precision, const Convolution2DAttributes& attr,
@@ -1045,8 +1045,7 @@ ConvWaveMemory CreateConvWaveMemoryExternalWeights(
   conv_params.y_kernel_is_1 = IsConvKernelYis1(attr);
   conv_params.groups_count = attr.groups;
   conv_params.different_weights_for_height = different_weights_for_height;
-  OHWI weights_shape =
-      std::visit([](const auto& w) { return w.shape; }, attr.weights);
+  OHWI weights_shape = attr.GetWeightsShape();
   if (different_weights_for_height) {
     conv_params.x_kernel_is_1 = true;
     conv_params.y_kernel_is_1 = true;
@@ -1086,9 +1085,9 @@ ConvWaveMemory CreateConvWaveMemoryExternalWeights(
   }
   if (has_runtime_check) {
     BufferDescriptor buffer_desc;
-    buffer_desc.element_type = DataType::INT32;
+    buffer_desc.element_type = DataType::kInt32;
     buffer_desc.element_size = 1;
-    buffer_desc.memory_type = MemoryType::CONSTANT;
+    buffer_desc.memory_type = MemoryType::kConstant;
     result.AddSrcBuffer("params", buffer_desc);
   }
   return result;
@@ -1125,10 +1124,10 @@ PackedType GetConvWaveMemoryInt8SrcType(const GpuInfo& gpu_info,
 
 ConvWaveMemory CreateConvWaveMemoryInt8(
     const GpuInfo& gpu_info, const OperationDef& definition,
-    const Tensor<OHWI, DataType::INT8>& weights, const BHWC* dst_shape) {
+    const Tensor<OHWI, DataType::kInt8>& weights, const BHWC* dst_shape) {
   ConvWaveMemory::ConvParams conv_params;
   conv_params.src_desc = definition.src_tensors[0];
-  conv_params.weights_data_type = DataType::INT8;
+  conv_params.weights_data_type = DataType::kInt8;
   conv_params.x_kernel_is_1 = true;
   conv_params.y_kernel_is_1 = true;
   conv_params.has_bias = false;
@@ -1143,7 +1142,7 @@ ConvWaveMemory CreateConvWaveMemoryInt8ExternalWeights(
     const OHWI& weights_shape, const BHWC* dst_shape) {
   ConvWaveMemory::ConvParams conv_params;
   conv_params.src_desc = definition.src_tensors[0];
-  conv_params.weights_data_type = DataType::INT8;
+  conv_params.weights_data_type = DataType::kInt8;
   conv_params.x_kernel_is_1 = true;
   conv_params.y_kernel_is_1 = true;
   conv_params.has_bias = false;
@@ -1156,11 +1155,11 @@ ConvWaveMemory CreateConvWaveMemoryInt8ExternalWeights(
 
 ConvWaveMemory CreateConvWaveMemoryInt8Grouped(
     const GpuInfo& gpu_info, const OperationDef& definition,
-    const Tensor<OHWI, DataType::INT8>& weights, int group_size,
+    const Tensor<OHWI, DataType::kInt8>& weights, int group_size,
     const TensorDescriptor& src_params, const BHWC* dst_shape) {
   ConvWaveMemory::ConvParams conv_params;
   conv_params.src_desc = definition.src_tensors[0];
-  conv_params.weights_data_type = DataType::INT8;
+  conv_params.weights_data_type = DataType::kInt8;
   conv_params.x_kernel_is_1 = true;
   conv_params.y_kernel_is_1 = true;
   conv_params.has_bias = false;

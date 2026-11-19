@@ -24,6 +24,9 @@
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/hash/hash.h"
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
+#include "absl/status/statusor.h"
 #include "ml_drift/cl/buffer.h"
 #include "ml_drift/cl/cl_context.h"
 #include "ml_drift/cl/environment.h"
@@ -35,7 +38,6 @@
 #include "ml_drift/common/memory_management/types.h"
 #include "ml_drift/common/model.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/types.h"
 #include "ml_drift/common/util.h"
@@ -61,11 +63,11 @@ void AddUsage(ValueId id, int task_index,
 // clCreateBuffer.
 bool IsBufferBased(const GpuInfo& gpu_info, const TensorStorageType& type) {
   const bool image2d_based_buffer =
-      (type == TensorStorageType::TEXTURE_2D ||
-       type == TensorStorageType::SINGLE_TEXTURE_2D) &&
+      (type == TensorStorageType::kTexture2D ||
+       type == TensorStorageType::kSingleTexture2D) &&
       gpu_info.opencl_info.IsImage2dFromBufferSupported();
-  return type == TensorStorageType::BUFFER ||
-         type == TensorStorageType::IMAGE_BUFFER || image2d_based_buffer;
+  return type == TensorStorageType::kBuffer ||
+         type == TensorStorageType::kImageBuffer || image2d_based_buffer;
 }
 
 // Calculates the total size of the assignment.
@@ -149,8 +151,8 @@ size_t GetWidthAlignment(const GpuInfo& gpu_info, size_t bytes_per_pixel) {
 
 size_t GetTensorMemorySize(const GpuInfo& gpu_info,
                            const TensorDescriptor& descriptor) {
-  if (descriptor.GetStorageType() == TensorStorageType::TEXTURE_2D ||
-      descriptor.GetStorageType() == TensorStorageType::SINGLE_TEXTURE_2D) {
+  if (descriptor.GetStorageType() == TensorStorageType::kTexture2D ||
+      descriptor.GetStorageType() == TensorStorageType::kSingleTexture2D) {
     const size_t bytes_per_pixel =
         SizeOf(descriptor.GetDataType()) * descriptor.GetElementSize();
     const size_t width_pixel_alignment =
@@ -170,9 +172,9 @@ bool HasBufferBasedImages(const std::map<ValueId, int2>& buffer_usages,
   for (const auto& usage : buffer_usages) {
     const auto& storage_type =
         gpu_model.tensors.at(usage.first).GetStorageType();
-    if (storage_type == TensorStorageType::IMAGE_BUFFER ||
-        storage_type == TensorStorageType::TEXTURE_2D ||
-        storage_type == TensorStorageType::SINGLE_TEXTURE_2D) {
+    if (storage_type == TensorStorageType::kImageBuffer ||
+        storage_type == TensorStorageType::kTexture2D ||
+        storage_type == TensorStorageType::kSingleTexture2D) {
       return true;
     }
   }
@@ -199,7 +201,7 @@ absl::Status GetBufferAssignment(
   }
 
   ABSL_RETURN_IF_ERROR(AssignObjectsToTensors(
-      *buffer_usage_records, MemoryStrategy::GREEDY_BEST, buffer_assignment));
+      *buffer_usage_records, MemoryStrategy::kGreedyBest, buffer_assignment));
 
   const bool has_buffer_based_images =
       HasBufferBasedImages(buffer_usages, gpu_model);
@@ -212,8 +214,8 @@ absl::Status GetBufferAssignment(
   *use_offset_assignment = false;
   if (*is_sub_buffers_supported) {
     ABSL_RETURN_IF_ERROR(AssignOffsetsToTensors(
-        *buffer_usage_records, MemoryStrategy::GREEDY_BY_SIZE,
-        offset_assignment, base_align_bytes));
+        *buffer_usage_records, MemoryStrategy::kGreedyBySize, offset_assignment,
+        base_align_bytes));
     if (offset_assignment->total_size <= TotalSize(*buffer_assignment) &&
         offset_assignment->total_size <= gpu_info.GetMaxBufferSize()) {
       *use_offset_assignment = true;
@@ -456,8 +458,8 @@ absl::Status MemoryManager::AllocateBufferBasedTensors(
                                  ? tensor_index
                                  : buffer_assignment.object_ids[tensor_index];
     auto& tensor = value_id_to_buffer_[Key(model_id, usage.first)];
-    if (td.GetStorageType() == TensorStorageType::TEXTURE_2D ||
-        td.GetStorageType() == TensorStorageType::SINGLE_TEXTURE_2D) {
+    if (td.GetStorageType() == TensorStorageType::kTexture2D ||
+        td.GetStorageType() == TensorStorageType::kSingleTexture2D) {
       const size_t bytes_per_pixel =
           SizeOf(td.GetDataType()) * td.GetElementSize();
       const size_t width_pixel_alignment =
@@ -497,7 +499,7 @@ absl::Status MemoryManager::AllocateTextureBasedTensors(
 
   ObjectsAssignment<TensorDescComparator> assignment;
   ABSL_RETURN_IF_ERROR(AssignObjectsToTensors(
-      usage_records, MemoryStrategy::EQUALITY, &assignment));
+      usage_records, MemoryStrategy::kEquality, &assignment));
 
   std::vector<const Tensor*> cl_textures(assignment.object_sizes.size(),
                                          nullptr);

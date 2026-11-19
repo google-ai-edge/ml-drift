@@ -14,7 +14,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/strings/str_replace.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/kernels/tests/dot_general_test_util.h"
@@ -33,52 +33,52 @@ using ::testing::TestWithParam;
 using DotGeneralTypedTest = TestWithParam<TensorStorageType>;
 
 TEST_P(DotGeneralTypedTest, Bfloat) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::BFLOAT16)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kBfloat16)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(DotGeneral2DBfloatTest(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(DotGeneral2DBfloatTest(*exec_env, GetParam()));
 }
 
 TEST_P(DotGeneralTypedTest, Int8) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::INT8)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kInt8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(DotGeneral2DIntTest<DataType::INT8>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(DotGeneral2DIntTest<DataType::kInt8>(*exec_env, GetParam()));
 }
 
 TEST_P(DotGeneralTypedTest, Int16) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::INT16)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kInt16)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(DotGeneral2DIntTest<DataType::INT16>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(DotGeneral2DIntTest<DataType::kInt16>(*exec_env, GetParam()));
 }
 
 TEST_P(DotGeneralTypedTest, Int32) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::INT32)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kInt32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(DotGeneral2DIntTest<DataType::INT32>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(DotGeneral2DIntTest<DataType::kInt32>(*exec_env, GetParam()));
 }
 
 TEST_P(DotGeneralTypedTest, Uint8) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT8)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kUint8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(DotGeneral2DIntTest<DataType::UINT8>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(DotGeneral2DIntTest<DataType::kUint8>(*exec_env, GetParam()));
 }
 
 TEST_P(DotGeneralTypedTest, Uint16) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT16)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kUint16)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(DotGeneral2DIntTest<DataType::UINT16>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(DotGeneral2DIntTest<DataType::kUint16>(*exec_env, GetParam()));
 }
 
 TEST_P(DotGeneralTypedTest, Uint32) {
-  if (!exec_env->IsStorageSupported(GetParam(), DataType::UINT32)) {
+  if (!exec_env->IsStorageSupported(GetParam(), DataType::kUint32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(GetParam());
   }
-  MLD_ASSERT_OK(DotGeneral2DIntTest<DataType::UINT32>(*exec_env, GetParam()));
+  ABSL_ASSERT_OK(DotGeneral2DIntTest<DataType::kUint32>(*exec_env, GetParam()));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -95,7 +95,7 @@ TEST_P(DotGeneralFloatTest, DotGeneral1DTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(DotGeneral1DTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(DotGeneral1DTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(DotGeneralFloatTest, DotGeneral2DTest) {
@@ -103,7 +103,7 @@ TEST_P(DotGeneralFloatTest, DotGeneral2DTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(DotGeneral2DTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(DotGeneral2DTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(DotGeneralFloatTest, DotGeneral3DBatchTest) {
@@ -111,7 +111,7 @@ TEST_P(DotGeneralFloatTest, DotGeneral3DBatchTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(DotGeneral3DBatchTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(DotGeneral3DBatchTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(DotGeneralFloatTest, DotGeneral4DTest) {
@@ -119,7 +119,7 @@ TEST_P(DotGeneralFloatTest, DotGeneral4DTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(DotGeneral4DTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(DotGeneral4DTest(*exec_env, data_type(), storage()));
 }
 
 INSTANTIATE_TEST_SUITE_P(

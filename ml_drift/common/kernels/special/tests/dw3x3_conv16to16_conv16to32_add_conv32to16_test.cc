@@ -19,12 +19,12 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
+#include "absl/status/status.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/kernels/tests/kernel_test.h"
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/gpu_operation.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/task/testing_ref_ops.h"
@@ -103,7 +103,7 @@ absl::Status DW3x3Conv16To16Conv16To32AddConv32To16Test0(
       prelu_2, true);
 
   TensorFloat32 dst_0, dst_1;
-  MLD_EXPECT_OK(exec_env->ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env->ExecuteGPUOperation(
       {src_tensor_0, src_tensor_1},
       std::make_unique<GPUOperation>(std::move(operation)),
       {out_ref_0.shape, out_ref_1.shape}, {&dst_0, &dst_1}));
@@ -179,7 +179,7 @@ absl::Status DW3x3Conv16To16Conv16To32AddConv32To16Test2(
       prelu_2, false);
 
   TensorFloat32 dst_0, dst_1;
-  MLD_EXPECT_OK(exec_env->ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env->ExecuteGPUOperation(
       {src_tensor_0, src_tensor_1},
       std::make_unique<GPUOperation>(std::move(operation)),
       {out_ref_0.shape, out_ref_1.shape}, {&dst_0, &dst_1}));
@@ -196,17 +196,17 @@ TEST_P(DataTypeTest, DW3x3Conv16To16Conv16To32AddConv32To16Test0) {
                  << " storage type: " << ToString(storage());
   }
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type(), storage(), Layout::HWC});
-  op_def.src_tensors.push_back({data_type(), storage(), Layout::HWC});
-  op_def.dst_tensors.push_back({data_type(), storage(), Layout::HWC});
-  op_def.dst_tensors.push_back({data_type(), storage(), Layout::HWC});
-  if (!op_def.src_tensors[0].SupportsZeroClamp(Axis::WIDTH,
+  op_def.src_tensors.push_back({data_type(), storage(), Layout::kHWC});
+  op_def.src_tensors.push_back({data_type(), storage(), Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type(), storage(), Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type(), storage(), Layout::kHWC});
+  if (!op_def.src_tensors[0].SupportsZeroClamp(Axis::kWidth,
                                                exec_env->GetGpuInfo()) ||
-      !op_def.src_tensors[0].SupportsZeroClamp(Axis::HEIGHT,
+      !op_def.src_tensors[0].SupportsZeroClamp(Axis::kHeight,
                                                exec_env->GetGpuInfo())) {
     GTEST_SKIP() << "Source tensor does not support zero clamp.";
   }
-  MLD_EXPECT_OK(DW3x3Conv16To16Conv16To32AddConv32To16Test0(exec_env, op_def));
+  ABSL_EXPECT_OK(DW3x3Conv16To16Conv16To32AddConv32To16Test0(exec_env, op_def));
 }
 
 TEST_P(DataTypeTest, DW3x3Conv16To16Conv16To32AddConv32To16Test2) {
@@ -215,17 +215,17 @@ TEST_P(DataTypeTest, DW3x3Conv16To16Conv16To32AddConv32To16Test2) {
                  << " storage type: " << ToString(storage());
   }
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type(), storage(), Layout::HWC});
-  op_def.src_tensors.push_back({data_type(), storage(), Layout::HWC});
-  op_def.dst_tensors.push_back({data_type(), storage(), Layout::HWC});
-  op_def.dst_tensors.push_back({data_type(), storage(), Layout::HWC});
-  if (!op_def.src_tensors[0].SupportsZeroClamp(Axis::WIDTH,
+  op_def.src_tensors.push_back({data_type(), storage(), Layout::kHWC});
+  op_def.src_tensors.push_back({data_type(), storage(), Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type(), storage(), Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type(), storage(), Layout::kHWC});
+  if (!op_def.src_tensors[0].SupportsZeroClamp(Axis::kWidth,
                                                exec_env->GetGpuInfo()) ||
-      !op_def.src_tensors[0].SupportsZeroClamp(Axis::HEIGHT,
+      !op_def.src_tensors[0].SupportsZeroClamp(Axis::kHeight,
                                                exec_env->GetGpuInfo())) {
     GTEST_SKIP() << "Source tensor does not support zero clamp.";
   }
-  MLD_EXPECT_OK(DW3x3Conv16To16Conv16To32AddConv32To16Test2(exec_env, op_def));
+  ABSL_EXPECT_OK(DW3x3Conv16To16Conv16To32AddConv32To16Test2(exec_env, op_def));
 }
 
 INSTANTIATE_TEST_SUITE_P(

@@ -12,35 +12,36 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
+#include "absl/status/status.h"
 #include "ml_drift/cl/testing/cl_test.h"
 #include "ml_drift/common/gpu_model_external_weights_test_util.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 
 namespace ml_drift {
 namespace cl {
 namespace {
 
 TEST_F(OpenCLOperationTest, DynamicConvolution) {
-  auto status = TestDynamicConvolution(&exec_env_);
-  ASSERT_TRUE(status.ok()) << status.message();
+  ABSL_ASSERT_OK(TestDynamicConvolution(&exec_env_));
 }
 
 TEST_F(OpenCLOperationTest, ExternalConvWeights) {
-  auto status = TestExternalConvWeights(&exec_env_);
-  ASSERT_TRUE(status.ok()) << status.message();
+  ABSL_ASSERT_OK(TestExternalConvWeights(&exec_env_));
 }
 
 TEST_F(OpenCLOperationTest, FullyConnectedSmallSpatial) {
-  auto status = TestFullyConnected(&exec_env_, BHWC(1, 1, 1, 16));
-  ASSERT_TRUE(status.ok()) << status.message();
+  ABSL_ASSERT_OK(TestFullyConnected(&exec_env_, BHWC(1, 1, 1, 16)));
 }
 
 TEST_F(OpenCLOperationTest, FullyConnectedBigSpatial) {
-  auto status = TestFullyConnected(&exec_env_, BHWC(1, 1, 256, 16));
-  ASSERT_TRUE(status.ok()) << status.message();
+  ABSL_ASSERT_OK(TestFullyConnected(&exec_env_, BHWC(1, 1, 256, 16)));
+}
+
+TEST_F(OpenCLOperationTest, BatchedMatMulBroadcast) {
+  ABSL_ASSERT_OK(TestBatchedMatMulBroadcast(&exec_env_));
 }
 
 }  // namespace

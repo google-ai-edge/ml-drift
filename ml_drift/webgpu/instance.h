@@ -15,7 +15,7 @@
 #ifndef ML_DRIFT_WEBGPU_INSTANCE_H_
 #define ML_DRIFT_WEBGPU_INSTANCE_H_
 
-#include "ml_drift/common/status.h"
+#include "absl/status/status.h"
 #include "absl/time/time.h"
 #include "ml_drift/webgpu/webgpu_headers.h"
 
@@ -57,7 +57,7 @@ class Instance {
   // by new clients before refactoring the singleton initialization. It must
   // only be called sequentially during initialization before any concurrent
   // threads invoke Get(), when there is no race condition.
-  // TODO(crbug.com/524317888) - Remove this pattern and refactor singleton
+  // TODO - Remove this pattern and refactor singleton
   // initialization.
   static absl::Status Set(const wgpu::Instance& instance);
 

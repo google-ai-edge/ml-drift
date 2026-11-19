@@ -14,7 +14,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/kernels/tests/kernel_test.h"
 #include "ml_drift/common/kernels/tests/reverse_test_util.h"
@@ -34,7 +34,7 @@ TEST_P(ReverseFloatTest, ReverseHWCTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ReverseHWCTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(ReverseHWCTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(ReverseFloatTest, ReverseBHWCTest) {
@@ -42,7 +42,7 @@ TEST_P(ReverseFloatTest, ReverseBHWCTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ReverseBHWCTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(ReverseBHWCTest(*exec_env, data_type(), storage()));
 }
 
 INSTANTIATE_TEST_SUITE_P(

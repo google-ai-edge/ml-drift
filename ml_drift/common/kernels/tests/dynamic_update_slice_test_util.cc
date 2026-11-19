@@ -20,11 +20,12 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/kernels/dynamic_update_slice.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/gpu_operation.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/task/testing_util.h"
@@ -44,7 +45,7 @@ absl::Status DynamicUpdateSliceBoolTest(TestExecutionEnvironment& env,
   TensorBool updated_slice;
   updated_slice.shape = BHWC(1, 1, 1, 3);
   updated_slice.data = {false, false, false};
-  Tensor<BHWC, DataType::INT32> start_indices;
+  Tensor<BHWC, DataType::kInt32> start_indices;
   start_indices.shape = BHWC(1, 1, 1, 4);
   start_indices.data = {0, 0, 0, 4};
 
@@ -52,10 +53,10 @@ absl::Status DynamicUpdateSliceBoolTest(TestExecutionEnvironment& env,
   ref_tensor.data = {true, true, true, true, false, false, false, true};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::BOOL, storage, Layout::HWC});
-  op_def.src_tensors.push_back({DataType::BOOL, storage, Layout::HWC});
-  op_def.src_tensors.push_back({DataType::INT32, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({DataType::BOOL, storage, Layout::HWC});
+  op_def.src_tensors.push_back({DataType::kBool, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({DataType::kBool, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({DataType::kInt32, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({DataType::kBool, storage, Layout::kHWC});
   TensorDescriptor src_0, src_1, src_2, dst;
   src_0 = op_def.src_tensors[0];
   src_1 = op_def.src_tensors[1];
@@ -92,10 +93,10 @@ absl::Status DynamicUpdateSliceIntTest(TestExecutionEnvironment& env,
   ref_tensor.data = {2, 2, 2, 2, 2, 1, 2, 3, 4, 5, 6, 7, 8, 9, 2, 2};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({T, storage, Layout::HWC});
-  op_def.src_tensors.push_back({T, storage, Layout::HWC});
-  op_def.src_tensors.push_back({T, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({T, storage, Layout::HWC});
+  op_def.src_tensors.push_back({T, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({T, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({T, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({T, storage, Layout::kHWC});
   TensorDescriptor src_0, src_1, src_2, dst;
   src_0 = op_def.src_tensors[0];
   src_1 = op_def.src_tensors[1];
@@ -114,17 +115,17 @@ absl::Status DynamicUpdateSliceIntTest(TestExecutionEnvironment& env,
   return absl::OkStatus();
 }
 
-template absl::Status DynamicUpdateSliceIntTest<DataType::INT32>(
+template absl::Status DynamicUpdateSliceIntTest<DataType::kInt32>(
     TestExecutionEnvironment& env, TensorStorageType storage);
-template absl::Status DynamicUpdateSliceIntTest<DataType::INT16>(
+template absl::Status DynamicUpdateSliceIntTest<DataType::kInt16>(
     TestExecutionEnvironment& env, TensorStorageType storage);
-template absl::Status DynamicUpdateSliceIntTest<DataType::INT8>(
+template absl::Status DynamicUpdateSliceIntTest<DataType::kInt8>(
     TestExecutionEnvironment& env, TensorStorageType storage);
-template absl::Status DynamicUpdateSliceIntTest<DataType::UINT32>(
+template absl::Status DynamicUpdateSliceIntTest<DataType::kUint32>(
     TestExecutionEnvironment& env, TensorStorageType storage);
-template absl::Status DynamicUpdateSliceIntTest<DataType::UINT16>(
+template absl::Status DynamicUpdateSliceIntTest<DataType::kUint16>(
     TestExecutionEnvironment& env, TensorStorageType storage);
-template absl::Status DynamicUpdateSliceIntTest<DataType::UINT8>(
+template absl::Status DynamicUpdateSliceIntTest<DataType::kUint8>(
     TestExecutionEnvironment& env, TensorStorageType storage);
 
 absl::Status DynamicUpdateSliceTest(TestExecutionEnvironment& env,
@@ -142,10 +143,10 @@ absl::Status DynamicUpdateSliceTest(TestExecutionEnvironment& env,
   start_indices.data = {0, 0, 0, 5};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorDescriptor src_0, src_1, src_2, dst;
   src_0 = op_def.src_tensors[0];
   src_1 = op_def.src_tensors[1];
@@ -182,10 +183,10 @@ absl::Status DynamicUpdateSliceTwoDimensionSliceTest(
   start_indices.data = {0, 2, 0, 2};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorDescriptor src_0, src_1, src_2, dst;
   src_0 = op_def.src_tensors[0];
   src_1 = op_def.src_tensors[1];
@@ -223,10 +224,10 @@ absl::Status DynamicUpdateSliceThreeDimensionSliceTest(
   start_indices.data = {0, 1, 1, 1};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorDescriptor src_0, src_1, src_2, dst;
   src_0 = op_def.src_tensors[0];
   src_1 = op_def.src_tensors[1];
@@ -250,6 +251,45 @@ absl::Status DynamicUpdateSliceThreeDimensionSliceTest(
   return absl::OkStatus();
 }
 
+absl::Status DynamicUpdateSliceFourDimensionSliceTest(
+    TestExecutionEnvironment& env, DataType data_type,
+    TensorStorageType storage) {
+  TensorFloat32 array_to_update;
+  array_to_update.shape = BHWC(2, 2, 2, 2);
+  array_to_update.data = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+  TensorFloat32 updated_slice;
+  updated_slice.shape = BHWC(1, 1, 1, 2);
+  updated_slice.data = {1, 2};
+  TensorFloat32 start_indices;
+  start_indices.shape = BHWC(1, 1, 1, 4);
+  start_indices.data = {1, 0, 1, 0};
+
+  OperationDef op_def;
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
+  TensorDescriptor src_0, src_1, src_2, dst;
+  src_0 = op_def.src_tensors[0];
+  src_1 = op_def.src_tensors[1];
+  src_2 = op_def.src_tensors[2];
+  src_0.UploadData(array_to_update);
+  src_1.UploadData(updated_slice);
+  src_2.UploadData(start_indices);
+  dst.SetBHWCShape(BHWC(2, 2, 2, 2));
+  GPUOperation operation = CreateDynamicUpdateSlice(op_def, env.GetGpuInfo());
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
+      {&src_0, &src_1, &src_2}, {&dst},
+      std::make_unique<GPUOperation>(std::move(operation))));
+  TensorFloat32 dst_tensor;
+  dst.DownloadData(&dst_tensor);
+  EXPECT_THAT(dst_tensor.data,
+              Pointwise(FloatNear(0.0f),
+                        {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                         0.0f, 1.0f, 2.0f, 0.0f, 0.0f, 0.0f, 0.0f}));
+  return absl::OkStatus();
+}
+
 absl::Status DynamicUpdateSliceStartIndicesThreeValuesSliceTest(
     TestExecutionEnvironment& env, DataType data_type,
     TensorStorageType storage) {
@@ -265,10 +305,10 @@ absl::Status DynamicUpdateSliceStartIndicesThreeValuesSliceTest(
   start_indices.data = {1, 1, 1};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorDescriptor src_0, src_1, src_2, dst;
   src_0 = op_def.src_tensors[0];
   src_1 = op_def.src_tensors[1];
@@ -340,10 +380,10 @@ absl::Status DynamicUpdateSliceStartIndicesTwoValuesSliceTest(
   // clang-format on
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorDescriptor src_0, src_1, src_2, dst;
   src_0 = op_def.src_tensors[0];
   src_1 = op_def.src_tensors[1];
@@ -376,10 +416,10 @@ absl::Status DynamicUpdateSliceClampTest(TestExecutionEnvironment& env,
   start_indices.data = {0, 2, 0, 2};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorDescriptor src_0, src_1, src_2, dst;
   src_0 = op_def.src_tensors[0];
   src_1 = op_def.src_tensors[1];
@@ -411,15 +451,15 @@ absl::Status DynamicUpdateSliceConversionTest(TestExecutionEnvironment& env,
   TensorFloat32 updated_slice;
   updated_slice.shape = BHWC(1, 1, 1, 9);
   updated_slice.data = {1, 2, 3, 4, 5, 6, 7, 8, 9};
-  Tensor<BHWC, DataType::INT32> start_indices;
+  Tensor<BHWC, DataType::kInt32> start_indices;
   start_indices.shape = BHWC(1, 1, 1, 4);
   start_indices.data = {0, 0, 0, 5};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({dst_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({src_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({DataType::INT32, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({dst_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({dst_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({src_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({DataType::kInt32, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({dst_type, storage, Layout::kHWC});
   TensorDescriptor src_0, src_1, src_2, dst;
   src_0 = op_def.src_tensors[0];
   src_1 = op_def.src_tensors[1];

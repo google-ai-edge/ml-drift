@@ -19,6 +19,8 @@
 #include <vector>
 
 #include "gmock/gmock.h"
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/kernels/depthwise_conv.h"
 #include "ml_drift/common/kernels/depthwise_conv_3x3.h"
@@ -26,7 +28,6 @@
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/precision.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/gpu_operation.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/task/testing_ref_ops.h"
@@ -52,7 +53,7 @@ absl::Status DepthwiseConvTest(TestExecutionEnvironment& exec_env,
   float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr);
 
   TensorFloat32 dst_tensor;
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(
       src_tensor, std::make_unique<DepthwiseConv>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), dst_ref_tensor.data));
@@ -66,7 +67,7 @@ absl::Status DepthwiseConvExternalWeightsTest(
     CalculationsPrecision precision) {
   TensorFloat32 weights_tensor;
   auto& attr_weights =
-      std::get<ml_drift::Tensor<OHWI, DataType::FLOAT32>>(attr.weights);
+      std::get<ml_drift::Tensor<OHWI, DataType::kFloat32>>(attr.weights);
   weights_tensor.shape = BHWC(attr_weights.shape.o, attr_weights.shape.h,
                               attr_weights.shape.w, attr_weights.shape.i);
   weights_tensor.data = attr_weights.data;
@@ -78,7 +79,7 @@ absl::Status DepthwiseConvExternalWeightsTest(
   float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr);
 
   TensorFloat32 dst_tensor;
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(
       {src_tensor, weights_tensor},
       std::make_unique<DepthwiseConv>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
@@ -99,7 +100,7 @@ absl::Status DepthwiseConvTest(TestExecutionEnvironment& exec_env,
   float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr);
 
   Tensor5DFloat32 dst_tensor;
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(
       src_tensor, std::make_unique<DepthwiseConv>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -120,7 +121,7 @@ absl::Status DepthwiseConv3x3Test(TestExecutionEnvironment& exec_env,
   float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr);
 
   TensorFloat32 dst_tensor;
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(
       src_tensor, std::make_unique<DepthwiseConv3x3>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -141,7 +142,7 @@ absl::Status DepthwiseConvTiledTest(
   float eps = GetEpsilon(precision, exec_env.GetGpuInfo(), attr);
 
   TensorFloat32 dst_tensor;
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(src_tensor, std::move(operation),
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(src_tensor, std::move(operation),
                                          dst_ref_tensor.shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), dst_ref_tensor.data));
   return absl::OkStatus();
@@ -161,18 +162,18 @@ absl::Status DepthwiseConvSimpleWeightsTest(TestExecutionEnvironment& env,
   attr.strides = HW(1, 1);
   attr.dilations = HW(1, 1);
   auto& attr_weights =
-      attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::FLOAT32>>();
+      attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(2, 3, 1, 2);
   attr_weights.data = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
                        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
   attr.bias.shape = Linear(3);
   attr.bias.data = {0.0f, 0.0f, 0.0f};
 
-  const float eps = precision == CalculationsPrecision::F32 ? 1e-6f : 1e-3f;
+  const float eps = precision == CalculationsPrecision::kF32 ? 1e-6f : 1e-3f;
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   DepthwiseConv operation =
       CreateDepthwiseConvolution2D(env.GetGpuInfo(), op_def, precision, attr);
@@ -198,17 +199,17 @@ absl::Status DepthwiseConvNoMultiplierTest(TestExecutionEnvironment& env,
   attr.strides = HW(1, 1);
   attr.dilations = HW(1, 1);
   auto& attr_weights =
-      attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::FLOAT32>>();
+      attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(1, 3, 1, 2);
   attr_weights.data = {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f};
   attr.bias.shape = Linear(2);
   attr.bias.data = {0.5f, -0.5f};
 
-  const float eps = precision == CalculationsPrecision::F32 ? 1e-6f : 1e-3f;
+  const float eps = precision == CalculationsPrecision::kF32 ? 1e-6f : 1e-3f;
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   DepthwiseConv operation =
       CreateDepthwiseConvolution2D(env.GetGpuInfo(), op_def, precision, attr);
@@ -234,18 +235,18 @@ absl::Status DepthwiseConvMultiplier2Test(TestExecutionEnvironment& env,
   attr.strides = HW(1, 1);
   attr.dilations = HW(1, 1);
   auto& attr_weights =
-      attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::FLOAT32>>();
+      attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(2, 3, 1, 2);
   attr_weights.data = {0.0f, 1.0f, 2.0f, 3.0f, 4.0f,  5.0f,
                        6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f};
   attr.bias.shape = Linear(4);
   attr.bias.data = {0.5f, -0.5f, 1.0f, -1.0f};
 
-  const float eps = precision == CalculationsPrecision::F32 ? 1e-6f : 1e-3f;
+  const float eps = precision == CalculationsPrecision::kF32 ? 1e-6f : 1e-3f;
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   DepthwiseConv operation =
       CreateDepthwiseConvolution2D(env.GetGpuInfo(), op_def, precision, attr);
@@ -283,8 +284,8 @@ absl::Status DepthwiseConvBigTest(TestExecutionEnvironment& env,
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   return DepthwiseConvTest(env, attr, src_tensor, op_def, precision);
 }
 
@@ -311,8 +312,8 @@ absl::Status DepthwiseConvBatchedBigTest(TestExecutionEnvironment& env,
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
   return DepthwiseConvTest(env, attr, src_tensor, op_def, precision);
 }
 
@@ -337,9 +338,9 @@ absl::Status DepthwiseConvExternalWeightsTest(TestExecutionEnvironment& env,
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   return DepthwiseConvExternalWeightsTest(env, attr, src_tensor, op_def,
                                           precision);
 }
@@ -368,8 +369,8 @@ absl::Status DepthwiseConv3DTest(TestExecutionEnvironment& env,
   Tensor5DFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWDC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWDC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWDC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWDC});
   return DepthwiseConvTest(env, attr, src_tensor, op_def, precision);
 }
 
@@ -397,8 +398,8 @@ absl::Status DepthwiseConv3DBatchedTest(TestExecutionEnvironment& env,
   Tensor5DFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWDC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWDC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWDC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWDC});
   return DepthwiseConvTest(env, attr, src_tensor, op_def, precision);
 }
 
@@ -425,8 +426,8 @@ absl::Status DepthwiseConv3DNoMultiplierTest(TestExecutionEnvironment& env,
   Tensor5DFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWDC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWDC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWDC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWDC});
   return DepthwiseConvTest(env, attr, src_tensor, op_def, precision);
 }
 
@@ -444,18 +445,18 @@ absl::Status DepthwiseConv3x3SimpleWeightsTest(TestExecutionEnvironment& env,
   attr.padding.appended = HW(1, 1);
   attr.strides = HW(1, 1);
   attr.dilations = HW(1, 1);
-  auto& attr_weights = attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
+  auto& attr_weights = attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(1, 3, 3, 2);
   attr_weights.data = {0.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f,
                        1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f};
   attr.bias.shape = Linear(2);
   attr.bias.data = {0.0f, 0.0f};
 
-  const float eps = precision == CalculationsPrecision::F32 ? 1e-6f : 1e-3f;
+  const float eps = precision == CalculationsPrecision::kF32 ? 1e-6f : 1e-3f;
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   DepthwiseConv3x3 operation =
       CreateDepthwiseConv3x3(env.GetGpuInfo(), op_def, precision, attr);
@@ -480,18 +481,18 @@ absl::Status DepthwiseConv3x3Test(TestExecutionEnvironment& env,
   attr.padding.appended = HW(1, 1);
   attr.strides = HW(1, 1);
   attr.dilations = HW(1, 1);
-  auto& attr_weights = attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
+  auto& attr_weights = attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(1, 3, 3, 2);
   attr_weights.data = {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 0.0f, 1.0f, 2.0f,
                        3.0f, 4.0f, 5.0f, 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f};
   attr.bias.shape = Linear(2);
   attr.bias.data = {0.5f, -0.5f};
 
-  const float eps = precision == CalculationsPrecision::F32 ? 1e-6f : 1e-3f;
+  const float eps = precision == CalculationsPrecision::kF32 ? 1e-6f : 1e-3f;
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   DepthwiseConv3x3 operation =
       CreateDepthwiseConv3x3(env.GetGpuInfo(), op_def, precision, attr);
@@ -522,8 +523,8 @@ absl::Status DepthwiseConv3x3BigTest(TestExecutionEnvironment& env,
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   return DepthwiseConv3x3Test(env, attr, src_tensor, op_def, precision);
 }
 
@@ -545,8 +546,8 @@ absl::Status DepthwiseConv3x3BatchedBigTest(TestExecutionEnvironment& env,
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
   return DepthwiseConv3x3Test(env, attr, src_tensor, op_def, precision);
 }
 
@@ -564,18 +565,18 @@ absl::Status DepthwiseConvTiledSimpleWeightsTest(
   attr.padding.appended = HW(1, 1);
   attr.strides = HW(1, 1);
   attr.dilations = HW(1, 1);
-  auto& attr_weights = attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
+  auto& attr_weights = attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(1, 3, 3, 2);
   attr_weights.data = {0.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f,
                        1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f};
   attr.bias.shape = Linear(2);
   attr.bias.data = {0.0f, 0.0f};
 
-  const float eps = precision == CalculationsPrecision::F32 ? 1e-6f : 1e-3f;
+  const float eps = precision == CalculationsPrecision::kF32 ? 1e-6f : 1e-3f;
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   auto operation =
       CreateDepthwiseConvTiled(env.GetGpuInfo(), op_def, precision, attr);
@@ -599,18 +600,18 @@ absl::Status DepthwiseConvTiledTest(TestExecutionEnvironment& env,
   attr.padding.appended = HW(1, 1);
   attr.strides = HW(1, 1);
   attr.dilations = HW(1, 1);
-  auto& attr_weights = attr.weights.emplace<Tensor<OHWI, DataType::FLOAT32>>();
+  auto& attr_weights = attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(1, 3, 3, 2);
   attr_weights.data = {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 0.0f, 1.0f, 2.0f,
                        3.0f, 4.0f, 5.0f, 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f};
   attr.bias.shape = Linear(2);
   attr.bias.data = {0.5f, -0.5f};
 
-  const float eps = precision == CalculationsPrecision::F32 ? 1e-6f : 1e-3f;
+  const float eps = precision == CalculationsPrecision::kF32 ? 1e-6f : 1e-3f;
   OperationDef op_def;
   const DataType data_type = DeduceDataTypeFromPrecision(precision);
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   auto operation =
       CreateDepthwiseConvTiled(env.GetGpuInfo(), op_def, precision, attr);
@@ -640,8 +641,8 @@ absl::Status DepthwiseConvTiledBigTest(TestExecutionEnvironment& env,
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   return DepthwiseConvTiledTest(env, attr, src_tensor, op_def, precision);
 }
 
@@ -663,8 +664,8 @@ absl::Status DepthwiseConvTiledBatchedBigTest(TestExecutionEnvironment& env,
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
   return DepthwiseConvTiledTest(env, attr, src_tensor, op_def, precision);
 }
 
@@ -686,8 +687,8 @@ absl::Status DepthwiseConvTiledWithDilationBigTest(
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   return DepthwiseConvTiledTest(env, attr, src_tensor, op_def, precision);
 }
 

@@ -20,12 +20,13 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/kernels/pooling.h"
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/gpu_operation.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/task/testing_ref_ops.h"
@@ -48,12 +49,12 @@ absl::Status AveragePoolingTest(TestExecutionEnvironment& env,
   attr.padding.appended = HW(0, 0);
   attr.strides = HW(2, 2);
   attr.kernel = HW(2, 2);
-  attr.type = PoolingType::AVERAGE;
+  attr.type = PoolingType::kAverage;
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-3f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-3f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreatePooling(op_def, env.GetGpuInfo(), attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
@@ -75,12 +76,12 @@ absl::Status AveragePoolingNonEmptyPaddingTest(TestExecutionEnvironment& env,
   attr.padding.appended = HW(1, 1);
   attr.strides = HW(1, 1);
   attr.kernel = HW(2, 2);
-  attr.type = PoolingType::AVERAGE;
+  attr.type = PoolingType::kAverage;
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-3f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-3f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreatePooling(op_def, env.GetGpuInfo(), attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
@@ -102,12 +103,12 @@ absl::Status MaxPoolingTest(TestExecutionEnvironment& env, DataType data_type,
   attr.padding.appended = HW(0, 0);
   attr.strides = HW(2, 2);
   attr.kernel = HW(2, 2);
-  attr.type = PoolingType::MAX;
+  attr.type = PoolingType::kMax;
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-3f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-3f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreatePooling(op_def, env.GetGpuInfo(), attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
@@ -129,15 +130,15 @@ absl::Status MaxPoolingIndicesTest(TestExecutionEnvironment& env,
   attr.padding.appended = HW(0, 0);
   attr.strides = HW(2, 2);
   attr.kernel = HW(2, 2);
-  attr.type = PoolingType::MAX;
+  attr.type = PoolingType::kMax;
   attr.output_indices = true;
 
   {
-    const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-3f;
+    const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-3f;
     OperationDef op_def;
-    op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-    op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-    op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+    op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+    op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
+    op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
     TensorFloat32 dst_tensor;
     TensorFloat32 dst_tensor_ind;
     GPUOperation operation = CreatePooling(op_def, env.GetGpuInfo(), attr);
@@ -154,9 +155,9 @@ absl::Status MaxPoolingIndicesTest(TestExecutionEnvironment& env,
   // Testing writing of indices in int tensor
   {
     OperationDef op_def;
-    op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-    op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-    op_def.dst_tensors.push_back({DataType::INT32, storage, Layout::HWC});
+    op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+    op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
+    op_def.dst_tensors.push_back({DataType::kInt32, storage, Layout::kHWC});
 
     TensorDescriptor src_0, dst_0, dst_1;
     src_0 = op_def.src_tensors[0];
@@ -171,11 +172,11 @@ absl::Status MaxPoolingIndicesTest(TestExecutionEnvironment& env,
 
     TensorFloat32 dst_tensor;
     dst_0.DownloadData(&dst_tensor);
-    Tensor<BHWC, DataType::INT32> dst_tensor_ind;
+    Tensor<BHWC, DataType::kInt32> dst_tensor_ind;
     dst_1.DownloadData(&dst_tensor_ind);
-    const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-3f;
+    const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-3f;
     EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(eps), {8.0f, 7.0f}));
-    Tensor<BHWC, DataType::INT32> ref_tensor;
+    Tensor<BHWC, DataType::kInt32> ref_tensor;
     ref_tensor.shape = BHWC(1, 1, 1, 2);
     ref_tensor.data = {0, 3};
     EXPECT_EQ(dst_tensor_ind.data, ref_tensor.data);
@@ -195,7 +196,7 @@ absl::Status AveragePoolingTest(TestExecutionEnvironment& exec_env,
   auto operation = CreatePooling(op_def, exec_env.GetGpuInfo(), attr);
 
   TensorFloat32 dst_tensor;
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -212,7 +213,7 @@ absl::Status AveragePooling3DTest(TestExecutionEnvironment& exec_env,
   auto operation = CreatePooling(op_def, exec_env.GetGpuInfo(), attr);
 
   Tensor5DFloat32 dst_tensor;
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -229,7 +230,7 @@ absl::Status MaxPoolingTest(TestExecutionEnvironment& exec_env,
   auto operation = CreatePooling(op_def, exec_env.GetGpuInfo(), attr);
 
   TensorFloat32 dst_tensor;
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -246,7 +247,7 @@ absl::Status MaxPooling3DTest(TestExecutionEnvironment& exec_env,
   auto operation = CreatePooling(op_def, exec_env.GetGpuInfo(), attr);
 
   Tensor5DFloat32 dst_tensor;
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -263,7 +264,7 @@ absl::Status MaxPoolingIndicesTest(TestExecutionEnvironment& exec_env,
   auto operation = CreatePooling(op_def, exec_env.GetGpuInfo(), attr);
 
   std::vector<TensorFloat32> dst_tensors(2);
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(
       {src_tensor}, std::make_unique<GPUOperation>(std::move(operation)),
       {dst_ref_tensors[0].shape, dst_ref_tensors[1].shape},
       {&dst_tensors[0], &dst_tensors[1]}));
@@ -283,7 +284,7 @@ absl::Status MaxPoolingIndices3DTest(TestExecutionEnvironment& exec_env,
   auto operation = CreatePooling(op_def, exec_env.GetGpuInfo(), attr);
 
   std::vector<Tensor5DFloat32> dst_tensors(2);
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(
       {src_tensor}, std::make_unique<GPUOperation>(std::move(operation)),
       {dst_ref_tensors[0].shape, dst_ref_tensors[1].shape},
       {&dst_tensors[0], &dst_tensors[1]}));
@@ -303,15 +304,15 @@ absl::Status AveragePoolingBigTest(TestExecutionEnvironment& env,
   attr.padding.appended = HW(0, 0);
   attr.strides = HW(2, 2);
   attr.kernel = HW(2, 2);
-  attr.type = PoolingType::AVERAGE;
+  attr.type = PoolingType::kAverage;
 
   auto src_shape = BHWC(1, 8, 6, 5);
 
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   return AveragePoolingTest(env, attr, src_tensor, op_def);
 }
 
@@ -323,15 +324,15 @@ absl::Status AveragePoolingBatchedBigTest(TestExecutionEnvironment& env,
   attr.padding.appended = HW(0, 0);
   attr.strides = HW(2, 2);
   attr.kernel = HW(2, 2);
-  attr.type = PoolingType::AVERAGE;
+  attr.type = PoolingType::kAverage;
 
   auto src_shape = BHWC(3, 8, 6, 5);
 
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
   return AveragePoolingTest(env, attr, src_tensor, op_def);
 }
 
@@ -343,15 +344,15 @@ absl::Status AveragePoolingNonEmptyPaddingBigTest(TestExecutionEnvironment& env,
   attr.padding.appended = HW(1, 1);
   attr.strides = HW(1, 1);
   attr.kernel = HW(2, 2);
-  attr.type = PoolingType::AVERAGE;
+  attr.type = PoolingType::kAverage;
 
   auto src_shape = BHWC(1, 4, 4, 1);
 
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   return AveragePoolingTest(env, attr, src_tensor, op_def);
 }
 
@@ -363,15 +364,15 @@ absl::Status AveragePooling3DBigTest(TestExecutionEnvironment& env,
   attr.padding.appended = HWD(1, 1, 2);
   attr.strides = HWD(1, 1, 2);
   attr.kernel = HWD(2, 3, 2);
-  attr.type = PoolingType::AVERAGE;
+  attr.type = PoolingType::kAverage;
 
   auto src_shape = BHWDC(1, 4, 7, 6, 5);
 
   Tensor5DFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWDC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWDC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWDC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWDC});
   return AveragePooling3DTest(env, attr, src_tensor, op_def);
 }
 
@@ -383,15 +384,15 @@ absl::Status AveragePooling3DBatchedBigTest(TestExecutionEnvironment& env,
   attr.padding.appended = HWD(1, 1, 2);
   attr.strides = HWD(1, 1, 2);
   attr.kernel = HWD(2, 3, 2);
-  attr.type = PoolingType::AVERAGE;
+  attr.type = PoolingType::kAverage;
 
   auto src_shape = BHWDC(7, 4, 7, 6, 5);
 
   Tensor5DFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWDC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWDC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWDC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWDC});
   return AveragePooling3DTest(env, attr, src_tensor, op_def);
 }
 
@@ -402,15 +403,15 @@ absl::Status MaxPoolingBigTest(TestExecutionEnvironment& env,
   attr.padding.appended = HW(0, 0);
   attr.strides = HW(2, 2);
   attr.kernel = HW(2, 2);
-  attr.type = PoolingType::MAX;
+  attr.type = PoolingType::kMax;
 
   auto src_shape = BHWC(1, 8, 6, 5);
 
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   return MaxPoolingTest(env, attr, src_tensor, op_def);
 }
 
@@ -422,15 +423,15 @@ absl::Status MaxPoolingBatchedBigTest(TestExecutionEnvironment& env,
   attr.padding.appended = HW(0, 2);
   attr.strides = HW(2, 2);
   attr.kernel = HW(2, 3);
-  attr.type = PoolingType::MAX;
+  attr.type = PoolingType::kMax;
 
   auto src_shape = BHWC(7, 8, 6, 5);
 
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
   return MaxPoolingTest(env, attr, src_tensor, op_def);
 }
 
@@ -442,15 +443,15 @@ absl::Status MaxPooling3DBigTest(TestExecutionEnvironment& env,
   attr.padding.appended = HWD(0, 0, 0);
   attr.strides = HWD(2, 2, 2);
   attr.kernel = HWD(2, 2, 2);
-  attr.type = PoolingType::MAX;
+  attr.type = PoolingType::kMax;
 
   auto src_shape = BHWDC(1, 8, 6, 3, 5);
 
   Tensor5DFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWDC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWDC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWDC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWDC});
   return MaxPooling3DTest(env, attr, src_tensor, op_def);
 }
 
@@ -462,15 +463,15 @@ absl::Status MaxPooling3DBatchedBigTest(TestExecutionEnvironment& env,
   attr.padding.appended = HWD(0, 2, 1);
   attr.strides = HWD(2, 2, 2);
   attr.kernel = HWD(2, 3, 2);
-  attr.type = PoolingType::MAX;
+  attr.type = PoolingType::kMax;
 
   auto src_shape = BHWDC(7, 8, 6, 7, 5);
 
   Tensor5DFloat32 src_tensor = MakeSyntheticTensor(src_shape);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWDC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWDC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWDC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWDC});
   return MaxPooling3DTest(env, attr, src_tensor, op_def);
 }
 
@@ -482,7 +483,7 @@ absl::Status MaxPoolingIndicesBigTest(TestExecutionEnvironment& env,
   attr.padding.appended = HW(0, 0);
   attr.strides = HW(2, 2);
   attr.kernel = HW(2, 2);
-  attr.type = PoolingType::MAX;
+  attr.type = PoolingType::kMax;
   attr.output_indices = true;
 
   auto src_shape = BHWC(1, 8, 6, 5);
@@ -495,9 +496,9 @@ absl::Status MaxPoolingIndicesBigTest(TestExecutionEnvironment& env,
   }
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   return MaxPoolingIndicesTest(env, attr, src_tensor, op_def);
 }
 
@@ -509,7 +510,7 @@ absl::Status MaxPoolingIndicesBatchedBigTest(TestExecutionEnvironment& env,
   attr.padding.appended = HW(0, 0);
   attr.strides = HW(2, 2);
   attr.kernel = HW(2, 2);
-  attr.type = PoolingType::MAX;
+  attr.type = PoolingType::kMax;
   attr.output_indices = true;
 
   auto src_shape = BHWC(5, 8, 6, 5);
@@ -522,9 +523,9 @@ absl::Status MaxPoolingIndicesBatchedBigTest(TestExecutionEnvironment& env,
   }
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
   return MaxPoolingIndicesTest(env, attr, src_tensor, op_def);
 }
 
@@ -536,7 +537,7 @@ absl::Status MaxPoolingIndices3DBigTest(TestExecutionEnvironment& env,
   attr.padding.appended = HWD(0, 0, 0);
   attr.strides = HWD(2, 2, 2);
   attr.kernel = HWD(2, 2, 2);
-  attr.type = PoolingType::MAX;
+  attr.type = PoolingType::kMax;
   attr.output_indices = true;
 
   auto src_shape = BHWDC(1, 8, 6, 5, 5);
@@ -549,9 +550,9 @@ absl::Status MaxPoolingIndices3DBigTest(TestExecutionEnvironment& env,
   }
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWDC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWDC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWDC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWDC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWDC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWDC});
   return MaxPoolingIndices3DTest(env, attr, src_tensor, op_def);
 }
 
@@ -563,7 +564,7 @@ absl::Status MaxPoolingIndices3DBatchedBigTest(TestExecutionEnvironment& env,
   attr.padding.appended = HWD(0, 0, 0);
   attr.strides = HWD(2, 2, 2);
   attr.kernel = HWD(2, 2, 2);
-  attr.type = PoolingType::MAX;
+  attr.type = PoolingType::kMax;
   attr.output_indices = true;
 
   auto src_shape = BHWDC(5, 8, 6, 7, 5);
@@ -576,9 +577,9 @@ absl::Status MaxPoolingIndices3DBatchedBigTest(TestExecutionEnvironment& env,
   }
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWDC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWDC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWDC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWDC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWDC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWDC});
   return MaxPoolingIndices3DTest(env, attr, src_tensor, op_def);
 }
 

@@ -25,6 +25,7 @@
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
+#include "absl/status/status.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/gpu_model.h"
@@ -32,7 +33,6 @@
 #include "ml_drift/common/ir_model.h"
 #include "ml_drift/common/model.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/profiling_info.h"
 #include "ml_drift/common/task/tuning_type.h"
 #include "ml_drift/common/tensor.h"
@@ -165,7 +165,7 @@ class InferenceContext {
   void GetMutableNodes(const absl::flat_hash_map<ValueId, TensorDescriptor>&
                            external_mutable_tensors);
 
-  void BindTensorsToOperations();
+  absl::Status BindTensorsToOperations();
   absl::Status UpdateParams(const GpuInfo& gpu_info);
   absl::Status Tune(TuningType tuning_type, Environment* env);
 

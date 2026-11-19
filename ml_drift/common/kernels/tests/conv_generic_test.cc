@@ -19,7 +19,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_replace.h"
@@ -47,7 +47,7 @@ TEST_P(ConvGenericFloatTest, ConvGeneric1x1SimpleWeightsTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ConvGeneric1x1SimpleWeightsTest(*exec_env, precision(), storage()));
+  ABSL_ASSERT_OK(ConvGeneric1x1SimpleWeightsTest(*exec_env, precision(), storage()));
 }
 
 TEST_P(ConvGenericFloatTest, ConvGeneric1x1Test) {
@@ -56,7 +56,7 @@ TEST_P(ConvGenericFloatTest, ConvGeneric1x1Test) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ConvGeneric1x1Test(*exec_env, precision(), storage()));
+  ABSL_ASSERT_OK(ConvGeneric1x1Test(*exec_env, precision(), storage()));
 }
 
 TEST_P(ConvGenericFloatTest, ConvGenericSimpleWeightsTest) {
@@ -65,7 +65,7 @@ TEST_P(ConvGenericFloatTest, ConvGenericSimpleWeightsTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ConvGenericSimpleWeightsTest(*exec_env, precision(), storage()));
+  ABSL_ASSERT_OK(ConvGenericSimpleWeightsTest(*exec_env, precision(), storage()));
 }
 
 TEST_P(ConvGenericFloatTest, ConvGenericTest) {
@@ -74,7 +74,7 @@ TEST_P(ConvGenericFloatTest, ConvGenericTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ConvGenericTest(*exec_env, precision(), storage()));
+  ABSL_ASSERT_OK(ConvGenericTest(*exec_env, precision(), storage()));
 }
 
 TEST_P(ConvGenericFloatTest, ConvGenericGroupedTest) {
@@ -83,7 +83,7 @@ TEST_P(ConvGenericFloatTest, ConvGenericGroupedTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ConvGenericGroupedTest(*exec_env, precision(), storage()));
+  ABSL_ASSERT_OK(ConvGenericGroupedTest(*exec_env, precision(), storage()));
 }
 
 TEST_P(ConvGenericFloatTest, ConvGeneric1x1BigTest) {
@@ -92,7 +92,7 @@ TEST_P(ConvGenericFloatTest, ConvGeneric1x1BigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ConvGeneric1x1BigTest(*exec_env, precision(), storage()));
+  ABSL_ASSERT_OK(ConvGeneric1x1BigTest(*exec_env, precision(), storage()));
 }
 
 TEST_P(ConvGenericFloatTest, ConvGeneric1x1BatchedBigTest) {
@@ -101,7 +101,7 @@ TEST_P(ConvGenericFloatTest, ConvGeneric1x1BatchedBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ConvGeneric1x1BatchedBigTest(*exec_env, precision(), storage()));
+  ABSL_ASSERT_OK(ConvGeneric1x1BatchedBigTest(*exec_env, precision(), storage()));
 }
 
 TEST_P(ConvGenericFloatTest, ConvGenericBigTest) {
@@ -110,7 +110,7 @@ TEST_P(ConvGenericFloatTest, ConvGenericBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ConvGenericBigTest(*exec_env, precision(), storage()));
+  ABSL_ASSERT_OK(ConvGenericBigTest(*exec_env, precision(), storage()));
 }
 
 TEST_P(ConvGenericFloatTest, ConvGenericBatchedBigTest) {
@@ -119,7 +119,7 @@ TEST_P(ConvGenericFloatTest, ConvGenericBatchedBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ConvGenericBatchedBigTest(*exec_env, precision(), storage()));
+  ABSL_ASSERT_OK(ConvGenericBatchedBigTest(*exec_env, precision(), storage()));
 }
 
 TEST_P(ConvGenericFloatTest, ConvGenericGroupedBigTest) {
@@ -128,7 +128,7 @@ TEST_P(ConvGenericFloatTest, ConvGenericGroupedBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ConvGenericGroupedBigTest(*exec_env, precision(), storage()));
+  ABSL_ASSERT_OK(ConvGenericGroupedBigTest(*exec_env, precision(), storage()));
 }
 
 TEST_P(ConvGenericFloatTest, ConvGenericPackedGroupsTest) {
@@ -145,7 +145,7 @@ TEST_P(ConvGenericFloatTest, ConvGenericPackedGroupsTest) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvGenericFloatTest, ConvGenericExternalWfloatTest) {
@@ -162,7 +162,7 @@ TEST_P(ConvGenericFloatTest, ConvGenericExternalWfloatTest) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvGenericFloatTest, ConvGenericExternalBatchedWfloatTest) {
@@ -180,7 +180,7 @@ TEST_P(ConvGenericFloatTest, ConvGenericExternalBatchedWfloatTest) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvGenericFloatTest, ConvGenericExternalWi8Test) {
@@ -197,7 +197,7 @@ TEST_P(ConvGenericFloatTest, ConvGenericExternalWi8Test) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvGenericFloatTest, ConvGenericExternalBatchedWi8Test) {
@@ -215,7 +215,7 @@ TEST_P(ConvGenericFloatTest, ConvGenericExternalBatchedWi8Test) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvGenericFloatTest, ConvGenericExternalGroupedWi8Test) {
@@ -234,7 +234,7 @@ TEST_P(ConvGenericFloatTest, ConvGenericExternalGroupedWi8Test) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvGenericFloatTest, ConvGenericExternalGroupedBatchedWi8Test) {
@@ -253,7 +253,7 @@ TEST_P(ConvGenericFloatTest, ConvGenericExternalGroupedBatchedWi8Test) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvGenericFloatTest,
@@ -274,7 +274,7 @@ TEST_P(ConvGenericFloatTest,
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvGenericFloatTest, ConvGenericExternalWi4Test) {
@@ -291,7 +291,7 @@ TEST_P(ConvGenericFloatTest, ConvGenericExternalWi4Test) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvGenericFloatTest, ConvGenericExternalBatchedWi4Test) {
@@ -309,7 +309,7 @@ TEST_P(ConvGenericFloatTest, ConvGenericExternalBatchedWi4Test) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvGenericFloatTest, ConvGenericExternalGroupedWi4Test) {
@@ -328,7 +328,7 @@ TEST_P(ConvGenericFloatTest, ConvGenericExternalGroupedWi4Test) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvGenericFloatTest, ConvGenericExternalGroupedBatchedWi4Test) {
@@ -347,7 +347,7 @@ TEST_P(ConvGenericFloatTest, ConvGenericExternalGroupedBatchedWi4Test) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvGenericFloatTest, ConvGenericExternalWi2Test) {
@@ -364,7 +364,7 @@ TEST_P(ConvGenericFloatTest, ConvGenericExternalWi2Test) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvGenericFloatTest, ConvGenericExternalBatchedWi2Test) {
@@ -382,7 +382,7 @@ TEST_P(ConvGenericFloatTest, ConvGenericExternalBatchedWi2Test) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvGenericFloatTest, ConvGenericExternalGroupedWi2Test) {
@@ -401,7 +401,7 @@ TEST_P(ConvGenericFloatTest, ConvGenericExternalGroupedWi2Test) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvGenericFloatTest, ConvGenericExternalGroupedBatchedWi2Test) {
@@ -420,7 +420,7 @@ TEST_P(ConvGenericFloatTest, ConvGenericExternalGroupedBatchedWi2Test) {
       absl::StrContains(status.message(), exec_env->SkipTestMessage())) {
     GTEST_SKIP() << status.message();
   }
-  MLD_ASSERT_OK(status);
+  ABSL_ASSERT_OK(status);
 }
 
 TEST_P(ConvGenericFloatTest, ConvGeneric3d1x1x1BigTest) {
@@ -429,7 +429,7 @@ TEST_P(ConvGenericFloatTest, ConvGeneric3d1x1x1BigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ConvGeneric3d1x1x1BigTest(*exec_env, precision(), storage()));
+  ABSL_ASSERT_OK(ConvGeneric3d1x1x1BigTest(*exec_env, precision(), storage()));
 }
 
 TEST_P(ConvGenericFloatTest, ConvGeneric3d1x1x1BatchedBigTest) {
@@ -438,7 +438,7 @@ TEST_P(ConvGenericFloatTest, ConvGeneric3d1x1x1BatchedBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       ConvGeneric3d1x1x1BatchedBigTest(*exec_env, precision(), storage()));
 }
 
@@ -448,7 +448,7 @@ TEST_P(ConvGenericFloatTest, ConvGeneric3dBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ConvGeneric3dBigTest(*exec_env, precision(), storage()));
+  ABSL_ASSERT_OK(ConvGeneric3dBigTest(*exec_env, precision(), storage()));
 }
 
 TEST_P(ConvGenericFloatTest, ConvGeneric3dBatchedBigTest) {
@@ -457,7 +457,7 @@ TEST_P(ConvGenericFloatTest, ConvGeneric3dBatchedBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ConvGeneric3dBatchedBigTest(*exec_env, precision(), storage()));
+  ABSL_ASSERT_OK(ConvGeneric3dBatchedBigTest(*exec_env, precision(), storage()));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -480,7 +480,7 @@ TEST_P(TiledTest, ConvGenericWinograd3x3TileNxNTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type)
                  << " storage type: " << ToString(storage);
   }
-  MLD_ASSERT_OK(ConvGenericWinograd3x3TileNxNTest(*exec_env, precision, storage,
+  ABSL_ASSERT_OK(ConvGenericWinograd3x3TileNxNTest(*exec_env, precision, storage,
                                               kTileSize));
 }
 
@@ -509,14 +509,14 @@ TEST_P(IntTest, ConvGeneric1x1Int8SymmetricTest) {
     GTEST_SKIP()
         << "ConvGeneric1x1Int8SymmetricTest not supported on this device.";
   }
-  if (!exec_env->IsStorageSupported(src_storage(), DataType::INT8) ||
-      !exec_env->IsStorageSupported(dst_storage(), DataType::INT32)) {
+  if (!exec_env->IsStorageSupported(src_storage(), DataType::kInt8) ||
+      !exec_env->IsStorageSupported(dst_storage(), DataType::kInt32)) {
     GTEST_SKIP()
         << "ConvGeneric1x1Int8SymmetricTest not supported for src storage: "
         << ToString(src_storage())
         << " and dst storage: " << ToString(dst_storage());
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       ConvGeneric1x1Int8SymmetricTest(*exec_env, src_storage(), dst_storage()));
 }
 
@@ -526,11 +526,11 @@ TEST_P(IntTest, ConvGenericInt8BigTest) {
   }
 
   // check dst
-  if (!exec_env->IsStorageSupported(dst_storage(), DataType::INT32)) {
+  if (!exec_env->IsStorageSupported(dst_storage(), DataType::kInt32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(dst_storage())
-                 << " data type: " << ToString(DataType::INT32);
+                 << " data type: " << ToString(DataType::kInt32);
   }
-  MLD_ASSERT_OK(ConvGenericInt8BigTest(*exec_env, src_storage(), dst_storage()));
+  ABSL_ASSERT_OK(ConvGenericInt8BigTest(*exec_env, src_storage(), dst_storage()));
 }
 
 TEST_P(IntTest, ConvGenericInt8ExternalWeightsBigTest) {
@@ -538,11 +538,11 @@ TEST_P(IntTest, ConvGenericInt8ExternalWeightsBigTest) {
     GTEST_SKIP() << "ConvGenericInt8ExternalWeightsBigTest not supported on "
                     "this device.";
   }
-  if (!exec_env->IsStorageSupported(dst_storage(), DataType::INT32)) {
+  if (!exec_env->IsStorageSupported(dst_storage(), DataType::kInt32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(dst_storage())
-                 << " data type: " << ToString(DataType::INT32);
+                 << " data type: " << ToString(DataType::kInt32);
   }
-  MLD_ASSERT_OK(ConvGenericInt8ExternalWeightsBigTest(*exec_env, src_storage(),
+  ABSL_ASSERT_OK(ConvGenericInt8ExternalWeightsBigTest(*exec_env, src_storage(),
                                                   dst_storage()));
 }
 
@@ -551,17 +551,8 @@ TEST_P(IntTest, ConvGenericInt8WithSrcQuantizationBigTest) {
     GTEST_SKIP() << "ConvGenericInt8WeightsInt4WithSrcQuantization not "
                     "supported on this device.";
   }
-  MLD_ASSERT_OK(ConvGenericInt8WithSrcQuantizationBigTest(*exec_env, src_storage(),
+  ABSL_ASSERT_OK(ConvGenericInt8WithSrcQuantizationBigTest(*exec_env, src_storage(),
                                                       dst_storage()));
-}
-
-TEST_P(IntTest, ConvGenericInt8WeightsInt4WithSrcQuantizationBigTest) {
-  if (!SupportsConvGenericInt8(exec_env->GetGpuInfo())) {
-    GTEST_SKIP() << "ConvGenericInt8WeightsInt4WithSrcQuantization not "
-                    "supported on this device.";
-  }
-  MLD_ASSERT_OK(ConvGenericInt8WeightsInt4WithSrcQuantizationBigTest(
-      *exec_env, src_storage(), dst_storage()));
 }
 
 TEST_P(IntTest, ConvGenericInt4BigTest) {
@@ -571,11 +562,11 @@ TEST_P(IntTest, ConvGenericInt4BigTest) {
   if (!SupportsConvGenericInt4(exec_env->GetGpuInfo(), src_shape)) {
     GTEST_SKIP() << "ConvGenericInt4 not supported on this device.";
   }
-  if (!exec_env->IsStorageSupported(dst_storage(), DataType::INT32)) {
+  if (!exec_env->IsStorageSupported(dst_storage(), DataType::kInt32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(dst_storage())
-                 << " data type: " << ToString(DataType::INT32);
+                 << " data type: " << ToString(DataType::kInt32);
   }
-  MLD_ASSERT_OK(ConvGenericInt4BigTest(*exec_env, src_storage(), dst_storage(),
+  ABSL_ASSERT_OK(ConvGenericInt4BigTest(*exec_env, src_storage(), dst_storage(),
                                    src_shape));
 }
 
@@ -586,11 +577,11 @@ TEST_P(IntTest, ConvGenericInt4ExternalWeightsBigTest) {
   if (!SupportsConvGenericInt4(exec_env->GetGpuInfo(), src_shape)) {
     GTEST_SKIP() << "ConvGenericInt4 not supported on this device.";
   }
-  if (!exec_env->IsStorageSupported(dst_storage(), DataType::INT32)) {
+  if (!exec_env->IsStorageSupported(dst_storage(), DataType::kInt32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(dst_storage())
-                 << " data type: " << ToString(DataType::INT32);
+                 << " data type: " << ToString(DataType::kInt32);
   }
-  MLD_ASSERT_OK(ConvGenericInt4ExternalWeightsBigTest(*exec_env, src_storage(),
+  ABSL_ASSERT_OK(ConvGenericInt4ExternalWeightsBigTest(*exec_env, src_storage(),
                                                   dst_storage(), src_shape));
 }
 
@@ -601,7 +592,7 @@ TEST_P(IntTest, ConvGenericInt4WithSrcQuantizationBigTest) {
   if (!SupportsConvGenericInt4(exec_env->GetGpuInfo(), src_shape)) {
     GTEST_SKIP() << "ConvGenericInt4 not supported on this device.";
   }
-  MLD_ASSERT_OK(ConvGenericInt4WithSrcQuantizationBigTest(
+  ABSL_ASSERT_OK(ConvGenericInt4WithSrcQuantizationBigTest(
       *exec_env, src_storage(), dst_storage(), src_shape));
 }
 

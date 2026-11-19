@@ -22,6 +22,8 @@
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
+#include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "absl/types/span.h"
 #include "flatbuffers/buffer.h"
 #include "flatbuffers/flatbuffer_builder.h"
@@ -45,7 +47,6 @@
 #include "ml_drift/common/model.h"
 #include "ml_drift/common/model_hints.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/profiling_info.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/task/tuning_type.h"
@@ -131,7 +132,7 @@ class InferenceContext {
                               CLCommandQueue* queue);
 
   absl::Status SetInputTensor(
-      ValueId id, const ml_drift::Tensor<BHWC, DataType::INT32>& tensor,
+      ValueId id, const ml_drift::Tensor<BHWC, DataType::kInt32>& tensor,
       CLCommandQueue* queue);
 
   // It will work only with input/output tensor ids. For all other ids we don't
@@ -152,6 +153,7 @@ class InferenceContext {
 
   const std::vector<ValueId>& GetInputIds() const { return input_ids_; }
   const std::vector<ValueId>& GetOutputIds() const { return output_ids_; }
+  const GpuInfo& GetGpuInfo() const { return gpu_info_; }
 
   // Enables optional nodes with the given tags that were defined via
   // `GpuModelBuilder::BeginOptionalNodes`.
@@ -166,7 +168,7 @@ class InferenceContext {
   absl::Status SetTensor(const ValueId& tensor_id, Tensor* tensor_ptr);
 
  private:
-  flatbuffers::Offset<data::InferenceContext> Encode(
+  absl::StatusOr<flatbuffers::Offset<data::InferenceContext>> Encode(
       const CLDevice& device, const ProgramCache& program_cache,
       flatbuffers::Offset<ml_drift::data::GpuModel> gpu_model_fb,
       flatbuffers::FlatBufferBuilder* builder);
@@ -258,12 +260,11 @@ absl::Status GetInOutRefs(absl::Span<const uint8_t> serialized_model,
                           std::vector<int64_t>* in_refs,
                           std::vector<int64_t>* out_refs);
 
-absl::Status GraphToInferenceContext(const GpuInfo& gpu_info,
-                                     const GraphFloat32& graph,
-                                     Environment* env,
-                                     CreateGpuModelInfo& create_info,
-                                     InferenceContext* context,
-                                     InferenceContext* weights_prep_context);
+absl::Status GraphToInferenceContext(
+    const GpuInfo& gpu_info, const GraphFloat32& graph, Environment* env,
+    CreateGpuModelInfo& create_info, InferenceContext* context,
+    InferenceContext* weights_prep_context,
+    std::vector<uint8_t>* serialized_model = nullptr);
 
 absl::Status IrModelToInferenceContext(const GpuInfo& gpu_info,
                                        const ir::IrModel& ir_model,

@@ -17,13 +17,13 @@
 #include <utility>
 #include <vector>
 
+#include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "ml_drift/cl/cl_command_queue.h"
 #include "ml_drift/cl/cl_event.h"
 #include "ml_drift/cl/cl_operation.h"
 #include "ml_drift/cl/opencl_wrapper.h"
 #include "ml_drift/cl/util.h"
-#include "ml_drift/common/status.h"
 
 namespace ml_drift {
 namespace cl {
@@ -49,6 +49,11 @@ void CLCommandBuffer::Release() {
 
 absl::Status CLCommandBuffer::Init(CLCommandQueue* queue,
                                    bool simultaneous_use) {
+  if (clCreateCommandBufferKHR == nullptr) {
+    return absl::UnavailableError(
+        "clCreateCommandBufferKHR is null: OpenCL driver does not support "
+        "cl_khr_command_buffer.");
+  }
   cl_int errcode_ret = CL_SUCCESS;
   std::vector<cl_command_buffer_properties_khr> properties;
   if (simultaneous_use) {

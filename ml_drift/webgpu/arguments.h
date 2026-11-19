@@ -22,7 +22,7 @@
 #include <string>
 #include <vector>
 
-#include "ml_drift/common/status.h"
+#include "absl/status/status.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/task/arguments.h"
 #include "ml_drift/common/task/gpu_object_desc.h"
@@ -101,7 +101,7 @@ class WebGpuArguments : public ArgumentsBinder {
   void AddImage3D(const std::string& name, const GPUImage3DDescriptor& desc);
 
   absl::Status SetBuffer(const std::string& name, const wgpu::Buffer& handle,
-                         size_t size, size_t offset);
+                         uint64_t size, uint64_t offset);
   absl::Status SetImage2D(const std::string& name, wgpu::TextureView handle);
   absl::Status SetImage2DArray(const std::string& name,
                                wgpu::TextureView handle);
@@ -150,8 +150,8 @@ class WebGpuArguments : public ArgumentsBinder {
   struct WebGpuBufferDescriptor {
     GPUBufferDescriptor desc;
     wgpu::Buffer handle;
-    size_t size;
-    size_t offset = 0;
+    uint64_t size = 0;
+    uint64_t offset = 0;
   };
   struct WebGpuImage2DDescriptor {
     GPUImage2DDescriptor desc;

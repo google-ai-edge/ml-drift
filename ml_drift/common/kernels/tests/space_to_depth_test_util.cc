@@ -19,11 +19,12 @@
 #include <vector>
 
 #include "gmock/gmock.h"
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/kernels/space_to_depth.h"
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/gpu_operation.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/task/testing_util.h"
@@ -46,8 +47,8 @@ absl::Status SpaceToDepthTensorShape1x2x2x1BlockSize2Test(
   const SpaceToDepthAttributes attr = {.block_size = 2};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateSpaceToDepth(op_def, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
@@ -67,8 +68,8 @@ absl::Status SpaceToDepthTensorShape1x2x2x2BlockSize2Test(
   const SpaceToDepthAttributes attr = {.block_size = 2};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateSpaceToDepth(op_def, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
@@ -90,8 +91,8 @@ absl::Status SpaceToDepthTensorShape1x2x2x3BlockSize2Test(
   const SpaceToDepthAttributes attr = {.block_size = 2};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateSpaceToDepth(op_def, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
@@ -114,8 +115,8 @@ absl::Status SpaceToDepthTensorShape1x4x4x1BlockSize2Test(
   const SpaceToDepthAttributes attr = {.block_size = 2};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateSpaceToDepth(op_def, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
@@ -137,8 +138,8 @@ absl::Status DepthToSpaceFrom1x1x1x4To1x2x2x1Test(TestExecutionEnvironment& env,
   const SpaceToDepthAttributes attr = {.block_size = 2};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateDepthToSpace(op_def, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
@@ -159,8 +160,8 @@ absl::Status DepthToSpaceFrom1x1x1x16To1x2x2x4Test(
   const SpaceToDepthAttributes attr = {.block_size = 2};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateDepthToSpace(op_def, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
@@ -200,13 +201,118 @@ absl::Status DepthToSpaceFrom1x2x2x16To1x4x4x4Test(
   const SpaceToDepthAttributes attr = {.block_size = block_size};
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateDepthToSpace(op_def, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
       src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
       BHWC(1, 4, 4, 4), &dst_tensor));
+  EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(kEps), ref));
+  return absl::OkStatus();
+}
+
+absl::Status SpaceToDepthTensorShape2x2x2x1BlockSize2Test(
+    TestExecutionEnvironment& env, DataType data_type,
+    TensorStorageType storage) {
+  TensorFloat32 src_tensor;
+  src_tensor.shape = BHWC(2, 2, 2, 1);
+  src_tensor.data = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
+  const SpaceToDepthAttributes attr = {.block_size = 2};
+
+  OperationDef op_def;
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
+  TensorFloat32 dst_tensor;
+  GPUOperation operation = CreateSpaceToDepth(op_def, attr);
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
+      src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
+      BHWC(2, 1, 1, 4), &dst_tensor));
+  EXPECT_THAT(dst_tensor.data,
+              Pointwise(FloatNear(kEps),
+                        {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f}));
+  return absl::OkStatus();
+}
+
+absl::Status DepthToSpaceFrom2x1x1x4To2x2x2x1Test(TestExecutionEnvironment& env,
+                                                  DataType data_type,
+                                                  TensorStorageType storage) {
+  TensorFloat32 src_tensor;
+  src_tensor.shape = BHWC(2, 1, 1, 4);
+  src_tensor.data = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
+  const SpaceToDepthAttributes attr = {.block_size = 2};
+
+  OperationDef op_def;
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
+  TensorFloat32 dst_tensor;
+  GPUOperation operation = CreateDepthToSpace(op_def, attr);
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
+      src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
+      BHWC(2, 2, 2, 1), &dst_tensor));
+  EXPECT_THAT(dst_tensor.data,
+              Pointwise(FloatNear(kEps),
+                        {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f}));
+  return absl::OkStatus();
+}
+
+absl::Status SpaceToDepthTensorShape2x2x4x1BlockSize2Test(
+    TestExecutionEnvironment& env, DataType data_type,
+    TensorStorageType storage) {
+  TensorFloat32 src_tensor;
+  src_tensor.shape = BHWC(2, 2, 4, 1);
+  src_tensor.data = {1.0f, 2.0f,  3.0f,  4.0f,  5.0f,  6.0f,  7.0f,  8.0f,
+                     9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f};
+  const SpaceToDepthAttributes attr = {.block_size = 2};
+
+  OperationDef op_def;
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
+  TensorFloat32 dst_tensor;
+  GPUOperation operation = CreateSpaceToDepth(op_def, attr);
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
+      src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
+      BHWC(2, 1, 2, 4), &dst_tensor));
+  EXPECT_THAT(dst_tensor.data,
+              Pointwise(FloatNear(kEps),
+                        {1.0f, 2.0f, 5.0f, 6.0f, 3.0f, 4.0f, 7.0f, 8.0f, 9.0f,
+                         10.0f, 13.0f, 14.0f, 11.0f, 12.0f, 15.0f, 16.0f}));
+  return absl::OkStatus();
+}
+
+absl::Status DepthToSpaceFrom2x1x1x16To2x2x2x4Test(
+    TestExecutionEnvironment& env, DataType data_type,
+    TensorStorageType storage) {
+  TensorFloat32 src_tensor;
+  src_tensor.shape = BHWC(2, 1, 1, 16);
+  src_tensor.data.resize(src_tensor.shape.DimensionsProduct());
+  for (int i = 0; i < src_tensor.data.size(); ++i) {
+    src_tensor.data[i] = static_cast<float>(i + 1);
+  }
+  std::vector<float> ref(src_tensor.data.size());
+  const int block_size = 2;
+  for (int b = 0; b < 2; ++b) {
+    for (int dst_y = 0; dst_y < 2; ++dst_y) {
+      for (int dst_x = 0; dst_x < 2; ++dst_x) {
+        int block_id = dst_y * block_size + dst_x;
+        for (int dst_ch = 0; dst_ch < 4; ++dst_ch) {
+          int src_ch = block_id * 4 + dst_ch;
+          ref[(b * 4 + dst_y * 2 + dst_x) * 4 + dst_ch] =
+              src_tensor.data[b * 16 + src_ch];
+        }
+      }
+    }
+  }
+  const SpaceToDepthAttributes attr = {.block_size = block_size};
+
+  OperationDef op_def;
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
+  TensorFloat32 dst_tensor;
+  GPUOperation operation = CreateDepthToSpace(op_def, attr);
+  ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
+      src_tensor, std::make_unique<GPUOperation>(std::move(operation)),
+      BHWC(2, 2, 2, 4), &dst_tensor));
   EXPECT_THAT(dst_tensor.data, Pointwise(FloatNear(kEps), ref));
   return absl::OkStatus();
 }

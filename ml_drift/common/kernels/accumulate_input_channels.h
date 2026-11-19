@@ -22,8 +22,7 @@
 namespace ml_drift {
 
 // This GPU operation performs a reduction sum over the input channels of the
-// input tensor. The input tensor is expected to be in the layout of raw OHWI,
-// which is the layout of weights stored in TFLite FlatBuffer.
+// input tensor. The input tensor is expected to be in the layout of raw OHWI.
 //
 // @param definition The operation definition, which is supposed to contain one
 //   src tensor and one dst tensor:

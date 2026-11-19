@@ -21,15 +21,16 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "xnnpack.h"  // from @XNNPACK
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
 #include "absl/types/span.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/kernels/conv_wave_matrix_mali.h"
 #include "ml_drift/common/kernels/quantize_and_dequantize.h"
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/gpu_operation.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/task/testing_ref_ops.h"
@@ -47,8 +48,8 @@ using ::testing::Pointwise;
 namespace {
 absl::Status ConvWaveMatrixMaliInt8Test(
     TestExecutionEnvironment& exec_env,
-    const ml_drift::Tensor<BHWC, DataType::INT8>& src_tensor_i8,
-    const ml_drift::Tensor<OHWI, DataType::INT8>& weights_i8,
+    const ml_drift::Tensor<BHWC, DataType::kInt8>& src_tensor_i8,
+    const ml_drift::Tensor<OHWI, DataType::kInt8>& weights_i8,
     const OperationDef& op_def) {
   const TensorInt32 dst_ref_tensor =
       FullyConnectedReference(src_tensor_i8, weights_i8);
@@ -62,7 +63,7 @@ absl::Status ConvWaveMatrixMaliInt8Test(
                            src_tensor_i8.shape.c));
   {
     TensorDescriptor src_desc_temp = {
-        DataType::INT8, TensorStorageType::TEXTURE_2D, Layout::HWC};
+        DataType::kInt8, TensorStorageType::kTexture2D, Layout::kHWC};
     src_desc_temp.UploadData(src_tensor_i8);
     src_td.UploadDataRaw(absl::MakeConstSpan(src_desc_temp.GetData()));
   }
@@ -86,7 +87,7 @@ absl::Status ConvWaveMatrixMaliInt8BigTest(TestExecutionEnvironment& env,
 
   auto weights_f32 =
       MakeSyntheticTensor(OHWI(dst_channels, 1, 1, src_channels));
-  ml_drift::Tensor<OHWI, DataType::INT8> weights_i8;
+  ml_drift::Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(dst_channels, 1, 1, src_channels);
   weights_i8.data.resize(weights_i8.shape.DimensionsProduct() +
                          +XNN_EXTRA_BYTES / sizeof(uint8_t));
@@ -95,7 +96,7 @@ absl::Status ConvWaveMatrixMaliInt8BigTest(TestExecutionEnvironment& env,
   }
 
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
-  ml_drift::Tensor<BHWC, DataType::INT8> src_i8_tensor;
+  ml_drift::Tensor<BHWC, DataType::kInt8> src_i8_tensor;
   src_i8_tensor.shape = src_shape;
   src_i8_tensor.data.resize(src_shape.DimensionsProduct());
   for (int i = 0; i < src_shape.DimensionsProduct(); ++i) {
@@ -103,12 +104,12 @@ absl::Status ConvWaveMatrixMaliInt8BigTest(TestExecutionEnvironment& env,
   }
 
   {  // float32
-    const DataType src_data_type = DataType::INT32;
-    const DataType dst_data_type = DataType::INT32;
+    const DataType src_data_type = DataType::kInt32;
+    const DataType dst_data_type = DataType::kInt32;
     OperationDef op_def;
     op_def.src_tensors.push_back(
-        {src_data_type, TensorStorageType::TEXTURE_2D, Layout::HWC});
-    op_def.dst_tensors.push_back({dst_data_type, dst_storage, Layout::HWC});
+        {src_data_type, TensorStorageType::kTexture2D, Layout::kHWC});
+    op_def.dst_tensors.push_back({dst_data_type, dst_storage, Layout::kHWC});
     ABSL_RETURN_IF_ERROR(
         ConvWaveMatrixMaliInt8Test(env, src_i8_tensor, weights_i8, op_def));
   }
@@ -118,8 +119,8 @@ absl::Status ConvWaveMatrixMaliInt8BigTest(TestExecutionEnvironment& env,
 namespace {
 absl::Status ConvWaveMatrixMaliInt8ExternalWeightsTest(
     TestExecutionEnvironment& exec_env,
-    const ml_drift::Tensor<BHWC, DataType::INT8>& src_tensor_i8,
-    const ml_drift::Tensor<OHWI, DataType::INT8>& weights_i8,
+    const ml_drift::Tensor<BHWC, DataType::kInt8>& src_tensor_i8,
+    const ml_drift::Tensor<OHWI, DataType::kInt8>& weights_i8,
     const OperationDef& op_def) {
   const TensorInt32 dst_ref_tensor =
       FullyConnectedReference(src_tensor_i8, weights_i8);
@@ -134,8 +135,8 @@ absl::Status ConvWaveMatrixMaliInt8ExternalWeightsTest(
         GetTotalElementsCountForLayout(weights_desc, weights_i8.shape));
     RearrangeWeights(weights_i8, weights_desc, absl::MakeSpan(data));
 
-    weights_i8_td = TensorDescriptor(weights_desc.type,
-                                     TensorStorageType::BUFFER, Layout::LINEAR);
+    weights_i8_td = TensorDescriptor(
+        weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear);
     weights_i8_td.SetBHWDCShape(BHWDC(1, 1, 1, 1, data.size()));
     weights_i8_td.UploadDataRaw(absl::MakeConstSpan(data));
   }
@@ -146,7 +147,7 @@ absl::Status ConvWaveMatrixMaliInt8ExternalWeightsTest(
                            src_tensor_i8.shape.c));
   {
     TensorDescriptor src_desc_temp = {
-        DataType::INT8, TensorStorageType::TEXTURE_2D, Layout::HWC};
+        DataType::kInt8, TensorStorageType::kTexture2D, Layout::kHWC};
     src_desc_temp.UploadData(src_tensor_i8);
     src_td.UploadDataRaw(absl::MakeConstSpan(src_desc_temp.GetData()));
   }
@@ -171,7 +172,7 @@ absl::Status ConvWaveMatrixMaliInt8ExternalWeightsBigTest(
 
   auto weights_f32 =
       MakeSyntheticTensor(OHWI(dst_channels, 1, 1, src_channels));
-  ml_drift::Tensor<OHWI, DataType::INT8> weights_i8;
+  ml_drift::Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(dst_channels, 1, 1, src_channels);
   weights_i8.data.resize(weights_i8.shape.DimensionsProduct() +
                          +XNN_EXTRA_BYTES / sizeof(uint8_t));
@@ -180,19 +181,19 @@ absl::Status ConvWaveMatrixMaliInt8ExternalWeightsBigTest(
   }
 
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
-  ml_drift::Tensor<BHWC, DataType::INT8> src_i8_tensor;
+  ml_drift::Tensor<BHWC, DataType::kInt8> src_i8_tensor;
   src_i8_tensor.shape = src_shape;
   src_i8_tensor.data.resize(src_shape.DimensionsProduct());
   for (int i = 0; i < src_shape.DimensionsProduct(); ++i) {
     src_i8_tensor.data[i] = src_tensor.data[i] * 127.0f;
   }
 
-  const DataType src_data_type = DataType::INT32;
-  const DataType dst_data_type = DataType::INT32;
+  const DataType src_data_type = DataType::kInt32;
+  const DataType dst_data_type = DataType::kInt32;
   OperationDef op_def;
   op_def.src_tensors.push_back(
-      {src_data_type, TensorStorageType::TEXTURE_2D, Layout::HWC});
-  op_def.dst_tensors.push_back({dst_data_type, dst_storage, Layout::HWC});
+      {src_data_type, TensorStorageType::kTexture2D, Layout::kHWC});
+  op_def.dst_tensors.push_back({dst_data_type, dst_storage, Layout::kHWC});
   ABSL_RETURN_IF_ERROR(ConvWaveMatrixMaliInt8ExternalWeightsTest(
       env, src_i8_tensor, weights_i8, op_def));
   return absl::OkStatus();
@@ -203,9 +204,9 @@ namespace {
 absl::Status ConvWaveMatrixMaliInt8WithSrcQuantizationTest(
     TestExecutionEnvironment& exec_env,
     const ml_drift::TensorFloat32& src_tensor,
-    const ml_drift::Tensor<OHWI, DataType::INT8>& weights_i8,
-    const ml_drift::Tensor<Linear, DataType::FLOAT32>& weights_scale,
-    const ml_drift::Tensor<Linear, DataType::FLOAT32>* weights_zero_point,
+    const ml_drift::Tensor<OHWI, DataType::kInt8>& weights_i8,
+    const ml_drift::Tensor<Linear, DataType::kFloat32>& weights_scale,
+    const ml_drift::Tensor<Linear, DataType::kFloat32>* weights_zero_point,
     const DataType float_type, const TensorStorageType float_storage_type,
     const TensorStorageType int_storage_type) {
   FullyConnectedAttributes attr;
@@ -216,11 +217,11 @@ absl::Status ConvWaveMatrixMaliInt8WithSrcQuantizationTest(
 
   TensorDescriptor src_params_td;
   TensorDescriptor src_i8_td;
-  const Layout layout = src_tensor.shape.b == 1 ? Layout::HWC : Layout::BHWC;
+  const Layout layout = src_tensor.shape.b == 1 ? Layout::kHWC : Layout::kBHWC;
   {
     OperationDef op_def;
     op_def.src_tensors.push_back({float_type, float_storage_type, layout});
-    op_def.dst_tensors.push_back({DataType::INT32, int_storage_type, layout});
+    op_def.dst_tensors.push_back({DataType::kInt32, int_storage_type, layout});
     op_def.dst_tensors.push_back({float_type, float_storage_type, layout});
     const bool calculate_sum = weights_zero_point != nullptr;
     auto quantization_op =
@@ -256,8 +257,8 @@ absl::Status ConvWaveMatrixMaliInt8WithSrcQuantizationTest(
       exec_env.GetGpuInfo(), weights_sum_i);
 
   OperationDef conv_def;
-  conv_def.src_tensors.push_back({DataType::INT32, int_storage_type, layout});
-  conv_def.dst_tensors.push_back({DataType::INT32, int_storage_type, layout});
+  conv_def.src_tensors.push_back({DataType::kInt32, int_storage_type, layout});
+  conv_def.dst_tensors.push_back({DataType::kInt32, int_storage_type, layout});
 
   auto conv =
       ConvWaveMatrixMali(exec_env.GetGpuInfo(), conv_def, weights_i8.shape);
@@ -276,8 +277,8 @@ absl::Status ConvWaveMatrixMaliInt8WithSrcQuantizationTest(
         GetTotalElementsCountForLayout(weights_desc, weights_i8.shape));
     RearrangeWeights(weights_i8, weights_desc, absl::MakeSpan(data));
 
-    weights_i8_td = TensorDescriptor(weights_desc.type,
-                                     TensorStorageType::BUFFER, Layout::LINEAR);
+    weights_i8_td = TensorDescriptor(
+        weights_desc.type, TensorStorageType::kBuffer, Layout::kLinear);
     weights_i8_td.SetBHWDCShape(BHWDC(1, 1, 1, 1, data.size()));
     weights_i8_td.UploadDataRaw(absl::MakeConstSpan(data));
   }
@@ -309,7 +310,7 @@ absl::Status ConvWaveMatrixMaliInt8WithSrcQuantizationBigTest(
     TestExecutionEnvironment& env, TensorStorageType int_storage,
     TensorStorageType float_storage, DataType float_type,
     const BHWC& src_shape) {
-  if (float_type != DataType::FLOAT16 && float_type != DataType::FLOAT32) {
+  if (float_type != DataType::kFloat16 && float_type != DataType::kFloat32) {
     return absl::InvalidArgumentError("Unsupported float type: " +
                                       ToString(float_type));
   }
@@ -318,7 +319,7 @@ absl::Status ConvWaveMatrixMaliInt8WithSrcQuantizationBigTest(
 
   auto weights_f32 =
       MakeSyntheticTensor(OHWI(dst_channels, 1, 1, src_channels));
-  ml_drift::Tensor<OHWI, DataType::INT8> weights_i8;
+  ml_drift::Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(dst_channels, 1, 1, src_channels);
   weights_i8.data.resize(weights_i8.shape.DimensionsProduct() +
                          +XNN_EXTRA_BYTES / sizeof(uint8_t));

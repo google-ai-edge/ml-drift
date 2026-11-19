@@ -17,6 +17,7 @@
 
 #include <vector>
 
+#include "absl/status/status.h"
 #include "ml_drift/cl/cl_command_queue.h"
 #include "ml_drift/cl/cl_context.h"
 #include "ml_drift/cl/cl_device.h"
@@ -24,7 +25,6 @@
 #include "ml_drift/cl/util_types.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/precision.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/tensor_desc.h"
 
 namespace ml_drift {

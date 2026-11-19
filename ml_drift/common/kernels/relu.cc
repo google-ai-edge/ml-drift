@@ -54,7 +54,13 @@ GPUOperation CreateReLU(const OperationDef& definition,
                         const ReLUAttributes& attr) {
   ElementwiseDescriptor op_desc =
       CreateReLU(attr, definition.src_tensors[0].GetDataType());
-  return CreateGpuOperation(definition, std::move(op_desc));
+  GPUOperation op = CreateGpuOperation(definition, std::move(op_desc));
+  // Base max(in, min) (1) + leaky alpha mul/min (+2) + upper clamp (+1).
+  const int flops_per_elem =
+      1 + (attr.alpha != 0.0f ? 2 : 0) + (attr.activation_max != 0.0f ? 1 : 0);
+  op.flops_ = definition.dst_tensors[0].GetBHWDCShape().DimensionsProduct() *
+              flops_per_elem;
+  return op;
 }
 
 }  // namespace ml_drift

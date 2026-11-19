@@ -22,6 +22,9 @@
 #include <utility>
 #include <vector>
 
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/time/time.h"
 #include "ml_drift/cl/cl_context.h"
@@ -32,7 +35,6 @@
 #include "ml_drift/cl/util.h"
 #include "ml_drift/cl/util_types.h"
 #include "ml_drift/common/gpu_info.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/profiling_info.h"
 #include "ml_drift/common/types.h"
 

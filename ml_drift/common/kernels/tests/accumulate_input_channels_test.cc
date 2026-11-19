@@ -16,7 +16,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_replace.h"
 #include "ml_drift/common/data_type.h"
@@ -39,20 +39,20 @@ class AccumulateInputChannelsTests
 
 TEST_P(AccumulateInputChannelsTests, AccumulateInputChannelsInt8ToInt32Test) {
   auto& [storage, weights_shape] = GetParam();
-  if (!exec_env->IsStorageSupported(storage, DataType::INT8)) {
+  if (!exec_env->IsStorageSupported(storage, DataType::kInt8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(storage);
   }
-  MLD_ASSERT_OK(AccumulateInputChannelsInt8ToInt32Test(*exec_env, storage,
+  ABSL_ASSERT_OK(AccumulateInputChannelsInt8ToInt32Test(*exec_env, storage,
                                                    weights_shape));
 }
 
 TEST_P(AccumulateInputChannelsTests, AccumulateInputChannelsInt4ToInt32Test) {
   auto& [storage, weights_shape] = GetParam();
   // The input int4 data is stored in int8 (two int4 elements per int8 element).
-  if (!exec_env->IsStorageSupported(storage, DataType::INT8)) {
+  if (!exec_env->IsStorageSupported(storage, DataType::kInt8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(storage);
   }
-  MLD_ASSERT_OK(AccumulateInputChannelsInt4ToInt32Test(*exec_env, storage,
+  ABSL_ASSERT_OK(AccumulateInputChannelsInt4ToInt32Test(*exec_env, storage,
                                                    weights_shape));
 }
 
@@ -60,17 +60,17 @@ TEST_P(AccumulateInputChannelsTests, AccumulateInputChannelsInt2ToInt32Test) {
   auto& [storage, weights_shape] = GetParam();
   // The input int2 data is stored in int8 (four int2 elements per int8
   // element).
-  if (!exec_env->IsStorageSupported(storage, DataType::INT8)) {
+  if (!exec_env->IsStorageSupported(storage, DataType::kInt8)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(storage);
   }
-  MLD_ASSERT_OK(AccumulateInputChannelsInt2ToInt32Test(*exec_env, storage,
+  ABSL_ASSERT_OK(AccumulateInputChannelsInt2ToInt32Test(*exec_env, storage,
                                                    weights_shape));
 }
 
 INSTANTIATE_TEST_SUITE_P(
     AccumulateInputChannelsTestSuite, AccumulateInputChannelsTests,
-    Combine(ValuesIn({TensorStorageType::TEXTURE_2D,
-                      TensorStorageType::BUFFER}),
+    Combine(ValuesIn({TensorStorageType::kTexture2D,
+                      TensorStorageType::kBuffer}),
             ValuesIn({OHWI(4, 1, 1, 8), OHWI(16, 1, 1, 16)})),
     [](const TestParamInfo<AccumulateInputChannelsTests::ParamType>& info) {
       return absl::StrReplaceAll(

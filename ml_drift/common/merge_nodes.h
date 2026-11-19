@@ -15,9 +15,9 @@
 #ifndef ML_DRIFT_COMMON_MERGE_NODES_H_
 #define ML_DRIFT_COMMON_MERGE_NODES_H_
 
+#include "absl/status/status.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/gpu_model.h"
-#include "ml_drift/common/status.h"
 
 namespace ml_drift {
 

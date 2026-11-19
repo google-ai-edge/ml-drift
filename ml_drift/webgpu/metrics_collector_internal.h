@@ -20,7 +20,7 @@
 #include <string>
 #include <vector>
 
-#include "ml_drift/common/status.h"
+#include "absl/status/status.h"
 #include "ml_drift/webgpu/metrics_collector.h"
 #include "ml_drift/webgpu/webgpu_headers.h"
 

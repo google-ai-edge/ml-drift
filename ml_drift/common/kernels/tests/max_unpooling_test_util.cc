@@ -19,11 +19,12 @@
 #include <vector>
 
 #include "gmock/gmock.h"
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/kernels/max_unpooling.h"
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/gpu_operation.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/task/testing_ref_ops.h"
@@ -50,11 +51,11 @@ absl::Status MaxUnpoolingTest(TestExecutionEnvironment& env, DataType data_type,
   attr.strides = HW(2, 2);
   attr.kernel = HW(2, 2);
 
-  const float eps = data_type == DataType::FLOAT32 ? 1e-6f : 1e-3f;
+  const float eps = data_type == DataType::kFloat32 ? 1e-6f : 1e-3f;
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   GPUOperation operation = CreateMaxUnpooling(env.GetGpuInfo(), op_def, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
@@ -82,7 +83,7 @@ absl::Status MaxUnpoolingTest(TestExecutionEnvironment& exec_env,
   auto operation = CreateMaxUnpooling(exec_env.GetGpuInfo(), op_def, attr);
 
   TensorFloat32 dst_tensor;
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(
       {src_tensors[0], src_tensors[1]},
       std::make_unique<GPUOperation>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
@@ -104,7 +105,7 @@ absl::Status MaxUnpoolingTest(TestExecutionEnvironment& exec_env,
   auto operation = CreateMaxUnpooling(exec_env.GetGpuInfo(), op_def, attr);
 
   Tensor5DFloat32 dst_tensor;
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(
       {src_tensors[0], src_tensors[1]},
       std::make_unique<GPUOperation>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
@@ -132,9 +133,9 @@ absl::Status MaxUnpoolingBigTest(TestExecutionEnvironment& env,
   }
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   return MaxUnpoolingTest(env, attr, {src_tensor, src_ind_tensor}, op_def);
 }
 
@@ -156,9 +157,9 @@ absl::Status MaxUnpoolingBatchedBigTest(TestExecutionEnvironment& env,
   }
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWC});
   return MaxUnpoolingTest(env, attr, {src_tensor, src_ind_tensor}, op_def);
 }
 
@@ -181,9 +182,9 @@ absl::Status MaxUnpooling3DBigTest(TestExecutionEnvironment& env,
   }
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWDC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWDC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWDC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWDC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWDC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWDC});
   return MaxUnpoolingTest(env, attr, {src_tensor, src_ind_tensor}, op_def);
 }
 
@@ -206,9 +207,9 @@ absl::Status MaxUnpooling3DBatchedBigTest(TestExecutionEnvironment& env,
   }
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWDC});
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWDC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWDC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWDC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWDC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWDC});
   return MaxUnpoolingTest(env, attr, {src_tensor, src_ind_tensor}, op_def);
 }
 

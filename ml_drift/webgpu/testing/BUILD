@@ -23,9 +23,9 @@ cc_test(
     name = "gpu_weights_conversion_test",
     srcs = ["gpu_weights_conversion_test.cc"],
     tags = [
-        # TODO: b/454117562 - Fix the failures of the test and re-enable it.
+        # TODO: Fix the failures of the test and re-enable it.
         "notap",
-        "requires-gpu-nvidia",
+        "requires-gpu-sm90-full",
     ],
     deps = [
         ":webgpu_test",
@@ -37,10 +37,8 @@ cc_test(
         "//ml_drift/common:model",
         "//ml_drift/common:precision",
         "//ml_drift/common:shape",
-        "//ml_drift/common:status",
         "//ml_drift/common:tensor",
         "//ml_drift/common:util",
-        "//ml_drift/common/default:status_matchers",
         "//ml_drift/common/task:tensor_desc",
         "//ml_drift/common/task:testing_util",
         "//ml_drift/common/task:weights_conversion",
@@ -51,6 +49,10 @@ cc_test(
         "//ml_drift/webgpu:webgpu_api_util",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/log:absl_check",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
+        "@com_google_absl//absl/status:status_matchers",
+        "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/time",
         "@com_google_googletest//:gtest_main",
@@ -58,7 +60,7 @@ cc_test(
 )
 
 # For running on mac:
-# blaze build -c opt --config=darwin_arm64 ml_drift/webgpu/testing:operation_perf_test
+# bazel build -c opt --config=darwin_arm64 ml_drift/webgpu/testing:operation_perf_test
 cc_test(
     name = "operation_perf_test",
     srcs = ["operation_perf_test.cc"],
@@ -69,7 +71,7 @@ cc_test(
         ":perf_util",
         "//ml_drift/common:precision",
         "//ml_drift/common:shape",
-        "//ml_drift/common/default:status_matchers",
+        "@com_google_absl//absl/status:status_matchers",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -84,7 +86,6 @@ cc_library(
         "//ml_drift/common:operations",
         "//ml_drift/common:precision",
         "//ml_drift/common:shape",
-        "//ml_drift/common:status",
         "//ml_drift/common:tensor",
         "//ml_drift/common:util",
         "//ml_drift/common/kernels:conv_constants",
@@ -103,6 +104,8 @@ cc_library(
         "//ml_drift/webgpu:spatial_tensor",
         "//ml_drift/webgpu:webgpu_headers",
         "@XNNPACK",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
         "@com_google_absl//absl/time",
     ],
 )
@@ -116,8 +119,6 @@ cc_library(
         "//ml_drift/common:data_type",
         "//ml_drift/common:gpu_info",
         "//ml_drift/common:precision",
-        "//ml_drift/common:status",
-        "//ml_drift/common/default:status_matchers",
         "//ml_drift/common/task:gpu_operation",
         "//ml_drift/common/task:tensor_desc",
         "//ml_drift/common/task:testing_util",
@@ -126,6 +127,9 @@ cc_library(
         "//ml_drift/webgpu:preprocessor",
         "//ml_drift/webgpu:spatial_tensor",
         "//ml_drift/webgpu:webgpu_headers",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
+        "@com_google_absl//absl/status:status_matchers",
         "@com_google_googletest//:gtest",
     ],
 )

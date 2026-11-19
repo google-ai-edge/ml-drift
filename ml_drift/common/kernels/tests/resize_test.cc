@@ -14,7 +14,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/kernels/tests/kernel_test.h"
 #include "ml_drift/common/kernels/tests/resize_test_util.h"
@@ -34,7 +34,7 @@ TEST_P(ResizeFloatTest, ResizeBilinearAlignedTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ResizeBilinearAlignedTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(ResizeBilinearAlignedTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(ResizeFloatTest, ResizeBilinearNonAlignedTest) {
@@ -42,7 +42,7 @@ TEST_P(ResizeFloatTest, ResizeBilinearNonAlignedTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ResizeBilinearNonAlignedTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(ResizeBilinearNonAlignedTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(ResizeFloatTest, ResizeBilinearWithoutHalfPixelTest) {
@@ -50,7 +50,7 @@ TEST_P(ResizeFloatTest, ResizeBilinearWithoutHalfPixelTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       ResizeBilinearWithoutHalfPixelTest(*exec_env, data_type(), storage()));
 }
 
@@ -59,7 +59,7 @@ TEST_P(ResizeFloatTest, ResizeBilinearWithHalfPixelTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ResizeBilinearWithHalfPixelTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(ResizeBilinearWithHalfPixelTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(ResizeFloatTest, ResizeNearestTest) {
@@ -67,7 +67,7 @@ TEST_P(ResizeFloatTest, ResizeNearestTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ResizeNearestTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(ResizeNearestTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(ResizeFloatTest, ResizeNearestAlignCornersTest) {
@@ -75,7 +75,7 @@ TEST_P(ResizeFloatTest, ResizeNearestAlignCornersTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ResizeNearestAlignCornersTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(ResizeNearestAlignCornersTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(ResizeFloatTest, ResizeNearestHalfPixelCentersTest) {
@@ -83,7 +83,7 @@ TEST_P(ResizeFloatTest, ResizeNearestHalfPixelCentersTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       ResizeNearestHalfPixelCentersTest(*exec_env, data_type(), storage()));
 }
 
@@ -92,7 +92,7 @@ TEST_P(ResizeFloatTest, ResizeBilinearAlignedBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ResizeBilinearAlignedBigTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(ResizeBilinearAlignedBigTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(ResizeFloatTest, ResizeBilinearNonAlignedBigTest) {
@@ -100,7 +100,7 @@ TEST_P(ResizeFloatTest, ResizeBilinearNonAlignedBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ResizeBilinearNonAlignedBigTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(ResizeBilinearNonAlignedBigTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(ResizeFloatTest, ResizeBilinearAlignedBatchedBigTest) {
@@ -108,7 +108,7 @@ TEST_P(ResizeFloatTest, ResizeBilinearAlignedBatchedBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       ResizeBilinearAlignedBatchedBigTest(*exec_env, data_type(), storage()));
 }
 
@@ -117,7 +117,7 @@ TEST_P(ResizeFloatTest, ResizeBilinearNonAlignedBatchedBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ResizeBilinearNonAlignedBatchedBigTest(*exec_env, data_type(),
+  ABSL_ASSERT_OK(ResizeBilinearNonAlignedBatchedBigTest(*exec_env, data_type(),
                                                    storage()));
 }
 
@@ -126,7 +126,7 @@ TEST_P(ResizeFloatTest, ResizeNearestBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ResizeNearestBigTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(ResizeNearestBigTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(ResizeFloatTest, ResizeNearestBatchedBigTest) {
@@ -134,7 +134,7 @@ TEST_P(ResizeFloatTest, ResizeNearestBatchedBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ResizeNearestBatchedBigTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(ResizeNearestBatchedBigTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(ResizeFloatTest, ResizeBilinear3DAlignedBigTest) {
@@ -142,7 +142,7 @@ TEST_P(ResizeFloatTest, ResizeBilinear3DAlignedBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ResizeBilinear3DAlignedBigTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(ResizeBilinear3DAlignedBigTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(ResizeFloatTest, ResizeBilinear3DNonAlignedBigTest) {
@@ -150,7 +150,7 @@ TEST_P(ResizeFloatTest, ResizeBilinear3DNonAlignedBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       ResizeBilinear3DNonAlignedBigTest(*exec_env, data_type(), storage()));
 }
 
@@ -159,7 +159,7 @@ TEST_P(ResizeFloatTest, ResizeBilinear3DAlignedBatchedBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       ResizeBilinear3DAlignedBatchedBigTest(*exec_env, data_type(), storage()));
 }
 
@@ -168,7 +168,7 @@ TEST_P(ResizeFloatTest, ResizeBilinear3DNonAlignedBatchedBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ResizeBilinear3DNonAlignedBatchedBigTest(*exec_env, data_type(),
+  ABSL_ASSERT_OK(ResizeBilinear3DNonAlignedBatchedBigTest(*exec_env, data_type(),
                                                      storage()));
 }
 
@@ -177,7 +177,7 @@ TEST_P(ResizeFloatTest, ResizeNearest3DBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ResizeNearest3DBigTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(ResizeNearest3DBigTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(ResizeFloatTest, ResizeNearest3DBatchedBigTest) {
@@ -185,7 +185,7 @@ TEST_P(ResizeFloatTest, ResizeNearest3DBatchedBigTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(ResizeNearest3DBatchedBigTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(ResizeNearest3DBatchedBigTest(*exec_env, data_type(), storage()));
 }
 
 INSTANTIATE_TEST_SUITE_P(

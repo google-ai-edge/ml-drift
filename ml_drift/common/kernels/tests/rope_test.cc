@@ -14,7 +14,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/kernels/tests/kernel_test.h"
 #include "ml_drift/common/kernels/tests/rope_test_util.h"
@@ -34,7 +34,7 @@ TEST_P(RopeFloatTest, RoPETest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(RoPETest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(RoPETest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(RopeFloatTest, SplitRoPEConcatTest) {
@@ -42,7 +42,7 @@ TEST_P(RopeFloatTest, SplitRoPEConcatTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(SplitRoPEConcatTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(SplitRoPEConcatTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(RopeFloatTest, SplitRoPEConcatIntPositionTest) {
@@ -50,7 +50,7 @@ TEST_P(RopeFloatTest, SplitRoPEConcatIntPositionTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(SplitRoPEConcatIntPositionTest(*exec_env, data_type(), storage()));
+  ABSL_ASSERT_OK(SplitRoPEConcatIntPositionTest(*exec_env, data_type(), storage()));
 }
 
 TEST_P(RopeFloatTest, SplitRoPEConcatIntChannelPositionTest) {
@@ -58,7 +58,7 @@ TEST_P(RopeFloatTest, SplitRoPEConcatIntChannelPositionTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       SplitRoPEConcatIntChannelPositionTest(*exec_env, data_type(), storage()));
 }
 
@@ -67,7 +67,7 @@ TEST_P(RopeFloatTest, SplitRoPEConcatIntSinglePositionTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       SplitRoPEConcatIntSinglePositionTest(*exec_env, data_type(), storage()));
 }
 
@@ -76,7 +76,7 @@ TEST_P(RopeFloatTest, SplitRoPEConcatInterleavedAxialTest) {
     GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
                  << " storage type: " << ToString(storage());
   }
-  MLD_ASSERT_OK(
+  ABSL_ASSERT_OK(
       SplitRoPEConcatInterleavedAxialTest(*exec_env, data_type(), storage()));
 }
 

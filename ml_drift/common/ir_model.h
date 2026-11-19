@@ -25,9 +25,9 @@
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
+#include "absl/status/status.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/tensor_desc.h"
 
 // Defines an intermediate representation (IR) for a computational graph.
@@ -62,6 +62,8 @@ struct IrQuantParams {
 struct BufferSource {
   // True if the tensor is a shared constant.
   bool is_shared = false;
+  // Original tensor ID.
+  int tensor_id = -1;
   // Global buffer id identifying the shared buffer in the shared-memory
   // manager. Only meaningful when is_shared is true.
   int64_t global_id = -1;
@@ -127,13 +129,13 @@ class IrModel {
     const bool has_d = bhwdc.d > 1;
     ::ml_drift::Layout layout;
     if (has_b && has_d) {
-      layout = ::ml_drift::Layout::BHWDC;
+      layout = ::ml_drift::Layout::kBHWDC;
     } else if (has_b) {
-      layout = ::ml_drift::Layout::BHWC;
+      layout = ::ml_drift::Layout::kBHWC;
     } else if (has_d) {
-      layout = ::ml_drift::Layout::HWDC;
+      layout = ::ml_drift::Layout::kHWDC;
     } else {
-      layout = ::ml_drift::Layout::HWC;
+      layout = ::ml_drift::Layout::kHWC;
     }
 
     // Storage type is set during IrModel->GpuModel conversion
@@ -204,6 +206,12 @@ class IrModel {
   // Returns OkStatus if the operation was successfully removed.
   absl::Status RemoveSimpleOp(IrOpId op_id);
 
+  // Removes the given op and unlinks it from its inputs and outputs.
+  // Any tensors that become orphaned (no producer and no consumers) are
+  // automatically deleted. Any surviving tensors that lost their
+  // producer/consumer are updated in graph inputs/outputs accordingly.
+  absl::Status RemoveOp(IrOpId op_id);
+
   // Returns a mutable pointer to the attribute of the specified op, if it
   // exists and the type matches. Otherwise returns nullptr. This should be used
   // safely, ensuring topology conditions are verified before mutation.
@@ -230,12 +238,13 @@ class IrModel {
   template <::ml_drift::Layout L>
   static ::ml_drift::BHWDC ToBHWDC(const ::ml_drift::StrongShape<L>& shape) {
     auto pad = [](int32_t val) { return val < 0 ? 1 : val; };
-    return ::ml_drift::BHWDC(pad(shape.get(::ml_drift::Axis::BATCH)),
-                             pad(shape.get(::ml_drift::Axis::HEIGHT)),
-                             pad(shape.get(::ml_drift::Axis::WIDTH)),
-                             pad(shape.get(::ml_drift::Axis::DEPTH)),
-                             pad(std::max(shape.get(::ml_drift::Axis::CHANNELS),
-                                          shape.get(::ml_drift::Axis::VALUE))));
+    return ::ml_drift::BHWDC(
+        pad(shape.get(::ml_drift::Axis::kBatch)),
+        pad(shape.get(::ml_drift::Axis::kHeight)),
+        pad(shape.get(::ml_drift::Axis::kWidth)),
+        pad(shape.get(::ml_drift::Axis::kDepth)),
+        pad(std::max(shape.get(::ml_drift::Axis::kChannels),
+                     shape.get(::ml_drift::Axis::kValue))));
   }
 };
 

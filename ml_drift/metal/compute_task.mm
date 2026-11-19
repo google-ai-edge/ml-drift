@@ -21,18 +21,22 @@
 #include <tuple>
 #include <utility>
 
-#include "absl/strings/match.h"  // IWYU pragma: keep
-#include "absl/strings/substitute.h"  // IWYU pragma: keep
+#include "absl/status/status.h"           // IWYU pragma: keep
+#include "absl/status/status_macros.h"    // IWYU pragma: keep
+#include "absl/strings/match.h"           // IWYU pragma: keep
+#include "absl/strings/substitute.h"      // IWYU pragma: keep
 #include "ml_drift/common/kernel_info.h"  // IWYU pragma: keep
-#include "ml_drift/common/shape.h"  // IWYU pragma: keep
-#include "ml_drift/common/status.h"  // IWYU pragma: keep
-#include "ml_drift/common/types.h"  // IWYU pragma: keep
-#include "ml_drift/common/util.h"  // IWYU pragma: keep
-#include "ml_drift/metal/common.h"  // IWYU pragma: keep
+#include "ml_drift/common/shape.h"        // IWYU pragma: keep
+#include "ml_drift/common/types.h"        // IWYU pragma: keep
+#include "ml_drift/common/util.h"         // IWYU pragma: keep
+#include "ml_drift/metal/common.h"        // IWYU pragma: keep
 
 namespace ml_drift {
 namespace metal {
 namespace {
+// Maximum length of data that can be passed with setBytes:length:atIndex:.
+constexpr NSUInteger kMaxSetBytesLength = 4096;
+
 bool IsWordSymbol(char symbol) {
   return absl::ascii_isalnum(symbol) || symbol == '_';
 }
@@ -241,7 +245,16 @@ void ComputeTask::Encode(id<MTLComputeCommandEncoder> encoder) {
   [encoder setComputePipelineState:program_];
   if (use_arguments_buffer_) {
     metal_args_.AddResourcesToEncoder(encoder);
-    [encoder setBuffer:arg_buffer_ offset:0 atIndex:0];
+    // arg_buffer_ is rewritten by the CPU whenever a tensor is rebound (see
+    // UpdateArgumentBuffer()). Copy it into the command buffer so that this
+    // dispatch keeps the bindings it was encoded with, even if the tensors are
+    // rebound for the next run before this command buffer is executed.
+    const NSUInteger arg_length = arguments_encoder_.encodedLength;
+    if (arg_length <= kMaxSetBytesLength) {
+      [encoder setBytes:[arg_buffer_ contents] length:arg_length atIndex:0];
+    } else {
+      [encoder setBuffer:arg_buffer_ offset:0 atIndex:0];
+    }
   } else {
     metal_args_.Encode(encoder, 0);
   }
@@ -255,30 +268,34 @@ void ComputeTask::Encode(id<MTLComputeCommandEncoder> encoder) {
   [encoder dispatchThreadgroups:groupsCount threadsPerThreadgroup:groupsSize];
 }
 
-void ComputeTask::SetSrcTensor(MetalSpatialTensor* tensor, int index) {
+absl::Status ComputeTask::SetSrcTensor(MetalSpatialTensor* tensor, int index) {
   operation_->SetSrc(tensor, index);
-  auto status = metal_args_.SetObjectRef(
-      operation_->GetSrcTensorsNames()[index], *tensor);
+  ABSL_RETURN_IF_ERROR(metal_args_.SetObjectRef(
+      operation_->GetSrcTensorsNames()[index], *tensor));
   UpdateArgumentBuffer();
+  return absl::OkStatus();
 }
 
-void ComputeTask::SetDstTensor(MetalSpatialTensor* tensor, int index) {
+absl::Status ComputeTask::SetDstTensor(MetalSpatialTensor* tensor, int index) {
   operation_->SetDst(tensor, index);
-  auto status = metal_args_.SetObjectRef(
-      operation_->GetDstTensorsNames()[index], *tensor);
+  ABSL_RETURN_IF_ERROR(metal_args_.SetObjectRef(
+      operation_->GetDstTensorsNames()[index], *tensor));
   UpdateArgumentBuffer();
+  return absl::OkStatus();
 }
 
-void ComputeTask::SetSrcBuffer(Buffer* buffer, int index) {
-  auto status = metal_args_.SetObjectRef(
-      operation_->GetSrcTensorsNames()[index], *buffer);
+absl::Status ComputeTask::SetSrcBuffer(Buffer* buffer, int index) {
+  ABSL_RETURN_IF_ERROR(metal_args_.SetObjectRef(
+      operation_->GetSrcTensorsNames()[index], *buffer));
   UpdateArgumentBuffer();
+  return absl::OkStatus();
 }
 
-void ComputeTask::SetDstBuffer(Buffer* buffer, int index) {
-  auto status = metal_args_.SetObjectRef(
-      operation_->GetDstTensorsNames()[index], *buffer);
+absl::Status ComputeTask::SetDstBuffer(Buffer* buffer, int index) {
+  ABSL_RETURN_IF_ERROR(metal_args_.SetObjectRef(
+      operation_->GetDstTensorsNames()[index], *buffer));
   UpdateArgumentBuffer();
+  return absl::OkStatus();
 }
 
 absl::Status ComputeTask::Tune(TuningType tuning_type, Environment* env) {

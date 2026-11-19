@@ -20,12 +20,13 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/kernels/strided_slice.h"
 #include "ml_drift/common/operations.h"
 #include "ml_drift/common/shape.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/task/gpu_operation.h"
 #include "ml_drift/common/task/tensor_desc.h"
 #include "ml_drift/common/task/testing_ref_ops.h"
@@ -54,8 +55,8 @@ absl::Status StridedSliceTest(TestExecutionEnvironment& env, DataType data_type,
   attr.strides = BHWC(1, 1, 2, 2);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::HWC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kHWC});
   TensorFloat32 dst_tensor;
   StridedSlice operation = CreateStridedSlice(op_def, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
@@ -78,8 +79,8 @@ absl::Status StridedSliceBoolTest(TestExecutionEnvironment& env,
   attr.strides = BHWC(1, 1, 1, 1);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({DataType::BOOL, storage, Layout::HWC});
-  op_def.dst_tensors.push_back({DataType::BOOL, storage, Layout::HWC});
+  op_def.src_tensors.push_back({DataType::kBool, storage, Layout::kHWC});
+  op_def.dst_tensors.push_back({DataType::kBool, storage, Layout::kHWC});
 
   TensorDescriptor src_desc, dst_desc;
   src_desc = op_def.src_tensors[0];
@@ -107,13 +108,13 @@ absl::Status StridedSliceBigTest(TestExecutionEnvironment& exec_env,
                         SliceReference(attr, src_tensor));
 
   OperationDef op_def;
-  const Layout layout = src_shape.b > 1 ? Layout::BHWC : Layout::HWC;
+  const Layout layout = src_shape.b > 1 ? Layout::kBHWC : Layout::kHWC;
   op_def.src_tensors.push_back({data_type, storage, layout});
   op_def.dst_tensors.push_back({data_type, storage, layout});
   StridedSlice operation = CreateStridedSlice(op_def, attr);
 
   TensorFloat32 dst_tensor;
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(
       src_tensor, std::make_unique<StridedSlice>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data,
@@ -140,8 +141,8 @@ absl::Status StridedSlice3DTest(TestExecutionEnvironment& env,
   attr.strides = BHWDC(1, 1, 2, 1, 2);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWDC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWDC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWDC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWDC});
   Tensor5DFloat32 dst_tensor;
   StridedSlice operation = CreateStridedSlice(op_def, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
@@ -170,8 +171,8 @@ absl::Status StridedSlice3DPaddedGridTest(TestExecutionEnvironment& env,
   attr.strides = BHWDC(1, 1, 1, 1, 1);
 
   OperationDef op_def;
-  op_def.src_tensors.push_back({data_type, storage, Layout::BHWDC});
-  op_def.dst_tensors.push_back({data_type, storage, Layout::BHWDC});
+  op_def.src_tensors.push_back({data_type, storage, Layout::kBHWDC});
+  op_def.dst_tensors.push_back({data_type, storage, Layout::kBHWDC});
   Tensor5DFloat32 dst_tensor;
   StridedSlice operation = CreateStridedSlice(op_def, attr);
   ABSL_RETURN_IF_ERROR(env.ExecuteGPUOperation(
@@ -191,13 +192,13 @@ absl::Status StridedSlice3DBigTest(TestExecutionEnvironment& exec_env,
                         SliceReference(attr, src_tensor));
 
   OperationDef op_def;
-  const Layout layout = Layout::BHWDC;
+  const Layout layout = Layout::kBHWDC;
   op_def.src_tensors.push_back({data_type, storage, layout});
   op_def.dst_tensors.push_back({data_type, storage, layout});
   StridedSlice operation = CreateStridedSlice(op_def, attr);
 
   Tensor5DFloat32 dst_tensor;
-  MLD_EXPECT_OK(exec_env.ExecuteGPUOperation(
+  ABSL_EXPECT_OK(exec_env.ExecuteGPUOperation(
       src_tensor, std::make_unique<StridedSlice>(std::move(operation)),
       dst_ref_tensor.shape, &dst_tensor));
   EXPECT_THAT(dst_tensor.data,

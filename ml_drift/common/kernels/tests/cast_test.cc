@@ -17,7 +17,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ml_drift/common/default/status_matchers.h"
+#include "absl/status/status_matchers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_replace.h"
 #include "ml_drift/common/data_type.h"
@@ -43,48 +43,48 @@ class CastTest : public Test,
 };
 
 TEST_P(CastTest, Base) {
-  if (!exec_env->IsStorageSupported(src_storage(), DataType::FLOAT32) ||
-      !exec_env->IsStorageSupported(dst_storage(), DataType::INT32)) {
+  if (!exec_env->IsStorageSupported(src_storage(), DataType::kFloat32) ||
+      !exec_env->IsStorageSupported(dst_storage(), DataType::kInt32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(src_storage())
                  << " to " << ToString(dst_storage());
   }
-  MLD_ASSERT_OK(CastBaseTest(*exec_env, src_storage(), dst_storage()));
+  ABSL_ASSERT_OK(CastBaseTest(*exec_env, src_storage(), dst_storage()));
 }
 
 TEST_P(CastTest, ToBool) {
-  if (!exec_env->IsStorageSupported(src_storage(), DataType::FLOAT32) ||
-      !exec_env->IsStorageSupported(dst_storage(), DataType::BOOL)) {
+  if (!exec_env->IsStorageSupported(src_storage(), DataType::kFloat32) ||
+      !exec_env->IsStorageSupported(dst_storage(), DataType::kBool)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(src_storage())
                  << " to " << ToString(dst_storage());
   }
-  MLD_ASSERT_OK(CastToBoolTest(*exec_env, src_storage(), dst_storage()));
+  ABSL_ASSERT_OK(CastToBoolTest(*exec_env, src_storage(), dst_storage()));
 }
 
 TEST_P(CastTest, FromBool) {
-  if (!exec_env->IsStorageSupported(src_storage(), DataType::BOOL) ||
-      !exec_env->IsStorageSupported(dst_storage(), DataType::FLOAT32)) {
+  if (!exec_env->IsStorageSupported(src_storage(), DataType::kBool) ||
+      !exec_env->IsStorageSupported(dst_storage(), DataType::kFloat32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(src_storage())
                  << " to " << ToString(dst_storage());
   }
-  MLD_ASSERT_OK(CastFromBoolTest(*exec_env, src_storage(), dst_storage()));
+  ABSL_ASSERT_OK(CastFromBoolTest(*exec_env, src_storage(), dst_storage()));
 }
 
 TEST_P(CastTest, ToBfloat) {
-  if (!exec_env->IsStorageSupported(src_storage(), DataType::INT32) ||
-      !exec_env->IsStorageSupported(dst_storage(), DataType::BFLOAT16)) {
+  if (!exec_env->IsStorageSupported(src_storage(), DataType::kInt32) ||
+      !exec_env->IsStorageSupported(dst_storage(), DataType::kBfloat16)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(src_storage())
                  << " to " << ToString(dst_storage());
   }
-  MLD_ASSERT_OK(CastToBfloatTest(*exec_env, src_storage(), dst_storage()));
+  ABSL_ASSERT_OK(CastToBfloatTest(*exec_env, src_storage(), dst_storage()));
 }
 
 TEST_P(CastTest, FromBfloat) {
-  if (!exec_env->IsStorageSupported(src_storage(), DataType::BFLOAT16) ||
-      !exec_env->IsStorageSupported(dst_storage(), DataType::INT32)) {
+  if (!exec_env->IsStorageSupported(src_storage(), DataType::kBfloat16) ||
+      !exec_env->IsStorageSupported(dst_storage(), DataType::kInt32)) {
     GTEST_SKIP() << "Unsupported storage type: " << ToString(src_storage())
                  << " to " << ToString(dst_storage());
   }
-  MLD_ASSERT_OK(CastFromBfloatTest(*exec_env, src_storage(), dst_storage()));
+  ABSL_ASSERT_OK(CastFromBfloatTest(*exec_env, src_storage(), dst_storage()));
 }
 
 INSTANTIATE_TEST_SUITE_P(CastTestSuite, CastTest,

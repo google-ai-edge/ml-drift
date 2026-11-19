@@ -21,12 +21,13 @@
 #include <utility>
 #include <vector>
 
+#include "absl/status/status.h"
+#include "absl/status/status_macros.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
 #include "ml_drift/common/gpu_info.h"
-#include "ml_drift/common/status.h"
 
 namespace ml_drift {
 namespace webgpu {

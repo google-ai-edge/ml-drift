@@ -80,11 +80,11 @@ void ConvolutionTransposedThin::UploadData(const GpuInfo& gpu_info,
   desc.element_type = dst_type;
   desc.element_size = 4;
   desc.memory_type =
-      gpu_info.IsApiWebGpu() ? MemoryType::GLOBAL : MemoryType::CONSTANT;
+      gpu_info.IsApiWebGpu() ? MemoryType::kGlobal : MemoryType::kConstant;
   desc.size = SizeOf(dst_type) * 4 * (flt4_count + 1);
   desc.data.resize(desc.size);
 
-  if (dst_type == DataType::FLOAT32) {
+  if (dst_type == DataType::kFloat32) {
     float4* gpu_data = reinterpret_cast<float4*>(desc.data.data());
     RearrangeWeightsData(weights, absl::MakeSpan(gpu_data, flt4_count));
     float4 bias_value(0.0f);
@@ -92,7 +92,7 @@ void ConvolutionTransposedThin::UploadData(const GpuInfo& gpu_info,
       bias_value[i] = biases.data.empty() ? 0.0f : biases.data[i];
     }
     gpu_data[flt4_count] = bias_value;
-  } else if (dst_type == DataType::FLOAT16) {
+  } else if (dst_type == DataType::kFloat16) {
     half4* gpu_data = reinterpret_cast<half4*>(desc.data.data());
     RearrangeWeightsData(weights, absl::MakeSpan(gpu_data, flt4_count));
     half4 bias_value(0.0f);

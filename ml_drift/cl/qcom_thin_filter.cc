@@ -16,7 +16,7 @@
 
 #include <utility>
 
-#include "ml_drift/common/status.h"
+#include "absl/status/status.h"
 #include "ml_drift/cl/cl_context.h"
 #include "ml_drift/cl/gpu_object.h"
 #include "ml_drift/cl/opencl_wrapper.h"

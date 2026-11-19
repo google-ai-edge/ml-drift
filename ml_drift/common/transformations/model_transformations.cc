@@ -16,10 +16,9 @@
 
 #include <memory>
 
-#include "ml_drift/common/custom_transformations.h"
+#include "absl/status/status.h"
 #include "ml_drift/common/model.h"
 #include "ml_drift/common/model_transformer.h"
-#include "ml_drift/common/status.h"
 #include "ml_drift/common/transformations/add_quant_adjustments.h"
 #include "ml_drift/common/transformations/fuse_add_to_conv.h"
 #include "ml_drift/common/transformations/fuse_mul_to_conv.h"
@@ -43,6 +42,10 @@ bool ApplyGeneralTransformations(ModelTransformer* transformer) {
                             NewRemoveSingleInputAdd().get()) &&
          transformer->Apply("remove_single_input_concat",
                             NewRemoveSingleInputConcat().get()) &&
+         transformer->Apply("remove_identity_reshape",
+                            NewRemoveIdentityReshape().get()) &&
+         transformer->Apply("merge_consecutive_reshapes",
+                            NewMergeConsecutiveReshapes().get()) &&
          transformer->Apply("remove_identity_reshape",
                             NewRemoveIdentityReshape().get()) &&
          transformer->Apply("remove_identity_strided_slice",
@@ -81,9 +84,6 @@ bool ApplyGpuSpecificTransformations(ModelTransformer* transformer) {
 
 absl::Status ApplyGpuModelTransformations(GraphFloat32* graph) {
   ModelTransformer transformer(graph);
-  if (!ApplyCustomTransformations(&transformer)) {
-    return absl::InternalError("Graph custom transformations failed");
-  }
   if (!ApplyGeneralTransformations(&transformer)) {
     return absl::InternalError("Graph general transformations failed");
   }

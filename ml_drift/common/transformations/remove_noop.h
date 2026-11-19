@@ -33,6 +33,9 @@ std::unique_ptr<SequenceTransformation> NewRemoveDegenerateUpsampling();
 // Removes a Reshape node if the input and output shapes are the same.
 std::unique_ptr<NodeTransformation> NewRemoveIdentityReshape();
 
+// Merges two consecutive Reshape nodes into a single Reshape node.
+std::unique_ptr<SequenceTransformation> NewMergeConsecutiveReshapes();
+
 // Removes a StridedSlice node if it does not change the input tensor.
 std::unique_ptr<NodeTransformation> NewRemoveIdentityStridedSlice();
 
