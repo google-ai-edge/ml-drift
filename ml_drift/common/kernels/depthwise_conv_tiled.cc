@@ -162,7 +162,7 @@ class DepthwiseConvTiled : public GPUOperation {
   std::vector<int3> GetPossibleKernelWorkGroups(
       TuningType tuning_type, const GpuInfo& gpu_info,
       const KernelInfo& kernel_info) const override {
-    if (tuning_type != TuningType::kExhaustive) {
+    if (tuning_type != TuningType::kExhaustive || fixed_work_group_size_) {
       return {work_group_size_};
     } else {
       return GetPossibleWorkGroups(tuning_type, gpu_info, kernel_info,
@@ -170,6 +170,9 @@ class DepthwiseConvTiled : public GPUOperation {
     }
   }
   int y_tile_size_;
+  // The kernel declares reqd_work_group_size(work_group_size_), so the driver
+  // rejects every other work group size.
+  bool fixed_work_group_size_ = false;
 };
 
 std::unique_ptr<GPUOperation> CreateDepthwiseConvTiled(
@@ -217,6 +220,7 @@ std::unique_ptr<GPUOperation> CreateDepthwiseConvTiled(
   }
   std::string c;
   if (gpu_info.IsApiOpenCl() && gpu_info.IsPowerVR()) {
+    op.fixed_work_group_size_ = true;
     c += "__attribute__((reqd_work_group_size(" +
          std::to_string(op.work_group_size_.x) + ", " +
          std::to_string(op.work_group_size_.y) + ", " +
