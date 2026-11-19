@@ -24,8 +24,29 @@ namespace ml_drift {
 absl::Status ConvWaveMatrixMaliF161x1BigTest(TestExecutionEnvironment& env,
                                              TensorStorageType storage);
 
+absl::Status ConvWaveMatrixMaliF161x1BatchTest(TestExecutionEnvironment& env,
+                                               TensorStorageType storage);
+
 absl::Status ConvWaveMatrixMaliF16BigTest(TestExecutionEnvironment& env,
                                           TensorStorageType storage);
+
+absl::Status ConvWaveMatrixMaliF16BatchTest(TestExecutionEnvironment& env,
+                                            TensorStorageType storage);
+
+absl::Status ConvWaveMatrixMaliF16ExternalWeightsBigTest(
+    TestExecutionEnvironment& env, TensorStorageType storage);
+
+absl::Status ConvWaveMatrixMaliF16ExternalBatchedWeightsBigTest(
+    TestExecutionEnvironment& env, TensorStorageType storage);
+
+absl::Status ConvWaveMatrixMaliF16PackedGroupsTest(
+    TestExecutionEnvironment& env, TensorStorageType storage);
+
+absl::Status ConvWaveMatrixMaliF16RuntimeSrcEndChannelsTest(
+    TestExecutionEnvironment& env, TensorStorageType storage);
+
+absl::Status ConvWaveMatrixMaliF16RuntimeDstEndChannelsTest(
+    TestExecutionEnvironment& env, TensorStorageType storage);
 
 }  // namespace ml_drift
 

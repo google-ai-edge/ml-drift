@@ -22,6 +22,7 @@
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "ml_drift/cl/opencl_wrapper.h"
 #include "ml_drift/cl/util_types.h"
@@ -34,6 +35,18 @@ namespace ml_drift {
 namespace cl {
 
 std::string CLErrorCodeToString(cl_int error_code);
+
+// Returns true if `error_code` indicates an OpenCL memory or device resource
+// exhaustion failure (`CL_MEM_OBJECT_ALLOCATION_FAILURE`,
+// `CL_OUT_OF_RESOURCES`, `CL_OUT_OF_HOST_MEMORY`, `CL_INVALID_BUFFER_SIZE`, or
+// `CL_INVALID_IMAGE_SIZE`).
+bool IsOpenCLResourceExhausted(cl_int error_code);
+
+// Translates an OpenCL allocation failure `error_code` into
+// `absl::ResourceExhaustedError(message)` when `IsOpenCLResourceExhausted` is
+// true, or `absl::UnknownError(message)` otherwise.
+absl::Status OpenCLAllocationError(cl_int error_code,
+                                   absl::string_view message);
 
 int ChannelTypeToSizeInBytes(cl_channel_type type);
 
@@ -75,10 +88,6 @@ std::vector<std::string> GetUnsupportedExtensions();
 // what the device reports.
 std::vector<std::string> GetPrivateExtensions(const GpuInfo& gpu_info);
 
-// Returns true if "ucl_wave_memory" can be enabled on the given Adreno GPU.
-// Provided by the platform-specific util library (cl/default or cl/google).
-bool AdrenoSupportsWaveMemory(const GpuInfo& gpu_info);
-
 void AppendContextHints(const GpuInfo& gpu_info,
                         PerformanceHint performance_hint,
                         PriorityHint priority_hint,
@@ -90,10 +99,6 @@ void AppendCommandQueueHints(const GpuInfo& gpu_info,
 
 AdrenoInfo::OpenClCompilerVersion GetQualcommOpenClCompilerVersion(
     const std::string& cl_driver_version);
-
-// Patches a compiled Adreno program binary in place. Provided by the
-// platform-specific util library (cl/default or cl/google).
-void FixAdrenoBinary(std::vector<uint8_t>* binary);
 
 std::string GetImgPixelSubgroupDotSample();
 

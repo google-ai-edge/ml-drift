@@ -18,6 +18,7 @@
 
 #include "gtest/gtest.h"
 #include "absl/status/status_matchers.h"
+#include "ml_drift/common/data_type.h"
 #include "ml_drift/common/shape.h"
 
 namespace ml_drift {
@@ -145,6 +146,106 @@ TEST(WeightsLayoutTest, IsOISpatialOGroupSingleAxis) {
     EXPECT_FALSE(
         CreateWeightsDescription(false, {axis}).IsOISpatialOGroupO4I4());
   }
+}
+
+TEST(WeightsLayoutTest, CustomGroupsI2gr0O8I2gr1O2Properties) {
+  WeightsDescription desc;
+  desc.type = DataType::kFloat32;
+  desc.layout = WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2;
+  desc.output_group_size = 8;
+  desc.group_sizes = {{Axis::kOutputChannels, 4}, {Axis::kInputChannels, 4},
+                      {Axis::kWidth, 0},          {Axis::kHeight, 0},
+                      {Axis::kInputChannels, 0},  {Axis::kOutputChannels, 0}};
+
+  EXPECT_EQ(ToString(WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2),
+            "kCustomGroupsI2gr0O8I2gr1O2");
+  EXPECT_EQ(ToString(desc),
+            "float32_kCustomGroupsI2gr0O8I2gr1O2_o4_i4_w_h_i_o");
+  EXPECT_TRUE(desc.IsLinearLayout());
+  EXPECT_FALSE(desc.IsI4O4());
+  EXPECT_FALSE(desc.IsO4I4());
+  EXPECT_FALSE(desc.IsOISpatialOGroupI4O4());
+  EXPECT_FALSE(desc.IsOISpatialOGroupO4I4());
+  EXPECT_EQ(desc.GetOutputGroupSize(), 1);
+
+  WeightsDescription same_desc = desc;
+  same_desc.output_group_size = 2;
+  EXPECT_EQ(desc, same_desc);
+
+  WeightsDescription diff_desc = desc;
+  diff_desc.group_sizes.back().first = Axis::kInputChannels;
+  EXPECT_NE(desc, diff_desc);
+}
+
+TEST(WeightsLayoutTest, CustomGroupsOgr1Ogr2Ogr0Properties) {
+  WeightsDescription desc;
+  desc.type = DataType::kFloat16;
+  desc.layout = WeightsLayout::kCustomGroupsOgr1Ogr2Ogr0;
+  desc.output_group_size = 8;
+  desc.params0 = {2, 4, 8};
+  desc.group_sizes = {{Axis::kInputChannels, 16}, {Axis::kOutputChannels, 3},
+                      {Axis::kInputChannels, 0},  {Axis::kWidth, 0},
+                      {Axis::kHeight, 0},         {Axis::kOutputChannels, 0}};
+
+  EXPECT_EQ(ToString(WeightsLayout::kCustomGroupsOgr1Ogr2Ogr0),
+            "kCustomGroupsOgr1Ogr2Ogr0");
+  EXPECT_EQ(ToString(desc),
+            "float16_kCustomGroupsO4gr1O8gr2O2gr0_i16_o3_i_w_h_o");
+  EXPECT_TRUE(desc.IsLinearLayout());
+  EXPECT_FALSE(desc.IsI4O4());
+  EXPECT_FALSE(desc.IsO4I4());
+  EXPECT_FALSE(desc.IsOISpatialOGroupI4O4());
+  EXPECT_FALSE(desc.IsOISpatialOGroupO4I4());
+  EXPECT_EQ(desc.GetOutputGroupSize(), 1);
+
+  WeightsDescription same_desc = desc;
+  same_desc.output_group_size = 2;
+  EXPECT_EQ(desc, same_desc);
+
+  WeightsDescription diff_o_gr2 = desc;
+  diff_o_gr2.params0.o_gr2_size = 2;
+  EXPECT_NE(desc, diff_o_gr2);
+
+  WeightsDescription diff_desc = desc;
+  diff_desc.group_sizes.back().first = Axis::kInputChannels;
+  EXPECT_NE(desc, diff_desc);
+}
+
+TEST(WeightsLayoutTest, CustomGroupsOgr0Igr1Ogr1Igr0Properties) {
+  WeightsDescription desc;
+  desc.type = DataType::kFloat16;
+  desc.layout = WeightsLayout::kCustomGroupsOgr0Igr1Ogr1Igr0;
+  desc.output_group_size = 8;
+  desc.params1 = {2, 8, 16, 4};
+  desc.group_sizes = {{Axis::kOutputChannels, 3},
+                      {Axis::kInputChannels, 0},
+                      {Axis::kWidth, 0},
+                      {Axis::kHeight, 0},
+                      {Axis::kOutputChannels, 0}};
+
+  EXPECT_EQ(ToString(WeightsLayout::kCustomGroupsOgr0Igr1Ogr1Igr0),
+            "kCustomGroupsOgr0Igr1Ogr1Igr0");
+  EXPECT_EQ(ToString(desc),
+            "float16_kCustomGroupsO16gr0I8gr1O4gr1I2gr0_o3_i_w_h_o");
+  EXPECT_TRUE(desc.IsLinearLayout());
+  EXPECT_FALSE(desc.IsI4O4());
+  EXPECT_FALSE(desc.IsO4I4());
+  EXPECT_FALSE(desc.IsOISpatialOGroupI4O4());
+  EXPECT_FALSE(desc.IsOISpatialOGroupO4I4());
+  EXPECT_EQ(desc.GetOutputGroupSize(), 1);
+
+  WeightsDescription same_desc = desc;
+  same_desc.output_group_size = 2;
+  same_desc.params0 = {9, 9, 9};
+  EXPECT_EQ(desc, same_desc);
+
+  WeightsDescription diff_o_gr1 = desc;
+  diff_o_gr1.params1.o_gr1_size = 2;
+  EXPECT_NE(desc, diff_o_gr1);
+
+  WeightsDescription diff_desc = desc;
+  diff_desc.group_sizes.back().first = Axis::kInputChannels;
+  EXPECT_NE(desc, diff_desc);
 }
 
 }  // namespace

@@ -28,6 +28,7 @@
 #include "absl/strings/str_split.h"
 #include "ml_drift/cl/opencl_wrapper.h"
 #include "ml_drift/cl/util.h"
+#include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/types.h"
 
@@ -87,6 +88,44 @@ OpenClInfo::ClKhrIntegerDotProductInfo GetClKhrIntegerDotProductInfo(
         accelerate_cap.accumulating_saturating_mixed_signedness_accelerated;
   }
   return khr_8bit_info;
+}
+
+std::vector<WaveMatMulOpDescriptor> GetQcomCooperativeMatrices() {
+  // for Adreno 850
+  std::vector<WaveMatMulOpDescriptor> wave_mat_mul_ops;
+  for (int n_tile : {16, 32, 64}) {
+    WaveMatMulOpDescriptor matmul_desc;
+    matmul_desc.m_size = 64;
+    matmul_desc.n_size = n_tile;
+    // fp32xfp32->fp32, emulated on Adreno 850
+    matmul_desc.k_size = 8;
+    matmul_desc.left_type = DataType::kFloat32;
+    matmul_desc.right_type = DataType::kFloat32;
+    matmul_desc.result_type = DataType::kFloat32;
+    wave_mat_mul_ops.push_back(matmul_desc);
+    // fp16xfp16->fp16
+    matmul_desc.k_size = 16;
+    matmul_desc.left_type = DataType::kFloat16;
+    matmul_desc.right_type = DataType::kFloat16;
+    matmul_desc.result_type = DataType::kFloat16;
+    wave_mat_mul_ops.push_back(matmul_desc);
+    // fp16xfp16->fp32
+    matmul_desc.result_type = DataType::kFloat32;
+    wave_mat_mul_ops.push_back(matmul_desc);
+    // i8xi8->i32
+    matmul_desc.k_size = 32;
+    matmul_desc.left_type = DataType::kInt8;
+    matmul_desc.right_type = DataType::kInt8;
+    matmul_desc.result_type = DataType::kInt32;
+    wave_mat_mul_ops.push_back(matmul_desc);
+    // u8xu8->u32
+    matmul_desc.k_size = 32;
+    matmul_desc.left_type = DataType::kUint8;
+    matmul_desc.right_type = DataType::kUint8;
+    matmul_desc.result_type = DataType::kUint32;
+    wave_mat_mul_ops.push_back(matmul_desc);
+  }
+  return wave_mat_mul_ops;
 }
 }  // namespace
 
@@ -420,6 +459,10 @@ GpuInfo GpuInfoFromDeviceID(cl_device_id id, cl_platform_id platform_id) {
         }
       }
     }
+  }
+
+  if (info.SupportsExtension("cl_qcom_kernel_cooperative_matrix")) {
+    info.wave_mat_mul_ops = GetQcomCooperativeMatrices();
   }
 
   return info;

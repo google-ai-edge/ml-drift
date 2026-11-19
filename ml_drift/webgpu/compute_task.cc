@@ -218,7 +218,8 @@ absl::Status ComputeTask::SetDstBuffer(int index, Buffer* buffer) {
 }
 
 absl::Status ComputeTask::Tune(const Environment& env, TuningType tuning_type) {
-  if (!env.GetInfo().webgpu_info.supports_timestamp_query) {
+  if (tuning_type == TuningType::kExhaustive &&
+      !env.GetInfo().webgpu_info.supports_timestamp_query) {
     tuning_type = TuningType::kFast;
   }
   KernelInfo kernel_info;

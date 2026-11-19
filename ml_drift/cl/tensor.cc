@@ -63,11 +63,13 @@ absl::Status AllocateTensorMemoryInternal(const CLContext& context,
           clCreateBuffer(context.context(), mem_flags, data_size,
                          const_cast<uint8_t*>(data_ptr), &error_code);
       if (!memory) {
-        return absl::UnknownError(absl::StrCat(
-            "MLDrift OpenCL Tensor ", ToStringWithShape(tensor_desc),
-            ": Failed to allocate device memory "
-            "(clCreateBuffer): ",
-            CLErrorCodeToString(error_code), ", buffer size: ", data_size));
+        return OpenCLAllocationError(
+            error_code, absl::StrCat("MLDrift OpenCL Tensor ",
+                                     ToStringWithShape(tensor_desc),
+                                     ": Failed to allocate device memory "
+                                     "(clCreateBuffer): ",
+                                     CLErrorCodeToString(error_code),
+                                     ", buffer size: ", data_size));
       }
       *result = CLMemory(memory, true);
       return absl::OkStatus();
@@ -93,12 +95,14 @@ absl::Status AllocateTensorMemoryInternal(const CLContext& context,
           context.context(), mem_flags, &format, &image_desc,
           const_cast<uint8_t*>(data_ptr), &error_code);
       if (error_code != CL_SUCCESS) {
-        return absl::UnknownError(absl::StrCat(
-            "MLDrift OpenCL Tensor ", ToStringWithShape(tensor_desc),
-            ": Failed to create 2D texture "
-            "(clCreateImage): ",
-            CLErrorCodeToString(error_code), ", texture width: ",
-            storage_dims[0], ", texture height: ", storage_dims[1]));
+        return OpenCLAllocationError(
+            error_code, absl::StrCat("MLDrift OpenCL Tensor ",
+                                     ToStringWithShape(tensor_desc),
+                                     ": Failed to create 2D texture "
+                                     "(clCreateImage): ",
+                                     CLErrorCodeToString(error_code),
+                                     ", texture width: ", storage_dims[0],
+                                     ", texture height: ", storage_dims[1]));
       }
 
       *result = CLMemory(memory, true);
@@ -125,13 +129,15 @@ absl::Status AllocateTensorMemoryInternal(const CLContext& context,
           context.context(), mem_flags, &format, &image_desc,
           const_cast<uint8_t*>(data_ptr), &error_code);
       if (error_code != CL_SUCCESS) {
-        return absl::UnknownError(absl::StrCat(
-            "MLDrift OpenCL Tensor ", ToStringWithShape(tensor_desc),
-            ": Failed to create 3D texture "
-            "(clCreateImage): ",
-            CLErrorCodeToString(error_code), ", texture width: ",
-            storage_dims[0], ", texture height: ", storage_dims[1],
-            ", texture depth: ", storage_dims[2]));
+        return OpenCLAllocationError(
+            error_code, absl::StrCat("MLDrift OpenCL Tensor ",
+                                     ToStringWithShape(tensor_desc),
+                                     ": Failed to create 3D texture "
+                                     "(clCreateImage): ",
+                                     CLErrorCodeToString(error_code),
+                                     ", texture width: ", storage_dims[0],
+                                     ", texture height: ", storage_dims[1],
+                                     ", texture depth: ", storage_dims[2]));
       }
 
       *result = CLMemory(memory, true);
@@ -159,13 +165,15 @@ absl::Status AllocateTensorMemoryInternal(const CLContext& context,
           clCreateImage(context.context(), mem_flags, &format, &image_desc,
                         const_cast<uint8_t*>(data_ptr), &error_code);
       if (error_code != CL_SUCCESS) {
-        return absl::UnknownError(absl::StrCat(
-            "MLDrift OpenCL Tensor ", ToStringWithShape(tensor_desc),
-            ": Failed to create 2D texture "
-            "array (clCreateImage): ",
-            CLErrorCodeToString(error_code), ", texture width: ",
-            storage_dims[0], ", texture height: ", storage_dims[1],
-            ", texture layers: ", storage_dims[2]));
+        return OpenCLAllocationError(
+            error_code, absl::StrCat("MLDrift OpenCL Tensor ",
+                                     ToStringWithShape(tensor_desc),
+                                     ": Failed to create 2D texture "
+                                     "array (clCreateImage): ",
+                                     CLErrorCodeToString(error_code),
+                                     ", texture width: ", storage_dims[0],
+                                     ", texture height: ", storage_dims[1],
+                                     ", texture layers: ", storage_dims[2]));
       }
 
       *result = CLMemory(memory, true);
@@ -205,12 +213,14 @@ absl::Status AllocateTensorMemoryInternal(const CLContext& context,
           context.context(), mem_flags, &format, &image_desc,
           const_cast<uint8_t*>(data_ptr), &error_code);
       if (error_code != CL_SUCCESS) {
-        return absl::UnknownError(absl::StrCat(
-            "MLDrift OpenCL Tensor ", ToStringWithShape(tensor_desc),
-            ": Failed to create single "
-            "2D texture (clCreateImage): ",
-            CLErrorCodeToString(error_code), ", texture width: ",
-            storage_dims[0], ", texture height: ", storage_dims[1]));
+        return OpenCLAllocationError(
+            error_code, absl::StrCat("MLDrift OpenCL Tensor ",
+                                     ToStringWithShape(tensor_desc),
+                                     ": Failed to create single "
+                                     "2D texture (clCreateImage): ",
+                                     CLErrorCodeToString(error_code),
+                                     ", texture width: ", storage_dims[0],
+                                     ", texture height: ", storage_dims[1]));
       }
 
       *result = CLMemory(memory, true);
@@ -239,7 +249,8 @@ absl::Status CreateImageBufferFromBuffer(const CLContext& context,
   *result = clCreateImage(context.context(), CL_MEM_READ_WRITE, &format,
                           &image_desc, nullptr, &error_code);
   if (error_code != CL_SUCCESS) {
-    return absl::UnknownError(
+    return OpenCLAllocationError(
+        error_code,
         absl::StrCat("Failed to create Image from Buffer (clCreateImage): ",
                      CLErrorCodeToString(error_code)));
   }
@@ -278,7 +289,8 @@ absl::Status CreateImage2DFromBuffer(const CLContext& context, cl_mem memory,
   *result = CreateImage2DLegacy(context.context(), flags, &format, &image_desc,
                                 nullptr, &error_code);
   if (error_code != CL_SUCCESS) {
-    return absl::UnknownError(
+    return OpenCLAllocationError(
+        error_code,
         absl::StrCat("Failed to create Image2D from Buffer (clCreateImage): ",
                      CLErrorCodeToString(error_code)));
   }
@@ -295,8 +307,9 @@ absl::Status WriteDataViaStagingBuffer(const void* ptr, const size_t data_size,
                              CL_MEM_READ_ONLY | CL_MEM_ALLOC_HOST_PTR,
                              data_size, nullptr, &error_code);
   if (error_code != CL_SUCCESS) {
-    return absl::UnknownError(absl::StrCat("Failed to create staging buffer: ",
-                                           CLErrorCodeToString(error_code)));
+    return OpenCLAllocationError(
+        error_code, absl::StrCat("Failed to create staging buffer: ",
+                                 CLErrorCodeToString(error_code)));
   }
   // Upload data to the staging buffer via map/unmap.
   void* mapped_ptr =
@@ -304,8 +317,9 @@ absl::Status WriteDataViaStagingBuffer(const void* ptr, const size_t data_size,
                          data_size, 0, nullptr, nullptr, &error_code);
   if (!mapped_ptr) {
     clReleaseMemObject(stage_mem);
-    return absl::UnknownError(absl::StrCat("Failed to map staging buffer: ",
-                                           CLErrorCodeToString(error_code)));
+    return OpenCLAllocationError(error_code,
+                                 absl::StrCat("Failed to map staging buffer: ",
+                                              CLErrorCodeToString(error_code)));
   }
   std::memcpy(mapped_ptr, ptr, data_size);
   error_code = clEnqueueUnmapMemObject(queue->queue(), stage_mem, mapped_ptr, 0,

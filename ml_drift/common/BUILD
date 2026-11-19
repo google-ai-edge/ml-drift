@@ -25,8 +25,6 @@ package(
     licenses = ["notice"],
 )
 
-exports_files(["custom_transformations.h"])
-
 cc_library(
     name = "access_type",
     hdrs = ["access_type.h"],
@@ -200,7 +198,6 @@ cc_library(
         ":precision",
         ":shape",
         ":tensor",
-        ":util",
         "//ml_drift/common/task:tensor_desc",
         "//ml_drift/common/task:testing_ref_ops",
         "//ml_drift/common/task:testing_util",
@@ -277,6 +274,29 @@ cc_library(
         "@com_google_absl//absl/status:status_macros",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_test(
+    name = "gpu_model_util_test",
+    srcs = ["gpu_model_util_test.cc"],
+    deps = [
+        ":data_type",
+        ":gpu_info",
+        ":gpu_model",
+        ":gpu_model_builder",
+        ":gpu_model_util",
+        ":model",
+        ":model_hints",
+        ":operations",
+        ":precision",
+        ":shape",
+        ":tensor",
+        ":types",
+        "//ml_drift/common/task:tensor_desc",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_matchers",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -547,9 +567,7 @@ cc_library(
         ":demangle",
         ":op_attrs",
         ":tensor_handle",
-        ":types",
         "//ml_drift/common/task:gpu_operation",
-        "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
     ],
@@ -577,9 +595,6 @@ cc_library(
     deps = [
         ":op_base",
         "@com_google_absl//absl/container:flat_hash_map",
-        "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:statusor",
-        "@com_google_absl//absl/strings",
     ],
 )
 
@@ -846,9 +861,10 @@ cc_library(
     name = "op_attrs",
     hdrs = ["op_attrs.h"],
     deps = [
+        ":types",
+        "//ml_drift/common/task:gpu_operation",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
     ],
 )

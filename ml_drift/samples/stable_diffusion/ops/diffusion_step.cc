@@ -48,13 +48,12 @@ std::string GetDiffusionStepCode(DataType dst_type) {
   return c;
 }
 
-class DiffusionStep : public OpBase {
+class DiffusionStep : public OpBase<DiffusionStep> {
  public:
   absl::Status Build(
       GpuModelBuilder& graph,
-      const std::vector<GpuModelBuilder::TensorHandle>& inputs,
-      const OpAttrs& attrs,
-      std::vector<GpuModelBuilder::TensorHandle>& outputs) const override {
+      const std::vector<GpuModelBuilder::TensorHandle>& inputs, Attrs& attrs,
+      std::vector<GpuModelBuilder::TensorHandle>& outputs) const {
     if (inputs.size() != 8) {
       return absl::InvalidArgumentError("DiffusionStep expects 8 inputs");
     }

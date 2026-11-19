@@ -403,7 +403,7 @@ std::vector<uint64_t> TensorDescriptor::GetStorageDims(
     switch (storage_type_) {
       case TensorStorageType::kBuffer:
       case TensorStorageType::kImageBuffer:
-        return {static_cast<uint64_t>(shape.w * shape.h)};
+        return {static_cast<uint64_t>(shape.w) * shape.h};
       case TensorStorageType::kTextureArray:
       case TensorStorageType::kTexture3D:
         return {static_cast<uint64_t>(shape.w), static_cast<uint64_t>(shape.h),
@@ -419,25 +419,25 @@ std::vector<uint64_t> TensorDescriptor::GetStorageDims(
   switch (storage_type_) {
     case TensorStorageType::kBuffer:
     case TensorStorageType::kImageBuffer:
-      return {static_cast<uint64_t>(shape.w * shape.b * shape.h * shape.d *
-                                    slices)};
+      return {static_cast<uint64_t>(shape.w) * shape.b * shape.h * shape.d *
+              slices};
     case TensorStorageType::kTextureArray:
     case TensorStorageType::kTexture3D:
-      return {static_cast<uint64_t>(shape.w * shape.b),
+      return {static_cast<uint64_t>(shape.w) * shape.b,
               static_cast<uint64_t>(shape.h),
-              static_cast<uint64_t>(shape.d * slices)};
+              static_cast<uint64_t>(shape.d) * slices};
     case TensorStorageType::kTexture2D:
       if (physical_layout_2d_ == PhysicalLayout2D::kXisWBDC4YisHC) {
-        return {static_cast<uint64_t>(shape.w * shape.b * shape.d),
-                static_cast<uint64_t>(shape.h * slices)};
+        return {static_cast<uint64_t>(shape.w) * shape.b * shape.d,
+                static_cast<uint64_t>(shape.h) * slices};
       } else if (physical_layout_2d_ == PhysicalLayout2D::kXisCC4YisDHWB) {
         return {static_cast<uint64_t>(slices),
-                static_cast<uint64_t>(shape.w * shape.h * shape.d * shape.b)};
+                static_cast<uint64_t>(shape.w) * shape.h * shape.d * shape.b};
       } else {
         return {0, 0};
       }
     case TensorStorageType::kSingleTexture2D:
-      return {static_cast<uint64_t>(shape.w * shape.b * shape.d),
+      return {static_cast<uint64_t>(shape.w) * shape.b * shape.d,
               static_cast<uint64_t>(shape.h)};
     case TensorStorageType::kUnknown:
       return {};
@@ -494,7 +494,8 @@ uint64_t TensorDescriptor::GetMemorySizeInBytes() const {
   for (int i = 0; i < storage_dims.size(); ++i) {
     total_size *= storage_dims[i];
   }
-  const int element_size = GetElementSize() * SizeOf(data_type_);
+  const uint64_t element_size =
+      static_cast<uint64_t>(GetElementSize()) * SizeOf(data_type_);
   return total_size * element_size;
 }
 
@@ -1827,11 +1828,12 @@ absl::Status TensorDescriptor::ParseCoordsFromArgs(
   return absl::OkStatus();
 }
 
-size_t TensorDescriptor::GetSizeInBytesForShape(const BHWDC& shape5d) const {
-  size_t aligned_channels = storage_type_ == TensorStorageType::kSingleTexture2D
-                                ? shape5d.c
-                                : AlignByN(shape5d.c, 4);
-  size_t elements_count =
+uint64_t TensorDescriptor::GetSizeInBytesForShape(const BHWDC& shape5d) const {
+  const uint64_t aligned_channels =
+      storage_type_ == TensorStorageType::kSingleTexture2D
+          ? shape5d.c
+          : AlignByN(shape5d.c, 4);
+  const uint64_t elements_count =
       aligned_channels * shape5d.b * shape5d.w * shape5d.h * shape5d.d;
   return elements_count * SizeOf(data_type_);
 }

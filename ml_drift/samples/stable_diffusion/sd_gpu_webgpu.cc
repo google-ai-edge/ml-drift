@@ -234,13 +234,9 @@ class UNet {
 
     index_val_ = gpu_builder.AddTensor(1, 1, 1, 1, TensorStorageType::kBuffer,
                                        DataType::kFloat32);
-    ABSL_ASSIGN_OR_RETURN(
-        auto temb_res,
-        gpu_builder.AppendOp(
-            "TembGeneration", {index_val_},
-            {{"channels", 320},
-             {"storage_type",
-              static_cast<int>(GetFastestStorageType(gpu_info))}}));
+    ABSL_ASSIGN_OR_RETURN(auto temb_res,
+                          gpu_builder.AppendOp("TembGeneration", {index_val_},
+                                               {{"channels", 320}}));
     temb_ = temb_res[0];
 
     UnetBuilder builder;

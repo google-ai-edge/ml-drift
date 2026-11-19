@@ -506,10 +506,13 @@ cc_library(
         "//ml_drift/common:precision",
         "//ml_drift/common:shape",
         "//ml_drift/common:tensor",
+        "//ml_drift/common:util",
         "//ml_drift/common/kernels:conv_wave_matrix_mali_f16",
+        "//ml_drift/common/task:gpu_operation",
         "//ml_drift/common/task:tensor_desc",
         "//ml_drift/common/task:testing_ref_ops",
         "//ml_drift/common/task:testing_util",
+        "//ml_drift/common/task:weights_conversion",
         "@XNNPACK",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:status_macros",
@@ -611,9 +614,6 @@ cc_library(
     ],
 )
 
-# TODO: Migrate conv_wave_matrix_test_vulkan to
-# requires-gpu-sm90-full once GL_NV_integer_cooperative_matrix is added for
-# icoopmatNV in wave_matrix_util.cc.
 mld_kernel_test(
     name = "conv_wave_matrix_test",
     srcs = [
@@ -702,7 +702,6 @@ cc_library(
         "//ml_drift/common:types",
         "//ml_drift/common:util",
         "//ml_drift/common/kernels:conv_weights_converter",
-        "//ml_drift/common/kernels:fully_connected",
         "//ml_drift/common/task:gpu_operation",
         "//ml_drift/common/task:tensor_desc",
         "//ml_drift/common/task:testing_ref_ops",
@@ -809,6 +808,26 @@ mld_kernel_test(
         "//ml_drift/common/task:tensor_desc",
         "//ml_drift/common/task:testing_util",
         "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_test(
+    name = "depthwise_conv_tiled_work_group_test",
+    srcs = ["depthwise_conv_tiled_work_group_test.cc"],
+    deps = [
+        "//ml_drift/common:data_type",
+        "//ml_drift/common:gpu_info",
+        "//ml_drift/common:kernel_info",
+        "//ml_drift/common:operations",
+        "//ml_drift/common:precision",
+        "//ml_drift/common:shape",
+        "//ml_drift/common:tensor",
+        "//ml_drift/common/kernels:depthwise_conv_tiled",
+        "//ml_drift/common/task:gpu_operation",
+        "//ml_drift/common/task:tensor_desc",
+        "//ml_drift/common/task:tuning_type",
+        "@com_google_absl//absl/status:status_matchers",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -2224,5 +2243,22 @@ test_suite(
         ":top_k_test_webgpu",
         ":transpose_test_webgpu",
         ":winograd_test_webgpu",
+    ],
+)
+
+cc_test(
+    name = "softmax_work_group_test",
+    srcs = ["softmax_work_group_test.cc"],
+    deps = [
+        "//ml_drift/common:data_type",
+        "//ml_drift/common:gpu_info",
+        "//ml_drift/common:shape",
+        "//ml_drift/common:types",
+        "//ml_drift/common/kernels:softmax",
+        "//ml_drift/common/kernels:softmax1x1",
+        "//ml_drift/common/task:gpu_operation",
+        "//ml_drift/common/task:tensor_desc",
+        "@com_google_absl//absl/status:status_matchers",
+        "@com_google_googletest//:gtest_main",
     ],
 )

@@ -19,53 +19,57 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <vector>
 
 #include "absl/container/flat_hash_map.h"
-#include "absl/status/statusor.h"
 #include "ml_drift/common/op_base.h"
 
 namespace ml_drift {
 
-using OpFactory = std::function<std::unique_ptr<OpBase>()>;
+using OpFactory = std::function<std::unique_ptr<OpBaseImpl>()>;
 
-// A global registry for ML Drift operations.
+// Global registry for ML Drift operations. See `op_api.h` for the full
+// operation authoring guide.
 class OpRegistry {
  public:
   static OpRegistry& Global();
 
-  // Registers an operation factory and its attribute specifications.
-  void Register(std::string_view name, OpFactory factory,
-                const std::vector<AttrSpec>& attr_specs);
+  // Registers an operation factory.
+  void Register(std::string_view name, OpFactory factory);
 
   // Creates an instance of an operation by name. Returns nullptr if not found.
-  std::unique_ptr<OpBase> Create(std::string_view name) const;
-
-  // Retrieves the expected attributes for a registered operation.
-  absl::StatusOr<std::vector<AttrSpec>> GetAttrSpecs(
-      std::string_view name) const;
+  std::unique_ptr<OpBaseImpl> Create(std::string_view name) const;
 
   std::vector<std::string> GetRegisteredNames() const;
 
  private:
   OpRegistry() = default;
 
-  struct Entry {
-    OpFactory factory;
-    std::vector<AttrSpec> attr_specs;
-  };
-
-  absl::flat_hash_map<std::string, Entry> registry_;
+  absl::flat_hash_map<std::string, OpFactory> registry_;
 };
 
-// Macro to statically register an operation extending OpBase (see op_base.h).
-// Add this macro to the .cc file where the operation is implemented.
-#define MLD_REGISTER_OP(OpType)                               \
-  [[maybe_unused]] static bool reg_##OpType = []() {          \
-    ::ml_drift::OpRegistry::Global().Register(                \
-        #OpType, []() { return std::make_unique<OpType>(); }, \
-        OpType().GetAttrSpecs());                             \
-    return true;                                              \
+// Statically registers an operation deriving from OpBase<OpType> (see
+// `op_api.h` and `op_base.h`). Place this macro at namespace scope in the .cc
+// file where the operation is implemented, after the class definition. It also
+// checks the operation's contract at compile time so mistakes are reported on
+// this line:
+// - OpType must derive from OpBase<OpType>. OpBase<X> dispatches Build() to X,
+//   so deriving from OpBase of another type would silently run that type's
+//   Build().
+// - OpType must declare Build() with the expected signature.
+#define MLD_REGISTER_OP(OpType)                                                \
+  static_assert(std::is_base_of_v<::ml_drift::OpBase<OpType>, OpType>,         \
+                #OpType " must derive from ::ml_drift::OpBase<" #OpType ">");  \
+  static_assert(::ml_drift::internal::HasExpectedBuild<OpType>::value, #OpType \
+                " must declare a public member: absl::Status "                 \
+                "Build(GpuModelBuilder&, const std::vector<TensorHandle>&, "   \
+                "Attrs&, std::vector<TensorHandle>&) const. (If the op uses "  \
+                "MLD_OP_ATTRS, the macro must appear before Build.)");         \
+  [[maybe_unused]] static bool reg_##OpType = []() {                           \
+    ::ml_drift::OpRegistry::Global().Register(                                 \
+        #OpType, []() { return std::make_unique<OpType>(); });                 \
+    return true;                                                               \
   }();
 
 }  // namespace ml_drift

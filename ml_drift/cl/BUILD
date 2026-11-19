@@ -14,7 +14,7 @@
 
 load("@flatbuffers//:build_defs.bzl", "flatbuffer_cc_library")
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
-load("//ml_drift/common:build_config.bzl", "mld_gpu_tests_tags", "mld_platform_alias")
+load("//ml_drift/common:build_config.bzl", "mld_gpu_tests_tags")
 
 package(
     default_visibility = ["//visibility:public"],
@@ -144,6 +144,20 @@ cc_library(
     ],
 )
 
+cc_test(
+    name = "cl_command_buffer_test",
+    srcs = ["cl_command_buffer_test.cc"],
+    linkstatic = 1,
+    deps = [
+        ":cl_command_buffer",
+        ":opencl_wrapper",
+        "@com_google_absl//absl/cleanup",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_matchers",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
 cc_library(
     name = "cl_command_queue",
     srcs = ["cl_command_queue.cc"],
@@ -191,6 +205,7 @@ cc_library(
     deps = [
         ":opencl_wrapper",
         ":util",
+        "//ml_drift/common:data_type",
         "//ml_drift/common:gpu_info",
         "//ml_drift/common:types",
         "@com_google_absl//absl/log:absl_log",
@@ -206,6 +221,7 @@ cc_library(
     deps = [
         ":util",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
         "@opencl_headers",
     ],
 )
@@ -360,6 +376,7 @@ cc_library(
         ":cl_errors",
         ":cl_event",
         ":cl_operation",
+        ":command_buffer",
         ":environment",
         ":opencl_wrapper",
         ":program_cache",
@@ -737,7 +754,6 @@ cc_library(
         "//ml_drift/common:gpu_info",
         "//ml_drift/common:shape",
         "//ml_drift/common:tensor",
-        "//ml_drift/common:util",
         "@com_google_absl//absl/debugging:leak_check",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:status_macros",
@@ -745,7 +761,7 @@ cc_library(
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:span",
         "@opencl_headers",
-    ] + mld_platform_alias("util", "//ml_drift/cl/"),
+    ],
 )
 
 cc_test(
@@ -753,10 +769,13 @@ cc_test(
     srcs = ["util_test.cc"],
     linkstatic = 1,
     deps = [
+        ":cl_errors",
         ":util",
         "//ml_drift/common:gpu_info",
+        "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:status_matchers",
         "@com_google_googletest//:gtest_main",
+        "@opencl_headers",
     ],
 )
 

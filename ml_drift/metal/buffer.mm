@@ -13,9 +13,11 @@
 // limitations under the License.
 
 #include "ml_drift/metal/buffer.h"
-#include "absl/status/status.h"
 
 #include <utility>
+
+#include "absl/status/status.h"
+#include "absl/strings/str_cat.h"
 
 namespace ml_drift {
 namespace metal {
@@ -73,6 +75,11 @@ absl::Status Buffer::CreateFromBufferDescriptor(const BufferDescriptor& desc,
                                   length:size_
                                  options:MTLResourceStorageModeShared];
   }
+  if (size_ > 0 && buffer_ == nil) {
+    size_ = 0;
+    return absl::ResourceExhaustedError(
+        absl::StrCat("Failed to allocate Metal buffer of ", desc.size, " bytes."));
+  }
   return absl::OkStatus();
 }
 
@@ -89,6 +96,10 @@ absl::Status CreateBuffer(size_t size_in_bytes, const void* data,
     } else {
       buffer = [device newBufferWithLength:size_in_bytes
                                    options:MTLResourceStorageModeShared];
+    }
+    if (size_in_bytes > 0 && buffer == nil) {
+      return absl::ResourceExhaustedError(
+          absl::StrCat("Failed to allocate Metal buffer of ", size_in_bytes, " bytes."));
     }
 
     *result = Buffer(buffer, size_in_bytes);

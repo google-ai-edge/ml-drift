@@ -13,7 +13,6 @@
 # limitations under the License.
 
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
-load("//ml_drift/common:build_config.bzl", "mld_platform_alias")
 
 package(
     default_visibility = ["//visibility:public"],
@@ -269,7 +268,7 @@ cc_library(
         "//ml_drift/common:model",
         "//ml_drift/common:model_transformer",
         "@com_google_absl//absl/status",
-    ] + mld_platform_alias("custom_transformations", "//ml_drift/common/"),
+    ],
 )
 
 cc_library(

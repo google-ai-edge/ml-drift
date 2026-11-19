@@ -140,6 +140,32 @@ TEST_P(QuantizationTest, QuantizationInt8) {
                                   quant_storage()));
 }
 
+TEST_P(QuantizationTest, QuantizationSymmetricUint8) {
+  if (!exec_env->IsStorageSupported(float_storage(), data_type())) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
+                 << " storage type: " << ToString(float_storage());
+  }
+  if (!exec_env->IsStorageSupported(quant_storage(), DataType::kUint8)) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(DataType::kUint8)
+                 << " storage type: " << ToString(quant_storage());
+  }
+  ABSL_ASSERT_OK(QuantizationSymmetricUint8Test(*exec_env, float_storage(),
+                                           data_type(), quant_storage()));
+}
+
+TEST_P(QuantizationTest, QuantizationSymmetricInt8) {
+  if (!exec_env->IsStorageSupported(float_storage(), data_type())) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
+                 << " storage type: " << ToString(float_storage());
+  }
+  if (!exec_env->IsStorageSupported(quant_storage(), DataType::kInt8)) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(DataType::kInt8)
+                 << " storage type: " << ToString(quant_storage());
+  }
+  ABSL_ASSERT_OK(QuantizationSymmetricInt8Test(*exec_env, float_storage(),
+                                          data_type(), quant_storage()));
+}
+
 INSTANTIATE_TEST_SUITE_P(
     Suite, QuantizationTest,
     Combine(ValuesIn(GetFloatTypes()),
@@ -151,6 +177,54 @@ INSTANTIATE_TEST_SUITE_P(
                        ToString(std::get<1>(info.param)), "_",
                        ToString(std::get<2>(info.param)));
       return absl::StrReplaceAll(name, {{":", ""}});
+    });
+
+// Quantization through GpuModelBuilder::Quantize(). The builder picks the
+// tensors for the codes and the params, so there is a single storage parameter.
+class GpuModelBuilderQuantizeTest : public DataTypeTest {};
+
+TEST_P(GpuModelBuilderQuantizeTest, SymmetricUint8) {
+  if (!exec_env->IsStorageSupported(storage(), data_type())) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
+                 << " storage type: " << ToString(storage());
+  }
+  // The params are FP32 for every source type.
+  if (!exec_env->IsStorageSupported(storage(), DataType::kFloat32)) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(DataType::kFloat32)
+                 << " storage type: " << ToString(storage());
+  }
+  if (!exec_env->IsStorageSupported(storage(), DataType::kUint8)) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(DataType::kUint8)
+                 << " storage type: " << ToString(storage());
+  }
+  ABSL_ASSERT_OK(GpuModelBuilderQuantizeSymmetricUint8Test(*exec_env, storage(),
+                                                      data_type()));
+}
+
+TEST_P(GpuModelBuilderQuantizeTest, SymmetricInt8) {
+  if (!exec_env->IsStorageSupported(storage(), data_type())) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(data_type())
+                 << " storage type: " << ToString(storage());
+  }
+  // The params are FP32 for every source type.
+  if (!exec_env->IsStorageSupported(storage(), DataType::kFloat32)) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(DataType::kFloat32)
+                 << " storage type: " << ToString(storage());
+  }
+  if (!exec_env->IsStorageSupported(storage(), DataType::kInt8)) {
+    GTEST_SKIP() << "Unsupported data type: " << ToString(DataType::kInt8)
+                 << " storage type: " << ToString(storage());
+  }
+  ABSL_ASSERT_OK(GpuModelBuilderQuantizeSymmetricInt8Test(*exec_env, storage(),
+                                                     data_type()));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    Suite, GpuModelBuilderQuantizeTest,
+    Combine(ValuesIn(GetFloatTypes()),
+            ValuesIn(GetTensorStoragesTypesWithoutSingleTexture2D())),
+    [](const TestParamInfo<GpuModelBuilderQuantizeTest::ParamType>& info) {
+      return ToString(info.param);
     });
 
 }  // namespace ml_drift

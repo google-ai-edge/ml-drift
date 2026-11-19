@@ -421,5 +421,31 @@ TEST(GpuInfoTest, UnclassifiedGpuIsNeitherMobileNorDesktop) {
   EXPECT_FALSE(llvmpipe_info.IsDesktopGpu());
 }
 
+TEST(GpuInfoTest, MetalMaxArgumentLimits) {
+  GpuInfo a10_info;
+  GetGpuInfoFromDeviceDescription("Apple A10", GpuApi::kMetal, &a10_info);
+  EXPECT_EQ(a10_info.GetMaxBufferArguments(), 31);
+  EXPECT_EQ(a10_info.GetMaxImageArguments(), 31);
+  EXPECT_EQ(a10_info.GetMaxTextureArguments(), 31);
+
+  GpuInfo a12_info;
+  GetGpuInfoFromDeviceDescription("Apple A12", GpuApi::kMetal, &a12_info);
+  EXPECT_EQ(a12_info.GetMaxBufferArguments(), 31);
+  EXPECT_EQ(a12_info.GetMaxImageArguments(), 96);
+  EXPECT_EQ(a12_info.GetMaxTextureArguments(), 96);
+
+  GpuInfo a17_info;
+  GetGpuInfoFromDeviceDescription("Apple A17 Pro", GpuApi::kMetal, &a17_info);
+  EXPECT_EQ(a17_info.GetMaxBufferArguments(), 31);
+  EXPECT_EQ(a17_info.GetMaxImageArguments(), 128);
+  EXPECT_EQ(a17_info.GetMaxTextureArguments(), 128);
+
+  GpuInfo m4_info;
+  GetGpuInfoFromDeviceDescription("Apple M4", GpuApi::kMetal, &m4_info);
+  EXPECT_EQ(m4_info.GetMaxBufferArguments(), 31);
+  EXPECT_EQ(m4_info.GetMaxImageArguments(), 128);
+  EXPECT_EQ(m4_info.GetMaxTextureArguments(), 128);
+}
+
 }  // namespace
 }  // namespace ml_drift

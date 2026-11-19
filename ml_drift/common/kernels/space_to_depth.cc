@@ -27,8 +27,8 @@ namespace {
 std::string GetSpaceToDepthCode(const OperationDef& op_def) {
   std::string c = "MAIN_FUNCTION($0) {\n";
   if (op_def.dst_tensors[0].HasAxis(Axis::kBatch)) {
-    c += R"("
-  int linear_id = ucl::GetGlobalId<0>();\n";
+    c += R"(
+  int linear_id = ucl::GetGlobalId<0>();
   int X = linear_id / args.dst_tensor.Batch();
   int B = linear_id % args.dst_tensor.Batch();
   args.dst_tensor.SetBatchRef(B);
@@ -73,8 +73,8 @@ std::string GetSpaceToDepthCode(const OperationDef& op_def) {
 std::string GetDepthToSpaceCode(const OperationDef& op_def) {
   std::string c = "MAIN_FUNCTION($0) {\n";
   if (op_def.dst_tensors[0].HasAxis(Axis::kBatch)) {
-    c += R"("
-  int linear_id = ucl::GetGlobalId<0>();\n";
+    c += R"(
+  int linear_id = ucl::GetGlobalId<0>();
   int X = linear_id / args.dst_tensor.Batch();
   int B = linear_id % args.dst_tensor.Batch();
   args.dst_tensor.SetBatchRef(B);

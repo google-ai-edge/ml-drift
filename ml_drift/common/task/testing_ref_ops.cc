@@ -231,29 +231,40 @@ Tensor5DFloat32 PaddingReference(const Pad3DAttributes& attr,
 }
 
 TensorFloat32 BatchedMatMulReference(const TensorFloat32& left,
-                                     const TensorFloat32& right) {
-  return BatchedMatMulReference(left, right, TestingRuntimeChannels());
+                                     const TensorFloat32& right,
+                                     const BatchedMatMulAttributes& attr) {
+  return BatchedMatMulReference(left, right, TestingRuntimeChannels(), attr);
 }
 
 TensorFloat32 BatchedMatMulReference(
     const TensorFloat32& left, const TensorFloat32& right,
-    const TestingRuntimeChannels& runtime_channels) {
-  TensorFloat32 output = MakeZeroTensor(
-      BHWC(left.shape.b, left.shape.h, left.shape.w, right.shape.c));
+    const TestingRuntimeChannels& runtime_channels,
+    const BatchedMatMulAttributes& attr) {
+  const int dst_h = std::max(left.shape.h, right.shape.h);
+  const int dst_w = attr.transpose_left ? left.shape.c : left.shape.w;
+  const int dst_c = attr.transpose_right ? right.shape.w : right.shape.c;
+  const int src_channels = attr.transpose_left ? left.shape.w : left.shape.c;
+  TensorFloat32 output = MakeZeroTensor(BHWC(1, dst_h, dst_w, dst_c));
   const int src_end_ch = runtime_channels.src_end_ch.has_value()
                              ? *runtime_channels.src_end_ch
-                             : left.shape.c;
+                             : src_channels;
   const int dst_end_ch = runtime_channels.dst_end_ch.has_value()
                              ? *runtime_channels.dst_end_ch
                              : output.shape.c;
   for (int b = 0; b < output.shape.h; ++b) {
+    const int right_b = b % right.shape.h;
     for (int dst_x = 0; dst_x < output.shape.w; ++dst_x) {
       for (int dst_ch = 0; dst_ch < dst_end_ch; dst_ch++) {
         float sum = 0.0f;
         for (int src_ch = 0; src_ch < src_end_ch; src_ch++) {
-          const int left_index = left.shape.LinearIndex({0, b, dst_x, src_ch});
+          const int left_index =
+              attr.transpose_left
+                  ? left.shape.LinearIndex({0, b, src_ch, dst_x})
+                  : left.shape.LinearIndex({0, b, dst_x, src_ch});
           const int right_index =
-              right.shape.LinearIndex({0, b, src_ch, dst_ch});
+              attr.transpose_right
+                  ? right.shape.LinearIndex({0, right_b, dst_ch, src_ch})
+                  : right.shape.LinearIndex({0, right_b, src_ch, dst_ch});
           sum += left.data[left_index] * right.data[right_index];
         }
         const int dst_index = output.shape.LinearIndex({0, b, dst_x, dst_ch});

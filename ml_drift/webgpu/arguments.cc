@@ -73,7 +73,8 @@ absl::Status CreateWebGpuObject(const wgpu::Device& device,
   const BufferDescriptor* buffer_desc = AsBufferDescriptor(desc);
   if (buffer_desc) {
     Buffer gpu_buffer;
-    gpu_buffer.CreateFromBufferDescriptor(device, *buffer_desc);
+    ABSL_RETURN_IF_ERROR(
+        gpu_buffer.CreateFromBufferDescriptor(device, *buffer_desc));
     *result = std::make_unique<Buffer>(std::move(gpu_buffer));
     return absl::OkStatus();
   }
@@ -676,8 +677,8 @@ void WebGpuArguments::AddGPUResources(const std::string& name,
 }
 
 absl::Status WebGpuArguments::SetBuffer(const std::string& name,
-                                        const wgpu::Buffer& handle, size_t size,
-                                        size_t offset) {
+                                        const wgpu::Buffer& handle,
+                                        uint64_t size, uint64_t offset) {
   auto it = buffers_.find(name);
   if (it == buffers_.end()) {
     return absl::NotFoundError(

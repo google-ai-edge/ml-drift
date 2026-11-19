@@ -98,8 +98,9 @@ WebGpuWeightsManager::PrepareWeightsInBatch(
   absl::flat_hash_map<ValueId, std::unique_ptr<GpuSpatialTensor>>
       main_model_id_to_tensor;
   const size_t num_ops = op_infos.size();
-  // Dawn reports validation errors only via the uncaptured error callback.
+  // Dawn reports validation and OOM errors via the uncaptured error callback.
   const int unhandled_errors_before = env.GetDeviceUnhandledErrorsTotalCount();
+  const int oom_errors_before = env.GetDeviceUnhandledErrorsOutOfMemoryCount();
   // Allocate memory for inputs & Outputs.
   std::vector<std::unique_ptr<SpatialTensor>> src_tensors;
   src_tensors.reserve(num_ops);
@@ -129,6 +130,10 @@ WebGpuWeightsManager::PrepareWeightsInBatch(
                                            std::move(gpu_operations), env));
   ABSL_RETURN_IF_ERROR(
       WaitUntilCompleted(env.queue(), env.device(), absl::Seconds(10)));
+  if (env.GetDeviceUnhandledErrorsOutOfMemoryCount() > oom_errors_before) {
+    return absl::ResourceExhaustedError(
+        "WebGPU weights preparation ran out of GPU memory.");
+  }
   if (const int new_errors =
           env.GetDeviceUnhandledErrorsTotalCount() - unhandled_errors_before;
       new_errors > 0) {

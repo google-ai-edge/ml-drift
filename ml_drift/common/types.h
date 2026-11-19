@@ -31,6 +31,8 @@
 namespace ml_drift {
 
 constexpr float kMaxHalf = 65504.0f;
+// Smallest positive normal half-precision value (2^-14).
+constexpr float kMinNormalHalf = 0.00006103515625f;
 
 #ifdef HAS_NATIVE_FP16
 #ifdef __clang__

@@ -49,8 +49,7 @@
 
 namespace ml_drift {
 
-class OpBase;
-
+class OpBaseImpl;
 class WeightsManager;
 
 struct GpuModelBuilderOptions {
@@ -232,6 +231,13 @@ class GpuModelBuilder {
       const TensorHandle& src, const QuantizeAndDequantizeAttributes& attr);
   TensorHandle StaticRangeQuantization(
       const TensorHandle& src, const QuantizeAndDequantizeAttributes& attr);
+  // Returns 2 tensors: quantized and params (inv_scale, offset, [sum]). See
+  // CreateQuantization() in kernels/quantize_and_dequantize.h for the params
+  // contract and for `symmetric`.
+  std::vector<TensorHandle> Quantize(const TensorHandle& src,
+                                     PackedType quantized_type,
+                                     bool calculate_sum = false,
+                                     bool symmetric = false);
 
   TensorHandle ReLU(const TensorHandle& src, const ReLUAttributes& attr);
 
@@ -546,8 +552,9 @@ class GpuModelBuilder {
   //
   // op_name: The string name of the registered operation.
   // inputs:  Input tensor handles.
-  // attrs:   Attributes for the operation. This method will validate and
-  //          normalize them against the defined schema.
+  // attrs:   Attributes for the operation. They are parsed into the
+  //          operation's declared `Attrs` (see op_base.h); an undeclared key
+  //          or a value of the wrong type returns InvalidArgumentError.
   // returns: Output tensor handles.
   absl::StatusOr<std::vector<TensorHandle>> AppendOp(
       std::string_view op_name, const std::vector<TensorHandle>& inputs,
@@ -560,7 +567,7 @@ class GpuModelBuilder {
   }
 
  private:
-  friend class OpBase;
+  friend class OpBaseImpl;
 
   // Adds a source tensor to the GPUOperation and registers the tensor
   // dependency inside the GpuModel graph.
@@ -638,11 +645,6 @@ class GpuModelBuilder {
   TensorHandle GetWeightsZeroPoint(
       const Tensor<OHWI, DataType::kInt32>& zero_point, DataType float_type);
 
-  // returns 2 tensors: quantized and params(min/max/sum)
-  std::vector<TensorHandle> Quantize(const TensorHandle& src,
-                                     PackedType quantized_type,
-                                     bool calculate_sum);
-
   // original top-k works for C dimension, BxHxWxC -> BxHxWxTopK
   // this one works with reshaped src-dst, B = 1, H = BxHxW, W = C / 4, C = 4;
   // [1, BxHxW, C/4, 4] -> [1, BxHxW, 1, TopK];
@@ -663,12 +665,15 @@ class GpuModelBuilder {
   absl::StatusOr<std::pair<int, int>> GetNodeAndIndexByOutputId(
       ValueId output_id) const;
 
+  void RecordStatus(absl::Status status);
+
   bool use_f32_accum_for_f16_convolutions_ = false;
   GpuInfo gpu_info_;
   ModelHints hints_;
   TensorStorageType default_storage_;
   GpuModel gpu_model_;
   uint64_t id_counter_ = 0;
+  absl::Status status_;
   std::shared_ptr<WeightsManager> weights_manager_ = nullptr;
 
   struct SharedWeights {

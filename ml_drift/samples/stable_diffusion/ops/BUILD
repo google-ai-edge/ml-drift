@@ -28,7 +28,6 @@ cc_library(
         "//ml_drift/common:tensor",
         "//ml_drift/common/task:tensor_desc",
         "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:status_macros",
     ],
     alwayslink = 1,
 )

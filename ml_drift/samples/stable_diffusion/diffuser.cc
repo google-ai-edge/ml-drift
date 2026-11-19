@@ -482,11 +482,8 @@ absl::Status Diffuser::UNet::Init(const Diffuser::Config& runner_config,
                                       DataType::kFloat32);
   ABSL_ASSIGN_OR_RETURN(
       auto result_or,
-      step_builder.AppendOp(
-          "TembGeneration", {index_val_},
-          {{"channels", 320},
-           {"storage_type",
-            static_cast<int>(GetFastestStorageType(gpu_info))}}));
+      step_builder.AppendOp("TembGeneration", {index_val_},
+                            {{"channels", 320}}));
   temb_ = result_or[0];
 
   guidance_scale_ = step_builder.AddTensor(

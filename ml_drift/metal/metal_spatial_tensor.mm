@@ -83,6 +83,11 @@ absl::Status AllocateTensorMemory(id<MTLDevice> device,
                                       options:MTLResourceStorageModeShared];
       }
       if (!*buffer) {
+        // As in metal::Buffer, a nil buffer for a non-empty allocation means the device could not
+        // provide the memory.
+        if (data_size > 0) {
+          return absl::ResourceExhaustedError("Failed to allocate id<MTLBuffer>");
+        }
         return absl::UnknownError("Failed to allocate id<MTLBuffer>");
       }
       if (descriptor.GetStorageType() == TensorStorageType::kImageBuffer) {
@@ -105,7 +110,7 @@ absl::Status AllocateTensorMemory(id<MTLDevice> device,
 
       *texture = [device newTextureWithDescriptor:texture_desc];
       if (!*texture) {
-        return absl::UnknownError("Failed to allocate id<MTLTexture>");
+        return absl::ResourceExhaustedError("Failed to allocate id<MTLTexture>");
       }
       if (data_ptr) {
         id<MTLCommandQueue> command_queue = [device newCommandQueue];
@@ -128,7 +133,7 @@ absl::Status AllocateTensorMemory(id<MTLDevice> device,
 
       *texture = [device newTextureWithDescriptor:texture_desc];
       if (!*texture) {
-        return absl::UnknownError("Failed to allocate id<MTLTexture>");
+        return absl::ResourceExhaustedError("Failed to allocate id<MTLTexture>");
       }
       if (data_ptr) {
         id<MTLCommandQueue> command_queue = [device newCommandQueue];
@@ -151,7 +156,7 @@ absl::Status AllocateTensorMemory(id<MTLDevice> device,
 
       *texture = [device newTextureWithDescriptor:texture_desc];
       if (!*texture) {
-        return absl::UnknownError("Failed to allocate id<MTLTexture>");
+        return absl::ResourceExhaustedError("Failed to allocate id<MTLTexture>");
       }
       if (data_ptr) {
         id<MTLCommandQueue> command_queue = [device newCommandQueue];
@@ -176,7 +181,7 @@ absl::Status AllocateTensorMemory(id<MTLDevice> device,
 
       *texture = [device newTextureWithDescriptor:texture_desc];
       if (!*texture) {
-        return absl::UnknownError("Failed to allocate id<MTLTexture>");
+        return absl::ResourceExhaustedError("Failed to allocate id<MTLTexture>");
       }
       if (data_ptr) {
         id<MTLCommandQueue> command_queue = [device newCommandQueue];

@@ -70,6 +70,10 @@ absl::Status AllocateTensorMemory(
           .size = data_size,
       };
       result->buffer = device.CreateBuffer(&buffer_desc);
+      if (!result->buffer) {
+        return absl::ResourceExhaustedError(absl::StrCat(
+            "Failed to allocate WebGPU buffer of ", data_size, " bytes."));
+      }
       if (!data.empty()) {
         if (data.size() < data_size) {
           return absl::InternalError(absl::StrCat(
@@ -123,6 +127,10 @@ absl::Status AllocateTensorMemory(
       tex_descriptor.format =
           DataTypeToTextureFormat(descriptor.GetDataType(), channels);
       result->texture = device.CreateTexture(&tex_descriptor);
+      if (!result->texture) {
+        return absl::ResourceExhaustedError(
+            "Failed to allocate WebGPU texture.");
+      }
       if (!data.empty()) {
         int pixel_size = SizeOf(descriptor.GetDataType()) * channels;
         int total_size = pixel_size * tex_descriptor.size.width *
@@ -268,6 +276,11 @@ absl::Status WriteDataToBufferViaStagingBuffer(const Environment& env,
     } else {
       aligned_data.reset(
           std::aligned_alloc(kMappedPointerAlignment, aligned_data_size));
+      if (aligned_data == nullptr) {
+        return absl::ResourceExhaustedError(absl::StrCat(
+            "Failed to allocate ", aligned_data_size,
+            " bytes of aligned host memory for WebGPU staging upload."));
+      }
       memcpy(aligned_data.get(), data_ptr, data_size);
       host_mapped_desc.pointer = aligned_data.get();
     }
@@ -277,6 +290,11 @@ absl::Status WriteDataToBufferViaStagingBuffer(const Environment& env,
         .size = aligned_data_size,
     };
     staging_buffer = device.CreateBuffer(&buffer_desc);
+    if (!staging_buffer) {
+      return absl::ResourceExhaustedError(
+          absl::StrCat("Failed to create host-mapped WebGPU staging buffer of ",
+                       aligned_data_size, " bytes."));
+    }
   } else {
 #else
   {
@@ -287,7 +305,13 @@ absl::Status WriteDataToBufferViaStagingBuffer(const Environment& env,
         .mappedAtCreation = true,
     };
     staging_buffer = device.CreateBuffer(&staging_buffer_desc);
-    staging_buffer.WriteMappedRange(0, data_ptr, data_size);
+    if (!staging_buffer ||
+        staging_buffer.WriteMappedRange(0, data_ptr, data_size) !=
+            wgpu::Status::Success) {
+      return absl::ResourceExhaustedError(
+          absl::StrCat("Failed to allocate mapped WebGPU staging buffer of ",
+                       data_size, " bytes."));
+    }
     staging_buffer.Unmap();
   }
 

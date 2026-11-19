@@ -31,7 +31,7 @@ namespace ml_drift {
 std::vector<int3> Reshapex4::GetPossibleKernelWorkGroups(
     TuningType tuning_type, const GpuInfo& gpu_info,
     const KernelInfo& kernel_info) const {
-  if (tuning_type == TuningType::kFast && src_[0]->Batch() != 1 &&
+  if (tuning_type != TuningType::kExhaustive && src_[0]->Batch() != 1 &&
       src_[0]->Height() == 1 && dst_[0]->Batch() == 1 &&
       dst_[0]->Height() == src_[0]->Batch() && dst_[0]->Width() >= 1024) {
     // B-H swap, B is fastest changing dimension in all physical layouts, it

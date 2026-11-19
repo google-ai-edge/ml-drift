@@ -15,137 +15,56 @@
 #ifndef ML_DRIFT_COMMON_OP_BASE_H_
 #define ML_DRIFT_COMMON_OP_BASE_H_
 
-#include <any>
-#include <cstdint>
 #include <memory>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <typeinfo>
 #include <utility>
 #include <vector>
 
-#include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "ml_drift/common/demangle.h"
 #include "ml_drift/common/op_attrs.h"
 #include "ml_drift/common/task/gpu_operation.h"
 #include "ml_drift/common/tensor_handle.h"
-#include "ml_drift/common/types.h"
 
 namespace ml_drift {
 
-class Arguments;
 class GpuModelBuilder;
 
-// Schema definition for a single attribute, defining its required type
-// and fallback default value if omitted.
-struct AttrSpec {
-  std::string name;
-  const std::type_info* type_info;
-  std::any default_value;
-};
+template <typename Derived>
+class OpBase;
 
-// Macro for defining attribute specifications for an operation.
-#define MLD_DECLARE_OP_ATTRS(...)                                 \
-  std::vector<ml_drift::AttrSpec> GetAttrSpecs() const override { \
-    return {__VA_ARGS__};                                         \
-  }
-
-// Macro for defining a single attribute specification for an operation.
-// Attributes of type {int32_t, float, half, bool} are automatically bound to
-// the operation arguments, except for those beginning with an underscore.
-#define MLD_OP_ATTR(type, name, default_val)   \
-  ml_drift::AttrSpec {                         \
-    #name, &typeid(type), type { default_val } \
-  }
-
-// [Internal] Binds attributes matching standard primitive types to the given
-// GPUOperation argument list, making them accessible to the shader.
-inline void BindAutoAttrs(GPUOperation* op, const OpAttrs& attrs,
-                          const std::vector<AttrSpec>& specs) {
-  for (const auto& spec : specs) {
-    if (!spec.name.empty() && spec.name[0] != '_') {
-      auto it = attrs.find(spec.name);
-      if (it != attrs.end()) {
-        const auto& attr_var = it->second;
-        if (auto* ptr = std::any_cast<int32_t>(&attr_var)) {
-          op->args_.AddInt(spec.name, *ptr);
-        } else if (auto* ptr = std::any_cast<float>(&attr_var)) {
-          op->args_.AddFloat(spec.name, *ptr);
-        } else if (auto* ptr = std::any_cast<half>(&attr_var)) {
-          op->args_.AddHalf(spec.name, *ptr);
-        } else if (auto* ptr = std::any_cast<bool>(&attr_var)) {
-          op->args_.AddInt(spec.name, *ptr ? 1 : 0);
-        }
-      }
-    }
-  }
-}
-
-// [Internal] Validates the provided attributes against their specifications.
-// Populates missing attributes with their default values and checks for
-// type mismatch errors.
-inline absl::Status ValidateAndNormalizeAttrs(
-    const std::vector<AttrSpec>& specs, OpAttrs& attrs) {
-  for (const auto& spec : specs) {
-    if (!attrs.contains(spec.name)) {
-      attrs.insert({spec.name, spec.default_value});
-    } else {
-      if (attrs.at(spec.name).type() != *spec.type_info) {
-        return absl::InvalidArgumentError(
-            absl::StrCat("Type mismatch for attribute: ", spec.name));
-      }
-    }
-  }
-  return absl::OkStatus();
-}
-
-// Base interface for operations. Inherit from this class to register an
-// operation in ML Drift (see op_api.h).
-class OpBase {
+// Non-templated base interface used by OpRegistry and GpuModelBuilder.
+class OpBaseImpl {
  public:
-  virtual ~OpBase() = default;
+  virtual ~OpBaseImpl() = default;
 
-  // Defines the expected attributes and their default values.
-  // By default, assumes an operation requires no attributes.
-  //
-  // Note: It is recommended to use the MLD_DECLARE_OP_ATTRS macro in the
-  // derived class to define the attribute specifications.
-  virtual std::vector<AttrSpec> GetAttrSpecs() const { return {}; }
-
-  // Constructs the operation in the provided GpuModelBuilder graph.
-  //
-  // inputs:  The tensor handles and shapes for the operation inputs, to be
-  //          validated by the operation.
-  // attrs:   The attributes for the operation. At the time of calling Build,
-  //          the attributes are validated and normalized.
-  // outputs: The output tensor handles and shapes, to be populated by the
-  //          operation.
-  virtual absl::Status Build(GpuModelBuilder& graph,
-                             const std::vector<TensorHandle>& inputs,
-                             const OpAttrs& attrs,
-                             std::vector<TensorHandle>& outputs) const = 0;
+  virtual absl::Status InvokeBuild(
+      GpuModelBuilder& graph, const std::vector<TensorHandle>& inputs,
+      const OpAttrs& raw_attrs, std::vector<TensorHandle>& outputs) const = 0;
 
  protected:
   // Appends a new operation to the provided GpuModelBuilder graph. This helper:
   // - Instantiates the underlying GPUOperation
   // - Infers the operation name
-  // - Binds standard typed attributes
+  // - Attaches `attrs` so auto-bound shader arguments are populated when
+  //   Build() succeeds
   // - Stages it in the graph's pending execution context
   //
   // graph: Model builder graph to append the new operation to.
-  // attrs: Map containing configuration attributes for the operation.
+  // attrs: Configuration attributes for the operation.
   // returns: Pointer to the newly allocated and staged GPUOperation.
   template <typename BuilderType>
   GPUOperation* AppendNewOp(BuilderType& graph, const OpAttrs& attrs) const {
     auto op_ptr = std::make_unique<GPUOperation>();
     auto* raw_op = op_ptr.get();
 
-    std::string op_name;
-    op_name = ml_drift::Demangle(typeid(*this).name());
+    std::string op_name = ml_drift::Demangle(typeid(*this).name());
 
-    BindAutoAttrs(raw_op, attrs, this->GetAttrSpecs());
+    attrs.AttachTo(raw_op);
 
     graph.AddGpuOperation(std::vector<ValueId>{}, std::vector<ValueId>{},
                           std::move(op_ptr), op_name);
@@ -174,6 +93,76 @@ class OpBase {
   void AddDstBuffer(BuilderType& graph, GPUOperation* op, std::string_view name,
                     const TensorHandle& handle, int element_size = 1) const {
     graph.AddDstBuffer(op, name, handle, element_size);
+  }
+
+ private:
+  template <typename Derived>
+  friend class OpBase;
+
+  OpBaseImpl() = default;
+};
+
+namespace internal {
+
+// True iff `Derived` declares exactly
+//   absl::Status Build(GpuModelBuilder&, const std::vector<TensorHandle>&,
+//                      Derived::Attrs&, std::vector<TensorHandle>&) const;
+// as an accessible member. Used by MLD_REGISTER_OP to report a wrong Build
+// signature at the registration line.
+template <typename Derived, typename = void>
+struct HasExpectedBuild : std::false_type {};
+
+template <typename Derived>
+struct HasExpectedBuild<Derived, std::void_t<decltype(&Derived::Build)>>
+    : std::is_same<decltype(&Derived::Build),
+                   absl::Status (Derived::*)(
+                       GpuModelBuilder&, const std::vector<TensorHandle>&,
+                       typename Derived::Attrs&, std::vector<TensorHandle>&)
+                       const> {};
+
+}  // namespace internal
+
+// Base class for operations, used via CRTP. Derive as
+// `class MyOp : public OpBase<MyOp>`, optionally declare attributes with
+// MLD_OP_ATTRS(...), implement Build() below, and register the op with
+// MLD_REGISTER_OP(MyOp). See op_api.h for a complete example.
+//
+//   absl::Status Build(GpuModelBuilder& graph,
+//                      const std::vector<TensorHandle>& inputs,
+//                      Attrs& attrs,
+//                      std::vector<TensorHandle>& outputs) const;
+//
+// See `op_api.h` for the full operation authoring guide, attribute rules, and
+// usage example.
+template <typename Derived>
+class OpBase : public OpBaseImpl {
+ public:
+  // Attribute type for ops that do not use MLD_OP_ATTRS. A nested
+  // `struct Attrs` declared in Derived hides this alias.
+  using Attrs = OpAttrs;
+
+  absl::Status InvokeBuild(GpuModelBuilder& graph,
+                           const std::vector<TensorHandle>& inputs,
+                           const OpAttrs& raw_attrs,
+                           std::vector<TensorHandle>& outputs) const final {
+    // This body is instantiated once Derived is complete (when its vtable is
+    // emitted in MLD_REGISTER_OP), so this names Derived's nested struct if
+    // one exists.
+    using DerivedAttrs = typename Derived::Attrs;
+    DerivedAttrs attrs;
+    absl::Status status = attrs.Parse(raw_attrs);
+    if (!status.ok()) {
+      return absl::Status(
+          status.code(),
+          absl::StrCat(ml_drift::Demangle(typeid(Derived).name()), ": ",
+                       status.message()));
+    }
+    status =
+        static_cast<const Derived*>(this)->Build(graph, inputs, attrs, outputs);
+    if (status.ok()) {
+      attrs.BindShaderArgs();
+    }
+    return status;
   }
 };
 

@@ -14,14 +14,16 @@
 
 #include "ml_drift/metal/buffer.h"
 
-#include "ml_drift/common/types.h"
-
+#import <Metal/Metal.h>
 #import <XCTest/XCTest.h>
 
-#import <Metal/Metal.h>
-
+#include <cstdint>
 #include <vector>
-#include <iostream>
+
+#include "absl/status/status.h"
+#include "absl/types/span.h"
+#include "ml_drift/common/task/buffer_desc.h"
+#include "ml_drift/common/types.h"
 
 @interface BufferTest : XCTestCase
 @end
@@ -35,6 +37,9 @@ using ml_drift::half;
 
 - (void)testBufferF32 {
   id<MTLDevice> device = MTLCreateSystemDefaultDevice();
+  if (device == nil) {
+    return;
+  }
 
   const std::vector<float> data = {1.0f, 2.0f, 3.0f, -4.0f, 5.1f};
   ml_drift::metal::Buffer buffer;
@@ -51,6 +56,9 @@ using ml_drift::half;
 
 - (void)testBufferF16 {
   id<MTLDevice> device = MTLCreateSystemDefaultDevice();
+  if (device == nil) {
+    return;
+  }
 
   const std::vector<half> data = {half(1.0f), half(2.0f), half(3.0f), half(-4.0f), half(5.1f)};
   ml_drift::metal::Buffer buffer;
@@ -64,6 +72,39 @@ using ml_drift::half;
   for (int i = 0; i < gpu_data.size(); ++i) {
     XCTAssertEqual(gpu_data[i], data[i]);
   }
+}
+
+- (void)testCreateBufferAllocationFailureReturnsResourceExhausted {
+  ml_drift::metal::Buffer buffer;
+  absl::Status empty_status = ml_drift::metal::CreateBuffer(/*size_in_bytes=*/64, /*data=*/nullptr,
+                                                            /*device=*/nil, &buffer);
+  XCTAssertEqual(empty_status.code(), absl::StatusCode::kResourceExhausted);
+
+  const uint8_t payload[16] = {};
+  absl::Status data_status =
+      ml_drift::metal::CreateBuffer(sizeof(payload), payload, /*device=*/nil, &buffer);
+  XCTAssertEqual(data_status.code(), absl::StatusCode::kResourceExhausted);
+
+  // Zero-byte buffers do not treat a nil MTLBuffer handle as an OOM failure.
+  XCTAssertTrue(ml_drift::metal::CreateBuffer(/*size_in_bytes=*/0, /*data=*/nullptr,
+                                              /*device=*/nil, &buffer)
+                    .ok());
+}
+
+- (void)testCreateFromBufferDescriptorFailureReturnsResourceExhausted {
+  ml_drift::BufferDescriptor empty_desc;
+  empty_desc.size = 128;
+  ml_drift::metal::Buffer buffer;
+  absl::Status empty_status = buffer.CreateFromBufferDescriptor(empty_desc, /*device=*/nil);
+  XCTAssertEqual(empty_status.code(), absl::StatusCode::kResourceExhausted);
+  XCTAssertEqual(buffer.GetMemorySizeInBytes(), 0ULL);
+
+  ml_drift::BufferDescriptor initialized_desc;
+  initialized_desc.size = 16;
+  initialized_desc.data.resize(16, 0xAB);
+  absl::Status init_status = buffer.CreateFromBufferDescriptor(initialized_desc, /*device=*/nil);
+  XCTAssertEqual(init_status.code(), absl::StatusCode::kResourceExhausted);
+  XCTAssertEqual(buffer.GetMemorySizeInBytes(), 0ULL);
 }
 
 @end

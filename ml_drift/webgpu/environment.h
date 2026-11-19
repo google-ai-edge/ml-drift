@@ -15,6 +15,7 @@
 #ifndef ML_DRIFT_WEBGPU_ENVIRONMENT_H_
 #define ML_DRIFT_WEBGPU_ENVIRONMENT_H_
 
+#include <atomic>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -31,9 +32,12 @@
 namespace ml_drift {
 namespace webgpu {
 
+// The device error callback can run on any thread that uses the device, so the
+// counts are atomic.
 struct DeviceUnhandledErrors {
-  int total_count = 0;
-  int create_compute_pipeline_count = 0;
+  std::atomic<int> total_count{0};
+  std::atomic<int> create_compute_pipeline_count{0};
+  std::atomic<int> out_of_memory_count{0};
 };
 
 class Environment {
@@ -85,11 +89,17 @@ class Environment {
   std::string GetPlatformDescription() const { return platform_description_; }
 
   int GetDeviceUnhandledErrorsTotalCount() const {
-    return device_unhandled_errors_.total_count;
+    return device_unhandled_errors_.total_count.load(std::memory_order_relaxed);
   }
 
   int GetDeviceUnhandledErrorsCreateComputePipelineCount() const {
-    return device_unhandled_errors_.create_compute_pipeline_count;
+    return device_unhandled_errors_.create_compute_pipeline_count.load(
+        std::memory_order_relaxed);
+  }
+
+  int GetDeviceUnhandledErrorsOutOfMemoryCount() const {
+    return device_unhandled_errors_.out_of_memory_count.load(
+        std::memory_order_relaxed);
   }
 
  private:

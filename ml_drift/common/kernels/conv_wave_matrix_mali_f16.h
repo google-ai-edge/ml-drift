@@ -37,17 +37,11 @@ class ConvWaveMatrixMaliF16 : public GPUOperation {
   struct ConvParams {
     bool x_kernel_is_1 = true;
     bool y_kernel_is_1 = true;
+    bool different_weights_for_height = false;
+    bool has_bias = true;
+    bool softmax_input_activation = false;
     OHWI weights_shape;
-
-    void InitKernelXY(const Convolution2DAttributes& attr) {
-      const OHWI& weights_shape = attr.GetWeightsShape();
-      x_kernel_is_1 = weights_shape.w == 1 && attr.strides.w == 1 &&
-                      attr.dilations.w == 1 && attr.padding.prepended.w == 0 &&
-                      attr.padding.appended.w == 0;
-      y_kernel_is_1 = weights_shape.h == 1 && attr.strides.h == 1 &&
-                      attr.dilations.h == 1 && attr.padding.prepended.h == 0 &&
-                      attr.padding.appended.h == 0;
-    }
+    ConvRuntimeCheckDesc runtime_check;
   };
 
   struct KernelParams {
@@ -70,8 +64,14 @@ class ConvWaveMatrixMaliF16 : public GPUOperation {
   WeightsDescription GetWeightsDescription() const {
     WeightsDescription weights_desc;
     weights_desc.type = DataType::kFloat16;
-    weights_desc.layout = WeightsLayout::kOSpatialIOGroupI2I2gr0O8I2gr1O2;
-    weights_desc.output_group_size = kernel_params_.s_block_size;
+    weights_desc.layout = WeightsLayout::kCustomGroupsI2gr0O8I2gr1O2;
+    weights_desc.group_sizes = {
+        {Axis::kInputChannels, 2},
+        {Axis::kOutputChannels, kernel_params_.s_block_size},
+        {Axis::kInputChannels, 0},
+        {Axis::kWidth, 0},
+        {Axis::kHeight, 0},
+        {Axis::kOutputChannels, 0}};
     return weights_desc;
   }
 
@@ -97,6 +97,14 @@ bool SupportsConvWaveMatrixMaliF16(const GpuInfo& gpu_info);
 ConvWaveMatrixMaliF16 CreateConvWaveMatrixMaliF16(
     const GpuInfo& gpu_info, const TensorDescriptor& src_desc,
     const TensorDescriptor& dst_desc, const Convolution2DAttributes& attr);
+
+// Creates a convolution operation with wave matrix and external weights.
+ConvWaveMatrixMaliF16 CreateConvWaveMatrixMaliF16ExternalWeights(
+    const GpuInfo& gpu_info, const TensorDescriptor& src_desc,
+    const TensorDescriptor& dst_desc, const Convolution2DAttributes& attr,
+    const TensorDescriptor* bias, const TensorDescriptor* src_exp,
+    bool different_weights_for_height,
+    const ConvRuntimeCheckDesc& runtime_check = {});
 
 }  // namespace ml_drift
 

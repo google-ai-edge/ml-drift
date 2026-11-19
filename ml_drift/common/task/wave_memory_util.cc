@@ -14,7 +14,9 @@
 
 #include "ml_drift/common/task/wave_memory_util.h"
 
+#include <algorithm>
 #include <cstddef>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -392,10 +394,241 @@ absl::Status ResolveWaveMemoryToWorkGroupMemory(const GpuInfo& gpu_info,
   }
   return absl::OkStatus();
 }
+
+// This function returns some not very documented physical parameter of
+// Adreno6xx and higher GPUs.
+// We obtained it using Snapdragon Profiler.
+int GetMaximumWavesCount(const AdrenoInfo& adreno_info) {
+  if (adreno_info.IsAdreno8xx()) {
+    return 32;
+  } else if (adreno_info.IsAdreno7xx()) {
+    return 16;
+  } else if (adreno_info.IsAdreno6xx()) {
+    if (adreno_info.adreno_gpu == AdrenoGpu::kAdreno640) {
+      return 30;
+    } else {
+      return 16;
+    }
+  } else {
+    // all other versions not supported
+    return 1;
+  }
+}
+
+void AllocateConstMemoryBuffer(DataType buffer_type, size_t size,
+                               Arguments* args) {
+  BufferDescriptor desc;
+  if (buffer_type == DataType::kFloat32) {
+    desc.element_type = DataType::kFloat32;
+    desc.element_size = 4;
+  } else if (buffer_type == DataType::kFloat16) {
+    desc.element_type = DataType::kFloat16;
+    desc.element_size = 8;
+  } else if (buffer_type == DataType::kUint32) {
+    desc.element_type = DataType::kFloat32;
+    desc.element_size = 4;
+  }
+  desc.memory_type = MemoryType::kConstant;
+  desc.size = size;
+  const std::string const_mem_attribute =
+      "max_constant_size((" + std::to_string(desc.size) + "))";
+  desc.attributes.push_back(const_mem_attribute);
+  args->AddObject("xmem", std::make_unique<BufferDescriptor>(std::move(desc)));
+}
+
+std::string QcomGetPhysicalSubGroupId(const AdrenoInfo& adreno_info) {
+  if (adreno_info.IsAdreno8xx()) {
+    return "(0x1F & qcom_get_physical_sub_group_id())";
+  } else if (adreno_info.adreno_gpu == AdrenoGpu::kAdreno640) {
+    return "qcom_get_physical_sub_group_id()";
+  } else {
+    return "(0xF & qcom_get_physical_sub_group_id())";
+  }
+}
+
+int GetMaxSubgroups(const AdrenoInfo& adreno_info, int data_size_per_subgroup) {
+  int const_memory =
+      adreno_info.adreno_gpu == AdrenoGpu::kAdreno640 ? 8 * 1024 : 4 * 1024;
+  if (adreno_info.IsAdreno8xx()) {
+    const_memory = 7 * 1024;
+  }
+  const int available_const_memory = const_memory - 1024;
+  const int gpu_max_subgroups = GetMaximumWavesCount(adreno_info);
+  if (data_size_per_subgroup <= 0) {
+    return gpu_max_subgroups;
+  }
+  return std::max(1, std::min(gpu_max_subgroups,
+                              available_const_memory / data_size_per_subgroup));
+}
+
+BufferDescriptor GetBufferDescForWaveMemoryUploadAdreno(const GpuInfo& gpu_info,
+                                                        DataType data_type) {
+  BufferDescriptor buffer_desc;
+  buffer_desc.memory_type = MemoryType::kConstant;
+  buffer_desc.attributes.push_back("sub_group_uniform");
+  if (data_type == DataType::kFloat32) {
+    buffer_desc.element_type = DataType::kFloat32;
+    buffer_desc.element_size = 4;
+  } else if (data_type == DataType::kFloat16) {
+    buffer_desc.element_type = DataType::kFloat16;
+    buffer_desc.element_size = 8;
+  } else if (data_type == DataType::kInt8) {
+    buffer_desc.element_type = DataType::kFloat32;
+    buffer_desc.element_size = 4;
+  }
+  return buffer_desc;
+}
+
+absl::Status ResolveWaveMemoryAdreno(
+    const GpuInfo& gpu_info, std::string* code, Arguments* args,
+    std::vector<CompilerOptions>* compiler_options) {
+  const std::string ext_declaration =
+      "#pragma OPENCL EXTENSION ucl_wave_memory: enable";
+  const size_t ext_pos = code->find(ext_declaration);
+  if (ext_pos != std::string::npos) {
+    std::string patch;
+    patch += "#pragma OPENCL EXTENSION cl_qcom_subgroup_uniform_load: enable\n";
+    patch +=
+        "#pragma OPENCL EXTENSION cl_qcom_subgroup_constant_load: enable\n";
+    code->replace(ext_pos, ext_declaration.size(), patch);
+  } else {
+    return absl::OkStatus();
+  }
+  const AdrenoInfo& adreno_info = gpu_info.adreno_info;
+  const std::string mem_qualifier = "__wave";
+  const size_t mem_pos = code->find(mem_qualifier);
+  DataType data_type;
+  int vector_size;
+  int data_size_total;
+  int max_subgroups;
+  int array_size;
+  std::string mem_name;
+  bool use_half16_for_half4 = false;
+  bool use_float16_for_float4 = false;
+  if (mem_pos != std::string::npos) {
+    size_t pos = mem_pos + mem_qualifier.size() + 1;
+    std::string mem_type = std::string(GetNextWord(*code, pos));
+    pos += mem_type.size() + 1;
+    mem_name = std::string(GetNextWord(*code, pos));
+    pos += mem_name.size() + 1;
+    array_size = std::stoi(std::string(GetNextWord(*code, pos)));
+    ABSL_RETURN_IF_ERROR(
+        DataTypeFromTemplateArg(mem_type, &data_type, &vector_size));
+    data_size_total = SizeOf(data_type) * vector_size * array_size;
+    max_subgroups = GetMaxSubgroups(adreno_info, data_size_total);
+    std::string patch;
+    patch += "int subgroup_id = (int)(" +
+             QcomGetPhysicalSubGroupId(adreno_info) + ");\n";
+    if (max_subgroups != GetMaximumWavesCount(adreno_info)) {
+      patch += "  subgroup_id = subgroup_id % " +
+               std::to_string(max_subgroups) + ";\n";
+    }
+    patch +=
+        "  int c_offset = mul24(subgroup_id, args.elements_per_subgroup);\n";
+    if (data_type == DataType::kFloat16 && vector_size == 4) {
+      use_half16_for_half4 = true;
+    }
+    if (data_type == DataType::kFloat32 && vector_size == 4) {
+      use_float16_for_float4 = true;
+    }
+    std::string const_cache_type = std::string(mem_type);
+    if (use_half16_for_half4) {
+      const_cache_type = "half16";
+    }
+    if (use_float16_for_float4) {
+      const_cache_type = "float16";
+    }
+    absl::StrAppend(&patch, "  __constant ", const_cache_type, "* ", mem_name,
+                    " = (__constant ", const_cache_type,
+                    "*)&xmem_buffer[c_offset];");
+    const size_t end_line = code->find('\n', mem_pos);
+    code->replace(mem_pos, end_line - mem_pos, patch);
+  }
+  if (use_half16_for_half4 || use_float16_for_float4) {
+    std::vector<std::pair<std::string, std::string>> replacements;
+    const std::string postfixes[] = {".s0123", ".s4567", ".s89ab", ".scdef"};
+    for (int i = 0; i < array_size; ++i) {
+      const std::string val_name = absl::StrCat(mem_name, "[", i, "]");
+      const std::string new_val_name =
+          absl::StrCat(mem_name, "[", i / 4, "]", postfixes[i % 4]);
+      replacements.push_back({val_name, new_val_name});
+    }
+    absl::StrReplaceAll(replacements, code);
+  }
+
+  const std::string upload_func_name = "ucl::WaveLoad";
+  size_t upload_pos = code->find(upload_func_name);
+  while (upload_pos != std::string::npos) {
+    size_t pos = upload_pos + upload_func_name.size();
+    std::vector<std::string> args;
+    size_t close_bracket_pos;
+    ABSL_RETURN_IF_ERROR(ParseArguments(*code, pos, &close_bracket_pos, &args));
+    const int upload_size_in_bytes =
+        std::stoi(args[3]) * SizeOf(data_type) * vector_size;
+    const std::string upload_func = data_type == DataType::kFloat16
+                                        ? "qcom_sub_group_constant_load8"
+                                        : "qcom_sub_group_constant_load4";
+    std::string buffer_offset = args[2];
+    if (data_type == DataType::kFloat16) {
+      buffer_offset = args[2] + " >> 1";
+    }
+    if (upload_size_in_bytes % 16 != 0) {
+      return absl::InternalError("Unsupported upload size in ucl::WaveLoad.");
+    }
+    const std::string patch = absl::StrCat(
+        upload_func, "(xmem_buffer, ", args[1], ", c_offset, ", buffer_offset,
+        ", ", std::to_string(upload_size_in_bytes / 16), ")");
+    code->replace(upload_pos, close_bracket_pos - upload_pos + 1, patch);
+    upload_pos = code->find(upload_func_name, upload_pos);
+  }
+  const std::string sync_func_name = "ucl::SyncThreads<WaveLoad>()";
+  size_t sync_pos = code->find(sync_func_name);
+  while (sync_pos != std::string::npos) {
+    const std::string patch =
+        R"(qcom_sub_group_sync(QCOM_CLK_CONST_LOAD_SYNC);)";
+    const size_t end_line = code->find('\n', sync_pos);
+    if (end_line == std::string::npos) {
+      return absl::InternalError("Failed to find end of line for " +
+                                 sync_func_name + ".");
+    }
+    code->replace(sync_pos, end_line - sync_pos, patch);
+    sync_pos = code->find(sync_func_name, sync_pos);
+  }
+
+  if (max_subgroups != GetMaximumWavesCount(adreno_info)) {
+    const size_t main_pos = code->find("MAIN_FUNCTION");
+    if (main_pos != std::string::npos) {
+      const std::string patch =
+          "__attribute__((qcom_max_concurrent_subgroups(" +
+          std::to_string(max_subgroups) + ")))\n";
+      code->insert(main_pos, patch);
+    }
+  }
+  if ((data_type == DataType::kUint32 || data_type == DataType::kFloat32) &&
+      adreno_info.IsAdreno8xx()) {
+    const size_t main_pos = code->find("MAIN_FUNCTION");
+    if (main_pos != std::string::npos) {
+      const std::string patch = "__attribute__((qcom_wave_pair_mode(1)))\n";
+      code->insert(main_pos, patch);
+    }
+  }
+
+  AllocateConstMemoryBuffer(data_type, data_size_total * max_subgroups, args);
+  // per subgroup elements(float4 or half8), in both cases
+  // sizeof(float4) or sizeof(half8) equal to 16 bytes.
+  args->AddInt("elements_per_subgroup", data_size_total / 16);
+
+  compiler_options->push_back(CompilerOptions::kAdrenoFullSimd);
+  compiler_options->push_back(CompilerOptions::kCl20);
+  return absl::OkStatus();
+}
 }  // namespace
 
 BufferDescriptor GetBufferDescForWaveMemoryUpload(const GpuInfo& gpu_info,
                                                   DataType data_type) {
+  if (gpu_info.IsAdreno() && gpu_info.IsApiOpenCl()) {
+    return GetBufferDescForWaveMemoryUploadAdreno(gpu_info, data_type);
+  }
   BufferDescriptor buffer_desc;
   buffer_desc.memory_type = MemoryType::kGlobal;
   buffer_desc.element_type = data_type;
@@ -425,6 +658,9 @@ absl::Status ResolveWaveMemory(const GpuInfo& gpu_info, std::string* code,
                                std::vector<CompilerOptions>* compiler_options) {
   if (!gpu_info.SupportsExtension("ucl_wave_memory")) {
     return absl::OkStatus();
+  }
+  if (gpu_info.IsAdreno() && gpu_info.IsApiOpenCl()) {
+    return ResolveWaveMemoryAdreno(gpu_info, code, args, compiler_options);
   }
   bool use_work_group_memory =
       gpu_info.IsPowerVR() && !gpu_info.powervr_info.IsImgDxx();

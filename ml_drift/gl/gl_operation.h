@@ -15,6 +15,7 @@
 #ifndef ML_DRIFT_GL_GL_OPERATION_H_
 #define ML_DRIFT_GL_GL_OPERATION_H_
 
+#include <cstddef>
 #include <cstdint>
 #include <map>
 #include <memory>
@@ -55,6 +56,8 @@ class ProgramCache {
   absl::Status GetProgram(const std::vector<uint8_t>& program_binary,
                           uint32_t binary_format, uint64_t fingerprint,
                           GLuint* result);
+
+  size_t GetProgramCount() const { return programs_cache_.size(); }
 
  private:
   std::map<uint64_t, GLuint> programs_cache_;

@@ -17,6 +17,7 @@
 
 #include <sys/types.h>
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -78,6 +79,11 @@ class ComputePipelineCache {
   void set_executor(std::unique_ptr<Executor> executor) {
     executor_ = std::move(executor);
   }
+
+  // Unique shaders converted to WGSL and compute pipelines built from them;
+  // there is one pipeline per (shader, work group size).
+  size_t GetShaderCount() const { return cached_code_.size(); }
+  size_t GetPipelineCount() const { return cached_data_.size(); }
 
  private:
   absl::flat_hash_map<uint64_t, std::unique_ptr<ComputePipelineHolder>>

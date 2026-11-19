@@ -40,6 +40,10 @@ TEST_F(OpenCLOperationTest, FullyConnectedBigSpatial) {
   ABSL_ASSERT_OK(TestFullyConnected(&exec_env_, BHWC(1, 1, 256, 16)));
 }
 
+TEST_F(OpenCLOperationTest, BatchedMatMulBroadcast) {
+  ABSL_ASSERT_OK(TestBatchedMatMulBroadcast(&exec_env_));
+}
+
 }  // namespace
 }  // namespace cl
 }  // namespace ml_drift

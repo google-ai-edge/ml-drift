@@ -1031,25 +1031,6 @@ ConvWaveMemory CreateConvWaveMemory(const GpuInfo& gpu_info,
   return result;
 }
 
-ConvWaveMemory CreateConvWaveMemory(const GpuInfo& gpu_info,
-                                    const OperationDef& definition,
-                                    CalculationsPrecision precision,
-                                    const FullyConnectedAttributes& attr,
-                                    const BHWC* dst_shape) {
-  ConvWaveMemory::ConvParams conv_params;
-  conv_params.src_desc = definition.src_tensors[0];
-  conv_params.precision = precision;
-  conv_params.weights_data_type = DeduceDataTypeFromPrecision(precision);
-  conv_params.x_kernel_is_1 = true;
-  conv_params.y_kernel_is_1 = true;
-  ConvWaveMemory result(conv_params, gpu_info, attr.weights.shape, dst_shape);
-  result.conv_params_.has_bias = !attr.bias.data.empty();
-  result.GenerateCode(gpu_info, definition);
-  result.UploadWeights(gpu_info, attr.weights);
-  result.UploadBias(gpu_info, attr.bias);
-  return result;
-}
-
 ConvWaveMemory CreateConvWaveMemoryExternalWeights(
     const GpuInfo& gpu_info, const OperationDef& definition,
     CalculationsPrecision precision, const Convolution2DAttributes& attr,

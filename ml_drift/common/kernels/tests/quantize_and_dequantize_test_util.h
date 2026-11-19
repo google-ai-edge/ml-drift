@@ -59,6 +59,23 @@ absl::Status QuantizationInt8Test(TestExecutionEnvironment& env,
                                   TensorStorageType float_storage,
                                   DataType float_type,
                                   TensorStorageType dst_storage);
+absl::Status QuantizationSymmetricUint8Test(TestExecutionEnvironment& env,
+                                            TensorStorageType float_storage,
+                                            DataType float_type,
+                                            TensorStorageType dst_storage);
+absl::Status QuantizationSymmetricInt8Test(TestExecutionEnvironment& env,
+                                           TensorStorageType float_storage,
+                                           DataType float_type,
+                                           TensorStorageType dst_storage);
+
+// Check symmetric quantization through GpuModelBuilder::Quantize(), which
+// always produces FP32 params, also for an FP16 source.
+absl::Status GpuModelBuilderQuantizeSymmetricUint8Test(
+    TestExecutionEnvironment& env, TensorStorageType storage,
+    DataType float_type);
+absl::Status GpuModelBuilderQuantizeSymmetricInt8Test(
+    TestExecutionEnvironment& env, TensorStorageType storage,
+    DataType float_type);
 
 }  // namespace ml_drift
 

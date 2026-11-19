@@ -39,6 +39,7 @@
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/kernels/conv_constants.h"
 #include "ml_drift/common/kernels/conv_generic.h"
+#include "ml_drift/common/kernels/conv_wave_matrix.h"
 #include "ml_drift/common/kernels/conv_wave_matrix_mali.h"
 #include "ml_drift/common/kernels/conv_wave_matrix_mali_f16.h"
 #include "ml_drift/common/kernels/conv_wave_memory.h"
@@ -82,17 +83,25 @@ absl::Status TestConvolutionPerformance(const Convolution2DAttributes& attr,
   const GpuInfo& gpu_info = env->GetDevicePtr()->GetInfo();
 
   std::unique_ptr<GPUOperation> conv;
-  if (precision == CalculationsPrecision::kF16 &&
-      SupportsConvWaveMatrixMaliF16(gpu_info)) {
+  if (SupportsConvWaveMatrix(gpu_info, precision, attr)) {
+    std::cout << "Using ConvWaveMatrix" << std::endl;
+    conv = std::make_unique<ConvWaveMatrix>(
+        CreateConvWaveMatrix(op_def, precision, dst_shape, attr, gpu_info));
+  } else if (precision == CalculationsPrecision::kF16 &&
+             SupportsConvWaveMatrixMaliF16(gpu_info)) {
+    std::cout << "Using ConvWaveMatrixMaliF16" << std::endl;
     conv = std::make_unique<ConvWaveMatrixMaliF16>(CreateConvWaveMatrixMaliF16(
         gpu_info, op_def.src_tensors[0], op_def.dst_tensors[0], attr));
   } else if (IsConvWaveMemorySupported(gpu_info)) {
+    std::cout << "Using ConvWaveMemory" << std::endl;
     conv = std::make_unique<ConvWaveMemory>(
         CreateConvWaveMemory(gpu_info, op_def, precision, attr, &dst_shape));
   } else if (/* DISABLES CODE */ (true)) {
+    std::cout << "Using ConvGeneric" << std::endl;
     conv = std::make_unique<ConvGeneric>(
         CreateConvGeneric(gpu_info, op_def, precision, attr, &dst_shape));
   } else {
+    std::cout << "Using ConvConstants" << std::endl;
     conv = std::make_unique<ConvConstants>(
         CreateConvConstants(gpu_info, op_def, precision, attr));
   }
@@ -1373,8 +1382,16 @@ absl::Status ConvMoEPerfTest(int seq_size, int src_channels, int dst_channels,
   packed_groups.max_group_size = seq_size;
   ConvRuntimeCheckDesc runtime_check;
   runtime_check.packed_groups = packed_groups;
-  if (!is_quantized && IsConvWaveMemorySupported(gpu_info) &&
-      gpu_info.IsAdreno()) {
+  if (SupportsConvGeneric(gpu_info, CalculationsPrecision::kF16,
+                          external_weights)) {
+    auto conv_generic = CreateConvGenericExternalWeights(
+        gpu_info, op_def, CalculationsPrecision::kF16, external_weights,
+        /*bias=*/nullptr, &dst_shape,
+        /*src_exp=*/nullptr, /*different_weights_for_height=*/true,
+        runtime_check);
+    conv = std::make_unique<ConvGeneric>(std::move(conv_generic));
+  } else if (!is_quantized && IsConvWaveMemorySupported(gpu_info) &&
+             gpu_info.IsAdreno()) {
     auto conv_wave_memory = CreateConvWaveMemoryExternalWeights(
         gpu_info, op_def, CalculationsPrecision::kF16, conv_attr,
         /*bias=*/nullptr, &dst_shape,
@@ -1382,14 +1399,6 @@ absl::Status ConvMoEPerfTest(int seq_size, int src_channels, int dst_channels,
         runtime_check);
     weights_desc = conv_wave_memory.GetWeightsDescription();
     conv = std::make_unique<ConvWaveMemory>(std::move(conv_wave_memory));
-  } else if (SupportsConvGeneric(gpu_info, CalculationsPrecision::kF16,
-                                 external_weights)) {
-    auto conv_generic = CreateConvGenericExternalWeights(
-        gpu_info, op_def, CalculationsPrecision::kF16, external_weights,
-        /*bias=*/nullptr, &dst_shape,
-        /*src_exp=*/nullptr, /*different_weights_for_height=*/true,
-        runtime_check);
-    conv = std::make_unique<ConvGeneric>(std::move(conv_generic));
   } else {
     ABSL_ASSIGN_OR_RETURN(
         auto conv_fc,

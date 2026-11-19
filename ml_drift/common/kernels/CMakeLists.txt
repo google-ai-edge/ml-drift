@@ -184,6 +184,7 @@ add_library(mld_common_kernels_fully_connected fully_connected.cc fully_connecte
 target_include_directories(mld_common_kernels_fully_connected PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
 target_link_libraries(mld_common_kernels_fully_connected
   PUBLIC
+    absl::log
     absl::status
     absl::status_macros
     absl::statusor
@@ -237,6 +238,7 @@ target_link_libraries(mld_common_kernels_fully_connected_util
     mld_common_task_buffer_desc
     mld_common_task_gpu_operation
     mld_common_task_tensor_desc
+    mld_common_util
 )
 
 add_library(mld_common_kernels_mean_stddev_normalization mean_stddev_normalization.cc mean_stddev_normalization.h)

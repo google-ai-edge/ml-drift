@@ -813,6 +813,15 @@ struct MetalInfo {
 
   bool is_simulator = false;
 
+  // True before macOS / iOS / tvOS / visionOS 26.4. On macOS 26.3,
+  // MetalPerformancePrimitives `mpp::tensor_ops::matmul2d` corrupts output when
+  // the right-hand `tensor(ptr, dextents<int, 2>(b_cols, b_rows))` has leading
+  // extent `b_cols >= 65536` (`args.dst.Slices() * 4 >= 65536`, e.g. 64K KV
+  // attention `Q @ K^T` without weights conversion), whereas 26.4 and later
+  // produce correct results. `ConvAppleMPP` is disabled entirely on affected OS
+  // versions.
+  bool has_bugs_with_mpp = false;
+
   bool IsSIMDMatMulSupported() const;
   // MSL is Metal shading language
   bool IsMslVersionEqualOrHigher(int major, int minor = 0) const;

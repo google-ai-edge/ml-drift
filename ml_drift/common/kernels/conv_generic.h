@@ -55,7 +55,8 @@ class ConvGeneric : public GPUOperation {
     kWaveMemory,
   };
   struct KernelParams {
-    int4 block_size;  // WHDS
+    // block_size.b must be equal to 1; block_size.c is in slices.
+    BHWDC block_size = BHWDC(1, 1, 1, 1, 1);
     bool fixed_work_group_size;
     int3 work_group_size;
     int3 work_group_launch_order;
@@ -86,11 +87,18 @@ class ConvGeneric : public GPUOperation {
     // this option it will be batch-slice-spatial
     bool linear_all_slices_first = false;
 
-    // supported only for Intel GPU with kIntelWave16MatMul weights upload type
-    bool use_vec8_accum = false;
+    enum class AccumulatorType {
+      kVec4,
+      kVec8,  // supported only for Intel GPU with kIntelWave16MatMul weights
+              // upload type
+      kHalf4x4AsUint8,
+      kHalf4x8AsUint16,
+      kHalf4x16AsUint32,
+    };
+    AccumulatorType accumulator_type = AccumulatorType::kVec4;
 
     // Must be in ascending order
-    std::vector<int> simd_sizes = {1};
+    std::vector<int> wave_sizes = {1};
 
     bool AreWeightsBuffer() const {
       return weights_upload_type != WeightsUploadType::kTexturesX4;
@@ -204,12 +212,6 @@ class ConvGeneric : public GPUOperation {
                                        const OperationDef& definition,
                                        CalculationsPrecision precision,
                                        const Convolution2DAttributes& attr,
-                                       const BHWC* dst_shape);
-
-  friend ConvGeneric CreateConvGeneric(const GpuInfo& gpu_info,
-                                       const OperationDef& definition,
-                                       CalculationsPrecision precision,
-                                       const FullyConnectedAttributes& attr,
                                        const BHWC* dst_shape);
 
   friend ConvGeneric CreateConvGenericExternalWeights(
@@ -328,13 +330,6 @@ ConvGeneric CreateConvGeneric(const GpuInfo& gpu_info,
                               const OperationDef& definition,
                               CalculationsPrecision precision,
                               const Convolution2DAttributes& attr,
-                              const BHWC* dst_shape = nullptr);
-
-// Creates a generic convolution operation for fully connected layers.
-ConvGeneric CreateConvGeneric(const GpuInfo& gpu_info,
-                              const OperationDef& definition,
-                              CalculationsPrecision precision,
-                              const FullyConnectedAttributes& attr,
                               const BHWC* dst_shape = nullptr);
 
 // Creates a generic convolution operation with external weights.

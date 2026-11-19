@@ -27,6 +27,8 @@ absl::Status TestExternalConvWeights(TestExecutionEnvironment* env);
 absl::Status TestFullyConnected(TestExecutionEnvironment* env,
                                 const BHWC& src_shape);
 
+absl::Status TestBatchedMatMulBroadcast(TestExecutionEnvironment* env);
+
 }  // namespace ml_drift
 
 #endif  // ML_DRIFT_COMMON_GPU_MODEL_EXTERNAL_WEIGHTS_TEST_UTIL_H_

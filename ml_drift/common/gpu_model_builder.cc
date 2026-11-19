@@ -157,6 +157,28 @@ ExternalWeights ToExternalWeights(const GpuModelBuilder::Weights& weights) {
   return external_weights;
 }
 
+// Returns the ResourceExhaustedError that CanCreateTensorWithShape() reports
+// for `tensor_desc` if it is stored in a buffer, and OK otherwise.
+//
+// Constant tensors added from a ready-made descriptor get only this check.
+// Their storage and data type were chosen by the caller and have never been
+// validated here, and the byte size limits in GpuInfo are buffer limits, which
+// do not bound texture storage on every backend.
+absl::Status CheckBufferSizeLimits(const GpuInfo& gpu_info,
+                                   const TensorDescriptor& tensor_desc) {
+  const TensorStorageType storage_type = tensor_desc.GetStorageType();
+  if (storage_type != TensorStorageType::kBuffer &&
+      storage_type != TensorStorageType::kImageBuffer) {
+    return absl::OkStatus();
+  }
+  absl::Status status = tensor_desc.CanCreateTensorWithShape(
+      gpu_info, tensor_desc.GetBHWDCShape());
+  if (!absl::IsResourceExhausted(status)) {
+    return absl::OkStatus();
+  }
+  return status;
+}
+
 }  // namespace
 
 GpuModelBuilder GpuModelBuilder::CreateBuilder() const {
@@ -188,14 +210,23 @@ std::vector<GpuModelBuilder::TensorHandle> GpuModelBuilder::AddTensors(
   return dsts;
 }
 
+void GpuModelBuilder::RecordStatus(absl::Status status) {
+  // Default-constructed synthetic GpuInfo structs in unit tests leave resource
+  // limits at 0; real initialized devices always populate positive limits.
+  if (status_.ok() && !status.ok() && gpu_info_.GetMaxBufferSize() > 0 &&
+      gpu_info_.GetMaxMemoryAllocationSize() > 0) {
+    status_ = std::move(status);
+  }
+}
+
 GpuModelBuilder::TensorHandle GpuModelBuilder::AddTensor(
     int b, int h, int w, int c, TensorStorageType storage_type,
     DataType data_type) {
   Layout layout = b == 1 ? Layout::kHWC : Layout::kBHWC;
   TensorDescriptor tensor_desc =
       TensorDescriptor{data_type, storage_type, layout};
-  auto status =
-      tensor_desc.UpdateToSupportedStorageType(gpu_info_, BHWC(b, h, w, c));
+  RecordStatus(
+      tensor_desc.UpdateToSupportedStorageType(gpu_info_, BHWC(b, h, w, c)));
   tensor_desc.SetBHWCShape(BHWC(b, h, w, c));
   return AddTensor(tensor_desc);
 }
@@ -229,8 +260,8 @@ GpuModelBuilder::TensorHandle GpuModelBuilder::AddTensor(
   }
   TensorDescriptor tensor_desc =
       TensorDescriptor{data_type, storage_type, layout};
-  auto status =
-      tensor_desc.UpdateToSupportedStorageType(gpu_info_, BHWDC(b, h, w, d, c));
+  RecordStatus(tensor_desc.UpdateToSupportedStorageType(gpu_info_,
+                                                        BHWDC(b, h, w, d, c)));
   tensor_desc.SetBHWDCShape(BHWDC(b, h, w, d, c));
   return AddTensor(tensor_desc);
 }
@@ -252,13 +283,14 @@ GpuModelBuilder::TensorHandle GpuModelBuilder::AddLinearTensor(
   TensorDescriptor tensor_desc =
       TensorDescriptor{data_type, default_storage_, Layout::kLinear};
   BHWC shape = BHWC(1, 1, 1, x);
-  auto status = tensor_desc.UpdateToSupportedStorageType(gpu_info_, shape);
+  RecordStatus(tensor_desc.UpdateToSupportedStorageType(gpu_info_, shape));
   tensor_desc.SetBHWCShape(shape);
   return AddTensor(tensor_desc);
 }
 
 GpuModelBuilder::TensorHandle GpuModelBuilder::AddConstantTensor(
     TensorDescriptor&& tensor_desc) {
+  RecordStatus(CheckBufferSizeLimits(gpu_info_, tensor_desc));
   gpu_model_.const_tensors[id_counter_] = std::move(tensor_desc);
   GpuModelBuilder::TensorHandle tensor_handle;
   tensor_handle.id = id_counter_;
@@ -272,6 +304,8 @@ GpuModelBuilder::TensorHandle GpuModelBuilder::AddConstantTensor(
     const Tensor<Linear, DataType::kFloat32>& tensor, DataType data_type) {
   TensorDescriptor tensor_desc =
       CreateConstantLinearTensorDescriptor(gpu_info_, data_type, tensor);
+  RecordStatus(tensor_desc.CanCreateTensorWithShape(
+      gpu_info_, tensor_desc.GetBHWDCShape()));
   return AddConstantTensor(std::move(tensor_desc));
 }
 
@@ -280,8 +314,8 @@ GpuModelBuilder::TensorHandle GpuModelBuilder::AddConstantTensor(
   Layout layout = tensor.shape.b == 1 ? Layout::kHWC : Layout::kBHWC;
   TensorDescriptor tensor_desc =
       TensorDescriptor{data_type, default_storage_, layout};
-  auto status =
-      tensor_desc.UpdateToSupportedStorageType(gpu_info_, tensor.shape);
+  RecordStatus(
+      tensor_desc.UpdateToSupportedStorageType(gpu_info_, tensor.shape));
   tensor_desc.UploadData(tensor);
   return AddConstantTensor(std::move(tensor_desc));
 }
@@ -617,12 +651,11 @@ GpuModelBuilder::TensorHandle GpuModelBuilder::Convolution(
     const Convolution2DAttributes& attr) {
   const OHWI& weights_shape = attr.GetWeightsShape();
   BHWC dst_shape = CalculateOutputShape(src.tensor_desc.GetBHWCShape(), attr);
+  const auto conv_precision = GetConvPrecision(src.tensor_desc.GetDataType());
   GpuModelBuilder::TensorHandle dst =
       AddTensor(dst_shape, src.tensor_desc.GetDataType());
-  const int total_spatial_size = dst_shape.b * dst_shape.h * dst_shape.w;
-  if (total_spatial_size <=
-          GetRecommendedMaxTotalSpatialSize(
-              gpu_info_, GetConvPrecision(src.tensor_desc.GetDataType())) &&
+  if (IsFullyConnectedRecommended(gpu_info_, conv_precision, weights_shape,
+                                  dst_shape) &&
       IsConvEquivalentToFullyConnected(attr)) {
     FullyConnectedAttributes fc_attr;
     fc_attr.op_name = attr.op_name;
@@ -671,7 +704,7 @@ GpuModelBuilder::TensorHandle GpuModelBuilder::Convolution(
     }
     auto op = SelectConvolutionWithExternalWeights(
         attr, bias_tensor_desc_ptr, dst_shape, gpu_info_, op_def,
-        GetConvPrecision(src.tensor_desc.GetDataType()), hints_, &weights_desc,
+        conv_precision, hints_, &weights_desc,
         /*src_exp=*/nullptr,
         /*different_weights_for_height=*/false);
     op->flops_ = GetConvolutionFlops(dst_shape, weights_shape);
@@ -689,8 +722,7 @@ GpuModelBuilder::TensorHandle GpuModelBuilder::Convolution(
   }
 
   auto op = SelectConvolution(attr, dst_shape, gpu_info_, op_def,
-                              GetConvPrecision(src.tensor_desc.GetDataType()),
-                              hints_);
+                              conv_precision, hints_);
   op->flops_ = GetConvolutionFlops(dst_shape, weights_shape);
   absl::StrAppend(&op_name, GetConvOpNameSuffix(*op));
   AddGpuOperation(std::vector<ValueId>{src.id}, std::vector<ValueId>{dst.id},
@@ -705,10 +737,9 @@ absl::StatusOr<GpuModelBuilder::TensorHandle> GpuModelBuilder::Convolution(
     const Convolution2DAttributes& attr) {
   const OHWI& weights_shape = attr.GetWeightsShape();
   BHWC dst_shape = CalculateOutputShape(src.tensor_desc.GetBHWCShape(), attr);
-  const int total_spatial_size = dst_shape.b * dst_shape.h * dst_shape.w;
-  if (total_spatial_size <=
-          GetRecommendedMaxTotalSpatialSize(
-              gpu_info_, GetConvPrecision(src.tensor_desc.GetDataType())) &&
+  const auto conv_precision = GetConvPrecision(src.tensor_desc.GetDataType());
+  if (IsFullyConnectedRecommended(gpu_info_, conv_precision, weights_shape,
+                                  dst_shape) &&
       IsConvEquivalentToFullyConnected(attr) &&
       IsFullyConnectedWeightsAreSpatialTensorSupported(weights_shape)) {
     return FullyConnectedExternalSpatialWeights(src, weights, bias);
@@ -725,9 +756,8 @@ absl::StatusOr<GpuModelBuilder::TensorHandle> GpuModelBuilder::Convolution(
 
     const TensorDescriptor* bias_desc_ptr = bias ? &bias->tensor_desc : nullptr;
     conv_op = SelectConvolutionWithExternalWeights(
-        attr, bias_desc_ptr, dst_shape, gpu_info_, op_def,
-        GetConvPrecision(src.tensor_desc.GetDataType()), hints_,
-        &conv_weights_desc, /*src_exp=*/nullptr,
+        attr, bias_desc_ptr, dst_shape, gpu_info_, op_def, conv_precision,
+        hints_, &conv_weights_desc, /*src_exp=*/nullptr,
         /*different_weights_for_height=*/false);
   }
 
@@ -849,23 +879,18 @@ GpuModelBuilder::FullyConnectedExternalWeights(
   const auto conv_precision = GetConvPrecision(src.tensor_desc.GetDataType());
   BHWC dst_shape = src.tensor_desc.GetBHWCShape();
   dst_shape.c = weights.shape.o;
-  const bool different_weights_for_height = weights.shape.h != 1;
 
   if (biases && biases->tensor_desc.GetBHWCShape().c != dst_shape.c) {
     ABSL_LOG(ERROR) << "Bias tensor has different number of channels than "
                        "the output tensor.";
   }
 
-  int total_spatial_size = dst_shape.b * dst_shape.w;
-  if (!different_weights_for_height) {
-    total_spatial_size *= dst_shape.h;
-  }
   const TensorDescriptor* bias_desc = biases ? &biases->tensor_desc : nullptr;
 
   const TensorDescriptor* src_exp_td =
       src_exp ? &src_exp->tensor_desc : nullptr;
-  if (total_spatial_size <=
-      GetRecommendedMaxTotalSpatialSize(gpu_info_, conv_precision)) {
+  if (IsFullyConnectedRecommended(gpu_info_, conv_precision, weights.shape,
+                                  dst_shape)) {
     GpuModelBuilder::TensorHandle dst =
         AddTensor(dst_shape, src.tensor_desc.GetDataType());
     gpu_model_.nodes.push_back({});
@@ -940,20 +965,15 @@ GpuModelBuilder::FullyConnectedExternalSpatialWeights(
   dst_shape.c = weights_shape.o;
   GpuModelBuilder::TensorHandle dst =
       AddTensor(dst_shape, src.tensor_desc.GetDataType());
+  const auto conv_precision = GetConvPrecision(src.tensor_desc.GetDataType());
 
   if (biases && biases->tensor_desc.GetBHWCShape().c != dst_shape.c) {
     ABSL_LOG(ERROR) << "Bias tensor has different number of channels than "
                        "the output tensor.";
   }
 
-  const bool different_weights_for_height = weights_shape.h != 1;
-  const int total_spatial_size =
-      dst_shape.b * dst_shape.w *
-      (!different_weights_for_height ? dst_shape.h : 1);
-
-  if (total_spatial_size >
-      GetRecommendedMaxTotalSpatialSize(
-          gpu_info_, GetConvPrecision(src.tensor_desc.GetDataType()))) {
+  if (!IsFullyConnectedRecommended(gpu_info_, conv_precision, weights_shape,
+                                   dst_shape)) {
     return absl::UnimplementedError(
         "Total spatial size is too large for FC runtime weights, should use "
         "CONVOLUTION instead.");
@@ -969,11 +989,10 @@ GpuModelBuilder::FullyConnectedExternalSpatialWeights(
   op_def.dst_tensors.push_back(dst.tensor_desc);
 
   const TensorDescriptor* bias_desc = biases ? &biases->tensor_desc : nullptr;
-  ABSL_ASSIGN_OR_RETURN(
-      auto fc_op,
-      CreateFullyConnectedWeightsAreSpatialTensor(
-          gpu_info_, op_def, GetConvPrecision(src.tensor_desc.GetDataType()),
-          weights_shape, bias_desc, &dst_shape, /*wg_size=*/nullptr));
+  ABSL_ASSIGN_OR_RETURN(auto fc_op,
+                        CreateFullyConnectedWeightsAreSpatialTensor(
+                            gpu_info_, op_def, conv_precision, weights_shape,
+                            bias_desc, &dst_shape, /*wg_size=*/nullptr));
   gpu_node.gpu_operation =
       std::make_unique<ml_drift::FullyConnected>(std::move(fc_op));
   gpu_node.inputs = {src.id, weights.id};
@@ -1152,12 +1171,6 @@ GpuModelBuilder::FullyConnectedSrcFloatExternalWeightsWithConversion(
   // conversion is usually ~20% slower than convolution without weights
   // conversion(on Apple GPUs in MLDrift implementation).
   const bool recommended_single_conv = !ringed_weights && conversion_cost > 20;
-  // ConvGeneric with on-the-fly weight conversion uses local memory barriers
-  // instead of wave/subgroup shuffle and caps block_size.w <= 4, adding ~40%
-  // compute overhead compared to ConvGeneric with pre-converted weights.
-  const bool recommended_single_conv_generic =
-      !ringed_weights && ((gpu_info_.IsDesktopGpu() && conversion_cost > 40) ||
-                          (gpu_info_.IsIntel() && conversion_cost > 20));
 
   std::unique_ptr<GPUOperation> conv_op;
   WeightsDescription conv_weights_desc;
@@ -1192,17 +1205,14 @@ GpuModelBuilder::FullyConnectedSrcFloatExternalWeightsWithConversion(
       conv_need_scale_zp = true;
     } else if (recommended_single_conv &&
                SupportsConvWaveMatrix(gpu_info_, conv_precision,
-                                      external_weights) &&
-               (!gpu_info_.IsApple() ||
-                IsGoodTaskSizeForAppleConvSimd(dst_shape, weights.shape,
-                                               conv_precision, gpu_info_))) {
+                                      external_weights)) {
       auto conv_wave_matrix = CreateConvWaveMatrixExternalWeights(
           op_def, conv_precision, dst_shape, external_weights, gpu_info_,
           bias_td, src_exp_td, different_weights_for_height, runtime_check);
       conv_weights_desc = weights.desc;
       conv_op = std::make_unique<ConvWaveMatrix>(std::move(conv_wave_matrix));
       conv_need_scale_zp = true;
-    } else if (recommended_single_conv_generic &&
+    } else if (recommended_single_conv &&
                SupportsConvGeneric(gpu_info_, conv_precision,
                                    external_weights)) {
       auto conv_generic = CreateConvGenericExternalWeights(
@@ -1266,7 +1276,8 @@ GpuModelBuilder::FullyConnectedSrcFloatExternalWeightsWithConversion(
 }
 
 std::vector<GpuModelBuilder::TensorHandle> GpuModelBuilder::Quantize(
-    const TensorHandle& src, PackedType quantized_type, bool calculate_sum) {
+    const TensorHandle& src, PackedType quantized_type, bool calculate_sum,
+    bool symmetric) {
   const BHWC src_shape = src.tensor_desc.GetBHWCShape();
   auto quantized = AddTensor(GetShapeForPackedType(src_shape, quantized_type),
                              ToSpatialTensorType(quantized_type));
@@ -1282,12 +1293,13 @@ std::vector<GpuModelBuilder::TensorHandle> GpuModelBuilder::Quantize(
   op_def.dst_tensors.push_back(quantized.tensor_desc);
   op_def.dst_tensors.push_back(src_params.tensor_desc);
   auto quant_op = CreateQuantization(op_def, quantized_type, gpu_info_,
-                                     src_shape, calculate_sum);
+                                     src_shape, calculate_sum, symmetric);
 
   gpu_model_.nodes.push_back({});
   auto& gpu_node = gpu_model_.nodes.back();
-  gpu_node.name = "quantize_" + ToString(src.tensor_desc.GetDataType()) +
-                  "_to_" + ToString(quantized_type);
+  gpu_node.name =
+      absl::StrCat("quantize_", ToString(src.tensor_desc.GetDataType()), "_to_",
+                   ToString(quantized_type), symmetric ? "_symmetric" : "");
   gpu_node.inputs = {src.id};
   gpu_node.outputs = {quantized.id, src_params.id};
   gpu_node.gpu_operation = std::move(quant_op);
@@ -1324,10 +1336,25 @@ GpuModelBuilder::FullyConnectedInt8QuantizedWithSrcQuantization(
   const bool calculate_sum = weights.zero_point.has_value() || use_uint8_math;
   auto outputs = Quantize(src, src_packed_type, calculate_sum);
   auto src_quantized = outputs[0];
-  if (SupportsConvAppleMPP(gpu_info_, src_shape)) {
+  const bool use_apple_mpp = SupportsConvAppleMPP(gpu_info_, src_shape);
+  if (use_apple_mpp) {
     src_quantized = ToDHWBCC4(src_quantized);
   }
   auto src_params = outputs[1];
+
+  const uint64_t flops =
+      GetConvolutionFlops(dst_shape, weights.shape) / weights.shape.h;
+  const uint64_t src_weights_size =
+      weights.shape.DimensionsProduct() * SizeInBitsOf(weights.desc.type) / 8;
+  const uint64_t dst_weights_size =
+      weights.shape.DimensionsProduct() * SizeInBitsOf(DataType::kInt8) / 8;
+  double flops_per_byte = 32;
+  if (gpu_info_.IsApple()) {
+    flops_per_byte = use_apple_mpp ? 120 : 32;
+  }
+  const double conversion_cost =
+      100.0 * (src_weights_size + dst_weights_size) / flops * flops_per_byte;
+  const bool recommended_single_conv = conversion_cost > 40;
 
   std::unique_ptr<GPUOperation> conv_int8;
   WeightsDescription conv_weights_desc;
@@ -1343,9 +1370,19 @@ GpuModelBuilder::FullyConnectedInt8QuantizedWithSrcQuantization(
     const TensorDescriptor* zero_point_desc =
         weights.zero_point.has_value() ? &weights.zero_point->tensor_desc
                                        : nullptr;
-    conv_int8 =
-        SelectConvolutionInt8(gpu_info_, op_def, src_packed_type, weights.shape,
-                              dst_shape, &conv_weights_desc);
+    ExternalWeights external_weights = ToExternalWeights(weights);
+    if (recommended_single_conv && use_apple_mpp &&
+        SupportsConvAppleMPP(gpu_info_, external_weights) &&
+        external_weights.desc.type == DataType::kUint4) {
+      auto conv_apple_mpp = CreateConvAppleMPPInt8(
+          op_def.src_tensors[0], op_def.dst_tensors[0], external_weights);
+      conv_weights_desc = weights.desc;
+      conv_int8 = std::make_unique<ConvAppleMPP>(std::move(conv_apple_mpp));
+    } else {
+      conv_int8 =
+          SelectConvolutionInt8(gpu_info_, op_def, src_packed_type,
+                                weights.shape, dst_shape, &conv_weights_desc);
+    }
 
     auto dequant_op = CreateDequantization(
         weights.shape, gpu_info_, interm_dst, dst.tensor_desc,
@@ -1386,8 +1423,7 @@ GpuModelBuilder::FullyConnectedInt8QuantizedWithSrcQuantization(
   }
   gpu_node.outputs = {dst.id};
   gpu_node.gpu_operation = std::move(conv_int8);
-  gpu_node.gpu_operation->flops_ +=
-      GetConvolutionFlops(dst_shape, weights.shape) / weights.shape.h;
+  gpu_node.gpu_operation->flops_ += flops;
   if (biases) {
     dst = Add(dst, *biases);
   }
@@ -1530,20 +1566,14 @@ GpuModelBuilder::FullyConnectedInt8ExternalWeights(
   ABSL_QCHECK(weights.scale_zp_shape.i > 0)
       << "FullyConnectedInt8ExternalWeights requires weights.scale_zp_shape";
 
-  const bool different_weights_for_height = weights.shape.h != 1;
-  int total_spatial_size = dst_shape.b * dst_shape.w;
-  if (!different_weights_for_height) {
-    total_spatial_size *= dst_shape.h;
-  }
-
   const TensorDescriptor* bias_desc = biases ? &biases->tensor_desc : nullptr;
   const bool grouped_quantization = weights.scale_zp_shape.i != 1;
 
   const bool ringed_weights = runtime_check.ring_o_offset_index.has_value() ||
                               runtime_check.ring_i_offset_index.has_value();
 
-  if (total_spatial_size <=
-          GetRecommendedMaxTotalSpatialSize(gpu_info_, conv_precision) ||
+  if (IsFullyConnectedRecommended(gpu_info_, conv_precision, weights.shape,
+                                  dst_shape) ||
       ringed_weights) {
     gpu_model_.nodes.push_back({});
     auto& gpu_node = gpu_model_.nodes.back();
@@ -1638,6 +1668,7 @@ GpuModelBuilder::FullyConnectedInt4ExternalWeights(const TensorHandle& src,
   dst_shape.c = weights.shape.o;
   GpuModelBuilder::TensorHandle dst =
       AddTensor(dst_shape, src.tensor_desc.GetDataType());
+  const auto conv_precision = GetConvPrecision(src.tensor_desc.GetDataType());
 
   if (biases && biases->tensor_desc.GetBHWCShape().c != dst_shape.c) {
     ABSL_LOG(ERROR) << "Bias tensor has different number of channels than "
@@ -1649,22 +1680,19 @@ GpuModelBuilder::FullyConnectedInt4ExternalWeights(const TensorHandle& src,
   ABSL_QCHECK(weights.scale_zp_shape.i > 0)
       << "FullyConnectedInt4ExternalWeights requires weights.scale_zp_shape";
 
-  const int total_spatial_size = dst_shape.b * dst_shape.h * dst_shape.w;
   const TensorDescriptor* bias_desc = biases ? &biases->tensor_desc : nullptr;
   const bool grouped_quantization = weights.scale_zp_shape.i != 1;
 
-  if (total_spatial_size <=
-      GetRecommendedMaxTotalSpatialSize(
-          gpu_info_, GetConvPrecision(src.tensor_desc.GetDataType()))) {
+  if (IsFullyConnectedRecommended(gpu_info_, conv_precision, weights.shape,
+                                  dst_shape)) {
     gpu_model_.nodes.push_back({});
     auto& gpu_node = gpu_model_.nodes.back();
     gpu_node.name = "fc1x1_int4_weights";
 
     ExternalWeights external_weights = ToExternalWeights(weights);
     auto fc_op = CreateFullyConnectedExternalWeights(
-        gpu_info_, GetConvPrecision(src.tensor_desc.GetDataType()),
-        src.tensor_desc, dst.tensor_desc, external_weights, bias_desc,
-        &dst_shape);
+        gpu_info_, conv_precision, src.tensor_desc, dst.tensor_desc,
+        external_weights, bias_desc, &dst_shape);
     ABSL_QCHECK_OK(fc_op);
 
     gpu_node.gpu_operation =
@@ -1722,13 +1750,12 @@ GpuModelBuilder::FullyConnectedInt2ExternalWeights(const TensorHandle& src,
   ABSL_QCHECK(weights.scale_zp_shape.i > 0)
       << "FullyConnectedInt2ExternalWeights requires weights.scale_zp_shape";
 
-  const int total_spatial_size = dst_shape.b * dst_shape.h * dst_shape.w;
   const TensorDescriptor* bias_desc = biases ? &biases->tensor_desc : nullptr;
   const bool grouped_quantization = weights.scale_zp_shape.i != 1;
 
-  if (total_spatial_size <=
-      GetRecommendedMaxTotalSpatialSize(
-          gpu_info_, GetConvPrecision(src.tensor_desc.GetDataType()))) {
+  if (IsFullyConnectedRecommended(
+          gpu_info_, GetConvPrecision(src.tensor_desc.GetDataType()),
+          weights.shape, dst_shape)) {
     gpu_model_.nodes.push_back({});
     auto& gpu_node = gpu_model_.nodes.back();
     gpu_node.name = "fc1x1_int2_weights";
@@ -1838,8 +1865,9 @@ GpuModelBuilder::Weights GpuModelBuilder::GetWeights(
       gpu_info_, weights_shape,
       hints_.Check(ModelHints::kPreferTextureWeights));
 
+  // Two int4 weights are packed per byte.
   const int elements_count =
-      GetTotalElementsCountForLayout(weights_desc, weights_shape) / 4;
+      GetTotalElementsCountForLayout(weights_desc, weights_shape) / 2;
   std::vector<uint8_t> weights_data(elements_count);
 
   if (std::holds_alternative<Tensor<OHWI, DataType::kInt4>>(weights)) {
@@ -2026,7 +2054,6 @@ GpuModelBuilder::TensorHandle GpuModelBuilder::FullyConnected(
   const DataType float_type = src.tensor_desc.GetDataType();
   const CalculationsPrecision precision = GetConvPrecision(float_type);
   BHWC dst_shape = CalculateOutputShape(src.tensor_desc.GetBHWCShape(), attr);
-  const int total_spatial_size = dst_shape.b * dst_shape.h * dst_shape.w;
   GpuModelBuilder::TensorHandle dst = AddTensor(dst_shape, float_type);
 
   GpuModelBuilder::TensorHandle bias_th;
@@ -2039,8 +2066,26 @@ GpuModelBuilder::TensorHandle GpuModelBuilder::FullyConnected(
   std::unique_ptr<GPUOperation> op;
   WeightsDescription weights_desc;
   std::string op_name;
-  if (total_spatial_size >
-      GetRecommendedMaxTotalSpatialSize(gpu_info_, precision)) {
+  if (IsFullyConnectedRecommended(gpu_info_, precision, attr.weights.shape,
+                                  dst_shape)) {
+    weights_desc = ml_drift::GetFullyConnectedWeightsDesc(gpu_info_, float_type,
+                                                          attr.weights.shape);
+
+    ExternalWeights external_weights;
+    external_weights.desc = weights_desc;
+    external_weights.shape = attr.weights.shape;
+    auto fc_with_status = CreateFullyConnectedExternalWeights(
+        gpu_info_, precision, src.tensor_desc, dst.tensor_desc,
+        external_weights, bias_td_ptr, &dst_shape);
+    if (!fc_with_status.ok()) {
+      ABSL_LOG(ERROR) << fc_with_status.status().message();
+      return dst;
+    } else {
+      op = std::make_unique<ml_drift::FullyConnected>(
+          std::move(fc_with_status.value()));
+    }
+    op_name = "fully_connected";
+  } else {
     OperationDef op_def;
     op_def.src_tensors.push_back(src.tensor_desc);
     op_def.dst_tensors.push_back(dst.tensor_desc);
@@ -2060,24 +2105,6 @@ GpuModelBuilder::TensorHandle GpuModelBuilder::FullyConnected(
         /*src_exp=*/nullptr,
         /*different_weights_for_height=*/false);
     op_name = "convolution1x1" + GetConvOpNameSuffix(*op);
-  } else {
-    weights_desc = ml_drift::GetFullyConnectedWeightsDesc(gpu_info_, float_type,
-                                                          attr.weights.shape);
-
-    ExternalWeights external_weights;
-    external_weights.desc = weights_desc;
-    external_weights.shape = attr.weights.shape;
-    auto fc_with_status = CreateFullyConnectedExternalWeights(
-        gpu_info_, precision, src.tensor_desc, dst.tensor_desc,
-        external_weights, bias_td_ptr, &dst_shape);
-    if (!fc_with_status.ok()) {
-      ABSL_LOG(ERROR) << fc_with_status.status().message();
-      return dst;
-    } else {
-      op = std::make_unique<ml_drift::FullyConnected>(
-          std::move(fc_with_status.value()));
-    }
-    op_name = "fully_connected";
   }
   op->flops_ =
       GetConvolutionFlops(dst_shape, attr.weights.shape) / attr.weights.shape.h;
@@ -2099,7 +2126,6 @@ GpuModelBuilder::TensorHandle GpuModelBuilder::FullyConnected(
   const BHWC src_shape = src.tensor_desc.GetBHWCShape();
   const BHWC dst_shape(src_shape.b, src_shape.h, src_shape.w,
                        attr.weights.shape.o);
-  const int total_spatial_size = dst_shape.b * dst_shape.h * dst_shape.w;
   const DataType float_type = src.tensor_desc.GetDataType();
   if (!attr.zero_point.empty()) {
     ABSL_QCHECK_EQ(attr.scale.shape, attr.zero_point.shape);
@@ -2140,9 +2166,11 @@ GpuModelBuilder::TensorHandle GpuModelBuilder::FullyConnected(
                                              bias_th_ptr);
   }
 
-  if (total_spatial_size <=
-      GetRecommendedMaxTotalSpatialSize(
-          gpu_info_, GetConvPrecision(src.tensor_desc.GetDataType()))) {
+  const auto conv_precision = GetConvPrecision(src.tensor_desc.GetDataType());
+
+  if (IsFullyConnectedRecommended(
+          gpu_info_, conv_precision,
+          attr.weights.shape, dst_shape)) {
     GpuModelBuilder::TensorHandle dst = AddTensor(dst_shape, float_type);
     gpu_model_.nodes.push_back({});
     auto& gpu_node = gpu_model_.nodes.back();
@@ -2194,7 +2222,7 @@ GpuModelBuilder::TensorHandle GpuModelBuilder::FullyConnected(
     }
 
     auto fc = CreateFullyConnectedExternalWeights(
-        gpu_info_, GetConvPrecision(src.tensor_desc.GetDataType()),
+        gpu_info_, conv_precision,
         src.tensor_desc, dst.tensor_desc, external_weights, bias_td_ptr,
         &dst_shape);
     if (!fc.ok()) {
@@ -3388,6 +3416,7 @@ absl::StatusOr<GpuModelBuilder::TensorHandle> GpuModelBuilder::BatchedMatMul(
           GetRecommendedMaxTotalSpatialSize(
               gpu_info_, GetConvPrecision(left.tensor_desc.GetDataType())) &&
       batched_mat_mul_attr.transpose_right &&
+      (right_shape.h == 1 || right_shape.h == dst_shape.h) &&
       IsFullyConnectedWeightsAreSpatialTensorSupported(weights_shape_ohwi)) {
     auto weights = AddTensor(w_shape, right.tensor_desc.GetDataType());
 
@@ -3427,6 +3456,8 @@ absl::StatusOr<GpuModelBuilder::TensorHandle> GpuModelBuilder::BatchedMatMul(
         OHWI(right_shape.w, right_shape.b, right_shape.h, right_shape.c);
   }
 
+  const bool different_weights_for_height =
+      weights_shape.h != 1 || weights_shape.w != 1;
   std::unique_ptr<GPUOperation> conv_op;
   WeightsDescription conv_weights_desc;
   {
@@ -3448,11 +3479,17 @@ absl::StatusOr<GpuModelBuilder::TensorHandle> GpuModelBuilder::BatchedMatMul(
         attr, /*bias_desc*/ nullptr, dst_shape, gpu_info_, op_def,
         GetConvPrecision(left.tensor_desc.GetDataType()), hints_,
         &conv_weights_desc, src_exp_td,
-        /*different_weights_for_height=*/true, runtime_check);
+        different_weights_for_height, runtime_check);
   }
 
+  OHWI layout_weights_shape = weights_shape;
+  if (different_weights_for_height) {
+    // Replicate the W weight matrices across H so the converted spatial extent
+    // (H * W) matches dst_shape.h when broadcasting (W < dst_shape.h).
+    layout_weights_shape.h = DivideRoundUp(dst_shape.h, weights_shape.w);
+  }
   std::vector<TensorHandle> conv_weights = WeightsConversion(
-      weights_handle, Layout::kHWIO, conv_weights_desc, weights_shape);
+      weights_handle, Layout::kHWIO, conv_weights_desc, layout_weights_shape);
 
   gpu_model_.nodes.push_back({});
   auto& conv_node = gpu_model_.nodes.back();
@@ -3616,7 +3653,7 @@ std::vector<GpuModelBuilder::TensorHandle> GpuModelBuilder::Split(
   const uint32_t max_buffer_arguments = gpu_info_.GetMaxBufferArguments();
 
   uint32_t max_total_arguments =
-      std::max(max_buffer_arguments, max_image_arguments);
+      std::max(8u, std::min(max_image_arguments, max_buffer_arguments)) - 4;
   if (gpu_info_.IsMali()) {
     // Mali can fail clEnqueueNDRangeKernel with "Out of resources" when it
     // receives too big kernel.
@@ -3980,6 +4017,7 @@ absl::Status GpuModelBuilder::GetGpuModel(
     const std::vector<std::pair<ValueId, ValueId>>& input_ids_and_refs,
     const std::vector<std::pair<ValueId, ValueId>>& output_ids_and_refs,
     GpuModel* gpu_model) {
+  ABSL_RETURN_IF_ERROR(status_);
   gpu_model_.input_ids_and_refs = input_ids_and_refs;
   gpu_model_.output_ids_and_refs = output_ids_and_refs;
   ABSL_RETURN_IF_ERROR(MergeNodes(gpu_info_, &gpu_model_));
@@ -4041,15 +4079,15 @@ GPUOperation GpuModelBuilder::CreateNormalize(
   const DataType float_type = src.tensor_desc.GetDataType();
   TensorDescriptor gamma_tensor_desc =
       TensorDescriptor(float_type, default_storage_, Layout::kHWC);
-  auto status =
-      gamma_tensor_desc.UpdateToSupportedStorageType(gpu_info_, shape);
+  RecordStatus(
+      gamma_tensor_desc.UpdateToSupportedStorageType(gpu_info_, shape));
   gamma_tensor_desc.UploadData(gamma);
   op.args_.AddObject("gamma", std::make_unique<TensorDescriptor>(
                                   std::move(gamma_tensor_desc)));
 
   TensorDescriptor beta_tensor_desc =
       TensorDescriptor(float_type, default_storage_, Layout::kHWC);
-  status = beta_tensor_desc.UpdateToSupportedStorageType(gpu_info_, shape);
+  RecordStatus(beta_tensor_desc.UpdateToSupportedStorageType(gpu_info_, shape));
   beta_tensor_desc.UploadData(beta);
   op.args_.AddObject(
       "beta", std::make_unique<TensorDescriptor>(std::move(beta_tensor_desc)));
@@ -4321,6 +4359,7 @@ absl::Status GpuModelBuilder::RegisterSubgraph(
     GpuModelBuilder subgraph_builder, const std::string& subgraph_id,
     const std::vector<TensorHandle>& inputs,
     const std::vector<TensorHandle>& outputs) {
+  ABSL_RETURN_IF_ERROR(subgraph_builder.status_);
   std::vector<ValueId> input_ids;
   input_ids.reserve(inputs.size());
   for (const auto& input : inputs) {
@@ -4768,18 +4807,14 @@ GpuModelBuilder::AppendOp(std::string_view op_name,
         absl::StrCat("Operation not found in registry: ", op_name));
   }
 
-  ABSL_ASSIGN_OR_RETURN(std::vector<AttrSpec> specs,
-                        OpRegistry::Global().GetAttrSpecs(op_name));
-
-  OpAttrs mutable_attrs = attrs;
-  ABSL_RETURN_IF_ERROR(ValidateAndNormalizeAttrs(specs, mutable_attrs));
-
   std::vector<TensorHandle> outputs;
   size_t initial_nodes = this->gpu_model_.nodes.size();
   uint64_t initial_tensors = this->id_counter_;
+  absl::Status initial_status = this->status_;
 
-  absl::Status status = op->Build(*this, inputs, mutable_attrs, outputs);
+  absl::Status status = op->InvokeBuild(*this, inputs, attrs, outputs);
   if (!status.ok()) {
+    this->status_ = std::move(initial_status);
     this->gpu_model_.nodes.resize(initial_nodes);
     for (uint64_t i = initial_tensors; i < id_counter_; ++i) {
       this->gpu_model_.tensors.erase(i);
