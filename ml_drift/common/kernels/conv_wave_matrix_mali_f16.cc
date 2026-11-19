@@ -19,6 +19,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/log/absl_check.h"
 #include "absl/strings/substitute.h"
 #include "absl/types/span.h"
 #include "ml_drift/common/data_type.h"
@@ -57,6 +58,7 @@ std::string GetCode(const GpuInfo& gpu_info,
                     const ConvWaveMatrixMaliF16::ConvParams& conv_params,
                     const ConvWaveMatrixMaliF16::KernelParams& kernel_params,
                     const TensorDescriptor& src_desc) {
+  const bool has_batch = src_desc.HasAxis(Axis::kBatch);
   auto GetGlobalID = [&](int id) {
     int3 wg_order = kernel_params.slices_first ? int3(1, 0, 2) : int3(0, 1, 2);
     int3 launch_remap;
@@ -92,6 +94,8 @@ MAIN_FUNCTION($0) {
   c += "  int subgroup_dst_s_base = " + GetGlobalID(1) + ";\n";
   c += "  int dst_y = " + GetGlobalID(2) + ";\n";
   if (conv_params.runtime_check.packed_groups.has_value()) {
+    ABSL_CHECK(!has_batch);
+    // Axis::kBatch should not be used here.
     c += "  int w_batch_id = dst_y;\n";
     c += "  dst_y = 0;\n";
     c += "  int w_group_size = args.params.Read(args.packed_params_offset + "
@@ -103,11 +107,12 @@ MAIN_FUNCTION($0) {
     c += "  if (subgroup_base_x >= w_group_size) return;\n";
     c += "  subgroup_base_x += w_group_offset;\n";
   }
-  c += R"(
-  if (subgroup_base_x >= args.dst.Width() || dst_y >= args.dst.Height()) {
-    return;
-  }
-)";
+  const std::string dst_xb_size =
+      has_batch ? "args.dst.Width() * args.dst.Batch()" : "args.dst.Width()";
+  c += "  if (subgroup_base_x >= " + dst_xb_size +
+       " || dst_y >= args.dst.Height()) {\n";
+  c += "    return;\n";
+  c += "  }\n";
   std::string dst_end_slice = "args.dst.Slices()";
   if (conv_params.runtime_check.dst_end_ch_index.has_value()) {
     c += "  int dst_end_slice_runtime = " +
@@ -164,32 +169,38 @@ MAIN_FUNCTION($0) {
   }
   if (!conv_params.x_kernel_is_1) {
     c += "  for (int kx = 0; kx < args.kernel_size_x; ++kx) {\n";
-    for (int x = 0; x < kernel_params.x_block_size; x++) {
-      const std::string src_x = "src_x" + std::to_string(x);
-      c += "  int " + src_x +
-           " = kx * args.dilation_x + (subgroup_base_x + x_sub_id + " +
-           std::to_string(x * 8) + ") * args.stride_x + args.padding_x;\n";
+  }
+  for (int x = 0; x < kernel_params.x_block_size; x++) {
+    std::string p;
+    if (has_batch) {
+      p += "  int dst_xb$0 = subgroup_base_x + x_sub_id + $1;\n";
+      p += "  int dst_x$0 = dst_xb$0 / args.src.Batch();\n";
+      p += "  int src_b$0 = dst_xb$0 % args.src.Batch();\n";
+    } else {
+      p += "  int dst_x$0 = subgroup_base_x + x_sub_id + $1;\n";
+    }
+    if (conv_params.x_kernel_is_1) {
+      p += "  int src_x$0 = min(dst_x$0, args.src.Width() - 1);\n";
+    } else {
+      p += "  int src_x$0 = kx * args.dilation_x + dst_x" + std::to_string(x) +
+           " * args.stride_x + args.padding_x;\n";
       if (!src_desc.SupportsZeroClamp(Axis::kWidth, gpu_info)) {
-        c += "  bool in_x" + std::to_string(x) + " = " + src_x + " >= 0 && " +
-             src_x + " < args.src.Width();\n";
+        p += "  bool in_x$0 = src_x$0 >= 0 && src_x$0 < args.src.Width();\n";
         if (!src_desc.CanReadOutOfBorder(Axis::kWidth, gpu_info)) {
-          c += "  " + src_x + " = clamp(" + src_x +
-               ", 0, args.src.Width() - 1);\n";
+          p += "  src_x$0 = clamp(src_x$0, 0, args.src.Width() - 1);\n";
         }
       }
     }
-  } else {
-    for (int x = 0; x < kernel_params.x_block_size; x++) {
-      std::string patch =
-          "  int src_x$0 = min(subgroup_base_x + x_sub_id + $1, "
-          "args.src.Width() - 1);\n";
-      c += absl::Substitute(patch, x, x * 8);
-    }
+    c += absl::Substitute(p, x, x * 8);
   }
   if (conv_params.softmax_input_activation) {
     for (int x = 0; x < kernel_params.x_block_size; x++) {
+      std::string coords = "src_x$0, src_y, 0";
+      if (has_batch) {
+        coords += ", src_b$0";
+      }
       c += absl::Substitute(
-          "  half2 exp_val$0 = args.src_exp.Read(src_x$0, src_y, 0).xy;\n", x);
+          "  half2 exp_val$0 = args.src_exp.Read(" + coords + ").xy;\n", x);
     }
   }
   std::string src_end_slice = "args.src.Slices()";
@@ -208,7 +219,11 @@ MAIN_FUNCTION($0) {
   }
   for (int x = 0; x < kernel_params.x_block_size; x++) {
     std::string patch;
-    patch += "    half4 s$0 = args.src.Read(src_x$0, src_y, $1);\n";
+    std::string coords = "src_x$0, src_y, $1";
+    if (has_batch) {
+      coords += ", src_b$0";
+    }
+    patch += "    half4 s$0 = args.src.Read(" + coords + ");\n";
     std::string check;
     if (!conv_params.x_kernel_is_1 &&
         !src_desc.SupportsZeroClamp(Axis::kWidth, gpu_info)) {
@@ -258,38 +273,50 @@ MAIN_FUNCTION($0) {
   int dst_s_final = 0;
 )";
   c += "  int DST_X = subgroup_base_x + x_sub_id / 2 * 2;\n";
+
+  auto write_result = [](bool has_batch) {
+    std::string c;
+    if (has_batch) {
+      c += "      int dst_x = dst_xb_final / args.dst.Batch();\n";
+      c += "      int dst_b = dst_xb_final % args.dst.Batch();\n";
+      c += "      args.dst.Write(R, dst_x, dst_y, dst_s_final, dst_b);\n";
+    } else {
+      c += "      args.dst.Write(R, dst_xb_final, dst_y, dst_s_final);\n";
+    }
+    return c;
+  };
+
+  const std::string dst_x_bound =
+      conv_params.runtime_check.packed_groups.has_value()
+          ? "w_group_offset + w_group_size"
+          : dst_xb_size;
   for (int s = 0; s < kernel_params.s_block_size; s++) {
     c += "  dst_s_final = DST_S + " + std::to_string(s * 4) + ";\n";
     c += "  if (dst_s_final < args.dst.Slices()) {\n";
     if (conv_params.has_bias) {
       c += "    half4 bias_val = args.biases.Read(dst_s_final);\n";
     }
-    c += "    int dst_x_final;\n";
-    const std::string dst_x_bound =
-        conv_params.runtime_check.packed_groups.has_value()
-            ? "w_group_offset + w_group_size"
-            : "args.dst.Width()";
+    c += "    int dst_xb_final;\n";
     for (int x = 0; x < kernel_params.x_block_size; x++) {
       std::string patch = R"(
-    dst_x_final = DST_X + $0 * 8 + 0;
-    if (dst_x_final < $3) {
+    dst_xb_final = DST_X + $0 * 8 + 0;
+    if (dst_xb_final < $3) {
       half4 R = (half4)(r_w$0_s$1.x, r_w$0_s$1.y, r_w$0_s$2.x, r_w$0_s$2.y);
 )";
       if (conv_params.has_bias) {
         patch += "      R += bias_val;\n";
       }
-      patch += R"(      args.dst.Write(R, dst_x_final, dst_y, dst_s_final);
-    }
-    dst_x_final = DST_X + $0 * 8 + 1;
-    if (dst_x_final < $3) {
+      patch += write_result(has_batch);
+      patch += R"(    }
+    dst_xb_final = DST_X + $0 * 8 + 1;
+    if (dst_xb_final < $3) {
       half4 R = (half4)(r_w$0_s$1.z, r_w$0_s$1.w, r_w$0_s$2.z, r_w$0_s$2.w);
 )";
       if (conv_params.has_bias) {
         patch += "      R += bias_val;\n";
       }
-      patch += R"(      args.dst.Write(R, dst_x_final, dst_y, dst_s_final);
-    }
-)";
+      patch += write_result(has_batch);
+      patch += "    }\n";
       c += absl::Substitute(patch, x, s * 2 + 0, s * 2 + 1, dst_x_bound);
     }
     c += "  }\n";
@@ -321,6 +348,7 @@ ConvWaveMatrixMaliF16::ConvWaveMatrixMaliF16(const GpuInfo& gpu_info,
                                              const TensorDescriptor& src_desc,
                                              const TensorDescriptor& dst_desc)
     : conv_params_(conv_params) {
+  ABSL_CHECK_EQ(src_desc.HasAxis(Axis::kBatch), dst_desc.HasAxis(Axis::kBatch));
   kernel_params_.x_block_size = 2;
   kernel_params_.s_block_size = conv_params.weights_shape.o <= 16 ? 1 : 2;
   kernel_params_.slices_first = false;
@@ -351,7 +379,7 @@ std::vector<int3> ConvWaveMatrixMaliF16::GetPossibleKernelWorkGroups(
 }
 
 int3 ConvWaveMatrixMaliF16::GetGridSize() const {
-  int dst_width = dst_[0]->Width();
+  int dst_width = dst_[0]->Width() * dst_[0]->Batch();
   int dst_height = dst_[0]->Height();
   if (conv_params_.runtime_check.packed_groups.has_value()) {
     dst_width = conv_params_.runtime_check.packed_groups->max_group_size;

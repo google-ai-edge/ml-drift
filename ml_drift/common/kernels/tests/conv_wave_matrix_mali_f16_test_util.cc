@@ -128,6 +128,35 @@ absl::Status ConvWaveMatrixMaliF161x1BigTest(TestExecutionEnvironment& env,
                                    dst_desc);
 }
 
+absl::Status ConvWaveMatrixMaliF161x1BatchTest(TestExecutionEnvironment& env,
+                                               TensorStorageType storage) {
+  for (const auto& [src_shape, dst_channels] :
+       std::vector<std::pair<BHWC, int>>{
+           {BHWC(1, 3, 17, 32), 64},
+           {BHWC(3, 3, 17, 32), 64},
+           {BHWC(5, 2, 1, 13), 15},
+       }) {
+    auto weights = MakeSyntheticTensor(OHWI(dst_channels, 1, 1, src_shape.c));
+    weights.data.resize(weights.shape.DimensionsProduct() +
+                        XNN_EXTRA_BYTES / sizeof(float));
+    Convolution2DAttributes attr;
+    attr.padding.prepended = HW(0, 0);
+    attr.padding.appended = HW(0, 0);
+    attr.strides = HW(1, 1);
+    attr.dilations = HW(1, 1);
+    attr.weights = weights;
+    attr.bias = MakeSyntheticTensor(Linear(dst_channels));
+
+    TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
+
+    TensorDescriptor src_desc = {DataType::kFloat16, storage, Layout::kBHWC};
+    TensorDescriptor dst_desc = {DataType::kFloat16, storage, Layout::kBHWC};
+    ABSL_RETURN_IF_ERROR(ConvWaveMatrixMaliF16Test(
+        env, attr, weights, src_tensor, src_desc, dst_desc));
+  }
+  return absl::OkStatus();
+}
+
 absl::Status ConvWaveMatrixMaliF16BigTest(TestExecutionEnvironment& env,
                                           TensorStorageType storage) {
   const int src_channels = 11;
@@ -151,6 +180,52 @@ absl::Status ConvWaveMatrixMaliF16BigTest(TestExecutionEnvironment& env,
   TensorDescriptor dst_desc = {DataType::kFloat16, storage, Layout::kHWC};
   return ConvWaveMatrixMaliF16Test(env, attr, weights, src_tensor, src_desc,
                                    dst_desc);
+}
+
+absl::Status ConvWaveMatrixMaliF16BatchTest(TestExecutionEnvironment& env,
+                                            TensorStorageType storage) {
+  const int src_channels = 11;
+  const int dst_channels = 27;
+  auto weights = MakeSyntheticTensor(OHWI(dst_channels, 2, 3, src_channels));
+  weights.data.resize(weights.shape.DimensionsProduct() +
+                      XNN_EXTRA_BYTES / sizeof(float));
+  Convolution2DAttributes attr;
+  attr.padding.prepended = HW(1, 0);
+  attr.padding.appended = HW(0, 1);
+  attr.strides = HW(1, 2);
+  attr.dilations = HW(2, 1);
+  attr.weights = weights;
+  attr.bias = MakeSyntheticTensor(Linear(dst_channels));
+
+  auto src_shape = BHWC(3, 9, 17, src_channels);
+
+  TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
+
+  TensorDescriptor src_desc = {DataType::kFloat16, storage, Layout::kBHWC};
+  TensorDescriptor dst_desc = {DataType::kFloat16, storage, Layout::kBHWC};
+  ABSL_RETURN_IF_ERROR(ConvWaveMatrixMaliF16Test(env, attr, weights, src_tensor,
+                                                 src_desc, dst_desc));
+
+  // Also test external weights with different_weights_for_height and batch.
+  const int ext_src_channels = 32;
+  const int ext_dst_channels = 64;
+  auto ext_src_shape = BHWC(3, 6, 17, ext_src_channels);
+  auto ext_weights = MakeSyntheticTensor(
+      OHWI(ext_dst_channels, ext_src_shape.h, 1, ext_src_channels));
+  ext_weights.data.resize(ext_weights.shape.DimensionsProduct() +
+                          XNN_EXTRA_BYTES / sizeof(float));
+  Convolution2DAttributes ext_attr;
+  ext_attr.padding.prepended = HW(0, 0);
+  ext_attr.padding.appended = HW(0, 0);
+  ext_attr.strides = HW(1, 1);
+  ext_attr.dilations = HW(1, 1);
+  ext_attr.weights = ext_weights;
+  ext_attr.bias = MakeZeroTensor(Linear(ext_dst_channels));
+
+  TensorFloat32 ext_src_tensor = MakeSyntheticTensor(ext_src_shape);
+  return ConvWaveMatrixMaliF16ExternalWeightsTest(
+      env, ext_attr, ext_weights, ext_src_tensor, src_desc, dst_desc,
+      /*different_weights_for_height=*/true);
 }
 
 absl::Status ConvWaveMatrixMaliF16ExternalWeightsBigTest(
