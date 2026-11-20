@@ -370,6 +370,32 @@ cc_library(
 )
 
 cc_library(
+    name = "tensor_reorder_cpu",
+    srcs = ["tensor_reorder_cpu.cc"],
+    hdrs = ["tensor_reorder_cpu.h"],
+    # Android opt builds use -Oz, whose machine outliner breaks the inner loops
+    # here into call chains (2-3x slower on arm64). Compile the kernels at -O2.
+    copts = ["-O2"],
+    deps = [
+        "//ml_drift/common:types",
+        "@com_google_absl//absl/log:absl_check",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+cc_test(
+    name = "tensor_reorder_cpu_test",
+    srcs = ["tensor_reorder_cpu_test.cc"],
+    deps = [
+        ":tensor_reorder_cpu",
+        "//ml_drift/common:types",
+        "@com_google_absl//absl/status:status_matchers",
+        "@com_google_absl//absl/types:span",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "weights_conversion",
     srcs = ["weights_conversion.cc"],
     hdrs = ["weights_conversion.h"],

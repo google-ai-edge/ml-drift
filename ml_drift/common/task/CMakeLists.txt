@@ -274,6 +274,19 @@ target_link_libraries(mld_common_task_wave_memory_util
     mld_common_util
 )
 
+add_library(mld_common_task_tensor_reorder_cpu
+  tensor_reorder_cpu.cc
+  tensor_reorder_cpu.h
+)
+target_include_directories(mld_common_task_tensor_reorder_cpu PUBLIC $<BUILD_INTERFACE:${ML_DRIFT_PARENT_DIR}>)
+target_link_libraries(mld_common_task_tensor_reorder_cpu
+  PUBLIC
+    absl::span
+    mld_common_types
+  PRIVATE
+    absl::check
+)
+
 add_library(mld_common_task_weights_conversion
   weights_conversion.cc
   weights_conversion.h
