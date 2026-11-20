@@ -88,6 +88,41 @@ TEST(TensorDescriptorTest, UploadRawDataToHalfSuccessfullyWithFloat) {
             half(0.1f));
 }
 
+TEST(TensorDescriptorTest, UploadRawDataToHalfConvertsAllElements) {
+  TensorDescriptor desc(DataType::kFloat16, TensorStorageType::kBuffer,
+                        Layout::kBHWC);
+  desc.SetBHWCShape(BHWC(1, 2, 3, 5));
+  std::vector<float> in_data(30);
+  for (int i = 0; i < in_data.size(); ++i) {
+    in_data[i] = 0.1f * i - 1.0f;
+  }
+  desc.UploadDataRaw(absl::MakeConstSpan(in_data));
+
+  const half* out = reinterpret_cast<const half*>(desc.GetData().data());
+  for (int i = 0; i < in_data.size(); ++i) {
+    EXPECT_EQ(out[i], half(in_data[i])) << "at index " << i;
+  }
+}
+
+TEST(TensorDescriptorTest, UploadRawDataToHalfOutOfBounds) {
+  TensorDescriptor desc(DataType::kFloat16, TensorStorageType::kBuffer,
+                        Layout::kBHWC);
+  desc.SetBHWCShape(BHWC(1, 1, 1, 4));
+  std::vector<float> in_data(3, 0.1f);
+  EXPECT_DEATH(desc.UploadDataRaw(absl::MakeConstSpan(in_data)),
+               "src.size\\(\\) >= count");
+}
+
+TEST(TensorDescriptorTest, UploadRawDataToHalfStorageTooSmall) {
+  // Layout::kHW stores at most 4 channels per element.
+  TensorDescriptor desc(DataType::kFloat16, TensorStorageType::kBuffer,
+                        Layout::kHW);
+  desc.SetBHWCShape(BHWC(1, 2, 2, 8));
+  std::vector<float> in_data(32, 0.1f);
+  EXPECT_DEATH(desc.UploadDataRaw(absl::MakeConstSpan(in_data)),
+               "data_.size\\(\\) >= count");
+}
+
 TEST(TensorDescriptorTest, UploadDataOutOfBounds) {
   TensorDescriptor desc(DataType::kUint8, TensorStorageType::kBuffer,
                         Layout::kBHWC);

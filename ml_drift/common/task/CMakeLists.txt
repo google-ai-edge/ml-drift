@@ -86,6 +86,7 @@ target_include_directories(mld_common_task_tensor_desc PUBLIC
 )
 target_link_libraries(mld_common_task_tensor_desc
   PUBLIC
+    absl::check
     absl::span
     absl::status
     absl::status_macros
@@ -95,6 +96,7 @@ target_link_libraries(mld_common_task_tensor_desc
     mld_common_shape
     mld_common_task_gpu_object_desc
     mld_common_task_serialization_base_cc_fbs
+    mld_common_task_tensor_reorder_cpu
     mld_common_tensor
     mld_common_types
     mld_common_util
@@ -309,8 +311,8 @@ target_link_libraries(mld_common_task_weights_conversion
     absl::strings
     flatbuffers
     mld_common_task_serialization_base_cc_fbs
+    mld_common_task_tensor_reorder_cpu
     mld_common_util
-    XNNPACK
 )
 add_dependencies(mld_common_task_weights_conversion mld_common_task_serialization_base_cc_fbs_gen)
 

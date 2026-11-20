@@ -17,7 +17,6 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
 #include <vector>
 
 #include "absl/types/span.h"
@@ -154,15 +153,6 @@ struct Tensor {
   // 2-byte buffer, and `size()` would return 2.
   size_t size() const {
     return !data.empty() ? data.size() : spanned_data.size();
-  }
-
-  void MoveDataForCpuRearrange(size_t size) {
-    data.resize(size);
-    if (!spanned_data.empty()) {
-      std::memcpy(data.data(), spanned_data.data(),
-             spanned_data.size() * sizeof(ValueType));
-      spanned_data = {};
-    }
   }
 
   bool empty() const { return data.empty() && spanned_data.empty(); }

@@ -85,18 +85,6 @@ TEST_P(TensorTest, TensorDataMatchesOwnedData) {
   }
 }
 
-TEST_P(TensorTest, TensorMoveDataForCpuRearrangeWork) {
-  TensorFloat32 tensor = CreateTensor();
-  const size_t old_size = tensor.size();
-  size_t new_size = tensor.size() + 16;
-  tensor.MoveDataForCpuRearrange(new_size);
-  EXPECT_THAT(tensor.size(), Eq(new_size));
-  for (size_t i = 0; i < old_size; ++i) {
-    EXPECT_THAT(tensor.Get(i), Eq(ReferenceData()[i]))
-        << "element " << i << " doesn't match expected value.";
-  }
-}
-
 TEST_P(TensorTest, TensorSetAndGetWork) {
   TensorFloat32 tensor = CreateTensor();
   for (size_t i = 0; i < tensor.size(); ++i) {

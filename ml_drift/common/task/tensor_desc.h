@@ -23,6 +23,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/log/absl_check.h"
 #include "absl/status/status.h"
 #include "absl/types/span.h"
 #include "flatbuffers/buffer.h"
@@ -32,6 +33,7 @@
 #include "ml_drift/common/shape.h"
 #include "ml_drift/common/task/gpu_object_desc.h"
 #include "ml_drift/common/task/serialization_base_generated.h"
+#include "ml_drift/common/task/tensor_reorder_cpu.h"
 #include "ml_drift/common/tensor.h"
 #include "ml_drift/common/types.h"
 #include "ml_drift/common/util.h"
@@ -461,11 +463,11 @@ template <>
 inline void TensorDescriptor::UploadDataRaw(const absl::Span<const float> src) {
   data_.resize(GetMemorySizeInBytes());
   if (data_type_ == DataType::kFloat16) {
-    // TODO: Use xnn_run_unary_elementwise_nc instead.
-    half* dst = reinterpret_cast<half*>(&data_[0]);
-    for (int i = 0; i < shape_.DimensionsProduct(); ++i) {
-      dst[i] = static_cast<half>(src.at(i));
-    }
+    const size_t count = static_cast<size_t>(shape_.DimensionsProduct());
+    ABSL_CHECK_GE(src.size(), count);
+    ABSL_CHECK_GE(data_.size(), count * sizeof(half));
+    ConvertF32ToF16Cpu(src.data(), reinterpret_cast<half*>(data_.data()),
+                       count);
   } else {
     std::memcpy(data_.data(), src.data(), src.size() * sizeof(float));
   }

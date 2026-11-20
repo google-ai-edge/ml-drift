@@ -15,6 +15,7 @@
 #include "ml_drift/common/task/weights_conversion.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <utility>
@@ -2155,6 +2156,99 @@ TEST(CustomGroupsOgr0Igr1Ogr1Igr0, ConversionArbitraryOrderAndSpatialRemap) {
     }
   }
   EXPECT_EQ(ohwi_out, ohwi_ref);
+}
+
+// Rearranges weights that own their data and weights that only reference it
+// through `spanned_data`, and expects the same result.
+template <typename ShapeT, DataType S>
+void ExpectSpannedMatchesOwned(const ShapeT& shape,
+                               const WeightsDescription& desc) {
+  SCOPED_TRACE(ToString(desc));
+  using ValueType = typename Tensor<ShapeT, S>::ValueType;
+  Tensor<ShapeT, S> owned;
+  owned.shape = shape;
+  owned.data.resize(shape.DimensionsProduct());
+  for (int i = 0; i < owned.data.size(); ++i) {
+    owned.data[i] = static_cast<ValueType>(i % 100 + 1);
+  }
+  std::vector<ValueType> storage = owned.data;
+  Tensor<ShapeT, S> spanned;
+  spanned.shape = shape;
+  spanned.spanned_data = absl::MakeSpan(storage);
+
+  const size_t dst_size =
+      GetTotalElementsCountForLayout(desc, shape) * SizeOf(desc.type);
+  std::vector<uint8_t> dst_owned(dst_size);
+  RearrangeWeights(owned, desc, absl::MakeSpan(dst_owned));
+  std::vector<uint8_t> dst_spanned(dst_size);
+  RearrangeWeights(spanned, desc, absl::MakeSpan(dst_spanned));
+
+  EXPECT_EQ(dst_spanned, dst_owned);
+}
+
+WeightsDescription MakeDescription(DataType type, WeightsLayout layout) {
+  WeightsDescription desc;
+  desc.type = type;
+  desc.layout = layout;
+  desc.output_group_size = 2;
+  return desc;
+}
+
+// Custom groups that are not handled by one of the specialized paths.
+WeightsDescription MakeCustomGroupsDescription(DataType type, bool has_depth) {
+  WeightsDescription desc = MakeDescription(type, WeightsLayout::kCustomGroups);
+  desc.group_sizes = {
+      {Axis::kOutputChannels, 2}, {Axis::kWidth, 0}, {Axis::kHeight, 0}};
+  if (has_depth) {
+    desc.group_sizes.push_back({Axis::kDepth, 0});
+  }
+  desc.group_sizes.push_back({Axis::kInputChannels, 4});
+  desc.group_sizes.push_back({Axis::kOutputChannels, 0});
+  desc.group_sizes.push_back({Axis::kInputChannels, 0});
+  return desc;
+}
+
+TEST(SpannedWeights, OHWIFloat32) {
+  const OHWI shape(5, 2, 3, 7);
+  for (DataType type : {DataType::kFloat32, DataType::kFloat16}) {
+    for (WeightsLayout layout : {WeightsLayout::kOSpatialIOGroupI4O4,
+                                 WeightsLayout::kOSpatialIOGroupO4I4,
+                                 WeightsLayout::kISpatialOI4O4UnalignedIO}) {
+      ExpectSpannedMatchesOwned<OHWI, DataType::kFloat32>(
+          shape, MakeDescription(type, layout));
+    }
+    ExpectSpannedMatchesOwned<OHWI, DataType::kFloat32>(
+        shape, MakeCustomGroupsDescription(type, /*has_depth=*/false));
+  }
+}
+
+TEST(SpannedWeights, OHWDIFloat32) {
+  const OHWDI shape(5, 2, 3, 2, 7);
+  for (DataType type : {DataType::kFloat32, DataType::kFloat16}) {
+    ExpectSpannedMatchesOwned<OHWDI, DataType::kFloat32>(
+        shape, MakeDescription(type, WeightsLayout::kOSpatialIOGroupI4O4));
+    ExpectSpannedMatchesOwned<OHWDI, DataType::kFloat32>(
+        shape, MakeCustomGroupsDescription(type, /*has_depth=*/true));
+  }
+}
+
+TEST(SpannedWeights, OHWIInt8) {
+  const OHWI shape(5, 2, 3, 7);
+  ExpectSpannedMatchesOwned<OHWI, DataType::kInt8>(
+      shape,
+      MakeDescription(DataType::kInt8, WeightsLayout::kOSpatialIOGroupI4O4));
+  ExpectSpannedMatchesOwned<OHWI, DataType::kInt8>(
+      shape, MakeCustomGroupsDescription(DataType::kInt8, /*has_depth=*/false));
+}
+
+TEST(SpannedWeights, OHWIUint8) {
+  const OHWI shape(5, 2, 3, 7);
+  ExpectSpannedMatchesOwned<OHWI, DataType::kUint8>(
+      shape,
+      MakeDescription(DataType::kUint8, WeightsLayout::kOSpatialIOGroupI4O4));
+  ExpectSpannedMatchesOwned<OHWI, DataType::kUint8>(
+      shape,
+      MakeCustomGroupsDescription(DataType::kUint8, /*has_depth=*/false));
 }
 
 }  // namespace

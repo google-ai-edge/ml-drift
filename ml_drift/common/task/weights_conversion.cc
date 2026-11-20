@@ -21,7 +21,6 @@
 #include <utility>
 #include <vector>
 
-#include "xnnpack.h"  // from @XNNPACK
 #include "absl/log/absl_check.h"
 #include "absl/log/absl_log.h"
 #include "absl/status/status.h"
@@ -30,66 +29,17 @@
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/shape.h"
 #include "ml_drift/common/task/tensor_desc.h"
+#include "ml_drift/common/task/tensor_reorder_cpu.h"
 #include "ml_drift/common/task/weights_layout.h"
 #include "ml_drift/common/tensor.h"
 #include "ml_drift/common/types.h"
 #include "ml_drift/common/util.h"
 
-// Forward declaration to avoid full dependency on pthreadpool
-struct pthreadpool;
-typedef struct pthreadpool* pthreadpool_t;
-
-extern "C" {
-enum xnn_status xnn_run_convert_nc_f32_f16(
-  size_t channels,
-  size_t input_stride,
-  size_t output_stride,
-  size_t batch_size,
-  const float* input,
-  void* output,
-  uint32_t flags,
-  pthreadpool_t threadpool);
-
-enum xnn_status xnn_run_constant_pad_nd_x8(
-    uint32_t flags, size_t num_dims, const size_t* input_shape,
-    const size_t* pre_paddings, const size_t* post_paddings, const void* input,
-    void* output, const void* padding_value, pthreadpool_t threadpool);
-
-enum xnn_status xnn_run_constant_pad_nd_x16(
-    uint32_t flags, size_t num_dims, const size_t* input_shape,
-    const size_t* pre_paddings, const size_t* post_paddings, const void* input,
-    void* output, const void* padding_value, pthreadpool_t threadpool);
-
-enum xnn_status xnn_run_constant_pad_nd_x32(
-    uint32_t flags, size_t num_dims, const size_t* input_shape,
-    const size_t* pre_paddings, const size_t* post_paddings, const void* input,
-    void* output, const void* padding_value, pthreadpool_t threadpool);
-
-enum xnn_status xnn_run_transpose_nd_x8(
-    const void* input, void* output, size_t num_dims, const size_t* input_shape,
-    const size_t* output_perm, uint32_t flags, pthreadpool_t threadpool);
-
-enum xnn_status xnn_run_transpose_nd_x16(
-    const void* input, void* output, size_t num_dims, const size_t* input_shape,
-    const size_t* output_perm, uint32_t flags, pthreadpool_t threadpool);
-
-enum xnn_status xnn_run_transpose_nd_x32(
-    const void* input, void* output, size_t num_dims, const size_t* input_shape,
-    const size_t* output_perm, uint32_t flags, pthreadpool_t threadpool);
-
-enum xnn_status xnn_run_transpose_nd_x64(
-    const void* input, void* output, size_t num_dims, const size_t* input_shape,
-    const size_t* output_perm, uint32_t flags, pthreadpool_t threadpool);
-
-}  // extern "C"
-
 namespace ml_drift {
 namespace {
 std::unique_ptr<half[]> ConvertF32F16(const float* src, size_t size) {
-  std::unique_ptr<half[]> dst(new half[size + XNN_EXTRA_BYTES / sizeof(half)]);
-  xnn_run_convert_nc_f32_f16(
-      1, 1, 1, size, src, dst.get(),
-      XNN_FLAG_DONT_SPIN_WORKERS, nullptr);
+  std::unique_ptr<half[]> dst(new half[size]);
+  ConvertF32ToF16Cpu(src, dst.get(), size);
   return dst;
 }
 
@@ -115,30 +65,15 @@ void Reshape(const T* src, const OHWI& src_shape, int dst_group_size,
   } else {
     // Padding the src buffer.
     padded_buffer.reset(
-        new T[padded_dst * padded_src * src_shape.h * src_shape.w +
-              XNN_EXTRA_BYTES / sizeof(T)]);
+        new T[padded_dst * padded_src * src_shape.h * src_shape.w]);
     const size_t prepadding[] = {0, 0, 0, 0};
     const size_t post_padding[] = {padded_dst - src_shape.o, 0, 0,
                                    padded_src - src_shape.i};
     const size_t original_shape[] = {
         static_cast<size_t>(src_shape.o), static_cast<size_t>(src_shape.h),
         static_cast<size_t>(src_shape.w), static_cast<size_t>(src_shape.i)};
-    if constexpr (std::is_same_v<T, float>) {
-      xnn_run_constant_pad_nd_x32(
-          /*flags=*/XNN_FLAG_DONT_SPIN_WORKERS, /*num_dims=*/4, original_shape,
-          prepadding, post_padding, src, padded_buffer.get(), &pad_value,
-          /*threadpool=*/nullptr);
-    } else if constexpr (std::is_same_v<T, half>) {
-      xnn_run_constant_pad_nd_x16(
-          /*flags=*/XNN_FLAG_DONT_SPIN_WORKERS, /*num_dims=*/4, original_shape,
-          prepadding, post_padding, src, padded_buffer.get(), &pad_value,
-          /*threadpool=*/nullptr);
-    } else {
-      xnn_run_constant_pad_nd_x8(
-          /*flags=*/XNN_FLAG_DONT_SPIN_WORKERS, /*num_dims=*/4, original_shape,
-          prepadding, post_padding, src, padded_buffer.get(), &pad_value,
-          /*threadpool=*/nullptr);
-    }
+    ConstantPadCpu(src, padded_buffer.get(), sizeof(T), original_shape,
+                   prepadding, post_padding, &pad_value);
     src_ptr = padded_buffer.get();
   }
   // clang-format off
@@ -148,19 +83,7 @@ void Reshape(const T* src, const OHWI& src_shape, int dst_group_size,
       src_groups, 4
   };
   // clang-format on
-  if constexpr (std::is_same_v<T, float>) {
-    xnn_run_transpose_nd_x32(
-        src_ptr, dst, /*num_dims=*/6, dimensions, reshape_order.data(),
-        /*flags=*/XNN_FLAG_DONT_SPIN_WORKERS, /*threadpool=*/nullptr);
-  } else if constexpr (std::is_same_v<T, half>) {
-    xnn_run_transpose_nd_x16(
-        src_ptr, dst, /*num_dims=*/6, dimensions, reshape_order.data(),
-        /*flags=*/XNN_FLAG_DONT_SPIN_WORKERS, /*threadpool=*/nullptr);
-  } else {
-    xnn_run_transpose_nd_x8(
-        src_ptr, dst, /*num_dims=*/6, dimensions, reshape_order.data(),
-        /*flags=*/XNN_FLAG_DONT_SPIN_WORKERS, /*threadpool=*/nullptr);
-  }
+  TransposeCpu(src_ptr, dst, sizeof(T), dimensions, reshape_order);
 }
 
 template <typename T>
@@ -172,27 +95,13 @@ void Reshape(const T* src, const OHWDI& src_shape, int dst_group_size,
 
   // We pass in OHWDI, but we need ODHWI...
   std::unique_ptr<T[]> dwh_buffer(
-      new T[src_shape.o * src_shape.h * src_shape.w * src_shape.d *
-                src_shape.i +
-            XNN_EXTRA_BYTES / sizeof(T)]);
+      new T[static_cast<size_t>(src_shape.DimensionsProduct())]);
   const size_t original_shape[] = {
       static_cast<size_t>(src_shape.o), static_cast<size_t>(src_shape.h),
       static_cast<size_t>(src_shape.w), static_cast<size_t>(src_shape.d),
       static_cast<size_t>(src_shape.i)};
   const size_t dwh_perm[] = {0, 3, 1, 2, 4};
-  if constexpr (std::is_same_v<T, float>) {
-    xnn_run_transpose_nd_x32(src, dwh_buffer.get(), 5, original_shape, dwh_perm,
-                             /*flags=*/XNN_FLAG_DONT_SPIN_WORKERS,
-                             /*threadpool=*/nullptr);
-  } else if constexpr (std::is_same_v<T, half>) {
-    xnn_run_transpose_nd_x16(src, dwh_buffer.get(), 5, original_shape, dwh_perm,
-                             /*flags=*/XNN_FLAG_DONT_SPIN_WORKERS,
-                             /*threadpool=*/nullptr);
-  } else {
-    xnn_run_transpose_nd_x8(src, dwh_buffer.get(), 5, original_shape, dwh_perm,
-                            /*flags=*/XNN_FLAG_DONT_SPIN_WORKERS,
-                            /*threadpool=*/nullptr);
-  }
+  TransposeCpu(src, dwh_buffer.get(), sizeof(T), original_shape, dwh_perm);
 
   const size_t dst_groups = DivideRoundUp(src_shape.o, dst_group_size * 4);
   const size_t src_groups = DivideRoundUp(src_shape.i, 4);
@@ -209,27 +118,12 @@ void Reshape(const T* src, const OHWDI& src_shape, int dst_group_size,
   } else {
     // Padding the src buffer.
     padded_buffer.reset(new T[padded_dst * padded_src * src_shape.h *
-                                  src_shape.w * src_shape.d +
-                              XNN_EXTRA_BYTES / sizeof(T)]);
+                              src_shape.w * src_shape.d]);
     const size_t prepadding[] = {0, 0, 0, 0, 0};
     const size_t post_padding[] = {padded_dst - src_shape.o, 0, 0, 0,
                                    padded_src - src_shape.i};
-    if constexpr (std::is_same_v<T, float>) {
-      xnn_run_constant_pad_nd_x32(
-          /*flags=*/XNN_FLAG_DONT_SPIN_WORKERS, /*num_dims=*/5, original_shape,
-          prepadding, post_padding, dwh_buffer.get(), padded_buffer.get(),
-          &pad_value, /*threadpool=*/nullptr);
-    } else if constexpr (std::is_same_v<T, half>) {
-      xnn_run_constant_pad_nd_x16(
-          /*flags=*/XNN_FLAG_DONT_SPIN_WORKERS, /*num_dims=*/5, original_shape,
-          prepadding, post_padding, dwh_buffer.get(), padded_buffer.get(),
-          &pad_value, /*threadpool=*/nullptr);
-    } else {
-      xnn_run_constant_pad_nd_x8(
-          /*flags=*/XNN_FLAG_DONT_SPIN_WORKERS, /*num_dims=*/5, original_shape,
-          prepadding, post_padding, dwh_buffer.get(), padded_buffer.get(),
-          &pad_value, /*threadpool=*/nullptr);
-    }
+    ConstantPadCpu(dwh_buffer.get(), padded_buffer.get(), sizeof(T),
+                   original_shape, prepadding, post_padding, &pad_value);
     src_ptr = padded_buffer.get();
   }
   // clang-format off
@@ -239,19 +133,7 @@ void Reshape(const T* src, const OHWDI& src_shape, int dst_group_size,
       src_groups, 4
   };
   // clang-format on
-  if constexpr (std::is_same_v<T, float>) {
-    xnn_run_transpose_nd_x32(
-        src_ptr, dst, /*num_dims=*/6, dimensions, reshape_order.data(),
-        /*flags=*/XNN_FLAG_DONT_SPIN_WORKERS, /*threadpool=*/nullptr);
-  } else if constexpr (std::is_same_v<T, half>) {
-    xnn_run_transpose_nd_x16(
-        src_ptr, dst, /*num_dims=*/6, dimensions, reshape_order.data(),
-        /*flags=*/XNN_FLAG_DONT_SPIN_WORKERS, /*threadpool=*/nullptr);
-  } else {
-    xnn_run_transpose_nd_x8(
-        src_ptr, dst, /*num_dims=*/6, dimensions, reshape_order.data(),
-        /*flags=*/XNN_FLAG_DONT_SPIN_WORKERS, /*threadpool=*/nullptr);
-  }
+  TransposeCpu(src_ptr, dst, sizeof(T), dimensions, reshape_order);
 }
 
 template <DataType S, typename T>
@@ -305,6 +187,7 @@ void RearrangeWeightsToOHWIOGroupI4O4(const Tensor<OHWI, S>& weights,
 template <DataType S, typename T>
 void RearrangeWeightsToISpatialOI4O4UnalignedIO(const Tensor<OHWI, S>& weights,
                                                 absl::Span<T> dst) {
+  const auto* src = weights.Data();
   const int src_slices = DivideRoundUp(weights.shape.i, 4);
   const int dst_slices = DivideRoundUp(weights.shape.o, 4);
   int counter = 0;
@@ -319,7 +202,7 @@ void RearrangeWeightsToISpatialOI4O4UnalignedIO(const Tensor<OHWI, S>& weights,
               const int s_ch = src_s * 4 + j;
               const int d_ch = dst_s * 4 + i;
               const int f_index = weights.shape.LinearIndex({d_ch, y, x, s_ch});
-              dst[counter++] = weights.data[f_index];
+              dst[counter++] = src[f_index];
             }
           }
         }
@@ -404,6 +287,7 @@ void RearrangeWeightsToCustom(const Tensor<OHWI, S>& weights,
                               std::vector<std::pair<Axis, int>> group_sizes,
                               const std::vector<int>& spatial_remap,
                               absl::Span<T> dst, T pad_value) {
+  const auto* src = weights.Data();
   std::vector<std::pair<Axis, int>> coords;
   coords.reserve(group_sizes.size());
   OHWI total_size = OHWI(1, 1, 1, 1);
@@ -437,7 +321,7 @@ void RearrangeWeightsToCustom(const Tensor<OHWI, S>& weights,
       src_coords.h = new_spatial_linear / weights.shape.w;
     }
     if (src_coords.o < weights.shape.o && src_coords.i < weights.shape.i) {
-      dst[i] = weights.data[weights.shape.LinearIndex(
+      dst[i] = src[weights.shape.LinearIndex(
           {src_coords.o, src_coords.h, src_coords.w, src_coords.i})];
     } else {
       dst[i] = pad_value;
@@ -451,6 +335,7 @@ void RearrangeWeightsToCustom(const Tensor<OHWDI, S>& weights,
                               std::vector<std::pair<Axis, int>> group_sizes,
                               const std::vector<int>& spatial_remap,
                               absl::Span<T> dst, T pad_value) {
+  const auto* src = weights.Data();
   std::vector<std::pair<Axis, int>> coords;
   coords.reserve(group_sizes.size());
   OHWDI total_size = OHWDI(1, 1, 1, 1, 1);
@@ -488,9 +373,9 @@ void RearrangeWeightsToCustom(const Tensor<OHWDI, S>& weights,
       src_coords.d = new_spatial_linear / weights.shape.h;
     }
     if (src_coords.o < weights.shape.o && src_coords.i < weights.shape.i) {
-      dst[i] = weights.data[weights.shape.LinearIndex(
-          {src_coords.o, src_coords.h, src_coords.w, src_coords.d,
-           src_coords.i})];
+      dst[i] = src[weights.shape.LinearIndex({src_coords.o, src_coords.h,
+                                              src_coords.w, src_coords.d,
+                                              src_coords.i})];
     } else {
       dst[i] = pad_value;
     }
@@ -1090,7 +975,7 @@ std::unique_ptr<half[]> ConvertF32F16(const std::vector<float>& src) {
 void RearrangeWeightsToOHWIOGroupI4O4(
     const Tensor<OHWI, DataType::kFloat32>& weights, int out_group_size,
     __fp16* dst) {
-  const float* src = weights.data.data();
+  const float* src = weights.Data();
   const int dst_slices = DivideRoundUp(weights.shape.o, 4);
   const int src_slices = DivideRoundUp(weights.shape.i, 4);
   const int dst_groups = DivideRoundUp(dst_slices, out_group_size);
@@ -1217,18 +1102,10 @@ uint2 Get2dResourceSize(const WeightsDescription& weight_desc,
   }
 }
 
-// weights.data needs an extra XNN_EXTRA_BYTES/sizeof(float) bytes reserved
 void RearrangeWeights(const Tensor<OHWI, DataType::kFloat32>& weights,
                       const WeightsDescription& dst_weight_desc,
                       absl::Span<uint8_t> dst) {
-  if (!weights.spanned_data.empty() &&
-      weights.spanned_data.size() == weights.shape.DimensionsProduct()) {
-    const_cast<Tensor<OHWI, DataType::kFloat32>&>(weights)
-        .MoveDataForCpuRearrange(weights.shape.DimensionsProduct() +
-                                 XNN_EXTRA_BYTES / sizeof(float));
-  }
-  ABSL_CHECK_GE(weights.data.size(), weights.shape.DimensionsProduct() +
-                                         XNN_EXTRA_BYTES / sizeof(float));
+  ABSL_CHECK_GE(weights.size(), weights.shape.DimensionsProduct());
   const unsigned int flt_count =
       GetTotalElementsCountForLayout(dst_weight_desc, weights.shape);
   float* f32_ptr = reinterpret_cast<float*>(dst.data());
@@ -1248,7 +1125,7 @@ void RearrangeWeights(const Tensor<OHWI, DataType::kFloat32>& weights,
 #endif  // __aarch64__
       if (weights.shape.o % (dst_group_size * 4) != 0 ||
           weights.shape.i % 4 != 0) {  // Need to pad
-        // If we need to use both XNNPACK transpose and pad, benchmarks have
+        // If we need to use both the transpose and the pad, benchmarks have
         // shown it to be slightly slower than RearrangeWeightsToOHWIOGroupI4O4.
         // Since this is the most common layout, we keep a custom call.
         if (dst_weight_desc.type == DataType::kFloat32) {
@@ -1364,18 +1241,10 @@ void RearrangeWeights(const Tensor<OHWI, DataType::kFloat32>& weights,
   }
 }
 
-// weights.data needs an extra XNN_EXTRA_BYTES/sizeof(float) bytes reserved
 void RearrangeWeights(const Tensor<OHWDI, DataType::kFloat32>& weights,
                       const WeightsDescription& dst_weight_desc,
                       absl::Span<uint8_t> dst) {
-  if (!weights.spanned_data.empty() &&
-      weights.spanned_data.size() == weights.shape.DimensionsProduct()) {
-    const_cast<Tensor<OHWDI, DataType::kFloat32>&>(weights)
-        .MoveDataForCpuRearrange(weights.shape.DimensionsProduct() +
-                                 XNN_EXTRA_BYTES / sizeof(float));
-  }
-  ABSL_CHECK_GE(weights.data.size(), weights.shape.DimensionsProduct() +
-                                          XNN_EXTRA_BYTES / sizeof(float));
+  ABSL_CHECK_GE(weights.size(), weights.shape.DimensionsProduct());
   const unsigned int flt_count =
       GetTotalElementsCountForLayout(dst_weight_desc, weights.shape);
   float* f32_ptr = reinterpret_cast<float*>(dst.data());
@@ -1479,17 +1348,10 @@ void RearrangeWeights(const Tensor<OHWDI, DataType::kFloat32>& weights,
   }
 }
 
-// weights.data needs an extra XNN_EXTRA_BYTES/sizeof(int8_t) bytes reserved
 void RearrangeWeights(const Tensor<OHWI, DataType::kInt8>& weights,
                       const WeightsDescription& dst_weight_desc,
                       absl::Span<uint8_t> dst) {
-  if (!weights.spanned_data.empty() &&
-      weights.spanned_data.size() == weights.shape.DimensionsProduct()) {
-    const_cast<Tensor<OHWI, DataType::kInt8>&>(weights).MoveDataForCpuRearrange(
-        weights.shape.DimensionsProduct() + XNN_EXTRA_BYTES / sizeof(int8_t));
-  }
-  ABSL_CHECK_GE(weights.data.size(), weights.shape.DimensionsProduct() +
-                                          XNN_EXTRA_BYTES / sizeof(int8_t));
+  ABSL_CHECK_GE(weights.size(), weights.shape.DimensionsProduct());
   const unsigned int elements_count =
       GetTotalElementsCountForLayout(dst_weight_desc, weights.shape);
   int8_t* i8_ptr = reinterpret_cast<int8_t*>(dst.data());
@@ -1560,18 +1422,10 @@ void RearrangeWeights(const Tensor<OHWI, DataType::kInt8>& weights,
           /*pad_value=*/static_cast<int8_t>(0), i8_ptr);
 }
 
-// weights.data needs an extra XNN_EXTRA_BYTES/sizeof(uint8_t) bytes reserved
 void RearrangeWeights(const Tensor<OHWI, DataType::kUint8>& weights,
                       const WeightsDescription& dst_weight_desc,
                       absl::Span<uint8_t> dst, uint8_t pad_value) {
-  if (!weights.spanned_data.empty() &&
-      weights.spanned_data.size() == weights.shape.DimensionsProduct()) {
-    const_cast<Tensor<OHWI, DataType::kUint8>&>(weights)
-        .MoveDataForCpuRearrange(weights.shape.DimensionsProduct() +
-                                 XNN_EXTRA_BYTES / sizeof(uint8_t));
-  }
-  ABSL_CHECK_GE(weights.data.size(), weights.shape.DimensionsProduct() +
-                                          XNN_EXTRA_BYTES / sizeof(uint8_t));
+  ABSL_CHECK_GE(weights.size(), weights.shape.DimensionsProduct());
   std::vector<size_t> reshape_order;
   int dst_group_size = dst_weight_desc.GetOutputGroupSize();
   switch (dst_weight_desc.layout) {
@@ -1644,8 +1498,7 @@ void RearrangeWeightsInt8AsUint8(const Tensor<OHWI, DataType::kInt8>& weights,
                                  unsigned int pad_value) {
   Tensor<OHWI, DataType::kUint8> weights_ui8;
   weights_ui8.shape = weights.shape;
-  weights_ui8.data.resize(weights_ui8.shape.DimensionsProduct() +
-                          XNN_EXTRA_BYTES / sizeof(uint8_t));
+  weights_ui8.data.resize(weights_ui8.shape.DimensionsProduct());
   const int8_t* src = weights.Data();
   for (int i = 0; i < weights.shape.DimensionsProduct(); ++i) {
     weights_ui8.data[i] = src[i] + shift_value;
@@ -1694,8 +1547,7 @@ void RearrangeWeightsInt4(const Tensor<OHWI, DataType::kInt8>& weights_i4,
   const int elements_count =
       GetTotalElementsCountForLayout(weight_desc, weights_i4.shape);
 
-  std::vector<uint8_t> weights_data(elements_count +
-                                    XNN_EXTRA_BYTES / sizeof(uint8_t));
+  std::vector<uint8_t> weights_data(elements_count);
   RearrangeWeights(weights_i4, weight_desc, absl::MakeSpan(weights_data));
 
   int8_t* src_ptr = (int8_t*)weights_data.data();
@@ -1716,8 +1568,7 @@ void RearrangeWeightsUint2(const Tensor<OHWI, DataType::kUint8>& weights_i2,
   const int elements_count =
       GetTotalElementsCountForLayout(weight_desc, weights_i2.shape);
 
-  std::vector<uint8_t> weights_data(elements_count +
-                                    XNN_EXTRA_BYTES / sizeof(uint8_t));
+  std::vector<uint8_t> weights_data(elements_count);
   RearrangeWeights(weights_i2, weight_desc, absl::MakeSpan(weights_data));
 
   uint8_t* src_ptr = (uint8_t*)weights_data.data();
