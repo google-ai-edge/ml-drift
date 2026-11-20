@@ -39,7 +39,10 @@
 // as late as 2021. One binary serves both, so this is the one place a runtime
 // CPU check is used. arm64 has the conversion in the base ISA and needs none.
 #if defined(__x86_64__) && defined(__clang__)
-#include <immintrin.h>
+#include <immintrin.h>  // NOLINT
+#if defined(_MSC_VER)
+#include <intrin.h>
+#endif
 #define MLD_TENSOR_REORDER_X86_F16C 1
 #else
 #define MLD_TENSOR_REORDER_X86_F16C 0
@@ -276,17 +279,32 @@ void ForEachOuter(const T* src, T* dst, const TransposePlan& plan,
 }
 
 #if MLD_TENSOR_REORDER_VECTOR_EXT
-template <typename V, size_t... I>
-inline auto Concat(V a, V b, std::index_sequence<I...>) {
-  return __builtin_shufflevector(a, b, I...);
-}
-
-// Given a = r0|r1 and b = r2|r3 (each of N lanes), returns the 4N-lane vector
-// r0[0], r1[0], r2[0], r3[0], r0[1], r1[1], ... . A store of the result is an
-// interleaved store, which LLVM lowers to `st4` on NEON.
-template <size_t N, typename V2, size_t... I>
-inline auto Interleave4(V2 a, V2 b, std::index_sequence<I...>) {
-  return __builtin_shufflevector(a, b, ((I % 4) * N + I / 4)...);
+// Interleaves one 16-byte vector (N lanes) from each of 4 source rows into 64
+// contiguous destination bytes: dst[4 * k + r] = s<r>[k], 0 <= k < N. The
+// store of the 4N-lane result is an interleaved store, which LLVM lowers to
+// `st4` on NEON.
+//
+// Takes pointers rather than vectors: a vector wider than 16 bytes must not
+// cross a function boundary, because how it is passed depends on which ISA
+// extensions are enabled (-Wpsabi on x86).
+template <typename T, size_t... I2, size_t... I4>
+inline void Interleave4Vectors(const T* s0, const T* s1, const T* s2,
+                               const T* s3, T* dst, std::index_sequence<I2...>,
+                               std::index_sequence<I4...>) {
+  constexpr size_t N = 16 / sizeof(T);
+  typedef T VN __attribute__((vector_size(16)));
+  VN r0, r1, r2, r3;
+  std::memcpy(&r0, s0, sizeof(VN));
+  std::memcpy(&r1, s1, sizeof(VN));
+  std::memcpy(&r2, s2, sizeof(VN));
+  std::memcpy(&r3, s3, sizeof(VN));
+  // a = r0|r1 and b = r2|r3, 2N lanes each.
+  const auto a = __builtin_shufflevector(r0, r1, I2...);  // NOLINT
+  const auto b = __builtin_shufflevector(r2, r3, I2...);  // NOLINT
+  const auto o =
+      __builtin_shufflevector(a, b, ((I4 % 4) * N + I4 / 4)...);  // NOLINT
+  static_assert(sizeof(o) == 64);
+  std::memcpy(dst, &o, sizeof(o));
 }
 #endif
 
@@ -304,18 +322,10 @@ inline void Interleave4Rows(const T* src, size_t src_row_stride, T* dst,
   size_t k = 0;
 #if MLD_TENSOR_REORDER_VECTOR_EXT
   constexpr size_t N = 16 / sizeof(T);
-  typedef T VN __attribute__((vector_size(16)));
   const auto step = [&](size_t k) {
-    VN r0, r1, r2, r3;
-    std::memcpy(&r0, s0 + k, sizeof(VN));
-    std::memcpy(&r1, s1 + k, sizeof(VN));
-    std::memcpy(&r2, s2 + k, sizeof(VN));
-    std::memcpy(&r3, s3 + k, sizeof(VN));
-    const auto a = Concat(r0, r1, std::make_index_sequence<2 * N>());
-    const auto b = Concat(r2, r3, std::make_index_sequence<2 * N>());
-    const auto o = Interleave4<N>(a, b, std::make_index_sequence<4 * N>());
-    static_assert(sizeof(o) == 64);
-    std::memcpy(dst + 4 * k, &o, sizeof(o));
+    Interleave4Vectors(s0 + k, s1 + k, s2 + k, s3 + k, dst + 4 * k,
+                       std::make_index_sequence<2 * N>(),
+                       std::make_index_sequence<4 * N>());
   };
   for (; k + 2 * N <= count; k += 2 * N) {
     step(k);
@@ -356,8 +366,8 @@ inline void Transpose4x4(const T* src, size_t src_row_stride, T* dst,
     std::memcpy(rows + 12, src + 3 * src_row_stride, sizeof(V4));
     V16 v;
     std::memcpy(&v, rows, sizeof(v));
-    const V16 t = __builtin_shufflevector(v, v, 0, 4, 8, 12, 1, 5, 9, 13, 2, 6,
-                                          10, 14, 3, 7, 11, 15);
+    const V16 t = __builtin_shufflevector(  // NOLINT
+        v, v, 0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15);
     alignas(V16) T out[16];
     std::memcpy(out, &t, sizeof(t));
     std::memcpy(dst + 0 * dst_row_stride, out + 0, sizeof(V4));
@@ -373,14 +383,14 @@ inline void Transpose4x4(const T* src, size_t src_row_stride, T* dst,
     std::memcpy(&r1, src + 1 * src_row_stride, sizeof(V4));
     std::memcpy(&r2, src + 2 * src_row_stride, sizeof(V4));
     std::memcpy(&r3, src + 3 * src_row_stride, sizeof(V4));
-    const V4 t0 = __builtin_shufflevector(r0, r1, 0, 4, 1, 5);
-    const V4 t1 = __builtin_shufflevector(r0, r1, 2, 6, 3, 7);
-    const V4 t2 = __builtin_shufflevector(r2, r3, 0, 4, 1, 5);
-    const V4 t3 = __builtin_shufflevector(r2, r3, 2, 6, 3, 7);
-    const V4 o0 = __builtin_shufflevector(t0, t2, 0, 1, 4, 5);
-    const V4 o1 = __builtin_shufflevector(t0, t2, 2, 3, 6, 7);
-    const V4 o2 = __builtin_shufflevector(t1, t3, 0, 1, 4, 5);
-    const V4 o3 = __builtin_shufflevector(t1, t3, 2, 3, 6, 7);
+    const V4 t0 = __builtin_shufflevector(r0, r1, 0, 4, 1, 5);  // NOLINT
+    const V4 t1 = __builtin_shufflevector(r0, r1, 2, 6, 3, 7);  // NOLINT
+    const V4 t2 = __builtin_shufflevector(r2, r3, 0, 4, 1, 5);  // NOLINT
+    const V4 t3 = __builtin_shufflevector(r2, r3, 2, 6, 3, 7);  // NOLINT
+    const V4 o0 = __builtin_shufflevector(t0, t2, 0, 1, 4, 5);  // NOLINT
+    const V4 o1 = __builtin_shufflevector(t0, t2, 2, 3, 6, 7);  // NOLINT
+    const V4 o2 = __builtin_shufflevector(t1, t3, 0, 1, 4, 5);  // NOLINT
+    const V4 o3 = __builtin_shufflevector(t1, t3, 2, 3, 6, 7);  // NOLINT
     std::memcpy(dst + 0 * dst_row_stride, &o0, sizeof(V4));
     std::memcpy(dst + 1 * dst_row_stride, &o1, sizeof(V4));
     std::memcpy(dst + 2 * dst_row_stride, &o2, sizeof(V4));
@@ -406,8 +416,8 @@ inline void Transpose2x2(const T* src, size_t src_row_stride, T* dst,
   V2 r0, r1;
   std::memcpy(&r0, src, sizeof(V2));
   std::memcpy(&r1, src + src_row_stride, sizeof(V2));
-  const V2 o0 = __builtin_shufflevector(r0, r1, 0, 2);
-  const V2 o1 = __builtin_shufflevector(r0, r1, 1, 3);
+  const V2 o0 = __builtin_shufflevector(r0, r1, 0, 2);  // NOLINT
+  const V2 o1 = __builtin_shufflevector(r0, r1, 1, 3);  // NOLINT
   std::memcpy(dst, &o0, sizeof(V2));
   std::memcpy(dst + dst_row_stride, &o1, sizeof(V2));
 #else
@@ -798,6 +808,25 @@ void ConstantPadImpl(const T* src, T* dst, absl::Span<const size_t> shape,
 }
 
 #if MLD_TENSOR_REORDER_X86_F16C
+// True if the CPU has AVX and F16C and the OS preserves the YMM registers.
+bool HasAvxAndF16c() {
+#if defined(_MSC_VER)
+  // __builtin_cpu_supports() needs compiler runtime symbols (__cpu_model) that
+  // are not linked in MSVC-style builds, so query CPUID directly.
+  int info[4];
+  __cpuid(info, 1);
+  constexpr int kOsxsave = 1 << 27;
+  constexpr int kAvx = 1 << 28;
+  constexpr int kF16c = 1 << 29;
+  constexpr int kNeeded = kOsxsave | kAvx | kF16c;
+  if ((info[2] & kNeeded) != kNeeded) return false;
+  // XCR0 bits 1 and 2: the OS saves the XMM and YMM state.
+  return (_xgetbv(0) & 0x6) == 0x6;
+#else
+  return __builtin_cpu_supports("avx") && __builtin_cpu_supports("f16c");
+#endif
+}
+
 __attribute__((target("avx,f16c"))) void ConvertF32ToF16F16c(const float* src,
                                                              half* dst,
                                                              size_t count) {
@@ -806,7 +835,7 @@ __attribute__((target("avx,f16c"))) void ConvertF32ToF16F16c(const float* src,
   for (; i + 8 <= count; i += 8) {
     const __m256 f = _mm256_loadu_ps(src + i);
     const __m128i h = _mm256_cvtps_ph(f, _MM_FROUND_TO_NEAREST_INT);
-    _mm_storeu_si128(reinterpret_cast<__m128i*>(dst + i), h);
+    _mm_storeu_si128(reinterpret_cast<__m128i*>(dst + i), h);  // NOLINT
   }
   for (; i < count; ++i) {
     const uint16_t h = _cvtss_sh(src[i], _MM_FROUND_TO_NEAREST_INT);
@@ -887,8 +916,7 @@ void ConstantPadCpu(const void* src, void* dst, size_t element_size,
 
 void ConvertF32ToF16Cpu(const float* src, half* dst, size_t count) {
 #if MLD_TENSOR_REORDER_X86_F16C
-  static const bool has_f16c =
-      __builtin_cpu_supports("avx") && __builtin_cpu_supports("f16c");
+  static const bool has_f16c = HasAvxAndF16c();
   if (has_f16c) {
     ConvertF32ToF16F16c(src, dst, count);
     return;
