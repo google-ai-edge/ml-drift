@@ -212,6 +212,29 @@ std::unique_ptr<GPUOperation> SelectConvolutionExternalWeightsMali(
   }
 }
 
+std::unique_ptr<GPUOperation> SelectConvolutionExternalWeightsPowerVR(
+    const Convolution2DAttributes& attr, const TensorDescriptor* bias_desc,
+    const BHWC& dst_shape, const GpuInfo& gpu_info, const OperationDef& op_def,
+    CalculationsPrecision precision, WeightsDescription* weights_desc,
+    const TensorDescriptor* src_exp, bool different_weights_for_height,
+    const ConvRuntimeCheckDesc& runtime_check) {
+  if (gpu_info.SupportsExtension("cl_img_pixel_subgroup_dot") &&
+      IsConvWaveMemorySupported(gpu_info)) {
+    ConvWaveMemory convolution = CreateConvWaveMemoryExternalWeights(
+        gpu_info, op_def, precision, attr, bias_desc, &dst_shape, src_exp,
+        different_weights_for_height, runtime_check);
+    *weights_desc = convolution.GetWeightsDescription();
+    return std::make_unique<ConvWaveMemory>(std::move(convolution));
+  }
+  // TODO: PowerVR OpenCL __constant coherency bug workaround;
+  // skip ConvConstants and fall back to ConvGeneric.
+  ConvGeneric conv = CreateConvGenericExternalWeights(
+      gpu_info, op_def, precision, attr, bias_desc, &dst_shape, src_exp,
+      different_weights_for_height, runtime_check);
+  *weights_desc = conv.GetWeightsDescription();
+  return std::make_unique<ConvGeneric>(std::move(conv));
+}
+
 }  // namespace
 
 std::unique_ptr<GPUOperation> SelectConvolution(
@@ -321,15 +344,11 @@ std::unique_ptr<GPUOperation> SelectConvolutionWithExternalWeights(
     return SelectConvolutionExternalWeightsMali(
         attr, bias_desc, dst_shape, gpu_info, op_def, precision, hints,
         weights_desc, src_exp, different_weights_for_height, runtime_check);
-  } else if (gpu_info.IsPowerVR() &&
-             gpu_info.SupportsExtension("cl_img_pixel_subgroup_dot") &&
-             IsConvWaveMemorySupported(gpu_info)) {
-    ConvWaveMemory convolution = CreateConvWaveMemoryExternalWeights(
-        gpu_info, op_def, precision, attr, bias_desc, &dst_shape, src_exp,
-        different_weights_for_height, runtime_check);
-    *weights_desc = convolution.GetWeightsDescription();
-    return std::make_unique<ConvWaveMemory>(std::move(convolution));
-  } else if (gpu_info.IsNvidia() || gpu_info.IsPowerVR() || gpu_info.IsAMD()) {
+  } else if (gpu_info.IsPowerVR()) {
+    return SelectConvolutionExternalWeightsPowerVR(
+        attr, bias_desc, dst_shape, gpu_info, op_def, precision, weights_desc,
+        src_exp, different_weights_for_height, runtime_check);
+  } else if (gpu_info.IsNvidia() || gpu_info.IsAMD()) {
     if (IsConvConstantsSupported(gpu_info, precision, attr) &&
         !hints.Check(ModelHints::kReduceKernelsCount) &&
         CanUseConvConstants(different_weights_for_height, src_exp,

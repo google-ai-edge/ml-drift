@@ -360,6 +360,7 @@ TEST(GpuModelUtilTest, ResizeAddConvLocalMemoryFuserWithQuantizeAndDequantize) {
 absl::Status BuildBatchedMatMulModel(const BHWC& left_shape,
                                      const BHWC& right_shape,
                                      bool transpose_right,
+                                     const GpuInfo& gpu_info,
                                      GpuModel* gpu_model) {
   GraphFloat32 graph;
   Value* left = graph.NewValue();
@@ -387,7 +388,15 @@ absl::Status BuildBatchedMatMulModel(const BHWC& left_shape,
   CreateGpuModelInfo create_info;
   create_info.precision = CalculationsPrecision::kF32;
   create_info.storage_type = TensorStorageType::kBuffer;
-  return GraphToGpuModel(graph, create_info, GetTestGpuInfo(), gpu_model);
+  return GraphToGpuModel(graph, create_info, gpu_info, gpu_model);
+}
+
+absl::Status BuildBatchedMatMulModel(const BHWC& left_shape,
+                                     const BHWC& right_shape,
+                                     bool transpose_right,
+                                     GpuModel* gpu_model) {
+  return BuildBatchedMatMulModel(left_shape, right_shape, transpose_right,
+                                 GetTestGpuInfo(), gpu_model);
 }
 
 TEST(GpuModelUtilTest, BatchedMatMulFullBroadcastDoesNotReplicateConvWeights) {
@@ -480,6 +489,24 @@ TEST(GpuModelUtilTest,
               ::testing::StartsWith("bhwc_as_hwio"));
   EXPECT_THAT(partial_broadcast_model.nodes[2].name,
               ::testing::StartsWith("mat_mul_as_convolution"));
+}
+
+TEST(GpuModelUtilTest, BatchedMatMulPowerVROpenClAvoidsConvConstants) {
+  GpuInfo gpu_info = GetTestGpuInfo();
+  gpu_info.adreno_info = {};
+  gpu_info.opencl_info.compute_units_count = 3;
+  GetGpuInfoFromDeviceDescription("PowerVR DXT-48-1536", GpuApi::kOpenCl,
+                                  &gpu_info);
+
+  // Weights fit in ConvConstants (4 * 6 * 4 = 96B <= 1024B), but PowerVR
+  // OpenCL must not select ConvConstants for external weights.
+  GpuModel gpu_model;
+  ABSL_ASSERT_OK(BuildBatchedMatMulModel(BHWC(1, 1, 8, 4), BHWC(1, 1, 4, 6),
+                                    /*transpose_right=*/false, gpu_info,
+                                    &gpu_model));
+  ASSERT_EQ(gpu_model.nodes.size(), 2);
+  EXPECT_THAT(gpu_model.nodes[1].name,
+              ::testing::Not(::testing::HasSubstr("conv_constants")));
 }
 
 GpuInfo GetTestMetalGpuInfo() {
