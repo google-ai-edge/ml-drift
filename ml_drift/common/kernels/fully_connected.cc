@@ -275,6 +275,13 @@ int3 GetWorkGroupSize(const FullyConnected::ConvParams& params,
       y_size_multiplier = 2;
     }
   }
+  // The kernel is written for this work group (WG_SIZE_X/Y), so it must not
+  // exceed the device limit (which a caller may also lower, e.g. after
+  // CL_KERNEL_WORK_GROUP_SIZE of a compiled kernel came out smaller).
+  if (gpu_info.GetMaxWorkGroupTotalSize() > 0) {
+    wg_total_size =
+        std::min(wg_total_size, gpu_info.GetMaxWorkGroupTotalSize());
+  }
   int y_size = 8;
   if (is_quantized) {
     if (params.weights_type == DataType::kInt2) {
@@ -328,6 +335,7 @@ int3 GetWorkGroupSize(const FullyConnected::ConvParams& params,
     y_size = 1;
   }
   y_size *= y_size_multiplier;
+  y_size = std::min(y_size, wg_total_size);
   int x_size = wg_total_size / y_size;
   if (total_task_size <= 64 && x_size >= 8) {
     if (is_quantized) {

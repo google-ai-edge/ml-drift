@@ -55,6 +55,14 @@
 namespace ml_drift {
 namespace cl {
 
+// Payload key of the status InferenceContext returns when a kernel's work
+// group is larger than CL_KERNEL_WORK_GROUP_SIZE of the compiled kernel. The
+// value is the smallest such limit among those kernels, in decimal, so a
+// caller can rebuild the GpuModel with
+// GpuInfo::opencl_info.max_work_group_total_size at or below it.
+inline constexpr char kKernelWorkGroupLimitPayload[] =
+    "ml_drift/cl/kernel_work_group_limit";
+
 struct CLNode {
   ClOperation cl_operation;
   std::vector<ValueId> inputs;
@@ -168,6 +176,10 @@ class InferenceContext {
   absl::Status SetTensor(const ValueId& tensor_id, Tensor* tensor_ptr);
 
  private:
+  // Fails when a kernel's work group exceeds CL_KERNEL_WORK_GROUP_SIZE of the
+  // compiled kernel: the dispatch would fail with CL_INVALID_WORK_GROUP_SIZE.
+  absl::Status CheckWorkGroupsFitKernels() const;
+
   absl::StatusOr<flatbuffers::Offset<data::InferenceContext>> Encode(
       const CLDevice& device, const ProgramCache& program_cache,
       flatbuffers::Offset<ml_drift::data::GpuModel> gpu_model_fb,
