@@ -142,7 +142,7 @@ bool IsClCommandBufferRecommended(const CLDevice& device,
   if (!(caps & CL_COMMAND_BUFFER_CAPABILITY_SIMULTANEOUS_USE_KHR)) {
     return false;
   }
-  if (!gpu_info.IsPowerVR()) {
+  if (!gpu_info.IsPowerVR() && !gpu_info.opencl_info.IsCLVK()) {
     return false;
   }
 
