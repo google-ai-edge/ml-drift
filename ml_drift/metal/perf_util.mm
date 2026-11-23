@@ -16,6 +16,7 @@
 
 #import <Metal/Metal.h>
 
+#include <cstdint>
 #include <iomanip>
 #include <iostream>
 #include <memory>
@@ -105,15 +106,13 @@ absl::Status TestConvolutionPerformance(const Convolution2DAttributes& attr, con
   const int64_t flops_per_element = w_shape.i * w_shape.h * w_shape.w * 2;
   const int64_t dst_elements = dst.Width() * dst.Height() * dst.Channels();
   const int64_t flops_count = dst_elements * flops_per_element;
-  const double gflops_count = flops_count * 1e-9;
 
-  const double kGByte = 1024.0 * 1024.0 * 1024.0;
   const int64_t dst_elements_alignedx4 = dst.Width() * dst.Height() * dst.Slices() * 4;
   const int64_t src_elements_alignedx4 = src.Width() * src.Height() * src.Slices() * 4;
-  const double dst_gbytes = dst_elements_alignedx4 * float_size / kGByte;
-  const double src_gbytes = src_elements_alignedx4 * float_size / kGByte;
-  const double weight_gbytes = w_shape.DimensionsProduct() * float_size / kGByte;
-  const double bias_gbytes = w_shape.o * float_size / kGByte;
+  const uint64_t dst_bytes = dst_elements_alignedx4 * float_size;
+  const uint64_t src_bytes = src_elements_alignedx4 * float_size;
+  const uint64_t weight_bytes = w_shape.DimensionsProduct() * float_size;
+  const uint64_t bias_bytes = w_shape.o * float_size;
 
   ComputeTask gpu_task;
   gpu_task.Init(std::move(conv));
@@ -128,13 +127,13 @@ absl::Status TestConvolutionPerformance(const Convolution2DAttributes& attr, con
     double time_ms = absl::ToDoubleMilliseconds(gpu_task_time);
 
     const double fps = 1000.0 / time_ms;
-    const double gflops_real = fps * gflops_count;
-    const double gbyte_read = fps * (src_gbytes + weight_gbytes + bias_gbytes);
-    const double gbyte_write = fps * dst_gbytes;
+    const double gflops_real = fps * flops_count * 1e-9;
+    const double gbs_read = fps * (src_bytes + weight_bytes + bias_bytes) * 1e-9;
+    const double gbs_write = fps * dst_bytes * 1e-9;
     std::cout << std::fixed << std::setprecision(3) << i << "  Time - " << time_ms
               << std::setprecision(2) << "(ms), GFlops - " << gflops_real << ", Bandwidth - "
-              << gbyte_read + gbyte_write << "(GB/s), Read - " << gbyte_read << "(GB/s), Write - "
-              << gbyte_write << "(GB/s)" << std::endl;
+              << gbs_read + gbs_write << "(GB/s), Read - " << gbs_read << "(GB/s), Write - "
+              << gbs_write << "(GB/s)" << std::endl;
   }
 
   return absl::OkStatus();
@@ -184,16 +183,13 @@ absl::Status TestConvSoftmaxConvPerformance(const BHWC& dst_shape, int src_ch0, 
   const int64_t conv1_dst_elements = dst.Width() * dst.Height() * weights1.shape.o;
   const int64_t conv1_flops_count = conv1_dst_elements * conv1_flops_per_element;
   const int64_t flops_count = conv0_flops_count + conv1_flops_count;
-  const double gflops_count = flops_count * 1e-9;
 
-  const double kGByte = 1024.0 * 1024.0 * 1024.0;
   const int64_t dst_elements_alignedx4 = dst.Width() * dst.Height() * dst.Slices() * 4;
   const int64_t src_elements_alignedx4 = src.Width() * src.Height() * src.Slices() * 4;
-  const double dst_gbytes = dst_elements_alignedx4 * float_size / kGByte;
-  const double src_gbytes = src_elements_alignedx4 * float_size / kGByte;
-  const double weight_gbytes =
-      (weights0.shape.DimensionsProduct() + weights1.shape.DimensionsProduct()) * float_size /
-      kGByte;
+  const uint64_t dst_bytes = dst_elements_alignedx4 * float_size;
+  const uint64_t src_bytes = src_elements_alignedx4 * float_size;
+  const uint64_t weight_bytes =
+      (weights0.shape.DimensionsProduct() + weights1.shape.DimensionsProduct()) * float_size;
 
   ComputeTask gpu_task;
   gpu_task.Init(std::move(conv));
@@ -207,13 +203,13 @@ absl::Status TestConvSoftmaxConvPerformance(const BHWC& dst_shape, int src_ch0, 
     absl::Duration gpu_task_time = gpu_task.GetTaskTime(command_queue);
     double time_ms = absl::ToDoubleMilliseconds(gpu_task_time);
     const double fps = 1000.0 / time_ms;
-    const double gflops_real = fps * gflops_count;
-    const double gbyte_read = fps * (src_gbytes + weight_gbytes);
-    const double gbyte_write = fps * dst_gbytes;
+    const double gflops_real = fps * flops_count * 1e-9;
+    const double gbs_read = fps * (src_bytes + weight_bytes) * 1e-9;
+    const double gbs_write = fps * dst_bytes * 1e-9;
     std::cout << std::fixed << std::setprecision(3) << "  Time - " << time_ms
               << std::setprecision(2) << "(ms), GFlops - " << gflops_real << ", Bandwidth - "
-              << gbyte_read + gbyte_write << "(GB/s), Read - " << gbyte_read << "(GB/s), Write - "
-              << gbyte_write << "(GB/s)" << std::endl;
+              << gbs_read + gbs_write << "(GB/s), Read - " << gbs_read << "(GB/s), Write - "
+              << gbs_write << "(GB/s)" << std::endl;
   }
 
   return absl::OkStatus();
@@ -254,14 +250,13 @@ absl::Status TestDepthwiseConvPerformance(const DepthwiseConvolution2DAttributes
 
   const int64_t flops_count = GetDepthwiseConvolutionFlops(dst_shape, w_shape);
 
-  const double kGByte = 1024.0 * 1024.0 * 1024.0;
   const int64_t dst_elements_alignedx4 = dst.Width() * dst.Height() * dst.Slices() * 4;
   const int64_t src_elements_alignedx4 = src.Width() * src.Height() * src.Slices() * 4;
   const int float_size = precision == CalculationsPrecision::kF32 ? 4 : 2;
-  const double dst_gbytes = dst_elements_alignedx4 * float_size / kGByte;
-  const double src_gbytes = src_elements_alignedx4 * float_size / kGByte;
-  const double weight_gbytes = w_shape.DimensionsProduct() * float_size / kGByte;
-  const double bias_gbytes = w_shape.o * float_size / kGByte;
+  const uint64_t dst_bytes = dst_elements_alignedx4 * float_size;
+  const uint64_t src_bytes = src_elements_alignedx4 * float_size;
+  const uint64_t weight_bytes = w_shape.DimensionsProduct() * float_size;
+  const uint64_t bias_bytes = w_shape.o * float_size;
 
   ComputeTask gpu_task;
   gpu_task.Init(std::move(conv));
@@ -277,12 +272,12 @@ absl::Status TestDepthwiseConvPerformance(const DepthwiseConvolution2DAttributes
 
     const double fps = 1000.0 / time_ms;
     const double gflops_real = fps * flops_count * 1e-9;
-    const double gbyte_read = fps * (src_gbytes + weight_gbytes + bias_gbytes);
-    const double gbyte_write = fps * dst_gbytes;
+    const double gbs_read = fps * (src_bytes + weight_bytes + bias_bytes) * 1e-9;
+    const double gbs_write = fps * dst_bytes * 1e-9;
     std::cout << std::fixed << std::setprecision(3) << i << "  Time - " << time_ms
               << std::setprecision(2) << "(ms), GFlops - " << gflops_real << ", Bandwidth - "
-              << gbyte_read + gbyte_write << "(GB/s), Read - " << gbyte_read << "(GB/s), Write - "
-              << gbyte_write << "(GB/s)" << std::endl;
+              << gbs_read + gbs_write << "(GB/s), Read - " << gbs_read << "(GB/s), Write - "
+              << gbs_write << "(GB/s)" << std::endl;
   }
 
   return absl::OkStatus();
@@ -404,12 +399,10 @@ absl::Status ConvolutionInt8PerfTest(const BHWC& src_shape, int dst_channels) {
   const int64_t flops_per_element = w_shape.i * 2;
   const int64_t dst_elements = dst.Width() * dst.Height() * dst.Channels();
   const int64_t flops_count = dst_elements * flops_per_element;
-  const double gflops_count = flops_count * 1e-9;
 
-  const double kGByte = 1024.0 * 1024.0 * 1024.0;
-  const double src_gbytes = src.GetMemorySizeInBytes() / kGByte;
-  const double dst_gbytes = dst.GetMemorySizeInBytes() / kGByte;
-  const double weight_gbytes = weights.shape.DimensionsProduct() * sizeof(int8_t) / kGByte;
+  const uint64_t src_bytes = src.GetMemorySizeInBytes();
+  const uint64_t dst_bytes = dst.GetMemorySizeInBytes();
+  const uint64_t weight_bytes = weights.shape.DimensionsProduct() * sizeof(int8_t);
 
   ComputeTask gpu_task;
   gpu_task.Init(std::move(conv));
@@ -429,13 +422,13 @@ absl::Status ConvolutionInt8PerfTest(const BHWC& src_shape, int dst_channels) {
     absl::Duration gpu_task_time = gpu_task.GetTaskTime(command_queue);
     double time_ms = absl::ToDoubleMilliseconds(gpu_task_time);
     const double fps = 1000.0 / time_ms;
-    const double gflops_real = fps * gflops_count;
-    const double gbyte_read = fps * (src_gbytes + weight_gbytes);
-    const double gbyte_write = fps * dst_gbytes;
+    const double gflops_real = fps * flops_count * 1e-9;
+    const double gbs_read = fps * (src_bytes + weight_bytes) * 1e-9;
+    const double gbs_write = fps * dst_bytes * 1e-9;
     std::cout << std::fixed << std::setprecision(3) << "  Time - " << time_ms
               << std::setprecision(2) << "(ms), Giops - " << gflops_real << ", Bandwidth - "
-              << gbyte_read + gbyte_write << "(GB/s), Read - " << gbyte_read << "(GB/s), Write - "
-              << gbyte_write << "(GB/s)" << std::endl;
+              << gbs_read + gbs_write << "(GB/s), Read - " << gbs_read << "(GB/s), Write - "
+              << gbs_write << "(GB/s)" << std::endl;
   }
 
   return absl::OkStatus();
@@ -537,12 +530,10 @@ absl::Status ConvolutionSf16Wi4BatchedPerfTest(const BHWC& src_shape, int dst_ch
   const int64_t flops_per_element = weights_i4.shape.i * 2;
   const int64_t dst_elements = dst.Width() * dst.Height() * dst.Channels();
   const int64_t flops_count = dst_elements * flops_per_element;
-  const double gflops_count = flops_count * 1e-9;
 
-  const double kGByte = 1024.0 * 1024.0 * 1024.0;
-  const double src_gbytes = src.GetMemorySizeInBytes() / kGByte;
-  const double dst_gbytes = dst.GetMemorySizeInBytes() / kGByte;
-  const double weight_gbytes = (weights_i4.shape.DimensionsProduct() * 0.5) / kGByte;
+  const uint64_t src_bytes = src.GetMemorySizeInBytes();
+  const uint64_t dst_bytes = dst.GetMemorySizeInBytes();
+  const uint64_t weight_bytes = weights_i4.shape.DimensionsProduct() / 2;
 
   ComputeTask gpu_task;
   gpu_task.Init(std::move(conv));
@@ -561,13 +552,13 @@ absl::Status ConvolutionSf16Wi4BatchedPerfTest(const BHWC& src_shape, int dst_ch
     absl::Duration gpu_task_time = gpu_task.GetTaskTime(command_queue);
     double time_ms = absl::ToDoubleMilliseconds(gpu_task_time);
     const double fps = 1000.0 / time_ms;
-    const double gflops_real = fps * gflops_count;
-    const double gbyte_read = fps * (src_gbytes + weight_gbytes);
-    const double gbyte_write = fps * dst_gbytes;
+    const double gflops_real = fps * flops_count * 1e-9;
+    const double gbs_read = fps * (src_bytes + weight_bytes) * 1e-9;
+    const double gbs_write = fps * dst_bytes * 1e-9;
     std::cout << std::fixed << std::setprecision(3) << "  Time - " << time_ms
               << std::setprecision(2) << "(ms), Giops - " << gflops_real << ", Bandwidth - "
-              << gbyte_read + gbyte_write << "(GB/s), Read - " << gbyte_read << "(GB/s), Write - "
-              << gbyte_write << "(GB/s)" << std::endl;
+              << gbs_read + gbs_write << "(GB/s), Read - " << gbs_read << "(GB/s), Write - "
+              << gbs_write << "(GB/s)" << std::endl;
   }
 
   return absl::OkStatus();
@@ -684,12 +675,10 @@ absl::Status ConvolutionSi8Wi4PerfTest(const BHWC& src_shape, int dst_channels) 
   const int64_t flops_per_element = weights_i4.shape.i * 2;
   const int64_t dst_elements = dst.Width() * dst.Height() * dst.Channels();
   const int64_t flops_count = dst_elements * flops_per_element;
-  const double gflops_count = flops_count * 1e-9;
 
-  const double kGByte = 1024.0 * 1024.0 * 1024.0;
-  const double src_gbytes = src.GetMemorySizeInBytes() / kGByte;
-  const double dst_gbytes = dst.GetMemorySizeInBytes() / kGByte;
-  const double weight_gbytes = (weights_i4.shape.DimensionsProduct() * 0.5) / kGByte;
+  const uint64_t src_bytes = src.GetMemorySizeInBytes();
+  const uint64_t dst_bytes = dst.GetMemorySizeInBytes();
+  const uint64_t weight_bytes = weights_i4.shape.DimensionsProduct() / 2;
 
   ComputeTask gpu_task;
   gpu_task.Init(std::move(conv));
@@ -710,13 +699,13 @@ absl::Status ConvolutionSi8Wi4PerfTest(const BHWC& src_shape, int dst_channels) 
     absl::Duration gpu_task_time = gpu_task.GetTaskTime(command_queue);
     double time_ms = absl::ToDoubleMilliseconds(gpu_task_time);
     const double fps = 1000.0 / time_ms;
-    const double gflops_real = fps * gflops_count;
-    const double gbyte_read = fps * (src_gbytes + weight_gbytes);
-    const double gbyte_write = fps * dst_gbytes;
+    const double gflops_real = fps * flops_count * 1e-9;
+    const double gbs_read = fps * (src_bytes + weight_bytes) * 1e-9;
+    const double gbs_write = fps * dst_bytes * 1e-9;
     std::cout << std::fixed << std::setprecision(3) << "  Time - " << time_ms
               << std::setprecision(2) << "(ms), Giops - " << gflops_real << ", Bandwidth - "
-              << gbyte_read + gbyte_write << "(GB/s), Read - " << gbyte_read << "(GB/s), Write - "
-              << gbyte_write << "(GB/s)" << std::endl;
+              << gbs_read + gbs_write << "(GB/s), Read - " << gbs_read << "(GB/s), Write - "
+              << gbs_write << "(GB/s)" << std::endl;
   }
 
   return absl::OkStatus();
@@ -861,14 +850,12 @@ absl::Status ConvMoEPerfTest(int seq_size, int src_channels, int dst_channels, i
   ABSL_RETURN_IF_ERROR(conv->AssembleCode(gpu_info));
 
   const int64_t flops_count = 2.0 * dst_shape.DimensionsProduct() * weights_f32.shape.i;
-  const double gflops_count = flops_count * 1e-9;
 
-  const double kGByte = 1024.0 * 1024.0 * 1024.0;
-  const double src_gbytes = src.GetMemorySizeInBytes() / kGByte;
-  const double dst_gbytes = dst.GetMemorySizeInBytes() / kGByte;
-  const double weight_element_size = SizeInBitsOf(weights_type) / 8.0;
-  const double weight_gbytes = weights_f32.shape.DimensionsProduct() * weight_element_size / kGByte;
-  const double scale_gbytes = scale_tensor.GetMemorySizeInBytes() / kGByte;
+  const uint64_t src_bytes = src.GetMemorySizeInBytes();
+  const uint64_t dst_bytes = dst.GetMemorySizeInBytes();
+  const uint64_t weight_bytes =
+      weights_f32.shape.DimensionsProduct() * SizeInBitsOf(weights_type) / 8;
+  const uint64_t scale_bytes = scale_tensor.GetMemorySizeInBytes();
 
   ComputeTask gpu_task;
   gpu_task.Init(std::move(conv));
@@ -891,17 +878,17 @@ absl::Status ConvMoEPerfTest(int seq_size, int src_channels, int dst_channels, i
     absl::Duration gpu_task_time = gpu_task.GetTaskTime(command_queue);
     double time_ms = absl::ToDoubleMilliseconds(gpu_task_time);
     const double fps = 1000.0 / time_ms;
-    const double gflops_real = fps * gflops_count;
-    double gbytes_read = src_gbytes + weight_gbytes;
+    const double gflops_real = fps * flops_count * 1e-9;
+    uint64_t bytes_read = src_bytes + weight_bytes;
     if (is_quantized) {
-      gbytes_read += scale_gbytes * 2.0;
+      bytes_read += scale_bytes * 2;
     }
-    const double gbyte_read = fps * gbytes_read;
-    const double gbyte_write = fps * dst_gbytes;
+    const double gbs_read = fps * bytes_read * 1e-9;
+    const double gbs_write = fps * dst_bytes * 1e-9;
     std::cout << std::fixed << std::setprecision(3) << "  Time - " << time_ms
               << std::setprecision(2) << "(ms), GFlops - " << gflops_real << ", Bandwidth - "
-              << gbyte_read + gbyte_write << "(GB/s), Read - " << gbyte_read << "(GB/s), Write - "
-              << gbyte_write << "(GB/s)" << std::endl;
+              << gbs_read + gbs_write << "(GB/s), Read - " << gbs_read << "(GB/s), Write - "
+              << gbs_write << "(GB/s)" << std::endl;
   }
 
   return absl::OkStatus();
@@ -983,27 +970,25 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision, DataTy
   std::cout << "Dst size(HWC) - " << dst_shape.h << "x" << dst_shape.w << "x" << dst_shape.c
             << std::endl;
 
-  double element_size = precision == CalculationsPrecision::kF32 ? 4.0 : 2.0;
+  const int element_size = precision == CalculationsPrecision::kF32 ? 4 : 2;
   int64_t flops_per_element = w_shape.i * w_shape.h * w_shape.w * 2;
   if (scale_zp_shape.h > 1) {
     flops_per_element /= scale_zp_shape.h;
   }
   const int64_t dst_elements = dst.Width() * dst.Height() * dst.Channels();
   const int64_t flops_count = dst_elements * flops_per_element;
-  const double gflops_count = flops_count * 1e-9;
 
-  const double kGByte = 1024.0 * 1024.0 * 1024.0;
   const int64_t dst_elements_alignedx4 = dst.Width() * dst.Height() * dst.Slices() * 4;
   const int64_t src_elements_alignedx4 = src.Width() * src.Height() * src.Slices() * 4;
-  const double dst_gbytes = dst_elements_alignedx4 * element_size / kGByte;
-  const double src_gbytes = src_elements_alignedx4 * element_size / kGByte;
-  double weight_element_size = SizeInBitsOf(weights_type) / 8.0;
+  const uint64_t dst_bytes = dst_elements_alignedx4 * element_size;
+  const uint64_t src_bytes = src_elements_alignedx4 * element_size;
+  int weight_element_bits = SizeInBitsOf(weights_type);
   if (sparse_2x4) {
-    weight_element_size += 0.25;
+    weight_element_bits += 2;
   }
-  const double weight_gbytes = weights.shape.DimensionsProduct() * weight_element_size / kGByte;
-  const double bias_gbytes = weights.shape.o * element_size / kGByte;
-  const double scale_gbytes = scale_zp_shape.DimensionsProduct() * element_size / kGByte;
+  const uint64_t weight_bytes = weights.shape.DimensionsProduct() * weight_element_bits / 8;
+  const uint64_t bias_bytes = weights.shape.o * element_size;
+  const uint64_t scale_bytes = scale_zp_shape.DimensionsProduct() * element_size;
 
   WeightsDescription weights_desc;
   std::vector<TensorDescriptor> weights_gpu;
@@ -1102,11 +1087,11 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision, DataTy
   }
   std::vector<double> time_ms(wg_sizes.size());
 
-  double gbytes_read = src_gbytes + weight_gbytes + bias_gbytes;
+  uint64_t bytes_read = src_bytes + weight_bytes + bias_bytes;
   if (is_quantized) {
-    gbytes_read += scale_gbytes;
+    bytes_read += scale_bytes;
     if (use_zero_point) {
-      gbytes_read += scale_gbytes;
+      bytes_read += scale_bytes;
     }
   }
 
@@ -1195,9 +1180,9 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision, DataTy
       }
     }
     const double fps = 1000.0 / time_ms[i];
-    const double gflops_real = fps * gflops_count;
-    const double gbs_read = fps * gbytes_read;
-    const double gbs_write = fps * dst_gbytes;
+    const double gflops_real = fps * flops_count * 1e-9;
+    const double gbs_read = fps * bytes_read * 1e-9;
+    const double gbs_write = fps * dst_bytes * 1e-9;
     std::cout << std::fixed << std::setprecision(4) << "WG size: " << wg_sizes[i].x << "x"
               << wg_sizes[i].y << " time - " << time_ms[i] << "(ms), GFlops - " << gflops_real
               << ", Bandwidth - " << gbs_read + gbs_write << "(GB/s), Read - " << gbs_read
@@ -1214,9 +1199,9 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision, DataTy
   }
 
   const double fps = 1000.0 / min_time_ms;
-  const double gflops_real = fps * gflops_count;
-  const double gbs_read = fps * gbytes_read;
-  const double gbs_write = fps * dst_gbytes;
+  const double gflops_real = fps * flops_count * 1e-9;
+  const double gbs_read = fps * bytes_read * 1e-9;
+  const double gbs_write = fps * dst_bytes * 1e-9;
 
   std::cout << std::endl
             << "Optimal WG size: " << optimal_wg_size.x << "x" << optimal_wg_size.y << std::fixed
@@ -1302,28 +1287,26 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision, DataType we
   std::cout << "Dst size(HWC) - " << dst_shape.h << "x" << dst_shape.w << "x" << dst_shape.c
             << std::endl;
 
-  double element_size = precision == CalculationsPrecision::kF32 ? 4.0 : 2.0;
+  const int element_size = precision == CalculationsPrecision::kF32 ? 4 : 2;
   int64_t flops_per_element = w_shape.i * w_shape.h * w_shape.w * 2;
   if (scale_zp_shape.h > 1) {
     flops_per_element /= scale_zp_shape.h;
   }
   const int64_t dst_elements = dst.Width() * dst.Height() * dst.Channels();
   const int64_t flops_count = dst_elements * flops_per_element;
-  const double gflops_count = flops_count * 1e-9;
 
-  const double kGByte = 1024.0 * 1024.0 * 1024.0;
   const int64_t dst_elements_alignedx4 = dst.Width() * dst.Height() * dst.Slices() * 4;
   const int64_t src_elements_alignedx4 = src.Width() * src.Height() * src.Slices() * 4;
-  const double dst_gbytes = dst_elements_alignedx4 * element_size / kGByte;
-  const double src_gbytes = src_elements_alignedx4 * element_size / kGByte;
-  double weight_element_size = SizeInBitsOf(weights_type) / 8.0;
+  const uint64_t dst_bytes = dst_elements_alignedx4 * element_size;
+  const uint64_t src_bytes = src_elements_alignedx4 * element_size;
+  int weight_element_bits = SizeInBitsOf(weights_type);
   if (sparse_2x4) {
-    weight_element_size += 0.25;
+    weight_element_bits += 2;
   }
-  const double weight_gbytes = weights.shape.DimensionsProduct() * weight_element_size / kGByte;
-  const double scale_gbytes = scale_zp_shape.DimensionsProduct() * element_size / kGByte;
+  const uint64_t weight_bytes = weights.shape.DimensionsProduct() * weight_element_bits / 8;
+  const uint64_t scale_bytes = scale_zp_shape.DimensionsProduct() * element_size;
 
-  std::cout << "Weight size: " << weight_gbytes * 1024.0 << " MB" << std::endl;
+  std::cout << "Weight size: " << weight_bytes * 1e-6 << " MB" << std::endl;
 
   WeightsDescription weights_desc;
   std::vector<TensorDescriptor> weights_gpu;
@@ -1442,11 +1425,11 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision, DataType we
   ABSL_RETURN_IF_ERROR(gpu_task.SetDstTensor(&dst, 0));
   ABSL_RETURN_IF_ERROR(gpu_task.UpdateParams());
 
-  double gbytes_read = src_gbytes + weight_gbytes;
+  uint64_t bytes_read = src_bytes + weight_bytes;
   if (is_quantized) {
-    gbytes_read += scale_gbytes;
+    bytes_read += scale_bytes;
     if (use_zero_point) {
-      gbytes_read += scale_gbytes;
+      bytes_read += scale_bytes;
     }
   }
 
@@ -1457,9 +1440,9 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision, DataType we
     min_duration = std::min(min_duration, gpu_task_time);
     double time_ms = absl::ToDoubleMilliseconds(gpu_task_time);
     const double fps = 1000.0 / time_ms;
-    const double gflops_real = fps * gflops_count;
-    const double gbs_read = fps * gbytes_read;
-    const double gbs_write = fps * dst_gbytes;
+    const double gflops_real = fps * flops_count * 1e-9;
+    const double gbs_read = fps * bytes_read * 1e-9;
+    const double gbs_write = fps * dst_bytes * 1e-9;
     std::cout << std::fixed << std::setprecision(4) << " Time - " << time_ms << "(ms), GFlops - "
               << gflops_real << ", Bandwidth - " << gbs_read + gbs_write << "(GB/s), Read - "
               << gbs_read << "(GB/s), Write - " << gbs_write << "(GB/s)" << std::endl;
@@ -1489,8 +1472,7 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision, DataType we
         }
       }
     }
-    std::cout << "Weight total size: " << weight_gbytes * kMultiplier * 1024.0 << " MB"
-              << std::endl;
+    std::cout << "Weight total size: " << weight_bytes * kMultiplier * 1e-6 << " MB" << std::endl;
     for (int i = 0; i < 10; ++i) {
       @autoreleasepool {
         id<MTLCommandBuffer> command_buffer = [command_queue commandBuffer];
@@ -1519,9 +1501,9 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision, DataType we
         double time_ms =
             static_cast<double>((end - start) / absl::Nanoseconds(1)) / inferences * 1e-6;
         const double fps = 1000.0 / time_ms;
-        const double gflops_real = fps * gflops_count;
-        const double gbs_read = fps * gbytes_read;
-        const double gbs_write = fps * dst_gbytes;
+        const double gflops_real = fps * flops_count * 1e-9;
+        const double gbs_read = fps * bytes_read * 1e-9;
+        const double gbs_write = fps * dst_bytes * 1e-9;
         std::cout << std::fixed << std::setprecision(4) << " Time - " << time_ms
                   << "(ms), GFlops - " << gflops_real << ", Bandwidth - " << gbs_read + gbs_write
                   << "(GB/s), Read - " << gbs_read << "(GB/s), Write - " << gbs_write << "(GB/s)"
@@ -1607,21 +1589,17 @@ absl::Status FullyConnectedWeightsBatchIdsPerfTest(CalculationsPrecision precisi
   std::cout << "Dst size(HWC) - " << dst_shape.h << "x" << dst_shape.w << "x" << dst_shape.c
             << std::endl;
 
-  double element_size = precision == CalculationsPrecision::kF32 ? 4.0 : 2.0;
+  const int element_size = precision == CalculationsPrecision::kF32 ? 4 : 2;
   const int64_t flops_per_element = w_shape.i * 2;
   const int64_t dst_elements = dst.Width() * dst.Height() * dst.Channels();
   const int64_t flops_count = dst_elements * flops_per_element;
-  const double gflops_count = flops_count * 1e-9;
 
-  const double kGByte = 1024.0 * 1024.0 * 1024.0;
   const int64_t dst_elements_alignedx4 = dst.Width() * dst.Height() * dst.Slices() * 4;
   const int64_t src_elements_alignedx4 = src.Width() * src.Height() * src.Slices() * 4;
-  const double dst_gbytes = dst_elements_alignedx4 * element_size / kGByte;
-  const double src_gbytes = src_elements_alignedx4 * element_size / kGByte;
-  const double weight_element_size = SizeInBitsOf(weights_type) / 8.0;
-  const double weight_gbytes = weights.shape.DimensionsProduct() * weight_element_size / kGByte;
-  const double scale_gbytes = scale_zp_shape.DimensionsProduct() * element_size / kGByte;
-  const double runtime_read_fraction = 1.0 / batch_size * active_ids_size;
+  const uint64_t dst_bytes = dst_elements_alignedx4 * element_size;
+  const uint64_t src_bytes = src_elements_alignedx4 * element_size;
+  const uint64_t weight_bytes = weights.shape.DimensionsProduct() * SizeInBitsOf(weights_type) / 8;
+  const uint64_t scale_bytes = scale_zp_shape.DimensionsProduct() * element_size;
 
   WeightsDescription weights_desc;
   std::vector<TensorDescriptor> weights_gpu;
@@ -1696,11 +1674,11 @@ absl::Status FullyConnectedWeightsBatchIdsPerfTest(CalculationsPrecision precisi
   ABSL_RETURN_IF_ERROR(gpu_task.SetDstTensor(&dst, 0));
   ABSL_RETURN_IF_ERROR(gpu_task.UpdateParams());
 
-  double gbytes_read = src_gbytes + weight_gbytes * runtime_read_fraction;
+  uint64_t bytes_read = src_bytes + weight_bytes * active_ids_size / batch_size;
   if (is_quantized) {
-    gbytes_read += scale_gbytes * runtime_read_fraction;
+    bytes_read += scale_bytes * active_ids_size / batch_size;
     if (use_zero_point) {
-      gbytes_read += scale_gbytes * runtime_read_fraction;
+      bytes_read += scale_bytes * active_ids_size / batch_size;
     }
   }
 
@@ -1711,9 +1689,9 @@ absl::Status FullyConnectedWeightsBatchIdsPerfTest(CalculationsPrecision precisi
     min_duration = std::min(min_duration, gpu_task_time);
     double time_ms = absl::ToDoubleMilliseconds(gpu_task_time);
     const double fps = 1000.0 / time_ms;
-    const double gflops_real = fps * gflops_count;
-    double gbs_read = fps * gbytes_read;
-    const double gbs_write = fps * dst_gbytes;
+    const double gflops_real = fps * flops_count * 1e-9;
+    const double gbs_read = fps * bytes_read * 1e-9;
+    const double gbs_write = fps * dst_bytes * 1e-9;
     std::cout << std::fixed << std::setprecision(4) << " Time - " << time_ms << "(ms), GFlops - "
               << gflops_real << ", Bandwidth - " << gbs_read + gbs_write << "(GB/s), Read - "
               << gbs_read << "(GB/s), Write - " << gbs_write << "(GB/s)" << std::endl;
@@ -1739,8 +1717,7 @@ absl::Status FullyConnectedWeightsBatchIdsPerfTest(CalculationsPrecision precisi
         }
       }
     }
-    std::cout << "Weight total size: " << weight_gbytes * kMultiplier * 1024.0 << " MB"
-              << std::endl;
+    std::cout << "Weight total size: " << weight_bytes * kMultiplier * 1e-6 << " MB" << std::endl;
     for (int i = 0; i < 10; ++i) {
       @autoreleasepool {
         id<MTLCommandBuffer> command_buffer = [command_queue commandBuffer];
@@ -1769,9 +1746,9 @@ absl::Status FullyConnectedWeightsBatchIdsPerfTest(CalculationsPrecision precisi
         double time_ms =
             static_cast<double>((end - start) / absl::Nanoseconds(1)) / inferences * 1e-6;
         const double fps = 1000.0 / time_ms;
-        const double gflops_real = fps * gflops_count;
-        const double gbs_read = fps * gbytes_read;
-        const double gbs_write = fps * dst_gbytes;
+        const double gflops_real = fps * flops_count * 1e-9;
+        const double gbs_read = fps * bytes_read * 1e-9;
+        const double gbs_write = fps * dst_bytes * 1e-9;
         std::cout << std::fixed << std::setprecision(4) << " Time - " << time_ms
                   << "(ms), GFlops - " << gflops_real << ", Bandwidth - " << gbs_read + gbs_write
                   << "(GB/s), Read - " << gbs_read << "(GB/s), Write - " << gbs_write << "(GB/s)"
@@ -1832,27 +1809,25 @@ absl::Status FullyConnectedOIPerfTest(const BHWC& src_shape, int dst_channels, i
   std::cout << "Dst size(HWC) - " << dst_shape.h << "x" << dst_shape.w << "x" << dst_shape.c
             << std::endl;
 
-  double element_size = SizeOf(data_type);
-  double weight_element_size = element_size;
+  const int element_size = SizeOf(data_type);
+  int weight_element_bits = element_size * 8;
   if (weights_type == DataType::kInt8) {
-    weight_element_size = 1.0;
+    weight_element_bits = 8;
   } else if (weights_type == DataType::kInt4) {
-    weight_element_size = 0.5;
+    weight_element_bits = 4;
   } else if (weights_type == DataType::kInt2) {
-    weight_element_size = 0.25;
+    weight_element_bits = 2;
   }
   const int64_t flops_per_element = src_shape.c * 2;
   const int64_t dst_elements = dst.Width() * dst.Height() * dst.Channels();
   const int64_t flops_count = dst_elements * flops_per_element;
-  const double gflops_count = flops_count * 1e-9;
 
-  const double kGByte = 1024.0 * 1024.0 * 1024.0;
   const int64_t dst_elements_alignedx4 = dst.Width() * dst.Height() * dst.Slices() * 4;
   const int64_t src_elements_alignedx4 = src.Width() * src.Height() * src.Slices() * 4;
-  const double dst_gbytes = dst_elements_alignedx4 * element_size / kGByte;
-  const double src_gbytes = src_elements_alignedx4 * element_size / kGByte;
-  const double weight_gbytes = weights_shape.DimensionsProduct() * weight_element_size / kGByte;
-  const double scale_gbytes = weights_scales.shape.DimensionsProduct() * element_size / kGByte;
+  const uint64_t dst_bytes = dst_elements_alignedx4 * element_size;
+  const uint64_t src_bytes = src_elements_alignedx4 * element_size;
+  const uint64_t weight_bytes = weights_shape.DimensionsProduct() * weight_element_bits / 8;
+  const uint64_t scale_bytes = weights_scales.shape.DimensionsProduct() * element_size;
 
   DataType type = op_def.src_tensors[0].GetDataType();
   auto scale_desc = ScaleOrZeroPointToTensorDesc(env.GetInfo(), weights_scales, type);
@@ -1944,11 +1919,11 @@ absl::Status FullyConnectedOIPerfTest(const BHWC& src_shape, int dst_channels, i
   }
   ABSL_RETURN_IF_ERROR(gpu_task.UpdateParams());
 
-  double gbytes_read = src_gbytes + weight_gbytes;
+  uint64_t bytes_read = src_bytes + weight_bytes;
   if (SizeInBitsOf(weights_type) <= 8) {
-    gbytes_read += scale_gbytes;
+    bytes_read += scale_bytes;
     if (use_zero_point) {
-      gbytes_read += scale_gbytes;
+      bytes_read += scale_bytes;
     }
   }
 
@@ -1959,9 +1934,9 @@ absl::Status FullyConnectedOIPerfTest(const BHWC& src_shape, int dst_channels, i
     min_duration = std::min(min_duration, gpu_task_time);
     double time_ms = absl::ToDoubleMilliseconds(gpu_task_time);
     const double fps = 1000.0 / time_ms;
-    const double gflops_real = fps * gflops_count;
-    const double gbs_read = fps * gbytes_read;
-    const double gbs_write = fps * dst_gbytes;
+    const double gflops_real = fps * flops_count * 1e-9;
+    const double gbs_read = fps * bytes_read * 1e-9;
+    const double gbs_write = fps * dst_bytes * 1e-9;
     std::cout << std::fixed << std::setprecision(4) << " Time - " << time_ms << "(ms), GFlops - "
               << gflops_real << ", Bandwidth - " << gbs_read + gbs_write << "(GB/s), Read - "
               << gbs_read << "(GB/s), Write - " << gbs_write << "(GB/s)" << std::endl;
@@ -1983,8 +1958,7 @@ absl::Status FullyConnectedOIPerfTest(const BHWC& src_shape, int dst_channels, i
         ABSL_RETURN_IF_ERROR(CreateTensor(env.device(), zero_point_desc, &zp_tensors_multiple[k]));
       }
     }
-    std::cout << "Weight total size: " << weight_gbytes * kMultiplier * 1024.0 << " MB"
-              << std::endl;
+    std::cout << "Weight total size: " << weight_bytes * kMultiplier * 1e-6 << " MB" << std::endl;
     for (int i = 0; i < 10; ++i) {
       @autoreleasepool {
         id<MTLCommandBuffer> command_buffer = [command_queue commandBuffer];
@@ -2009,9 +1983,9 @@ absl::Status FullyConnectedOIPerfTest(const BHWC& src_shape, int dst_channels, i
         double time_ms =
             static_cast<double>((end - start) / absl::Nanoseconds(1)) / inferences * 1e-6;
         const double fps = 1000.0 / time_ms;
-        const double gflops_real = fps * gflops_count;
-        const double gbs_read = fps * gbytes_read;
-        const double gbs_write = fps * dst_gbytes;
+        const double gflops_real = fps * flops_count * 1e-9;
+        const double gbs_read = fps * bytes_read * 1e-9;
+        const double gbs_write = fps * dst_bytes * 1e-9;
         std::cout << std::fixed << std::setprecision(4) << " Time - " << time_ms
                   << "(ms), GFlops - " << gflops_real << ", Bandwidth - " << gbs_read + gbs_write
                   << "(GB/s), Read - " << gbs_read << "(GB/s), Write - " << gbs_write << "(GB/s)"
@@ -2161,27 +2135,23 @@ absl::Status FullyConnectedOIWeightsBatchIdsPerfTest(CalculationsPrecision preci
   }
   ABSL_RETURN_IF_ERROR(gpu_task.UpdateParams());
 
-  double element_size = precision == CalculationsPrecision::kF32 ? 4.0 : 2.0;
+  const int element_size = precision == CalculationsPrecision::kF32 ? 4 : 2;
   const int64_t flops_per_element = weights.shape.i * 2;
   const int64_t dst_elements = dst.Width() * dst.Height() * dst.Channels();
   const int64_t flops_count = dst_elements * flops_per_element;
-  const double gflops_count = flops_count * 1e-9;
 
-  const double kGByte = 1024.0 * 1024.0 * 1024.0;
   const int64_t dst_elements_alignedx4 = dst.Width() * dst.Height() * dst.Slices() * 4;
   const int64_t src_elements_alignedx4 = src.Width() * src.Height() * src.Slices() * 4;
-  const double dst_gbytes = dst_elements_alignedx4 * element_size / kGByte;
-  const double src_gbytes = src_elements_alignedx4 * element_size / kGByte;
-  const double weight_element_size = SizeInBitsOf(weights_type) / 8.0;
-  const double weight_gbytes = weights.shape.DimensionsProduct() * weight_element_size / kGByte;
-  const double scale_gbytes = scale_zp_shape.DimensionsProduct() * element_size / kGByte;
-  const double runtime_read_fraction = 1.0 / batch_size * active_ids_size;
+  const uint64_t dst_bytes = dst_elements_alignedx4 * element_size;
+  const uint64_t src_bytes = src_elements_alignedx4 * element_size;
+  const uint64_t weight_bytes = weights.shape.DimensionsProduct() * SizeInBitsOf(weights_type) / 8;
+  const uint64_t scale_bytes = scale_zp_shape.DimensionsProduct() * element_size;
 
-  double gbytes_read = src_gbytes + weight_gbytes * runtime_read_fraction;
+  uint64_t bytes_read = src_bytes + weight_bytes * active_ids_size / batch_size;
   if (is_quantized) {
-    gbytes_read += scale_gbytes * runtime_read_fraction;
+    bytes_read += scale_bytes * active_ids_size / batch_size;
     if (use_zero_point) {
-      gbytes_read += scale_gbytes * runtime_read_fraction;
+      bytes_read += scale_bytes * active_ids_size / batch_size;
     }
   }
 
@@ -2192,9 +2162,9 @@ absl::Status FullyConnectedOIWeightsBatchIdsPerfTest(CalculationsPrecision preci
     min_duration = std::min(min_duration, gpu_task_time);
     double time_ms = absl::ToDoubleMilliseconds(gpu_task_time);
     const double fps = 1000.0 / time_ms;
-    const double gflops_real = fps * gflops_count;
-    const double gbs_read = fps * gbytes_read;
-    const double gbs_write = fps * dst_gbytes;
+    const double gflops_real = fps * flops_count * 1e-9;
+    const double gbs_read = fps * bytes_read * 1e-9;
+    const double gbs_write = fps * dst_bytes * 1e-9;
     std::cout << std::fixed << std::setprecision(4) << " Time - " << time_ms << "(ms), GFlops - "
               << gflops_real << ", Bandwidth - " << gbs_read + gbs_write << "(GB/s), Read - "
               << gbs_read << "(GB/s), Write - " << gbs_write << "(GB/s)" << std::endl;
@@ -2218,8 +2188,7 @@ absl::Status FullyConnectedOIWeightsBatchIdsPerfTest(CalculationsPrecision preci
         }
       }
     }
-    std::cout << "Weight total size: " << weight_gbytes * kMultiplier * 1024.0 << " MB"
-              << std::endl;
+    std::cout << "Weight total size: " << weight_bytes * kMultiplier * 1e-6 << " MB" << std::endl;
     for (int i = 0; i < 10; ++i) {
       @autoreleasepool {
         id<MTLCommandBuffer> command_buffer = [command_queue commandBuffer];
@@ -2244,9 +2213,9 @@ absl::Status FullyConnectedOIWeightsBatchIdsPerfTest(CalculationsPrecision preci
         double time_ms =
             static_cast<double>((end - start) / absl::Nanoseconds(1)) / inferences * 1e-6;
         const double fps = 1000.0 / time_ms;
-        const double gflops_real = fps * gflops_count;
-        const double gbs_read = fps * gbytes_read;
-        const double gbs_write = fps * dst_gbytes;
+        const double gflops_real = fps * flops_count * 1e-9;
+        const double gbs_read = fps * bytes_read * 1e-9;
+        const double gbs_write = fps * dst_bytes * 1e-9;
         std::cout << std::fixed << std::setprecision(4) << " Time - " << time_ms
                   << "(ms), GFlops - " << gflops_real << ", Bandwidth - " << gbs_read + gbs_write
                   << "(GB/s), Read - " << gbs_read << "(GB/s), Write - " << gbs_write << "(GB/s)"
@@ -2278,14 +2247,13 @@ absl::Status AddScalarTest(const BHWC& shape, const DataType& data_type) {
 
   ABSL_RETURN_IF_ERROR(add->AssembleCode(env.GetInfo()));
 
-  const double kGByte = 1024.0 * 1024.0 * 1024.0;
   const int64_t dst_elements_alignedx4 = dst.Width() * dst.Height() * dst.Slices() * 4;
   const int64_t src_elements_alignedx4 = src.Width() * src.Height() * src.Slices() * 4;
-  const double dst_gbytes = dst_elements_alignedx4 * SizeOf(data_type) / kGByte;
-  const double src_gbytes = src_elements_alignedx4 * SizeOf(data_type) / kGByte;
+  const uint64_t dst_bytes = dst_elements_alignedx4 * SizeOf(data_type);
+  const uint64_t src_bytes = src_elements_alignedx4 * SizeOf(data_type);
 
   std::cout << "Size(HWC) - " << shape.h << "x" << shape.w << "x" << shape.c << std::endl;
-  std::cout << "Size MB - " << src_gbytes * 1024.0 << std::endl;
+  std::cout << "Size MB - " << src_bytes * 1e-6 << std::endl;
 
   ComputeTask gpu_task;
   gpu_task.Init(std::move(add));
@@ -2300,11 +2268,11 @@ absl::Status AddScalarTest(const BHWC& shape, const DataType& data_type) {
     double time_ms = absl::ToDoubleMilliseconds(gpu_task_time);
 
     const double fps = 1000.0 / time_ms;
-    const double gbyte_read = fps * src_gbytes;
-    const double gbyte_write = fps * dst_gbytes;
+    const double gbs_read = fps * src_bytes * 1e-9;
+    const double gbs_write = fps * dst_bytes * 1e-9;
     std::cout << std::fixed << std::setprecision(3) << i << "  Time - " << time_ms
-              << std::setprecision(2) << "(ms), Bandwidth - " << gbyte_read + gbyte_write
-              << "(GB/s), Read - " << gbyte_read << "(GB/s), Write - " << gbyte_write << "(GB/s)"
+              << std::setprecision(2) << "(ms), Bandwidth - " << gbs_read + gbs_write
+              << "(GB/s), Read - " << gbs_read << "(GB/s), Write - " << gbs_write << "(GB/s)"
               << std::endl;
   }
 
@@ -2343,18 +2311,17 @@ absl::Status WinogradForwardTest(const BHWC& src_shape, const DataType& data_typ
 
   ABSL_RETURN_IF_ERROR(operation->AssembleCode(env.GetInfo()));
 
-  const double kGByte = 1024.0 * 1024.0 * 1024.0;
   const int64_t dst_elements_alignedx4 = dst.Width() * dst.Height() * dst.Slices() * 4;
   const int64_t src_elements_alignedx4 = src.Width() * src.Height() * src.Slices() * 4;
-  const double dst_gbytes = dst_elements_alignedx4 * SizeOf(data_type) / kGByte;
-  const double src_gbytes = src_elements_alignedx4 * SizeOf(data_type) / kGByte;
+  const uint64_t dst_bytes = dst_elements_alignedx4 * SizeOf(data_type);
+  const uint64_t src_bytes = src_elements_alignedx4 * SizeOf(data_type);
 
   std::cout << "Src size(HWC) - " << src_shape.h << "x" << src_shape.w << "x" << src_shape.c
             << std::endl;
-  std::cout << "Size MB - " << src_gbytes * 1024.0 << std::endl;
+  std::cout << "Size MB - " << src_bytes * 1e-6 << std::endl;
   std::cout << "Dst size(HWC) - " << dst_shape.h << "x" << dst_shape.w << "x" << dst_shape.c
             << std::endl;
-  std::cout << "Size MB - " << dst_gbytes * 1024.0 << std::endl;
+  std::cout << "Size MB - " << dst_bytes * 1e-6 << std::endl;
 
   ComputeTask gpu_task;
   gpu_task.Init(std::move(operation));
@@ -2369,11 +2336,11 @@ absl::Status WinogradForwardTest(const BHWC& src_shape, const DataType& data_typ
     double time_ms = absl::ToDoubleMilliseconds(gpu_task_time);
 
     const double fps = 1000.0 / time_ms;
-    const double gbyte_read = fps * src_gbytes;
-    const double gbyte_write = fps * dst_gbytes;
+    const double gbs_read = fps * src_bytes * 1e-9;
+    const double gbs_write = fps * dst_bytes * 1e-9;
     std::cout << std::fixed << std::setprecision(3) << i << "  Time - " << time_ms
-              << std::setprecision(2) << "(ms), Bandwidth - " << gbyte_read + gbyte_write
-              << "(GB/s), Read - " << gbyte_read << "(GB/s), Write - " << gbyte_write << "(GB/s)"
+              << std::setprecision(2) << "(ms), Bandwidth - " << gbs_read + gbs_write
+              << "(GB/s), Read - " << gbs_read << "(GB/s), Write - " << gbs_write << "(GB/s)"
               << std::endl;
   }
   return absl::OkStatus();
@@ -2413,18 +2380,17 @@ absl::Status WinogradBackwardTest(const BHWC& dst_shape, const DataType& data_ty
 
   ABSL_RETURN_IF_ERROR(operation->AssembleCode(env.GetInfo()));
 
-  const double kGByte = 1024.0 * 1024.0 * 1024.0;
   const int64_t dst_elements_alignedx4 = dst.Width() * dst.Height() * dst.Slices() * 4;
   const int64_t src_elements_alignedx4 = src.Width() * src.Height() * src.Slices() * 4;
-  const double dst_gbytes = dst_elements_alignedx4 * SizeOf(data_type) / kGByte;
-  const double src_gbytes = src_elements_alignedx4 * SizeOf(data_type) / kGByte;
+  const uint64_t dst_bytes = dst_elements_alignedx4 * SizeOf(data_type);
+  const uint64_t src_bytes = src_elements_alignedx4 * SizeOf(data_type);
 
   std::cout << "Dst size(HWC) - " << src_shape.h << "x" << src_shape.w << "x" << src_shape.c
             << std::endl;
-  std::cout << "Size MB - " << src_gbytes * 1024.0 << std::endl;
+  std::cout << "Size MB - " << src_bytes * 1e-6 << std::endl;
   std::cout << "Src size(HWC) - " << dst_shape.h << "x" << dst_shape.w << "x" << dst_shape.c
             << std::endl;
-  std::cout << "Size MB - " << dst_gbytes * 1024.0 << std::endl;
+  std::cout << "Size MB - " << dst_bytes * 1e-6 << std::endl;
 
   ComputeTask gpu_task;
   gpu_task.Init(std::move(operation));
@@ -2439,11 +2405,11 @@ absl::Status WinogradBackwardTest(const BHWC& dst_shape, const DataType& data_ty
     double time_ms = absl::ToDoubleMilliseconds(gpu_task_time);
 
     const double fps = 1000.0 / time_ms;
-    const double gbyte_read = fps * src_gbytes;
-    const double gbyte_write = fps * dst_gbytes;
+    const double gbs_read = fps * src_bytes * 1e-9;
+    const double gbs_write = fps * dst_bytes * 1e-9;
     std::cout << std::fixed << std::setprecision(3) << i << "  Time - " << time_ms
-              << std::setprecision(2) << "(ms), Bandwidth - " << gbyte_read + gbyte_write
-              << "(GB/s), Read - " << gbyte_read << "(GB/s), Write - " << gbyte_write << "(GB/s)"
+              << std::setprecision(2) << "(ms), Bandwidth - " << gbs_read + gbs_write
+              << "(GB/s), Read - " << gbs_read << "(GB/s), Write - " << gbs_write << "(GB/s)"
               << std::endl;
   }
   return absl::OkStatus();
@@ -2510,9 +2476,8 @@ absl::Status QuantizationPerfTest(const BHWC& src_shape, DataType src_type, Pack
 
   ABSL_RETURN_IF_ERROR(quant_op->AssembleCode(env.GetInfo()));
 
-  const double kGByte = 1024.0 * 1024.0 * 1024.0;
-  const double dst_gbytes = (dst.GetMemorySizeInBytes() + params.GetMemorySizeInBytes()) / kGByte;
-  const double src_gbytes = src.GetMemorySizeInBytes() / kGByte;
+  const uint64_t dst_bytes = dst.GetMemorySizeInBytes() + params.GetMemorySizeInBytes();
+  const uint64_t src_bytes = src.GetMemorySizeInBytes();
 
   ComputeTask gpu_task;
   gpu_task.Init(std::move(quant_op));
@@ -2527,11 +2492,11 @@ absl::Status QuantizationPerfTest(const BHWC& src_shape, DataType src_type, Pack
     absl::Duration gpu_task_time = gpu_task.GetTaskTime(command_queue);
     double time_ms = absl::ToDoubleMilliseconds(gpu_task_time);
     const double fps = 1000.0 / time_ms;
-    const double gbyte_read = fps * src_gbytes;
-    const double gbyte_write = fps * dst_gbytes;
+    const double gbs_read = fps * src_bytes * 1e-9;
+    const double gbs_write = fps * dst_bytes * 1e-9;
     std::cout << std::fixed << std::setprecision(3) << "  Time - " << time_ms
-              << std::setprecision(2) << "(ms), Bandwidth - " << gbyte_read + gbyte_write
-              << "(GB/s), Read - " << gbyte_read << "(GB/s), Write - " << gbyte_write << "(GB/s)"
+              << std::setprecision(2) << "(ms), Bandwidth - " << gbs_read + gbs_write
+              << "(GB/s), Read - " << gbs_read << "(GB/s), Write - " << gbs_write << "(GB/s)"
               << std::endl;
   }
 
@@ -2580,9 +2545,8 @@ absl::Status SoftmaxPerfTest(const BHWC& shape, bool reduce_only) {
 
   ABSL_RETURN_IF_ERROR(softmax->AssembleCode(env.GetInfo()));
 
-  const double kGByte = 1024.0 * 1024.0 * 1024.0;
-  const double src_gbytes = src.GetMemorySizeInBytes() / kGByte;
-  const double dst_gbytes = dst.GetMemorySizeInBytes() / kGByte;
+  const uint64_t src_bytes = src.GetMemorySizeInBytes();
+  const uint64_t dst_bytes = dst.GetMemorySizeInBytes();
 
   ComputeTask gpu_task;
   gpu_task.Init(std::move(softmax));
@@ -2596,11 +2560,11 @@ absl::Status SoftmaxPerfTest(const BHWC& shape, bool reduce_only) {
     absl::Duration gpu_task_time = gpu_task.GetTaskTime(command_queue);
     const auto time_ms = absl::ToDoubleMilliseconds(gpu_task_time);
     const double fps = 1000.0 / time_ms;
-    const double gbyte_read = fps * (src_gbytes);
-    const double gbyte_write = fps * dst_gbytes;
+    const double gbs_read = fps * src_bytes * 1e-9;
+    const double gbs_write = fps * dst_bytes * 1e-9;
     std::cout << std::fixed << std::setprecision(3) << "  Time - " << time_ms
-              << std::setprecision(3) << "(ms), Bandwidth - " << gbyte_read + gbyte_write
-              << "(GB/s), Read - " << gbyte_read << "(GB/s), Write - " << gbyte_write << "(GB/s)"
+              << std::setprecision(3) << "(ms), Bandwidth - " << gbs_read + gbs_write
+              << "(GB/s), Read - " << gbs_read << "(GB/s), Write - " << gbs_write << "(GB/s)"
               << std::endl;
   }
 

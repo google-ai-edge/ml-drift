@@ -76,14 +76,12 @@ std::string ProfilingInfo::GetDetailedReport(
     if (dispatch.read_mem_size || dispatch.write_mem_size) {
       const uint64_t total_size =
           dispatch.read_mem_size + dispatch.write_mem_size;
-      const double giga_bytes = total_size / 1024.0 / 1024.0 / 1024.0;
-      const double giga_bytes_per_sec = times_per_sec * giga_bytes;
-      result += std::to_string(giga_bytes_per_sec) + " Gb/s";
+      const double gb_per_sec = times_per_sec * total_size * 1e-9;
+      result += std::to_string(gb_per_sec) + " GB/s";
     }
     if (dispatch.flops) {
-      const double giga_flops = dispatch.flops / 1000.0 / 1000.0 / 1000.0;
-      const double giga_flops_per_sec = times_per_sec * giga_flops;
-      result += "; " + std::to_string(giga_flops_per_sec) + " Gflops";
+      const double gflops_per_sec = times_per_sec * dispatch.flops * 1e-9;
+      result += "; " + std::to_string(gflops_per_sec) + " Gflops";
     }
     result += '\n';
   }
@@ -99,15 +97,13 @@ std::string ProfilingInfo::GetDetailedReport(
     const double times_per_sec =
         1000.0 / absl::ToDoubleMilliseconds(stat.total_time);
     if (stat.total_bytes) {
-      const double giga_bytes = stat.total_bytes / 1024.0 / 1024.0 / 1024.0;
-      const double giga_bytes_per_sec = times_per_sec * giga_bytes;
-      result += ", " + std::to_string(giga_bytes_per_sec) + " Gb/s";
+      const double gb_per_sec = times_per_sec * stat.total_bytes * 1e-9;
+      result += ", " + std::to_string(gb_per_sec) + " GB/s";
       total_bytes += stat.total_bytes;
     }
     if (stat.total_flops) {
-      const double giga_flops = stat.total_flops / 1000.0 / 1000.0 / 1000.0;
-      const double giga_flops_per_sec = times_per_sec * giga_flops;
-      result += ", " + std::to_string(giga_flops_per_sec) + " Gflops";
+      const double gflops_per_sec = times_per_sec * stat.total_flops * 1e-9;
+      result += ", " + std::to_string(gflops_per_sec) + " Gflops";
       total_flops += stat.total_flops;
     }
     result += '\n';
@@ -116,19 +112,15 @@ std::string ProfilingInfo::GetDetailedReport(
   result += "Ideal total time: " +
             std::to_string(absl::ToDoubleMilliseconds(GetTotalTime())) + "\n";
   result += "--------------------\n";
-  const double total_giga_flops = total_flops / 1000.0 / 1000.0 / 1000.0;
-  result +=
-      "Total Gflops for model: ~" + std::to_string(total_giga_flops) + "\n";
+  const double total_gflops = total_flops * 1e-9;
+  result += "Total Gflops for model: ~" + std::to_string(total_gflops) + "\n";
   const double total_times_per_sec =
       1000.0 / absl::ToDoubleMilliseconds(GetTotalTime());
-  const double total_giga_flops_per_sec =
-      total_times_per_sec * total_giga_flops;
-  result += "Average Gflops per sec: ~" +
-            std::to_string(total_giga_flops_per_sec) + "\n";
-  const double total_giga_bytes_per_sec =
-      total_times_per_sec * total_bytes / 1024.0 / 1024.0 / 1024.0;
-  result += "Average Gb/s per sec: ~" +
-            std::to_string(total_giga_bytes_per_sec) + "\n";
+  const double total_gflops_per_sec = total_times_per_sec * total_gflops;
+  result +=
+      "Average Gflops per sec: ~" + std::to_string(total_gflops_per_sec) + "\n";
+  const double total_gb_per_sec = total_times_per_sec * total_bytes * 1e-9;
+  result += "Average GB/s per sec: ~" + std::to_string(total_gb_per_sec) + "\n";
   result += "--------------------\n";
   return result;
 }

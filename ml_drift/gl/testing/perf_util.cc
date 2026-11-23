@@ -108,18 +108,15 @@ absl::Status TestConvolutionPerformance(const Convolution2DAttributes& attr,
   const int64_t flops_per_element = w_shape.i * w_shape.h * w_shape.w * 2;
   const int64_t dst_elements = dst.Width() * dst.Height() * dst.Channels();
   const int64_t flops_count = dst_elements * flops_per_element;
-  const double gflops_count = flops_count * 1e-9;
 
-  const double kGByte = 1024.0 * 1024.0 * 1024.0;
   const int64_t dst_elements_alignedx4 =
       dst.Width() * dst.Height() * dst.Slices() * 4;
   const int64_t src_elements_alignedx4 =
       src.Width() * src.Height() * src.Slices() * 4;
-  const double dst_gbytes = dst_elements_alignedx4 * float_size / kGByte;
-  const double src_gbytes = src_elements_alignedx4 * float_size / kGByte;
-  const double weight_gbytes =
-      w_shape.DimensionsProduct() * float_size / kGByte;
-  const double bias_gbytes = w_shape.o * float_size / kGByte;
+  const uint64_t dst_bytes = dst_elements_alignedx4 * float_size;
+  const uint64_t src_bytes = src_elements_alignedx4 * float_size;
+  const uint64_t weight_bytes = w_shape.DimensionsProduct() * float_size;
+  const uint64_t bias_bytes = w_shape.o * float_size;
 
   GlOperation gl_op;
   gl_op.Init(std::move(conv));
@@ -132,14 +129,15 @@ absl::Status TestConvolutionPerformance(const Convolution2DAttributes& attr,
     ABSL_ASSIGN_OR_RETURN(auto duration, gl_op.GetOperationTime());
     const double time_ms = absl::ToDoubleMilliseconds(duration);
     const double fps = 1000.0 / time_ms;
-    const double gflops_real = fps * gflops_count;
-    const double gbyte_read = fps * (src_gbytes + weight_gbytes + bias_gbytes);
-    const double gbyte_write = fps * dst_gbytes;
+    const double gflops_real = fps * flops_count * 1e-9;
+    const double gbs_read =
+        fps * (src_bytes + weight_bytes + bias_bytes) * 1e-9;
+    const double gbs_write = fps * dst_bytes * 1e-9;
     std::cout << std::fixed << std::setprecision(3) << "  Time - " << time_ms
               << std::setprecision(2) << "(ms), GFlops - " << gflops_real
-              << ", Bandwidth - " << gbyte_read + gbyte_write
-              << "(GB/s), Read - " << gbyte_read << "(GB/s), Write - "
-              << gbyte_write << "(GB/s)" << std::endl;
+              << ", Bandwidth - " << gbs_read + gbs_write << "(GB/s), Read - "
+              << gbs_read << "(GB/s), Write - " << gbs_write << "(GB/s)"
+              << std::endl;
   }
 
   return absl::OkStatus();
@@ -232,17 +230,15 @@ absl::Status TestDepthwiseConvPerformance(
 
   const int64_t flops_count = GetDepthwiseConvolutionFlops(dst_shape, w_shape);
 
-  const double kGByte = 1024.0 * 1024.0 * 1024.0;
   const int64_t dst_elements_alignedx4 =
       dst.Width() * dst.Height() * dst.Slices() * 4;
   const int64_t src_elements_alignedx4 =
       src.Width() * src.Height() * src.Slices() * 4;
   const int float_size = precision == CalculationsPrecision::kF32 ? 4 : 2;
-  const double dst_gbytes = dst_elements_alignedx4 * float_size / kGByte;
-  const double src_gbytes = src_elements_alignedx4 * float_size / kGByte;
-  const double weight_gbytes =
-      w_shape.DimensionsProduct() * float_size / kGByte;
-  const double bias_gbytes = w_shape.o * float_size / kGByte;
+  const uint64_t dst_bytes = dst_elements_alignedx4 * float_size;
+  const uint64_t src_bytes = src_elements_alignedx4 * float_size;
+  const uint64_t weight_bytes = w_shape.DimensionsProduct() * float_size;
+  const uint64_t bias_bytes = w_shape.o * float_size;
 
   GlOperation gl_op;
   gl_op.Init(std::move(conv));
@@ -256,13 +252,14 @@ absl::Status TestDepthwiseConvPerformance(
     const double time_ms = absl::ToDoubleMilliseconds(duration);
     const double fps = 1000.0 / time_ms;
     const double gflops_real = fps * flops_count * 1e-9;
-    const double gbyte_read = fps * (src_gbytes + weight_gbytes + bias_gbytes);
-    const double gbyte_write = fps * dst_gbytes;
+    const double gbs_read =
+        fps * (src_bytes + weight_bytes + bias_bytes) * 1e-9;
+    const double gbs_write = fps * dst_bytes * 1e-9;
     std::cout << std::fixed << std::setprecision(3) << "  Time - " << time_ms
               << std::setprecision(2) << "(ms), GFlops - " << gflops_real
-              << ", Bandwidth - " << gbyte_read + gbyte_write
-              << "(GB/s), Read - " << gbyte_read << "(GB/s), Write - "
-              << gbyte_write << "(GB/s)" << std::endl;
+              << ", Bandwidth - " << gbs_read + gbs_write << "(GB/s), Read - "
+              << gbs_read << "(GB/s), Write - " << gbs_write << "(GB/s)"
+              << std::endl;
   }
 
   return absl::OkStatus();
