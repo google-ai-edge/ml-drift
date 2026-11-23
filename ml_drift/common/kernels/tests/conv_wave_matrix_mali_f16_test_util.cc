@@ -21,7 +21,6 @@
 #include <vector>
 
 #include "gmock/gmock.h"
-#include "xnnpack.h"  // from @XNNPACK
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
 #include "ml_drift/common/data_type.h"
@@ -108,8 +107,7 @@ absl::Status ConvWaveMatrixMaliF161x1BigTest(TestExecutionEnvironment& env,
   const int src_channels = 32;
   const int dst_channels = 64;
   auto weights = MakeSyntheticTensor(OHWI(dst_channels, 1, 1, src_channels));
-  weights.data.resize(weights.shape.DimensionsProduct() +
-                      XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights.shape.DimensionsProduct());
   Convolution2DAttributes attr;
   attr.padding.prepended = HW(0, 0);
   attr.padding.appended = HW(0, 0);
@@ -137,8 +135,7 @@ absl::Status ConvWaveMatrixMaliF161x1BatchTest(TestExecutionEnvironment& env,
            {BHWC(5, 2, 1, 13), 15},
        }) {
     auto weights = MakeSyntheticTensor(OHWI(dst_channels, 1, 1, src_shape.c));
-    weights.data.resize(weights.shape.DimensionsProduct() +
-                        XNN_EXTRA_BYTES / sizeof(float));
+    weights.data.resize(weights.shape.DimensionsProduct());
     Convolution2DAttributes attr;
     attr.padding.prepended = HW(0, 0);
     attr.padding.appended = HW(0, 0);
@@ -162,8 +159,7 @@ absl::Status ConvWaveMatrixMaliF16BigTest(TestExecutionEnvironment& env,
   const int src_channels = 11;
   const int dst_channels = 27;
   auto weights = MakeSyntheticTensor(OHWI(dst_channels, 2, 3, src_channels));
-  weights.data.resize(weights.shape.DimensionsProduct() +
-                      XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights.shape.DimensionsProduct());
   Convolution2DAttributes attr;
   attr.padding.prepended = HW(1, 0);
   attr.padding.appended = HW(0, 1);
@@ -187,8 +183,7 @@ absl::Status ConvWaveMatrixMaliF16BatchTest(TestExecutionEnvironment& env,
   const int src_channels = 11;
   const int dst_channels = 27;
   auto weights = MakeSyntheticTensor(OHWI(dst_channels, 2, 3, src_channels));
-  weights.data.resize(weights.shape.DimensionsProduct() +
-                      XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights.shape.DimensionsProduct());
   Convolution2DAttributes attr;
   attr.padding.prepended = HW(1, 0);
   attr.padding.appended = HW(0, 1);
@@ -212,8 +207,7 @@ absl::Status ConvWaveMatrixMaliF16BatchTest(TestExecutionEnvironment& env,
   auto ext_src_shape = BHWC(3, 6, 17, ext_src_channels);
   auto ext_weights = MakeSyntheticTensor(
       OHWI(ext_dst_channels, ext_src_shape.h, 1, ext_src_channels));
-  ext_weights.data.resize(ext_weights.shape.DimensionsProduct() +
-                          XNN_EXTRA_BYTES / sizeof(float));
+  ext_weights.data.resize(ext_weights.shape.DimensionsProduct());
   Convolution2DAttributes ext_attr;
   ext_attr.padding.prepended = HW(0, 0);
   ext_attr.padding.appended = HW(0, 0);
@@ -233,8 +227,7 @@ absl::Status ConvWaveMatrixMaliF16ExternalWeightsBigTest(
   const int src_channels = 11;
   const int dst_channels = 27;
   auto weights = MakeSyntheticTensor(OHWI(dst_channels, 2, 3, src_channels));
-  weights.data.resize(weights.shape.DimensionsProduct() +
-                      XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights.shape.DimensionsProduct());
   Convolution2DAttributes attr;
   attr.padding.prepended = HW(1, 0);
   attr.padding.appended = HW(0, 1);
@@ -261,8 +254,7 @@ absl::Status ConvWaveMatrixMaliF16ExternalBatchedWeightsBigTest(
   auto src_shape = BHWC(1, 6, 17, src_channels);
   auto weights =
       MakeSyntheticTensor(OHWI(dst_channels, src_shape.h, 1, src_channels));
-  weights.data.resize(weights.shape.DimensionsProduct() +
-                      XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights.shape.DimensionsProduct());
   Convolution2DAttributes attr;
   attr.padding.prepended = HW(0, 0);
   attr.padding.appended = HW(0, 0);
@@ -289,8 +281,7 @@ absl::Status ConvWaveMatrixMaliF16PackedGroupsTest(
 
   Tensor<OHWI, DataType::kFloat32> weights = MakeSyntheticTensor(
       OHWI(dst_channels, weights_batch_size, 1, src_shape.c));
-  weights.data.resize(weights.shape.DimensionsProduct() +
-                      XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights.shape.DimensionsProduct());
 
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
   TensorInt32 group_ids = GenerateGroupIds(
@@ -375,8 +366,7 @@ absl::Status ConvWaveMatrixMaliF16RuntimeChannelsTest(
     Convolution2DAttributes& attr, TensorStorageType storage,
     const TestingRuntimeChannels& runtime_channels) {
   auto& attr_weights = GetFloatWeights(attr);
-  attr_weights.data.resize(attr_weights.data.size() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr_weights.data.resize(attr_weights.data.size());
   TestingRuntimeChannels aligned_runtime_channels =
       runtime_channels.GenerateAlignedRuntimeChannels();
   TensorFloat32 dst_ref_tensor =

@@ -103,7 +103,6 @@ cc_library(
         "//ml_drift/webgpu:execution_environment",
         "//ml_drift/webgpu:spatial_tensor",
         "//ml_drift/webgpu:webgpu_headers",
-        "@XNNPACK",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:status_macros",
         "@com_google_absl//absl/time",

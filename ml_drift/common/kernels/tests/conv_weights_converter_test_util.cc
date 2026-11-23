@@ -24,7 +24,6 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/status_matchers.h"
-#include "xnnpack.h"  // from @XNNPACK
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
 #include "absl/types/span.h"
@@ -212,8 +211,7 @@ absl::Status ConverterToConvWeights1x1OutX4Test(TestExecutionEnvironment& env,
 
   Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = weights_shape;
-  weights.data.resize(weights_shape.DimensionsProduct() +
-                      XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights_shape.DimensionsProduct());
   for (int i = 0; i < weights.data.size(); ++i) {
     weights.data[i] = half(static_cast<float>(i));
   }
@@ -239,8 +237,7 @@ absl::Status ConverterToConvWeights1x1OutX4UnalignedTest(
 
   Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = weights_shape;
-  weights.data.resize(weights_shape.DimensionsProduct() +
-                      XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights_shape.DimensionsProduct());
   for (int i = 0; i < weights.data.size(); ++i) {
     weights.data[i] = half(static_cast<float>(i));
   }
@@ -267,8 +264,7 @@ absl::Status ConverterToConvWeights1x1OutX2Test(TestExecutionEnvironment& env,
 
   Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = weights_shape;
-  weights.data.resize(weights_shape.DimensionsProduct() +
-                      XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights_shape.DimensionsProduct());
   for (int i = 0; i < weights.data.size(); ++i) {
     weights.data[i] = half(static_cast<float>(i));
   }
@@ -295,8 +291,7 @@ absl::Status ConverterToConvWeightsOutX2Test(TestExecutionEnvironment& env,
 
   Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = weights_shape;
-  weights.data.resize(weights_shape.DimensionsProduct() +
-                      XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights_shape.DimensionsProduct());
   for (int i = 0; i < weights.data.size(); ++i) {
     weights.data[i] = half(static_cast<float>(i));
   }
@@ -323,8 +318,7 @@ absl::Status ConverterToConvTransposedWeights4x4Test(
 
   Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = weights_shape;
-  weights.data.resize(weights_shape.DimensionsProduct() +
-                      XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights_shape.DimensionsProduct());
   for (int i = 0; i < weights.data.size(); ++i) {
     weights.data[i] = half(static_cast<float>(i));
   }
@@ -350,8 +344,7 @@ absl::Status ConverterToConvWeights4xTexturesTest(
 
   Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = weights_shape;
-  weights.data.resize(weights_shape.DimensionsProduct() +
-                      XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights_shape.DimensionsProduct());
   for (int i = 0; i < weights.data.size(); ++i) {
     weights.data[i] = half(static_cast<float>(i));
   }
@@ -383,8 +376,7 @@ absl::Status ConverterToConvWeightsFloat32OHWItoFloat32Test(
 
   Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = weights_shape;
-  weights.data.resize(weights.shape.DimensionsProduct() +
-                      XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights.shape.DimensionsProduct());
   for (int i = 0; i < weights.shape.DimensionsProduct(); ++i) {
     weights.data[i] = i;
   }
@@ -413,8 +405,7 @@ absl::Status ConverterToConvWeightsInt8OHWIToInt8Test(
   const GpuInfo& gpu_info = env.GetGpuInfo();
   Tensor<OHWI, DataType::kInt8> weights;
   weights.shape = weights_shape;
-  weights.data.resize(weights.shape.DimensionsProduct() +
-                      XNN_EXTRA_BYTES / sizeof(int8_t));
+  weights.data.resize(weights.shape.DimensionsProduct());
   for (int i = 0; i < weights.shape.DimensionsProduct(); ++i) {
     weights.data[i] = static_cast<int8_t>(i % 251 - 125);
   }
@@ -455,8 +446,7 @@ absl::Status ConverterToConvWeightsInt8OHWIToUint8Test(
   const GpuInfo& gpu_info = env.GetGpuInfo();
   Tensor<OHWI, DataType::kInt8> weights;
   weights.shape = weights_shape;
-  weights.data.resize(weights.shape.DimensionsProduct() +
-                      XNN_EXTRA_BYTES / sizeof(int8_t));
+  weights.data.resize(weights.shape.DimensionsProduct());
   for (int i = 0; i < weights.shape.DimensionsProduct(); ++i) {
     weights.data[i] = static_cast<int8_t>(i);
   }
@@ -522,7 +512,7 @@ absl::Status ConverterToConvWeightsInt4OHWIToUint4Test(
   // Prepare int4 SRC tensor for Cpu conversion (reference) and Gpu conversion.
   Tensor<OHWI, DataType::kInt8> src_int4_weights;
   src_int4_weights.shape = weights_shape;
-  src_int4_weights.data.resize(size_packed + XNN_EXTRA_BYTES / sizeof(int8_t));
+  src_int4_weights.data.resize(size_packed);
   for (int i = 0; i < size_packed; ++i) {
     int8_t lower_int4 = (i * 2) % 16 - 8;
     int8_t upper_int4 = (i * 2 + 1) % 16 - 8;
@@ -598,7 +588,7 @@ absl::Status ConverterToConvWeightsInt2OHWIToUint2Test(
   // Prepare int2 SRC tensor for Cpu conversion (reference) and Gpu conversion.
   Tensor<OHWI, DataType::kInt8> src_int2_weights;
   src_int2_weights.shape = weights_shape;
-  src_int2_weights.data.resize(size_packed + XNN_EXTRA_BYTES / sizeof(int8_t));
+  src_int2_weights.data.resize(size_packed);
   // For example, int2 values of [-2, -1, 0, 1] will be stored in one byte as
   // 01 00 11 10 (little endian) in an int8_t value.
   for (int i = 0; i < size_packed; ++i) {
@@ -680,12 +670,11 @@ absl::Status ConverterToConvWeightsInt2OHWIToFloatTest(
   // Prepare int2 SRC tensor for Cpu conversion (reference) and Gpu conversion.
   Tensor<OHWI, DataType::kInt8> src_int2_weights;
   src_int2_weights.shape = weights_shape;
-  src_int2_weights.data.resize(size_packed + XNN_EXTRA_BYTES / sizeof(int8_t));
+  src_int2_weights.data.resize(size_packed);
 
   Tensor<OHWI, DataType::kInt8> src_int8_weights;
   src_int8_weights.shape = weights_shape;
-  src_int8_weights.data.resize(weights_shape.DimensionsProduct() +
-                               XNN_EXTRA_BYTES / sizeof(int8_t));
+  src_int8_weights.data.resize(weights_shape.DimensionsProduct());
   // For example, int2 values of [-2, -1, 0, 1] will be stored in one byte as
   // 01 00 11 10 (little endian) in an int8_t value.
   for (int i = 0; i < size_packed; ++i) {
@@ -696,10 +685,12 @@ absl::Status ConverterToConvWeightsInt2OHWIToFloatTest(
     src_int2_weights.data[i] = (int2_val_3 << 6 & 0xC0) |
                                (int2_val_2 << 4 & 0x30) |
                                (int2_val_1 << 2 & 0x0C) | (int2_val_0 & 0x03);
-    src_int8_weights.data[i * 4] = int2_val_0;
-    src_int8_weights.data[i * 4 + 1] = int2_val_1;
-    src_int8_weights.data[i * 4 + 2] = int2_val_2;
-    src_int8_weights.data[i * 4 + 3] = int2_val_3;
+    // The last byte is only partly used when the element count is not a
+    // multiple of 4.
+    const int8_t int2_vals[] = {int2_val_0, int2_val_1, int2_val_2, int2_val_3};
+    for (int j = 0; j < 4 && i * 4 + j < src_int8_weights.data.size(); ++j) {
+      src_int8_weights.data[i * 4 + j] = int2_vals[j];
+    }
   }
 
   Tensor<OHWI, DataType::kFloat32> weights_scales;
@@ -723,8 +714,7 @@ absl::Status ConverterToConvWeightsInt2OHWIToFloatTest(
   // Get reference results by Cpu conversion.
   Tensor<OHWI, DataType::kFloat32> src_f32_weights =
       DequantizeTensor(src_int8_weights, weights_scales, weights_zero_point);
-  src_f32_weights.data.resize(src_f32_weights.shape.DimensionsProduct() +
-                              XNN_EXTRA_BYTES / sizeof(float));
+  src_f32_weights.data.resize(src_f32_weights.shape.DimensionsProduct());
   const int elems_count =
       GetTotalElementsCountForLayout(conv_weight_desc, weights_shape);
   std::vector<float> reference_dst_data(elems_count);
@@ -775,7 +765,7 @@ absl::Status ConverterToConvWeightsInt4OHWIToFloatTest(
   // Prepare SRC int4 weights (quantized weights, scale and zero point).
   Tensor<OHWI, DataType::kInt4> src_int4_weights;
   src_int4_weights.shape = weights_shape;
-  src_int4_weights.data.resize(size_packed + XNN_EXTRA_BYTES / sizeof(int8_t));
+  src_int4_weights.data.resize(size_packed);
   for (int i = 0; i < size_packed; ++i) {
     int8_t lower_int4 = (i * 2) % 16 - 8;
     int8_t upper_int4 = (i * 2 + 1) % 16 - 8;
@@ -802,8 +792,7 @@ absl::Status ConverterToConvWeightsInt4OHWIToFloatTest(
   // Get reference results by Cpu conversion.
   Tensor<OHWI, DataType::kFloat32> src_f32_weights =
       DequantizeTensor(src_int4_weights, weights_scales, weights_zero_point);
-  src_f32_weights.data.resize(src_f32_weights.shape.DimensionsProduct() +
-                              XNN_EXTRA_BYTES / sizeof(float));
+  src_f32_weights.data.resize(src_f32_weights.shape.DimensionsProduct());
   const int elems_count =
       GetTotalElementsCountForLayout(conv_weight_desc, weights_shape);
   std::vector<float> reference_dst_data(elems_count);
@@ -847,8 +836,7 @@ absl::Status ConverterToConvWeightsInt8OHWIToFloatTest(
   // Prepare SRC int8 weights (quantized weights, scale and zero point).
   Tensor<OHWI, DataType::kInt8> src_int8_weights;
   src_int8_weights.shape = weights_shape;
-  src_int8_weights.data.resize(src_int8_weights.shape.DimensionsProduct() +
-                      XNN_EXTRA_BYTES / sizeof(int8_t));
+  src_int8_weights.data.resize(src_int8_weights.shape.DimensionsProduct());
   for (int i = 0; i < src_int8_weights.shape.DimensionsProduct(); ++i) {
     src_int8_weights.data[i] = static_cast<int8_t>(i);
   }
@@ -874,8 +862,7 @@ absl::Status ConverterToConvWeightsInt8OHWIToFloatTest(
   // Get reference results by Cpu conversion.
   Tensor<OHWI, DataType::kFloat32> src_f32_weights =
       DequantizeTensor(src_int8_weights, weights_scales, weights_zero_point);
-  src_f32_weights.data.resize(src_f32_weights.shape.DimensionsProduct() +
-                              XNN_EXTRA_BYTES / sizeof(float));
+  src_f32_weights.data.resize(src_f32_weights.shape.DimensionsProduct());
   const int elems_count =
       GetTotalElementsCountForLayout(conv_weight_desc, weights_shape);
   std::vector<float> reference_dst_data(elems_count);
@@ -917,8 +904,7 @@ absl::Status ConverterToOSpatialIOGroupITileOTileIXTest(
     WeightsDescription& weight_desc) {
   Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = weights_shape;
-  weights.data.resize(weights_shape.DimensionsProduct() +
-                      XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights_shape.DimensionsProduct());
   for (int i = 0; i < weights_shape.DimensionsProduct(); ++i) {
     weights.data[i] = i;
   }
@@ -940,8 +926,7 @@ absl::Status ConverterToISpatialOI4O4UnalignedIOTest(
   const GpuInfo& gpu_info = env.GetGpuInfo();
   Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = weights_shape;
-  weights.data.resize(weights_shape.DimensionsProduct() +
-                      XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights_shape.DimensionsProduct());
   for (int i = 0; i < weights.data.size(); ++i) {
     weights.data[i] = half(static_cast<float>(i));
   }
@@ -1033,8 +1018,7 @@ absl::Status ConverterToCustomGroupsTest(
   const GpuInfo& gpu_info = env.GetGpuInfo();
   Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = weights_shape;
-  weights.data.resize(weights_shape.DimensionsProduct() +
-                      XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights_shape.DimensionsProduct());
   for (int i = 0; i < weights.data.size(); ++i) {
     weights.data[i] = static_cast<float>(i);
   }
@@ -1693,8 +1677,7 @@ absl::Status Int8ToUint8WeightsConverterTest(
     WeightsDescription& dst_weights_desc, int i_channels, int o_channels) {
   Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(o_channels, 1, 1, i_channels);
-  weights_i8.data.resize(weights_i8.shape.DimensionsProduct() +
-                         XNN_EXTRA_BYTES / sizeof(int8_t));
+  weights_i8.data.resize(weights_i8.shape.DimensionsProduct());
   for (int i = 0; i < weights_i8.shape.DimensionsProduct(); ++i) {
     weights_i8.data[i] = i % 256 - 128;
   }
@@ -1766,8 +1749,7 @@ absl::Status FloatToFloatWeightsConverterTest(
     WeightsLayout src_layout, WeightsDescription& dst_weights_desc) {
   Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = weights_shape;
-  weights.data.resize(weights.shape.DimensionsProduct() +
-                      XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights.shape.DimensionsProduct());
   for (int i = 0; i < weights.shape.DimensionsProduct(); ++i) {
     weights.data[i] = std::sin(i * 0.123f);
   }
@@ -1842,8 +1824,7 @@ absl::Status FloatToFloat16WeightsConverterTest(
     WeightsLayout src_layout, WeightsDescription dst_weights_desc) {
   Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = weights_shape;
-  weights.data.resize(weights.shape.DimensionsProduct() +
-                      XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights.shape.DimensionsProduct());
   for (int i = 0; i < weights.shape.DimensionsProduct(); ++i) {
     weights.data[i] = half(std::sin(i * 0.123f));
   }
@@ -1909,8 +1890,7 @@ absl::Status FloatWeightsWithRingedOTest(TestExecutionEnvironment& env,
 
   Tensor<OHWI, DataType::kFloat32> ring_weights;
   ring_weights.shape = ring_weights_shape;
-  ring_weights.data.resize(ring_weights.shape.DimensionsProduct() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  ring_weights.data.resize(ring_weights.shape.DimensionsProduct());
   for (int i = 0; i < ring_weights.shape.DimensionsProduct(); ++i) {
     ring_weights.data[i] = std::sin(i * 0.123f);
   }
@@ -1937,8 +1917,7 @@ absl::Status FloatWeightsWithRingedOTest(TestExecutionEnvironment& env,
 
     Tensor<OHWI, DataType::kFloat32> ref_weights;
     ref_weights.shape = weights_shape;
-    ref_weights.data.resize(weights_shape.DimensionsProduct() +
-                            XNN_EXTRA_BYTES / sizeof(float));
+    ref_weights.data.resize(weights_shape.DimensionsProduct());
     for (int o = 0; o < o_channels; ++o) {
       for (int i = 0; i < i_channels; ++i) {
         const int src_o = (o + ring_offset) % ring_size;
@@ -2000,8 +1979,7 @@ absl::Status FloatWeightsWithRingedITest(TestExecutionEnvironment& env,
 
   Tensor<OHWI, DataType::kFloat32> ring_weights;
   ring_weights.shape = ring_weights_shape;
-  ring_weights.data.resize(ring_weights.shape.DimensionsProduct() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  ring_weights.data.resize(ring_weights.shape.DimensionsProduct());
   for (int i = 0; i < ring_weights.shape.DimensionsProduct(); ++i) {
     ring_weights.data[i] = std::sin(i * 0.123f);
   }
@@ -2028,8 +2006,7 @@ absl::Status FloatWeightsWithRingedITest(TestExecutionEnvironment& env,
 
     Tensor<OHWI, DataType::kFloat32> ref_weights;
     ref_weights.shape = weights_shape;
-    ref_weights.data.resize(weights_shape.DimensionsProduct() +
-                            XNN_EXTRA_BYTES / sizeof(float));
+    ref_weights.data.resize(weights_shape.DimensionsProduct());
     for (int o = 0; o < o_channels; ++o) {
       for (int i = 0; i < i_channels; ++i) {
         const int src_i = (i + ring_offset) % ring_size;
@@ -2088,8 +2065,7 @@ absl::Status Uint8ToInt8WeightsConverterTest(
   const int o_channels = 128 + 4;
   Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(o_channels, 1, 1, i_channels);
-  weights_i8.data.resize(weights_i8.shape.DimensionsProduct() +
-                         XNN_EXTRA_BYTES / sizeof(int8_t));
+  weights_i8.data.resize(weights_i8.shape.DimensionsProduct());
   for (int i = 0; i < weights_i8.shape.DimensionsProduct(); ++i) {
     weights_i8.data[i] = i % 256 - 128;
   }
@@ -2153,8 +2129,7 @@ absl::Status Uint4ToInt8WeightsConverterTest(
   const int o_channels = 128 + 4;
   Tensor<OHWI, DataType::kInt8> weights_i4;
   weights_i4.shape = OHWI(o_channels, 1, 1, i_channels);
-  weights_i4.data.resize(weights_i4.shape.DimensionsProduct() +
-                         XNN_EXTRA_BYTES / sizeof(int8_t));
+  weights_i4.data.resize(weights_i4.shape.DimensionsProduct());
   for (int i = 0; i < weights_i4.shape.DimensionsProduct(); ++i) {
     weights_i4.data[i] = i % 8 - 7;
   }
@@ -2218,8 +2193,7 @@ absl::Status Uint2ToInt8WeightsConverterTest(
   const int o_channels = 128 + 4;
   Tensor<OHWI, DataType::kInt8> weights_i2;
   weights_i2.shape = OHWI(o_channels, 1, 1, i_channels);
-  weights_i2.data.resize(weights_i2.shape.DimensionsProduct() +
-                         XNN_EXTRA_BYTES / sizeof(int8_t));
+  weights_i2.data.resize(weights_i2.shape.DimensionsProduct());
   for (int i = 0; i < weights_i2.shape.DimensionsProduct(); ++i) {
     weights_i2.data[i] = i % 2 - 1;
   }
@@ -2283,8 +2257,7 @@ absl::Status Uint8ToUint8WeightsConverterTest(
   const int o_channels = 128 + 4;
   Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(o_channels, 1, 1, i_channels);
-  weights_i8.data.resize(weights_i8.shape.DimensionsProduct() +
-                         XNN_EXTRA_BYTES / sizeof(int8_t));
+  weights_i8.data.resize(weights_i8.shape.DimensionsProduct());
   for (int i = 0; i < weights_i8.shape.DimensionsProduct(); ++i) {
     weights_i8.data[i] = i % 256 - 128;
   }
@@ -2348,8 +2321,7 @@ absl::Status Uint4ToUint8WeightsConverterTest(
   const int o_channels = 128 + 4;
   Tensor<OHWI, DataType::kInt8> weights_i4;
   weights_i4.shape = OHWI(o_channels, 1, 1, i_channels);
-  weights_i4.data.resize(weights_i4.shape.DimensionsProduct() +
-                         XNN_EXTRA_BYTES / sizeof(int8_t));
+  weights_i4.data.resize(weights_i4.shape.DimensionsProduct());
   for (int i = 0; i < weights_i4.shape.DimensionsProduct(); ++i) {
     weights_i4.data[i] = i % 8 - 7;
   }
@@ -2414,8 +2386,7 @@ absl::Status Uint2ToUint8WeightsConverterTest(
   const int o_channels = 128 + 4;
   Tensor<OHWI, DataType::kInt8> weights_i2;
   weights_i2.shape = OHWI(o_channels, 1, 1, i_channels);
-  weights_i2.data.resize(weights_i2.shape.DimensionsProduct() +
-                         XNN_EXTRA_BYTES / sizeof(int8_t));
+  weights_i2.data.resize(weights_i2.shape.DimensionsProduct());
   for (int i = 0; i < weights_i2.shape.DimensionsProduct(); ++i) {
     weights_i2.data[i] = i % 2 - 1;
   }
@@ -2480,8 +2451,7 @@ absl::Status Uint4ToInt4WeightsConverterTest(
   const int o_channels = 128 + 4;
   Tensor<OHWI, DataType::kInt8> weights_i4;
   weights_i4.shape = OHWI(o_channels, 1, 1, i_channels);
-  weights_i4.data.resize(weights_i4.shape.DimensionsProduct() +
-                         XNN_EXTRA_BYTES / sizeof(int8_t));
+  weights_i4.data.resize(weights_i4.shape.DimensionsProduct());
   for (int i = 0; i < weights_i4.shape.DimensionsProduct(); ++i) {
     weights_i4.data[i] = i % 8 - 7;
   }
@@ -2546,8 +2516,7 @@ absl::Status Uint2ToInt4WeightsConverterTest(
   const int o_channels = 128 + 4;
   Tensor<OHWI, DataType::kInt8> weights_i2;
   weights_i2.shape = OHWI(o_channels, 1, 1, i_channels);
-  weights_i2.data.resize(weights_i2.shape.DimensionsProduct() +
-                         XNN_EXTRA_BYTES / sizeof(int8_t));
+  weights_i2.data.resize(weights_i2.shape.DimensionsProduct());
   for (int i = 0; i < weights_i2.shape.DimensionsProduct(); ++i) {
     weights_i2.data[i] = i % 2 - 1;
   }

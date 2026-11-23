@@ -24,7 +24,6 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/status_matchers.h"
-#include "xnnpack.h"  // from @XNNPACK
 #include "absl/types/span.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/shape.h"
@@ -1144,8 +1143,7 @@ void RunConversions(const OHWI& weights_shape,
 
   Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = weights_shape;
-  weights.data.resize(weights.shape.DimensionsProduct() +
-                      XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights.shape.DimensionsProduct());
   for (int i = 0; i < weights.data.size(); ++i) {
     weights.data[i] = i;
   }
@@ -1173,8 +1171,7 @@ void RunConversions(const OHWDI& weights_shape,
 
   Tensor<OHWDI, DataType::kFloat32> weights;
   weights.shape = weights_shape;
-  weights.data.resize(weights.shape.DimensionsProduct() +
-                      XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights.shape.DimensionsProduct());
   for (int i = 0; i < weights.data.size(); ++i) {
     weights.data[i] = i;
   }
@@ -1321,8 +1318,7 @@ TEST(CustomGroups, ConversionOHWIToOSpatialIOGroupITileOTile) {
 
   Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = weights_shape;
-  weights.data.resize(weights.shape.DimensionsProduct() +
-                      XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights.shape.DimensionsProduct());
   for (int i = 0; i < weights.data.size(); ++i) {
     weights.data[i] = i;
   }
@@ -1390,8 +1386,7 @@ TEST(CustomGroups, ConversionOHWITokOICustomSpatialI4O4) {
 
   Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = weights_shape;
-  weights.data.resize(weights.shape.DimensionsProduct() +
-                      XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights.shape.DimensionsProduct());
   for (int i = 0; i < weights.data.size(); ++i) {
     weights.data[i] = i;
   }
@@ -1490,8 +1485,7 @@ TEST(CustomGroupsI2gr0O8I2gr1O2, ConversionOHWIAllTypes) {
   // Float32 and Float16 conversions.
   Tensor<OHWI, DataType::kFloat32> f32_weights;
   f32_weights.shape = weights_shape;
-  f32_weights.data.resize(weights_shape.DimensionsProduct() +
-                          XNN_EXTRA_BYTES / sizeof(float));
+  f32_weights.data.resize(weights_shape.DimensionsProduct());
   for (int i = 0; i < f32_weights.data.size(); ++i) {
     f32_weights.data[i] = static_cast<float>(i % 31);
   }
@@ -1512,8 +1506,7 @@ TEST(CustomGroupsI2gr0O8I2gr1O2, ConversionOHWIAllTypes) {
   weight_desc.type = DataType::kInt8;
   Tensor<OHWI, DataType::kInt8> i8_weights;
   i8_weights.shape = weights_shape;
-  i8_weights.data.resize(weights_shape.DimensionsProduct() +
-                         XNN_EXTRA_BYTES / sizeof(int8_t));
+  i8_weights.data.resize(weights_shape.DimensionsProduct());
   for (int i = 0; i < i8_weights.data.size(); ++i) {
     i8_weights.data[i] = static_cast<int8_t>((i % 127) - 63);
   }
@@ -1527,8 +1520,7 @@ TEST(CustomGroupsI2gr0O8I2gr1O2, ConversionOHWIAllTypes) {
   weight_desc.type = DataType::kUint8;
   Tensor<OHWI, DataType::kUint8> u8_weights;
   u8_weights.shape = weights_shape;
-  u8_weights.data.resize(weights_shape.DimensionsProduct() +
-                         XNN_EXTRA_BYTES / sizeof(uint8_t));
+  u8_weights.data.resize(weights_shape.DimensionsProduct());
   for (int i = 0; i < u8_weights.data.size(); ++i) {
     u8_weights.data[i] = static_cast<uint8_t>(i % 251);
   }
@@ -1561,8 +1553,7 @@ TEST(CustomGroupsI2gr0O8I2gr1O2, ConversionOHWDI) {
 
   Tensor<OHWI, DataType::kFloat32> ohwi_weights;
   ohwi_weights.shape = ohwi_shape;
-  ohwi_weights.data.resize(ohwi_shape.DimensionsProduct() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  ohwi_weights.data.resize(ohwi_shape.DimensionsProduct());
   for (int i = 0; i < ohwi_weights.data.size(); ++i) {
     ohwi_weights.data[i] = static_cast<float>(i);
   }
@@ -1590,8 +1581,7 @@ TEST(CustomGroupsI2gr0O8I2gr1O2, ConversionOHWDI) {
 
   Tensor<OHWDI, DataType::kFloat32> ohwdi_weights;
   ohwdi_weights.shape = ohwdi_shape;
-  ohwdi_weights.data.resize(ohwdi_shape.DimensionsProduct() +
-                            XNN_EXTRA_BYTES / sizeof(float));
+  ohwdi_weights.data.resize(ohwdi_shape.DimensionsProduct());
   for (int i = 0; i < ohwdi_weights.data.size(); ++i) {
     ohwdi_weights.data[i] = static_cast<float>(i % 31);
   }
@@ -1660,8 +1650,7 @@ TEST(CustomGroupsI2gr0O8I2gr1O2, ConversionArbitraryOrderAndSpatialRemap) {
 
   Tensor<OHWI, DataType::kFloat32> ohwi_weights;
   ohwi_weights.shape = ohwi_shape;
-  ohwi_weights.data.resize(ohwi_shape.DimensionsProduct() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  ohwi_weights.data.resize(ohwi_shape.DimensionsProduct());
   for (int i = 0; i < ohwi_weights.data.size(); ++i) {
     ohwi_weights.data[i] = static_cast<float>(i + 1);
   }
@@ -1776,16 +1765,13 @@ TEST(CustomGroupsOgr1Ogr2Ogr0, RearrangesOHWITransposedGroupsAndPadding) {
 
   Tensor<OHWI, DataType::kFloat32> weights_f32;
   weights_f32.shape = weights_shape;
-  weights_f32.data.resize(weights_shape.DimensionsProduct() +
-                          XNN_EXTRA_BYTES / sizeof(float));
+  weights_f32.data.resize(weights_shape.DimensionsProduct());
   Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = weights_shape;
-  weights_i8.data.resize(weights_shape.DimensionsProduct() +
-                         XNN_EXTRA_BYTES / sizeof(int8_t));
+  weights_i8.data.resize(weights_shape.DimensionsProduct());
   Tensor<OHWI, DataType::kUint8> weights_u8;
   weights_u8.shape = weights_shape;
-  weights_u8.data.resize(weights_shape.DimensionsProduct() +
-                         XNN_EXTRA_BYTES / sizeof(uint8_t));
+  weights_u8.data.resize(weights_shape.DimensionsProduct());
   for (int o = 0; o < weights_shape.o; ++o) {
     for (int i = 0; i < weights_shape.i; ++i) {
       const int idx = weights_shape.LinearIndex({o, 0, 0, i});
@@ -1854,8 +1840,7 @@ TEST(CustomGroupsOgr1Ogr2Ogr0, RearrangesOHWDITransposedGroupsAndPadding) {
 
   Tensor<OHWDI, DataType::kFloat32> weights;
   weights.shape = weights_shape;
-  weights.data.resize(weights_shape.DimensionsProduct() +
-                      XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights_shape.DimensionsProduct());
   for (int o = 0; o < weights_shape.o; ++o) {
     for (int kx = 0; kx < weights_shape.w; ++kx) {
       for (int kz = 0; kz < weights_shape.d; ++kz) {
@@ -1912,8 +1897,7 @@ TEST(CustomGroupsOgr1Ogr2Ogr0, ConversionArbitraryOrderAndSpatialRemap) {
 
   Tensor<OHWI, DataType::kFloat32> ohwi_weights;
   ohwi_weights.shape = ohwi_shape;
-  ohwi_weights.data.resize(ohwi_shape.DimensionsProduct() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  ohwi_weights.data.resize(ohwi_shape.DimensionsProduct());
   for (int i = 0; i < ohwi_weights.data.size(); ++i) {
     ohwi_weights.data[i] = static_cast<float>(i + 1);
   }
@@ -2028,16 +2012,13 @@ TEST(CustomGroupsOgr0Igr1Ogr1Igr0, RearrangesOHWITransposedGroupsAndPadding) {
 
   Tensor<OHWI, DataType::kFloat32> weights_f32;
   weights_f32.shape = weights_shape;
-  weights_f32.data.resize(weights_shape.DimensionsProduct() +
-                          XNN_EXTRA_BYTES / sizeof(float));
+  weights_f32.data.resize(weights_shape.DimensionsProduct());
   Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = weights_shape;
-  weights_i8.data.resize(weights_shape.DimensionsProduct() +
-                         XNN_EXTRA_BYTES / sizeof(int8_t));
+  weights_i8.data.resize(weights_shape.DimensionsProduct());
   Tensor<OHWI, DataType::kUint8> weights_u8;
   weights_u8.shape = weights_shape;
-  weights_u8.data.resize(weights_shape.DimensionsProduct() +
-                         XNN_EXTRA_BYTES / sizeof(uint8_t));
+  weights_u8.data.resize(weights_shape.DimensionsProduct());
   for (int o = 0; o < weights_shape.o; ++o) {
     for (int i = 0; i < weights_shape.i; ++i) {
       const int idx = weights_shape.LinearIndex({o, 0, 0, i});
@@ -2106,8 +2087,7 @@ TEST(CustomGroupsOgr0Igr1Ogr1Igr0, ConversionArbitraryOrderAndSpatialRemap) {
 
   Tensor<OHWI, DataType::kFloat32> ohwi_weights;
   ohwi_weights.shape = ohwi_shape;
-  ohwi_weights.data.resize(ohwi_shape.DimensionsProduct() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  ohwi_weights.data.resize(ohwi_shape.DimensionsProduct());
   for (int i = 0; i < ohwi_weights.data.size(); ++i) {
     ohwi_weights.data[i] = static_cast<float>(i + 1);
   }

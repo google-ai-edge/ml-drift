@@ -191,8 +191,7 @@ TEST(IrModelUtilTest, TryConcatConv) {
   conv_attr.dilations = HW(1, 1);
   Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = OHWI(4, 3, 3, 3);
-  // Add 16 elements for XNN_EXTRA_BYTES
-  weights.data.resize(4 * 3 * 3 * 3 + 16, 1.0f);
+  weights.data.resize(4 * 3 * 3 * 3, 1.0f);
   conv_attr.weights = std::move(weights);
   Tensor<Linear, DataType::kFloat32> bias;
   bias.shape = Linear(4);
@@ -260,8 +259,7 @@ TEST(IrModelUtilTest, TryResizeAddConvLocalMemoryFuser) {
   conv_attr.dilations = HW(1, 1);
   Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = OHWI(1, 3, 3, 4);
-  // Add 16 elements for XNN_EXTRA_BYTES
-  weights.data.resize(1 * 3 * 3 * 4 + 16, 1.0f);
+  weights.data.resize(1 * 3 * 3 * 4, 1.0f);
   conv_attr.weights = std::move(weights);
   Tensor<Linear, DataType::kFloat32> bias;
   bias.shape = Linear(1);
@@ -353,7 +351,7 @@ TEST(IrModelUtilTest,
   conv_attr.dilations = HW(1, 1);
   Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = OHWI(1, 3, 3, 4);
-  weights.data.resize(1 * 3 * 3 * 4 + 16, 1.0f);
+  weights.data.resize(1 * 3 * 3 * 4, 1.0f);
   conv_attr.weights = std::move(weights);
   Tensor<Linear, DataType::kFloat32> bias;
   bias.shape = Linear(1);
@@ -419,8 +417,7 @@ TEST(IrModelUtilTest, ResizeAddConvLocalMemoryFuserSkipsSingleInputAdd) {
   conv_attr.dilations = HW(1, 1);
   Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = OHWI(1, 3, 3, 4);
-  // Add 16 elements for XNN_EXTRA_BYTES
-  weights.data.resize(1 * 3 * 3 * 4 + 16, 1.0f);
+  weights.data.resize(1 * 3 * 3 * 4, 1.0f);
   conv_attr.weights = std::move(weights);
   Tensor<Linear, DataType::kFloat32> bias;
   bias.shape = Linear(1);
@@ -489,8 +486,7 @@ TEST(IrModelUtilTest, ResizeAddConvLocalMemoryFuserPreservesGraphOutput) {
   conv_attr.dilations = HW(1, 1);
   Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = OHWI(1, 3, 3, 4);
-  // Add 16 elements for XNN_EXTRA_BYTES
-  weights.data.resize(1 * 3 * 3 * 4 + 16, 1.0f);
+  weights.data.resize(1 * 3 * 3 * 4, 1.0f);
   conv_attr.weights = std::move(weights);
   Tensor<Linear, DataType::kFloat32> bias;
   bias.shape = Linear(1);

@@ -19,7 +19,6 @@
 #include <vector>
 
 #include "gmock/gmock.h"
-#include "xnnpack.h"  // from @XNNPACK
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
 #include "ml_drift/common/data_type.h"
@@ -203,8 +202,7 @@ absl::Status ConvolutionTransposedThinBigTest(TestExecutionEnvironment& env,
   attr.padding.appended = HW(0, 0);
   attr.stride = HW(2, 2);
   attr.weights = MakeSyntheticTensor(OHWI(dst_channels, 2, 2, src_channels));
-  attr.weights.data.resize(attr.weights.data.size() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr.weights.data.resize(attr.weights.data.size());
   attr.bias = MakeSyntheticTensor(Linear(dst_channels));
 
   auto src_shape = BHWC(1, 8, 8, src_channels);
@@ -229,8 +227,7 @@ absl::Status ConvolutionTransposedThinBatchedBigTest(
   attr.padding.appended = HW(0, 0);
   attr.stride = HW(2, 2);
   attr.weights = MakeSyntheticTensor(OHWI(dst_channels, 2, 2, src_channels));
-  attr.weights.data.resize(attr.weights.data.size() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr.weights.data.resize(attr.weights.data.size());
   attr.bias = MakeSyntheticTensor(Linear(dst_channels));
 
   auto src_shape = BHWC(3, 8, 8, src_channels);
@@ -256,9 +253,7 @@ absl::Status ConvolutionTransposed3x3ThinSimpleWeightsTest(
   attr.padding.appended = HW(1, 1);
   attr.stride = HW(2, 2);
   attr.weights.shape = OHWI(1, 3, 3, 1);
-  attr.weights.data.resize(
-      attr.weights.shape.DimensionsProduct() + XNN_EXTRA_BYTES / sizeof(float),
-      1.0f);
+  attr.weights.data.resize(attr.weights.shape.DimensionsProduct(), 1.0f);
   attr.bias.shape = Linear(2);
   attr.bias.data = {0.0f, 0.0f};
 
@@ -293,9 +288,7 @@ absl::Status ConvolutionTransposed3x3ThinTest(TestExecutionEnvironment& env,
   attr.padding.appended = HW(1, 1);
   attr.stride = HW(2, 2);
   attr.weights.shape = OHWI(1, 3, 3, 1);
-  attr.weights.data.resize(
-      attr.weights.shape.DimensionsProduct() + XNN_EXTRA_BYTES / sizeof(float),
-      1.0f);
+  attr.weights.data.resize(attr.weights.shape.DimensionsProduct(), 1.0f);
   for (int i = 0; i < attr.weights.shape.DimensionsProduct(); ++i) {
     attr.weights.data[i] = i + 1;
   }
@@ -333,8 +326,7 @@ absl::Status ConvolutionTransposed3x3ThinBigTest(
   attr.adjacent = HW(1, 1);
   attr.stride = HW(2, 2);
   attr.weights = MakeSyntheticTensor(OHWI(dst_channels, 3, 3, src_channels));
-  attr.weights.data.resize(attr.weights.data.size() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr.weights.data.resize(attr.weights.data.size());
   attr.bias = MakeSyntheticTensor(Linear(dst_channels));
 
   auto src_shape = BHWC(1, 3, 3, src_channels);
@@ -360,8 +352,7 @@ absl::Status ConvolutionTransposed3x3ThinBatchedBigTest(
   attr.adjacent = HW(1, 1);
   attr.stride = HW(2, 2);
   attr.weights = MakeSyntheticTensor(OHWI(dst_channels, 3, 3, src_channels));
-  attr.weights.data.resize(attr.weights.data.size() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr.weights.data.resize(attr.weights.data.size());
   attr.bias = MakeSyntheticTensor(Linear(dst_channels));
 
   auto src_shape = BHWC(5, 3, 3, src_channels);
@@ -387,8 +378,7 @@ absl::Status ConvolutionTransposed3x3ThinExternalWeightsBigTest(
   attr.adjacent = HW(1, 1);
   attr.stride = HW(2, 2);
   attr.weights = MakeSyntheticTensor(OHWI(dst_channels, 3, 3, src_channels));
-  attr.weights.data.resize(attr.weights.data.size() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr.weights.data.resize(attr.weights.data.size());
   attr.bias = MakeSyntheticTensor(Linear(dst_channels));
 
   auto src_shape = BHWC(1, 6, 8, src_channels);

@@ -104,7 +104,6 @@ cc_library(
         "//ml_drift/gl:gl_spatial_tensor",
         "//ml_drift/gl:portable",
         "//ml_drift/gl:request_gpu_info",
-        "@XNNPACK",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:status_macros",
         "@com_google_absl//absl/time",

@@ -286,7 +286,6 @@ target_link_libraries(mld_common_kernels_tests_conv_constants_test_util
     mld_common_task_testing_util
     mld_common_task_weights_conversion
     mld_common_tensor
-    XNNPACK
 )
 
 add_executable(conv_constants_test_opencl opencl_kernel_test.cc conv_constants_test.cc)
@@ -346,7 +345,6 @@ target_link_libraries(mld_common_kernels_tests_conv_generic_test_util
     mld_common_tensor
     mld_common_util
     mld_common_winograd_util
-    XNNPACK
 )
 
 add_executable(conv_generic_test_opencl opencl_kernel_test.cc conv_generic_test.cc)
@@ -400,7 +398,6 @@ target_link_libraries(mld_common_kernels_tests_conv_transpose_test_util
     mld_common_task_testing_util
     mld_common_task_weights_conversion
     mld_common_tensor
-    XNNPACK
 )
 
 add_executable(conv_transpose_test_opencl opencl_kernel_test.cc conv_transpose_test.cc)
@@ -452,7 +449,6 @@ target_link_libraries(mld_common_kernels_tests_conv_transpose_thin_test_util
     mld_common_task_testing_util
     mld_common_task_weights_conversion
     mld_common_tensor
-    XNNPACK
 )
 
 add_executable(conv_transpose_thin_test_opencl opencl_kernel_test.cc conv_transpose_thin_test.cc)
@@ -504,7 +500,6 @@ target_link_libraries(mld_common_kernels_tests_conv_wave_matrix_mali_f16_test_ut
     mld_common_task_weights_conversion
     mld_common_tensor
     mld_common_util
-    XNNPACK
 )
 
 add_executable(conv_wave_matrix_mali_f16_test_opencl opencl_kernel_test.cc conv_wave_matrix_mali_f16_test.cc)
@@ -558,7 +553,6 @@ target_link_libraries(mld_common_kernels_tests_conv_wave_matrix_mali_test_util
     mld_common_task_weights_layout
     mld_common_tensor
     mld_common_util
-    XNNPACK
 )
 
 add_executable(conv_wave_matrix_mali_test_opencl opencl_kernel_test.cc conv_wave_matrix_mali_test.cc)
@@ -616,7 +610,6 @@ target_link_libraries(mld_common_kernels_tests_conv_wave_matrix_test_util
     mld_common_tensor
     mld_common_util
     mld_common_winograd_util
-    XNNPACK
 )
 
 add_executable(conv_wave_matrix_test_opencl opencl_kernel_test.cc conv_wave_matrix_test.cc)
@@ -675,7 +668,6 @@ target_link_libraries(mld_common_kernels_tests_conv_wave_memory_test_util
     mld_common_tensor
     mld_common_util
     mld_common_winograd_util
-    XNNPACK
 )
 
 add_executable(conv_wave_memory_test_opencl opencl_kernel_test.cc conv_wave_memory_test.cc)
@@ -1017,7 +1009,6 @@ target_link_libraries(mld_common_kernels_tests_embedding_lookup_test_util
     mld_common_task_tensor_desc
     mld_common_task_testing_util
     mld_common_tensor
-    XNNPACK
 )
 
 add_executable(embedding_lookup_test_opencl opencl_kernel_test.cc embedding_lookup_test.cc)
@@ -1073,7 +1064,6 @@ target_link_libraries(mld_common_kernels_tests_fully_connected_oi_test_util
     mld_common_tensor
     mld_common_types
     mld_common_util
-    XNNPACK
 )
 
 add_executable(fully_connected_oi_test_opencl opencl_kernel_test.cc fully_connected_oi_test.cc)
@@ -1125,7 +1115,6 @@ target_link_libraries(mld_common_kernels_tests_fully_connected_test_util
     mld_common_task_testing_util
     mld_common_tensor
     mld_common_types
-    XNNPACK
 )
 
 add_executable(fully_connected_test_opencl opencl_kernel_test.cc fully_connected_test.cc)

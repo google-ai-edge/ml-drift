@@ -23,7 +23,6 @@
 #include <variant>
 #include <vector>
 
-#include "xnnpack.h"  // from @XNNPACK
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
 #include "absl/time/time.h"
@@ -178,8 +177,7 @@ absl::Status ConvolutionPerfTest(CalculationsPrecision precision,
   auto& attr_weights = attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape =
       OHWI(dst_channels, kernel_size.h, kernel_size.w, src_shape.c);
-  attr_weights.data.resize(attr_weights.shape.DimensionsProduct() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr_weights.data.resize(attr_weights.shape.DimensionsProduct());
   attr.bias.shape = Linear(dst_channels);
   attr.bias.data.resize(attr.bias.shape.DimensionsProduct());
 
@@ -255,8 +253,7 @@ absl::Status ConvolutionInt8PerfTest(const BHWC& src_shape, int dst_channels) {
 
   ml_drift::Tensor<OHWI, DataType::kInt8> weights;
   weights.shape = OHWI(dst_channels, 1, 1, src_shape.c);
-  weights.data.resize(weights.shape.DimensionsProduct() +
-                      XNN_EXTRA_BYTES / sizeof(int8_t));
+  weights.data.resize(weights.shape.DimensionsProduct());
   ml_drift::Tensor<Linear, DataType::kFloat32> weights_scale;
   weights_scale.shape = Linear(dst_channels);
   weights_scale.data.resize(weights_scale.shape.DimensionsProduct());
@@ -407,13 +404,11 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision,
                                     OHWI scale_zp_shape) {
   ml_drift::Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = OHWI(dst_channels, 1, 1, src_shape.c);
-  weights.data.resize(weights.shape.DimensionsProduct() +
-                      XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights.shape.DimensionsProduct());
 
   ml_drift::Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(dst_channels, 1, 1, src_shape.c);
-  weights_i8.data.resize(weights_i8.shape.DimensionsProduct() +
-                         XNN_EXTRA_BYTES / sizeof(uint8_t));
+  weights_i8.data.resize(weights_i8.shape.DimensionsProduct());
 
   ml_drift::Tensor<OHWI, DataType::kFloat32> weights_scale;
   weights_scale.shape = scale_zp_shape;

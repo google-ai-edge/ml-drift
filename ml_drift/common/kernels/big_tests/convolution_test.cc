@@ -21,7 +21,6 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/status_matchers.h"
-#include "xnnpack.h"  // from @XNNPACK
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
 #include "ml_drift/common/data_type.h"
@@ -55,7 +54,7 @@ absl::Status ConvGenericWinograd4x4To6x6Test(TestExecutionEnvironment& exec_env,
                                              const OperationDef& op_def,
                                              CalculationsPrecision precision) {
   auto& weights = GetFloatWeights(attr);
-  weights.data.resize(weights.data.size() + XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights.data.size());
   TensorFloat32 dst_ref_tensor = ConvolutionReference(attr, src_tensor);
 
   auto wino_up =
@@ -129,7 +128,7 @@ absl::Status ConvolutionGenericExternalWeightsTest(
     CalculationsPrecision precision,
     const TestingRuntimeChannels& runtime_channels) {
   auto& weights = GetFloatWeights(attr);
-  weights.data.resize(weights.data.size() + XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights.data.size());
   TestingRuntimeChannels aligned_runtime_channels =
       runtime_channels.GenerateAlignedRuntimeChannels();
   TensorFloat32 dst_ref_tensor =
@@ -196,7 +195,7 @@ absl::Status ConvolutionGenericExternalBatchedWeightsTest(
     CalculationsPrecision precision,
     const TestingRuntimeChannels& runtime_channels) {
   auto& weights = GetFloatWeights(attr);
-  weights.data.resize(weights.data.size() + XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights.data.size());
   TestingRuntimeChannels aligned_runtime_channels =
       runtime_channels.GenerateAlignedRuntimeChannels();
   TensorFloat32 dst_ref_tensor = FullyConnectedRefDifferentWeightsForHeight(
@@ -267,8 +266,7 @@ absl::Status ConvolutionGenericBatchedMatMulTest(
   ml_drift::Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape =
       OHWI(right_tensor.shape.c, right_tensor.shape.h, 1, right_tensor.shape.w);
-  weights.data.resize(weights.shape.DimensionsProduct() +
-                      XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights.shape.DimensionsProduct());
   for (int b = 0; b < right_tensor.shape.b; ++b) {
     for (int h = 0; h < right_tensor.shape.h; ++h) {
       for (int w = 0; w < right_tensor.shape.w; ++w) {

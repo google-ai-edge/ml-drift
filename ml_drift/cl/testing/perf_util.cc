@@ -25,7 +25,6 @@
 #include <variant>
 #include <vector>
 
-#include "xnnpack.h"  // from @XNNPACK
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
 #include "absl/time/clock.h"
@@ -191,12 +190,10 @@ absl::Status TestConvSoftmaxConvPerformance(const BHWC& dst_shape, int src_ch0,
 
   ml_drift::Tensor<OHWI, DataType::kFloat32> weights0;
   weights0.shape = OHWI(src_ch1, 1, dst_shape.h, src_ch0);
-  weights0.data.resize(weights0.shape.DimensionsProduct() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  weights0.data.resize(weights0.shape.DimensionsProduct());
   ml_drift::Tensor<OHWI, DataType::kFloat32> weights1;
   weights1.shape = OHWI(dst_shape.c, 1, dst_shape.h, src_ch1);
-  weights1.data.resize(weights1.shape.DimensionsProduct() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  weights1.data.resize(weights1.shape.DimensionsProduct());
 
   ConvSoftmaxConv::WeightsDesc weights_desc;
   weights_desc.constant = true;
@@ -394,8 +391,7 @@ absl::Status ConvolutionPerfTest(CalculationsPrecision precision,
       attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape =
       OHWI(dst_channels, kernel_size.h, kernel_size.w, src_shape.c);
-  attr_weights.data.resize(attr_weights.shape.DimensionsProduct() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr_weights.data.resize(attr_weights.shape.DimensionsProduct());
   attr.bias.shape = Linear(dst_channels);
   attr.bias.data.resize(attr.bias.shape.DimensionsProduct());
 
@@ -608,8 +604,7 @@ absl::Status ConvolutionInt8PerfTest(const BHWC& src_shape, int dst_channels) {
 
   ml_drift::Tensor<OHWI, DataType::kInt8> weights;
   weights.shape = OHWI(dst_channels, 1, 1, src_shape.c);
-  weights.data.resize(weights.shape.DimensionsProduct() +
-                      XNN_EXTRA_BYTES / sizeof(int8_t));
+  weights.data.resize(weights.shape.DimensionsProduct());
   ml_drift::Tensor<Linear, DataType::kFloat32> weights_scale;
   weights_scale.shape = Linear(dst_channels);
   weights_scale.data.resize(weights_scale.shape.DimensionsProduct());
@@ -1132,8 +1127,7 @@ absl::Status ConvolutionInt4PerfTest(const BHWC& src_shape, int dst_channels) {
   ml_drift::Tensor<OHWI, DataType::kInt8> weights;
   weights.shape = OHWI(dst_channels, 1, 1, src_shape.c);
   weights.data.resize(weights.shape.DimensionsProduct());
-  weights.data.resize(weights.shape.DimensionsProduct() +
-                      XNN_EXTRA_BYTES / sizeof(int8_t));
+  weights.data.resize(weights.shape.DimensionsProduct());
   ml_drift::Tensor<Linear, DataType::kFloat32> weights_scale;
   weights_scale.shape = Linear(dst_channels);
   weights_scale.data.resize(weights_scale.shape.DimensionsProduct());
@@ -1299,13 +1293,11 @@ absl::Status ConvMoEPerfTest(int seq_size, int src_channels, int dst_channels,
 
   ml_drift::Tensor<OHWI, DataType::kFloat32> weights_f32;
   weights_f32.shape = OHWI(dst_channels, num_experts, 1, src_shape.c);
-  weights_f32.data.resize(weights_f32.shape.DimensionsProduct() +
-                          XNN_EXTRA_BYTES / sizeof(float));
+  weights_f32.data.resize(weights_f32.shape.DimensionsProduct());
 
   ml_drift::Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(dst_channels, num_experts, 1, src_shape.c);
-  weights_i8.data.resize(weights_i8.shape.DimensionsProduct() +
-                         XNN_EXTRA_BYTES / sizeof(uint8_t));
+  weights_i8.data.resize(weights_i8.shape.DimensionsProduct());
 
   ml_drift::Tensor<OHWI, DataType::kFloat32> weights_scale;
   weights_scale.shape = OHWI(dst_channels, num_experts, 1, 1);
@@ -1606,8 +1598,7 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision,
                            src_shape.c / (sparse_2x4 ? 2 : 1));
   ml_drift::Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = weights_shape;
-  weights.data.resize(weights.shape.DimensionsProduct() +
-                      XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights.shape.DimensionsProduct());
   // Initialize weights with non uniform values. Uniform values can be optimized
   // in textures and show too good performance???
   for (int i = 0; i < weights.data.size(); ++i) {
@@ -1616,8 +1607,7 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision,
 
   ml_drift::Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = weights_shape;
-  weights_i8.data.resize(weights_i8.shape.DimensionsProduct() +
-                         XNN_EXTRA_BYTES / sizeof(uint8_t));
+  weights_i8.data.resize(weights_i8.shape.DimensionsProduct());
   for (int i = 0; i < weights_i8.data.size(); ++i) {
     weights_i8.data[i] = (i % 256) - 128;
   }
@@ -1720,8 +1710,7 @@ absl::Status FullyConnectedOptimalWGSize(CalculationsPrecision precision,
     };
     ml_drift::Tensor<OHWI, DataType::kUint8> weights_indices;
     weights_indices.shape = weights_i8.shape;
-    weights_indices.data.resize(weights_indices.shape.DimensionsProduct() +
-                                XNN_EXTRA_BYTES / sizeof(uint8_t));
+    weights_indices.data.resize(weights_indices.shape.DimensionsProduct());
 
     const int elements_count =
         GetTotalElementsCountForLayout(weights_desc, weights_i8.shape);
@@ -1975,8 +1964,7 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision,
                            src_shape.c / (sparse_2x4 ? 2 : 1));
   ml_drift::Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = weights_shape;
-  weights.data.resize(weights.shape.DimensionsProduct() +
-                      XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights.shape.DimensionsProduct());
   // Initialize weights with non uniform values. Uniform values can be optimized
   // in textures and show too good performance???
   for (int i = 0; i < weights.data.size(); ++i) {
@@ -1985,8 +1973,7 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision,
 
   ml_drift::Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = weights_shape;
-  weights_i8.data.resize(weights_i8.shape.DimensionsProduct() +
-                         XNN_EXTRA_BYTES / sizeof(uint8_t));
+  weights_i8.data.resize(weights_i8.shape.DimensionsProduct());
   for (int i = 0; i < weights_i8.data.size(); ++i) {
     weights_i8.data[i] = (i % 256) - 128;
   }
@@ -2079,8 +2066,7 @@ absl::Status FullyConnectedPerfTest(CalculationsPrecision precision,
     };
     ml_drift::Tensor<OHWI, DataType::kUint8> weights_indices;
     weights_indices.shape = weights_i8.shape;
-    weights_indices.data.resize(weights_indices.shape.DimensionsProduct() +
-                                XNN_EXTRA_BYTES / sizeof(uint8_t));
+    weights_indices.data.resize(weights_indices.shape.DimensionsProduct());
 
     const int elements_count =
         GetTotalElementsCountForLayout(weights_desc, weights_i8.shape);
@@ -2300,13 +2286,11 @@ absl::Status FullyConnectedWeightsBatchIdsPerfTest(
   const bool use_zero_point = false;
   ml_drift::Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = OHWI(dst_channels, batch_size, 1, src_shape.c);
-  weights.data.resize(weights.shape.DimensionsProduct() +
-                      XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights.shape.DimensionsProduct());
 
   ml_drift::Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(dst_channels, batch_size, 1, src_shape.c);
-  weights_i8.data.resize(weights_i8.shape.DimensionsProduct() +
-                         XNN_EXTRA_BYTES / sizeof(uint8_t));
+  weights_i8.data.resize(weights_i8.shape.DimensionsProduct());
 
   ml_drift::Tensor<OHWI, DataType::kFloat32> weights_scale;
   weights_scale.shape = scale_zp_shape;
@@ -2506,14 +2490,12 @@ absl::Status FullyConnectedOIPerfTest(const BHWC& src_shape, int dst_channels,
                            src_shape.c / (sparse_2x4 ? 2 : 1));
   FullyConnectedAttributes attr;
   attr.weights = MakeSyntheticTensor(weights_shape);
-  attr.weights.data.resize(attr.weights.shape.DimensionsProduct() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr.weights.data.resize(attr.weights.shape.DimensionsProduct());
   attr.bias = MakeZeroTensor(Linear(dst_channels));
 
   FullyConnectedInt8Attributes attr_i8;
   attr_i8.weights.shape = weights_shape;
-  attr_i8.weights.data.resize(attr_i8.weights.shape.DimensionsProduct() +
-                              XNN_EXTRA_BYTES / sizeof(uint8_t));
+  attr_i8.weights.data.resize(attr_i8.weights.shape.DimensionsProduct());
   attr_i8.bias = MakeZeroTensor(Linear(dst_channels));
 
   OHWI scale_zp_shape(dst_channels, 1, 1, src_shape.c / src_group_size);
@@ -2622,8 +2604,7 @@ absl::Status FullyConnectedOIPerfTest(const BHWC& src_shape, int dst_channels,
       external_weights.desc.type = DataType::kUint4;
       ml_drift::Tensor<OHWI, DataType::kUint8> weights_indices;
       weights_indices.shape = weights_shape;
-      weights_indices.data.resize(weights_indices.shape.DimensionsProduct() +
-                                  XNN_EXTRA_BYTES / sizeof(uint8_t));
+      weights_indices.data.resize(weights_indices.shape.DimensionsProduct());
 
       const int elements_count = GetTotalElementsCountForLayout(
           external_weights.desc, attr_i8.weights.shape);
@@ -2855,13 +2836,11 @@ absl::Status FullyConnectedOIWeightsBatchIdsPerfTest(
   const bool use_zero_point = false;
   ml_drift::Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = OHWI(dst_channels, batch_size, 1, src_shape.c);
-  weights.data.resize(weights.shape.DimensionsProduct() +
-                      XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights.shape.DimensionsProduct());
 
   ml_drift::Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(dst_channels, batch_size, 1, src_shape.c);
-  weights_i8.data.resize(weights_i8.shape.DimensionsProduct() +
-                         XNN_EXTRA_BYTES / sizeof(uint8_t));
+  weights_i8.data.resize(weights_i8.shape.DimensionsProduct());
 
   ml_drift::Tensor<OHWI, DataType::kFloat32> weights_scale;
   weights_scale.shape = scale_zp_shape;

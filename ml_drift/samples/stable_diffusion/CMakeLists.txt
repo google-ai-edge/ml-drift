@@ -112,7 +112,6 @@ target_link_libraries(mld_samples_stable_diffusion_util
     mld_common_task_tensor_desc
     mld_common_tensor
     mld_common_types
-    XNNPACK
 )
 
 add_library(mld_samples_stable_diffusion_model_data_loader

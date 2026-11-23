@@ -44,7 +44,6 @@ target_link_libraries(mld_webgpu_testing_perf_util
     mld_webgpu_execution_environment
     mld_webgpu_spatial_tensor
     mld_webgpu_webgpu_headers
-    XNNPACK
 )
 
 add_library(mld_webgpu_testing_webgpu_test

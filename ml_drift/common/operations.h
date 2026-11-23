@@ -845,16 +845,11 @@ struct BatchedMatMulAttributes {
 };
 
 // Dequantize int8 or int4 weights to a float32 tensor.
-//
-// `add_extra_bytes` is set as true by default, because the output tensor of
-// this is usually used as the input of XNNPACK weights rearrangement operation,
-// which requires extra bytes.
 template <DataType QuantizedType>
 Tensor<OHWI, DataType::kFloat32> DequantizeTensor(
     const Tensor<OHWI, QuantizedType>& weights,
     const Tensor<OHWI, DataType::kFloat32>& scale,
-    const Tensor<OHWI, DataType::kInt32>& zero_point,
-    bool add_extra_bytes = true);
+    const Tensor<OHWI, DataType::kInt32>& zero_point);
 
 // Get the float weights tensor from Convolution2DAttributes. If the attributes
 // store the weights as quantized (aka. weights tensor is INT8 or INT4 type),

@@ -97,7 +97,6 @@ target_link_libraries(mld_common_operations
   PRIVATE
     absl::flat_hash_map
     absl::log
-    XNNPACK
 )
 
 add_library(mld_common_util util.cc util.h)
@@ -137,7 +136,6 @@ target_link_libraries(mld_common_winograd_util
     mld_common_tensor
   PRIVATE
     mld_common_util
-    XNNPACK
 )
 
 # --- Flatbuffer generation for gpu_model.fbs ---
@@ -323,7 +321,6 @@ target_link_libraries(mld_common_gpu_model_external_weights_test_util
     mld_common_task_weights_conversion
     mld_common_task_weights_layout
     mld_common_tensor
-    XNNPACK
 )
 
 add_library(mld_common_model model.cc model.h)
@@ -495,7 +492,6 @@ target_link_libraries(mld_common_gpu_weights_conversion_test_util
     mld_common_operations
     mld_common_shape
     mld_common_tensor
-    XNNPACK
 )
 
 add_subdirectory(memory_management)

@@ -235,7 +235,6 @@ target_link_libraries(mld_common_task_weights_layout
     mld_common_tensor
     mld_common_types
     mld_common_util
-    XNNPACK
 )
 add_dependencies(mld_common_task_weights_layout mld_common_task_serialization_base_cc_fbs_gen)
 
@@ -379,5 +378,4 @@ target_link_libraries(mld_common_task_testing_ref_ops
     mld_common_tensor
     mld_common_util
     mld_common_winograd_util
-    XNNPACK
 )

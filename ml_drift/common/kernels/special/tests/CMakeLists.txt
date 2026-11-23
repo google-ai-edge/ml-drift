@@ -76,7 +76,6 @@ target_link_libraries(conv_softmax_conv_test_opencl
     mld_common_task_testing_util
     mld_common_tensor
     mld_common_util
-    XNNPACK
 )
 
 add_executable(dw7x7_conv2to6_concat_conv8to8_test_opencl ../../tests/opencl_kernel_test.cc dw7x7_conv2to6_concat_conv8to8_test.cc)

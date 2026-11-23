@@ -19,7 +19,6 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/status_matchers.h"
-#include "xnnpack.h"  // from @XNNPACK
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
@@ -52,8 +51,7 @@ absl::Status CreateConvReluGpuModel(
   auto& attr_weights =
       conv_attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(16, 1, 1, 16);
-  attr_weights.data.resize(attr_weights.shape.DimensionsProduct() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr_weights.data.resize(attr_weights.shape.DimensionsProduct());
   conv_attr.bias.shape = Linear(16);
   conv_attr.bias.data.resize(conv_attr.bias.shape.DimensionsProduct());
 

@@ -24,7 +24,6 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/status_matchers.h"
-#include "xnnpack.h"  // from @XNNPACK
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
 #include "absl/types/span.h"
@@ -59,8 +58,7 @@ absl::Status ConvAppleMPPTest(TestExecutionEnvironment& env,
       MakeSyntheticTensor(OHWI(dst_channels, 2, 3, src_channels));
   auto& attr_weights = attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>(
       std::move(synthetic_weights));
-  attr_weights.data.resize(attr_weights.data.size() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr_weights.data.resize(attr_weights.data.size());
   attr.bias = MakeSyntheticTensor(Linear(dst_channels));
 
   TensorFloat32 src_tensor = MakeSyntheticTensor(shape);
@@ -93,8 +91,7 @@ absl::Status ConvAppleMPPBigTest(TestExecutionEnvironment& env,
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
   FullyConnectedAttributes attr;
   attr.weights = MakeSyntheticTensor(OHWI(dst_channels, 1, 1, src_shape.c));
-  attr.weights.data.resize(attr.weights.data.size() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr.weights.data.resize(attr.weights.data.size());
   attr.bias = MakeSyntheticTensor(Linear(dst_channels));
   const TensorFloat32 dst_ref_tensor =
       FullyConnectedReference(attr, src_tensor);
@@ -125,8 +122,7 @@ absl::Status ConvAppleMPPExternalWeightsTest(TestExecutionEnvironment& env,
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
   FullyConnectedAttributes attr;
   attr.weights = MakeSyntheticTensor(OHWI(dst_channels, 1, 1, src_shape.c));
-  attr.weights.data.resize(attr.weights.data.size() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr.weights.data.resize(attr.weights.data.size());
   attr.bias = MakeSyntheticTensor(Linear(dst_channels));
   const TensorFloat32 dst_ref_tensor =
       FullyConnectedReference(attr, src_tensor);
@@ -173,8 +169,7 @@ absl::Status ConvAppleMPPPackedGroupsTest(TestExecutionEnvironment& env,
 
   Tensor<OHWI, DataType::kFloat32> weights = MakeSyntheticTensor(
       OHWI(dst_channels, weights_batch_size, 1, src_shape.c));
-  weights.data.resize(weights.shape.DimensionsProduct() +
-                      XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights.shape.DimensionsProduct());
 
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
   TensorInt32 group_ids = GenerateGroupIds(
@@ -265,8 +260,7 @@ absl::Status ConvAppleMPPExternalWfloatTest(TestExecutionEnvironment& env,
   const int weights_batch_size = batched_weights ? src_shape.h : 1;
   auto weights_f32 = MakeSyntheticTensor(
       OHWI(dst_channels, weights_batch_size, 1, src_channels));
-  weights_f32.data.resize(weights_f32.shape.DimensionsProduct() +
-                          XNN_EXTRA_BYTES / sizeof(float));
+  weights_f32.data.resize(weights_f32.shape.DimensionsProduct());
   TensorFloat32 dst_ref_tensor =
       FullyConnectedRefDifferentWeightsForHeight(weights_f32, src_tensor);
 
@@ -587,8 +581,7 @@ absl::Status ConvAppleMPPBatchedMatMulTest(TestExecutionEnvironment& env,
   ml_drift::Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape =
       OHWI(right_tensor.shape.c, right_tensor.shape.h, 1, right_tensor.shape.w);
-  weights.data.resize(weights.shape.DimensionsProduct() +
-                      XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights.shape.DimensionsProduct());
   for (int b = 0; b < right_tensor.shape.b; ++b) {
     for (int h = 0; h < right_tensor.shape.h; ++h) {
       for (int w = 0; w < right_tensor.shape.w; ++w) {
@@ -728,8 +721,7 @@ absl::Status ConvAppleMPPRuntimeSrcEndChannelsTest(
   auto weights_shape = OHWI(256, 1, 1, 128);
   FullyConnectedAttributes attr;
   attr.weights = MakeSyntheticTensor(weights_shape);
-  attr.weights.data.resize(attr.weights.data.size() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr.weights.data.resize(attr.weights.data.size());
   attr.bias = MakeSyntheticTensor(Linear(weights_shape.o));
 
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
@@ -749,8 +741,7 @@ absl::Status ConvAppleMPPRuntimeDstEndChannelsTest(
   auto weights_shape = OHWI(256, 1, 1, 128);
   FullyConnectedAttributes attr;
   attr.weights = MakeSyntheticTensor(weights_shape);
-  attr.weights.data.resize(attr.weights.data.size() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr.weights.data.resize(attr.weights.data.size());
   attr.bias = MakeSyntheticTensor(Linear(weights_shape.o));
 
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
@@ -773,8 +764,7 @@ absl::Status ConvAppleMPPInt8BigTest(TestExecutionEnvironment& env,
       MakeSyntheticTensor(OHWI(dst_channels, 1, 1, src_channels));
   ml_drift::Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(dst_channels, 1, 1, src_channels);
-  weights_i8.data.resize(weights_i8.shape.DimensionsProduct() +
-                         XNN_EXTRA_BYTES / sizeof(int8_t));
+  weights_i8.data.resize(weights_i8.shape.DimensionsProduct());
   for (int i = 0; i < weights_i8.shape.DimensionsProduct(); ++i) {
     weights_i8.data[i] = weights_f32.data[i] * 127.0f;
   }
@@ -821,8 +811,7 @@ absl::Status ConvAppleMPPInt8ExternalWeightsBigTest(
       MakeSyntheticTensor(OHWI(dst_channels, 1, 1, src_channels));
   ml_drift::Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(dst_channels, 1, 1, src_channels);
-  weights_i8.data.resize(weights_i8.shape.DimensionsProduct() +
-                         XNN_EXTRA_BYTES / sizeof(int8_t));
+  weights_i8.data.resize(weights_i8.shape.DimensionsProduct());
   for (int i = 0; i < weights_i8.shape.DimensionsProduct(); ++i) {
     weights_i8.data[i] = weights_f32.data[i] * 127.0f;
   }
@@ -1048,8 +1037,7 @@ absl::Status ConvAppleMPPInt8WithSrcQuantizationBigTest(
       MakeSyntheticTensor(OHWI(dst_channels, 1, 1, src_channels));
   ml_drift::Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(dst_channels, 1, 1, src_channels);
-  weights_i8.data.resize(weights_i8.shape.DimensionsProduct() +
-                         XNN_EXTRA_BYTES / sizeof(int8_t));
+  weights_i8.data.resize(weights_i8.shape.DimensionsProduct());
   for (int i = 0; i < weights_i8.shape.DimensionsProduct(); ++i) {
     weights_i8.data[i] = weights_f32.data[i] * 127.0f;
   }

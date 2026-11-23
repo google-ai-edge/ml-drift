@@ -22,7 +22,6 @@
 #include <vector>
 
 #include "gmock/gmock.h"
-#include "xnnpack.h"  // from @XNNPACK
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
 #include "absl/types/span.h"
@@ -421,15 +420,13 @@ absl::Status FullyConnectedInt4Sparse2x4Test(TestExecutionEnvironment& env,
   const int src_channels = src_shape.c;
   ml_drift::Tensor<OHWI, DataType::kInt8> weights_i4;
   weights_i4.shape = OHWI(dst_channels, 1, 1, src_channels / 2);
-  weights_i4.data.resize(weights_i4.shape.DimensionsProduct() +
-                         XNN_EXTRA_BYTES / sizeof(int8_t));
+  weights_i4.data.resize(weights_i4.shape.DimensionsProduct());
   for (int i = 0; i < weights_i4.shape.DimensionsProduct(); ++i) {
     weights_i4.data[i] = ((i % 1331) % 131) % 16 - 8;
   }
   ml_drift::Tensor<OHWI, DataType::kUint8> weights_indices;
   weights_indices.shape = OHWI(dst_channels, 1, 1, src_channels / 2);
-  weights_indices.data.resize(weights_indices.shape.DimensionsProduct() +
-                              XNN_EXTRA_BYTES / sizeof(uint8_t));
+  weights_indices.data.resize(weights_indices.shape.DimensionsProduct());
   const std::vector<int2> possible_positions = {{0, 1}, {0, 2}, {0, 3},
                                                 {1, 2}, {1, 3}, {2, 3}};
   for (int i = 0; i < weights_indices.shape.DimensionsProduct() / 2; ++i) {
@@ -541,8 +538,7 @@ absl::Status FullyConnectedExternalWeightsBigTest(
   const int dst_channels = 17;
   FullyConnectedAttributes attr;
   attr.weights = MakeSyntheticTensor(OHWI(dst_channels, 1, 1, src_channels));
-  attr.weights.data.resize(attr.weights.shape.DimensionsProduct() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr.weights.data.resize(attr.weights.shape.DimensionsProduct());
   attr.bias = MakeSyntheticTensor(Linear(dst_channels));
 
   auto src_shape = BHWC(1, 1, 1, src_channels);
@@ -569,8 +565,7 @@ absl::Status FullyConnectedRuntimeChWfloatTest(
   constexpr int kExtraRuntimeChannels = 4;
   FullyConnectedAttributes attr;
   attr.weights = MakeSyntheticTensor(OHWI(dst_channels, 1, 1, src_channels));
-  attr.weights.data.resize(attr.weights.shape.DimensionsProduct() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr.weights.data.resize(attr.weights.shape.DimensionsProduct());
   attr.bias = MakeSyntheticTensor(Linear(dst_channels));
 
   auto src_shape = BHWC(1, 1, 1, src_channels);
@@ -604,8 +599,7 @@ absl::Status FullyConnectedBatchedWeightsBigTest(
   const int dst_channels = 17;
   FullyConnectedAttributes attr;
   attr.weights = MakeSyntheticTensor(OHWI(dst_channels, 4, 1, src_channels));
-  attr.weights.data.resize(attr.weights.shape.DimensionsProduct() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr.weights.data.resize(attr.weights.shape.DimensionsProduct());
   attr.bias = MakeZeroTensor(Linear(dst_channels));
 
   auto src_shape = BHWC(1, 4, 2, src_channels);
@@ -637,8 +631,7 @@ absl::Status FullyConnectedRingedOTest(TestExecutionEnvironment& env,
     FullyConnectedAttributes attr;
     attr.weights = MakeSyntheticTensor(
         OHWI(weights_o_size, weights_batch, 1, src_channels));
-    attr.weights.data.resize(attr.weights.shape.DimensionsProduct() +
-                             XNN_EXTRA_BYTES / sizeof(float));
+    attr.weights.data.resize(attr.weights.shape.DimensionsProduct());
     attr.bias = MakeZeroTensor(Linear(dst_channels));
 
     auto src_shape = BHWC(1, weights_batch, 1, src_channels);
@@ -745,8 +738,7 @@ absl::Status FullyConnectedRingedITest(TestExecutionEnvironment& env,
     FullyConnectedAttributes attr;
     attr.weights = MakeSyntheticTensor(
         OHWI(dst_channels, weights_batch, 1, weights_i_size));
-    attr.weights.data.resize(attr.weights.shape.DimensionsProduct() +
-                             XNN_EXTRA_BYTES / sizeof(float));
+    attr.weights.data.resize(attr.weights.shape.DimensionsProduct());
     attr.bias = MakeZeroTensor(Linear(dst_channels));
 
     auto src_shape = BHWC(1, weights_batch, 1, src_channels);
@@ -2494,8 +2486,7 @@ absl::Status FullyConnectedPackedGroupsTest(TestExecutionEnvironment& env,
 
   Tensor<OHWI, DataType::kFloat32> weights = MakeSyntheticTensor(
       OHWI(dst_channels, weights_batch_size, 1, src_channels));
-  weights.data.resize(weights.shape.DimensionsProduct() +
-                      XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights.shape.DimensionsProduct());
 
   TensorFloat32 src_tensor =
       MakeSyntheticTensor(BHWC(1, 1, width, src_channels));

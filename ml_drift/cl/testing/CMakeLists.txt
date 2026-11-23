@@ -57,7 +57,6 @@ target_link_libraries(mld_cl_testing_perf_util
     mld_common_types
     mld_common_util
     mld_common_winograd_util
-    XNNPACK
 )
 
 add_executable(operation_perf_test

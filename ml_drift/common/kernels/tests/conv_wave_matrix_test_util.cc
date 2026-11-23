@@ -24,7 +24,6 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/status_matchers.h"
-#include "xnnpack.h"  // from @XNNPACK
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
 #include "absl/types/span.h"
@@ -70,8 +69,7 @@ absl::Status ConvWaveMatrix1x1Test(TestExecutionEnvironment& env,
   auto& attr_weights =
       attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(dst_shape.c, 1, 1, src_tensor.shape.c);
-  attr_weights.data.resize(attr_weights.shape.DimensionsProduct() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr_weights.data.resize(attr_weights.shape.DimensionsProduct());
   for (int i = 0; i < attr_weights.data.size(); ++i) {
     attr_weights.data[i] = std::sin(0.1f * i);
   }
@@ -121,8 +119,7 @@ absl::Status ConvWaveMatrixTest(TestExecutionEnvironment& env,
   auto& attr_weights =
       attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(dst_ch, 2, 3, src_tensor.shape.c);
-  attr_weights.data.resize(attr_weights.shape.DimensionsProduct() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr_weights.data.resize(attr_weights.shape.DimensionsProduct());
   for (int i = 0; i < attr_weights.data.size(); ++i) {
     attr_weights.data[i] = sin(0.1f * i);
   }
@@ -172,8 +169,7 @@ absl::Status ConvWaveMatrix1x1BatchTest(TestExecutionEnvironment& env,
   auto& attr_weights =
       attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(dst_shape.c, 1, 1, src_tensor.shape.c);
-  attr_weights.data.resize(attr_weights.shape.DimensionsProduct() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr_weights.data.resize(attr_weights.shape.DimensionsProduct());
   for (int i = 0; i < attr_weights.data.size(); ++i) {
     attr_weights.data[i] = sin(0.1f * i);
   }
@@ -223,8 +219,7 @@ absl::Status ConvWaveMatrix1x1ExternalWeightsTest(
   auto& attr_weights =
       attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(dst_ch, 1, 1, src_tensor.shape.c);
-  attr_weights.data.resize(attr_weights.shape.DimensionsProduct() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr_weights.data.resize(attr_weights.shape.DimensionsProduct());
   for (int i = 0; i < attr_weights.data.size(); ++i) {
     attr_weights.data[i] = sin(0.1f * i);
   }
@@ -297,8 +292,7 @@ absl::Status ConvWaveMatrixExternalWeightsTest(TestExecutionEnvironment& env,
   auto& attr_weights =
       attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(dst_ch, 2, 3, src_tensor.shape.c);
-  attr_weights.data.resize(attr_weights.shape.DimensionsProduct() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr_weights.data.resize(attr_weights.shape.DimensionsProduct());
   for (int i = 0; i < attr_weights.data.size(); ++i) {
     attr_weights.data[i] = sin(0.1f * i);
   }
@@ -375,8 +369,7 @@ absl::Status ConvWaveMatrixExternalBatchedWeightsTest(
 
   Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = attr_weights.shape;
-  weights.data.resize(weights.shape.DimensionsProduct() +
-                      XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights.shape.DimensionsProduct());
   for (int i = 0; i < weights.data.size(); ++i) {
     weights.data[i] = sin(0.1f * i);
   }
@@ -432,8 +425,7 @@ absl::Status ConvWaveMatrixPackedGroupsTest(TestExecutionEnvironment& env,
 
   Tensor<OHWI, DataType::kFloat32> weights = MakeSyntheticTensor(
       OHWI(dst_channels, weights_batch_size, 1, src_shape.c));
-  weights.data.resize(weights.shape.DimensionsProduct() +
-                      XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights.shape.DimensionsProduct());
 
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
   TensorInt32 group_ids = GenerateGroupIds(
@@ -539,8 +531,7 @@ absl::Status ConvWaveMatrixExternalWfloatTest(TestExecutionEnvironment& env,
   const int weights_batch_size = batched_weights ? src_shape.h : 1;
   auto weights_f32 = MakeSyntheticTensor(
       OHWI(dst_channels, weights_batch_size, 1, src_channels));
-  weights_f32.data.resize(weights_f32.shape.DimensionsProduct() +
-                          XNN_EXTRA_BYTES / sizeof(float));
+  weights_f32.data.resize(weights_f32.shape.DimensionsProduct());
   TensorFloat32 dst_ref_tensor =
       FullyConnectedRefDifferentWeightsForHeight(weights_f32, src_tensor);
 
@@ -1037,8 +1028,7 @@ absl::Status ConvWaveMatrixRuntimeChannelsTest(
     const TestingRuntimeChannels& runtime_channels) {
   auto& attr_weights =
       std::get<ml_drift::Tensor<OHWI, DataType::kFloat32>>(attr.weights);
-  attr_weights.data.resize(attr_weights.data.size() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr_weights.data.resize(attr_weights.data.size());
   TestingRuntimeChannels aligned_runtime_channels =
       runtime_channels.GenerateAlignedRuntimeChannels();
   TensorFloat32 dst_ref_tensor =
@@ -1248,8 +1238,7 @@ absl::Status ConvWaveMatrixInt8Test(TestExecutionEnvironment& env,
       MakeSyntheticTensor(OHWI(dst_channels, 1, 1, src_channels));
   ml_drift::Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(dst_channels, 1, 1, src_channels);
-  weights_i8.data.resize(weights_i8.shape.DimensionsProduct() +
-                         XNN_EXTRA_BYTES / sizeof(int8_t));
+  weights_i8.data.resize(weights_i8.shape.DimensionsProduct());
   for (int i = 0; i < weights_f32.data.size(); ++i) {
     weights_i8.data[i] = weights_f32.data[i] * 127.0f;
   }
@@ -1373,8 +1362,7 @@ absl::Status ConvWaveMatrixInt8ExternalWeightsTest(
       MakeSyntheticTensor(OHWI(dst_channels, 1, 1, src_channels));
   ml_drift::Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(dst_channels, 1, 1, src_channels);
-  weights_i8.data.resize(weights_i8.shape.DimensionsProduct() +
-                         XNN_EXTRA_BYTES / sizeof(int8_t));
+  weights_i8.data.resize(weights_i8.shape.DimensionsProduct());
   for (int i = 0; i < weights_f32.data.size(); ++i) {
     weights_i8.data[i] = weights_f32.data[i] * 127.0f;
   }
@@ -1526,8 +1514,7 @@ absl::Status ConvWaveMatrixInt8WithSrcQuantizationTest(
       MakeSyntheticTensor(OHWI(dst_channels, 1, 1, src_channels));
   ml_drift::Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(dst_channels, 1, 1, src_channels);
-  weights_i8.data.resize(weights_i8.shape.DimensionsProduct() +
-                         XNN_EXTRA_BYTES / sizeof(int8_t));
+  weights_i8.data.resize(weights_i8.shape.DimensionsProduct());
   for (int i = 0; i < weights_f32.data.size(); ++i) {
     weights_i8.data[i] = weights_f32.data[i] * 127.0f;
   }

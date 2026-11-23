@@ -22,7 +22,6 @@
 #include <utility>
 #include <variant>
 
-#include "xnnpack.h"  // from @XNNPACK
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
 #include "absl/time/time.h"
@@ -165,8 +164,7 @@ absl::Status ConvolutionPerfTest(CalculationsPrecision precision,
   auto& attr_weights = attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape =
       OHWI(dst_channels, kernel_size.h, kernel_size.w, src_shape.c);
-  attr_weights.data.resize(attr_weights.shape.DimensionsProduct() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr_weights.data.resize(attr_weights.shape.DimensionsProduct());
   attr.bias.shape = Linear(dst_channels);
   attr.bias.data.resize(attr.bias.shape.DimensionsProduct());
 

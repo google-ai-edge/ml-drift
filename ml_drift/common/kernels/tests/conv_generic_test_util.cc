@@ -26,7 +26,6 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/status_matchers.h"
-#include "xnnpack.h"  // from @XNNPACK
 #include "absl/log/absl_log.h"
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
@@ -70,8 +69,7 @@ absl::Status ConvGeneric1x1SimpleWeightsTest(TestExecutionEnvironment& env,
       attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(2, 1, 1, 2);
   attr_weights.data = {1.0f, 1.0f, 1.0f, 1.0f};
-  attr_weights.data.resize(attr_weights.data.size() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr_weights.data.resize(attr_weights.data.size());
   attr.bias.shape = Linear(1);
   attr.bias.data = {0.0f};
 
@@ -108,8 +106,7 @@ absl::Status ConvGeneric1x1Test(TestExecutionEnvironment& env,
       attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(2, 1, 1, 2);
   attr_weights.data = {1.0f, 2.0f, 3.0f, 4.0f};
-  attr_weights.data.resize(attr_weights.data.size() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr_weights.data.resize(attr_weights.data.size());
   attr.bias.shape = Linear(2);
   attr.bias.data = {0.5f, -0.5f};
 
@@ -146,8 +143,7 @@ absl::Status ConvGenericSimpleWeightsTest(TestExecutionEnvironment& env,
       attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(1, 2, 2, 2);
   attr_weights.data = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
-  attr_weights.data.resize(attr_weights.data.size() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr_weights.data.resize(attr_weights.data.size());
   attr.bias.shape = Linear(1);
   attr.bias.data = {0.0f};
 
@@ -184,8 +180,7 @@ absl::Status ConvGenericTest(TestExecutionEnvironment& env,
   attr_weights.shape = OHWI(2, 2, 2, 2);
   attr_weights.data = {1.0f, 2.0f,  3.0f,  4.0f,  5.0f,  6.0f,  7.0f,  8.0f,
                        9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f};
-  attr_weights.data.resize(attr_weights.data.size() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr_weights.data.resize(attr_weights.data.size());
   attr.bias.shape = Linear(2);
   attr.bias.data = {0.5f, -0.5f};
 
@@ -226,8 +221,7 @@ absl::Status ConvGenericGroupedTest(TestExecutionEnvironment& env,
                        9.0f,  10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f,
                        17.0f, 18.0f, 19.0f, 20.0f, 21.0f, 22.0f, 23.0f, 24.0f,
                        25.0f, 26.0f, 27.0f, 28.0f, 29.0f, 30.0f, 31.0f, 32.0f};
-  attr_weights.data.resize(attr_weights.data.size() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr_weights.data.resize(attr_weights.data.size());
   attr.bias.shape = Linear(8);
   attr.bias.data = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 
@@ -262,8 +256,7 @@ absl::Status ConvGenericWinograd3x3TileNxNTest(TestExecutionEnvironment& env,
   auto& attr_weights =
       attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(dst_channels, 3, 3, src_channels);
-  attr_weights.data.resize(attr_weights.shape.DimensionsProduct() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr_weights.data.resize(attr_weights.shape.DimensionsProduct());
   for (int i = 0; i < attr_weights.data.size(); ++i) {
     attr_weights.data[i] = sin(i);
   }
@@ -387,8 +380,7 @@ absl::Status ConvGeneric1x1Int8SymmetricTest(TestExecutionEnvironment& env,
   ml_drift::Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(2, 1, 1, 2);
   weights_i8.data = {8, 9, -3, 5};
-  weights_i8.data.resize(weights_i8.data.size() +
-                         XNN_EXTRA_BYTES / sizeof(int8_t));
+  weights_i8.data.resize(weights_i8.data.size());
 
   const PackedType quantized_type =
       GetConvGenericInt8SrcType(env.GetGpuInfo(), src_tensor_i8.shape);
@@ -454,8 +446,7 @@ absl::Status ConvGeneric1x1BigTest(TestExecutionEnvironment& env,
       MakeSyntheticTensor(OHWI(dst_channels, 1, 1, src_channels));
   auto& attr_weights = attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>(
       std::move(synthetic_weights));
-  attr_weights.data.resize(attr_weights.data.size() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr_weights.data.resize(attr_weights.data.size());
   attr.bias = MakeSyntheticTensor(Linear(dst_channels));
 
   auto src_shape = BHWC(1, 12, 16, src_channels);
@@ -484,8 +475,7 @@ absl::Status ConvGeneric1x1BatchedBigTest(TestExecutionEnvironment& env,
       MakeSyntheticTensor(OHWI(dst_channels, 1, 1, src_channels));
   auto& attr_weights = attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>(
       std::move(synthetic_weights));
-  attr_weights.data.resize(attr_weights.data.size() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr_weights.data.resize(attr_weights.data.size());
   attr.bias = MakeSyntheticTensor(Linear(dst_channels));
 
   auto src_shape = BHWC(7, 12, 16, src_channels);
@@ -514,8 +504,7 @@ absl::Status ConvGenericBigTest(TestExecutionEnvironment& env,
       MakeSyntheticTensor(OHWI(dst_channels, 2, 3, src_channels));
   auto& attr_weights = attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>(
       std::move(synthetic_weights));
-  attr_weights.data.resize(attr_weights.data.size() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr_weights.data.resize(attr_weights.data.size());
   attr.bias = MakeSyntheticTensor(Linear(dst_channels));
 
   auto src_shape = BHWC(1, 15, 12, src_channels);
@@ -544,8 +533,7 @@ absl::Status ConvGenericBatchedBigTest(TestExecutionEnvironment& env,
       MakeSyntheticTensor(OHWI(dst_channels, 2, 3, src_channels));
   auto& attr_weights = attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>(
       std::move(synthetic_weights));
-  attr_weights.data.resize(attr_weights.data.size() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr_weights.data.resize(attr_weights.data.size());
   attr.bias = MakeSyntheticTensor(Linear(dst_channels));
 
   auto src_shape = BHWC(3, 15, 12, src_channels);
@@ -575,8 +563,7 @@ absl::Status ConvGenericGroupedBigTest(TestExecutionEnvironment& env,
       MakeSyntheticTensor(OHWI(dst_channels, 2, 3, src_channels / attr.groups));
   auto& attr_weights = attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>(
       std::move(synthetic_weights));
-  attr_weights.data.resize(attr_weights.data.size() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr_weights.data.resize(attr_weights.data.size());
   attr.bias = MakeSyntheticTensor(Linear(dst_channels));
 
   auto src_shape = BHWC(1, 15, 12, src_channels);
@@ -601,8 +588,7 @@ absl::Status ConvGenericPackedGroupsTest(TestExecutionEnvironment& env,
 
   Tensor<OHWI, DataType::kFloat32> weights = MakeSyntheticTensor(
       OHWI(dst_channels, weights_batch_size, 1, src_shape.c));
-  weights.data.resize(weights.shape.DimensionsProduct() +
-                      XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights.shape.DimensionsProduct());
 
   TensorFloat32 src_tensor = MakeSyntheticTensor(src_shape);
   TensorInt32 group_ids = GenerateGroupIds(
@@ -705,8 +691,7 @@ absl::Status ConvGenericExternalWfloatTest(TestExecutionEnvironment& env,
   const int weights_batch_size = batched_weights ? src_shape.h : 1;
   auto weights_f32 = MakeSyntheticTensor(
       OHWI(dst_channels, weights_batch_size, 1, src_channels));
-  weights_f32.data.resize(weights_f32.data.size() +
-                          XNN_EXTRA_BYTES / sizeof(float));
+  weights_f32.data.resize(weights_f32.data.size());
 
   TensorFloat32 dst_ref_tensor =
       FullyConnectedRefDifferentWeightsForHeight(weights_f32, src_tensor);
@@ -1037,8 +1022,7 @@ absl::Status ConvGeneric3DTest(TestExecutionEnvironment& exec_env,
                                const Tensor5DFloat32& src_tensor,
                                const OperationDef& op_def,
                                CalculationsPrecision precision) {
-  attr.weights.data.resize(attr.weights.data.size() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr.weights.data.resize(attr.weights.data.size());
   Tensor5DFloat32 dst_ref_tensor = ConvolutionReference(attr, src_tensor);
 
   auto operation = CreateConvGeneric3D(exec_env.GetGpuInfo(), op_def, precision,
@@ -1302,8 +1286,7 @@ absl::Status ConvGenericInt8BigTest(TestExecutionEnvironment& env,
       MakeSyntheticTensor(OHWI(dst_channels, 1, 1, src_channels));
   ml_drift::Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(dst_channels, 1, 1, src_channels);
-  weights_i8.data.resize(weights_i8.shape.DimensionsProduct() +
-                         XNN_EXTRA_BYTES / sizeof(int8_t));
+  weights_i8.data.resize(weights_i8.shape.DimensionsProduct());
   for (int i = 0; i < weights_i8.shape.DimensionsProduct(); ++i) {
     weights_i8.data[i] = weights_f32.data[i] * 127.0f;
   }
@@ -1562,8 +1545,7 @@ absl::Status ConvGenericInt8ExternalWeightsBigTest(
       MakeSyntheticTensor(OHWI(dst_channels, 1, 1, src_channels));
   ml_drift::Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(dst_channels, 1, 1, src_channels);
-  weights_i8.data.resize(weights_i8.shape.DimensionsProduct() +
-                         XNN_EXTRA_BYTES / sizeof(int8_t));
+  weights_i8.data.resize(weights_i8.shape.DimensionsProduct());
   for (int i = 0; i < weights_i8.shape.DimensionsProduct(); ++i) {
     weights_i8.data[i] = weights_f32.data[i] * 127.0f;
   }
@@ -1770,8 +1752,7 @@ absl::Status ConvGenericInt8WithSrcQuantizationBigTest(
       MakeSyntheticTensor(OHWI(dst_channels, 1, 1, src_channels));
   ml_drift::Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(dst_channels, 1, 1, src_channels);
-  weights_i8.data.resize(weights_i8.shape.DimensionsProduct() +
-                         XNN_EXTRA_BYTES / sizeof(int8_t));
+  weights_i8.data.resize(weights_i8.shape.DimensionsProduct());
   for (int i = 0; i < weights_i8.shape.DimensionsProduct(); ++i) {
     weights_i8.data[i] = weights_f32.data[i] * 127.0f;
   }
@@ -1919,8 +1900,7 @@ absl::Status ConvGenericInt4BigTest(TestExecutionEnvironment& env,
   auto weights_f32 = MakeSyntheticTensor(OHWI(dst_channels, 1, 1, src_shape.c));
   ml_drift::Tensor<OHWI, DataType::kInt8> weights_i4;
   weights_i4.shape = OHWI(dst_channels, 1, 1, src_shape.c);
-  weights_i4.data.resize(weights_i4.shape.DimensionsProduct() +
-                         XNN_EXTRA_BYTES / sizeof(int8_t));
+  weights_i4.data.resize(weights_i4.shape.DimensionsProduct());
   for (int i = 0; i < weights_i4.data.size(); ++i) {
     weights_i4.data[i] = weights_f32.data[i] * 7.0f;
   }
@@ -2058,8 +2038,7 @@ absl::Status ConvGenericInt4ExternalWeightsBigTest(
   auto weights_f32 = MakeSyntheticTensor(OHWI(dst_channels, 1, 1, src_shape.c));
   ml_drift::Tensor<OHWI, DataType::kInt8> weights_i4;
   weights_i4.shape = OHWI(dst_channels, 1, 1, src_shape.c);
-  weights_i4.data.resize(weights_i4.shape.DimensionsProduct() +
-                         XNN_EXTRA_BYTES / sizeof(int8_t));
+  weights_i4.data.resize(weights_i4.shape.DimensionsProduct());
   for (int i = 0; i < weights_i4.data.size(); ++i) {
     weights_i4.data[i] = weights_f32.data[i] * 7.0f;
   }
@@ -2213,8 +2192,7 @@ absl::Status ConvGenericInt4WithSrcQuantizationBigTest(
   auto weights_f32 = MakeSyntheticTensor(OHWI(dst_channels, 1, 1, src_shape.c));
   ml_drift::Tensor<OHWI, DataType::kInt8> weights_i4;
   weights_i4.shape = OHWI(dst_channels, 1, 1, src_shape.c);
-  weights_i4.data.resize(weights_i4.shape.DimensionsProduct() +
-                         XNN_EXTRA_BYTES / sizeof(int8_t));
+  weights_i4.data.resize(weights_i4.shape.DimensionsProduct());
   for (int i = 0; i < weights_i4.data.size(); ++i) {
     const int val = (weights_f32.data[i] + 1.0f) * 16.0f;
     weights_i4.data[i] = std::max(std::min(val, 15), 0) - 8;

@@ -39,7 +39,7 @@ TEST(DequantizeTensorTest, DequantizeINT8) {
   Tensor<OHWI, DataType::kInt8> q_tensor;
   q_tensor.shape = OHWI(1, 2, 2, 1);
   q_tensor.data = {1, 2, 3, 4};
-  auto result = DequantizeTensor(q_tensor, scale, zero_point, false);
+  auto result = DequantizeTensor(q_tensor, scale, zero_point);
   EXPECT_THAT(result.data, Pointwise(FloatNear(1e-5),
                                      std::vector<float>{0.0, 2.0, 4.0, 6.0}));
 }
@@ -55,7 +55,7 @@ TEST(DequantizeTensorTest, DequantizeINT4) {
   q_tensor.shape = OHWI(1, 2, 2, 1);
   q_tensor.data.push_back(0x21);
   q_tensor.data.push_back(0x43);
-  auto result = DequantizeTensor(q_tensor, scale, zero_point, false);
+  auto result = DequantizeTensor(q_tensor, scale, zero_point);
   EXPECT_THAT(result.data, Pointwise(FloatNear(1e-5),
                                      std::vector<float>{0.0, 2.0, 4.0, 6.0}));
 }
@@ -70,7 +70,7 @@ TEST(DequantizeTensorTest, DequantizePerChannelINT8) {
   Tensor<OHWI, DataType::kInt32> zero_point;
   zero_point.shape = OHWI(2, 1, 1, 1);
   zero_point.data = {1, 2};
-  auto result = DequantizeTensor(q_tensor, scale, zero_point, false);
+  auto result = DequantizeTensor(q_tensor, scale, zero_point);
   EXPECT_THAT(result.data, Pointwise(FloatNear(1e-5),
                                      std::vector<float>{0.0, 2.0, 3.0, 6.0}));
 }
@@ -86,7 +86,7 @@ TEST(DequantizeTensorTest, DequantizePerChannelINT4) {
   Tensor<OHWI, DataType::kInt32> zero_point;
   zero_point.shape = OHWI(2, 1, 1, 1);
   zero_point.data = {1, 2};
-  auto result = DequantizeTensor(q_tensor, scale, zero_point, false);
+  auto result = DequantizeTensor(q_tensor, scale, zero_point);
   EXPECT_THAT(result.data, Pointwise(FloatNear(1e-5),
                                      std::vector<float>{0.0, 2.0, 3.0, 6.0}));
 }
@@ -101,7 +101,7 @@ TEST(DequantizeTensorTest, DequantizePerChannelScalePerTensorZeroPointINT8) {
   Tensor<OHWI, DataType::kInt32> zero_point;
   zero_point.shape = OHWI(1, 1, 1, 1);  // Per-tensor zero point
   zero_point.data = {1};
-  auto result = DequantizeTensor(q_tensor, scale, zero_point, false);
+  auto result = DequantizeTensor(q_tensor, scale, zero_point);
   // Channel 0: (1-1)*2.0=0.0, (2-1)*2.0=2.0
   // Channel 1: (3-1)*3.0=6.0, (4-1)*3.0=9.0
   EXPECT_THAT(result.data, Pointwise(FloatNear(1e-5),
@@ -119,7 +119,7 @@ TEST(DequantizeTensorTest, DequantizePerChannelScalePerTensorZeroPointINT4) {
   Tensor<OHWI, DataType::kInt32> zero_point;
   zero_point.shape = OHWI(1, 1, 1, 1);  // Per-tensor zero point
   zero_point.data = {1};
-  auto result = DequantizeTensor(q_tensor, scale, zero_point, false);
+  auto result = DequantizeTensor(q_tensor, scale, zero_point);
   // Channel 0: (1-1)*2.0=0.0, (2-1)*2.0=2.0
   // Channel 1: (3-1)*3.0=6.0, (4-1)*3.0=9.0
   EXPECT_THAT(result.data, Pointwise(FloatNear(1e-5),
@@ -137,7 +137,7 @@ TEST(DequantizeTensorTest, DequantizeINT4OddElements) {
   q_tensor.shape = OHWI(1, 1, 3, 1);  // 3 elements
   q_tensor.data.push_back(0x21);      // Unpacks to {1, 2}
   q_tensor.data.push_back(0x03);      // Unpacks to {3}
-  auto result = DequantizeTensor(q_tensor, scale, zero_point, false);
+  auto result = DequantizeTensor(q_tensor, scale, zero_point);
   // (1-1)*2.0=0.0, (2-1)*2.0=2.0, (3-1)*2.0=4.0
   EXPECT_THAT(result.data,
               Pointwise(FloatNear(1e-5), std::vector<float>{0.0, 2.0, 4.0}));
@@ -153,7 +153,7 @@ TEST(DequantizeTensorTest, DequantizeINT2) {
   Tensor<OHWI, DataType::kInt2> q_tensor;
   q_tensor.shape = OHWI(1, 4, 1, 1);  // 4 elements
   q_tensor.data.push_back(0xE4);      // {0, 1, -2, -1}
-  auto result = DequantizeTensor(q_tensor, scale, zero_point, false);
+  auto result = DequantizeTensor(q_tensor, scale, zero_point);
   EXPECT_THAT(
       result.data,
       Pointwise(FloatNear(1e-5), std::vector<float>{-2.0, 0.0, -6.0, -4.0}));

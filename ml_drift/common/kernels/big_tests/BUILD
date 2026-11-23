@@ -46,7 +46,6 @@ cc_test(
         "//ml_drift/common/task:testing_ref_ops",
         "//ml_drift/common/task:testing_util",
         "//ml_drift/common/task:weights_conversion",
-        "@XNNPACK",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:status_macros",
         "@com_google_absl//absl/status:status_matchers",

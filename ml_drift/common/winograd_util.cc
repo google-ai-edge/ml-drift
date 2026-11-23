@@ -19,7 +19,6 @@
 #include <variant>
 #include <vector>
 
-#include "xnnpack.h"  // from @XNNPACK
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/common/operations.h"
@@ -157,8 +156,7 @@ void RearrangeWeightsToWinograd3x3TileNxN(
   dst_shape.w = tile_size;
   dst_shape.i = src_weights.shape.i;
   dst_weights->shape = dst_shape;
-  dst_weights->data.resize(dst_shape.DimensionsProduct() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  dst_weights->data.resize(dst_shape.DimensionsProduct());
   const int stride = src_weights.shape.i;
 
   auto g_t = GetTransposedMatrixForWinograd3(tile_size);

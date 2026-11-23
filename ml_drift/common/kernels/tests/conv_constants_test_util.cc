@@ -19,7 +19,6 @@
 #include <vector>
 
 #include "gmock/gmock.h"
-#include "xnnpack.h"  // from @XNNPACK
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
 #include "ml_drift/common/data_type.h"
@@ -54,7 +53,7 @@ absl::Status ConvConstantsSimpleWeightsTest(TestExecutionEnvironment& env,
   auto& weights = attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
   weights.shape = OHWI(1, 2, 2, 2);
   weights.data = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
-  weights.data.resize(weights.data.size() + XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights.data.size());
   attr.bias.shape = Linear(1);
   attr.bias.data = {0.0f};
 
@@ -90,7 +89,7 @@ absl::Status ConvConstantsTest(TestExecutionEnvironment& env,
   weights.shape = OHWI(2, 2, 2, 2);
   weights.data = {1.0f, 2.0f,  3.0f,  4.0f,  5.0f,  6.0f,  7.0f,  8.0f,
                   9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f};
-  weights.data.resize(weights.data.size() + XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights.data.size());
   attr.bias.shape = Linear(2);
   attr.bias.data = {0.5f, -0.5f};
 
@@ -145,7 +144,7 @@ absl::Status ConvConstantsBatchedBigTest(TestExecutionEnvironment& env,
       MakeSyntheticTensor(OHWI(dst_channels, 3, 2, src_channels));
   auto& weights = attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>(
       std::move(synthetic_tensor));
-  weights.data.resize(weights.data.size() + XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights.data.size());
   attr.bias = MakeSyntheticTensor(Linear(dst_channels));
 
   auto src_shape = BHWC(7, 7, 5, src_channels);
@@ -173,7 +172,7 @@ absl::Status ConvConstantsBigTest(TestExecutionEnvironment& env,
       MakeSyntheticTensor(OHWI(dst_channel, 2, 3, src_channel));
   auto& weights = attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>(
       std::move(synthetic_tensor));
-  weights.data.resize(weights.data.size() + XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights.data.size());
   attr.bias = MakeSyntheticTensor(Linear(dst_channel));
 
   auto src_shape = BHWC(1, 17, 23, src_channel);
@@ -205,7 +204,7 @@ absl::Status ConvConstantsExternalWeightsBigTest(
       MakeSyntheticTensor(OHWI(dst_ch, 3, 2, src_tensor.shape.c));
   auto& weights = attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>(
       std::move(synthetic_tensor));
-  weights.data.resize(weights.data.size() + XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights.data.size());
   attr.bias = MakeSyntheticTensor(Linear(dst_ch));
 
   TensorFloat32 dst_ref_tensor = ConvolutionReference(attr, src_tensor);

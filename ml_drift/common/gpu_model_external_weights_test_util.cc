@@ -23,7 +23,6 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/status_matchers.h"
-#include "xnnpack.h"  // from @XNNPACK
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
 #include "absl/types/span.h"
@@ -69,8 +68,7 @@ absl::Status TestDynamicConvolution(TestExecutionEnvironment* env) {
     conv_attr.strides = HW(1, 1);
     conv_attr.dilations = HW(1, 1);
     attr_weights.shape = OHWI(output_shape.c, 1, 1, input_shape.c);
-    attr_weights.data.resize(attr_weights.shape.DimensionsProduct() +
-                             XNN_EXTRA_BYTES / sizeof(float));
+    attr_weights.data.resize(attr_weights.shape.DimensionsProduct());
     for (int i = 0; i < attr_weights.shape.DimensionsProduct(); ++i) {
       attr_weights.data[i] = std::sin(i * 0.12345f);
     }
@@ -175,8 +173,7 @@ absl::Status TestExternalConvWeights(TestExecutionEnvironment* env) {
     auto& attr_weights =
         conv_attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
     attr_weights.shape = OHWI(kDstChannels, 1, 1, src_shape.c);
-    attr_weights.data.resize(attr_weights.shape.DimensionsProduct() +
-                             XNN_EXTRA_BYTES / sizeof(float));
+    attr_weights.data.resize(attr_weights.shape.DimensionsProduct());
     for (int i = 0; i < attr_weights.data.size(); ++i) {
       attr_weights.data[i] = std::sin(i * 0.12345f);
     }
@@ -270,8 +267,7 @@ absl::Status TestFullyConnected(TestExecutionEnvironment* env,
   auto src_th = model_builder.AddTensor(src_shape, float_type);
   FullyConnectedAttributes fc_attr;
   fc_attr.weights.shape = OHWI(16, 1, 1, 16);
-  fc_attr.weights.data.resize(fc_attr.weights.shape.DimensionsProduct() +
-                              XNN_EXTRA_BYTES / sizeof(float));
+  fc_attr.weights.data.resize(fc_attr.weights.shape.DimensionsProduct());
   for (int i = 0; i < fc_attr.weights.data.size(); ++i) {
     fc_attr.weights.data[i] = std::sin(i * 0.12345f);
   }

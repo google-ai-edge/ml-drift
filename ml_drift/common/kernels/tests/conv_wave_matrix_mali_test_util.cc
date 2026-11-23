@@ -22,7 +22,6 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/status_matchers.h"
-#include "xnnpack.h"  // from @XNNPACK
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
 #include "absl/types/span.h"
@@ -89,8 +88,7 @@ absl::Status ConvWaveMatrixMaliInt8BigTest(TestExecutionEnvironment& env,
       MakeSyntheticTensor(OHWI(dst_channels, 1, 1, src_channels));
   ml_drift::Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(dst_channels, 1, 1, src_channels);
-  weights_i8.data.resize(weights_i8.shape.DimensionsProduct() +
-                         +XNN_EXTRA_BYTES / sizeof(uint8_t));
+  weights_i8.data.resize(weights_i8.shape.DimensionsProduct());
   for (int i = 0; i < weights_i8.shape.DimensionsProduct(); ++i) {
     weights_i8.data[i] = weights_f32.data[i] * 127.0f;
   }
@@ -174,8 +172,7 @@ absl::Status ConvWaveMatrixMaliInt8ExternalWeightsBigTest(
       MakeSyntheticTensor(OHWI(dst_channels, 1, 1, src_channels));
   ml_drift::Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(dst_channels, 1, 1, src_channels);
-  weights_i8.data.resize(weights_i8.shape.DimensionsProduct() +
-                         +XNN_EXTRA_BYTES / sizeof(uint8_t));
+  weights_i8.data.resize(weights_i8.shape.DimensionsProduct());
   for (int i = 0; i < weights_i8.shape.DimensionsProduct(); ++i) {
     weights_i8.data[i] = weights_f32.data[i] * 127.0f;
   }
@@ -321,8 +318,7 @@ absl::Status ConvWaveMatrixMaliInt8WithSrcQuantizationBigTest(
       MakeSyntheticTensor(OHWI(dst_channels, 1, 1, src_channels));
   ml_drift::Tensor<OHWI, DataType::kInt8> weights_i8;
   weights_i8.shape = OHWI(dst_channels, 1, 1, src_channels);
-  weights_i8.data.resize(weights_i8.shape.DimensionsProduct() +
-                         +XNN_EXTRA_BYTES / sizeof(uint8_t));
+  weights_i8.data.resize(weights_i8.shape.DimensionsProduct());
   for (int i = 0; i < weights_i8.shape.DimensionsProduct(); ++i) {
     weights_i8.data[i] = weights_f32.data[i] * 127.0f;
   }

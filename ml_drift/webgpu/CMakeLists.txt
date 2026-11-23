@@ -481,7 +481,6 @@ if(NOT CMAKE_CROSSCOMPILING)
       mld_webgpu_inference_context
       mld_webgpu_spatial_tensor
       mld_webgpu_webgpu_headers
-      XNNPACK
   )
 
   add_executable(preprocessor_test preprocessor_test.cc)

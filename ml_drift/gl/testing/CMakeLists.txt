@@ -40,7 +40,6 @@ target_link_libraries(mld_gl_testing_perf_util
     mld_gl_gl_spatial_tensor
     mld_gl_portable
     mld_gl_request_gpu_info
-    XNNPACK
 )
 
 add_library(mld_gl_testing_gl_test

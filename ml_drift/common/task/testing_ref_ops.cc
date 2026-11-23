@@ -24,7 +24,6 @@
 #include <variant>
 #include <vector>
 
-#include "xnnpack.h"  // from @XNNPACK
 #include "absl/log/absl_check.h"
 #include "absl/log/absl_log.h"
 #include "absl/status/status.h"
@@ -2699,8 +2698,7 @@ Tensor<OHWI, DataType::kFloat32> MakeWeightsFromInt8(
     const float weights_zero_point) {
   Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = weights_i8.shape;
-  weights.data.resize(weights.shape.DimensionsProduct() +
-                      XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights.shape.DimensionsProduct());
   for (int i = 0; i < weights.shape.i; ++i) {
     for (int o = 0; o < weights.shape.o; ++o) {
       weights.data[weights.shape.LinearIndex({o, 0, 0, i})] =
@@ -2718,8 +2716,7 @@ Tensor<OHWI, DataType::kFloat32> MakeWeightsFromInt8(
     const Tensor<OHWI, DataType::kFloat32>& weights_zero_point) {
   Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = weights_i8.shape;
-  weights.data.resize(weights.shape.DimensionsProduct() +
-                      XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights.shape.DimensionsProduct());
   int i_scale_group_size = weights.shape.i / weights_scale.shape.i;
   int o_scale_group_size = weights.shape.o / weights_scale.shape.o;
   for (int h = 0; h < weights.shape.h; ++h) {
@@ -2747,8 +2744,7 @@ Tensor<OHWI, DataType::kFloat32> MakeWeightsFromInt8(
     const Tensor<Linear, DataType::kFloat32>* weights_zero_point) {
   Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = weights_i8.shape;
-  weights.data.resize(weights.shape.DimensionsProduct() +
-                      XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights.shape.DimensionsProduct());
   for (int i = 0; i < weights.shape.i; ++i) {
     for (int o = 0; o < weights.shape.o; ++o) {
       float zero_point =

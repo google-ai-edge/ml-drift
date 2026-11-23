@@ -408,7 +408,6 @@ objc_library(
         "//ml_drift/common/task:testing_ref_ops",
         "//ml_drift/common/task:testing_util",
         "//third_party/apple_frameworks:Metal",
-        "@XNNPACK",
         "@com_google_absl//absl/random",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:status_macros",

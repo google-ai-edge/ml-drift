@@ -21,7 +21,6 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/status_matchers.h"
-#include "xnnpack.h"  // from @XNNPACK
 #include "absl/log/absl_check.h"
 #include "absl/status/status_macros.h"
 #include "absl/status/statusor.h"
@@ -285,8 +284,7 @@ TEST_F(InferenceContextTest, F16ModelWithF32PredefinedInput) {
   conv_attr.strides = HW(1, 1);
   conv_attr.dilations = HW(1, 1);
   attr_weights.shape = OHWI(output_shape.c, 1, 1, input_shape.c);
-  attr_weights.data.resize(attr_weights.shape.DimensionsProduct() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr_weights.data.resize(attr_weights.shape.DimensionsProduct());
   for (int i = 0; i < attr_weights.shape.DimensionsProduct(); ++i) {
     attr_weights.data[i] = 1.0f;
   }

@@ -28,7 +28,6 @@
 #include <utility>
 #include <vector>
 
-#include "xnnpack.h"  // from @XNNPACK
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_replace.h"
@@ -347,8 +346,7 @@ std::pair<Convolution2DAttributes, Convolution2DAttributes> SplitAttributes(
       attr0.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
   attr0_weights.shape = attributes_weights.shape;
   attr0_weights.shape.o /= 2;
-  attr0_weights.data.resize(attr0_weights.shape.DimensionsProduct() +
-                            XNN_EXTRA_BYTES / sizeof(float));
+  attr0_weights.data.resize(attr0_weights.shape.DimensionsProduct());
   std::memcpy(attr0_weights.data.data(), attributes_weights.data.data(),
               weights_size);
   attr0.bias.shape = Linear(attr0_weights.shape.o);
@@ -359,8 +357,7 @@ std::pair<Convolution2DAttributes, Convolution2DAttributes> SplitAttributes(
       attr1.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
   attr1_weights.shape = attributes_weights.shape;
   attr1_weights.shape.o /= 2;
-  attr1_weights.data.resize(attr1_weights.shape.DimensionsProduct() +
-                            XNN_EXTRA_BYTES / sizeof(float));
+  attr1_weights.data.resize(attr1_weights.shape.DimensionsProduct());
   std::memcpy(attr1_weights.data.data(),
               attributes_weights.data.data() +
                   attributes_weights.shape.DimensionsProduct() / 2,
@@ -529,7 +526,7 @@ std::vector<float> ConvertOihwFp16ToOhwiFp32(absl::Span<const half> fp16s,
   const int i_size = shape.i;
   const int hw_size = h_size * w_size;
   const int hwi_size = h_size * w_size * i_size;
-  fp32s.resize(shape.DimensionsProduct() + XNN_EXTRA_BYTES / sizeof(float));
+  fp32s.resize(shape.DimensionsProduct());
 #if defined(__ANDROID__) && defined(__aarch64__)
   float* ohwi = &fp32s[0];
   for (int o = 0; o < o_size; ++o) {

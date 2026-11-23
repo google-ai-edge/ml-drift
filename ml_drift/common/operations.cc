@@ -24,7 +24,6 @@
 #include <variant>
 #include <vector>
 
-#include "xnnpack.h"  // from @XNNPACK
 #include "absl/container/flat_hash_map.h"
 #include "absl/log/absl_check.h"
 #include "absl/log/absl_log.h"
@@ -957,8 +956,7 @@ BHWDC CalculateOutputShape(const BHWDC& input,
 FullyConnectedAttributes ToFloat32(const FullyConnectedInt8Attributes& qattr) {
   FullyConnectedAttributes dattr;
   dattr.weights.shape = qattr.weights.shape;
-  dattr.weights.data.resize(qattr.weights.shape.DimensionsProduct() +
-                            XNN_EXTRA_BYTES / sizeof(float));
+  dattr.weights.data.resize(qattr.weights.shape.DimensionsProduct());
   const int8_t* src = qattr.weights.Data();
   float* dst = &dattr.weights.data[0];
   const float* scales = qattr.scale.Data();
@@ -991,12 +989,10 @@ FullyConnectedAttributes ToFloat32(const FullyConnectedInt8Attributes& qattr) {
 Tensor<OHWI, DataType::kFloat32> DequantizeImpl(
     const OHWI& weights_ohwi_shape, const int8_t* input_data,
     const Tensor<OHWI, DataType::kFloat32>& scale,
-    const Tensor<OHWI, DataType::kInt32>& zero_point, bool add_extra_bytes) {
+    const Tensor<OHWI, DataType::kInt32>& zero_point) {
   Tensor<OHWI, DataType::kFloat32> flt_tensor;
   flt_tensor.shape = weights_ohwi_shape;
-  flt_tensor.data.resize(
-      weights_ohwi_shape.DimensionsProduct() +
-      (add_extra_bytes ? XNN_EXTRA_BYTES / sizeof(float) : 0));
+  flt_tensor.data.resize(weights_ohwi_shape.DimensionsProduct());
 
   auto runtime_shape =
       GetTensorShape({weights_ohwi_shape.o, weights_ohwi_shape.h,
@@ -1059,14 +1055,12 @@ FullyConnectedAttributes ToFloat32(const FullyConnectedInt4Attributes& qattr) {
                             unpacked_input_data.get());
     dattr.weights =
         DequantizeImpl(int4_weights.shape, unpacked_input_data.get(),
-                       qattr.scale, qattr.zero_point,
-                       /*add_extra_bytes=*/true);
+                       qattr.scale, qattr.zero_point);
   } else {
     const auto& int8_weights =
         std::get<Tensor<OHWI, DataType::kInt8>>(qattr.weights);
     dattr.weights = DequantizeImpl(int8_weights.shape, int8_weights.Data(),
-                                   qattr.scale, qattr.zero_point,
-                                   /*add_extra_bytes=*/true);
+                                   qattr.scale, qattr.zero_point);
   }
   dattr.bias = qattr.bias;
   dattr.op_name = qattr.op_name;
@@ -1084,14 +1078,12 @@ FullyConnectedAttributes ToFloat32(const FullyConnectedInt2Attributes& qattr) {
                             unpacked_input_data.get());
     dattr.weights =
         DequantizeImpl(int2_weights.shape, unpacked_input_data.get(),
-                       qattr.scale, qattr.zero_point,
-                       /*add_extra_bytes=*/true);
+                       qattr.scale, qattr.zero_point);
   } else {
     const auto& int8_weights =
         std::get<Tensor<OHWI, DataType::kInt8>>(qattr.weights);
     dattr.weights = DequantizeImpl(int8_weights.shape, int8_weights.Data(),
-                                   qattr.scale, qattr.zero_point,
-                                   /*add_extra_bytes=*/true);
+                                   qattr.scale, qattr.zero_point);
   }
   dattr.bias = qattr.bias;
   dattr.op_name = qattr.op_name;
@@ -1102,7 +1094,7 @@ template <DataType QuantizedT>
 Tensor<OHWI, DataType::kFloat32> DequantizeTensor(
     const Tensor<OHWI, QuantizedT>& weights,
     const Tensor<OHWI, DataType::kFloat32>& scale,
-    const Tensor<OHWI, DataType::kInt32>& zero_point, bool add_extra_bytes) {
+    const Tensor<OHWI, DataType::kInt32>& zero_point) {
   const int8_t* input_data;
   std::unique_ptr<int8_t[]> unpacked_input_data = nullptr;
   if constexpr (QuantizedT == DataType::kInt4) {
@@ -1123,8 +1115,7 @@ Tensor<OHWI, DataType::kFloat32> DequantizeTensor(
     ABSL_LOG(FATAL) << "Unsupported quantized type: " << ToString(QuantizedT);
   }
 
-  return DequantizeImpl(weights.shape, input_data, scale, zero_point,
-                        add_extra_bytes);
+  return DequantizeImpl(weights.shape, input_data, scale, zero_point);
 }
 
 Tensor<OHWI, DataType::kFloat32>& GetFloatWeights(
@@ -1156,17 +1147,17 @@ Tensor<OHWI, DataType::kFloat32>& GetFloatWeights(
 template Tensor<OHWI, DataType::kFloat32> DequantizeTensor<DataType::kInt8>(
     const Tensor<OHWI, DataType::kInt8>& weights,
     const Tensor<OHWI, DataType::kFloat32>& scale,
-    const Tensor<OHWI, DataType::kInt32>& zero_point, bool add_extra_bytes);
+    const Tensor<OHWI, DataType::kInt32>& zero_point);
 
 template Tensor<OHWI, DataType::kFloat32> DequantizeTensor<DataType::kInt4>(
     const Tensor<OHWI, DataType::kInt4>& weights,
     const Tensor<OHWI, DataType::kFloat32>& scale,
-    const Tensor<OHWI, DataType::kInt32>& zero_point, bool add_extra_bytes);
+    const Tensor<OHWI, DataType::kInt32>& zero_point);
 
 template Tensor<OHWI, DataType::kFloat32> DequantizeTensor<DataType::kInt2>(
     const Tensor<OHWI, DataType::kInt2>& weights,
     const Tensor<OHWI, DataType::kFloat32>& scale,
-    const Tensor<OHWI, DataType::kInt32>& zero_point, bool add_extra_bytes);
+    const Tensor<OHWI, DataType::kInt32>& zero_point);
 
 bool IsConvEquivalentToFullyConnected(const Convolution2DAttributes& attr) {
   const OHWI& weights_shape = attr.GetWeightsShape();

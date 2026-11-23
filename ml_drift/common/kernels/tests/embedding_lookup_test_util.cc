@@ -20,7 +20,6 @@
 #include <vector>
 
 #include "gmock/gmock.h"
-#include "xnnpack.h"  // from @XNNPACK
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
 #include "ml_drift/common/data_type.h"
@@ -43,8 +42,7 @@ absl::Status EmbeddingLookupTest(TestExecutionEnvironment& env,
                                  DataType dst_type, TensorStorageType storage) {
   TensorFloat32 lookup_table;
   lookup_table.shape = BHWC(1, 4, 4, 1);
-  lookup_table.data.resize(lookup_table.shape.DimensionsProduct() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  lookup_table.data.resize(lookup_table.shape.DimensionsProduct());
   for (int i = 0; i < lookup_table.shape.DimensionsProduct(); ++i) {
     lookup_table.data[i] = i + 1;
   }
@@ -88,8 +86,7 @@ absl::Status EmbeddingLookupSeqLen2Test(TestExecutionEnvironment& env,
                                         TensorStorageType storage) {
   TensorFloat32 lookup_table;
   lookup_table.shape = BHWC(1, 4, 4, 1);
-  lookup_table.data.resize(lookup_table.shape.DimensionsProduct() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  lookup_table.data.resize(lookup_table.shape.DimensionsProduct());
   for (int i = 0; i < lookup_table.shape.DimensionsProduct(); ++i) {
     lookup_table.data[i] = i + 1;
   }

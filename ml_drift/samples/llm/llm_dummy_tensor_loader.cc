@@ -20,7 +20,6 @@
 #include <utility>
 #include <vector>
 
-#include "xnnpack.h"  // from @XNNPACK
 #include "absl/status/status_macros.h"
 #include "absl/status/statusor.h"
 #include "absl/types/span.h"
@@ -115,8 +114,7 @@ absl::StatusOr<ml_drift::GpuSpatialTensor*> LlmDummyTensorLoader::LoadWeights(
 
   ml_drift::Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = shape;
-  weights.data.resize(weights.shape.DimensionsProduct() +
-                      XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights.shape.DimensionsProduct());
   for (int i = 0; i < shape.i; ++i) {
     for (int o = 0; o < shape.o; ++o) {
       if (swap_dims) {
@@ -164,8 +162,7 @@ LlmDummyTensorLoader::LoadInt8Weights(const std::string& tensor_name,
   } else {
     weights_i8.data = std::move(datai8);
   }
-  weights_i8.data.resize(weights_i8.shape.DimensionsProduct() +
-                         XNN_EXTRA_BYTES / sizeof(int8_t));
+  weights_i8.data.resize(weights_i8.shape.DimensionsProduct());
   TensorDescriptor weights_i8_td =
       ml_drift::GetTensorDescriptorForWeightsLayout(weights_i8, weights_desc);
 

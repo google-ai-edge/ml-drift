@@ -80,8 +80,7 @@ void AddConv(GraphFloat32& graph, Value* input) {
   conv_attr.dilations = HW(1, 1);
   Tensor<OHWI, DataType::kFloat32> weights;
   weights.shape = OHWI(1, 3, 3, 4);
-  // Add 16 elements for XNN_EXTRA_BYTES
-  weights.data.resize(1 * 3 * 3 * 4 + 16, 1.0f);
+  weights.data.resize(1 * 3 * 3 * 4, 1.0f);
   conv_attr.weights = std::move(weights);
   Tensor<Linear, DataType::kFloat32> bias;
   bias.shape = Linear(1);

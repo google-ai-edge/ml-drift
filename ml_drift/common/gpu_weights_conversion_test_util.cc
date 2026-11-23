@@ -21,7 +21,6 @@
 #include <utility>
 #include <vector>
 
-#include "xnnpack.h"  // from @XNNPACK
 #include "absl/base/nullability.h"
 #include "absl/log/absl_check.h"
 #include "absl/log/absl_log.h"
@@ -57,7 +56,7 @@ void InitializeQuantizedWeights(
   }
 
   if (quantization_type == DataType::kInt8) {
-    weights_data_int8.resize(weights_size + XNN_EXTRA_BYTES / sizeof(int8_t));
+    weights_data_int8.resize(weights_size);
     for (int i = 0; i < weights_size; ++i) {
       weights_data_int8[i] = i % 256 - 128;
     }
@@ -67,8 +66,7 @@ void InitializeQuantizedWeights(
     ABSL_CHECK_EQ(input_channels % kNumElementsPerInt8, 0)
         << "Only an even number of input channels is supported.";
     const int weights_data_size = weights_size / kNumElementsPerInt8;
-    weights_data_int8.resize(weights_data_size +
-                             XNN_EXTRA_BYTES / sizeof(int8_t));
+    weights_data_int8.resize(weights_data_size);
     for (int i = 0; i < output_channels; ++i) {
       for (int j = 0; j < input_channels; j += kNumElementsPerInt8) {
         int8_t lower_int4 = (i * input_channels + j) % 16 - 8;
@@ -81,8 +79,7 @@ void InitializeQuantizedWeights(
 
   // Get Float32 weights via dequantizing the Int8 weights.
   if (weights_data_float32_ptr != nullptr) {
-    weights_data_float32_ptr->resize(weights_size +
-                                     XNN_EXTRA_BYTES / sizeof(float));
+    weights_data_float32_ptr->resize(weights_size);
     for (int o = 0; o < output_channels; ++o) {
       float scale = scale_data[o];
       int32_t zero_point = zero_point_data[o];
@@ -114,8 +111,7 @@ void InitializeWeightsSumIData(std::vector<int8_t>& weights_data,
                                const DataType input_data_type) {
   reference_output.resize(weights_shape.o);
   if (input_data_type == DataType::kInt8) {
-    weights_data.resize(weights_shape.DimensionsProduct() +
-                        XNN_EXTRA_BYTES / sizeof(int8_t));
+    weights_data.resize(weights_shape.DimensionsProduct());
     for (int i = 0; i < weights_shape.o; ++i) {
       int sum = 0;
       for (int j = 0; j < weights_shape.i; ++j) {
@@ -132,7 +128,7 @@ void InitializeWeightsSumIData(std::vector<int8_t>& weights_data,
         << "Only an even number of input channels is supported.";
     const int weights_data_size =
         weights_shape.DimensionsProduct() / kNumElementsPerInt8;
-    weights_data.resize(weights_data_size + XNN_EXTRA_BYTES / sizeof(int8_t));
+    weights_data.resize(weights_data_size);
     for (int i = 0; i < weights_shape.o; ++i) {
       int sum = 0;
       for (int j = 0; j < weights_shape.i; j += kNumElementsPerInt8) {
@@ -164,8 +160,7 @@ absl::StatusOr<GraphFloat32> CreateConvGraph(const BHWC& input_shape,
   auto& conv_weights =
       conv_attr.weights.emplace<Tensor<OHWI, DataType::kFloat32>>();
   conv_weights.shape = weights_shape;
-  conv_weights.data.resize(weights_shape.DimensionsProduct() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  conv_weights.data.resize(weights_shape.DimensionsProduct());
   // TODO: Remove the following workaround once the bug is fixed,
   // and only set one field for the weights.
   // The weights.spanned_data field is designed to be a view of an external

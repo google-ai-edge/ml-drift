@@ -21,7 +21,6 @@
 #include <vector>
 
 #include "gmock/gmock.h"
-#include "xnnpack.h"  // from @XNNPACK
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
 #include "absl/status/status_matchers.h"
@@ -320,8 +319,7 @@ absl::Status FullyConnectedOITest(TestExecutionEnvironment& env,
   const int dst_channels = 256;
   FullyConnectedAttributes attr;
   attr.weights = MakeSyntheticTensor(OHWI(dst_channels, 1, 1, src_channels));
-  attr.weights.data.resize(attr.weights.shape.DimensionsProduct() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr.weights.data.resize(attr.weights.shape.DimensionsProduct());
   attr.bias = MakeZeroTensor(Linear(dst_channels));
 
   auto src_shape = BHWC(1, 1, 2, src_channels);
@@ -424,8 +422,7 @@ absl::Status FullyConnectedOIWi4Sparse2x4(TestExecutionEnvironment& env,
   }
   ml_drift::Tensor<OHWI, DataType::kUint8> weights_indices;
   weights_indices.shape = OHWI(dst_channels, 1, 1, src_channels / 2);
-  weights_indices.data.resize(weights_indices.shape.DimensionsProduct() +
-                              XNN_EXTRA_BYTES / sizeof(uint8_t));
+  weights_indices.data.resize(weights_indices.shape.DimensionsProduct());
   const std::vector<int2> possible_positions = {{0, 1}, {0, 2}, {0, 3},
                                                 {1, 2}, {1, 3}, {2, 3}};
   for (int i = 0; i < weights_indices.shape.DimensionsProduct() / 2; ++i) {
@@ -520,8 +517,7 @@ absl::Status FullyConnectedOIRuntimeSrcTest(TestExecutionEnvironment& env,
   const int dst_channels = 128;
   FullyConnectedAttributes attr;
   attr.weights = MakeSyntheticTensor(OHWI(dst_channels, 1, 1, src_channels));
-  attr.weights.data.resize(attr.weights.shape.DimensionsProduct() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr.weights.data.resize(attr.weights.shape.DimensionsProduct());
   attr.bias = MakeZeroTensor(Linear(dst_channels));
 
   auto src_shape = BHWC(1, 1, 2, src_channels);
@@ -549,8 +545,7 @@ absl::Status FullyConnectedOIRuntimeDstTest(TestExecutionEnvironment& env,
   const int dst_channels = 256;
   FullyConnectedAttributes attr;
   attr.weights = MakeSyntheticTensor(OHWI(dst_channels, 1, 1, src_channels));
-  attr.weights.data.resize(attr.weights.shape.DimensionsProduct() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr.weights.data.resize(attr.weights.shape.DimensionsProduct());
   attr.bias = MakeZeroTensor(Linear(dst_channels));
 
   auto src_shape = BHWC(1, 1, 2, src_channels);
@@ -582,8 +577,7 @@ absl::Status FullyConnectedOIPackedGroupsTest(TestExecutionEnvironment& env,
 
   Tensor<OHWI, DataType::kFloat32> weights = MakeSyntheticTensor(
       OHWI(dst_channels, weights_batch_size, 1, src_channels));
-  weights.data.resize(weights.shape.DimensionsProduct() +
-                      XNN_EXTRA_BYTES / sizeof(float));
+  weights.data.resize(weights.shape.DimensionsProduct());
 
   TensorFloat32 src_tensor =
       MakeSyntheticTensor(BHWC(1, 1, width, src_channels));
@@ -675,8 +669,7 @@ absl::Status FullyConnectedOIRingedOTest(TestExecutionEnvironment& env,
   const int weights_o_size = 56;
   FullyConnectedAttributes attr;
   attr.weights = MakeSyntheticTensor(OHWI(weights_o_size, 1, 1, src_channels));
-  attr.weights.data.resize(attr.weights.shape.DimensionsProduct() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr.weights.data.resize(attr.weights.shape.DimensionsProduct());
   attr.bias = MakeZeroTensor(Linear(dst_channels));
 
   auto src_shape = BHWC(1, 1, 1, src_channels);
@@ -777,8 +770,7 @@ absl::Status FullyConnectedOIRingedITest(TestExecutionEnvironment& env,
   const int weights_i_size = 56;
   FullyConnectedAttributes attr;
   attr.weights = MakeSyntheticTensor(OHWI(dst_channels, 1, 1, weights_i_size));
-  attr.weights.data.resize(attr.weights.shape.DimensionsProduct() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr.weights.data.resize(attr.weights.shape.DimensionsProduct());
   attr.bias = MakeZeroTensor(Linear(dst_channels));
 
   auto src_shape = BHWC(1, 1, 1, src_channels);

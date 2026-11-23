@@ -23,7 +23,6 @@
 
 #include "gtest/gtest.h"
 #include "absl/status/status_matchers.h"
-#include "xnnpack.h"  // from @XNNPACK
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
 #include "ml_drift/common/data_type.h"
@@ -69,8 +68,7 @@ absl::Status TestLinkingConvolutionAndCosOp(TestExecutionEnvironment* env) {
   auto& attr_weights =
       conv_attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(16, 1, 1, 128);
-  attr_weights.data.resize(attr_weights.shape.DimensionsProduct() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr_weights.data.resize(attr_weights.shape.DimensionsProduct());
   for (int i = 0; i < attr_weights.shape.DimensionsProduct(); ++i) {
     attr_weights.data[i] = std::sin(i * 0.12345f);
   }
@@ -174,8 +172,7 @@ absl::Status TestLinkingConvolution2InputMul2InputMul(
   auto& attr_weights =
       conv_attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(16, 1, 1, 128);
-  attr_weights.data.resize(attr_weights.shape.DimensionsProduct() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr_weights.data.resize(attr_weights.shape.DimensionsProduct());
   for (int i = 0; i < attr_weights.shape.DimensionsProduct(); ++i) {
     attr_weights.data[i] = std::sin(i * 0.12345f);
   }
@@ -316,8 +313,7 @@ absl::Status TestLinkingConvolution2InputBroadcastMul2InputMul(
   auto& attr_weights =
       conv_attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(16, 1, 1, 128);
-  attr_weights.data.resize(attr_weights.shape.DimensionsProduct() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr_weights.data.resize(attr_weights.shape.DimensionsProduct());
   for (int i = 0; i < attr_weights.shape.DimensionsProduct(); ++i) {
     attr_weights.data[i] = std::sin(i * 0.12345f);
   }
@@ -458,8 +454,7 @@ absl::Status TestLinkingConvolution2InputMul2InputBroadcastMul(
   auto& attr_weights =
       conv_attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(16, 1, 1, 128);
-  attr_weights.data.resize(attr_weights.shape.DimensionsProduct() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr_weights.data.resize(attr_weights.shape.DimensionsProduct());
   for (int i = 0; i < attr_weights.shape.DimensionsProduct(); ++i) {
     attr_weights.data[i] = std::sin(i * 0.12345f);
   }
@@ -600,8 +595,7 @@ absl::Status TestLinkingConvolution2InputMul2InputMulCos(
   auto& attr_weights =
       conv_attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(16, 1, 1, 128);
-  attr_weights.data.resize(attr_weights.shape.DimensionsProduct() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr_weights.data.resize(attr_weights.shape.DimensionsProduct());
   for (int i = 0; i < attr_weights.shape.DimensionsProduct(); ++i) {
     attr_weights.data[i] = std::sin(i * 0.12345f);
   }
@@ -752,8 +746,7 @@ absl::Status TestLinkingConvolutionFirstTanh2InputDiff(
   auto& attr_weights =
       conv_attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(16, 1, 1, 128);
-  attr_weights.data.resize(attr_weights.shape.DimensionsProduct() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr_weights.data.resize(attr_weights.shape.DimensionsProduct());
   for (int i = 0; i < attr_weights.shape.DimensionsProduct(); ++i) {
     attr_weights.data[i] = std::sin(i * 0.12345f);
   }
@@ -872,8 +865,7 @@ absl::Status TestLinkingConvolutionSecondTanh2InputDiff(
   auto& attr_weights =
       conv_attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(16, 1, 1, 128);
-  attr_weights.data.resize(attr_weights.shape.DimensionsProduct() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr_weights.data.resize(attr_weights.shape.DimensionsProduct());
   for (int i = 0; i < attr_weights.shape.DimensionsProduct(); ++i) {
     attr_weights.data[i] = std::sin(i * 0.12345f);
   }
@@ -1001,8 +993,7 @@ absl::Status TestLinkingConvolutionFirstTanhSecondCos2InputDiff(
   auto& attr_weights =
       conv_attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(16, 1, 1, 128);
-  attr_weights.data.resize(attr_weights.shape.DimensionsProduct() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr_weights.data.resize(attr_weights.shape.DimensionsProduct());
   for (int i = 0; i < attr_weights.shape.DimensionsProduct(); ++i) {
     attr_weights.data[i] = std::sin(i * 0.12345f);
   }
@@ -1153,8 +1144,7 @@ absl::Status TestLinkingComplex0(TestExecutionEnvironment* env) {
   auto& attr_weights =
       conv_attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(16, 1, 1, 128);
-  attr_weights.data.resize(attr_weights.shape.DimensionsProduct() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr_weights.data.resize(attr_weights.shape.DimensionsProduct());
   for (int i = 0; i < attr_weights.shape.DimensionsProduct(); ++i) {
     attr_weights.data[i] = std::sin(i * 0.12345f);
   }
@@ -1402,8 +1392,7 @@ absl::Status TestLinkingConvElem2InputAddElemsOp(
   auto& attr_weights =
       conv_attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(16, 1, 1, 8);
-  attr_weights.data.resize(attr_weights.shape.DimensionsProduct() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr_weights.data.resize(attr_weights.shape.DimensionsProduct());
   for (int i = 0; i < attr_weights.shape.DimensionsProduct(); ++i) {
     attr_weights.data[i] = std::sin(i * 0.12345f);
   }
@@ -2486,8 +2475,7 @@ absl::Status TestConvWithPaddedAdd(TestExecutionEnvironment* env) {
   auto& attr_weights =
       conv_attr.weights.emplace<ml_drift::Tensor<OHWI, DataType::kFloat32>>();
   attr_weights.shape = OHWI(42, 1, 1, 36);
-  attr_weights.data.resize(attr_weights.shape.DimensionsProduct() +
-                           XNN_EXTRA_BYTES / sizeof(float));
+  attr_weights.data.resize(attr_weights.shape.DimensionsProduct());
   for (int i = 0; i < attr_weights.shape.DimensionsProduct(); ++i) {
     attr_weights.data[i] = std::sin(i * 0.12345f);
   }

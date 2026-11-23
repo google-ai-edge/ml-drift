@@ -21,7 +21,6 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/status/status_matchers.h"
-#include "xnnpack.h"  // from @XNNPACK
 #include "absl/strings/str_replace.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/kernels/special/conv_softmax_conv.h"
@@ -183,12 +182,10 @@ TEST_P(SoftmaxConv1x1BigTest, BatchedConvSoftmaxBatchedConv) {
   int dst_ch = 40;
   ml_drift::Tensor<OHWI, DataType::kFloat32> weights0 =
       MakeSyntheticTensor(OHWI(interm_ch, 1, batch_size, src_ch));
-  weights0.data.resize(weights0.shape.DimensionsProduct() +
-                       XNN_EXTRA_BYTES / sizeof(float));
+  weights0.data.resize(weights0.shape.DimensionsProduct());
   ml_drift::Tensor<OHWI, DataType::kFloat32> weights1 =
       MakeSyntheticTensor(OHWI(dst_ch, 1, batch_size, interm_ch));
-  weights1.data.resize(weights1.shape.DimensionsProduct() +
-                       XNN_EXTRA_BYTES / sizeof(float));
+  weights1.data.resize(weights1.shape.DimensionsProduct());
 
   auto src_shape = BHWC(1, batch_size, width, src_ch);
   auto dst_shape = BHWC(1, batch_size, width, dst_ch);
