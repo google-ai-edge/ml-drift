@@ -85,15 +85,6 @@ bazel_dep(
     version = "1.1.0",
 )
 bazel_dep(
-    name = "cpuinfo",
-    version = "0.0.0-20250925-877328f",
-)
-bazel_dep(
-    name = "fxdiv",
-    version = "0.0.0-20201209-63058ef",
-    repo_name = "FXdiv",
-)
-bazel_dep(
     name = "re2",
     version = "2025-11-05.bcr.1",
     repo_name = "com_github_google_re2",
@@ -106,29 +97,6 @@ http_archive(
     sha256 = "6bc180a57d23d4d9515519f92b0c83d61b05b5bab188961f36ac7b06b0d9e9ce",
     strip_prefix = "benchmark-1.8.3",
     urls = ["https://github.com/google/benchmark/archive/refs/tags/v1.8.3.tar.gz"],
-)
-
-http_archive(
-    name = "pthreadpool",
-    sha256 = "f602ab141bdc5d5872a79d6551e9063b5bfa7ad6ad60cceaa641de5c45c86d70",
-    strip_prefix = "pthreadpool-0e6ca13779b57d397a5ba6bfdcaa8a275bc8ea2e",
-    urls = ["https://github.com/google/pthreadpool/archive/0e6ca13779b57d397a5ba6bfdcaa8a275bc8ea2e.zip"],
-)
-
-# KleidiAI from 2025-10-20
-http_archive(
-    name = "KleidiAI",
-    sha256 = "6d18658bbbeeac2003a68186d94d5309fab911d659e9fbacdf94a866c5136292",
-    strip_prefix = "kleidiai-c01f0846e13517c93f2adb95e52aad38126b42d1",
-    url = "https://github.com/ARM-software/kleidiai/archive/c01f0846e13517c93f2adb95e52aad38126b42d1.zip",
-)
-
-# XNNPACK 2025-12-03
-http_archive(
-    name = "XNNPACK",
-    sha256 = "ecef9210de067ed5ca0fa420d482110faefae7365450e87175cb0097431429d7",
-    strip_prefix = "XNNPACK-7884caf6c38333ce058527499a68c8e71f044bc9",
-    url = "https://github.com/google/XNNPACK/archive/7884caf6c38333ce058527499a68c8e71f044bc9.zip",
 )
 
 VULKAN_HEADERS_COMMIT = "32c07c0c5334aea069e518206d75e002ccd85389"

@@ -54,7 +54,6 @@ find_package(GTest REQUIRED)
 find_package(absl REQUIRED)
 find_package(fp16 REQUIRED)
 find_package(Flatbuffers REQUIRED)
-find_package(XNNPACK REQUIRED)
 find_package(farmhash REQUIRED)
 find_package(re2 REQUIRED)
 
