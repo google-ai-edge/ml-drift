@@ -49,6 +49,25 @@ ConvWaveMatrixMali::KernelParams GetKernelParams(const MaliInfo& mali_info,
   kernel_params.slices_first = false;
   kernel_params.dst_s4_block_size = 1;
   kernel_params.dst_w4_block_size = 1;
+  if (mali_info.IsMaliG1() || mali_info.IsMaliG2()) {
+    // Keeping 1x1 wave tile with unroll=1 fits within 32 registers on Mali
+    // G1/G2 (maximum occupancy) and avoids back-to-back accumulator RAW
+    // hazards.
+    kernel_params.src_slices_loop_unroll = 1;
+    return kernel_params;
+  }
+  if (mali_info.IsValhall()) {
+    // On Valhall (e.g. Mali-G715), unroll=1 avoids register pressure /
+    // occupancy loss, and dst_s4_block_size=3 cuts texture fetch and loop
+    // overhead on wide output projections without hurting wave occupancy.
+    if (dst_groups >= 192 && dst_groups % 3 == 0) {
+      kernel_params.dst_s4_block_size = 3;
+    } else if (dst_groups % 2 == 0) {
+      kernel_params.dst_s4_block_size = 2;
+    }
+    kernel_params.src_slices_loop_unroll = 1;
+    return kernel_params;
+  }
   if (dst_groups % 2 == 0) {
     kernel_params.dst_s4_block_size = 2;
   }
@@ -56,12 +75,8 @@ ConvWaveMatrixMali::KernelParams GetKernelParams(const MaliInfo& mali_info,
   if (src_groups % 2 == 0 && kernel_params.dst_s4_block_size <= 2) {
     kernel_params.src_slices_loop_unroll = 2;
   }
-  if (src_groups % 4 == 0 &&
-      (kernel_params.dst_s4_block_size == 1 || mali_info.IsMaliG1())) {
+  if (src_groups % 4 == 0 && kernel_params.dst_s4_block_size == 1) {
     kernel_params.src_slices_loop_unroll = 4;
-  }
-  if (mali_info.IsMaliG1()) {
-    kernel_params.src_slices_loop_unroll = 1;
   }
   return kernel_params;
 }
@@ -87,6 +102,16 @@ std::string GetCode(const GpuInfo& gpu_info, const OperationDef& definition,
     }
   };
   const auto src_desc = definition.src_tensors[0];
+  // For 2D textures with physical layout kXisWBDC4YisHC, the Y coordinate is
+  // `y * slices + s`; hoist `y * slices` out of the inner reduction loop so
+  // each iteration does a single increment instead of a multiply-add. Avoid
+  // hoisting under 64-register allocation on Mali G925 (r49p1), where
+  // combining it with hoisted weights causes a severe memory stall on large
+  // (>= 4096^3) convolutions.
+  const bool hoist_src_y =
+      gpu_info.mali_info.gpu_version != MaliGpu::kG925 &&
+      src_desc.GetStorageType() == TensorStorageType::kTexture2D &&
+      !src_desc.IsCC4Layout();
   // WG must be [M*16, N, K]
   // every wave handles w16xs4 block, every thread handles w4xs1 block
   // wave_local_id:
@@ -123,11 +148,15 @@ std::string GetCode(const GpuInfo& gpu_info, const OperationDef& definition,
     return;
   }
 
-  __global char16* w_base = args.weights.GetPtr() + wave_dst_s_base * args.src.Slices();
-  int src_slice = wave_slice_offset;
-
-  // _s03 means that thread in wave handles slice[thread_id % 4]
+  __global char16* w_base = args.weights.GetPtr() + wave_dst_s_base * args.src.Slices() + wave_local_id;
 )";
+  if (hoist_src_y) {
+    c += "  int src_y = y * args.src.Slices() + wave_slice_offset;\n";
+    c += "  int src_y_end = y * args.src.Slices() + args.src.Slices();\n";
+  } else {
+    c += "  int src_slice = wave_slice_offset;\n";
+  }
+  c += "\n  // _s03 means that thread in wave handles slice[thread_id % 4]\n";
   for (int s = 0; s < kernel_params.dst_s4_block_size; s++) {
     for (int b_x = 0; b_x < kernel_params.dst_w4_block_size; b_x++) {
       for (int x = 0; x < 4; x++) {
@@ -147,20 +176,26 @@ std::string GetCode(const GpuInfo& gpu_info, const OperationDef& definition,
            std::to_string(b_x) + "_w0123, args.src.Width() - 1);\n";
     }
   }
+  const std::string loop_var = hoist_src_y ? "src_y" : "src_slice";
+  const std::string loop_end = hoist_src_y ? "src_y_end" : "args.src.Slices()";
   c += "  do {\n";
   for (int src_block = 0; src_block < kernel_params.src_slices_loop_unroll;
        src_block++) {
     c += "  {\n";
     for (int b_x = 0; b_x < kernel_params.dst_w4_block_size; b_x++) {
-      c += "    int4 src_x" + std::to_string(b_x) +
-           "_w0123 = args.src.Read(src_x" + std::to_string(b_x) +
-           ", y, src_slice);\n";
+      std::string src_coords = "src_x" + std::to_string(b_x) + ", y, src_slice";
+      if (hoist_src_y) {
+        src_coords = "src_x" + std::to_string(b_x) + ", 0, src_y";
+      }
+      c += "    int4 src_x" + std::to_string(b_x) + "_w0123 = args.src.Read(" +
+           src_coords + ");\n";
     }
-    c += "    src_slice += 4;\n";
+    c += "    " + loop_var + " += 4;\n";
     c += "    char16 w0123;\n";
     for (int dst_s = 0; dst_s < kernel_params.dst_s4_block_size; dst_s++) {
-      c += "    w0123 = w_base[wave_local_id];\n";
-      c += "    w_base += 16;\n";
+      const int w_offset =
+          (src_block * kernel_params.dst_s4_block_size + dst_s) * 16;
+      c += "    w0123 = w_base[" + std::to_string(w_offset) + "];\n";
       for (int b_x = 0; b_x < kernel_params.dst_w4_block_size; b_x++) {
         for (int x = 0; x < 4; x++) {
           const std::string postfixes_r[] = {".x", ".y", ".z", ".w"};
@@ -182,9 +217,11 @@ std::string GetCode(const GpuInfo& gpu_info, const OperationDef& definition,
     }
     c += "  }\n";
   }
-  c += R"(
-  } while (src_slice < args.src.Slices());
-)";
+  c += "  w_base += " +
+       std::to_string(kernel_params.src_slices_loop_unroll *
+                      kernel_params.dst_s4_block_size * 16) +
+       ";\n";
+  c += "  } while (" + loop_var + " < " + loop_end + ");\n";
   for (int s = 0; s < kernel_params.dst_s4_block_size; s++) {
     const std::string s_coord = "DST_S + " + std::to_string(s * 4);
     c += "  if (" + s_coord + " >= args.dst.Slices()) {\n";
@@ -219,6 +256,11 @@ void ConvWaveMatrixMali::InitBase(const GpuInfo& gpu_info,
   work_group_launch_order_ =
       kernel_params_.slices_first ? int3(1, 0, 2) : int3(0, 1, 2);
   compiler_options_.push_back(CompilerOptions::kClFastRelaxedMath);
+  if (gpu_info.mali_info.gpu_version == MaliGpu::kG925) {
+    // Allow 64 registers per thread on Mali G925 so the compiler can overlap
+    // the independent unrolled weight loads with matrix multiply instructions.
+    compiler_options_.push_back(CompilerOptions::kClRegisterAllocation64);
+  }
 
   AddSrcTensor("src", definition.src_tensors[0]);
   AddDstTensor("dst", definition.dst_tensors[0]);
@@ -274,6 +316,26 @@ std::vector<int3> ConvWaveMatrixMali::GetPossibleKernelWorkGroups(
                                       grid_size_);
     case TuningType::kFast:
     default:
+      if (gpu_info.mali_info.IsMaliG1() || gpu_info.mali_info.IsMaliG2()) {
+        if (grid_size_.x >= 1024 && grid_size_.y >= 64 &&
+            kernel_info.max_work_group_size >= 512 &&
+            gpu_info.GetMaxWorkGroupSizeForY() >= 16) {
+          return {{32, 16, 1}};
+        }
+      } else {
+        if (grid_size_.x >= 4096 && grid_size_.y >= 64 &&
+            kernel_info.max_work_group_size >= 1024 &&
+            gpu_info.GetMaxWorkGroupSizeForX() >= 128 &&
+            gpu_info.GetMaxWorkGroupSizeForY() >= 8) {
+          return {{128, 8, 1}};
+        }
+        if (grid_size_.x >= 2048 && grid_size_.y >= 64 &&
+            kernel_info.max_work_group_size >= 512 &&
+            gpu_info.GetMaxWorkGroupSizeForX() >= 64 &&
+            gpu_info.GetMaxWorkGroupSizeForY() >= 8) {
+          return {{64, 8, 1}};
+        }
+      }
       return {{32, 2, 1}};
   }
 }
