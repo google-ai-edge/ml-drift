@@ -275,8 +275,8 @@ Tensor<HWC, DataType::kFloat32> OHIToHOIO4(
   const int i_ch = tensor.shape.i;
   const int weights_batch = tensor.shape.h;
   for (int b = 0; b < weights_batch; ++b) {
-    for (int i = 0; i < i_ch; ++i) {
-      for (int o_slice = 0; o_slice < o_slices; ++o_slice) {
+    for (int o_slice = 0; o_slice < o_slices; ++o_slice) {
+      for (int i = 0; i < i_ch; ++i) {
         for (int ch = 0; ch < 4; ++ch) {
           const int dst_ch = o_slice * 4 + ch;
           float value = 0.0f;

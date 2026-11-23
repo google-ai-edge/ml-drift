@@ -14,6 +14,7 @@
 
 #include "ml_drift/common/task/tensor_desc.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -318,6 +319,40 @@ TEST(TensorDescriptorTest, GetMemorySizeInBytesHandlesLargeShapesOver2GiB) {
   EXPECT_THAT(huge_bhwc.CanCreateTensorWithShape(gpu_info,
                                                  BHWC(1, 32768, 131072, 4)),
               StatusIs(absl::StatusCode::kResourceExhausted));
+}
+
+TEST(TensorDescriptorTest, ScaleOrZeroPointToTensorDescPacksOutputChannels) {
+  // [out_channels, batch, 1, in_channels] with out_channels not a multiple of
+  // 4, so that the last slice is padded with zeros.
+  Tensor<OHWI, DataType::kFloat32> src;
+  src.shape = OHWI(6, 3, 1, 5);
+  src.data.resize(src.shape.DimensionsProduct());
+  for (size_t i = 0; i < src.data.size(); ++i) {
+    src.data[i] = static_cast<float>(i + 1);
+  }
+  GpuInfo gpu_info;
+  gpu_info.gpu_api = GpuApi::kOpenCl;
+  const TensorDescriptor desc =
+      ScaleOrZeroPointToTensorDesc(gpu_info, src, DataType::kFloat32);
+
+  // Reference: dst[b][o / 4][i * 4 + o % 4] = src[o][b][0][i], zero padded.
+  Tensor<HWC, DataType::kFloat32> expected;
+  expected.shape = HWC(3, 2, 4 * 5);
+  expected.data.assign(expected.shape.DimensionsProduct(), 0.0f);
+  for (int o = 0; o < src.shape.o; ++o) {
+    for (int b = 0; b < src.shape.h; ++b) {
+      for (int i = 0; i < src.shape.i; ++i) {
+        expected.data[expected.shape.LinearIndex({b, o / 4, i * 4 + o % 4})] =
+            src.data[src.shape.LinearIndex({o, b, 0, i})];
+      }
+    }
+  }
+  TensorDescriptor expected_desc(DataType::kFloat32, desc.GetStorageType(),
+                                 Layout::kHWC);
+  expected_desc.UploadData(expected);
+
+  EXPECT_EQ(desc.GetBHWCShape(), expected_desc.GetBHWCShape());
+  EXPECT_EQ(desc.GetData(), expected_desc.GetData());
 }
 
 }  // namespace
