@@ -600,6 +600,30 @@ absl::Status PerformSubGroupBroadcastSelector(
   }
 }
 
+absl::Status PerformSubGroupReduceAddSelector(
+    const GpuInfo& gpu_info, const std::vector<std::string>& template_args,
+    const std::vector<std::string>& args, std::string* result) {
+  if (!template_args.empty() || args.size() != 1) {
+    return absl::NotFoundError("SubGroupReduceAdd must have 1 argument");
+  }
+  if (gpu_info.IsApiOpenCl()) {
+    *result = "sub_group_reduce_add(" + args[0] + ")";
+    return absl::OkStatus();
+  } else if (gpu_info.IsApiMetal()) {
+    *result = "simd_sum(" + args[0] + ")";
+    return absl::OkStatus();
+  } else if (gpu_info.IsGlsl()) {
+    *result = "subgroupAdd(" + args[0] + ")";
+    return absl::OkStatus();
+  } else if (gpu_info.IsApiWebGpu()) {
+    *result = "subgroupAdd(" + args[0] + ")";
+    return absl::OkStatus();
+  } else {
+    return absl::UnimplementedError(
+        "No support of SubGroupReduceAdd in this API.");
+  }
+}
+
 absl::Status PerformU32x4ToU8x16AsVec4x4(
     const GpuInfo& gpu_info, const std::vector<std::string>& template_args,
     const std::vector<std::string>& args, std::string* result) {
@@ -1651,6 +1675,9 @@ absl::Status PerformSystemFunction(
     return PerformSyncThreadsSelector(gpu_info, template_args, args, result);
   } else if (function_name == "SubGroupBroadcast") {
     return PerformSubGroupBroadcastSelector(gpu_info, template_args, args,
+                                            result);
+  } else if (function_name == "SubGroupReduceAdd") {
+    return PerformSubGroupReduceAddSelector(gpu_info, template_args, args,
                                             result);
   } else if (function_name == "U32x4ToU8x16AsVec4x4") {
     return PerformU32x4ToU8x16AsVec4x4(gpu_info, template_args, args, result);
