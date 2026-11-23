@@ -18,7 +18,6 @@
 
 #include <string>
 
-#include "xnnpack.h"  // from @XNNPACK
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/common/gpu_info.h"
 #include "ml_drift/metal/common.h"
@@ -114,11 +113,9 @@ GpuInfo CreateGpuInfoFromMetalDevice(id<MTLDevice> device) {
 
 Environment::Environment() : device_(MTLCreateSystemDefaultDevice()) {
   info_ = CreateGpuInfoFromMetalDevice(device_);
-  xnn_initialize(/*allocator=*/nullptr);
 }
 Environment::Environment(id<MTLDevice> device) : device_(device) {
   info_ = CreateGpuInfoFromMetalDevice(device_);
-  xnn_initialize(/*allocator=*/nullptr);
 }
 
 bool Environment::IsLanguageVersion2orHigher() const {

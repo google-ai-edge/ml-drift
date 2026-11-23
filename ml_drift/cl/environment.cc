@@ -17,7 +17,6 @@
 #include <utility>
 #include <vector>
 
-#include "xnnpack.h"  // from @XNNPACK
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
 #include "ml_drift/cl/cl_command_queue.h"
@@ -123,9 +122,6 @@ absl::Status Environment::Init() {
         adreno_info.IsAdreno5xx()) {
       GetDevicePtr()->DisableOneLayerTextureArray();
     }
-  }
-  if (xnn_initialize(/*allocator=*/nullptr) != xnn_status_success) {
-    return absl::InternalError("Could not initialize XNNPack.");
   }
   return absl::OkStatus();
 }

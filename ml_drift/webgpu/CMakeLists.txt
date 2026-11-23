@@ -129,7 +129,6 @@ target_link_libraries(mld_webgpu_environment
     mld_webgpu_compute_pipeline_cache
     mld_webgpu_instance
     mld_webgpu_webgpu_headers
-    XNNPACK
 )
 
 add_library(mld_webgpu_execution_environment INTERFACE execution_environment.h)

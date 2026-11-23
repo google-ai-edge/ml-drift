@@ -21,7 +21,6 @@
 #include <utility>
 #include <vector>
 
-#include "xnnpack.h"  // from @XNNPACK
 #include "absl/base/attributes.h"
 #include "absl/log/absl_log.h"
 #include "absl/status/status.h"         // IWYU pragma: keep
@@ -286,9 +285,7 @@ Environment::ErrorFn Environment::error_fn_ = &DefaultError;
 Environment::Environment() : Environment(GetPreferredBackendType()) {}
 
 Environment::Environment(wgpu::BackendType preferred_backend_type)
-    : preferred_backend_type_(preferred_backend_type) {
-  xnn_initialize(/*allocator=*/nullptr);
-}
+    : preferred_backend_type_(preferred_backend_type) {}
 
 // static
 void Environment::SetErrorFn(ErrorFn error_fn) { error_fn_ = error_fn; }

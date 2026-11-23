@@ -112,7 +112,6 @@ target_link_libraries(mld_gl_egl_environment
     mld_gl_gl_call
     mld_gl_portable
     mld_gl_request_gpu_info
-    XNNPACK
 )
 if(NOT ANDROID)
   target_link_libraries(mld_gl_egl_environment

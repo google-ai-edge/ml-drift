@@ -244,7 +244,6 @@ cc_library(
         "//ml_drift/common:data_type",
         "//ml_drift/common:gpu_info",
         "//ml_drift/common/task:tensor_desc",
-        "@XNNPACK",
         "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/base:no_destructor",
         "@com_google_absl//absl/log:absl_log",

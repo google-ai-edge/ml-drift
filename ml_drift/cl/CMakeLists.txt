@@ -64,8 +64,6 @@ target_link_libraries(mld_cl_environment
     mld_common_gpu_info
     mld_common_precision
     mld_common_task_tensor_desc
-  PRIVATE
-    XNNPACK
 )
 
 add_library(mld_cl_cl_command_queue cl_command_queue.cc cl_command_queue.h)

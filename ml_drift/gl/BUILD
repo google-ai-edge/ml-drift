@@ -77,7 +77,6 @@ cc_library(
         ":gl_call",
         ":portable",
         ":request_gpu_info",
-        "@XNNPACK",
         "@com_google_absl//absl/memory",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:status_macros",

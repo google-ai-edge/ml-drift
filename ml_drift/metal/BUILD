@@ -142,7 +142,6 @@ objc_library(
         "//ml_drift/common:data_type",
         "//ml_drift/common:gpu_info",
         "//third_party/apple_frameworks:Metal",
-        "@XNNPACK",
     ],
 )
 

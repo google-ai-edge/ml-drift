@@ -428,7 +428,6 @@ cc_library(
         "//ml_drift/common:gpu_info",
         "//ml_drift/common:precision",
         "//ml_drift/common/task:tensor_desc",
-        "@XNNPACK",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:status_macros",
     ],

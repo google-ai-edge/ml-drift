@@ -16,8 +16,6 @@
 
 #include <memory>
 
-#include "xnnpack.h"  // from @XNNPACK
-
 #ifndef __ANDROID__
 #include "absl/debugging/leak_check.h"
 #endif  // !__ANDROID__
@@ -76,9 +74,6 @@ EglEnvironment::~EglEnvironment() {
 }
 
 absl::Status EglEnvironment::Init() {
-  if (xnn_initialize(/*allocator=*/nullptr) != xnn_status_success) {
-    return absl::InternalError("Failed to initialize XNNPACK.");
-  }
   bool is_bound;
   ABSL_RETURN_IF_ERROR(
       ML_DRIFT_CALL_EGL(eglBindAPI, &is_bound, EGL_OPENGL_ES_API));
