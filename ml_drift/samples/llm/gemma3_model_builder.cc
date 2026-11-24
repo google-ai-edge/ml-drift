@@ -41,7 +41,6 @@
 #include "ml_drift/common/precision.h"
 #include "ml_drift/common/shape.h"
 #include "ml_drift/common/task/buffer_desc.h"
-#include "ml_drift/common/task/gpu_object_desc.h"
 #include "ml_drift/common/task/gpu_operation.h"
 #include "ml_drift/common/task/gpu_tensor.h"
 #include "ml_drift/common/task/tensor_desc.h"
@@ -268,41 +267,6 @@ TensorHandle CapInfinity(BuildContext& ctx, const TensorHandle& src) {
 }
 
 // Generates token position IDs based on current runtime token offsets.
-TensorHandle PositionIds(BuildContext& ctx) {
-  TensorHandle position_ids =
-      ctx.AddTensor(1, 1, ctx.sequence_size, 1, DataType::kInt32);
-  GPUOperation op;
-  BufferDescriptor buffer_desc;
-  buffer_desc.element_type = DataType::kInt32;
-  buffer_desc.element_size = 1;
-  buffer_desc.memory_type = MemoryType::kGlobal;
-  op.AddSrcBuffer("src", buffer_desc);
-  op.AddDstTensor("dst", position_ids.tensor_desc);
-  op.args_.AddInt("param_index", LlmRuntimeParams::kTokenOffsetIndex);
-  op.tensor_to_grid_ = TensorToGrid::kWBToX_HDToY_SToZ;
-  op.code_ = R"(
-MAIN_FUNCTION($0) {
-  int X = ucl::GetGlobalId<0>();
-  int Y = ucl::GetGlobalId<1>();
-  int S = ucl::GetGlobalId<2>();
-  if (X >= args.dst.Width() || Y >= args.dst.Height() || S >= args.dst.Slices()) {
-    return;
-  }
-  args.dst::type res_value;
-  int offset = args.src.Read(args.param_index);
-  res_value.x = ucl::Convert<args.dst::scalar_type>(offset + X);
-  res_value.y = ucl::Convert<args.dst::scalar_type>(offset + X);
-  res_value.z = ucl::Convert<args.dst::scalar_type>(offset + X);
-  res_value.w = ucl::Convert<args.dst::scalar_type>(offset + X);
-  args.dst.Write(res_value, X, Y, S);
-}
-)";
-  op.flops_ = position_ids.tensor_desc.GetBHWCShape().DimensionsProduct();
-  ctx.AddGpuOperation({ctx.params_i32}, {position_ids},
-                      std::make_unique<GPUOperation>(std::move(op)),
-                      "fill_position_ids");
-  return position_ids;
-}
 
 // Applies attention masking by setting masked positions to -30000.0f.
 TensorHandle SelectMask(BuildContext& ctx, const TensorHandle& src,
@@ -1433,7 +1397,11 @@ absl::Status Gemma3ModelBuilder::BuildModelInternal(
   TensorHandle x = EmbedTokens(ctx, input_ids, &emb_state);
 
   // 2. Positional and Attention Masks
-  TensorHandle position_ids = PositionIds(ctx);
+  ABSL_ASSIGN_OR_RETURN(
+      std::vector<TensorHandle> position_ids_out,
+      ctx.builder.AppendOp("FillPositionIds", {ctx.params_i32},
+                           {{"sequence_size", ctx.sequence_size}}));
+  TensorHandle position_ids = position_ids_out[0];
   TensorHandle global_attention_mask = AttentionMask(ctx, /*is_global=*/true);
   TensorHandle local_attention_mask = AttentionMask(ctx, /*is_global=*/false);
 
