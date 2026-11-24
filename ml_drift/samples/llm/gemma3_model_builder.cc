@@ -299,114 +299,26 @@ TensorHandle SelectMask(BuildContext& ctx, const TensorHandle& src,
 }
 
 // GPU kernel generating causal and sliding-window attention masks.
-GPUOperation AttentionMaskOp(const TensorDescriptor& params_desc,
-                             const TensorDescriptor& out_desc, int mask_width,
-                             std::optional<int> sliding_window,
-                             bool sliding_local_cache = false) {
-  GPUOperation op;
-  op.args_.AddInt("mask_width", mask_width);
-  op.args_.AddInt("window_size", sliding_window.has_value()
-                                     ? std::max(*sliding_window, 0)
-                                     : 0);
-  op.args_.AddInt("sliding_local_cache", sliding_local_cache ? 1 : 0);
-  op.tensor_to_grid_ = TensorToGrid::kWBToX_HDToY_SToZ;
 
-  op.code_ = absl::Substitute(R"(
-  MAIN_FUNCTION($$0) {
-  int linear_xb = ucl::GetGlobalId<0>();
-  int X = linear_xb / args.dst.Batch();
-  int B = linear_xb % args.dst.Batch();
-  args.dst.SetBatchRef(B);
-  int Y = ucl::GetGlobalId<1>();
-  int S = ucl::GetGlobalId<2>();
-  if (X >= args.dst.Width() || Y >= args.dst.Height() || S >= args.dst.Slices()) {
-    return;
-  }
-  int token_offset;
-  args.params_tensor.ReadPerChannel(token_offset, 0, 0, $0);
-  int effective_offset = args.sliding_local_cache == 1
-                             ? min(token_offset, args.window_size - 1)
-                             : token_offset;
-
-  args.dst::type mask_value;
-  int k;
-  bool visible;
-
-  // x
-  k = S * 4 + 0;
-  {
-    int token_index = k - effective_offset;
-    visible = (token_index <= X);
-    if (args.window_size > 0) visible &= (token_index > X - args.window_size);
-    if (args.sliding_local_cache == 1) {
-      visible &= (token_offset + token_index >= 0);
-    }
-  }
-  mask_value.x = !visible;
-
-  // y
-  k = S * 4 + 1;
-  {
-    int token_index = k - effective_offset;
-    visible = (token_index <= X);
-    if (args.window_size > 0) visible &= (token_index > X - args.window_size);
-    if (args.sliding_local_cache == 1) {
-      visible &= (token_offset + token_index >= 0);
-    }
-  }
-  mask_value.y = !visible;
-
-  // z
-  k = S * 4 + 2;
-  {
-    int token_index = k - effective_offset;
-    visible = (token_index <= X);
-    if (args.window_size > 0) visible &= (token_index > X - args.window_size);
-    if (args.sliding_local_cache == 1) {
-      visible &= (token_offset + token_index >= 0);
-    }
-  }
-  mask_value.z = !visible;
-
-  // w
-  k = S * 4 + 3;
-  {
-    int token_index = k - effective_offset;
-    visible = (token_index <= X);
-    if (args.window_size > 0) visible &= (token_index > X - args.window_size);
-    if (args.sliding_local_cache == 1) {
-      visible &= (token_offset + token_index >= 0);
-    }
-  }
-  mask_value.w = !visible;
-
-  args.dst.Write(mask_value, X, Y, S);
-})",
-                              LlmRuntimeParams::kTokenOffsetIndex);
-  op.AddSrcTensor("params_tensor", params_desc);
-  op.AddDstTensor("dst", out_desc);
-  op.flops_ = out_desc.GetBHWCShape().DimensionsProduct() * 2;
-  return op;
-}
 
 // Builds either a global causal attention mask or a local sliding-window mask.
-TensorHandle AttentionMask(BuildContext& ctx, bool is_global) {
+absl::StatusOr<TensorHandle> AttentionMask(BuildContext& ctx, bool is_global) {
   const bool use_small_local =
       !is_global && UseSmallLocalCache(ctx.config, ctx.sequence_size);
   const int cache_size = use_small_local
                              ? GetLocalCacheSize(ctx.config, ctx.sequence_size)
                              : ctx.config.cache_size;
-  const BHWC mask_shape = BHWC(1, 1, ctx.sequence_size, cache_size);
-  TensorHandle attention_mask = ctx.AddTensor(mask_shape, DataType::kBool);
-  ctx.AddGpuOperation(
-      {ctx.params_i32}, {attention_mask},
-      std::make_unique<GPUOperation>(AttentionMaskOp(
-          ctx.params_i32.tensor_desc, attention_mask.tensor_desc, cache_size,
-          is_global ? std::nullopt
-                    : std::optional<int>(ctx.config.sliding_window_size),
-          use_small_local)),
-      is_global ? "apply_attention_mask" : "apply_local_attention_mask");
-  return attention_mask;
+  ABSL_ASSIGN_OR_RETURN(
+      std::vector<TensorHandle> mask,
+      ctx.builder.AppendOp(
+          "AttentionMask", {ctx.params_i32},
+          {{"mask_width", cache_size},
+           {"window_size", is_global ? 0 : ctx.config.sliding_window_size},
+           {"sliding_local_cache", use_small_local ? 1 : 0},
+           {"token_offset_index", LlmRuntimeParams::kTokenOffsetIndex},
+           {"batch_size", 1},
+           {"sequence_size", ctx.sequence_size}}));
+  return mask[0];
 }
 
 // --- KV Cache Tensor Layout and Shape Helpers ---
@@ -1402,8 +1314,10 @@ absl::Status Gemma3ModelBuilder::BuildModelInternal(
       ctx.builder.AppendOp("FillPositionIds", {ctx.params_i32},
                            {{"sequence_size", ctx.sequence_size}}));
   TensorHandle position_ids = position_ids_out[0];
-  TensorHandle global_attention_mask = AttentionMask(ctx, /*is_global=*/true);
-  TensorHandle local_attention_mask = AttentionMask(ctx, /*is_global=*/false);
+  ABSL_ASSIGN_OR_RETURN(TensorHandle global_attention_mask,
+                        AttentionMask(ctx, /*is_global=*/true));
+  ABSL_ASSIGN_OR_RETURN(TensorHandle local_attention_mask,
+                        AttentionMask(ctx, /*is_global=*/false));
 
   // 3. Transformer Layers Stack
   for (int i = 0; i < config_.stack_size; ++i) {

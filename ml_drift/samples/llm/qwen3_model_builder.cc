@@ -249,76 +249,22 @@ TensorHandle SelectMask(BuildContext& ctx, const TensorHandle& src,
 }
 
 // GPU kernel generating causal attention masks.
-GPUOperation AttentionMaskOp(const TensorDescriptor& params_desc,
-                             const TensorDescriptor& out_desc, int mask_width) {
-  GPUOperation op;
-  op.args_.AddInt("mask_width", mask_width);
-  op.args_.AddInt("window_size", 0);
-  op.args_.AddInt("sliding_local_cache", 0);
-  op.tensor_to_grid_ = TensorToGrid::kWBToX_HDToY_SToZ;
 
-  op.code_ = absl::Substitute(R"(
-  MAIN_FUNCTION($$0) {
-  int linear_xb = ucl::GetGlobalId<0>();
-  int X = linear_xb / args.dst.Batch();
-  int B = linear_xb % args.dst.Batch();
-  args.dst.SetBatchRef(B);
-  int Y = ucl::GetGlobalId<1>();
-  int S = ucl::GetGlobalId<2>();
-  if (X >= args.dst.Width() || Y >= args.dst.Height() || S >= args.dst.Slices()) {
-    return;
-  }
-  int token_offset;
-  args.params_tensor.ReadPerChannel(token_offset, 0, 0, $0);
-
-  args.dst::type mask_value;
-  int k;
-  bool visible;
-
-  // x
-  k = S * 4 + 0;
-  int token_index = k - token_offset;
-  visible = (token_index <= X);
-  mask_value.x = !visible;
-
-  // y
-  k = S * 4 + 1;
-  token_index = k - token_offset;
-  visible = (token_index <= X);
-  mask_value.y = !visible;
-
-  // z
-  k = S * 4 + 2;
-  token_index = k - token_offset;
-  visible = (token_index <= X);
-  mask_value.z = !visible;
-
-  // w
-  k = S * 4 + 3;
-  token_index = k - token_offset;
-  visible = (token_index <= X);
-  mask_value.w = !visible;
-
-  args.dst.Write(mask_value, X, Y, S);
-})",
-                              LlmRuntimeParams::kTokenOffsetIndex);
-  op.AddSrcTensor("params_tensor", params_desc);
-  op.AddDstTensor("dst", out_desc);
-  op.flops_ = out_desc.GetBHWCShape().DimensionsProduct() * 2;
-  return op;
-}
 
 // Builds global causal attention mask.
-TensorHandle AttentionMask(BuildContext& ctx) {
+absl::StatusOr<TensorHandle> AttentionMask(BuildContext& ctx) {
   const int cache_size = ctx.config.cache_size;
-  const BHWC mask_shape = BHWC(1, 1, ctx.sequence_size, cache_size);
-  TensorHandle attention_mask = ctx.AddTensor(mask_shape, DataType::kBool);
-  ctx.AddGpuOperation(
-      {ctx.params_i32}, {attention_mask},
-      std::make_unique<GPUOperation>(AttentionMaskOp(
-          ctx.params_i32.tensor_desc, attention_mask.tensor_desc, cache_size)),
-      "apply_attention_mask");
-  return attention_mask;
+  ABSL_ASSIGN_OR_RETURN(
+      std::vector<TensorHandle> mask,
+      ctx.builder.AppendOp(
+          "AttentionMask", {ctx.params_i32},
+          {{"mask_width", cache_size},
+           {"window_size", 0},
+           {"sliding_local_cache", 0},
+           {"token_offset_index", LlmRuntimeParams::kTokenOffsetIndex},
+           {"batch_size", 1},
+           {"sequence_size", ctx.sequence_size}}));
+  return mask[0];
 }
 
 // --- KV Cache Tensor Layout and Shape Helpers ---
@@ -1130,7 +1076,7 @@ absl::Status Qwen3ModelBuilder::BuildModelInternal(
       ctx.builder.AppendOp("FillPositionIds", {ctx.params_i32},
                            {{"sequence_size", ctx.sequence_size}}));
   TensorHandle position_ids = position_ids_out[0];
-  TensorHandle attention_mask = AttentionMask(ctx);
+  ABSL_ASSIGN_OR_RETURN(TensorHandle attention_mask, AttentionMask(ctx));
 
   // 3. Transformer Layers Stack
   for (int i = 0; i < config_.stack_size; ++i) {
