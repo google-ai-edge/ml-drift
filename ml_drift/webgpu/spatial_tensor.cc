@@ -334,6 +334,11 @@ absl::Status WriteDataToBufferViaStagingBuffer(const Environment& env,
       WaitUntilCompleted(device.GetQueue(), device, absl::Seconds(10)));
 #endif  // !__EMSCRIPTEN__
   staging_buffer.Destroy();
+#if PREFER_HOST_MAPPED_POINTER
+  // Dawn only runs the dispose callbacks that free host-mapped staging copies
+  // from ProcessEvents(), so tick to free earlier copies.
+  env.Tick();
+#endif  // PREFER_HOST_MAPPED_POINTER
   return absl::OkStatus();
 }
 }  // namespace
