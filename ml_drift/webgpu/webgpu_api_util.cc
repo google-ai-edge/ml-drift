@@ -40,16 +40,39 @@
 
 #include <emscripten.h>
 #include <emscripten/bind.h>
+#include <emscripten/em_macros.h>
 
+EM_JS_DEPS(read_buffer_data_js_deps, "$stringToUTF8")
+
+// Copies `buffer_handle` to `data_ptr`; returns 0 or non-zero with `error_msg`
+// (catches JS errors because -fno-exceptions Wasm skips destructors).
 // clang-format off
-EM_ASYNC_JS(void, ReadBufferDataJs,
-            (WGPUBuffer buffer_handle, void* data_ptr), {
-              const gpuReadBuffer = WebGPU.getJsObject(buffer_handle);
-              await gpuReadBuffer.mapAsync(GPUMapMode.READ);
-              const arrayBuffer = gpuReadBuffer.getMappedRange();
-              const u8view = new Uint8Array(arrayBuffer);
-              HEAPU8.set(u8view, data_ptr >>> 0);
-              gpuReadBuffer.unmap();
+EM_ASYNC_JS(int, ReadBufferDataJs,
+            (WGPUBuffer buffer_handle, void* data_ptr, char* error_msg,
+             int error_msg_size), {
+              try {
+                const gpuReadBuffer = WebGPU.getJsObject(buffer_handle);
+                if (!gpuReadBuffer) {
+                  stringToUTF8("WebGPU buffer handle is invalid.",
+                               error_msg >>> 0, error_msg_size);
+                  return 1;
+                }
+                await gpuReadBuffer.mapAsync(GPUMapMode.READ);
+                try {
+                  const arrayBuffer = gpuReadBuffer.getMappedRange();
+                  const u8view = new Uint8Array(arrayBuffer);
+                  HEAPU8.set(u8view, data_ptr >>> 0);
+                } finally {
+                  gpuReadBuffer.unmap();
+                }
+                return 0;
+              } catch (e) {
+                const message =
+                    (e && e.message) ? String(e.message) : (e ? String(e) : "");
+                stringToUTF8(message || "Failed to read WebGPU buffer.",
+                             error_msg >>> 0, error_msg_size);
+                return 1;
+              }
             });
 
 // clang-format on
@@ -64,7 +87,13 @@ absl::Status ReadDataFromMappableBuffer(const wgpu::Device& device,
                                         const wgpu::Buffer& mappable_buffer,
                                         uint64_t data_size, void* data_ptr) {
 #ifdef __EMSCRIPTEN__
-  ReadBufferDataJs(mappable_buffer.Get(), data_ptr);
+  char error_msg[512];
+  error_msg[0] = '\0';
+  if (ReadBufferDataJs(mappable_buffer.Get(), data_ptr, error_msg,
+                       static_cast<int>(sizeof(error_msg))) != 0) {
+    return absl::InternalError(
+        error_msg[0] != '\0' ? error_msg : "Failed to read WebGPU buffer.");
+  }
 #else   // __EMSCRIPTEN__
   wgpu::MapAsyncStatus status;
   std::string message;
