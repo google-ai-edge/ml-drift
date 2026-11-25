@@ -22,6 +22,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/attributes.h"
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
 #include "absl/status/statusor.h"
@@ -42,9 +43,14 @@ namespace ml_drift {
 namespace cl {
 namespace {
 
-absl::StatusOr<cl_command_queue> CreateCLCommandQueue(
-    const CLDevice& device, const CLContext& context,
-    cl_command_queue_properties queue_properties, PriorityHint priority) {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI void FlushQueue(cl_command_queue queue) {
+  clFlush(queue);
+}
+
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI absl::StatusOr<cl_command_queue>
+CreateCLCommandQueue(const CLDevice& device, const CLContext& context,
+                     cl_command_queue_properties queue_properties,
+                     PriorityHint priority) {
   int error_code;
   cl_command_queue queue;
   const bool is_cl_1_2_or_lower =
@@ -98,17 +104,16 @@ CLCommandQueue& CLCommandQueue::operator=(CLCommandQueue&& queue) {
 
 CLCommandQueue::~CLCommandQueue() { Release(); }
 
-void CLCommandQueue::Release() {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI void CLCommandQueue::Release() {
   if (has_ownership_ && queue_) {
     clReleaseCommandQueue(queue_);
     queue_ = nullptr;
   }
 }
 
-absl::Status CLCommandQueue::Dispatch(const CLKernel& kernel,
-                                      const int3& work_groups_count,
-                                      const int3& work_group_size,
-                                      CLEvent* event) {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI absl::Status CLCommandQueue::Dispatch(
+    const CLKernel& kernel, const int3& work_groups_count,
+    const int3& work_group_size, CLEvent* event) {
   std::array<size_t, 3> local;
   std::array<size_t, 3> global;
   for (int i = 0; i < 3; ++i) {
@@ -135,7 +140,8 @@ absl::Status CLCommandQueue::Dispatch(const CLKernel& kernel,
   return absl::OkStatus();
 }
 
-absl::Status CLCommandQueue::EnqueueEvent(CLEvent* event) {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI absl::Status CLCommandQueue::EnqueueEvent(
+    CLEvent* event) {
   cl_event resulting_event;
   const int error_code = clEnqueueMarker(queue_, &resulting_event);
   *event = CLEvent(resulting_event);
@@ -146,8 +152,8 @@ absl::Status CLCommandQueue::EnqueueEvent(CLEvent* event) {
   return absl::OkStatus();
 }
 
-absl::Status CLCommandQueue::EnqueueWriteImage(cl_mem memory, int3 region,
-                                               const void* data, bool async) {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI absl::Status CLCommandQueue::EnqueueWriteImage(
+    cl_mem memory, int3 region, const void* data, bool async) {
   const size_t origin[] = {0, 0, 0};
   const size_t r[] = {static_cast<size_t>(region.x),
                       static_cast<size_t>(region.y),
@@ -164,8 +170,8 @@ absl::Status CLCommandQueue::EnqueueWriteImage(cl_mem memory, int3 region,
   return absl::OkStatus();
 }
 
-absl::Status CLCommandQueue::EnqueueReadImage(cl_mem memory, int3 region,
-                                              void* data, bool async) {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI absl::Status CLCommandQueue::EnqueueReadImage(
+    cl_mem memory, int3 region, void* data, bool async) {
   const size_t origin[] = {0, 0, 0};
   const size_t r[] = {static_cast<size_t>(region.x),
                       static_cast<size_t>(region.y),
@@ -182,9 +188,8 @@ absl::Status CLCommandQueue::EnqueueReadImage(cl_mem memory, int3 region,
   return absl::OkStatus();
 }
 
-absl::Status CLCommandQueue::EnqueueWriteBuffer(cl_mem memory,
-                                                size_t size_in_bytes,
-                                                const void* data, bool async) {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI absl::Status CLCommandQueue::EnqueueWriteBuffer(
+    cl_mem memory, size_t size_in_bytes, const void* data, bool async) {
   const cl_bool blocking = async ? CL_FALSE : CL_TRUE;
   auto error_code = clEnqueueWriteBuffer(
       queue_, memory, blocking, 0, size_in_bytes, data, 0, nullptr, nullptr);
@@ -196,9 +201,8 @@ absl::Status CLCommandQueue::EnqueueWriteBuffer(cl_mem memory,
   return absl::OkStatus();
 }
 
-absl::Status CLCommandQueue::EnqueueReadBuffer(cl_mem memory,
-                                               size_t size_in_bytes, void* data,
-                                               bool async) {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI absl::Status CLCommandQueue::EnqueueReadBuffer(
+    cl_mem memory, size_t size_in_bytes, void* data, bool async) {
   const cl_bool blocking = async ? CL_FALSE : CL_TRUE;
   auto error_code = clEnqueueReadBuffer(
       queue_, memory, blocking, 0, size_in_bytes, data, 0, nullptr, nullptr);
@@ -210,7 +214,8 @@ absl::Status CLCommandQueue::EnqueueReadBuffer(cl_mem memory,
   return absl::OkStatus();
 }
 
-absl::Status CLCommandQueue::WaitForCompletion() {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI absl::Status
+CLCommandQueue::WaitForCompletion() {
   auto error_code = clFinish(queue_);
   if (error_code != CL_SUCCESS) {
     return absl::UnknownError(
@@ -271,12 +276,12 @@ absl::Status ProfilingCommandQueue::ProfilingDispatch(
       ABSL_RETURN_IF_ERROR(
           Dispatch(kernel, work_groups_count, work_group_size));
       if (flush_period && i % flush_period == 0) {
-        clFlush(queue_);
+        FlushQueue(queue_);
       }
     }
     ABSL_RETURN_IF_ERROR(Dispatch(kernel, work_groups_count, work_group_size,
                                   &events_[events_.size() - 1]));
-    clFlush(queue_);
+    FlushQueue(queue_);
     events_[events_.size() - 2].SetName(current_label_);
     events_[events_.size() - 1].SetName(current_label_);
   }

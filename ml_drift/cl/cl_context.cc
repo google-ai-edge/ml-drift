@@ -17,6 +17,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/attributes.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "ml_drift/cl/cl_device.h"
@@ -30,8 +31,8 @@ namespace ml_drift {
 namespace cl {
 namespace {
 
-std::vector<cl_image_format> GetSupportedImage2DFormats(cl_context context,
-                                                        cl_mem_flags flags) {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI std::vector<cl_image_format>
+GetSupportedImage2DFormats(cl_context context, cl_mem_flags flags) {
   cl_uint num_image_formats;
   cl_int error = clGetSupportedImageFormats(
       context, flags, CL_MEM_OBJECT_IMAGE2D, 0, nullptr, &num_image_formats);
@@ -77,9 +78,9 @@ void AddSupportedImageFormats(cl_context context, GpuInfo* info) {
   }
 }
 
-absl::Status CreateCLContext(const CLDevice& device,
-                             const std::vector<cl_context_properties>& props,
-                             CLContext* result) {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI absl::Status CreateCLContext(
+    const CLDevice& device, const std::vector<cl_context_properties>& props,
+    CLContext* result) {
   int error_code;
   cl_device_id device_id = device.id();
   std::vector<cl_context_properties> props_local = props;
@@ -129,7 +130,7 @@ CLContext& CLContext::operator=(CLContext&& context) {
 
 CLContext::~CLContext() { Release(); }
 
-void CLContext::Release() {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI void CLContext::Release() {
   if (has_ownership_ && context_) {
     clReleaseContext(context_);
     context_ = nullptr;

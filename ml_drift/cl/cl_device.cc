@@ -20,6 +20,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/attributes.h"
 #include "absl/log/absl_log.h"
 #include "absl/status/status.h"
 #include "absl/strings/ascii.h"
@@ -163,7 +164,8 @@ static void ParsePowerVRDriverVersion(const std::string& cl_driver_version,
 }
 
 template <>
-std::string GetDeviceInfo<std::string>(cl_device_id id, cl_device_info info) {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI std::string GetDeviceInfo<std::string>(
+    cl_device_id id, cl_device_info info) {
   size_t size;
   cl_int error = clGetDeviceInfo(id, info, 0, nullptr, &size);
   if (error != CL_SUCCESS) {
@@ -179,8 +181,16 @@ std::string GetDeviceInfo<std::string>(cl_device_id id, cl_device_info info) {
 }
 
 namespace {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI cl_int QueryDeviceInfo(
+    cl_device_id id, cl_device_info info, size_t param_value_size,
+    void* param_value, size_t* param_value_size_ret) {
+  return clGetDeviceInfo(id, info, param_value_size, param_value,
+                         param_value_size_ret);
+}
+
 template <typename T>
-T GetPlatformInfo(cl_platform_id id, cl_platform_info info) {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI T GetPlatformInfo(cl_platform_id id,
+                                                 cl_platform_info info) {
   T result;
   cl_int error = clGetPlatformInfo(id, info, sizeof(T), &result, nullptr);
   if (error != CL_SUCCESS) {
@@ -189,7 +199,8 @@ T GetPlatformInfo(cl_platform_id id, cl_platform_info info) {
   return result;
 }
 
-std::string GetPlatformInfo(cl_platform_id id, cl_platform_info info) {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI std::string GetPlatformInfo(
+    cl_platform_id id, cl_platform_info info) {
   size_t size;
   cl_int error = clGetPlatformInfo(id, info, 0, nullptr, &size);
   if (error != CL_SUCCESS) {
@@ -204,7 +215,8 @@ std::string GetPlatformInfo(cl_platform_id id, cl_platform_info info) {
   return result;
 }
 
-void GetDeviceWorkDimsSizes(cl_device_id id, int3* result) {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI void GetDeviceWorkDimsSizes(cl_device_id id,
+                                                           int3* result) {
   int dims_count =
       GetDeviceInfo<cl_uint>(id, CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS);
   if (dims_count < 3) {
@@ -427,13 +439,13 @@ GpuInfo GpuInfoFromDeviceID(cl_device_id id, cl_platform_id platform_id) {
     info.opencl_info.device_uuid_khr.resize(CL_UUID_SIZE_KHR, 0);
     info.opencl_info.driver_uuid_khr.resize(CL_UUID_SIZE_KHR, 0);
 
-    cl_int error = clGetDeviceInfo(id, CL_DEVICE_UUID_KHR, CL_UUID_SIZE_KHR,
+    cl_int error = QueryDeviceInfo(id, CL_DEVICE_UUID_KHR, CL_UUID_SIZE_KHR,
                                    info.opencl_info.device_uuid_khr.data(),
                                    /*param_value_size_ret=*/nullptr);
     if (error != CL_SUCCESS) {
       info.opencl_info.device_uuid_khr.clear();
     }
-    error = clGetDeviceInfo(id, CL_DRIVER_UUID_KHR, CL_UUID_SIZE_KHR,
+    error = QueryDeviceInfo(id, CL_DRIVER_UUID_KHR, CL_UUID_SIZE_KHR,
                             info.opencl_info.driver_uuid_khr.data(),
                             /*param_value_size_ret=*/nullptr);
     if (error != CL_SUCCESS) {
@@ -444,13 +456,13 @@ GpuInfo GpuInfoFromDeviceID(cl_device_id id, cl_platform_id platform_id) {
   if (info.SupportsExtension("cl_intel_required_subgroup_size")) {
     size_t sub_groups_ret_size;
     constexpr cl_device_info kClDeviceSubGroupSizesIntel = 0x4108;
-    cl_int status = clGetDeviceInfo(id, kClDeviceSubGroupSizesIntel, 0, nullptr,
+    cl_int status = QueryDeviceInfo(id, kClDeviceSubGroupSizesIntel, 0, nullptr,
                                     &sub_groups_ret_size);
     if (status == CL_SUCCESS) {
       auto sub_groups_count = sub_groups_ret_size / sizeof(size_t);
       std::vector<size_t> sub_group_sizes(sub_groups_count);
       status =
-          clGetDeviceInfo(id, kClDeviceSubGroupSizesIntel, sub_groups_ret_size,
+          QueryDeviceInfo(id, kClDeviceSubGroupSizesIntel, sub_groups_ret_size,
                           sub_group_sizes.data(), nullptr);
       if (status == CL_SUCCESS) {
         info.supported_wave_sizes.clear();
@@ -516,7 +528,8 @@ void CLDevice::DisableOneLayerTextureArray() {
   info_.adreno_info.support_one_layer_texture_array = false;
 }
 
-absl::Status CreateDefaultGPUDevice(CLDevice* result) {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI absl::Status CreateDefaultGPUDevice(
+    CLDevice* result) {
   cl_uint num_platforms;
   cl_int status = clGetPlatformIDs(0, nullptr, &num_platforms);
   if (status != CL_SUCCESS) {

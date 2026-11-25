@@ -19,6 +19,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/attributes.h"
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
 #include "absl/strings/str_cat.h"
@@ -42,9 +43,9 @@
 namespace ml_drift {
 namespace cl {
 namespace {
-absl::Status AllocateTensorMemoryInternal(const CLContext& context,
-                                          const TensorDescriptor& tensor_desc,
-                                          CLMemory* result) {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI absl::Status AllocateTensorMemoryInternal(
+    const CLContext& context, const TensorDescriptor& tensor_desc,
+    CLMemory* result) {
   cl_mem_flags mem_flags = CL_MEM_READ_WRITE;
   const uint8_t* data_ptr = nullptr;
   if (!tensor_desc.GetData().empty()) {
@@ -232,9 +233,9 @@ absl::Status AllocateTensorMemoryInternal(const CLContext& context,
   }
 }
 
-absl::Status CreateImageBufferFromBuffer(const CLContext& context,
-                                         cl_mem memory, DataType data_type,
-                                         int width, cl_mem* result) {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI absl::Status CreateImageBufferFromBuffer(
+    const CLContext& context, cl_mem memory, DataType data_type, int width,
+    cl_mem* result) {
   cl_image_format format;
   cl_image_desc image_desc;
   std::memset(&image_desc, 0, sizeof(image_desc));
@@ -297,9 +298,9 @@ absl::Status CreateImage2DFromBuffer(const CLContext& context, cl_mem memory,
   return absl::OkStatus();
 }
 
-absl::Status WriteDataViaStagingBuffer(const void* ptr, const size_t data_size,
-                                       CLCommandQueue* queue,
-                                       CLContext* context, cl_mem* result) {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI absl::Status WriteDataViaStagingBuffer(
+    const void* ptr, const size_t data_size, CLCommandQueue* queue,
+    CLContext* context, cl_mem* result) {
   cl_int error_code;
   cl_mem stage_mem;
   // Create the staging buffer.
@@ -391,7 +392,7 @@ Tensor& Tensor::operator=(Tensor&& tensor) {
   return *this;
 }
 
-void Tensor::Release() {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI void Tensor::Release() {
   // image_buffer_memory_ always owned by object
   if (image_buffer_memory_) {
     clReleaseMemObject(image_buffer_memory_);

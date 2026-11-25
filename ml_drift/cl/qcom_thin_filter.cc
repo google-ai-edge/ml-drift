@@ -16,6 +16,7 @@
 
 #include <utility>
 
+#include "absl/base/attributes.h"
 #include "absl/status/status.h"
 #include "ml_drift/cl/cl_context.h"
 #include "ml_drift/cl/gpu_object.h"
@@ -62,7 +63,7 @@ absl::Status QcomThinFilter::GetGPUResources(
 
 QcomThinFilter::~QcomThinFilter() { Release(); }
 
-void QcomThinFilter::Release() {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI void QcomThinFilter::Release() {
   if (filter_) {
     clReleaseMemObject(filter_);
     filter_ = nullptr;

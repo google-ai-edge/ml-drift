@@ -22,6 +22,7 @@
 #include <variant>
 #include <vector>
 
+#include "absl/base/attributes.h"
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
 #include "ml_drift/cl/buffer.h"
@@ -410,7 +411,8 @@ class TrivialCopier : public OpenClConverterImpl {
     return absl::InternalError("Unexpected object");
   }
 
-  absl::Status Copy(const OpenClBuffer& input, const OpenClBuffer& output) {
+  ABSL_ATTRIBUTE_NO_SANITIZE_CFI absl::Status Copy(const OpenClBuffer& input,
+                                                   const OpenClBuffer& output) {
     if (input.memobj == output.memobj) {
       return absl::OkStatus();
     }
@@ -421,7 +423,8 @@ class TrivialCopier : public OpenClConverterImpl {
                             0, nullptr, nullptr));
   }
 
-  absl::Status Copy(const OpenClTexture& input, const OpenClTexture& output) {
+  ABSL_ATTRIBUTE_NO_SANITIZE_CFI absl::Status Copy(
+      const OpenClTexture& input, const OpenClTexture& output) {
     if (input.memobj == output.memobj) {
       return absl::OkStatus();
     }

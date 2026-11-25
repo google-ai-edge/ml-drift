@@ -18,6 +18,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/base/attributes.h"
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
 #include "absl/status/statusor.h"
@@ -59,35 +60,35 @@ CLEvent& CLEvent::operator=(CLEvent&& event) {
   return *this;
 }
 
-uint64_t CLEvent::GetEnqueuedTimeNs() const {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI uint64_t CLEvent::GetEnqueuedTimeNs() const {
   cl_ulong time_ns;
   clGetEventProfilingInfo(event_, CL_PROFILING_COMMAND_QUEUED, sizeof(cl_ulong),
                           &time_ns, /*param_value_size_ret=*/nullptr);
   return time_ns;
 }
 
-uint64_t CLEvent::GetSubmittedTimeNs() const {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI uint64_t CLEvent::GetSubmittedTimeNs() const {
   cl_ulong time_ns;
   clGetEventProfilingInfo(event_, CL_PROFILING_COMMAND_SUBMIT, sizeof(cl_ulong),
                           &time_ns, /*param_value_size_ret=*/nullptr);
   return time_ns;
 }
 
-uint64_t CLEvent::GetStartedTimeNs() const {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI uint64_t CLEvent::GetStartedTimeNs() const {
   cl_ulong time_ns;
   clGetEventProfilingInfo(event_, CL_PROFILING_COMMAND_START, sizeof(cl_ulong),
                           &time_ns, /*param_value_size_ret=*/nullptr);
   return time_ns;
 }
 
-uint64_t CLEvent::GetFinishedTimeNs() const {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI uint64_t CLEvent::GetFinishedTimeNs() const {
   cl_ulong time_ns;
   clGetEventProfilingInfo(event_, CL_PROFILING_COMMAND_END, sizeof(cl_ulong),
                           &time_ns, /*param_value_size_ret=*/nullptr);
   return time_ns;
 }
 
-uint64_t CLEvent::GetCompletedTimeNs() const {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI uint64_t CLEvent::GetCompletedTimeNs() const {
   cl_ulong time_ns;
   clGetEventProfilingInfo(event_, CL_PROFILING_COMMAND_COMPLETE,
                           sizeof(cl_ulong), &time_ns,
@@ -109,7 +110,8 @@ uint64_t CLEvent::GetEventTimeNs() const {
 
 void CLEvent::SetName(const std::string& name) { name_ = name; }
 
-absl::StatusOr<cl_int> CLEvent::GetState() const {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI absl::StatusOr<cl_int> CLEvent::GetState()
+    const {
   cl_int status;
   cl_int error = clGetEventInfo(event_, CL_EVENT_COMMAND_EXECUTION_STATUS,
                                 sizeof(cl_int), &status, nullptr);
@@ -120,9 +122,12 @@ absl::StatusOr<cl_int> CLEvent::GetState() const {
   return status;
 }
 
-void CLEvent::Wait() const { clWaitForEvents(1, &event_); }
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI void CLEvent::Wait() const {
+  clWaitForEvents(1, &event_);
+}
 
-absl::Status CLEvent::ActiveWait(cl_command_queue queue) const {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI absl::Status CLEvent::ActiveWait(
+    cl_command_queue queue) const {
   cl_int event_status = CL_QUEUED;
   while (event_status != CL_COMPLETE) {
     ABSL_ASSIGN_OR_RETURN(event_status, GetState());
@@ -135,14 +140,14 @@ absl::Status CLEvent::ActiveWait(cl_command_queue queue) const {
 
 CLEvent::~CLEvent() { Release(); }
 
-void CLEvent::Release() {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI void CLEvent::Release() {
   if (event_) {
     clReleaseEvent(event_);
     event_ = nullptr;
   }
 }
 
-void CLEvent::Retain() {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI void CLEvent::Retain() {
   if (event_) {
     if (clRetainEvent(event_) != CL_SUCCESS) {
       event_ = nullptr;

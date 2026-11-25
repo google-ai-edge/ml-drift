@@ -20,6 +20,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/base/attributes.h"
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
 #include "absl/strings/ascii.h"
@@ -587,7 +588,8 @@ std::string CLArguments::GetListOfArgs() {
   return result;
 }
 
-absl::Status CLArguments::Bind(cl_kernel kernel, int offset) {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI absl::Status CLArguments::Bind(cl_kernel kernel,
+                                                              int offset) {
   for (auto& t : buffers_) {
     const int error_code =
         clSetKernelArg(kernel, offset, sizeof(cl_mem), &t.second.memory);

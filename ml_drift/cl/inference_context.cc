@@ -26,6 +26,7 @@
 #include <vector>
 
 #include "absl/algorithm/container.h"
+#include "absl/base/attributes.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
@@ -73,6 +74,14 @@
 namespace ml_drift {
 namespace cl {
 namespace {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI void FlushQueue(cl_command_queue queue) {
+  clFlush(queue);
+}
+
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI void FinishQueue(cl_command_queue queue) {
+  clFinish(queue);
+}
+
 absl::Status ClarifyWithCommandBuffer(ProfilingCommandQueue* queue,
                                       int num_tries, double cb_duration_ms,
                                       const std::vector<CLNode*>& nodes,
@@ -103,7 +112,7 @@ absl::Status ClarifyWithCommandBuffer(ProfilingCommandQueue* queue,
       ABSL_RETURN_IF_ERROR(cbs[index].Enqueue(queue, &events[index]));
     }
   }
-  clFinish(queue->queue());
+  FinishQueue(queue->queue());
   for (int node_index = 0; node_index < nodes.size(); ++node_index) {
     double min_time_ns = std::numeric_limits<double>::max();
     for (int t = 0; t < num_tries; ++t) {
@@ -595,11 +604,11 @@ absl::Status InferenceContext::AddToQueue(CLCommandQueue* queue,
     ABSL_RETURN_IF_ERROR(AddToQueue(step, queue, current_event));
     if (execution_hints_.flush_periodically &&
         (tile_idx + 1) % execution_hints_.flush_period == 0) {
-      clFlush(queue->queue());
+      FlushQueue(queue->queue());
     }
   }
   if (execution_hints_.need_flush) {
-    clFlush(queue->queue());
+    FlushQueue(queue->queue());
   }
   return absl::OkStatus();
 }

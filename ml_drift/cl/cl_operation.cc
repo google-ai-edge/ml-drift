@@ -22,6 +22,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/base/attributes.h"
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
 #include "absl/status/statusor.h"
@@ -46,6 +47,10 @@
 namespace ml_drift {
 namespace cl {
 namespace {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI void FlushQueue(cl_command_queue queue) {
+  clFlush(queue);
+}
+
 std::string GetCommonOpenCLDefines() {
   std::string result;
   result += "#define MAIN_FUNCTION __kernel void main_function\n";
@@ -87,7 +92,8 @@ absl::Status ClOperation::AddToQueue(CLCommandQueue* queue, CLEvent* event) {
                          operation_->work_group_size_, event);
 }
 
-absl::Status ClOperation::AddToCommandBuffer(cl_command_buffer_khr cb) {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI absl::Status ClOperation::AddToCommandBuffer(
+    cl_command_buffer_khr cb) {
   ABSL_RETURN_IF_ERROR(cl_args_.Bind(kernel_.kernel()));
   std::array<size_t, 3> local;
   std::array<size_t, 3> global;
@@ -242,7 +248,7 @@ absl::StatusOr<absl::Duration> ClOperation::GetOpTime(
   for (int j = 0; j < kRuns; ++j) {
     ABSL_RETURN_IF_ERROR(AddToQueue(queue));
     if ((j + 1) % kFlush == 0) {
-      clFlush(queue->queue());
+      FlushQueue(queue->queue());
     }
   }
   ABSL_RETURN_IF_ERROR(queue->WaitForCompletion());

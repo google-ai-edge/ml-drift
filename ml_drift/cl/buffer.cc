@@ -18,6 +18,7 @@
 #include <cstdint>
 #include <utility>
 
+#include "absl/base/attributes.h"
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
 #include "absl/status/statusor.h"
@@ -72,7 +73,7 @@ Buffer& Buffer::operator=(Buffer&& buffer) {
   return *this;
 }
 
-void Buffer::Release() {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI void Buffer::Release() {
   if (owner_ && buffer_) {
     clReleaseMemObject(buffer_);
     buffer_ = nullptr;

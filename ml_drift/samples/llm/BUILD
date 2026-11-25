@@ -472,6 +472,7 @@ cc_binary(
         "//ml_drift/common/task:gpu_operation",
         "//ml_drift/common/task:gpu_tensor",
         "//ml_drift/common/task:tensor_desc",
+        "@com_google_absl//absl/base:core_headers",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/functional:bind_front",
         "@com_google_absl//absl/log:absl_check",

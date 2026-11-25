@@ -15,11 +15,13 @@
 #include "ml_drift/cl/egl_sync.h"
 
 #include <cstring>
+#include <string>
 #include <utility>
 
+#include "absl/base/attributes.h"
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
-#include "ml_drift/gl/gl_call.h"
+#include "ml_drift/gl/gl_errors.h"
 
 namespace ml_drift {
 namespace cl {
@@ -47,9 +49,19 @@ absl::Status IsEglWaitSyncSupported(EGLDisplay display) {
   return absl::InternalError("Not supported: EGL_KHR_wait_sync");
 }
 
+absl::Status CheckEglError(const char* context) {
+  const absl::Status status = gl::GetEglError();
+  if (status.ok()) {
+    return absl::OkStatus();
+  }
+  return absl::Status(status.code(),
+                      std::string(status.message()) + ": " + context);
+}
+
 }  // anonymous namespace
 
-absl::Status EglSync::NewFence(EGLDisplay display, EglSync* sync) {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI absl::Status EglSync::NewFence(
+    EGLDisplay display, EglSync* sync) {
   ABSL_RETURN_IF_ERROR(IsEglFenceSyncSupported(display));
   static auto* egl_create_sync_khr =
       reinterpret_cast<decltype(&eglCreateSyncKHR)>(
@@ -59,9 +71,9 @@ absl::Status EglSync::NewFence(EGLDisplay display, EglSync* sync) {
     return absl::InternalError(
         "Not supported / bad EGL implementation: eglCreateSyncKHR.");
   }
-  EGLSyncKHR egl_sync;
-  ABSL_RETURN_IF_ERROR(ML_DRIFT_CALL_EGL(
-      *egl_create_sync_khr, &egl_sync, display, EGL_SYNC_FENCE_KHR, nullptr));
+  EGLSyncKHR egl_sync =
+      (*egl_create_sync_khr)(display, EGL_SYNC_FENCE_KHR, nullptr);
+  ABSL_RETURN_IF_ERROR(CheckEglError("eglCreateSyncKHR"));
   if (egl_sync == EGL_NO_SYNC_KHR) {
     return absl::InternalError("Returned empty KHR EGL sync");
   }
@@ -78,7 +90,7 @@ EglSync& EglSync::operator=(EglSync&& sync) {
   return *this;
 }
 
-void EglSync::Invalidate() {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI void EglSync::Invalidate() {
   if (sync_ != EGL_NO_SYNC_KHR) {
     static auto* egl_destroy_sync_khr =
         reinterpret_cast<decltype(&eglDestroySyncKHR)>(
@@ -93,7 +105,7 @@ void EglSync::Invalidate() {
   }
 }
 
-absl::Status EglSync::ServerWait() {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI absl::Status EglSync::ServerWait() {
   ABSL_RETURN_IF_ERROR(IsEglWaitSyncSupported(display_));
   static auto* egl_wait_sync_khr = reinterpret_cast<decltype(&eglWaitSyncKHR)>(
       eglGetProcAddress("eglWaitSyncKHR"));
@@ -101,14 +113,13 @@ absl::Status EglSync::ServerWait() {
     // Needs extension: EGL_KHR_wait_sync
     return absl::InternalError("Not supported: eglWaitSyncKHR.");
   }
-  EGLint result;
-  ABSL_RETURN_IF_ERROR(
-      ML_DRIFT_CALL_EGL(*egl_wait_sync_khr, &result, display_, sync_, 0));
+  EGLint result = (*egl_wait_sync_khr)(display_, sync_, 0);
+  ABSL_RETURN_IF_ERROR(CheckEglError("eglWaitSyncKHR"));
   return result == EGL_TRUE ? absl::OkStatus()
                             : absl::InternalError("eglWaitSync failed");
 }
 
-absl::Status EglSync::ClientWait() {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI absl::Status EglSync::ClientWait() {
   ABSL_RETURN_IF_ERROR(IsEglFenceSyncSupported(display_));
   static auto* egl_client_wait_sync_khr =
       reinterpret_cast<decltype(&eglClientWaitSyncKHR)>(
@@ -117,11 +128,10 @@ absl::Status EglSync::ClientWait() {
     // Needs extension: EGL_KHR_fence_sync (EGL) / GL_OES_EGL_sync (OpenGL ES).
     return absl::InternalError("Not supported: eglClientWaitSyncKHR.");
   }
-  EGLint result;
   // TODO: make it active wait for better performance
-  ABSL_RETURN_IF_ERROR(
-      ML_DRIFT_CALL_EGL(*egl_client_wait_sync_khr, &result, display_, sync_,
-                        EGL_SYNC_FLUSH_COMMANDS_BIT_KHR, EGL_FOREVER_KHR));
+  EGLint result = (*egl_client_wait_sync_khr)(
+      display_, sync_, EGL_SYNC_FLUSH_COMMANDS_BIT_KHR, EGL_FOREVER_KHR);
+  ABSL_RETURN_IF_ERROR(CheckEglError("eglClientWaitSyncKHR"));
   return result == EGL_CONDITION_SATISFIED_KHR
              ? absl::OkStatus()
              : absl::InternalError("eglClientWaitSync failed");

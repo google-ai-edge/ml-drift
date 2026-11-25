@@ -17,6 +17,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/attributes.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "ml_drift/cl/cl_command_queue.h"
@@ -40,15 +41,15 @@ CLCommandBuffer& CLCommandBuffer::operator=(CLCommandBuffer&& cb) {
   return *this;
 }
 
-void CLCommandBuffer::Release() {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI void CLCommandBuffer::Release() {
   if (cb_) {
     clReleaseCommandBufferKHR(cb_);
     cb_ = nullptr;
   }
 }
 
-absl::Status CLCommandBuffer::Init(CLCommandQueue* queue,
-                                   bool simultaneous_use) {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI absl::Status CLCommandBuffer::Init(
+    CLCommandQueue* queue, bool simultaneous_use) {
   if (clCreateCommandBufferKHR == nullptr) {
     return absl::UnavailableError(
         "clCreateCommandBufferKHR is null: OpenCL driver does not support "
@@ -72,7 +73,7 @@ absl::Status CLCommandBuffer::Init(CLCommandQueue* queue,
   return absl::OkStatus();
 }
 
-absl::Status CLCommandBuffer::Finalize() {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI absl::Status CLCommandBuffer::Finalize() {
   cl_int errcode_ret = clFinalizeCommandBufferKHR(cb_);
   if (errcode_ret != CL_SUCCESS) {
     return absl::InternalError(
@@ -86,7 +87,8 @@ absl::Status CLCommandBuffer::AddOp(ClOperation* op) {
   return op->AddToCommandBuffer(cb_);
 }
 
-absl::Status CLCommandBuffer::Enqueue(CLCommandQueue* queue, CLEvent* event) {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI absl::Status CLCommandBuffer::Enqueue(
+    CLCommandQueue* queue, CLEvent* event) {
   cl_event resulting_event;
   cl_command_queue cmd_queue = queue->queue();
   cl_int errcode_ret = clEnqueueCommandBufferKHR(

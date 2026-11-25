@@ -18,6 +18,7 @@
 #include <variant>
 #include <vector>
 
+#include "absl/base/attributes.h"
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
 #include "absl/strings/str_cat.h"
@@ -33,6 +34,7 @@
 #include "ml_drift/common/api_cl_gl_vk.h"
 #include "ml_drift/common/data_type.h"
 #include "ml_drift/gl/gl_call.h"
+#include "ml_drift/gl/gl_errors.h"
 #include "ml_drift/gl/gl_sync.h"
 #include <CL/cl.h>
 #include <CL/cl_platform.h>
@@ -57,17 +59,19 @@ PFNEGLCREATESYNCPROC g_eglCreateSync = nullptr;
 
 }  // namespace
 
-absl::Status CreateEglSyncFromClEvent(cl_event event, EGLDisplay display,
-                                      EglSync* sync) {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI absl::Status CreateEglSyncFromClEvent(
+    cl_event event, EGLDisplay display, EglSync* sync) {
   if (!IsEglSyncFromClEventSupported()) {
     return absl::UnimplementedError(
         "CreateEglSyncFromClEvent is not supported");
   }
-  EGLSync egl_sync;
   const EGLAttrib attributes[] = {EGL_CL_EVENT_HANDLE,
                                   reinterpret_cast<EGLAttrib>(event), EGL_NONE};
-  ABSL_RETURN_IF_ERROR(ML_DRIFT_CALL_EGL(g_eglCreateSync, &egl_sync, display,
-                                         EGL_SYNC_CL_EVENT, attributes));
+  EGLSync egl_sync = g_eglCreateSync(display, EGL_SYNC_CL_EVENT, attributes);
+  if (absl::Status status = gl::GetEglError(); !status.ok()) {
+    return absl::Status(status.code(),
+                        absl::StrCat(status.message(), ": g_eglCreateSync"));
+  }
   if (egl_sync == EGL_NO_SYNC) {
     return absl::InternalError("Returned empty EGL sync");
   }
@@ -90,8 +94,8 @@ bool IsEglSyncFromClEventSupported() {
   return supported;
 }
 
-absl::Status CreateClEventFromEglSync(cl_context context,
-                                      const EglSync& egl_sync, CLEvent* event) {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI absl::Status CreateClEventFromEglSync(
+    cl_context context, const EglSync& egl_sync, CLEvent* event) {
   cl_int error_code;
   cl_event new_event = clCreateEventFromEGLSyncKHR(
       context, egl_sync.sync(), egl_sync.display(), &error_code);
@@ -108,9 +112,9 @@ bool IsClEventFromEglSyncSupported(const CLDevice& device) {
   return device.GetInfo().SupportsExtension("cl_khr_egl_event");
 }
 
-absl::Status CreateClMemoryFromGlBuffer(GLuint gl_ssbo_id,
-                                        AccessType access_type,
-                                        CLContext* context, CLMemory* memory) {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI absl::Status CreateClMemoryFromGlBuffer(
+    GLuint gl_ssbo_id, AccessType access_type, CLContext* context,
+    CLMemory* memory) {
   cl_int error_code;
   auto mem = clCreateFromGLBuffer(context->context(), ToClMemFlags(access_type),
                                   gl_ssbo_id, &error_code);
@@ -123,10 +127,9 @@ absl::Status CreateClMemoryFromGlBuffer(GLuint gl_ssbo_id,
   return absl::OkStatus();
 }
 
-absl::Status CreateClMemoryFromGlTexture(GLenum texture_target,
-                                         GLuint texture_id,
-                                         AccessType access_type,
-                                         CLContext* context, CLMemory* memory) {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI absl::Status CreateClMemoryFromGlTexture(
+    GLenum texture_target, GLuint texture_id, AccessType access_type,
+    CLContext* context, CLMemory* memory) {
   cl_int error_code;
   auto mem =
       clCreateFromGLTexture(context->context(), ToClMemFlags(access_type),
@@ -147,7 +150,7 @@ bool IsGlSharingSupported(const CLDevice& device) {
 
 AcquiredGlObjects::~AcquiredGlObjects() { Release({}, nullptr).IgnoreError(); }
 
-absl::Status AcquiredGlObjects::Acquire(
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI absl::Status AcquiredGlObjects::Acquire(
     const std::vector<cl_mem>& memory, cl_command_queue queue,
     const std::vector<cl_event>& wait_events, CLEvent* acquire_event,
     AcquiredGlObjects* objects) {
@@ -169,7 +172,7 @@ absl::Status AcquiredGlObjects::Acquire(
   return absl::OkStatus();
 }
 
-absl::Status AcquiredGlObjects::Release(
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI absl::Status AcquiredGlObjects::Release(
     const std::vector<cl_event>& wait_events, CLEvent* release_event) {
   if (queue_ && !memory_.empty()) {
     cl_event new_event;

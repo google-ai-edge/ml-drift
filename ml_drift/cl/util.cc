@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/base/attributes.h"
 #include "absl/debugging/leak_check.h"
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
@@ -264,8 +265,9 @@ int ChannelTypeToSizeInBytes(cl_channel_type type) {
 
 bool OpenCLSupported() { return LoadOpenCL().ok(); }
 
-absl::Status CreateCLBuffer(cl_context context, size_t size_in_bytes,
-                            bool read_only, void* data, cl_mem* result) {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI absl::Status CreateCLBuffer(
+    cl_context context, size_t size_in_bytes, bool read_only, void* data,
+    cl_mem* result) {
   cl_mem_flags flags = read_only ? CL_MEM_READ_ONLY : CL_MEM_READ_WRITE;
   if (data) {
     flags |= CL_MEM_COPY_HOST_PTR;
@@ -285,9 +287,9 @@ absl::Status CreateCLBuffer(cl_context context, size_t size_in_bytes,
   return absl::OkStatus();
 }
 
-absl::StatusOr<cl_mem> CreateCLSubBuffer(cl_context context, cl_mem parent,
-                                         size_t origin_in_bytes,
-                                         size_t size_in_bytes) {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI absl::StatusOr<cl_mem> CreateCLSubBuffer(
+    cl_context context, cl_mem parent, size_t origin_in_bytes,
+    size_t size_in_bytes) {
   ABSL_ASSIGN_OR_RETURN(cl_mem_flags parent_flags, GetCLMemObjectFlags(parent));
   const bool read_only = parent_flags & CL_MEM_READ_ONLY;
   cl_mem_flags flags = read_only ? CL_MEM_READ_ONLY : CL_MEM_READ_WRITE;
@@ -352,7 +354,8 @@ absl::Status CreateRGBAImage2D(cl_context context, int width, int height,
   return absl::OkStatus();
 }
 
-absl::StatusOr<cl_mem_flags> GetCLMemObjectFlags(cl_mem memobj) {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI absl::StatusOr<cl_mem_flags> GetCLMemObjectFlags(
+    cl_mem memobj) {
   cl_mem_flags flags;
   size_t param_value_size_ret;
 
@@ -366,9 +369,9 @@ absl::StatusOr<cl_mem_flags> GetCLMemObjectFlags(cl_mem memobj) {
   return flags;
 }
 
-absl::Status CreateQcomConvolutionFilter(cl_context context, int kernel_x,
-                                         int kernel_y, cl_mem* filter,
-                                         const void* data) {
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI absl::Status CreateQcomConvolutionFilter(
+    cl_context context, int kernel_x, int kernel_y, cl_mem* filter,
+    const void* data) {
   cl_image_format format;
   format.image_channel_order = CL_R;
   format.image_channel_data_type = CL_HALF_FLOAT;

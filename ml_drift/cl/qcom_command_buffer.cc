@@ -16,6 +16,7 @@
 #include <memory>
 #include <utility>
 
+#include "absl/base/attributes.h"
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
 #include "absl/status/statusor.h"
@@ -36,7 +37,7 @@ class QcomCommandBuffer : public CommandBuffer {
  public:
   QcomCommandBuffer() = default;
   ~QcomCommandBuffer() override { Release(); }
-  void Release() {
+  ABSL_ATTRIBUTE_NO_SANITIZE_CFI void Release() {
     if (recording_) {
       clReleaseRecordingQCOM(recording_);
       recording_ = nullptr;
@@ -60,7 +61,8 @@ class QcomCommandBuffer : public CommandBuffer {
   QcomCommandBuffer(const QcomCommandBuffer&) = delete;
   QcomCommandBuffer& operator=(const QcomCommandBuffer&) = delete;
 
-  absl::Status Init(const CLDevice& device, const CLContext& context) {
+  ABSL_ATTRIBUTE_NO_SANITIZE_CFI absl::Status Init(const CLDevice& device,
+                                                   const CLContext& context) {
     cl_int error;
     cl_command_queue recordable_queue = clCreateCommandQueue(
         context.context(), device.id(), CL_QUEUE_RECORDABLE_QCOM, &error);
@@ -78,7 +80,7 @@ class QcomCommandBuffer : public CommandBuffer {
     }
     return absl::OkStatus();
   }
-  absl::Status Finalize() override {
+  ABSL_ATTRIBUTE_NO_SANITIZE_CFI absl::Status Finalize() override {
     cl_int error = clEndRecordingQCOM(recording_);
     if (error != CL_SUCCESS) {
       return absl::InternalError("Failed recording to Qcom recording. " +
@@ -91,7 +93,8 @@ class QcomCommandBuffer : public CommandBuffer {
   absl::Status AddOp(ClOperation* op) override {
     return op->AddToQueue(temp_queue_.get());
   }
-  absl::Status Enqueue(CLCommandQueue* queue, CLEvent* event) override {
+  ABSL_ATTRIBUTE_NO_SANITIZE_CFI absl::Status Enqueue(CLCommandQueue* queue,
+                                                      CLEvent* event) override {
     cl_event resulting_event;
     cl_int errcode_ret = clEnqueueRecordingQCOM(
         queue->queue(), recording_, 0, nullptr, 0, nullptr, 0, nullptr, 0,

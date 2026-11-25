@@ -22,6 +22,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/attributes.h"
 #include "absl/flags/declare.h"
 #include "absl/flags/flag.h"
 #include "absl/functional/bind_front.h"
@@ -68,6 +69,10 @@ using ::ml_drift::cl::Environment;
 using ::ml_drift::cl::InferenceContext;
 
 namespace {
+
+ABSL_ATTRIBUTE_NO_SANITIZE_CFI void FlushQueue(cl_command_queue queue) {
+  cl::clFlush(queue);
+}
 
 absl::StatusOr<GpuSpatialTensor*> CreateTensor(
     Environment* env, LlmTensorLoader* tensor_loader,
@@ -522,7 +527,7 @@ absl::Status OpenCLLlmModelRunner::Decode(const DecodeOptions& options) {
     ABSL_RETURN_IF_ERROR(greedy_context_->AddToQueue(env_->queue()));
     ABSL_RETURN_IF_ERROR(
         env_->queue()->EnqueueEvent(&inflight_events[buf_idx]));
-    cl::clFlush(env_->queue()->queue());
+    FlushQueue(env_->queue()->queue());
     return absl::OkStatus();
   };
 

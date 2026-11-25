@@ -17,6 +17,7 @@
 
 #include <utility>
 
+#include "absl/base/attributes.h"
 #include "ml_drift/cl/opencl_wrapper.h"
 #include "ml_drift/common/access_type.h"
 
@@ -68,7 +69,7 @@ class CLMemory {
   }
 
  private:
-  void Invalidate() {
+  ABSL_ATTRIBUTE_NO_SANITIZE_CFI void Invalidate() {
     if (memory_ && has_ownership_) {
       clReleaseMemObject(memory_);
     }
