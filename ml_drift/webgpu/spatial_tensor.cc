@@ -283,6 +283,11 @@ absl::Status WriteDataToBufferViaStagingBuffer(const Environment& env,
       }
       memcpy(aligned_data.get(), data_ptr, data_size);
       host_mapped_desc.pointer = aligned_data.get();
+      // Free the copy via disposeCallback once Dawn releases the buffer.
+      host_mapped_desc.disposeCallback = [](void* userdata) {
+        std::free(userdata);
+      };
+      host_mapped_desc.userdata = aligned_data.get();
     }
     wgpu::BufferDescriptor buffer_desc = {
         .nextInChain = &host_mapped_desc,
@@ -295,6 +300,7 @@ absl::Status WriteDataToBufferViaStagingBuffer(const Environment& env,
           absl::StrCat("Failed to create host-mapped WebGPU staging buffer of ",
                        aligned_data_size, " bytes."));
     }
+    (void)aligned_data.release();
   } else {
 #else
   {
