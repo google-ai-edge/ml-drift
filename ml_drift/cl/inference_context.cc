@@ -32,6 +32,7 @@
 #include "absl/status/status.h"
 #include "absl/status/status_macros.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/cord.h"
 #include "absl/strings/str_cat.h"
 #include "absl/time/time.h"
 #include "absl/types/span.h"
@@ -270,6 +271,18 @@ absl::Status InferenceContext::InitFromGpuModel(
     }
   }
   ABSL_RETURN_IF_ERROR(Tune(tuning_type, gpu_info_, env->profiling_queue()));
+  if (absl::Status fit = CheckWorkGroupsFitKernels(); !fit.ok()) {
+    // The external tensors allocated temporarily above are freed on return:
+    // leave none of them in the memory manager, which the next partition (and
+    // the caller's rebuild) shares.
+    for (auto& external_tensor :
+         create_info.external_tensors.mutable_tensors) {
+      memory_manager_
+          ->SetExternalTensor(GetKey(external_tensor.first), nullptr)
+          .IgnoreError();
+    }
+    return fit;
+  }
   ABSL_RETURN_IF_ERROR(
       BuildExecutionPlan(env, create_info.options.allow_cl_khr_command_buffer));
 
@@ -289,6 +302,40 @@ absl::Status InferenceContext::InitFromGpuModel(
                 builder.GetSize());
   }
   return absl::OkStatus();
+}
+
+absl::Status InferenceContext::CheckWorkGroupsFitKernels() const {
+  // Several ops choose their work group before compiling and write it into
+  // the kernel source (loop strides, local memory sizes), so it cannot be
+  // shrunk at dispatch. The driver can then compile the kernel for fewer work
+  // items than that (Adreno lowers CL_KERNEL_WORK_GROUP_SIZE by register
+  // use), and the first dispatch fails. Report it here, at creation, with the
+  // smallest limit as a payload so the caller can rebuild with a lower cap.
+  int over = 0;
+  int min_limit = 0;
+  std::string first;
+  for (const auto& node : nodes_) {
+    const int3 wg = node.cl_operation.GetWorkGroupSize();
+    const int limit = node.cl_operation.GetKernelMaxWorkGroupSize();
+    const int total = wg.x * wg.y * wg.z;
+    if (limit <= 0 || total <= limit) continue;
+    if (over == 0) {
+      first = absl::StrCat("'", node.name, "' uses a work group of {", wg.x,
+                           ", ", wg.y, ", ", wg.z, "} = ", total,
+                           " work items, the compiled kernel allows ", limit);
+    }
+    ++over;
+    min_limit = min_limit == 0 ? limit : std::min(min_limit, limit);
+  }
+  if (over == 0) return absl::OkStatus();
+  absl::Status status = absl::FailedPreconditionError(absl::StrCat(
+      "OpenCL work group larger than the driver allows for the compiled "
+      "kernel: ",
+      first,
+      over > 1 ? absl::StrCat(" (", over, " kernels in all)") : ""));
+  status.SetPayload(kKernelWorkGroupLimitPayload,
+                    absl::Cord(absl::StrCat(min_limit)));
+  return status;
 }
 
 absl::Status InferenceContext::AddToCommandBuffer(cl_command_buffer_khr cb) {
@@ -352,6 +399,16 @@ absl::Status InferenceContext::RestoreDeserialized(
     ABSL_RETURN_IF_ERROR(nodes_[i].cl_operation.RestoreDeserialized(
         *env->program_cache(), fingerprint, env->GetDevicePtr()->GetInfo(),
         wg_size, &env->context()));
+  }
+  if (absl::Status fit = CheckWorkGroupsFitKernels(); !fit.ok()) {
+    // As in InitFromGpuModel: no pointer to a temporarily allocated external
+    // tensor may outlive this call in the shared memory manager.
+    for (auto& external_tensor : create_info_copy.external_mutable_tensors) {
+      memory_manager_
+          ->SetExternalTensor(GetKey(external_tensor.first), nullptr)
+          .IgnoreError();
+    }
+    return fit;
   }
   ABSL_RETURN_IF_ERROR(BindMemoryToOperations());
   ABSL_RETURN_IF_ERROR(UpdateParams());

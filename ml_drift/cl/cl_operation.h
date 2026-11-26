@@ -100,6 +100,12 @@ class ClOperation {
                                    CLContext* context);
 
   int3 GetWorkGroupSize() const { return operation_->work_group_size_; }
+  // The work-group size the driver allows for the compiled kernel
+  // (CL_KERNEL_WORK_GROUP_SIZE), which can be below the device limit when the
+  // kernel uses many registers. 0 when not known.
+  int GetKernelMaxWorkGroupSize() const {
+    return kernel_.info_.max_work_group_size;
+  }
   void SetWorkGroupSize(const int3& wg_size);
 
   uint64_t GetConstArgsSize() const { return operation_->const_args_size_; }
