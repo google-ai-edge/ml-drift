@@ -229,6 +229,40 @@ mld_kernel_test(
 )
 
 cc_library(
+    name = "conversion_test_util",
+    testonly = 1,
+    srcs = ["conversion_test_util.cc"],
+    hdrs = ["conversion_test_util.h"],
+    deps = [
+        "//ml_drift/common:data_type",
+        "//ml_drift/common:shape",
+        "//ml_drift/common:tensor",
+        "//ml_drift/common/kernels:conversion",
+        "//ml_drift/common/task:gpu_operation",
+        "//ml_drift/common/task:tensor_desc",
+        "//ml_drift/common/task:testing_util",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_macros",
+        "@com_google_absl//absl/status:status_matchers",
+        "@com_google_googletest//:gtest",
+    ],
+)
+
+mld_kernel_test(
+    name = "conversion_test",
+    srcs = [
+        "conversion_test.cc",
+    ],
+    deps = [
+        ":conversion_test_util",
+        "//ml_drift/common:data_type",
+        "//ml_drift/common/task:tensor_desc",
+        "//ml_drift/common/task:testing_util",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_library(
     name = "concat_test_util",
     testonly = 1,
     srcs = ["concat_test_util.cc"],
@@ -1088,6 +1122,18 @@ mld_kernel_test(
         "//ml_drift/common/task:tensor_desc",
         "//ml_drift/common/task:testing_util",
         "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_test(
+    name = "fully_connected_util_test",
+    srcs = ["fully_connected_util_test.cc"],
+    deps = [
+        "//ml_drift/common:data_type",
+        "//ml_drift/common:shape",
+        "//ml_drift/common:types",
+        "//ml_drift/common/kernels:fully_connected_util",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -2054,6 +2100,7 @@ test_suite(
         ":add_test_opencl",
         ":bitcast_test_opencl",
         ":cast_test_opencl",
+        ":conversion_test_opencl",
         ":concat_test_opencl",
         ":conv_constants_test_opencl",
         ":conv_generic_test_opencl",
@@ -2104,6 +2151,7 @@ test_suite(
         ":add_test_mac",
         ":bitcast_test_mac",
         ":cast_test_mac",
+        ":conversion_test_mac",
         ":concat_test_mac",
         ":conv_constants_test_mac",
         ":conv_generic_test_mac",
@@ -2149,6 +2197,7 @@ test_suite(
         ":add_test_gl",
         ":bitcast_test_gl",
         ":cast_test_gl",
+        ":conversion_test_gl",
         ":concat_test_gl",
         ":conv_constants_test_gl",
         ":conv_generic_test_gl",
@@ -2194,6 +2243,7 @@ test_suite(
         ":add_test_webgpu",
         ":bitcast_test_webgpu",
         ":cast_test_webgpu",
+        ":conversion_test_webgpu",
         ":concat_test_webgpu",
         ":conv_constants_test_webgpu",
         ":conv_generic_test_webgpu",

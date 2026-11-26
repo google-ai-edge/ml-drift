@@ -1332,7 +1332,8 @@ void RearrangeWeights(const Tensor<OHWDI, DataType::kFloat32>& weights,
       return;
     }
     case WeightsLayout::kISpatialOI4O4UnalignedIO:
-      ABSL_CHECK(false) << "Not implemented";
+      ABSL_LOG(DFATAL)
+          << "kISpatialOI4O4UnalignedIO layout not implemented for float32";
       return;
     case WeightsLayout::kUnknown:
       return;
@@ -1413,7 +1414,8 @@ void RearrangeWeights(const Tensor<OHWI, DataType::kInt8>& weights,
           dst_weight_desc.spatial_remap, dst_span, static_cast<int8_t>(0));
       return;
     case WeightsLayout::kISpatialOI4O4UnalignedIO:
-      ABSL_CHECK(false) << "Not implemented";
+      ABSL_LOG(DFATAL)
+          << "kISpatialOI4O4UnalignedIO layout not implemented for int8";
       return;
     case WeightsLayout::kUnknown:
       return;
@@ -1482,7 +1484,8 @@ void RearrangeWeights(const Tensor<OHWI, DataType::kUint8>& weights,
           dst_weight_desc.spatial_remap, dst, pad_value);
       return;
     case WeightsLayout::kISpatialOI4O4UnalignedIO:
-      ABSL_CHECK(false) << "Not implemented";
+      ABSL_LOG(DFATAL)
+          << "kISpatialOI4O4UnalignedIO layout not implemented for uint8";
       return;
     case WeightsLayout::kUnknown:
       return;
