@@ -49,9 +49,11 @@ class CLCommandQueue {
 
   cl_command_queue queue() const { return queue_; }
 
+  // If `event` is non-null, updates `*event` only on success.
   absl::Status Dispatch(const CLKernel& kernel, const int3& work_groups_count,
                         const int3& work_group_size, CLEvent* event = nullptr);
 
+  // Updates `*event` only on success.
   absl::Status EnqueueEvent(CLEvent* event);
 
   absl::Status EnqueueWriteImage(cl_mem memory, int3 region, const void* data,

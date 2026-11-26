@@ -161,6 +161,22 @@ cc_test(
     ],
 )
 
+cc_test(
+    name = "cl_command_queue_test",
+    srcs = ["cl_command_queue_test.cc"],
+    linkstatic = 1,
+    deps = [
+        ":cl_command_queue",
+        ":cl_event",
+        ":cl_kernel",
+        ":opencl_wrapper",
+        "//ml_drift/common:types",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:status_matchers",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
 cc_library(
     name = "cl_command_queue",
     srcs = ["cl_command_queue.cc"],

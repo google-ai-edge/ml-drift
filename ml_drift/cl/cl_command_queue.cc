@@ -120,13 +120,10 @@ ABSL_ATTRIBUTE_NO_SANITIZE_CFI absl::Status CLCommandQueue::Dispatch(
     local[i] = work_group_size[i];
     global[i] = work_groups_count[i] * work_group_size[i];
   }
-  cl_event resulting_event;
+  cl_event resulting_event = nullptr;
   const int error_code = clEnqueueNDRangeKernel(
       queue_, kernel.kernel(), 3, nullptr, global.data(), local.data(), 0,
       nullptr, event ? &resulting_event : nullptr);
-  if (event) {
-    *event = CLEvent(resulting_event);
-  }
   if (error_code != CL_SUCCESS) {
     std::string message = absl::StrCat("Failed to clEnqueueNDRangeKernel - ",
                                        CLErrorCodeToString(error_code));
@@ -137,18 +134,21 @@ ABSL_ATTRIBUTE_NO_SANITIZE_CFI absl::Status CLCommandQueue::Dispatch(
     }
     return absl::UnknownError(message);
   }
+  if (event) {
+    *event = CLEvent(resulting_event);
+  }
   return absl::OkStatus();
 }
 
 ABSL_ATTRIBUTE_NO_SANITIZE_CFI absl::Status CLCommandQueue::EnqueueEvent(
     CLEvent* event) {
-  cl_event resulting_event;
+  cl_event resulting_event = nullptr;
   const int error_code = clEnqueueMarker(queue_, &resulting_event);
-  *event = CLEvent(resulting_event);
   if (error_code != CL_SUCCESS) {
     return absl::UnknownError(absl::StrCat("Failed to clEnqueueMarker - ",
                                            CLErrorCodeToString(error_code)));
   }
+  *event = CLEvent(resulting_event);
   return absl::OkStatus();
 }
 
