@@ -509,8 +509,7 @@ class Lexer {
         absl::StrAppend(&new_code, "  loop {\n", "    if (!(", GetCode(part1),
                         ")) {break;}\n",
                         // body
-                        "    ", GetCode(tokens_body), ";\n",
-                        "    continuing {\n");
+                        "    ", GetCode(tokens_body), "    continuing {\n");
         for (const auto& instructions : part2) {
           absl::StrAppend(&new_code, "      ");
           for (const auto& instruction : instructions) {

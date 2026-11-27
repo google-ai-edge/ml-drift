@@ -133,8 +133,7 @@ MAIN_FUNCTION($0) {
     )";
   expected += R"(
     x += 2;
-  ;
-    continuing {
+      continuing {
        i += 1;
        s += 2;
     }
